@@ -114,14 +114,24 @@ resolution (INV-2, `_load_charter_activation_source`, `pack_context.py:557-585`)
    → explicit empty set; present non-empty → explicit set (`_read_list_key`,
    `pack_context.py:609-615`).
 
+**`activated_kinds` (a separate, coarse per-KIND gate on `PackContext`, consulted by the DRG
+activation filter `_node_is_activated`, `drg_activation.py:433`) is deliberately out of scope
+for this rewrite**: `compile_charter`'s own `activated_*`-authority resolution
+(`_resolve_config_activated_roots`, `compiler.py:153-226`) does not consult it either, so
+FR-001's per-ID-only algorithm below is faithful to the authority this spec's Summary actually
+cites — a future reader (or a later mission) should not "fix" this omission into a new
+divergence from `compile_charter`'s real behavior.
+
 **This is why the parity test is load-bearing, not decorative.** A rewrite that only reads
 `config.yaml`'s own `activated_*` keys, ignoring the `charter:` pointer, would silently return
 the wrong answer on exactly this repo's own dogfood charter (where the real `activated_*` keys
 live in the pointed-at `charter.yaml`, not `config.yaml`) — reproducing a **new** instance of
 the split-brain this mission exists to close, on the mission's own home repository. FR-001/AC-1
 below require the rewritten body to replicate step 1–4 verbatim (without importing
-`charter.activation`'s Python classes — only stdlib YAML parsing of the two files, mirroring
-the "narrow compat read" idiom the module already uses for the old `governance:` section), and
+`charter.activation`'s Python classes — raw YAML parsing via `ruamel.yaml`, matching the
+module's existing dependency (Python has no stdlib YAML support; both `activation.py` and
+`pack_context.py` already depend on `ruamel.yaml`), mirroring the "narrow compat read" idiom
+the module already uses for the old `governance:` section), and
 FR-002 requires a parity test asserting agreement with the real `PackContext.from_config()`
 across fixtures covering both the pointer-present and pointer-absent shapes.
 
@@ -208,6 +218,67 @@ rather than onto the retired `selected_*` set. The exact mechanics of that re-de
 (a new helper vs. inline `pack_context` reads) are a plan-phase design choice; this spec fixes
 the *what*, not the *how*.
 
+### Decision Record 3 — a third confirmed `selected_*` reader: `resolve_project_governance`/`_resolve_directive_base` (`resolver.py`)
+
+**Chosen: Option A — fold it in.** This was raised during adversarial spec review (not the
+original readiness probe) as a gap in the Non-Goals carve-out below, which named only two
+confirmed consumers. Applying Decision Record 2's own methodology (read the module in full,
+distinguish legitimate-separate-concept uses from activation-gating uses, fold in only the
+latter) to the consumer the original carve-out missed, and independently re-verified against
+the live code for this spec (not merely trusted from the review finding):
+`src/charter/activation/resolver.py`.
+
+**Finding.** `resolve_project_governance` (`resolver.py:811-863`) resolves "active governance
+from project + org charter selection data," and its return type, `GovernanceResolution`, is
+docstring-labeled "Resolved governance activation result" (`resolver.py:594`) — an activation
+decision, not a display artifact. Two distinct problems, both inside the issue's "anything else
+currently reading `selected_*` for activation decisions" clause:
+
+1. **The directive base is a silent full override, not a union or a display.**
+   `_resolve_directive_base` (`resolver.py:675-732`) already has a
+   `PackContext.activated_directives`-aware fallback (lines 716-728, with a documented
+   three-state guard) — but it is consulted ONLY when `doctrine.selected_directives` is empty
+   (line 707: `if doctrine.selected_directives: ... return list(doctrine.selected_directives),
+   "charter"`). When the stale, authored `selected_directives` is non-empty — the ordinary case
+   for any project that selected directives at bootstrap — it is returned **verbatim**, and
+   `activated_directives` is never consulted at all. Unlike the "exclude/under-seed" softness
+   Decision Record 2 found in `action_doctrine_bundle.py`, this is a full override.
+2. **Paradigms have zero `activated_*` fallback at any point.** `resolve_project_governance`
+   (`resolver.py:848`) does `selected_paradigms = list(doctrine.selected_paradigms)`
+   unconditionally — there is no `PackContext.activated_paradigms` read anywhere in this
+   function. A project whose `selected_paradigms` was never populated (this repo's own dogfood
+   shape, per the Summary) resolves an empty paradigm list through this path regardless of what
+   is genuinely `activated_*`.
+
+Both feed `GovernanceResolution.directives`/`.paradigms`, consumed by four real, verified call
+sites — none display-only, unlike the confirmed-legitimate `_render_selection_block` carve-out
+below:
+
+- `src/runtime/next/prompt_builder.py:434-437` (`_legacy_governance_context`) — renders
+  directly into agent-facing bootstrap text when the primary charter-context path is
+  unavailable.
+- `src/charter/activation/context_json.py:141-262`
+  (`_load_project_directives_with_source`/`_project_directive_entries_with_source`) — feeds the
+  `--json` charter-context payload's `all_directives`/`directives_source` keys, the exact
+  "downstream doctrine/charter panel" scenario issue #3838's own Impact paragraph names.
+- `src/charter/activation/compact.py:293-315` (`_resolve_governance_summary`) — feeds the
+  compact governance summary.
+- `src/specify_cli/runtime/doctor.py:130-145` (`check_governance_resolution`) — an
+  operator-facing doctor check.
+
+**Conclusion: fold in.** Unlike `action_doctrine_bundle.py` (where only the org-required union
+is preserved, and the project-authored `selected_*` half is fully superseded by `activated_*`),
+this fix keeps `selected_*` as a legitimate, additive, project-local layer — mirroring the
+pattern `_resolve_directives_selection` already uses for `directives_cfg.directives` (union
+onto the base, never replace, no base id ever dropped). FR-011 requires: the *base* directive
+set and the paradigm list are re-derived from
+`PackContext.from_config(repo_root).activated_directives`/`.activated_paradigms` (three-state,
+matching `_resolve_directive_base`'s own already-documented guard and its catalog-fallback
+diagnostic for the `None` case); `doctrine.selected_directives`/`.selected_paradigms`, when
+non-empty, are then **unioned** onto that base (validated against the catalog, with a
+diagnostic naming what was added) rather than short-circuiting to replace it outright. FR-012
+and FR-013 add red-first regression tests for the two problems above.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A tooling consumer gets one trustworthy answer to "is SPDD/REASONS active here?" (Priority: P1)
@@ -216,7 +287,9 @@ As a maintainer of `is_spdd_reasons_active`'s callers (`bootstrap_text.py`'s cha
 renderer, `apply_spdd_blocks_for_project`'s template gate, and any downstream tool — e.g. a
 Kitty Desktop governance panel — that renders "is this doctrine pack active"), I want
 `is_spdd_reasons_active(repo_root)` to agree with the compiler's real `activated_*` authority
-in every case, so that bootstrap guidance, REASONS template blocks, and any panel built on top
+in every case where a charter has been provisioned (see FR-004 for the one deliberate
+exception — the absent-`.kittify/config.yaml` case, pinned to `False` rather than parity), so
+that bootstrap guidance, REASONS template blocks, and any panel built on top
 of this function all describe the same project state instead of two that can silently
 disagree.
 
@@ -298,6 +371,61 @@ also-activated directive). Confirm `_load_action_doctrine_bundle`'s resulting
 
 ---
 
+### User Story 3 - Governance-resolution consumers agree with `activated_*`, not a stale charter-authored snapshot (Priority: P1)
+
+As a consumer of `resolve_project_governance`'s output — the runtime prompt builder's legacy
+governance fallback (`prompt_builder.py`'s `_legacy_governance_context`), the `--json`
+charter-context payload's `all_directives`/`directives_source` keys (`context_json.py`), the
+compact governance summary (`compact.py`), and the `doctor doctrine` governance-resolution
+check (`doctor.py`) — I want the resolved directive set and paradigm list to reflect what is
+currently `activated_*`, with any charter-authored `selected_*` entries additive on top (never
+able to silently override or replace the `activated_*`-derived base), so that a directive or
+paradigm activated via `.kittify/config.yaml` after charter bootstrap is not silently hidden
+from any of these four surfaces — including the exact "downstream doctrine/charter panel"
+scenario issue #3838's own Impact paragraph names.
+
+**Why this priority**: `resolve_project_governance` is docstring-labeled an "activation result"
+and is squarely inside the issue's "anything else currently reading `selected_*` for activation
+decisions" clause (Decision Record 3) — leaving it unfixed means the PR closes #3838 while a
+third, code-verified instance of the identical defect class survives, in the one surface
+(`--json` `all_directives`) the issue's Impact paragraph explicitly names.
+
+**Independent Test**: construct a `tmp_path` charter where `.kittify/config.yaml`'s (or the
+pointed `charter.yaml`'s) `activated_directives` includes `DIRECTIVE_038` and the charter's
+authored `governance.charter.selected_directives` is a different, non-empty set (e.g.
+`["DIRECTIVE_010"]`) that does not include `DIRECTIVE_038`. Confirm
+`resolve_project_governance(repo_root).directives` includes `DIRECTIVE_038` (today it does
+not — `_resolve_directive_base` returns `doctrine.selected_directives` verbatim, dropping
+`DIRECTIVE_038` entirely).
+
+**Acceptance Scenarios**:
+
+1. **Given** `activated_directives` (three-state, via `PackContext.from_config`) includes a
+   directive absent from a non-empty `governance.charter.selected_directives`, **When**
+   `resolve_project_governance` resolves the directive base, **Then** the resolved `directives`
+   list includes that directive — a red-first test pinning today's silent override
+   (`_resolve_directive_base` returning `selected_directives` verbatim) must fail on `main`
+   before the fix and pass after (FR-012).
+2. **Given** `governance.charter.selected_paradigms` names a paradigm not present in
+   `activated_paradigms` (or `activated_paradigms` is an explicit `frozenset()` — nothing
+   activated), **When** `resolve_project_governance` resolves paradigms, **Then** the resolved
+   `paradigms` list reflects `activated_paradigms` as the base (not an unconditional
+   `selected_paradigms` passthrough) — a red-first test pinning today's total absence of any
+   `activated_*` fallback for paradigms must fail on `main` before the fix and pass after
+   (FR-013).
+3. **Given** `governance.charter.selected_directives` names a directive that IS also present in
+   `activated_directives` (both agree), **When** resolved, **Then** the answer is unchanged from
+   today — this mission does not flip any project whose two sources already agree (mirrors User
+   Story 1 Scenario 3).
+4. **Given** the four real consumers (`prompt_builder.py`'s legacy governance fallback,
+   `context_json.py`'s `--json` `all_directives`/`directives_source`, `compact.py`'s governance
+   summary, `doctor.py`'s `check_governance_resolution`), **When** any of them calls
+   `resolve_project_governance`, **Then** each reflects the corrected, `activated_*`-derived
+   resolution without further code changes to the four consumer modules themselves (the fix is
+   isolated to `resolver.py`).
+
+---
+
 ### Edge Cases
 
 - **`.kittify/config.yaml` is entirely absent (no charter has ever been bootstrapped).**
@@ -308,16 +436,16 @@ also-activated directive). Confirm `_load_action_doctrine_bundle`'s resulting
   been authored, when SPDD is explicitly opt-in doctrine (per the `spec-kitty-spdd-reasons`
   skill's own scope statement: "Does NOT handle: enforcing SPDD on projects whose charter has
   not selected the doctrine pack"). This is a real risk found by reading `pack_context.py`
-  directly (see Decision Record 1), not a hypothetical: FR-004 requires the mission to
-  explicitly verify, at implementation time, whether any real call site invokes
-  `is_spdd_reasons_active`/`apply_spdd_blocks_for_project` before `.kittify/config.yaml`
-  exists on disk, and to PIN the absent-config-file behavior to `False` (today's safe
-  default) regardless of what a literal `PackContext.from_config` parity read would produce
-  for that one case — with the divergence and its rationale stated explicitly in the code
-  comment and the parity test (which scopes its "must agree" fixtures to
-  "`.kittify/config.yaml` exists," not "no charter at all"). This is a deliberate,
-  documented, evidence-based carve-out from Decision Record 1's parity mandate, not a silent
-  exception.
+  directly (see Decision Record 1), not a hypothetical: FR-004 PINs the absent-config-file
+  behavior to `False` (today's safe default) regardless of what a literal
+  `PackContext.from_config` parity read would produce for that one case — with the divergence
+  and its rationale stated explicitly in the code comment and the parity test (which scopes its
+  "must agree" fixtures to "`.kittify/config.yaml` exists," not "no charter at all"). FR-004
+  itself already settles, at spec time, which real call sites can be reached before
+  `.kittify/config.yaml` exists on disk (`command_renderer.py`'s `apply_spdd_blocks_for_project`,
+  reached during `spec-kitty init`) and which cannot (`bootstrap_text.py:332`,
+  `asset_generator.py`'s `render_command_template`) — this is a deliberate, documented,
+  evidence-based carve-out from Decision Record 1's parity mandate, not a silent exception.
 - **Malformed `.kittify/config.yaml` or a `charter:` pointer naming a file that does not
   exist.** `PackContext.from_config` fails loud (`CharterPackConfigError`) for both. The
   rewritten `is_spdd_reasons_active` must not silently degrade to `False`/`True` here either
@@ -347,26 +475,30 @@ also-activated directive). Confirm `_load_action_doctrine_bundle`'s resulting
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Rewrite `is_spdd_reasons_active` to read `activated_*` via INV-2 resolution | `_compute_active`/`_governance_selects_pack`/`_directives_select_pack` (`activation.py:96-185`) currently parse `charter.yaml`'s authored `governance:`/`directives:` sections. As a maintainer, I want the function's body replaced with a raw, `charter.activation`-import-free read that: (a) loads `.kittify/config.yaml`; (b) if it carries a `charter:` pointer, follows it to the pointed `charter.yaml` and reads that file's top-level `activated_paradigms`/`activated_directives`/`activated_tactics` instead; (c) if no pointer, reads those same keys directly from `config.yaml` (the legacy shape); (d) applies the existing three-state per-kind semantics (absent key = all built-ins available, `[]` = none, explicit list = that list) verbatim, matching `PackContext._read_list_key`'s contract — so the function's public signature (`is_spdd_reasons_active(repo_root) -> bool`) is unchanged but its answer is sourced from the same authority the compiler uses (User Story 1). | P1 | Open |
-| FR-002 | Mandatory parity test against `PackContext.from_config()` | As a reviewer, I want a committed test asserting `is_spdd_reasons_active`'s three-state resolution agrees with `PackContext.from_config(repo_root)`'s `activated_paradigms`/`activated_directives`/`activated_tactics` fields across a fixture matrix covering: each of the three states (absent key / empty list / explicit list) for each of the three kinds, AND both the `charter:`-pointer-present and pointer-absent `config.yaml` shapes — so the two implementations cannot silently drift apart again, per Decision Record 1's explicit mandate (User Story 1, Scenario 4). | P1 | Open |
+| FR-001 | Rewrite `is_spdd_reasons_active` to read `activated_*` via INV-2 resolution | `_compute_active`/`_governance_selects_pack`/`_directives_select_pack` (`activation.py:96-185`) currently parse `charter.yaml`'s authored `governance:`/`directives:` sections. As a maintainer, I want the function's body replaced with a raw, `charter.activation`-import-free read that: (a) loads `.kittify/config.yaml`; (b) if it carries a `charter:` pointer, follows it to the pointed `charter.yaml` and reads that file's top-level `activated_paradigms`/`activated_directives`/`activated_tactics` instead; (c) if no pointer, reads those same keys directly from `config.yaml` (the legacy shape); (d) applies the existing three-state per-kind semantics (absent key = all built-ins available, `[]` = none, explicit list = that list) verbatim, matching `PackContext._read_list_key`'s contract; (e) corrects the function's existing per-process cache (`activation.py:51-93`, currently keyed on `.kittify/charter/charter.yaml`'s mtime alone — the OLD single-file assumption, verified against the live code for this spec) for the new two-file INV-2 resolution: either compose the cache key from BOTH `.kittify/config.yaml`'s mtime and the resolved-pointer target path's mtime (`None` when no pointer present), so a same-process edit to either file invalidates the cache, or retire per-process caching entirely to match `PackContext.from_config`'s always-fresh semantics (stating the `<50ms typical` budget rationale from `contracts/activation.md` for whichever is chosen) — `clear_activation_cache` (FR-003) stays in `__all__` either way as a test-only reset hook — so the function's public signature (`is_spdd_reasons_active(repo_root) -> bool`) is unchanged but its answer is sourced from the same authority the compiler uses, and is never served stale from a same-process cache (User Story 1). | P1 | Open |
+| FR-002 | Mandatory parity test against `PackContext.from_config()` | As a reviewer, I want a committed test asserting `is_spdd_reasons_active`'s three-state resolution agrees with `PackContext.from_config(repo_root)`'s `activated_paradigms`/`activated_directives`/`activated_tactics` fields across a fixture matrix covering: each of the three states (absent key / empty list / explicit list) for each of the three kinds, AND both the `charter:`-pointer-present and pointer-absent `config.yaml` shapes — so the two implementations cannot silently drift apart again, per Decision Record 1's explicit mandate (User Story 1, Scenario 4). The fixture matrix must also include a same-process, two-call case: call `is_spdd_reasons_active` twice in one process with `.kittify/config.yaml` mutated (e.g. `activated_paradigms` toggled) between the two calls, asserting the second call reflects the mutation — the case FR-001(e)'s cache-key fix exists to make pass. | P1 | Open |
 | FR-003 | `__all__` for `activation.py` (C-007) | `src/charter/offering/spdd_reasons/activation.py` currently declares no `__all__` — a pre-existing C-007 gap on a module this mission rewrites. As this mission touches the file's body, I want it to also declare `__all__` (at minimum `is_spdd_reasons_active`, `clear_activation_cache`) so the symbol-level dead-code gate (`tests/architectural/test_no_dead_symbols.py`) covers it, with every listed symbol already having a real caller in `src/` (the existing `__init__.py` re-export and `bootstrap_text.py`/`template_renderer.py` call sites). | P2 | Open |
-| FR-004 | Pin the absent-`.kittify/config.yaml` behavior explicitly | Per Edge Cases, I want the rewritten function's absent-config-file path to return `False` explicitly (preserving today's safe default), with a code comment stating this is a deliberate, evidence-based carve-out from full `PackContext` parity (not an oversight), and I want the implementation to first verify at the real call sites (`bootstrap_text.py:332`, `apply_spdd_blocks_for_project`, `command_renderer.py`, `asset_generator.py`) whether any of them can be reached before `.kittify/config.yaml` exists on disk (e.g. during `spec-kitty init` template rendering) — recording the finding either way. | P1 | Open |
+| FR-004 | Pin the absent-`.kittify/config.yaml` behavior explicitly | Per Edge Cases, I want the rewritten function's absent-config-file path to return `False` explicitly (preserving today's safe default), with a code comment stating this is a deliberate, evidence-based carve-out from full `PackContext` parity (not an oversight). **The call-site-reachability question is resolved here, not deferred to implementation time** (re-verified against the live code for this spec, not the readiness probe's summary): `command_renderer.py`'s `apply_spdd_blocks_for_project(raw_text, repo_root)` IS reached before `.kittify/config.yaml` exists on disk on every `spec-kitty init` run — `install_skills_for_agent` (`init.py:910`) → `command_installer.py`'s `_render_command_skill` (:260) → `render_skill(..., repo_root=repo_root)` (:265) → `command_renderer.py`'s `apply_spdd_blocks_for_project` (:441-443) executes strictly BEFORE `_save_vcs_config`/`save_agent_config` write `.kittify/config.yaml` (`init.py:1220-1227`), within the same `init()` function. This is SAFE and requires no new behavior: the pre-fix function already returns `False` for an absent `.kittify/charter/` too, so this FR-004 pin preserves byte-for-byte parity on this call path. `bootstrap_text.py:332`'s call site is NOT reachable pre-config.yaml — it fires only while rendering a charter-context bundle for a mission action, which itself requires an already-bootstrapped charter. `asset_generator.py`'s `render_command_template` (which also calls `apply_spdd_blocks_for_project` directly) is likewise NOT reached from `init()`: its only callers (`regen.py`, `runtime/agent_commands.py`, and the `upgrade/migrations/` command-file-state migrations) all operate against an already-initialized project where `.kittify/config.yaml` is expected present — if implementation finds a real pre-init caller of this path, it must receive the same FR-004 pin. **Acceptance criterion (falsifiable)**: a regression test asserting `apply_spdd_blocks_for_project(text, repo_root)` strips REASONS template blocks when `repo_root` has no `.kittify/config.yaml` on disk, run through a real entry point (`command_renderer.py`'s `apply_spdd_blocks_for_project`, exercised via the `install_skills_for_agent`/`spec-kitty init` path or an equivalent direct call with a `repo_root` lacking `.kittify/config.yaml`) — RED against a hypothetical naive `PackContext`-parity rewrite (which would return `True` for an absent-config project and leave the blocks in), GREEN after FR-004's pin. | P1 | Open |
 | FR-005 | Fail-loud on malformed config, not silent False/True | As a maintainer, I want the rewritten function to raise (matching `PackContext.from_config`'s `CharterPackConfigError`/YAML-loader-exception behavior) when `.kittify/config.yaml` is malformed, or its `charter:` pointer names a file that does not exist or is malformed — never silently returning `False` or `True` for these cases. This is the mission's own silent-success obligation (charter binding: "Silent success is this repo's dominant failure mode"). | P1 | Open |
-| FR-006 | Re-derive `_load_action_doctrine_bundle`'s directive allowlist and traversal roots from `activated_*` | Per Decision Record 2: `project_directives`/`selected_tactics`/`selected_paradigms` (`action_doctrine_bundle.py:189-191`), which currently source the `NodeKind.DIRECTIVE` delivery-allowlist check (`delivery_table.py:238`) and the closure-widening `start_urns`/`roots` (`action_doctrine_bundle.py:230-234`), must instead be derived from `pack_context.activated_directives`/`activated_tactics`/`activated_paradigms` (`pack_context` is already a parameter of `_load_action_doctrine_bundle` — no new plumbing required to reach it). The org-pack `required_<kind>` union currently performed by `_load_doctrine_selection` (confirmed a legitimate, separate concept in Decision Record 2) must be preserved by unioning it onto the `activated_*`-derived set rather than onto the retired `selected_*` set (User Story 2). | P1 | Open |
+| FR-006 | Re-derive `_load_action_doctrine_bundle`'s directive allowlist and traversal roots from `activated_*` | Per Decision Record 2: `project_directives`/`selected_tactics`/`selected_paradigms` (`action_doctrine_bundle.py:189-191`), which currently source the `NodeKind.DIRECTIVE` delivery-allowlist check (`delivery_table.py:238`) and the closure-widening `start_urns`/`roots` (`action_doctrine_bundle.py:230-234`), must instead be derived from `pack_context.activated_directives`/`activated_tactics`/`activated_paradigms` (`pack_context` is already a parameter of `_load_action_doctrine_bundle` — no new plumbing required to reach it). The org-pack `required_<kind>` union currently performed by `_load_doctrine_selection` (confirmed a legitimate, separate concept in Decision Record 2) must be preserved by unioning it onto the `activated_*`-derived set rather than onto the retired `selected_*` set (User Story 2). **The re-derivation must preserve `activated_directives`'s three-state distinction (`None` = all built-ins / `frozenset()` = explicit empty / non-empty = explicit set) through `delivery_table.py:238`'s consuming exclusion check** — verified against the live code for this spec: that check currently reads `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives`, a bare truthiness test that cannot distinguish `None` from `frozenset()` (both falsy, same no-filter branch). A naive assignment of the three-state `activated_directives` into `project_directives` (coerced to a plain `set`) would silently deliver ALL DRG-reached directives instead of NONE for an explicit `activated_directives: []` project — the opposite of "nothing activated." The guard must become `project_directives is not None and artifact_id not in project_directives` (with `project_directives` carrying `None`/`set()`/`{ids}` instead of always a plain set), or an equivalent sentinel that keeps "all built-ins" and "explicit empty" distinguishable at the point of use (FR-014 is the red-first test for this). | P1 | Open |
 | FR-007 | Red-first regression test: directive-allowlist silent drop | As a reviewer, I want a test reproducing User Story 2 Scenario 1 verbatim — a directive that is `activated_*` and DRG-reachable but absent from a non-empty stale `selected_directives` — asserting it IS delivered, failing on `main` today (the `project_directives` allowlist at `delivery_table.py:238` currently drops it) and passing after FR-006. | P1 | Open |
 | FR-008 | Red-first regression test: this repo's own dogfood-shape closure starvation | As a reviewer, I want a test reproducing User Story 2 Scenario 2 — the exact live shape of this repo's own `.kittify/` (`selected_*` all empty, `activated_*` non-empty) — asserting the closure-widening roots/`start_urns` are populated from `activated_*` rather than empty, failing on `main` today and passing after FR-006. | P1 | Open |
-| FR-009 | Update `contracts/activation.md` and `contracts/charter-context.md` | `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` currently documents the OLD source of truth (it names `governance.yaml`/`directives.yaml`, files already retired by the IC-04 triad-retirement — the doc has been stale independent of this mission). As part of closing this issue, I want both contract docs updated to state the new source of truth (`activated_*` via INV-2 resolution) and the new failure modes (FR-004/FR-005), so a future reader of the formal contract is not misled the way `is_spdd_reasons_active`'s own implementer was in 2026-04. | P2 | Open |
-| FR-010 | Review and update the three pinning test files | `tests/charter/test_charter_context_spdd_reasons.py`, `tests/charter/test_activate_resolves_no_answers_edit.py` (`TestSpddActivationDoesNotFlip`), and `tests/charter/test_answers_inert_and_org_union.py` (`TestThirdLedgerUntouched`) currently pin the CURRENT (buggy, per this issue) `governance.charter.selected_*` read as intended behavior — some via fixtures that manually reconstruct a synced `governance:` section from `config_roots` to simulate a "governance section stays in sync" world `write_compiled_charter` does not actually implement. As part of this mission, I want each assertion in these three files triaged: assertions whose *intent* survives the fix (e.g. `TestThirdLedgerUntouched`'s "answers are inert, only `.kittify/config.yaml` is written" claim) are kept, updated only where their literal mechanics changed; assertions that encode the bug itself (asserting `governance.charter.selected_*` as the activation source) are flipped, with the diff itself serving as the record of which is which — not silently dropped. | P1 | Open |
+| FR-009 | Update `contracts/activation.md` and `contracts/charter-context.md` | `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` currently documents the OLD source of truth (it names `governance.yaml`/`directives.yaml`, files already retired by the IC-04 triad-retirement — the doc has been stale independent of this mission). As part of closing this issue, I want both contract docs updated to state the new source of truth (`activated_*` via INV-2 resolution) and the new failure modes (FR-004/FR-005), so a future reader of the formal contract is not misled the way `is_spdd_reasons_active`'s own implementer was in 2026-04. **A third, higher-visibility document also needs correction and was missed by the original scope**: `docs/context/charter.md` (the repo's canonical, actively-maintained Terminology-Canon glossary — frontmatter `doc_status: active`, `updated: '2026-08-28'`) currently defines `selected_<kind>` as ITSELF the activation mechanism — its "Global Selection" entry (~line 272) states the charter declares an artifact "*always* active... Expressed via `selected_<kind>: [<id>, ...]`", its "Charter-Mediated Selection" entry (~line 258) says the charter is "the sole authority that decides which doctrine artifacts apply," and its "`selected_<kind>` / `required_<kind>`" entry (~line 382) defines the field-naming convention purely in terms of Global Selection — with `activated_<kind>`/`PackContext` appearing nowhere in the document. This directly contradicts this spec's corrected premise. Per AGENTS.md's "if the charter and this file ever disagree... flag the drift instead of picking silently" rule (applied here to `docs/context/` vs. code) and the charter's own "a doc/code disagreement is a doc defect" standing order, these three glossary entries must be updated to state the corrected, current activation authority (`activated_<kind>` via `PackContext`/INV-2 resolution), with `selected_<kind>` reclassified as the authoring/interview-record concept the compiler docstring already describes it as, and a new (or updated) `activated_<kind>` glossary entry added so the concept this mission makes authoritative has a canonical definition at all. | P2 | Open |
+| FR-010 | Review and update the three pinning test files | `tests/charter/test_charter_context_spdd_reasons.py`, `tests/charter/test_activate_resolves_no_answers_edit.py` (`TestSpddActivationDoesNotFlip`), and `tests/charter/test_answers_inert_and_org_union.py` (`TestThirdLedgerUntouched`) currently pin the CURRENT (buggy, per this issue) `governance.charter.selected_*` read as intended behavior — some via fixtures that manually reconstruct a synced `governance:` section from `config_roots` to simulate a "governance section stays in sync" world `write_compiled_charter` does not actually implement. As part of this mission, I want each assertion in these three files triaged: assertions whose *intent* survives the fix (e.g. `TestThirdLedgerUntouched`'s "answers are inert, only `.kittify/config.yaml` is written" claim) are kept, updated only where their literal mechanics changed; assertions that encode the bug itself (asserting `governance.charter.selected_*` as the activation source) are flipped, with the diff itself serving as the record of which is which — not silently dropped. **A third bucket applies to at least 8 test methods across two of the three files, whose fixture-construction mechanism (not merely their assertions) is now obsolete**: `TestActivation`'s five `True`-asserting cases (`test_paradigm_selected_returns_true`, `test_only_tactic_fill_returns_true`, `test_only_tactic_review_returns_true`, `test_only_directive_038_returns_true`, `test_directive_038_via_directives_yaml`), `TestParadigmRoundTrip::test_paradigm_in_governance_activates_pack`, and `TestSelectedTacticsRoundTrip::test_tactic_only_selection_round_trips_to_governance_and_activates` (all in `tests/charter/test_charter_context_spdd_reasons.py`), and `TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active` (`tests/charter/test_activate_resolves_no_answers_edit.py`) — each builds its fixture by writing ONLY `.kittify/charter/charter.yaml`'s `governance:`/`directives:` sections (via `save_charter_yaml` or the local `_write_governance`/`_write_directives` helpers) and never writes a `.kittify/config.yaml` at all, so under FR-001's rewrite every one of them hits FR-004's absent-config-file path and returns `False` unconditionally — a bare assertion flip (True→False) would silently stop testing activation via any real selector at all rather than preserving each test's intent (proving a specific selector — a paradigm, a tactic, DIRECTIVE_038 — activates the pack). Each of these must have its fixture-construction mechanism rewritten to write `.kittify/config.yaml`'s `activated_paradigms`/`activated_directives`/`activated_tactics` keys (optionally via a `charter:` pointer) instead of `charter.yaml`'s `governance:`/`directives:` sections, while preserving the selector under test — committed red-first (red against the OLD `is_spdd_reasons_active` reading the new config.yaml-only fixture, green after FR-001). | P1 | Open |
+| FR-011 | Re-derive `resolve_project_governance`'s directive base and paradigm list from `activated_*` | Per Decision Record 3: `_resolve_directive_base` (`resolver.py:675-732`) must derive its *base* directive set from `PackContext.from_config(repo_root).activated_directives` (three-state, mirroring the function's own already-documented guard and catalog-fallback diagnostic for the `None` case) instead of returning `doctrine.selected_directives` verbatim whenever it is non-empty; `resolve_project_governance` (`resolver.py:848`) must derive its base paradigm list from `PackContext.from_config(repo_root).activated_paradigms` the same way (currently there is no `activated_*` read for paradigms at all). In both cases, the charter-authored `doctrine.selected_directives`/`.selected_paradigms`, when non-empty, must then be **unioned** onto that `activated_*`-derived base (validated against the catalog, with a diagnostic naming what was added) — mirroring the existing "union onto the base, never replace" pattern `_resolve_directives_selection` already uses for `directives_cfg.directives` — never allowed to silently short-circuit and replace the base outright (User Story 3). | P1 | Open |
+| FR-012 | Red-first regression test: `resolver.py` directive-base silent override | As a reviewer, I want a test reproducing User Story 3 Scenario 1 — a directive that is `activated_*` but absent from a non-empty, disjoint `governance.charter.selected_directives` — asserting `resolve_project_governance(repo_root).directives` includes it, failing on `main` today (`_resolve_directive_base` returns `selected_directives` verbatim, dropping it) and passing after FR-011. | P1 | Open |
+| FR-013 | Red-first regression test: `resolver.py` paradigms zero-fallback | As a reviewer, I want a test reproducing User Story 3 Scenario 2 — `activated_paradigms` includes a paradigm absent from (or contradicted by) `governance.charter.selected_paradigms` — asserting `resolve_project_governance(repo_root).paradigms` reflects `activated_paradigms`, failing on `main` today (`resolve_project_governance` never reads `activated_paradigms` at all) and passing after FR-011. | P1 | Open |
+| FR-014 | Red-first regression test: explicit-empty `activated_directives` excludes everything, not everything-through | As a reviewer, I want a test asserting that a project with an explicit `activated_directives: []` (present, empty — distinct from the key being absent) and a DRG-reachable directive delivers ZERO directives from `delivery_table.py:238`'s exclusion filter — failing on a naive FR-006 implementation that collapses `None`/`frozenset()` through bare truthiness (which would deliver ALL DRG-reached directives instead), and passing once the three-state distinction (FR-006) is preserved through the consuming check. Distinct from FR-007 (which exercises a non-empty stale `selected_directives` override) and FR-008 (which exercises this repo's own non-empty `activated_*` dogfood shape) — neither of which covers this explicit-empty-`activated_*` exclusion case. | P1 | Open |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | No new silent-success path | Every new/changed code path this mission adds (the rewritten `is_spdd_reasons_active` body, the re-derived `_load_action_doctrine_bundle` roots/allowlist) must, when it cannot determine activation, either raise (malformed/dangling-pointer config, FR-005) or return the explicitly-pinned safe default (absent config file, FR-004) — never an unexplained silent `False`/`True`/empty result. **Fails if**: any new path returns a default value for an error condition without the choice being named in a code comment and covered by a test. | Reliability | High | Open |
-| NFR-002 | `__all__` / dead-code gate stays green | `tests/architectural/test_no_dead_symbols.py` must pass for every module this mission edits (`activation.py`, `compiler.py`, `bootstrap_text.py`, `action_doctrine_bundle.py`, `org_pack_discovery.py`, `sync.py`, `template_renderer.py`) — any new helper symbol introduced (e.g. a parity-check helper, an INV-2-read helper) must have a real `src/` caller or be scoped test-only (not added to a module's `__all__`). | Reliability | High | Open |
+| NFR-002 | `__all__` / dead-code gate stays green | `tests/architectural/test_no_dead_symbols.py` must pass for every module this mission actually edits per the FR table — `activation.py` (FR-001/FR-003/FR-005), `action_doctrine_bundle.py` (FR-006), and `resolver.py` (FR-011, Decision Record 3) — any new helper symbol introduced (e.g. a parity-check helper, an INV-2-read helper, the re-derivation helper in `resolver.py`) must have a real `src/` caller or be scoped test-only (not added to a module's `__all__`). `compiler.py`, `bootstrap_text.py`, `org_pack_discovery.py`, `sync.py`, and `template_renderer.py` are read for context/investigation (FR-004, Decision Record 2) but no FR commits to editing them; the gate is vacuously satisfied for them and they are not part of this mission's edited-module set. | Reliability | High | Open |
 | NFR-003 | C-004 architectural gate stays green with non-vacuous coverage | `tests/architectural/test_charter_offering_does_not_import_activation.py` must continue to pass with zero violations after FR-001/FR-003 — no import of `charter.activation` (absolute or relative, any form the gate's full-AST walk catches) is introduced anywhere under `src/charter/offering/`. **Fails if**: the gate fires on this mission's own diff. | Compatibility | High | Open |
 | NFR-004 | Reflexivity — this repo's own SPDD/REASONS status changes | This mission's fix changes this repo's OWN dogfood `.kittify/`'s `is_spdd_reasons_active` answer from `False` to `True` (per the Summary's live reproduction) the moment it merges to `main`. State explicitly: no charter.yaml/config.yaml schema or write-path change occurs (this is a pure read-path fix — confirmed by reading `write_compiled_charter`'s docstring and `sync.py`'s "pure staleness reporter" behavior), so **no migration is required** for this repo's own charter or any other on-disk charter. The behavioral consequence for THIS repo specifically: subsequent mission runs against this checkout will receive SPDD/REASONS bootstrap guidance and REASONS template blocks that are currently silently stripped — this is the fix working as intended, not a side effect to mitigate, but must be stated in the PR body so it is not mistaken for scope creep. | Compatibility | High | Open |
-| NFR-005 | Test-run scope | Verify test-verified requirements (FR-002, FR-007, FR-008, FR-010) by running scoped to `tests/charter/` (`test_charter_context_spdd_reasons.py`, `test_activate_resolves_no_answers_edit.py`, `test_answers_inert_and_org_union.py`, plus the new parity test) and `tests/architectural/test_charter_offering_does_not_import_activation.py` and `test_no_dead_symbols.py`, not a full-repo `pytest` sweep. `main` carries a known-red baseline tracked as issue #3284 (per this repo's CLAUDE.md / charter Standing Order #9) — classify any red observed against that baseline before attributing it to this mission; do not open a new issue for pre-existing failures. | Process | Medium | Open |
+| NFR-005 | Test-run scope | Verify test-verified requirements (FR-002, FR-007, FR-008, FR-010, FR-012, FR-013, FR-014) by running scoped to `tests/charter/` (`test_charter_context_spdd_reasons.py`, `test_activate_resolves_no_answers_edit.py`, `test_answers_inert_and_org_union.py`, plus the new parity, resolver, and explicit-empty-`activated_directives` tests) and `tests/architectural/test_charter_offering_does_not_import_activation.py` and `test_no_dead_symbols.py`, not a full-repo `pytest` sweep. `main` carries a known-red baseline tracked as issue #3284 (per this repo's CLAUDE.md / charter Standing Order #9) — classify any red observed against that baseline before attributing it to this mission; do not open a new issue for pre-existing failures. | Process | Medium | Open |
 
 ### Constraints
 
@@ -387,9 +519,15 @@ also-activated directive). Confirm `_load_action_doctrine_bundle`'s resulting
 - **`governance.charter.selected_*`** (`charter.yaml`'s authored `governance:` section):
   the interview/bootstrap-time authoring record. Existing concept, explicitly retired as an
   activation source by the compiler (per its own docstring) but still read for activation by
-  `is_spdd_reasons_active` (the bug) and, partially, by `_load_action_doctrine_bundle`
-  (Decision Record 2's fold-in). After this mission, no code path treats it as an activation
-  source; it remains readable as a historical/authoring record.
+  `is_spdd_reasons_active` (the bug), by `_load_action_doctrine_bundle` (Decision Record 2's
+  fold-in), and, in part, by `resolve_project_governance`/`_resolve_directive_base` (Decision
+  Record 3's fold-in). After this mission, no code path treats it as the SOLE or overriding
+  activation source; `is_spdd_reasons_active` and `_load_action_doctrine_bundle`'s
+  activation-decision paths stop reading it entirely, while `resolve_project_governance`
+  retains it only as an additive project-local layer unioned onto the `activated_*`-derived
+  base (FR-011) — never able to silently replace or override it, the same additive role
+  `directives_cfg.directives` already plays. It remains readable as a historical/authoring
+  record everywhere else.
 - **`PackContext`** (`src/charter/activation/pack_context.py`, existing, unchanged by this
   mission): the frozen dataclass the parity test (FR-002) compares against.
 - **`_ActionDoctrineBundle.roots`/directive-allowlist** (`action_doctrine_bundle.py`,
@@ -418,16 +556,21 @@ The following are explicitly OUT OF SCOPE for this mission:
 - **Any new CLI command, flag, or user-facing surface.** This is a pure internal read-path
   correction; no new `spec-kitty` subcommand or flag is introduced.
 - **A general audit of every other consumer of `governance.charter.selected_*` in the
-  codebase beyond the two named in the issue and confirmed here** (`is_spdd_reasons_active`
-  and `_load_action_doctrine_bundle`). `load_governance_config`/`DoctrineSelectionConfig`
-  have other, non-activation-decision consumers (e.g. rendering the charter-level "Global
-  Selections" block in `_render_selection_block`) that display the authored selection as
-  authored — that is a legitimate, distinct use (showing what was selected, not gating what
-  is active) and is not touched by this mission.
+  codebase beyond the three named in the issue and confirmed here** (`is_spdd_reasons_active`,
+  `_load_action_doctrine_bundle`, and — per Decision Record 3, added during spec review —
+  `resolve_project_governance`/`_resolve_directive_base`). `load_governance_config`/
+  `DoctrineSelectionConfig` have other, non-activation-decision consumers (e.g. rendering the
+  charter-level "Global Selections" block in `_render_selection_block`, independently
+  re-verified against the live code for this spec to be display-only, additive text) that
+  display the authored selection as authored — that is a legitimate, distinct use (showing what
+  was selected, not gating what is active) and is not touched by this mission. This carve-out is
+  now the *complete* remaining set: every other reader of `governance.charter.selected_*` found
+  during this spec's own review (Decision Records 2 and 3) is either fixed by this mission or
+  confirmed display-only above — not a residual, unaudited category.
 
 ## Success Criteria *(mandatory)*
 
-**Test-run scope note**: see NFR-005 — verify SC-001 through SC-005 scoped to `tests/charter/`
+**Test-run scope note**: see NFR-005 — verify SC-001 through SC-006 scoped to `tests/charter/`
 and the two named `tests/architectural/` files, not a full-repo sweep; classify any other red
 against the #3284 baseline before attributing it to this mission.
 
@@ -442,16 +585,24 @@ against the #3284 baseline before attributing it to this mission.
   `PackContext.from_config()` across the full fixture matrix (three states × three kinds ×
   pointer-present/absent). **Fails if** any fixture disagrees, or if the test's fixture matrix
   does not actually cover all the named combinations.
-- **SC-003**: The FR-007/FR-008 regression tests for `_load_action_doctrine_bundle` pass —
-  a genuinely-`activated_*` directive absent from a stale non-empty `selected_directives` is
-  delivered (SC-003a), and this repo's own dogfood-shape closure-widening roots are populated
-  from `activated_*` rather than empty (SC-003b). **Fails if** either regresses to today's
-  silent-drop/silent-starvation behavior.
+- **SC-003**: The FR-007/FR-008/FR-014 regression tests for `_load_action_doctrine_bundle`
+  pass — a genuinely-`activated_*` directive absent from a stale non-empty `selected_directives`
+  is delivered (SC-003a), this repo's own dogfood-shape closure-widening roots are populated
+  from `activated_*` rather than empty (SC-003b), and an explicit `activated_directives: []`
+  project delivers ZERO DRG-reachable directives rather than all of them (SC-003c, FR-014).
+  **Fails if** any regresses to today's silent-drop/silent-starvation behavior, or to the
+  three-state truthiness collapse FR-014 pins.
 - **SC-004**: `tests/architectural/test_charter_offering_does_not_import_activation.py` and
   `tests/architectural/test_no_dead_symbols.py` both pass against this mission's full diff.
   **Fails if** either fires.
-- **SC-005**: `contracts/activation.md` and `contracts/charter-context.md` are updated to
-  state the new source of truth — verified by review at PR time (not a test; per the
-  established precedent for PR-body/doc-citation requirements, no red-first ATDD test should
-  be manufactured for this under C-011, and the plan/tasks phase should not decompose it into
-  a WP+test — a specific reviewer step at mission close owns this).
+- **SC-005**: `contracts/activation.md`, `contracts/charter-context.md`, and
+  `docs/context/charter.md`'s "Global Selection"/"Charter-Mediated Selection"/
+  "`selected_<kind>` / `required_<kind>`" entries (plus a new/updated `activated_<kind>` entry)
+  are all updated to state the corrected source of truth — verified by review at PR time (not a
+  test; per the established precedent for PR-body/doc-citation requirements, no red-first ATDD
+  test should be manufactured for this under C-011, and the plan/tasks phase should not
+  decompose it into a WP+test — a specific reviewer step at mission close owns this).
+- **SC-006**: `resolve_project_governance`'s directive base and paradigm list agree with
+  `activated_*` per Decision Record 3/FR-011, verified by the FR-012/FR-013 red-first tests,
+  which fail on `main` and pass after the fix (User Story 3). **Fails if** either resolves the
+  stale `selected_*` value where `activated_*` genuinely diverges from it.
