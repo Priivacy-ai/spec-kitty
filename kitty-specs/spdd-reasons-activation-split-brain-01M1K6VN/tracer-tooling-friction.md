@@ -165,7 +165,146 @@ a structured way to record "this constraint is satisfied by omission, not owned 
 tool-generated field. This is the same class of gap as friction item 2 above (`tasks.md` has zero freeform-
 prose capacity) — a generated-artifact expressiveness ceiling, not a bug in the generator's own logic.
 
-## 5. WP02 follow-on (operator ruling, `reviews/wp02.ruling.md`) — combining `{REQUIRES, SUGGESTS}` in
+## 4. `safe-commit --to-branch` must name the WORKTREE'S OWN lane branch, not the WP's `merge_target_branch` (WP01, implement phase)
+
+WP01's dispatch wrapper instructed `.venv/bin/spec-kitty safe-commit <FILES> -m "<msg>" --to-branch
+fix/spdd-reasons-activation-split-brain-3838` (the mission's final target branch, matching the WP
+frontmatter's `merge_target_branch` field). Run literally, this fails:
+
+```
+Error: safe_commit: worktree .../lane-a HEAD is 'kitty/mission-spdd-reasons-activation-split-brain-01M1K6VN-lane-a',
+expected 'fix/spdd-reasons-activation-split-brain-3838'. Run `git -C ... checkout fix/...` first.
+```
+
+`spec-kitty safe-commit --help` confirms `--to-branch` is "the short branch name the commit must land
+on... asserts HEAD matches this branch before staging" — i.e. it names the CURRENT worktree's actual
+checked-out branch (here, the per-lane branch `kitty/mission-<slug>-lane-a` the CLI itself created during
+`agent action implement`), not the WP's eventual `merge_target_branch`. Passing the lane branch name
+(`--to-branch kitty/mission-spdd-reasons-activation-split-brain-01M1K6VN-lane-a`) succeeded immediately.
+No `git checkout` was run — the correct fix is the flag value, not a branch switch (which the wrapper
+explicitly forbids doing manually at the repo root, and would be wrong here too: the lane worktree is
+already on the right branch, the CLI's own consolidation step reconciles lane branches into the target
+branch later, at `spec-kitty merge` / mission-merge time, not at per-commit time).
+
+## 5. WP03 lane baseline capture: worktree-cwd guard artifact + shared tmp-dir contention noise (implement phase, 2026-09-03)
+
+Re-running the mission-wide-baseline command (`pytest tests/charter/ tests/architectural/test_charter_offering_does_not_import_activation.py tests/architectural/test_no_dead_symbols.py -q`) inside the WP03 lane worktree (`.worktrees/spdd-reasons-activation-split-brain-01M1K6VN-lane-c`), per this WP's own instruction to re-verify baseline "in YOUR lane workspace," surfaced `2 failed, 2468 passed, 25 skipped, 66 errors` — sharply different from the orchestrator-captured mission-wide baseline (`2536 passed, 25 skipped, 0 failed, 0 errors`). Both categories were isolated and confirmed environmental, not WP03-relevant:
+
+- **66 errors**: every one is the identical `FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-jeroennouws/pytest-172'` at `pytest_asyncio` fixture setup — pytest's shared base tmp-dir being garbage-collected mid-run by a concurrent sibling pytest process (5-10 pytest processes were running simultaneously across sibling WP/mission lanes at the time; `quota -s` showed the per-user tmpfs quota at ~90% full, consistent with issue #3283's shared test-venv contention).
+- **`test_charter_generate_is_idempotent_across_three_runs`**: FAILED in the full run, PASSED on isolated re-run — confirms transient contention, not a real regression.
+- **`test_create_mission_propagates_named_exception_type`**: FAILED even in isolation, but ONLY when pytest itself is invoked with cwd inside the lane worktree — `create_mission_core` raises `MissionCreationError: Cannot create missions from inside a worktree. Run from the project root checkout.`, a real guard tripped by the test-runner's own cwd, not by anything WP03 touches. Confirmed: the identical test PASSES when run from the repo-root checkout (`cd /home/jeroennouws/dev/SK-missions/3838 && pytest tests/charter/test_mission_type_profiles.py::...`) with `1 passed`. This is a standing artifact of running `tests/charter/` from inside ANY spec-kitty lane worktree (this repo's own worktree-detection guard fires against its own test process), not specific to this WP's files.
+
+**Net effect on WP03's baseline**: zero real pre-existing red attributable to this WP's scope. Both findings are lane-workspace/contention artifacts, reproduced and explained rather than assumed away. Post-implementation re-run should be diffed at the node-id level against this explanation, not against the raw failed/error counts.
+
+## 6. `safe-commit --to-branch` names the CURRENT lane branch, not the WP's `merge_target_branch` (WP03, implement phase, 2026-09-03)
+
+Confirmed WP01's identical finding (friction item 4 above) independently for WP03's own lane: the dispatch wrapper's mechanics section says `--to-branch fix/spdd-reasons-activation-split-brain-3838` (the WP frontmatter `merge_target_branch`), but the lane worktree's actual HEAD is `kitty/mission-spdd-reasons-activation-split-brain-01M1K6VN-lane-c` (the CLI-created per-lane branch). `safe-commit --to-branch` asserts HEAD matches the flag value, so the correct invocation for this lane is `--to-branch kitty/mission-spdd-reasons-activation-split-brain-01M1K6VN-lane-c`, not the mission's eventual merge target. No `git checkout` performed; the lane worktree is already on the correct branch.
+
+## 5. WP01 post-implementation baseline diff — classified, no unexplained regressions
+
+Isolated re-run (own `--basetemp` to dodge issue #3283's shared `/tmp/pytest-of-<user>`
+tmp-dir-eviction hazard, hit once already this WP — see below) of the exact scoped command:
+`pytest tests/charter/ tests/architectural/test_charter_offering_does_not_import_activation.py
+tests/architectural/test_no_dead_symbols.py -q` in lane-a's own worktree, post-implementation
+commit `71741700a`: **2563 passed, 10 failed, 25 skipped** (2536 passed/0 failed/25 skipped
+orchestrator-captured pre-WP baseline + this WP's own 37-test parity file = 2573 non-skip items,
+matches 2563+10).
+
+All 10 failures classified, zero unexplained:
+
+- **9 are this mission's own intentionally-flipped tests** (WP01's rewrite deliberately stops
+  reading `.kittify/charter/charter.yaml`'s `governance:`/`directives:` sections; any sibling
+  fixture that writes ONLY that old section, without `.kittify/config.yaml`, now hits the FR-004
+  absent-config carve-out and returns `False`/never raises instead of the old pinned behavior).
+  8 are spec.md FR-010's explicitly named "bucket-3" fixture-construction-obsolete tests
+  (`TestActivation`'s 5 True-asserting cases + `TestParadigmRoundTrip::test_paradigm_in_governance_activates_pack`
+  + `TestSelectedTacticsRoundTrip::test_tactic_only_selection_round_trips_to_governance_and_activates`,
+  all in `test_charter_context_spdd_reasons.py`, plus `TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active`
+  in `test_activate_resolves_no_answers_edit.py`) — WP04's explicit fixture-triage responsibility
+  per FR-010, expected red until WP04 lands (WP01's own Context section states this explicitly).
+  **A 9th, previously-unnamed sibling of the same pattern was found during this baseline run**:
+  `test_charter_context_spdd_reasons.py::TestMalformedGovernance::test_malformed_governance_raises`
+  (or equivalent class name — see live file) writes a malformed `.kittify/charter/charter.yaml`
+  directly (no `.kittify/config.yaml`) and asserts `is_spdd_reasons_active` raises `YAMLError`;
+  under the rewrite this now hits the absent-config `False` path instead (the file it corrupts is
+  never read). Same fixture-construction-obsolete class as FR-010's named 8, not called out in
+  spec.md's own enumeration — **flagged here for WP04's triage pass**, not fixed by WP01 (outside
+  WP01's `owned_files`: only `src/charter/offering/spdd_reasons/activation.py` and
+  `tests/charter/test_spdd_reasons_activation_parity.py`).
+- **1 is unrelated to this diff, an execution-context artifact of running the scoped suite from
+  inside the lane worktree rather than the primary checkout**:
+  `test_mission_type_profiles.py::TestMissionCreatePropagatesEmptyActionSequenceError::test_create_mission_propagates_named_exception_type`.
+  Re-run in isolation (`-v`, single node-id) to rule out contention-flakiness before attributing:
+  reproduced deterministically, `MissionCreationError: Cannot create missions from inside a
+  worktree. Run from the project root checkout.` — `create_mission_core` itself refuses to run
+  from a worktree; this is orthogonal to `activation.py`'s content (would fail identically
+  regardless of this WP's diff) and is not one of the two named architectural gates or
+  `tests/charter/` files this WP owns.
+
+**Also hit issue #3283 directly, once, on the FIRST baseline attempt**: a plain (non-`--basetemp`)
+`pytest tests/charter/ ...` run corrupted mid-flight with cascading
+`FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-jeroennouws/pytest-171'`
+across ~40% of the suite — a concurrent sibling mission's own pytest invocation
+(confirmed live via `ps`: WP02/lane-b and WP03/lane-c were running their own baseline captures at
+the same moment) evicted this run's own numbered base tmp dir out from under it via pytest's
+default N-kept-tmpdir cleanup, sharing the same `/tmp/pytest-of-<user>/pytest-NNN` numbering
+scheme across concurrent, unrelated worktree checkouts. **Fix**: pass an explicit
+`--basetemp=<private-dir>` (plus `-p no:cacheprovider`) to opt every concurrent agent's pytest
+invocation out of the shared, auto-numbered, auto-evicted base entirely — not merely "re-run and
+hope for less contention." Flagged for whoever next authors baseline-capture guidance across
+concurrent WP lanes (plan.md section (g) / CLAUDE.md's #3283 note): the existing guidance ("check
+`ps -eo args=` before trusting a slow/flaky run, re-run failures in isolation") does not cover
+this specific failure mode (a wholesale mid-run tmp-dir eviction, not a flaky individual test) —
+`--basetemp` closes it structurally rather than probabilistically.
+
+## WP02 (action_doctrine_bundle.py + delivery_table.py) additional friction
+
+- **Disk-quota exhaustion (EDQUOT), not CPU contention, briefly took the whole session's Bash/Write
+  tools offline.** Mid-baseline-capture, every Bash invocation (including no-ops like `true`) started
+  returning exit 1; one invocation surfaced `pwd: write error: Disk quota exceeded`, and a direct
+  `Write` to the session scratchpad confirmed `EDQUOT`. `df`/`quota -s` later showed this was the
+  `tmpfs` backing `/tmp` (`/tmp/claude-1000/...`), shared across every concurrently-running sibling
+  WP/mission in this session, transiently pinned near 96% full — almost certainly the SAME root cause
+  as the `--basetemp` eviction note above (three-plus concurrent full-suite pytest runs, each writing
+  its own numbered pytest tmp base + coverage/cache data, all landing in the same quota-limited tmpfs).
+  It self-resolved once a sibling agent's run completed and freed space (~10-15 min later, confirmed
+  via `quota -s` before resuming). No workaround exists at the individual-WP-agent level beyond
+  stopping and waiting — flagged here for whoever owns cross-mission concurrency guidance: either
+  route heavy pytest tmp/cache output off tmpfs (e.g. `--basetemp` under `/home` instead of `/tmp`,
+  matching this WP's own workaround below) or cap the number of concurrent full-suite runs.
+- **A 10-minute foreground `Bash` command silently kills a still-running background pytest it
+  spawned.** Backgrounding a long test run via a manual `cmd &` + `wait $PID` inside one Bash
+  invocation is NOT resilient to the tool's own per-call timeout (max 600000ms): when the timeout
+  fires, the foreground shell (and the child it was `wait`ing on) is killed even though the child was
+  `nohup`'d — `nohup` alone does not survive the tool's own process-group teardown. **Fix**: use the
+  Bash tool's own `run_in_background: true` parameter directly on the long command (not a manual `&`
+  wrapper) — that path detaches properly and delivers a completion notification regardless of how long
+  the command runs.
+- **Logging a baseline run's stdout to `/tmp/claude-.../scratchpad/...log` is exactly the kind of
+  write that contends for the pinned tmpfs above.** Redirecting to a path under `/home` instead
+  (plenty of headroom, `df` showed 480G avail there vs. 16G total on the tmpfs) avoided adding to the
+  contention on the second attempt.
+- **A red-first fixture can be legitimately green against literal current `main` while still being
+  correct, load-bearing red-first evidence — worth flagging explicitly rather than silently
+  papering over.** T007 step 6 (TASKS-FRESH2-001, org-required stem-form directive normalization)
+  is designed by the WP/ruling text to redden against "the pre-this-round T009 text," not necessarily
+  against literal unmodified `main`. Tracing `org_pack_discovery._load_doctrine_selection` live shows
+  it ALREADY unions raw org-required stems into `selected_directives` internally, and the pre-fix
+  `_load_action_doctrine_bundle`'s single `_normalize_directive_id` comprehension over that merged set
+  normalizes them "for free" today — so this fixture, run against real unmodified `main`, is observed
+  **GREEN**, not red (confirmed live: `pytest tests/charter/test_action_doctrine_bundle_activation.py
+  -v` before any implementation edit showed 5 FAILED / 1 PASSED, the 1 PASSED being this exact case).
+  To still produce genuine red→green evidence for the specific severity-4 finding this fixture exists
+  to pin, the fix was implemented in two stages: first WITHOUT the mandatory org-required
+  normalization line (mirroring "the pre-this-round T009 text"), confirming this fixture reddens at
+  that intermediate state (quoted in the WP02 report), then adding the normalization line and
+  reconfirming green. Flagged for whoever next writes a T007-style "why this must fail" note: when a
+  fixture's stated red-ness is against an intermediate/hypothetical implementation state rather than
+  literal `main`, say so explicitly (as this WP's own text already does for this exact case) so the
+  implementing agent doesn't mistake an unexpected real-`main`-green run for a defect in the fixture
+  itself.
+
+## 7. WP02 follow-on (operator ruling, `reviews/wp02.ruling.md`) — combining `{REQUIRES, SUGGESTS}` in
 one `walk_edges` call lets scope leak across a relation-type switch `resolve_context` itself never allows
 
 A first scope-gate implementation computed "reachable within the resolving action's own scope" as a
@@ -185,7 +324,7 @@ scope-gate work: "reuse the existing scope primitive" is easy to get subtly wron
 *edges* (`walk_edges`) but not the *shape* (two separate single-relation walks) the sibling function
 actually uses.
 
-## 6. A ruling's acceptance bar named two tests as fixable by one described mechanism; only one of the
+## 8. A ruling's acceptance bar named two tests as fixable by one described mechanism; only one of the
 two was actually reachable by that mechanism — confirmed empirically, not assumed
 
 The ruling states the scope-gate fix (job 2: bound the closure-seed union by scope) makes BOTH
@@ -213,7 +352,7 @@ own load-bearing assertion (a directly-scoped directive not in a non-empty `proj
 excluded). Flagged BLOCKED for operator review in the WP02-follow-on report rather than silently edited
 or routed around.
 
-## 7. WP02 follow-on, round 2 — "reachable within my own scope walk" was still the wrong boundary;
+## 9. WP02 follow-on, round 2 — "reachable within my own scope walk" was still the wrong boundary;
 the real distinction is ownership, not reachability
 
 The round-1 fix (friction items 5 and 6 above) gated the closure union on reachability within the
@@ -255,7 +394,7 @@ Also fixed in the same round: the ownership lookup was first built unconditional
 construction behind `if closure_urns:` so a caller whose closure seed is empty (e.g. an explicit empty
 `project_directives` with no tactics/paradigms) never touches `.edges` at all.
 
-## 8. WP02 follow-on, ruling 2 — the allowlist's "None -> all built-ins" default was bound to a
+## 10. WP02 follow-on, ruling 2 — the allowlist's "None -> all built-ins" default was bound to a
 hardcoded catalog call, not the graph actually being resolved against
 
 Ruling 1's scope-gate (friction items 5-7) fixed the SEED-side conflation (job 2, the closure walk).

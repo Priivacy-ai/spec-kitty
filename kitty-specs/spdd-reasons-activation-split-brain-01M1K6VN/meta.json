@@ -10,5 +10,7 @@
   "purpose_tldr": "SPDD/REASONS activation split-brain",
   "slug": "spdd-reasons-activation-split-brain-01M1K6VN",
   "target_branch": "fix/spdd-reasons-activation-split-brain-3838",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-03T13:43:30.956781+00:00"
 }

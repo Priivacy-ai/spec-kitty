@@ -8,6 +8,9 @@ requirement_refs:
 planning_base_branch: fix/spdd-reasons-activation-split-brain-3838
 merge_target_branch: fix/spdd-reasons-activation-split-brain-3838
 branch_strategy: Planning artifacts for this mission were generated on fix/spdd-reasons-activation-split-brain-3838. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/spdd-reasons-activation-split-brain-3838 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-spdd-reasons-activation-split-brain-01M1K6VN
+base_commit: 4b6b9c6b3871c7fa256ef10f0c2199160c30c37b
+created_at: '2026-09-03T15:57:03.594074+00:00'
 subtasks:
 - T014
 - T015
