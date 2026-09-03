@@ -6,7 +6,7 @@ Every command returns a canonical JSON envelope:
 
 ```json
 {
-  "contract_version": "1.3.0",
+  "contract_version": "1.4.0",
   "command": "orchestrator-api.<subcommand-name>",
   "timestamp": "2026-03-21T08:00:00Z",
   "correlation_id": "uuid-v4",
@@ -46,13 +46,14 @@ spec-kitty orchestrator-api contract-version [--provider-version TEXT]
 
 | Code | Cause |
 |------|-------|
-| `CONTRACT_VERSION_MISMATCH` | Provider version is below `min_supported_provider_version` |
+| `CONTRACT_VERSION_MISMATCH` | Provider version is below `min_supported_provider_version` (currently `0.1.0`), or is not a parseable version string |
 
 **Usage notes:**
 
 - Call at orchestrator startup, before any other commands
 - Do not cache across host CLI version changes
 - If the error fires, upgrade the orchestrator to match the host
+- An unsupported `--provider-version` always exits 1 with `CONTRACT_VERSION_MISMATCH` — never a silent default — whether the version is below the minimum or simply unparseable
 
 ---
 
@@ -413,6 +414,443 @@ No `--policy` is required: the command mutates nothing.
 
 ---
 
+## 11. specify (contract >= 1.4.0)
+
+Create a mission scaffold — the same enriched payload the host CLI's own
+`spec-kitty specify --json` path returns.
+
+```bash
+spec-kitty orchestrator-api specify \
+  --mission TEXT --mission-type TEXT [--topology TEXT] --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--mission-type` | TEXT | required | Mission type (e.g., `software-dev`) |
+| `--topology` | TEXT | context-derived | Create-time mission shape: `single_branch` \| `lanes` \| `coord` \| `lanes_with_coord` |
+| `--policy` | TEXT | required | JSON string with policy metadata (see command 4) |
+
+**Data fields** (mirrors the host CLI's own enriched `specify --json` payload — `specify_cli.cli.commands.lifecycle._create_mission_for_specify_json`; not a bare pass-through):
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `mission_slug` / `mission_number` / `mission_id` / `mission_type` | string | Mission identity — this verb's payload carries `mission_id`, unlike the read verbs below (which use the slug/number/type-only identity shape) |
+| `feature_dir` / `spec_file` / `meta_file` | string | Paths written |
+| `scaffold_only` | bool | Always `true` — this verb creates a scaffold, not a substantive spec |
+| `spec_state` | string | Always `scaffold_only` |
+| `next_action` / `next_step` | string | The recommended follow-up action (same value on both keys) |
+| `topology` | string | Resolved mission topology |
+| `coordination_branch` / `coordination_branch_created` | string or null, bool | Coordination branch, when the mission's topology has one |
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `MISSION_ALREADY_EXISTS` | The delegate mission-creation call failed with a duplicate/no-op-commit signature |
+| `MISSION_CREATE_FAILED` | Mission creation failed for any other reason (or the delegate's own typed `error_code`, passed through verbatim when present) |
+
+**Usage notes:**
+
+- This creates a scaffold only; it does not author a substantive spec. Follow with the agent authoring flow and then `plan`.
+
+---
+
+## 12. plan (contract >= 1.4.0)
+
+Scaffold `plan.md` for a mission.
+
+```bash
+spec-kitty orchestrator-api plan --mission TEXT --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--policy` | TEXT | required | JSON string with policy metadata |
+
+**Data fields** (an unenriched pass-through of `agent_feature.setup_plan`'s own `--json` payload — `mission_setup_plan.py`; deliberately asymmetric with `specify` above, no fields are added beyond filling in `mission_slug` when the delegate payload omits it):
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `result` | string | `success`, `blocked`, or `error` |
+| `phase_complete` | bool | Whether `plan.md` is substantive |
+| `mission_slug` | string | Mission slug |
+| `plan_file` / `feature_dir` / `spec_file` | string | Paths |
+| `plan_substantive` | bool | Whether plan content passed the substantiveness check |
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `PLAN_SETUP_FAILED` | Fallback code when the delegate call failed without a more specific typed `error_code` of its own (which, when present, is passed through verbatim) |
+
+**Usage notes:**
+
+- Call after `specify` has produced a substantive, committed `spec.md`.
+
+---
+
+## 13. tasks (contract >= 1.4.0)
+
+Finalize work-package task metadata for a mission.
+
+```bash
+spec-kitty orchestrator-api tasks --mission TEXT --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--policy` | TEXT | required | JSON string with policy metadata |
+
+**Data fields:** an unenriched pass-through of `agent_feature.finalize_tasks`'s own `--json` payload (`mission_finalize.py`), with `mission_slug` filled in when the delegate payload omits it — the same deliberate non-enrichment as `plan` above.
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `TASKS_FINALIZE_FAILED` | Fallback code when the delegate call failed without a more specific typed `error_code` of its own (which, when present, is passed through verbatim) |
+
+---
+
+## 14. check-prerequisites (contract >= 1.4.0, read-only)
+
+Read-only mission-prerequisite context for `/spec-kitty.analyze`. Supplies
+context only — it never performs `analyze`'s cross-artifact reasoning
+itself.
+
+```bash
+spec-kitty orchestrator-api check-prerequisites \
+  --mission TEXT [--include-tasks]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--include-tasks` | FLAG | off | Include `tasks.md` validation |
+
+No `--policy` is required: the command mutates nothing.
+
+**Data fields:** a pass-through of the host CLI's own `check_prerequisites` Typer command (`mission_check_prerequisites.py`), with `mission_slug` filled in when the delegate payload omits it.
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `MISSION_NOT_FOUND` | Translated from the host CLI's own `FEATURE_CONTEXT_UNRESOLVED` (Terminology Canon guard — that feature-named code never crosses onto this surface verbatim) |
+| `CHECK_PREREQUISITES_FAILED` | Fallback code when the delegate call failed without a more specific typed `error_code` of its own (which, when present, is passed through verbatim) |
+
+---
+
+## 15. record-analysis (contract >= 1.4.0)
+
+Persist an `/spec-kitty.analyze` report, verified against disk before
+reporting success.
+
+```bash
+spec-kitty orchestrator-api record-analysis \
+  --mission TEXT [--input-file TEXT] [--agent TEXT] --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--input-file` | TEXT | `-` | Markdown report path, or `-` to read the report body from stdin |
+| `--agent` | TEXT | none | Agent name that produced the analysis report |
+| `--policy` | TEXT | required | JSON string with policy metadata |
+
+**Data fields (on success):**
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `mission_slug` | string | Mission slug |
+| `path` | string | Path to the written `analysis-report.md` |
+| `verdict` | string | Recorded verdict |
+| `generated_at` | string | Timestamp of the confirmed write |
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND` | `--input-file` could not be read |
+| `RECORD_ANALYSIS_EMPTY_BODY` | `--input-file`/stdin body was empty |
+| `RECORD_ANALYSIS_MALFORMED_CARRIER` | The submitted body carried a present-but-invalid `analysis-findings/v1` carrier |
+| `PLACEMENT_RESOLUTION_REQUIRED` | The write placement could not be resolved (fail-closed; never a silent current-branch fallback) |
+| `DIRTY_WORKTREE` | Pre-existing uncommitted changes block the write |
+| `RECORD_ANALYSIS_WRITE_NOT_CONFIRMED` | No fresh `analysis-report.md` write (a `generated_at` later than the call start) could be confirmed on disk |
+| `RECORD_ANALYSIS_VERDICT_UNRELIABLE` | A fresh write was confirmed, but its verdict is not a trustworthy match for this call — either it disagrees with the submitted verdict, or the submission itself carried no valid carrier and computed to `unknown` |
+
+**Usage notes:**
+
+- Success is determined solely by re-reading `analysis-report.md` off disk after the write attempt — never by the underlying write call's own return/raise/hang behavior.
+- A verdict of `unknown` (no valid `analysis-findings/v1` carrier in the submitted body) is never reported as `success: true`, even on a confirmed fresh write.
+
+---
+
+## 16. open-decision (contract >= 1.4.0)
+
+Open a new Decision Moment ledger entry, or return idempotently if a
+matching one already exists.
+
+```bash
+spec-kitty orchestrator-api open-decision \
+  --mission TEXT --origin TEXT --input-key TEXT --question TEXT \
+  [--step-id TEXT] [--slot-key TEXT] [--options TEXT] \
+  --actor TEXT --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--origin` | TEXT | required | Origin flow: `charter` \| `specify` \| `plan` |
+| `--input-key` | TEXT | required | The input key this decision governs |
+| `--question` | TEXT | required | Human-readable question text |
+| `--step-id` | TEXT | none | Interview step identifier |
+| `--slot-key` | TEXT | none | Slot key (use when `--step-id` is unavailable) |
+| `--options` | TEXT | none | Candidate answers as a JSON array string |
+| `--actor` | TEXT | required | Identity of the opening actor |
+| `--policy` | TEXT | required | JSON string with policy metadata |
+
+**Data fields:**
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `mission_slug` / `mission_number` / `mission_type` | string | Resolved canonical mission identity |
+| `decision_id` | string | Ledger entry ID (ULID) |
+| `status` | string | `open` |
+| `idempotent` | bool | `true` if an existing matching-logical-key entry was returned instead of creating a new one |
+| `artifact_path` | string | Path to the decision's ledger artifact |
+| `event_lamport` | int | Lamport clock of the recorded event |
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `INVALID_ORIGIN_FLOW` | `--origin` is outside `{charter, specify, plan}` — rejected before the decisions service is ever called |
+| `DECISION_MISSING_STEP_OR_SLOT` | Neither `--step-id` nor `--slot-key` was supplied |
+| `DECISION_ALREADY_CLOSED` | A matching logical-key entry already exists in a terminal state |
+| `DECISION_EVENT_REPAIR_FAILED` | Idempotent-open path: the missing `DecisionPointOpened` event could not be re-emitted |
+
+---
+
+## 17. resolve-decision (contract >= 1.4.0)
+
+Resolve a decision with a concrete final answer.
+
+```bash
+spec-kitty orchestrator-api resolve-decision \
+  --mission TEXT --decision-id TEXT --final-answer TEXT \
+  [--other-answer] [--rationale TEXT] [--resolved-by TEXT] \
+  --actor TEXT --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--decision-id` | TEXT | required | Decision ledger entry ID (ULID) |
+| `--final-answer` | TEXT | required | The chosen answer (non-empty) |
+| `--other-answer` | FLAG | off | `true` if the answer is a write-in |
+| `--rationale` | TEXT | none | Explanation of the choice |
+| `--resolved-by` | TEXT | falls back to `--actor` | Identity of the resolving party |
+| `--actor` | TEXT | required | Identity of the resolving actor |
+| `--policy` | TEXT | required | JSON string with policy metadata |
+
+**Data fields:**
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `mission_slug` / `mission_number` / `mission_type` | string | Resolved canonical mission identity |
+| `decision_id` | string | Ledger entry ID |
+| `status` | string | Resulting decision status |
+| `terminal_outcome` | string | Terminal outcome recorded |
+| `idempotent` | bool | `true` if this call matched an already-terminal entry with the SAME outcome/payload |
+| `event_lamport` | int | Lamport clock of the recorded event |
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
+| `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
+
+---
+
+## 18. defer-decision (contract >= 1.4.0)
+
+Defer a decision for later resolution.
+
+```bash
+spec-kitty orchestrator-api defer-decision \
+  --mission TEXT --decision-id TEXT --rationale TEXT \
+  [--resolved-by TEXT] --actor TEXT --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--decision-id` | TEXT | required | Decision ledger entry ID (ULID) |
+| `--rationale` | TEXT | required | Explanation of why (must be non-empty) |
+| `--resolved-by` | TEXT | falls back to `--actor` | Identity of the deferring party |
+| `--actor` | TEXT | required | Identity of the deferring actor |
+| `--policy` | TEXT | required | JSON string with policy metadata |
+
+**Data fields:** same shape as `resolve-decision` (command 17) above.
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `DECISION_MISSING_STEP_OR_SLOT` | `--rationale` is empty or whitespace-only |
+| `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
+| `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
+
+---
+
+## 19. cancel-decision (contract >= 1.4.0)
+
+Cancel a decision deemed no longer relevant.
+
+```bash
+spec-kitty orchestrator-api cancel-decision \
+  --mission TEXT --decision-id TEXT --rationale TEXT \
+  [--resolved-by TEXT] --actor TEXT --policy TEXT
+```
+
+**Flags and data fields:** identical shape to `defer-decision` (command 18) above.
+
+**Error codes:** identical to `defer-decision` (command 18) above.
+
+---
+
+## 20. answer-decision (contract >= 1.4.0, full host-CLI lifecycle parity)
+
+Resolve a `spec-kitty next` `decision_required` moment — the run-snapshot's
+pending-decision map, distinct from the `decisions/index.json` ledger the
+four verbs above operate on. Matches what the real CLI invocation
+`spec-kitty next --answer <value> --decision-id <id> --agent <name> --result
+<success|failed|blocked>` does in one pass, not just the two underlying
+engine calls.
+
+```bash
+spec-kitty orchestrator-api answer-decision \
+  --mission TEXT --agent TEXT --answer TEXT --result TEXT \
+  [--decision-id TEXT] --policy TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+| `--agent` | TEXT | required | Agent/actor identity performing this call |
+| `--answer` | TEXT | required | The answer value to persist for the pending decision |
+| `--result` | TEXT | required | Outcome of the current issuance: `success` \| `failed` \| `blocked` (required alongside `--answer`) |
+| `--decision-id` | TEXT | auto-resolved | Run-snapshot pending decision id to answer; auto-resolved when omitted and exactly one decision is pending |
+| `--policy` | TEXT | required | JSON string with policy metadata |
+
+**Data fields** (`Decision.to_dict()`, byte-identical field-for-field to `next --answer ... --json`, plus one sibling field):
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `kind` | string | `step` \| `decision_required` \| `blocked` \| `terminal` \| `query` |
+| `agent` | string or null | Agent identity |
+| `mission_slug` / `mission_number` / `mission_type` | string | Mission identity — note this is NOT the same shape as `specify`'s payload: there is no `mission_id` key here |
+| `mission` | string | Mission handle as passed |
+| `mission_state` | string | Current mission state |
+| `timestamp` | string | ISO timestamp |
+| `action` / `wp_id` / `workspace_path` / `prompt_file` / `reason` | string or null | Step-shaped fields, populated per `kind` |
+| `guard_failures` | list | Guard failures, if any |
+| `progress` | object or null | Progress snapshot |
+| `origin` | object | Origin metadata |
+| `run_id` / `step_id` / `decision_id` / `input_key` / `question` | string or null | Run/decision identifiers |
+| `options` | list or null | Candidate answers, when applicable |
+| `is_query` | bool | `true` when `kind == query` |
+| `preview_step` | string or null | Preview of the next step |
+| `answered_decision_id` | string | The `decision_id` this call persisted an answer against — this verb's own field name for the CLI's terser `answered` key. `data` carries NO `answer` echo key: the submitted value is intentionally omitted (the host already has it) |
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `POLICY_METADATA_REQUIRED` | `--policy` missing |
+| `RESULT_REQUIRED` | `--result` is required alongside `--answer` |
+| `INVALID_RESULT` | `--result` is not one of `success`, `failed`, `blocked` |
+| `NO_PENDING_DECISION` | No pending decisions to answer |
+| `AMBIGUOUS_PENDING_DECISION` | More than one pending decision and `--decision-id` was omitted |
+| `DECISION_NOT_PENDING` | `--decision-id` does not match any entry in the current run's pending decisions |
+
+**Usage notes (binding integrator guarantee):**
+
+- This verb achieves **full host-CLI lifecycle parity**: alongside the two engine calls (persisting the answer, advancing the DAG), it also pairs the previous issuance's `started` lifecycle record, appends the `MissionNextInvoked` mission-event-log entry, and — when the resulting decision's `kind` is `step` — writes the new issuance lifecycle record. These are reached through a seam shared with the host CLI's own `next_cmd.py` (`runtime.next.next_invocation_lifecycle`), never inlined or reimplemented independently, so the two callers cannot drift apart. This is a binding operator ruling, not an implementation detail: `kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/spec.ruling.md` (ruling on finding SPEC-FRESH2-001).
+- `FR-012`'s `INVALID_ORIGIN_FLOW` guard (command 16) does NOT apply to this verb — it operates on the run-snapshot, not `decisions/index.json`, so a mission phase with no `OriginFlow` member can still have a pending decision here.
+
+---
+
+## 21. design-status (contract >= 1.4.0, read-only)
+
+Query the design-phase status of a mission: current phase, next
+recommended action, and any open ledger decisions blocking advancement.
+
+```bash
+spec-kitty orchestrator-api design-status --mission TEXT
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--mission` | TEXT | required | Mission slug |
+
+No `--policy` is required: this is a read-only reduction, not a state
+transition — it never invokes the WP-loop or `next` engines.
+
+**Data fields:**
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `mission_slug` / `mission_number` / `mission_type` | string | Resolved canonical mission identity |
+| `current_phase` | string | `specify` \| `plan` \| `tasks` \| `analyze` |
+| `next_action` | string or null | The verb the host should call next; `null` once the design phase is complete with no open decisions |
+| `open_decisions` | list | Objects with `decision_id` / `origin`, for every OPEN ledger entry regardless of which phase opened it |
+
+**Error codes:**
+
+| Code | Cause |
+|------|-------|
+| `MISSION_NOT_FOUND` | No mission with this slug exists |
+| `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | `status.events.jsonl` could not be read cleanly (a torn/truncated line, or a detected drift against `status.json`'s persisted work-package set) while deriving the tasks-finalized signal |
+
+**Usage notes (binding integrator guarantee):**
+
+- This verb **fails closed**: on a torn, truncated, or drifted event log it returns `DESIGN_STATUS_EVENT_LOG_UNREADABLE` rather than guessing and reporting a plausible-but-wrong `current_phase`/`next_action`. It is never silently reported as "not finalized." A returned `current_phase` can therefore be trusted at face value — but callers MUST handle this error explicitly rather than assume the query always succeeds for an existing mission.
+- An open decision always overrides `next_action` to `resolve-decision`, regardless of the artifact-derived phase.
+
+---
+
 ## Error Code Summary
 
 | Error Code | Commands | Description |
@@ -437,6 +875,30 @@ No `--policy` is required: the command mutates nothing.
 | `SAFE_COMMIT_RECOVERY_FAILED` | append-history | Safe commit created or attempted a commit but could not restore caller staging |
 | `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition |
 | `WP_ALREADY_CLAIMED` | start-implementation, start-review | Another actor owns the WP |
+| `MISSION_ALREADY_EXISTS` | specify | Delegate mission-creation call failed with a duplicate/no-op-commit signature |
+| `MISSION_CREATE_FAILED` | specify | Mission creation failed for a reason other than a detected duplicate |
+| `PLAN_SETUP_FAILED` | plan | Delegate plan-scaffold call failed with no more specific typed `error_code` of its own |
+| `TASKS_FINALIZE_FAILED` | tasks | Delegate finalize-tasks call failed with no more specific typed `error_code` of its own |
+| `CHECK_PREREQUISITES_FAILED` | check-prerequisites | Delegate validation call failed with no more specific typed `error_code` of its own |
+| `RECORD_ANALYSIS_EMPTY_BODY` | record-analysis | `--input-file`/stdin body was empty |
+| `RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND` | record-analysis | `--input-file` could not be read |
+| `RECORD_ANALYSIS_MALFORMED_CARRIER` | record-analysis | Submitted body carried a present-but-invalid `analysis-findings/v1` carrier |
+| `RECORD_ANALYSIS_WRITE_NOT_CONFIRMED` | record-analysis | No fresh `analysis-report.md` write could be confirmed on disk after the call |
+| `RECORD_ANALYSIS_VERDICT_UNRELIABLE` | record-analysis | A fresh write was confirmed but its verdict is not a trustworthy match (mismatch, or the submitted verdict was `unknown`) |
+| `DIRTY_WORKTREE` | record-analysis | Pre-existing uncommitted changes block the write |
+| `PLACEMENT_RESOLUTION_REQUIRED` | record-analysis | The write placement could not be resolved (fail-closed; never a silent current-branch fallback) |
+| `INVALID_ORIGIN_FLOW` | open-decision | `--origin` is outside `{charter, specify, plan}` |
+| `DECISION_MISSING_STEP_OR_SLOT` | open-decision, defer-decision, cancel-decision | Neither `--step-id` nor `--slot-key` supplied (open-decision); or an empty `--rationale` (defer-decision, cancel-decision) |
+| `DECISION_ALREADY_CLOSED` | open-decision | A matching logical-key entry already exists in a terminal state |
+| `DECISION_EVENT_REPAIR_FAILED` | open-decision | Idempotent-open path: the missing `DecisionPointOpened` event could not be re-emitted |
+| `DECISION_NOT_FOUND` | resolve-decision, defer-decision, cancel-decision | `--decision-id` is not present in the mission's ledger |
+| `DECISION_TERMINAL_CONFLICT` | resolve-decision, defer-decision, cancel-decision | The decision is already terminal with a DIFFERENT outcome/payload than requested |
+| `RESULT_REQUIRED` | answer-decision | `--result` is required alongside `--answer` |
+| `INVALID_RESULT` | answer-decision | `--result` is not one of `success`, `failed`, `blocked` |
+| `NO_PENDING_DECISION` | answer-decision | No pending decisions to answer |
+| `AMBIGUOUS_PENDING_DECISION` | answer-decision | More than one pending decision and `--decision-id` was omitted |
+| `DECISION_NOT_PENDING` | answer-decision | `--decision-id` does not match any entry in the current run's pending decisions |
+| `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal |
 
 ---
 
