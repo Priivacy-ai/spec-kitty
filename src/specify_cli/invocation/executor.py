@@ -661,10 +661,11 @@ class ProfileInvocationExecutor:
         no internal catch, exactly as ``invoke()`` does today -- covering all
         three of its error codes (``ROUTER_AMBIGUOUS``, ``ROUTER_NO_MATCH``,
         and, on the explicit-``profile_hint`` branch, ``PROFILE_NOT_FOUND``).
-        A literal ``ProfileNotFoundError`` never reaches this method's
-        caller: ``route()``'s explicit-hint branch already catches it
-        internally and re-raises it as
-        ``RouterAmbiguityError(error_code="PROFILE_NOT_FOUND")`` first.
+        A literal ``ProfileNotFoundError`` DOES reach this method's caller on
+        the explicit-``profile_hint`` branch: the registry is resolved
+        directly (not via ``route()``), so a bad ``--profile`` raises it here.
+        Only the no-hint branch surfaces a miss as
+        ``RouterAmbiguityError(error_code="PROFILE_NOT_FOUND")`` from ``route()``.
         """
         # FR-008 (spec.md Acceptance Scenario 2): the dry-run payload
         # contract pins "exact" for the explicit-hint branch, matching
