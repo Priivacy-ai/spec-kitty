@@ -23,6 +23,7 @@ Both directions are proven (SC-004 / NFR-005 non-vacuity):
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
@@ -133,3 +134,36 @@ class TestFallbackSignalAbsent:
         assert result.exit_code == 0, result.output
         assert "Active Mission" in result.output
         assert "Warning" not in result.output
+
+
+class TestNonFallbackWarningsReemitted:
+    """#3831 fold: ``catch_warnings(record=True)`` captures EVERY warning
+    raised inside the block, not just the fallback substring this command
+    specifically prints -- an unrelated warning raised anywhere in the
+    ``get_mission_for_feature`` call path was previously dropped on the
+    floor with no trace. It must now be re-emitted through the normal
+    ``warnings`` machinery (so a caller's own filter/handler still sees it),
+    while the fallback signal itself keeps printing exactly as before."""
+
+    def test_unrelated_warning_is_reemitted_while_fallback_still_prints(self, tmp_path: Path) -> None:
+        from specify_cli.mission import get_mission_for_feature as real_get_mission_for_feature
+
+        mission_slug = "999-unrelated-warning"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        _write_meta(feature_dir, mission_type="totally-nonexistent-mission-type-xyz")
+
+        def _wrapped(feature_dir_arg: Path, project_root_arg: Path | None = None):
+            warnings.warn("unrelated diagnostic warning xyz123", UserWarning, stacklevel=2)
+            return real_get_mission_for_feature(feature_dir_arg, project_root_arg)
+
+        with (
+            patch("specify_cli.cli.commands.mission_type.get_mission_for_feature", _wrapped),
+            pytest.warns(UserWarning, match="unrelated diagnostic warning xyz123"),
+        ):
+            result = _invoke_current(tmp_path, mission_slug)
+
+        assert result.exit_code == 0, result.output
+        # The re-emitted unrelated warning must not have replaced or
+        # suppressed the fallback's own loud CLI signal.
+        assert "Warning" in result.output
+        assert "software-dev" in result.output
