@@ -908,7 +908,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          if uv run python -m mypy --strict src/specify_cli src/charter src/doctrine 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
+          if uv run python -m mypy --strict src/specify_cli src/charter src/doctrine.py 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
