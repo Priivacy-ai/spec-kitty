@@ -967,7 +967,7 @@ def _create_mission_core_impl(
     if origin_binding_succeeded:
         try:
             _commit_feature_file(
-                (meta_file,),
+                meta_file,
                 mission_slug_formatted,
                 "origin-ticket binding",
                 resolved_root,
