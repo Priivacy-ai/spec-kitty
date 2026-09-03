@@ -726,16 +726,21 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """FR-002 (#3830): a genuine ``resolve_mission_type_context`` failure (e.g.
-    a malformed org pack triggering ``UnknownMissionTypeError``) must produce
-    a log record via the module's own logger -- previously a bare
-    ``except Exception: pass`` swallowed it with no diagnostic surface at
-    all, indistinguishable from the ordinary case where resolution simply
-    succeeds. Negative case (NFR-001, asserted in this SAME test function per
-    SC-004's own established pattern in this file, so a future change cannot
-    break the negative case while the positive case still passes): the
-    ordinary "resolution succeeded" case must continue to log nothing --
-    genuine failure and ordinary success must be distinguishable by log
-    presence, not conflated."""
+    a malformed org pack) must produce an ERROR-level log record via the
+    module's own logger -- previously a bare ``except Exception: pass``
+    swallowed it with no diagnostic surface at all. ``UnknownMissionTypeError``
+    is NOT a genuine failure -- it is the expected outcome for any
+    non-charter-activated custom mission type (the normal #3830
+    frozen-template path), so it must log at DEBUG only and must never
+    produce a WARNING/ERROR record on this ordinary happy path (#3830
+    regression: an earlier revision logged a full ERROR traceback here on
+    every dispatch for a custom type). Negative case (NFR-001, asserted in
+    this SAME test function per SC-004's own established pattern in this
+    file, so a future change cannot break the negative case while the
+    positive cases still pass): the ordinary "resolution succeeded" case
+    must continue to log nothing -- genuine failure, expected
+    non-activation, and ordinary success must all be distinguishable by log
+    presence/level, not conflated."""
     from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
     run_dir = tmp_path / "run"
@@ -745,8 +750,9 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
         steps=[{"id": "step1", "title": "Step One", "agent_profile": "reviewer-renata"}],
     )
 
-    # Positive case: resolve_mission_type_context genuinely raises (malformed
-    # org pack stand-in).
+    # Case 1 (expected/happy path): resolve_mission_type_context raises
+    # UnknownMissionTypeError for a non-charter-activated custom type --
+    # must log at DEBUG only, never WARNING/ERROR.
     def _raise_unknown(
         repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None
     ) -> SimpleNamespace:
@@ -756,23 +762,47 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
         "charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_unknown
     )
 
-    with caplog.at_level(logging.WARNING, logger="runtime.next.runtime_bridge"):
+    with caplog.at_level(logging.DEBUG, logger="runtime.next.runtime_bridge"):
         profile, _contract = composition._composition_dispatch_inputs(
             repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1"
         )
 
-    # Resolution still proceeds via the frozen-template fallback path --
-    # a genuine resolve_mission_type_context failure is diagnosable, not
-    # fatal to dispatch.
+    # Resolution still proceeds via the frozen-template fallback path.
     assert profile == "reviewer-renata"
-    assert len(caplog.records) == 1
-    message = caplog.records[0].getMessage()
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+    debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
+    assert len(debug_records) == 1
+    assert "qa" in debug_records[0].getMessage()
+
+    caplog.clear()
+
+    # Case 2 (genuine failure): a non-UnknownMissionTypeError exception (e.g.
+    # a malformed org pack) must still produce exactly one ERROR record via
+    # logger.exception.
+    def _raise_malformed(
+        repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None
+    ) -> SimpleNamespace:
+        raise ValueError("malformed org pack")
+
+    monkeypatch.setattr(
+        "charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_malformed
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="runtime.next.runtime_bridge"):
+        profile, _contract = composition._composition_dispatch_inputs(
+            repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1"
+        )
+
+    assert profile == "reviewer-renata"
+    error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(error_records) == 1
+    message = error_records[0].getMessage()
     assert "qa" in message
     assert "step1" in message
 
     caplog.clear()
 
-    # Negative case (NFR-001): ordinary successful resolution logs nothing.
+    # Case 3 (NFR-001): ordinary successful resolution logs nothing.
     monkeypatch.setattr(
         "charter.activation.mission_type_profiles.resolve_mission_type_context",
         lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
@@ -780,7 +810,7 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
         ),
     )
 
-    with caplog.at_level(logging.WARNING, logger="runtime.next.runtime_bridge"):
+    with caplog.at_level(logging.DEBUG, logger="runtime.next.runtime_bridge"):
         profile, _contract = composition._composition_dispatch_inputs(
             repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1"
         )
