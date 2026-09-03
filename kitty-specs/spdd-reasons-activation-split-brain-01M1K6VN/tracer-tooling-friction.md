@@ -212,3 +212,45 @@ exist to close, and directly contradicting
 own load-bearing assertion (a directly-scoped directive not in a non-empty `project_directives` MUST be
 excluded). Flagged BLOCKED for operator review in the WP02-follow-on report rather than silently edited
 or routed around.
+
+## 7. WP02 follow-on, round 2 — "reachable within my own scope walk" was still the wrong boundary;
+the real distinction is ownership, not reachability
+
+The round-1 fix (friction items 5 and 6 above) gated the closure union on reachability within the
+resolving action's own `Relation.SCOPE`-then-`{REQUIRES}`/`{SUGGESTS}` walk. Re-running the FULL
+`tests/charter/` suite (not just this WP's own scoped test files, per the mission's own baseline
+discipline) surfaced two NEW regressions that isolated pytest runs against only the named/owned test
+files never would have caught: `tests/charter/test_context.py::TestBuildContextV2::test_selected_directive_closure_contributes_action_context`
+and `::test_org_required_primary_kinds_contribute_to_prompt`. Both are pre-existing (confirmed by
+running them against WP02's unmodified original commit, `13a8cba1a` -- they pass there), both
+explicitly documented in their own docstrings ("Selected directives contribute their DRG closure even
+without action-scope edges"), and both use fixture graphs with ZERO `scope` edges anywhere at all --
+the closure-seeded directive and its `requires` target are simply floating nodes nobody scoped to any
+action. Isolated to only the two ruling-named tests plus WP02's own file, this class of regression is
+invisible; it only shows up against the broader suite.
+
+**Root cause of the round-1 over-narrowing**: "reachable within my own scope" and "not owned by someone
+else" are different predicates, and the ruling's real named defects (FR-005's `DIRECTIVE_003`, #883's
+`DIRECTIVE_001`) are BOTH instances of the second, narrower one -- each leaking directive has an
+explicit `Relation.SCOPE` edge from a DIFFERENT, specific action, not merely an absence of a `scope`
+edge from the resolving action. Re-derived the gate as a direct SCOPE-edge ownership lookup (`{target:
+{owning action URNs}}`, one pass over `merged.edges`) rather than a walk: exclude a closure result only
+when some OTHER action's `scope` edge names it; a closure result with NO scope owner anywhere is never
+excluded. This closes both real leaks while restoring the two newly-discovered tests to green -- see
+the WP02-follow-on report for the full before/after test matrix.
+
+**Flag for future scope-gate work on this function**: the failure mode here was believing "the ruling's
+two named tests pass" was sufficient proof the fix's *general* rule was correct. It was necessary but
+not sufficient -- the general rule (reachability) happened to satisfy the two named instances while
+being wrong for the general case. Ownership (one-hop, direct edge) turned out to be both simpler AND
+correct where reachability (multi-hop walk) was both more complex AND wrong; when a "reuse the sibling
+function's shape" instruction still produces regressions elsewhere in the suite, checking whether a
+strictly simpler predicate satisfies every constraint is worth doing before elaborating the complex one
+further.
+
+Also fixed in the same round: the ownership lookup was first built unconditionally (one pass over
+`merged.edges` before checking whether the closure produced anything), which broke
+`tests/doctrine/drg/test_unknown_kind_fails_loudly.py::test_classify_artifact_urns_propagates_the_loud_error`
+-- a minimal `_StubGraph` test double that implements only `get_node`, not `.edges`. Gated the lookup
+construction behind `if closure_urns:` so a caller whose closure seed is empty (e.g. an explicit empty
+`project_directives` with no tactics/paradigms) never touches `.edges` at all.
