@@ -193,7 +193,7 @@ def _empty_slot_map() -> dict[str, list[str]]:
 def _classify_artifact_urns(
     artifact_urns: frozenset[str] | set[str],
     merged: DRGGraph,
-    project_directives: set[str],
+    project_directives: set[str] | None,
     selected_tactics: set[str] | None = None,
     selected_paradigms: set[str] | None = None,
 ) -> Mapping[str, tuple[str, ...]]:
@@ -204,13 +204,32 @@ def _classify_artifact_urns(
     spawned five parallel per-kind projections that drifted apart, and every
     drift was a delivery defect (WP10/T053). A kind with no recorded verdict
     raises via :func:`action_bundle_bucket` rather than falling out unnoticed.
+
+    WP02 (Decision Record 2, FR-014): ``project_directives`` is three-state
+    (``None`` / ``frozenset()`` / non-empty) at THIS boundary too, mirroring
+    :func:`~charter.activation.action_doctrine_bundle._load_action_doctrine_bundle`'s
+    own three-state handling of its caller-facing fields. The production
+    caller never passes ``None`` here -- it converts once, at assignment,
+    before calling in -- but this function stays correct standing alone
+    (defense-in-depth, not the load-bearing fix) because
+    ``tests/charter/test_action_bundle_delivery.py`` calls it directly with
+    ``None`` to mean "no project-directive scoping applied" (PLAN-GOV-001).
+    ``None`` seeds no directive start URNs below (same as an empty set would
+    -- the seeding step is orthogonal to the exclusion guard's own
+    ``is not None`` semantics further down) and never crashes on iteration.
     """
     from charter.offering.drg.models import Relation
     from charter.offering.drg.query import resolve_transitive_refs
 
+    # selected_tactics / selected_paradigms have no three-state exclusion
+    # guard anywhere in this function (only project_directives does, below) --
+    # these two lines are therefore defense-in-depth / a documented no-op
+    # guard against a caller passing None, not load-bearing after WP02 (the
+    # real caller, _load_action_doctrine_bundle, converts None to a concrete
+    # catalog-default set once, before calling in).
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()
-    start_urns = {f"directive:{directive_id}" for directive_id in project_directives}
+    start_urns = {f"directive:{directive_id}" for directive_id in (project_directives or ())}
     start_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_tactics)
     start_urns.update(f"paradigm:{paradigm_id}" for paradigm_id in selected_paradigms)
     selected_closure = resolve_transitive_refs(
@@ -235,7 +254,11 @@ def _classify_artifact_urns(
         if slot is None:
             continue
         artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
-        if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives:
+        if (
+            node.kind is NodeKind.DIRECTIVE
+            and project_directives is not None
+            and artifact_id not in project_directives
+        ):
             continue
         slots[slot].append(artifact_id)
     return {slot: tuple(ids) for slot, ids in slots.items()}
