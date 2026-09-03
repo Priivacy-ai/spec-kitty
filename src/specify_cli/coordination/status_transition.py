@@ -1525,7 +1525,7 @@ def emit_inner_state_changed_transactional(
     )
     identity = _identity_for_request(request)
 
-    if effective_root is not None and not _transaction_topology_available(identity, mission_slug):
+    if effective_root is not None and not identity.transaction_meta_exists:
         from mission_runtime import ActionContextError
 
         raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "Owned annotation requires transactional status metadata.")
