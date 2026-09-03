@@ -123,7 +123,9 @@ class TestSchemaVersionAndRoundTrip:
         m = finalize_pack_manifest(
             PackManifest(generated_by="t", constituents=[_c(ArtifactKind.DIRECTIVE, "a")])
         )
-        assert dump_pack_manifest_bytes(m) == dump_pack_manifest_bytes(m)
+        first = dump_pack_manifest_bytes(m)
+        second = dump_pack_manifest_bytes(m)
+        assert first == second
 
     def test_builtin_variant_omits_fetched_nulls_on_all_pydantic_paths(self) -> None:
         manifest = PackManifest(source_type="built-in", constituents=[])

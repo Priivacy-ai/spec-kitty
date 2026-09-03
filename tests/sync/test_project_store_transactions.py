@@ -326,13 +326,15 @@ def test_two_store_instances_serialize_shared_uuid_writes(
                     (PROJECT_UUID,),
                 )
                 first_entered.set()
-                assert release_first.wait(timeout=5)
+                if not release_first.wait(timeout=5):
+                    raise TimeoutError("release_first was not signaled within 5s")
         except BaseException as exc:  # pragma: no cover - asserted below
             failures.append(exc)
 
     def second_writer() -> None:
         try:
-            assert first_entered.wait(timeout=5)
+            if not first_entered.wait(timeout=5):
+                raise TimeoutError("first_entered was not signaled within 5s")
             second_attempting.set()
             with second.unit_of_work() as unit:
                 second_entered.set()
@@ -487,7 +489,8 @@ def test_busy_timeout_bounds_the_wait_under_contention(
                     (PROJECT_UUID,),
                 )
                 holder_entered.set()
-                assert release_holder.wait(timeout=10)
+                if not release_holder.wait(timeout=10):
+                    raise TimeoutError("release_holder was not signaled within 10s")
         except BaseException as exc:  # pragma: no cover - asserted below
             failures.append(exc)
 
