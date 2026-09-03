@@ -3063,6 +3063,25 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md"
+    title: "ADR: Explicit Owned-Checkout Extends to the Single-Branch Mission Lifecycle"
+    divio_type: "none"
+    abstract: "Extends the fail-closed --owned-checkout affordance from mission create/next to the rest of the single-branch lifecycle through one shared preflight authority, restricted to single_branch topology."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "one-shared-preflight-authority", text: "One shared preflight authority", level: 3}
+    - {slug: "the-affordance-now-spans-the-single-branch-lifecycle", text: "The affordance now spans the single-branch lifecycle", level: 3}
+    - {slug: "single-branch-only-by-construction", text: "Single-branch only, by construction", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-and-accepted-trade-offs", text: "Negative and accepted trade-offs", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "extend-owned-checkout-to-coordinated-topologies-now", text: "Extend `--owned-checkout` to coordinated topologies now", level: 3}
+    - {slug: "let-each-lifecycle-command-grow-its-own-ownership-check", text: "Let each lifecycle command grow its own ownership check", level: 3}
+    - {slug: "degrade-to-the-repository-root-checkout-when-owned-validation-fails", text: "Degrade to the repository-root checkout when owned validation fails", level: 3}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
