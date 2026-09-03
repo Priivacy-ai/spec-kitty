@@ -3289,7 +3289,9 @@ def cancel_decision(
 #   4. ``emit_mission_next_invoked`` appends a ``MissionNextInvoked`` entry
 #      to the mission event log.
 #   5. ``write_issuance_lifecycle_record`` writes a new issuance ``started``
-#      record -- ONLY when the resulting ``decision.kind == "step"``.
+#      record. Called unconditionally, exactly like the host CLI -- the
+#      function itself self-no-ops when the resulting ``decision.kind`` is
+#      not ``"step"``, so the predicate lives in the seam, not in this caller.
 #
 # Per operator ruling SPEC-FRESH2-001 (``kitty-specs/design-phase-
 # orchestrator-api-01M1HE6M/reviews/spec.ruling.md``), steps 2/4/5 are
@@ -3500,10 +3502,13 @@ def answer_decision(
     # mission event log entry. ---
     emit_mission_next_invoked(agent, result, mission, main_repo_root, decision)
 
-    # --- Step 5 (WP02 seam, REQUIRED, conditional on kind == "step"): write
-    # the new issuance lifecycle record. ---
-    if decision.kind == "step":
-        write_issuance_lifecycle_record(agent, mission, main_repo_root, decision)
+    # --- Step 5 (WP02 seam, REQUIRED): write the new issuance lifecycle
+    # record. Called unconditionally, exactly like the host CLI
+    # (``next_cmd.py:262``) -- ``write_issuance_lifecycle_record`` itself
+    # self-no-ops on a non-"step" decision (``next_invocation_lifecycle.py``,
+    # the ``kind != "step"`` guard near its top), so the predicate belongs to
+    # the seam, not to each caller. ---
+    write_issuance_lifecycle_record(agent, mission, main_repo_root, decision)
 
     data = decision.to_dict()
     # Sibling field (SPEC-FRESH2-002): the persisted-answer confirmation,
