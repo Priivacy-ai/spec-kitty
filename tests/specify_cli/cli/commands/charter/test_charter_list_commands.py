@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
@@ -70,7 +71,7 @@ def project_with_directive(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _invoke_list(project_root: Path, *args: str) -> object:
+def _invoke_list(project_root: Path, *args: str) -> Result:
     """Invoke charter list with --repo-root."""
     return runner.invoke(
         charter_app,
@@ -335,3 +336,126 @@ class TestListJson:
             "success": False,
             "error": "boom",
         }
+
+
+# ---------------------------------------------------------------------------
+# charter list — non-mapping config.yaml guard (issue #3839 MAJOR finding)
+# ---------------------------------------------------------------------------
+#
+# ``charter list``'s own headline path (``ProjectContext.from_repo`` ->
+# ``PackContext.from_config`` -> ``pack_context._load_config``) had NO
+# exception boundary at all: a non-mapping ``.kittify/config.yaml`` raised
+# ``CharterPackConfigError`` (a ``KittyInternalConsistencyError``) uncaught,
+# through every entry path (plain ``list``, ``--show-available``, ``--all``),
+# both ``--json`` and rich-console modes -- exit 1 with EMPTY stdout and a raw
+# traceback on stderr. That is exactly the fail-quiet-becomes-traceback
+# outcome this mission (SK-16 lineage) exists to close, and this test file
+# had no non-mapping case for ``list`` itself before this addition -- that
+# gap is exactly what let the regression through.
+#
+# The full non-mapping space mirrors what the other four guarded readers
+# (``charter status``, ``synthesize``, ``resynthesize``,
+# ``doctor tool-surfaces``) were verified against: a bare string, a list, an
+# int, a float, and a bool top-level YAML document. ``None`` (an empty
+# document) is NOT an error -- ``pack_context._load_config`` and
+# ``pack_manager._load_config`` both resolve it to ``{}`` -- and is pinned
+# separately so the guard is never accidentally widened to reject it too.
+
+#: Non-mapping top-level YAML shapes. Every one of these parses without a
+#: YAML error but is not a ``dict``, so ``isinstance(data, dict)`` fails and
+#: ``PackContext.from_config`` raises ``CharterPackConfigError``.
+_NON_MAPPING_CONFIG_YAML: dict[str, str] = {
+    "string": "just-a-plain-string-not-a-mapping\n",
+    "list": "- a\n- b\n",
+    "int": "42\n",
+    "float": "3.14\n",
+    "bool": "true\n",
+}
+
+#: Every ``charter list`` entry path the maintainer's finding named --
+#: ``--show-available`` and ``--all`` hit the same unguarded call as plain
+#: ``list``, not just the already-guarded ``list_available_detailed`` path
+#: reached under ``--all``.
+_LIST_ENTRY_PATHS: dict[str, tuple[str, ...]] = {
+    "plain": (),
+    "show_available": ("--show-available",),
+    "all": ("--all",),
+}
+
+
+def _build_non_mapping_config(repo_root: Path, yaml_text: str) -> None:
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(yaml_text, encoding="utf-8")
+
+
+@pytest.mark.parametrize("entry_name", sorted(_LIST_ENTRY_PATHS))
+@pytest.mark.parametrize("shape_name", sorted(_NON_MAPPING_CONFIG_YAML))
+class TestListNonMappingConfigGuard:
+    """Every entry path x every non-mapping shape, in both output modes."""
+
+    def test_json_mode_fails_closed_with_parseable_diagnostic(
+        self, tmp_path: Path, shape_name: str, entry_name: str
+    ) -> None:
+        _build_non_mapping_config(tmp_path, _NON_MAPPING_CONFIG_YAML[shape_name])
+        result = _invoke_list(
+            tmp_path, *_LIST_ENTRY_PATHS[entry_name], "--json"
+        )
+
+        assert result.exit_code == 1, (
+            f"charter list {_LIST_ENTRY_PATHS[entry_name]} --json must fail "
+            f"closed on a non-mapping ({shape_name}) config.yaml; got exit "
+            f"{result.exit_code}:\n{result.stdout}"
+        )
+        assert result.stdout.strip(), (
+            "expected JSON on stdout -- empty stdout is the pre-fix symptom "
+            "(the raw traceback went to stderr instead)"
+        )
+        assert "Traceback" not in result.stdout
+
+        payload = json.loads(result.stdout)  # raises if not parseable JSON
+        assert payload["result"] == "error", payload
+        assert payload["success"] is False, payload
+
+        message = payload["error"]
+        # Surface .body, not just str(exc) -- CHARTER_PACK_CONFIG_INVALID
+        # alone tells the consumer nothing.
+        assert message != "CHARTER_PACK_CONFIG_INVALID", (
+            f"diagnostic must carry the .body detail, not the bare code: {payload!r}"
+        )
+        assert "config.yaml" in message and "mapping" in message, (
+            f"diagnostic should name the file and the real problem: {payload!r}"
+        )
+
+    def test_rich_console_mode_fails_closed_without_traceback(
+        self, tmp_path: Path, shape_name: str, entry_name: str
+    ) -> None:
+        _build_non_mapping_config(tmp_path, _NON_MAPPING_CONFIG_YAML[shape_name])
+        result = _invoke_list(tmp_path, *_LIST_ENTRY_PATHS[entry_name])
+
+        assert result.exit_code == 1, (
+            f"charter list {_LIST_ENTRY_PATHS[entry_name]} must fail closed "
+            f"on a non-mapping ({shape_name}) config.yaml; got exit "
+            f"{result.exit_code}:\n{result.output}"
+        )
+        assert "Traceback" not in result.output
+        assert "config.yaml" in result.output and "mapping" in result.output, (
+            f"diagnostic should name the file and the real problem: {result.output!r}"
+        )
+
+
+class TestListNoneConfigResolvesToEmptyMapping:
+    """An empty ``.kittify/config.yaml`` (YAML ``None``) is NOT an error --
+    both loaders resolve it to ``{}``, distinct from every non-mapping shape
+    above."""
+
+    def test_empty_config_file_is_not_an_error(self, tmp_path: Path) -> None:
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("", encoding="utf-8")
+
+        result = _invoke_list(tmp_path, "--json")
+
+        assert result.exit_code == 0, result.stdout
+        payload = json.loads(result.stdout)
+        assert payload["result"] == "success", payload

@@ -11,11 +11,13 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.console import console
 from rich.table import Table
 
+from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
 from charter.activation.pack_manager import AvailableArtifact, CharterPackManager
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
+from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.commands.charter._common import _emit_error
 from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
@@ -190,127 +192,150 @@ def list_cmd(
     if all_layers:
         show_available = True
 
-    ctx = ProjectContext.from_repo(repo_root)
-    manager = CharterPackManager()
-    activated_map = manager.list_activated(ctx)
+    try:
+        ctx = ProjectContext.from_repo(repo_root)
+        manager = CharterPackManager()
+        activated_map = manager.list_activated(ctx)
 
-    # Resolve org/project roots once when we need the layer-aware view (C-008).
-    layer_roots = resolve_layer_roots(repo_root) if all_layers else None
+        # Resolve org/project roots once when we need the layer-aware view (C-008).
+        layer_roots = resolve_layer_roots(repo_root) if all_layers else None
 
-    table = Table(title="Charter Activation State", show_lines=True)
-    table.add_column("Kind", style="bold cyan", no_wrap=True)
-    table.add_column("Activated", style="white")
-    if show_available:
-        header = "Available (all layers)" if all_layers else "Available (not activated)"
-        table.add_column(header, style="dim")
+        table = Table(title="Charter Activation State", show_lines=True)
+        table.add_column("Kind", style="bold cyan", no_wrap=True)
+        table.add_column("Activated", style="white")
+        if show_available:
+            header = "Available (all layers)" if all_layers else "Available (not activated)"
+            table.add_column(header, style="dim")
 
-    # ``--json`` rows mirror the table rows exactly, built from the same
-    # manager calls in the same loop -- serialization, not re-derivation.
-    json_rows: list[dict[str, Any]] = []
+        # ``--json`` rows mirror the table rows exactly, built from the same
+        # manager calls in the same loop -- serialization, not re-derivation.
+        json_rows: list[dict[str, Any]] = []
 
-    for kind in _KIND_ORDER:
-        value = activated_map.get(kind)
-        if value is None:
-            activated_str = "[dim](All built-ins — no explicit activation)[/dim]"
-        elif len(value) == 0:
-            activated_str = "[yellow](Nothing activated — explicit restriction)[/yellow]"
-        else:
-            activated_str = ", ".join(sorted(value))
+        for kind in _KIND_ORDER:
+            value = activated_map.get(kind)
+            if value is None:
+                activated_str = "[dim](All built-ins — no explicit activation)[/dim]"
+            elif len(value) == 0:
+                activated_str = "[yellow](Nothing activated — explicit restriction)[/yellow]"
+            else:
+                activated_str = ", ".join(sorted(value))
 
-        json_row: dict[str, Any] = {
-            "kind": kind,
-            "activated": sorted(value) if value is not None else None,
-            # OP-CONTRACT-003: always present, not conditionally absent --
-            # null (not merely unset) when --show-available/--all wasn't
-            # passed, so callers can rely on key presence.
-            "available": None,
+            json_row: dict[str, Any] = {
+                "kind": kind,
+                "activated": sorted(value) if value is not None else None,
+                # OP-CONTRACT-003: always present, not conditionally absent --
+                # null (not merely unset) when --show-available/--all wasn't
+                # passed, so callers can rely on key presence.
+                "available": None,
+            }
+
+            if show_available:
+                activated_set = value or frozenset()
+                if all_layers:
+                    # CL-006/NFR-002 (post-fix verification sweep, mission
+                    # up-mission-type-seam-01KZY1JB): for the ``mission-type``
+                    # kind, ``list_available_detailed`` reaches
+                    # ``scan_mission_types_dir`` directly (PR-CONTRACT-002) and
+                    # loud-fails BY DESIGN on a malformed/unreadable YAML file
+                    # anywhere in the built-in/org/project ``mission_types/``
+                    # layers -- same underlying primitive as the other CLI
+                    # surfaces this mission's grep found, a different direct
+                    # caller. A bare ``except ValueError`` also catches
+                    # ``pydantic.ValidationError`` (this scan's other documented
+                    # ``Raises`` type, see its docstring) since it subclasses
+                    # ``ValueError`` in the pinned pydantic version.
+                    try:
+                        entries = manager.list_available_detailed(
+                            ctx, kind, layer_roots=layer_roots
+                        )
+                    except ValueError as exc:
+                        _emit_error(console, json_output=json_output, message=str(exc))
+                        raise typer.Exit(1) from exc
+                    available_str = _render_available(entries, activated_set)
+                    not_activated_entries = sorted(
+                        (
+                            (e.artifact_id, e.layer)
+                            for e in entries
+                            if e.artifact_id not in activated_set
+                        ),
+                        key=lambda pair: (pair[0], pair[1]),
+                    )
+                    json_row["available"] = [
+                        {"artifact_id": aid, "layer": layer}
+                        for aid, layer in not_activated_entries
+                    ]
+                else:
+                    available = manager.list_available(ctx, kind)
+                    not_activated = sorted(available - activated_set) if available else []
+                    available_str = (
+                        ", ".join(not_activated) if not_activated else "[dim]—[/dim]"
+                    )
+                    json_row["available"] = not_activated
+                table.add_row(kind, activated_str, available_str)
+            else:
+                table.add_row(kind, activated_str)
+
+            json_rows.append(json_row)
+
+        # OP-CONTRACT-003: "templates" is always present, not conditionally
+        # absent -- null (not merely unset) without --all, so callers can rely
+        # on key presence.
+        payload: dict[str, Any] = {
+            "result": "success",
+            "kinds": json_rows,
+            "templates": None,
         }
 
-        if show_available:
-            activated_set = value or frozenset()
-            if all_layers:
-                # CL-006/NFR-002 (post-fix verification sweep, mission
-                # up-mission-type-seam-01KZY1JB): for the ``mission-type``
-                # kind, ``list_available_detailed`` reaches
-                # ``scan_mission_types_dir`` directly (PR-CONTRACT-002) and
-                # loud-fails BY DESIGN on a malformed/unreadable YAML file
-                # anywhere in the built-in/org/project ``mission_types/``
-                # layers -- same underlying primitive as the other CLI
-                # surfaces this mission's grep found, a different direct
-                # caller. A bare ``except ValueError`` also catches
-                # ``pydantic.ValidationError`` (this scan's other documented
-                # ``Raises`` type, see its docstring) since it subclasses
-                # ``ValueError`` in the pinned pydantic version.
-                try:
-                    entries = manager.list_available_detailed(
-                        ctx, kind, layer_roots=layer_roots
-                    )
-                except ValueError as exc:
-                    _emit_error(console, json_output=json_output, message=str(exc))
-                    raise typer.Exit(1) from exc
-                available_str = _render_available(entries, activated_set)
-                not_activated_entries = sorted(
-                    (
-                        (e.artifact_id, e.layer)
-                        for e in entries
-                        if e.artifact_id not in activated_set
-                    ),
-                    key=lambda pair: (pair[0], pair[1]),
-                )
-                json_row["available"] = [
-                    {"artifact_id": aid, "layer": layer}
-                    for aid, layer in not_activated_entries
-                ]
-            else:
-                available = manager.list_available(ctx, kind)
-                not_activated = sorted(available - activated_set) if available else []
-                available_str = (
-                    ", ".join(not_activated) if not_activated else "[dim]—[/dim]"
-                )
-                json_row["available"] = not_activated
-            table.add_row(kind, activated_str, available_str)
+        # FR-025: the template kind is mission-scoped and has no activation list, so
+        # it only appears in the layer-aware (--all) availability view.
+        if all_layers:
+            tier_roots = _template_tier_roots(repo_root, layer_roots or {})
+            template_refs = discover_templates(tier_roots=tier_roots)
+            table.add_row(
+                _TEMPLATE_KIND,
+                "[dim](mission-scoped — not separately activated)[/dim]",
+                _render_templates(template_refs),
+            )
+            payload["templates"] = [
+                {
+                    "template_id": ref.template_id,
+                    "mission": ref.mission,
+                    "name": ref.name,
+                    "tier": ref.tier.value,
+                }
+                for ref in template_refs
+            ]
+
+        if json_output:
+            print(json.dumps(payload, indent=2))
+            return
+
+        # The layer-aware view is intentionally wide (IDs + per-layer tags); render
+        # it at a generous fixed width so artifact IDs are never word-wrapped into
+        # unreadable fragments on narrow / non-tty terminals.
+        if all_layers:
+            _wide_console.print(table)
         else:
-            table.add_row(kind, activated_str)
-
-        json_rows.append(json_row)
-
-    # OP-CONTRACT-003: "templates" is always present, not conditionally
-    # absent -- null (not merely unset) without --all, so callers can rely
-    # on key presence.
-    payload: dict[str, Any] = {
-        "result": "success",
-        "kinds": json_rows,
-        "templates": None,
-    }
-
-    # FR-025: the template kind is mission-scoped and has no activation list, so
-    # it only appears in the layer-aware (--all) availability view.
-    if all_layers:
-        tier_roots = _template_tier_roots(repo_root, layer_roots or {})
-        template_refs = discover_templates(tier_roots=tier_roots)
-        table.add_row(
-            _TEMPLATE_KIND,
-            "[dim](mission-scoped — not separately activated)[/dim]",
-            _render_templates(template_refs),
-        )
-        payload["templates"] = [
-            {
-                "template_id": ref.template_id,
-                "mission": ref.mission,
-                "name": ref.name,
-                "tier": ref.tier.value,
-            }
-            for ref in template_refs
-        ]
-
-    if json_output:
-        print(json.dumps(payload, indent=2))
-        return
-
-    # The layer-aware view is intentionally wide (IDs + per-layer tags); render
-    # it at a generous fixed width so artifact IDs are never word-wrapped into
-    # unreadable fragments on narrow / non-tty terminals.
-    if all_layers:
-        _wide_console.print(table)
-    else:
-        console.print(table)
+            console.print(table)
+    except (ConfigShapeError, ValueError) as exc:
+        # ValueError: pack_manager._load_config / _activation_list_or_error
+        # (non-mapping or malformed .kittify/config.yaml) and
+        # list_available_detailed's mission-type ValueError (already
+        # guarded above for --all, but list_available's plain
+        # --show-available path reaches the same primitive unguarded).
+        # ConfigShapeError: kept for symmetry with the other guarded
+        # charter surfaces (status/synthesize/resynthesize) even though
+        # this command's own call chain does not currently raise it.
+        _emit_error(console, json_output=json_output, message=str(exc))
+        raise typer.Exit(1) from exc
+    except KittyInternalConsistencyError as exc:
+        # CharterPackConfigError (ProjectContext.from_repo ->
+        # PackContext.from_config -> pack_context._load_config) on a
+        # non-mapping .kittify/config.yaml or a dangling charter:
+        # pointer. str(exc) is just the opaque code
+        # (CHARTER_PACK_CONFIG_INVALID); surface .body too, matching
+        # the established pattern (synthesize.py's KittyInternalConsistencyError
+        # handler).
+        detail = f"{exc.code}: {exc.body}" if exc.body else exc.code
+        _emit_error(console, json_output=json_output, message=detail)
+        raise typer.Exit(1) from exc
