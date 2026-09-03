@@ -156,6 +156,27 @@ def _resolve_commit_inputs(
     return mission_slug, abs_files, None
 
 
+def _reject_directory_args(abs_files: list[Path], json_output: bool) -> None:
+    """Fail fast on directory arguments with a clear, files-only message.
+
+    #2739 B11: git stages a directory's files, but the safe-commit backstop
+    compares literally against the requested path (the directory), so a directory
+    arg would otherwise abort with the opaque "staging area contains unexpected
+    paths" error. Reject early with actionable guidance instead.
+    """
+    directory_args = [f for f in abs_files if f.is_dir()]
+    if not directory_args:
+        return
+    listed = ", ".join(str(d) for d in directory_args)
+    _err(
+        json_output,
+        "spec-commit takes individual file paths, not directories. "
+        f"Received director{'ies' if len(directory_args) > 1 else 'y'}: "
+        f"{listed}. Pass the specific files to commit instead.",
+    )
+    raise typer.Exit(1)
+
+
 def spec_commit_command(
     files: list[Path] = typer.Argument(
         ...,
@@ -200,22 +221,7 @@ def spec_commit_command(
     try:
         repo_root = _current_repo_root()
         mission_slug, abs_files, owned = _resolve_commit_inputs(repo_root, files, mission, owned_checkout, target_branch)
-
-        # #2739 B11: reject directory arguments early with a clear, files-only
-        # message. git stages a directory's files, but the safe-commit backstop
-        # compares literally against the requested path (the directory), so a
-        # directory arg would otherwise abort with the opaque "staging area
-        # contains unexpected paths" error. Fail fast with actionable guidance.
-        directory_args = [f for f in abs_files if f.is_dir()]
-        if directory_args:
-            listed = ", ".join(str(d) for d in directory_args)
-            _err(
-                json_output,
-                "spec-commit takes individual file paths, not directories. "
-                f"Received director{'ies' if len(directory_args) > 1 else 'y'}: "
-                f"{listed}. Pass the specific files to commit instead.",
-            )
-            raise typer.Exit(1)
+        _reject_directory_args(abs_files, json_output)
         if not mission_slug:
             _err(
                 json_output,
