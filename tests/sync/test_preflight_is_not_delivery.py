@@ -74,7 +74,7 @@ def test_every_terminal_outcome_settles_to_a_terminal_state() -> None:
     settled = {
         DeliveryOutcome.REFUSED: DeliveryAttemptState.REFUSED,
         DeliveryOutcome.TERMINAL_UNKNOWN: DeliveryAttemptState.TERMINAL_UNKNOWN,
-    } | {outcome: DeliveryAttemptState.SUCCEEDED for outcome in _SUCCEEDED_DELIVERY_OUTCOMES}
+    } | dict.fromkeys(_SUCCEEDED_DELIVERY_OUTCOMES, DeliveryAttemptState.SUCCEEDED)
 
     assert set(settled) == set(_TERMINAL_DELIVERY_OUTCOMES), (
         "a terminal outcome exists that no site maps to a state (#3722)"
@@ -141,7 +141,8 @@ def test_resume_replays_both_accepted_shapes(outcome: DeliveryOutcome) -> None:
 
     source = upload.__file__
     assert source
-    text = open(source, encoding="utf-8").read()
+    with open(source, encoding="utf-8") as _fh:
+        text = _fh.read()
     # The replay branch must name both, so an upgrade does not strand old rows.
     assert "TransportDeliveryOutcome.PREFLIGHT_ACCEPTED" in text
     assert "TransportDeliveryOutcome.DELIVERED" in text
