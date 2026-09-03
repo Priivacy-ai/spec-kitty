@@ -1,6 +1,6 @@
 ---
 work_package_id: WP01
-title: Три проверки качества модели
+title: Three model quality checks
 dependencies: []
 requirement_refs:
 - FR-001
@@ -41,47 +41,47 @@ tags:
 - domain-modeling
 ---
 
-## Цель
+## Goal
 
-Добавить в существующий glossary workflow ровно три механизма: сверку модели с кодом, проверку термина конкретным граничным сценарием и тройной ADR-gate. Не импортировать внешний skill целиком.
+Add exactly three mechanisms to the existing glossary workflow: cross-check the model against code, challenge a term with a concrete edge scenario, and apply a three-condition ADR gate. Do not import the external skill wholesale.
 
-## Сначала — проверка
+## Validate First
 
-До редактирования `SKILL.md` зафиксировать реакцию текущего workflow на три синтетических запроса:
+Before editing `SKILL.md`, capture the current workflow's response to three synthetic prompts:
 
-1. Описание модели противоречит типам или тестам в небольшом публичном fixture.
-2. Термин `status` имеет два возможных смысла и один граничный сценарий.
-3. Из четырёх решений три не проходят по одному ADR-gate, одно проходит все три.
+1. A model description contradicts types or tests in a small public fixture.
+2. The term `status` has two possible meanings and one edge scenario.
+3. Of four decisions, three each fail one ADR condition and one passes all three.
 
-Baseline должен показать, какой из требуемых механизмов сейчас отсутствует или не гарантирован. Parser/fixture error не считается доказательством.
+The baseline must show which required mechanism is absent or not guaranteed. A parser or fixture error is not evidence.
 
-## Реализация
+## Implementation
 
-1. В публичном skill добавить только route к detailed workflow для model-shaping requests.
-2. В detailed skill добавить один conditional раздел без повторения существующих правил glossary.
-3. Для code cross-check требовать конкретную проверенную поверхность либо честную маркировку гипотезы.
-4. Для ambiguous term требовать один concrete edge scenario, но не навязывать его уже каноническим бесспорным терминам.
-5. Для ADR требовать одновременное прохождение всех трёх gates.
+1. Add only a route from the public skill to the detailed workflow for model-shaping requests.
+2. Add one conditional section to the detailed skill without repeating existing glossary rules.
+3. For the code cross-check, require a concrete inspected surface or an honest hypothesis label.
+4. For an ambiguous term, require one concrete edge scenario without imposing one on already canonical, uncontested terms.
+5. Require all three conditions to pass before recommending an ADR.
 
-## Запрещённое расширение scope
+## Prohibited Scope Expansion
 
-- Новый skill или новый glossary store.
+- A new skill or glossary store.
 - `CONTEXT.md` / `CONTEXT-MAP.md`.
-- Изменения runtime glossary, CLI, registry, ADR templates или глобальной установленной проекции.
-- Общая переработка существующего glossary workflow.
+- Changes to the runtime glossary, CLI, registry, ADR templates, or installed global projection.
+- A general rewrite of the existing glossary workflow.
 
 ## Definition of Done
 
-- Три повторных smoke-сценария демонстрируют ожидаемое поведение.
-- Оба изменённых skills проходят `quick_validate.py`.
-- `tests/doctrine/test_spk_skill_pack.py` проходит.
-- Scope scan подтверждает только два разрешённых продуктовых файла.
-- Diff короткий, не дублирует existing authority и не содержит внешнего framework boilerplate.
+- The three repeated smoke scenarios demonstrate the expected behavior.
+- Both modified skills pass `quick_validate.py`.
+- `tests/doctrine/test_spk_skill_pack.py` passes.
+- The scope scan confirms only the two allowed product files.
+- The diff is focused, does not duplicate the existing authority, and contains no external framework boilerplate.
 
-## Результат локальной проверки
+## Local Validation Result
 
-- Failing-first baseline: четыре ожидаемых признака отсутствовали.
-- Повторный smoke: четыре ожидаемых признака присутствуют.
-- `quick_validate.py`: оба skill-файла валидны.
+- Failing-first baseline: four expected signals were absent.
+- Repeated smoke test: all four expected signals are present.
+- `quick_validate.py`: both skill files are valid.
 - `tests/doctrine/test_spk_skill_pack.py`: `6 passed`.
-- Product scope: изменены только два файла из `owned_files`.
+- Product scope: only the two files listed in `owned_files` changed.

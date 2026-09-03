@@ -1,84 +1,84 @@
-# План реализации: усиление glossary skills проверкой модели
+# Implementation Plan: Strengthen Glossary Skills with Model Validation
 
-**Ветка**: `codex/glossary-modeling-delta` | **Дата**: 2026-09-02 | **Спецификация**: `spec.md`
+**Branch**: `codex/glossary-modeling-delta` | **Date**: 2026-09-02 | **Specification**: `spec.md`
 
-## Резюме
+## Summary
 
-Добавить в существующий glossary workflow три узких механизма: сверку существенных утверждений модели с доступным кодом, проверку неоднозначного термина конкретным граничным сценарием и тройной gate перед рекомендацией ADR. Не переносить внешний `domain-modeling` skill, его файловую структуру или общий процесс.
+Add three focused mechanisms to the existing glossary workflow: cross-check material model claims against available code, challenge ambiguous terms with a concrete edge scenario, and apply a three-condition gate before recommending an ADR. Do not import the external `domain-modeling` skill, its file structure, or its general workflow.
 
-## Технический контекст
+## Technical Context
 
-**Формат**: Markdown-инструкции Codex skills
-**Основные зависимости**: существующие `spk-doctrine-glossary` и `spec-kitty-glossary-context`
-**Хранилище**: N/A
-**Проверка**: skill validator, doctrine skill-pack tests, три синтетических поведенческих smoke-сценария
-**Целевая платформа**: Codex skills на поддерживаемых платформах
-**Тип изменения**: узкое обновление существующих instruction artifacts
-**Ограничение размера**: не более двух продуктовых `SKILL.md`, без нового runtime-кода и нового skill
+**Format**: Markdown instructions for Codex skills
+**Primary dependencies**: existing `spk-doctrine-glossary` and `spec-kitty-glossary-context`
+**Storage**: N/A
+**Validation**: skill validator, doctrine skill-pack tests, and three synthetic behavioral smoke scenarios
+**Target platform**: Codex skills on supported platforms
+**Change type**: focused update to existing instruction artifacts
+**Size constraint**: at most two product `SKILL.md` files, with no new runtime code or new skill
 
-## Проверка charter
+## Charter Check
 
-- Один canonical source: изменения только в `src/charter/offering/skills/`; глобальные проекции не редактируются.
-- Терминологическая целостность: новые проверки дополняют существующие concepts/aliases/conflicts/semantic drift.
-- ATDD: до изменения инструкций фиксируются три наблюдаемых smoke-сценария; после изменения каждый обязан пройти.
-- Узкий scope: runtime glossary, registry, CLI, templates и ADR-документы не меняются.
-- PR-only delivery: итоговая реализация остаётся в task-ветке; merge выполняет maintainer/operator.
+- One canonical source: changes are limited to `src/charter/offering/skills/`; installed global projections are not edited.
+- Terminology integrity: the new checks extend the existing concepts, aliases, conflicts, and semantic-drift workflow.
+- ATDD: capture three observable smoke scenarios before changing the instructions; each must pass afterward.
+- Narrow scope: runtime glossary, registry, CLI, templates, and ADR documents remain unchanged.
+- PR-only delivery: the implementation remains on the task branch; the maintainer/operator performs the merge.
 
-Нарушений charter, требующих исключения, нет.
+No charter violations require an exception.
 
-## Техническое решение
+## Technical Solution
 
-### 1. Публичная маршрутизация
+### 1. Public Routing
 
-В `src/charter/offering/skills/spk-doctrine-glossary/SKILL.md` добавить короткий маршрут: когда запрос не только курирует термины, но и уточняет доменную модель, detailed workflow должен применить model pressure-test. Публичный skill не дублирует подробные инструкции.
+Add a short route to `src/charter/offering/skills/spk-doctrine-glossary/SKILL.md`: when a request shapes a domain model rather than merely curating terminology, the detailed workflow must apply the model pressure-test. The public skill does not duplicate the detailed instructions.
 
-### 2. Подробный model pressure-test
+### 2. Detailed Model Pressure-Test
 
-В `src/charter/offering/skills/spec-kitty-glossary-context/SKILL.md` добавить компактный раздел, применяемый только при уточнении модели или спорного термина:
+Add a compact conditional section to `src/charter/offering/skills/spec-kitty-glossary-context/SKILL.md` for model-shaping work and contested terms:
 
-1. Проверить существенное утверждение по доступным типам, API и тестам; при отсутствии evidence назвать его гипотезой.
-2. Проверить неоднозначный термин одним конкретным граничным сценарием и уточнить definition/boundary/relation при расхождении.
-3. Рекомендовать ADR только если одновременно выполнены три условия: трудно обратить, неожиданно без контекста, есть реальный компромисс между альтернативами.
+1. Check material claims against available types, APIs, and tests; when evidence is unavailable, label the claim as a hypothesis.
+2. Challenge an ambiguous term with one concrete edge scenario and refine its definition, boundary, or relationship when they disagree.
+3. Recommend an ADR only when the decision is hard to reverse, surprising without context, and involves a real trade-off.
 
-### 3. Проверка результата
+### 3. Result Validation
 
-- До реализации прогнать три синтетических сценария и сохранить наблюдаемый baseline.
-- После реализации повторить те же сценарии.
-- Проверить оба skill validator и целевой doctrine skill-pack test.
-- Проверить diff на отсутствие `CONTEXT.md`, `CONTEXT-MAP.md`, нового skill, runtime-кода и ADR template.
+- Run the three synthetic scenarios before implementation and record the observable baseline.
+- Repeat the same scenarios after implementation.
+- Run both skill validators and the targeted doctrine skill-pack test.
+- Scan the diff to confirm it adds no `CONTEXT.md`, `CONTEXT-MAP.md`, new skill, runtime code, or ADR template.
 
-## Структура изменения
+## Change Structure
 
 ```text
 src/charter/offering/skills/
-├── spk-doctrine-glossary/SKILL.md
-└── spec-kitty-glossary-context/SKILL.md
+|-- spk-doctrine-glossary/SKILL.md
+`-- spec-kitty-glossary-context/SKILL.md
 
 tests/doctrine/
-└── test_spk_skill_pack.py        # существующая regression-проверка, без обязательной правки
+`-- test_spk_skill_pack.py        # Existing regression test; no required edit
 ```
 
-**Решение по структуре**: один work package владеет обоими текстами, потому что публичный route и detailed workflow образуют один контракт и должны изменяться атомарно.
+**Structure decision**: one work package owns both instruction files because the public route and detailed workflow form one contract and must change atomically.
 
-## Карта реализации
+## Implementation Map
 
-### IC-01 — Проверка качества доменной модели
+### IC-01 - Domain-Model Quality Checks
 
-- **Назначение**: добавить три agreed mechanisms без создания параллельного workflow.
-- **Требования**: FR-001–FR-006, NFR-001–NFR-003, C-001–C-004.
-- **Поверхности**: два canonical `SKILL.md` и существующие validation commands.
-- **Зависимости**: нет.
-- **Риски**: слишком широкий trigger, дублирование glossary workflow, чрезмерное создание ADR.
-- **Снижение рисков**: conditional trigger, одна detailed authority, all-three ADR gate, запрет новой файловой структуры.
+- **Purpose**: add the three agreed mechanisms without creating a parallel workflow.
+- **Requirements**: FR-001-FR-006, NFR-001-NFR-003, C-001-C-004.
+- **Surfaces**: two canonical `SKILL.md` files and existing validation commands.
+- **Dependencies**: none.
+- **Risks**: an overly broad trigger, duplication of the glossary workflow, and excessive ADR creation.
+- **Mitigations**: conditional trigger, one detailed authority, all-three ADR gate, and no new file structure.
 
 ## Codemap
 
-`docs/codemap/codemap.lock` отсутствует. Обновление codemap не требуется: границы модулей, зависимости, routes, storage и data flow не меняются; продуктовый diff состоит только из instruction artifacts.
+`docs/codemap/codemap.lock` is absent. A codemap update is unnecessary because module boundaries, dependencies, routes, storage, and data flow do not change; the product diff contains only instruction artifacts.
 
-## Delivery gates
+## Delivery Gates
 
-1. Повторное одобрение baseline до продуктовых правок.
-2. Failing-first/snapshot evidence для трёх синтетических сценариев.
-3. Реализация только в task-owned worktree.
-4. Validator + targeted tests + scope scan.
-5. Review и PR; установка/проекция и merge не входят в этот шаг.
+1. Reconfirm the baseline before product edits.
+2. Capture failing-first/snapshot evidence for the three synthetic scenarios.
+3. Implement only in the task-owned worktree.
+4. Run validators, targeted tests, and the scope scan.
+5. Review and open the PR; installation/projection and merge remain out of scope.

@@ -1,98 +1,98 @@
-# Спецификация: усиление glossary skills проверкой модели
+# Specification: Strengthen Glossary Skills with Model Validation
 
-**Ветка**: `codex/glossary-modeling-delta`
-**Создано**: 2026-09-02
-**Статус**: Draft
-**Запрос**: добавить в существующий glossary workflow три полезных механизма из `domain-modeling`, не импортируя внешний skill целиком.
+**Branch**: `codex/glossary-modeling-delta`
+**Created**: 2026-09-02
+**Status**: Draft
+**Request**: add three useful mechanisms from `domain-modeling` to the existing glossary workflow without importing the external skill wholesale.
 
-## Пользовательские сценарии и проверка
+## User Scenarios and Validation
 
-### Сценарий 1 — Сверить модель с реальным кодом (P1)
+### Scenario 1 - Cross-Check the Model Against Real Code (P1)
 
-Как автор или ревьюер доменной модели, я хочу, чтобы агент проверял существенные утверждения о терминах и связях по доступному коду, чтобы не закреплять красивую, но ложную модель.
+As a domain-model author or reviewer, I want the agent to validate material claims about terms and relationships against available code so that a plausible but false model is not recorded.
 
-**Почему P1**: это главный предохранитель от семантического расхождения между документацией и поведением системы.
+**Why P1**: this is the primary guard against semantic drift between documentation and system behavior.
 
-**Независимая проверка**: дать агенту описание модели, противоречащее именам или связям в коде; результат должен явно отметить расхождение и указать проверенную поверхность.
+**Independent validation**: give the agent a model description that contradicts names or relationships in code; the result must identify the mismatch and name the inspected surface.
 
-**Критерии приёмки**:
+**Acceptance criteria**:
 
-1. **Дано** утверждение о термине или связи и доступный код, **когда** агент уточняет модель, **тогда** он сверяет утверждение с релевантными типами, API или тестами до фиксации вывода.
-2. **Дано** противоречие между моделью и кодом, **когда** сверка завершена, **тогда** агент не объявляет модель подтверждённой и формулирует конкретное расхождение.
+1. **Given** a claim about a term or relationship and available code, **when** the agent refines the model, **then** it checks the claim against relevant types, APIs, or tests before recording a conclusion.
+2. **Given** a contradiction between the model and code, **when** the check is complete, **then** the agent does not call the model confirmed and states the concrete mismatch.
 
-### Сценарий 2 — Проверить термин конкретным граничным примером (P2)
+### Scenario 2 - Challenge a Term with a Concrete Edge Case (P2)
 
-Как участник обсуждения, я хочу проверять расплывчатые термины на одном конкретном пограничном сценарии, чтобы увидеть, выдерживает ли определение реальное поведение.
+As a participant in a modeling discussion, I want to test vague terms against one concrete edge scenario so that I can see whether the definition explains real behavior.
 
-**Почему P2**: один хорошо выбранный пример быстрее выявляет скрытую неоднозначность, чем расширение абстрактного описания.
+**Why P2**: one well-chosen example exposes hidden ambiguity faster than expanding an abstract description.
 
-**Независимая проверка**: дать агенту расплывчатый термин вроде `status` или `manager`; результат должен включить конкретный сценарий, ожидаемое поведение и уточнение определения при обнаруженной неоднозначности.
+**Independent validation**: give the agent a vague term such as `status` or `manager`; the result must include a concrete scenario, expected behavior, and a refined definition when ambiguity is found.
 
-**Критерии приёмки**:
+**Acceptance criteria**:
 
-1. **Дано** неоднозначное или перегруженное понятие, **когда** агент формирует рекомендацию, **тогда** он проверяет его хотя бы одним конкретным граничным сценарием.
-2. **Дано** расхождение между определением и поведением сценария, **когда** проверка завершена, **тогда** агент уточняет термин, границу или отношение, а не маскирует расхождение дополнительным жаргоном.
+1. **Given** an ambiguous or overloaded concept, **when** the agent makes a recommendation, **then** it challenges the concept with at least one concrete edge scenario.
+2. **Given** a mismatch between the definition and scenario behavior, **when** the check is complete, **then** the agent refines the term, boundary, or relationship instead of masking the mismatch with more jargon.
 
-### Сценарий 3 — Не плодить ADR без достаточной причины (P3)
+### Scenario 3 - Avoid Unnecessary ADRs (P3)
 
-Как сопровождающий проекта, я хочу получать рекомендацию создать ADR только для действительно значимого решения, чтобы журнал решений оставался полезным.
+As a project maintainer, I want ADR recommendations only for genuinely consequential decisions so that the decision log remains useful.
 
-**Почему P3**: это ограничивает документальный шум, не мешая зафиксировать необратимые решения.
+**Why P3**: this limits documentation noise without preventing durable decisions from being recorded.
 
-**Независимая проверка**: прогнать три решения, каждое из которых не проходит один из gates; ни одно не должно получить рекомендацию ADR. Решение, проходящее все gates, должно получить такую рекомендацию с кратким обоснованием.
+**Independent validation**: evaluate three decisions that each fail one ADR condition; none should receive an ADR recommendation. A decision that passes all three conditions should receive one with a brief rationale.
 
-**Критерии приёмки**:
+**Acceptance criteria**:
 
-1. **Дано** решение, которое не является одновременно труднообратимым, неожиданным без контекста и имеющим реальный компромисс между альтернативами, **когда** агент выбирает место фиксации, **тогда** он оставляет решение в glossary/spec/plan и не предлагает ADR.
-2. **Дано** решение, проходящее все три gates, **когда** агент выбирает место фиксации, **тогда** он рекомендует ADR и называет пройденные gates.
+1. **Given** a decision that is not simultaneously hard to reverse, surprising without context, and subject to a real trade-off, **when** the agent chooses where to record it, **then** it keeps the rationale in the glossary, spec, or plan and does not recommend an ADR.
+2. **Given** a decision that passes all three conditions, **when** the agent chooses where to record it, **then** it recommends an ADR and names the conditions that passed.
 
-### Пограничные случаи
+### Edge Cases
 
-- Если код отсутствует или недоступен, агент явно маркирует вывод как непроверенную гипотезу и не выдумывает подтверждение.
-- Если термин уже однозначно определён каноническим glossary и не вызывает конфликта, агент не обязан придумывать искусственный граничный сценарий.
-- Если ADR уже существует, агент предлагает обновить или сослаться на него, а не создавать дубликат.
-- Если изменение касается только локальной формулировки без архитектурного выбора, ADR-gate завершается отрицательно.
+- When code is absent or unavailable, the agent labels the conclusion as an unverified hypothesis and does not invent evidence.
+- When a term is already unambiguously defined by the canonical glossary and causes no conflict, the agent need not invent an artificial edge scenario.
+- When an ADR already exists, the agent updates or references it instead of creating a duplicate.
+- When a change only adjusts local wording without an architectural choice, the ADR gate returns a negative result.
 
-## Требования
+## Requirements
 
-### Функциональные требования
+### Functional Requirements
 
-| ID | Название | Требование | Приоритет | Статус |
-|----|----------|------------|-----------|--------|
-| FR-001 | Маршрутизация проверки модели | Публичный glossary skill направляет задачи уточнения доменной модели в существующий подробный workflow. | High | Open |
-| FR-002 | Сверка с кодом | Подробный workflow требует проверить существенные утверждения по доступным типам, API и тестам и сообщить о расхождении. | High | Open |
-| FR-003 | Конкретный сценарий | Подробный workflow требует проверить неоднозначный термин хотя бы одним конкретным граничным сценарием. | High | Open |
-| FR-004 | Тройной ADR-gate | ADR рекомендуется только при одновременном выполнении трёх условий: решение трудно обратить, оно неожиданно без контекста, и существует реальный компромисс между альтернативами. | Medium | Open |
-| FR-005 | Честная неопределённость | При отсутствии доступного кода или evidence агент маркирует вывод как гипотезу. | High | Open |
-| FR-006 | Сохранение текущего workflow | Новые проверки дополняют каноническую работу с терминами, aliases, conflicts и semantic drift, не создавая параллельный процесс. | High | Open |
+| ID | Name | Requirement | Priority | Status |
+|----|------|-------------|----------|--------|
+| FR-001 | Model-check routing | The public glossary skill routes domain-model refinement requests to the existing detailed workflow. | High | Open |
+| FR-002 | Code cross-check | The detailed workflow requires material claims to be checked against available types, APIs, and tests and requires mismatches to be reported. | High | Open |
+| FR-003 | Concrete scenario | The detailed workflow requires an ambiguous term to be challenged with at least one concrete edge scenario. | High | Open |
+| FR-004 | Three-condition ADR gate | Recommend an ADR only when the decision is hard to reverse, surprising without context, and involves a real trade-off. | Medium | Open |
+| FR-005 | Honest uncertainty | When code or evidence is unavailable, the agent labels the conclusion as a hypothesis. | High | Open |
+| FR-006 | Preserve the workflow | The new checks extend canonical work with terms, aliases, conflicts, and semantic drift without creating a parallel process. | High | Open |
 
-### Нефункциональные требования
+### Non-Functional Requirements
 
-| ID | Название | Требование | Категория | Приоритет | Статус |
-|----|----------|------------|-----------|-----------|--------|
-| NFR-001 | Узкий diff | Продуктовое изменение затрагивает не более двух существующих `SKILL.md`; новый skill и новые runtime-модули не создаются. | Maintainability | High | Open |
-| NFR-002 | Проверяемость | Все три поведенческих сценария проходят, а удаление любого из трёх механизмов вызывает значимый провал соответствующей проверки. | Reliability | High | Open |
-| NFR-003 | Совместимость | Текущие doctrine skill-pack tests и validator обоих изменённых skills завершаются успешно. | Compatibility | High | Open |
+| ID | Name | Requirement | Category | Priority | Status |
+|----|------|-------------|----------|----------|--------|
+| NFR-001 | Narrow diff | The product change touches at most two existing `SKILL.md` files; it adds no new skill or runtime module. | Maintainability | High | Open |
+| NFR-002 | Verifiability | All three behavioral scenarios pass, and removing any one mechanism causes its corresponding check to fail meaningfully. | Reliability | High | Open |
+| NFR-003 | Compatibility | Existing doctrine skill-pack tests and both modified-skill validators pass. | Compatibility | High | Open |
 
-### Ограничения
+### Constraints
 
-| ID | Название | Ограничение | Категория | Приоритет | Статус |
-|----|----------|-------------|-----------|-----------|--------|
-| C-001 | Один источник истины | Изменять только canonical source в репозитории; установленную глобальную проекцию не редактировать. | Technical | High | Open |
-| C-002 | Без внешней структуры | Не добавлять `CONTEXT.md`, `CONTEXT-MAP.md`, отдельное glossary-хранилище или полный workflow внешнего `domain-modeling`. | Scope | High | Open |
-| C-003 | Без runtime scope | Не менять runtime glossary, шаблоны ADR, CLI, registry и состав публичного skill pack. | Scope | High | Open |
-| C-004 | Отдельный delivery gate | Установка/проекция обновлённого skill остаётся отдельным действием после review и merge. | Delivery | Medium | Open |
+| ID | Name | Constraint | Category | Priority | Status |
+|----|------|------------|----------|----------|--------|
+| C-001 | One source of truth | Modify only the canonical repository source; do not edit the installed global projection. | Technical | High | Open |
+| C-002 | No external structure | Do not add `CONTEXT.md`, `CONTEXT-MAP.md`, a separate glossary store, or the full external `domain-modeling` workflow. | Scope | High | Open |
+| C-003 | No runtime scope | Do not modify the runtime glossary, ADR templates, CLI, registry, or public skill-pack composition. | Scope | High | Open |
+| C-004 | Separate delivery gate | Installation/projection of the updated skill remains a separate action after review and merge. | Delivery | Medium | Open |
 
-### Ключевые сущности
+### Key Entities
 
-- **Доменный термин**: каноническое имя, определение, граница применимости и aliases.
-- **Утверждение модели**: проверяемая связь между терминами, поведением и кодом.
-- **Граничный сценарий**: конкретная ситуация, способная подтвердить или опровергнуть точность определения.
-- **Архитектурное решение**: выбор между реальными альтернативами, для которого оцениваются три ADR-gate.
+- **Domain term**: a canonical name, definition, applicability boundary, and aliases.
+- **Model claim**: a verifiable relationship among terms, behavior, and code.
+- **Edge scenario**: a concrete situation capable of confirming or disproving a definition's precision.
+- **Architectural decision**: a choice among real alternatives evaluated against the three ADR conditions.
 
-## Критерии успеха
+## Success Criteria
 
-- **SC-001**: 3 из 3 поведенческих проверок демонстрируют требуемую реакцию агента.
-- **SC-002**: validator успешно проверяет оба изменённых `SKILL.md`.
-- **SC-003**: целевой doctrine skill-pack test проходит без регрессий.
-- **SC-004**: diff не содержит нового skill, runtime-кода, glossary-store или шаблона ADR.
+- **SC-001**: 3 of 3 behavioral checks demonstrate the required agent response.
+- **SC-002**: validators accept both modified `SKILL.md` files.
+- **SC-003**: the targeted doctrine skill-pack test passes without regressions.
+- **SC-004**: the diff adds no new skill, runtime code, glossary store, or ADR template.
