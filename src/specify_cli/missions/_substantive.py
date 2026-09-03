@@ -772,26 +772,6 @@ def _no_peer_gap_message(container: str, primary_name: str, peers: tuple[_FieldS
     return f"{container} has **{primary_name}** but no peer field with non-placeholder content{hint}. Checked peer(s): {peer_names}."
 
 
-def _has_substantive_technical_context(
-    body: str,
-    heading: str = "Technical Context",
-    label: str = "Language/Version",
-) -> bool:
-    """Return True iff ``## {heading}`` has ``label`` plus a peer field.
-
-    Decision 3(a): generalized by parameter from the pre-#3832 hardcoded
-    ``## Technical Context`` / ``**Language/Version**`` literals — the
-    defaults preserve exact prior single-argument-call behaviour
-    (``software-dev``'s own shape, NFR-003).
-    """
-    section_body = _extract_section_body(body, heading)
-    if section_body is None:
-        return False
-    if not _is_bold_field_substantive(section_body, label):
-        return False
-    return _any_other_bold_field_substantive(section_body, exclude_label=label)
-
-
 def describe_technical_context_gap(
     body: str, mission_type: str = "software-dev", *, project_dir: Path | None = None
 ) -> str | None:

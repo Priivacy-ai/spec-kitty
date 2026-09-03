@@ -47,7 +47,6 @@ import pytest
 
 from charter.resolution import ResolutionTier
 from specify_cli.missions._substantive import (
-    _has_substantive_technical_context,
     _is_plan_substantive_for_type,
     _PLAN_FIELD_DECLARATIONS,
     describe_technical_context_gap,
@@ -116,22 +115,22 @@ _STAR_BULLETED_REAL = """# Implementation Plan
 
 def test_bulleted_technical_context_is_substantive() -> None:
     """#1896 pin: a real, dash-bulleted Technical Context is substantive."""
-    assert _has_substantive_technical_context(_BULLETED_REAL) is True
+    assert _is_plan_substantive_for_type(_BULLETED_REAL, "software-dev") is True
 
 
 def test_star_bulleted_technical_context_is_substantive() -> None:
     """The asterisk-bullet rendering is equally tolerated."""
-    assert _has_substantive_technical_context(_STAR_BULLETED_REAL) is True
+    assert _is_plan_substantive_for_type(_STAR_BULLETED_REAL, "software-dev") is True
 
 
 def test_bulleted_placeholders_remain_non_substantive() -> None:
     """Bulleting MUST NOT relax the placeholder filter (no false positives)."""
-    assert _has_substantive_technical_context(_BULLETED_PLACEHOLDERS) is False
+    assert _is_plan_substantive_for_type(_BULLETED_PLACEHOLDERS, "software-dev") is False
 
 
 def test_plain_technical_context_still_substantive() -> None:
     """The pre-#1896 un-bulleted shape keeps passing (no regression)."""
-    assert _has_substantive_technical_context(_PLAIN_REAL) is True
+    assert _is_plan_substantive_for_type(_PLAIN_REAL, "software-dev") is True
 
 
 def test_describe_gap_none_when_substantive() -> None:
