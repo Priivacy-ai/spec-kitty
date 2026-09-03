@@ -67,6 +67,18 @@ class DecisionKind(StrEnum):
     query = "query"  # bare next call; state not advanced
 
 
+# Canonical ``--result`` enum for a mission-step invocation outcome, shared
+# by every caller that validates a raw ``--result``/``result`` string before
+# it reaches the engine: the host CLI's ``next`` command
+# (``specify_cli.cli.commands.next_cmd``) and the orchestrator-api's
+# ``answer-decision`` verb (``specify_cli.orchestrator_api.commands``).
+# Mirrors ``runtime.next._internal_runtime.engine.ResultType`` (a
+# ``typing.Literal``, not a runtime enum, so it cannot itself be introspected
+# for its member values) -- this tuple is the single source both CLI-facing
+# validators import instead of each keeping an independent literal copy.
+VALID_RESULT_VALUES: tuple[str, ...] = ("success", "failed", "blocked")
+
+
 class InvalidStepDecision(ValueError):
     """Raised when a ``kind="step"`` ``Decision`` is constructed without a
     valid, on-disk-resolvable ``prompt_file``.
