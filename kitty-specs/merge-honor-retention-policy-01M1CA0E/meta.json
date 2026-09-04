@@ -1,0 +1,18 @@
+{
+  "coordination_branch": "kitty/mission-merge-honor-retention-policy-01M1CA0E",
+  "created_at": "2026-08-31T16:21:30.257432+00:00",
+  "flattened": false,
+  "friendly_name": "Merge Honors Mission Retention Policy",
+  "mission_id": "01M1CA0E0FM4E70WGWKZPKYZMG",
+  "mission_number": null,
+  "mission_slug": "merge-honor-retention-policy-01M1CA0E",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "P1 data-loss bug #3131: spec-kitty merge applies its default branch/worktree cleanup even when a mission explicitly requires retaining lane branches and worktrees, deleting them with no operator-visible warning. This mission persists a machine-readable retention policy in mission metadata, makes merge fail closed (retain + warn) when the default conflicts with it, and requires an explicit operator override to delete.",
+  "purpose_tldr": "Make spec-kitty merge honor a mission's branch/worktree retention policy instead of silently deleting them.",
+  "slug": "merge-honor-retention-policy-01M1CA0E",
+  "target_branch": "fix/3131-merge-retention",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-31T17:12:42.267125+00:00"
+}

@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#1619": {
+      "evidence_ref": "Parent epic (unify mission execution); this mission closes the #2947/#3780 strands, epic continues.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#1848": {
+      "evidence_ref": "Existing require_exists/CoordinationBranchDeleted read-path behavior relied upon for FR-003; not modified.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2947": {
+      "evidence_ref": "Addressed across WP01 (committed-authority module + board) and WP02 (next-loop routing); WP01 approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3774": {
+      "evidence_ref": "Shipped is_acceptable_ending/has_operator_provenance authority; this mission consumes it unchanged (C-001).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3780": {
+      "evidence_ref": "Addressed across WP01 (committed-authority module + board) and WP02 (next-loop routing); WP01 approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      Spec now covers all four of plan's scaffolded fields via generalized/extended existing
+      mechanisms (parameterized bold-field-peer-scan for Scope — MoSCoW per
+      _substantive.py:180-186's already-tolerant bullet regex, and the same nested-heading-scan
+      extended from research's Data Sources to plan's Decision D-1, not new detectors), states
+      each field's real shape accurately against plan-plan-skeleton.md (table/table/bulleted
+      list/nested heading, verified at lines 17/41/32-39/53-71), and states the primary-AND-peer
+      rule explicitly with Problem Decomposition correctly identified as the template's first
+      scaffolded field (verified at line 17); Decision 3, FR-006, FR-007, NFR-004, NFR-005, AC5
+      and Edge Cases are mutually consistent with this corrected picture.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >-
+      Every citation of _has_substantive_technical_context now reads _substantive.py:158-195,
+      matching the function's verified real span from its def line to its final return.
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: >-
+      NFR-005 now names two distinct naive implementations and their distinct failure modes —
+      a literal bold-field-scan against plan's table sections fails closed (returns False), while
+      a separate naive length/non-empty-only check lacking placeholder coverage is what would
+      vacuously pass — replacing the prior single causal-chain claim.

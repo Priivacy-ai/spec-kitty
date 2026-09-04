@@ -1,0 +1,77 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: PLAN-VERIFY-001
+    lens: revert-discipline
+    severity: 4
+    title: No WP1 ATDD test would catch a regression where dry_run() calls the SaaS propagator
+    evidence:
+      - artifact: "plan.md § Blast Radius / Seam ('src/specify_cli/invocation/executor.py' row, ~line 100) and § Silent-success framing (~line 434, first bullet)"
+      - artifact: "plan.md § ATDD-First obligations, WP1 (~line 308-335) — the 5 named tests"
+      - code: "src/specify_cli/invocation/executor.py:413-415 (invoke(): `if self._propagator is not None: self._propagator.submit(record)`)"
+      - code: "src/specify_cli/cli/commands/dispatch.py:46-47 (real dispatch always constructs `InvocationSaaSPropagator(repo_root)` and wires it into the executor — propagator is never None on the real CLI path)"
+      - code: "src/specify_cli/invocation/propagator.py:312-314 (`submit()` hands work to a background ThreadPoolExecutor and returns immediately; a no-SaaS-token run silently no-ops inside the thread, per the class docstring's 'Additive: if no SaaS token, no-op')"
+    claim: >
+      The plan states three times (Summary, the executor.py Seam-table row via Blast Radius,
+      and the Silent-success framing section) that dry_run() must never call
+      `self._propagator.submit(...)`, alongside the two other suppressed writes
+      (write_started, write_glossary_observation). WP1's own listed ATDD test suite
+      (5 tests: kitty-ops/ snapshot, glossary-directory snapshot, payload-shape assertion,
+      ambiguous-payload assertion, no-match/unknown-profile still-raises assertion) contains
+      no test that mocks or asserts on `propagator.submit`/`InvocationSaaSPropagator`
+      at all — `grep -n "propagator\|Propagator\|SaaS" tests/specify_cli/invocation/cli/test_dispatch.py`
+      returns nothing, and no existing test-file convention covers this either. If an
+      implementer copy-pastes `invoke()`'s tail into `dry_run()` and forgets to drop the
+      `self._propagator.submit(record)` line, none of WP1's 5 named tests would fail: the
+      call would submit to a background thread and, in the common CI case with no SaaS
+      token configured, silently no-op with no observable file-system or process-exit-code
+      symptom — exactly the class of defect the charter's silent-success standing order
+      exists to prevent structurally, not just by design-intent prose.
+    remediation: >
+      Add a 6th WP1 ATDD test, e.g. `test_dry_run_does_not_submit_to_saas_propagator`,
+      that constructs the executor with a mock/spy `InvocationSaaSPropagator` (patched at
+      the call site per the plan's own `patch()`-target-validation gate) and asserts
+      `submit` is never called across N `--dry-run` invocations, mirroring the existing
+      kitty-ops/glossary-directory assertions for the third named write surface.
+
+  - id: PLAN-VERIFY-002
+    lens: gates
+    severity: 1
+    title: "Plan.md cites two different line numbers for the same empty_charter.py RouterDecision construction site"
+    evidence:
+      - artifact: "plan.md § Seam: exactly where each symbol lands, `empty_charter.py` row (~line 103): \"`resolve_generic_fallback()`'s single `RouterDecision(...)` construction (L120)\""
+      - artifact: "plan.md § '4 call sites' needing `alternatives=`, item 4 (~line 122): \"`empty_charter.py` `resolve_generic_fallback()` (L123)\""
+      - code: "src/specify_cli/invocation/empty_charter.py:123 (`return RouterDecision(`)"
+    claim: >
+      The plan cites the same construction site at two different line numbers within its
+      own text (L120 in the Seam table, L123 in the '4 call sites' checklist). The actual
+      code has the `RouterDecision(` call at line 123, matching the second citation but not
+      the first. This is a harmless internal inconsistency (the function name disambiguates
+      the target either way) but is worth tightening for an implementer skimming line refs.
+    remediation: >
+      Correct the Seam-table row's "(L120)" to "(L123)" to match the '4 call sites' section
+      and the actual code.
+
+# No findings beyond the above two were substantiated after verifying: chokepoint.py's
+# `_build_event_context` gate (line 221, exact match to plan's citation); executor.py's
+# `invoke()` invocation_id-minting-as-first-statement claim (line 307, exact match);
+# router.py's four `RouterDecision(...)` construction sites and their line numbers (262,
+# 345, 365 — exact matches) plus the `ROUTER_AMBIGUOUS` raise's candidate-dict shape
+# (confirmed missing a confidence key today, matching FR-009's stated gap); errors.py's
+# `RouterAmbiguityError` shape (confirmed generic `list[dict[str, str]]`, correctly left
+# unchanged per the plan's reasoning); the SonarCloud PR-exclusion claim (ci-quality.yml
+# line ~3533: `if: always() && (github.event_name == 'schedule' || github.event_name ==
+# 'workflow_dispatch')`); the kernel- and mission-loader-coverage path-filter "No" verdicts
+# (confirmed both `src/specify_cli/invocation/**` and `src/glossary/**` have dedicated
+# `changes` filter categories, so the diff does not fall into the `unmatched` catch-all that
+# would otherwise force kernel-tests to run); issue #3284 and #3283's titles/states (both
+# OPEN, titles verified verbatim via `gh issue view`); the SC-002 event-log-path claim
+# (glossary/events.py:100-117, `get_event_log_path` — filename pattern and
+# mkdir(parents=True, exist_ok=True)-on-write-only behavior confirmed); and WP1/WP2/WP3's
+# RED-before/GREEN-after ATDD claims (walked against current router.py/dispatch.py control
+# flow — all transition as claimed, none are vacuous). WP1 ATDD test #2's directory-level
+# (not named-file-line-count) assertion shape was checked verbatim against spec.md's SC-002
+# language and matches precisely.

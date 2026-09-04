@@ -1,0 +1,23 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >
+      WP03's T002 now declares the per-type field declaration as the single source for
+      every operator-facing heading/label string (not just the boolean detectors), T007
+      adds a concrete generalize-these-three-sites subtask citing
+      describe_technical_context_gap in _substantive.py (independently re-verified at its
+      current lines 198-236, with the section regex at 212, missing-section message at 217,
+      Language/Version regex at 220, and diagnostic returns at 226-229/232-236 — all exactly
+      matching the subtask's citations) plus mission_setup_plan.py's console message
+      (independently re-verified at current line 825) and blocked_reason string
+      (independently re-verified at current lines 833-834), each with before/after guidance
+      naming what to replace and with what; T008 now adds a message-content assertion
+      (not just the boolean gate outcome) for a non-software-dev negative fixture, checking
+      that blocked_reason/describe_technical_context_gap name the resolved type's own
+      field labels and do not contain "Technical Context"/"Language/Version"; Definition of
+      Done was extended to require this. This is concrete, file:line-anchored guidance an
+      implementer would follow, not a restatement of the finding.

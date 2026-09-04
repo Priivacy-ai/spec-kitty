@@ -1,0 +1,163 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: PLAN-FRESH-001
+    lens: structural-root-cause (reuse-before-invent audit)
+    severity: 3
+    title: Decision 1's chosen peer field for `research` (Data Sources) forces the
+      most complex new detector (Decision 3 sub-shape c-ii) when an already-covered,
+      zero-new-code peer field sits in the same container as the primary field
+    evidence:
+      - artifact: "plan.md § Decision 1, \"Reconciling research's checked field count...\"
+          (lines ~162-185): declares the checked set for `research` as primary =
+          \"Research Question\" (inside `## Research Context`) and peer = \"Data Sources\"
+          (nested `### Data Sources` under `## Methodology`, requiring sub-shape c-ii)."
+      - artifact: "plan.md § Decision 3(a): \"Bold-field list (... `research`'s Research
+          Context primary field ...)\" — plan.md itself already classifies `## Research
+          Context` as shape (a), the fully-generalized, zero-new-work detector."
+      - artifact: "plan.md § Decision 3, \"Reuse principle, stated explicitly...\": \"two
+          of the three shapes (bold-field list, table) are handled by generalizing
+          existing, already-correct code paths ... only the third (nested heading) is
+          genuinely new work. This is the smallest-viable-diff outcome available given
+          the four verified shapes\" — this claim is not tested against the alternative
+          below."
+      - code: "packs/built-in/missions/research/templates/research-plan-template.md:9-17
+          — `## Research Context` (L9) directly contains SIX bold-field lines: `**Research
+          Question**` (L11, chosen primary), `**Research Type**` (L12), `**Domain**` (L13),
+          `**Time Frame**` (L14), `**Resources Available**` (L15), `**Key Background**`
+          (L17) — all in the same shape-(a) container as the primary field."
+    claim: Decision 1 pairs `research`'s primary field ("Research Question", inside `##
+      Research Context`) with a peer field ("Data Sources") that lives in a structurally
+      unrelated section (`## Methodology`), which is exactly what forces Decision 3 to
+      invent the "specifically-named sibling" sub-shape (c-ii) — the single most complex,
+      genuinely-new piece of detection logic in the whole FR-006 design (locate one named
+      `###` heading among several differently-purposed siblings under a shared parent, as
+      distinct from the "any populated instance" case). But `## Research Context` itself
+      already contains five other bold-field lines directly beside the chosen primary field
+      ("Domain", "Resources Available", "Time Frame", etc.) — any of these would satisfy
+      spec.md's AND/OR combination rule as a peer field using ONLY the already-generalized
+      shape-(a) detector (Decision 3(a)), with zero new detection work. Had Decision 1
+      picked one of those as the peer, sub-shape (c-ii) would not be needed for this
+      mission at all — `plan`'s Decisions field only needs the simpler (c-i) "repeatable
+      instance" sub-shape, and the entire "specifically-named sibling" detector, its
+      dispatch logic, its own non-vacuity fixture, and its own test surface would not need
+      to exist. Decision 1's reconciliation gives no reason for choosing the
+      higher-complexity option, and Decision 3's own "smallest-viable-diff... reuse
+      principle" claim is stated without ever testing it against this cheaper alternative —
+      an internal tension the fix round's new reconciliation text (added to close
+      PLAN-FIT-001/002) does not resolve, since it explains WHY "Methodology" itself can't
+      be checked but never explains why "Data Sources" specifically (over an
+      already-covered sibling field) was chosen as the peer.
+    remediation: Either (a) change the peer field for `research` to one of `## Research
+      Context`'s own bold peer fields (e.g. `Domain` or `Resources Available`), eliminating
+      the need for Decision 3 sub-shape (c-ii) entirely in this mission (only `plan`'s
+      Decisions field would then need the nested-heading detector, using sub-shape c-i
+      alone), or (b) if `Data Sources` is kept as the peer field for a reason not yet
+      stated (e.g. deliberately keeping fidelity to spec.md's original three named
+      headings — Research Context, Methodology, Data Sources), add that reasoning
+      explicitly to Decision 1's reconciliation note so the WP implementer and reviewer
+      understand why the more expensive detector was chosen over the cheaper option, rather
+      than have to independently discover the alternative existed.
+  - id: PLAN-FRESH-002
+    lens: architectural-integrity (Constitution Check completeness)
+    severity: 3
+    title: Constitution Check's blanket "no violation identified" statement does not
+      acknowledge the two explicit C-003 file-set extensions this round's own fixes added
+      elsewhere in the same plan
+    evidence:
+      - artifact: "spec.md § C-003 (binding constraint, unchanged): \"The three fix sites
+          are disjoint file sets: (#3830) `runtime_bridge_composition.py` +
+          `executor.py`; (#3831) `mission.py`; (#3832) `_substantive.py` +
+          `mission_check_prerequisites.py` + `mission_setup_plan.py`.\""
+      - artifact: "plan.md § Project Structure (lines ~627-635): adds
+          `src/runtime/next/runtime_bridge.py` annotated \"declared extension of C-003's
+          #3830 set\" and `src/specify_cli/cli/commands/mission_type.py` annotated
+          \"declared extension of C-003's #3831 set\" — both additions are the direct
+          product of this round's PLAN-SEQ-001 and PLAN-FIT-003 fixes."
+      - artifact: "plan.md § Constitution Check (lines ~646-656): \"No violation identified
+          against any Governing Principle, Standing Order, or Agent Operating Discipline
+          section: single canonical authority is preserved at every seam ... campsite
+          cleaning is scoped and domain-matched ... \" — makes no mention of C-003 or of
+          the two file-set extensions declared two sections earlier in the same document."
+    claim: This round's fixes (PLAN-SEQ-001 for `runtime_bridge.py`, PLAN-FIT-003 for
+      `mission_type.py`) correctly made the plan's deviation from spec.md's C-003 binding
+      constraint explicit and honest in §Project Structure, §Blast Radius, and
+      §Campsite-Clean Scope — good practice, consistent with this mission's own stated
+      "record it honestly, don't pick silently" ethos (as used elsewhere for Decision 1's
+      research reconciliation). But §Constitution Check — the one section whose specific
+      job is to state whether the plan violates project governance — was not updated
+      alongside those fixes and still asserts a blanket "no violation identified" without
+      naming C-003 as a constraint the plan knowingly deviates from (even if justifiably,
+      via Boy Scout Rule / Locality of Change). A reviewer or WP implementer who reads only
+      the Constitution Check gate (its stated purpose) would not learn that spec.md's own
+      binding file-set enumeration is now inaccurate for two of the three fix sites — they
+      would have to separately notice the same fact stated three other places in the
+      document. This is a completeness gap in exactly the governance-surfacing section this
+      round's own fixes should have touched, since those fixes are what created the
+      deviations being asked about.
+    remediation: "Add one explicit sentence to §Constitution Check naming the C-003
+      deviation: the campsite-clean comment fix and the FR-005 CLI-visible-surface fix each
+      touch one file beyond C-003's literal per-issue enumeration
+      (`runtime_bridge.py`, `mission_type.py`), justified by Boy Scout Rule / Locality of
+      Change / avoiding a layering violation (per §Project Structure and §Blast Radius),
+      and recorded here rather than silently passing the gate."
+  - id: PLAN-FRESH-003
+    lens: correspondence (citation precision)
+    severity: 2
+    title: research.md §R3's newly-extended follow-up-issue paragraph inherits an
+      ambiguous `runtime/resolver.py` module path that the same document's §R1.4 states
+      correctly in full
+    evidence:
+      - artifact: "research.md § R3 (this round's PLAN-FIT-004 fix appended a sentence to
+          this exact paragraph): \"...already used by `resolve_org_expected_artifacts`
+          (`src/charter/activation/org_expected_artifacts.py`) and its callers
+          (`mission_type_profiles.py::_resolve_expected_artifacts_slot`,
+          `dossier/manifest.py::ManifestRegistry.load_manifest`, `runtime/resolver.py`)\"."
+      - artifact: "research.md § R1.4 (unchanged, same document): \"confirmed call sites
+          include `src/specify_cli/dossier/manifest.py`, `src/specify_cli/core/worktree.py`,
+          `src/specify_cli/mission_v1/compat.py`, and `src/specify_cli/runtime/resolver.py`\"
+          — the fully-qualified, correct path."
+      - code: "The actual file is `src/specify_cli/runtime/resolver.py`; there is no
+          `runtime/resolver.py` under the canonical `src/runtime/next/` package this
+          mission's own Shared Package Boundary doctrine (CLAUDE.md) distinguishes from
+          `src/specify_cli/`."
+    claim: PLAN-FIT-004's fix this round added one sentence to research.md §R3 specifically
+      to make the tracked follow-up issue's description self-sufficient for "the future
+      mission that picks it up" — its stated purpose is precision so a later reader does
+      not have to re-derive anything. That paragraph's own pre-existing citation of
+      `runtime/resolver.py` (copied verbatim from spec.md's C-002, itself unchanged) is
+      ambiguous given this codebase's live Shared Package Boundary split between
+      `src/runtime/next/` (canonical shared runtime) and `src/specify_cli/` (legacy/shim) —
+      a future reader could easily look in the wrong package. The same document's own §R1.4
+      already states the fully-qualified, unambiguous path for the identical function's
+      caller list, so the fix round's goal of self-sufficiency is undercut by an internal
+      inconsistency between two citations of essentially the same fact in the same file.
+    remediation: In research.md §R3, expand `runtime/resolver.py` to the fully-qualified
+      `src/specify_cli/runtime/resolver.py`, matching §R1.4's own correct citation, so the
+      follow-up issue description does not point a future reader at the wrong package.
+  - id: PLAN-FRESH-004
+    lens: correspondence (citation precision)
+    severity: 1
+    title: Decision 4 and research.md §R4.2 both miscount `_PLACEHOLDER_PATTERNS` as a
+      16-entry list; it is 17
+    evidence:
+      - artifact: 'plan.md § Decision 4: "None of these overlap the existing 16-entry
+          `_PLACEHOLDER_PATTERNS` list (`_substantive.py:31-49`)"'
+      - artifact: 'research.md § R4.2: "None of these literals exist in the current
+          `_PLACEHOLDER_PATTERNS` list (`src/specify_cli/missions/_substantive.py:31-49`),
+          confirmed by inspection — that list''s 16 entries are all software-dev/spec-shaped"'
+      - code: "src/specify_cli/missions/_substantive.py:32-48 — `_PLACEHOLDER_PATTERNS`
+          contains 17 `re.compile(...)` entries (NEEDS CLARIFICATION, e.g.,, FEATURE,
+          ###-feature, Short title, Measurable threshold, role, goal, benefit, specific
+          capability, key interaction, data requirement, behavior, domain-specific, if
+          applicable, Project-specific, single/web/mobile), not 16."
+    claim: Both artifacts describe the existing placeholder list as having 16 entries; a
+      direct count of the tuple in `_substantive.py:32-48` yields 17. This does not change
+      Decision 4's conclusion (none of the new research/plan bracket phrases overlap the
+      existing list either way) but is a small factual inaccuracy in a section whose whole
+      premise is "verified directly against source, not assumed."
+    remediation: Correct "16-entry"/"16 entries" to "17-entry"/"17 entries" in both
+      plan.md § Decision 4 and research.md § R4.2.

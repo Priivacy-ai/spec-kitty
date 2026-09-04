@@ -1,0 +1,59 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: SPEC-FRESH3-001
+    lens: correspondence
+    severity: 4
+    title: "'Parameterized heading name' generalization omits the second hardcoded literal (the primary-field label), so research/documentation-type plans can never pass under the described mechanism"
+    evidence:
+      - artifact: "spec.md Clarifications / Decision 3, detection-mechanism item 2: \"Generalizing `_has_substantive_technical_context`'s existing bold-field-peer-scan (`_substantive.py:158-195`) to accept a parameterized heading name instead of the hardcoded `## Technical Context` literal — covers `Scope — MoSCoW`\""
+      - artifact: "spec.md FR-006: \"`_has_substantive_technical_context`'s EXISTING bold-field-peer-scan ... generalized to a parameterized heading name instead of the hardcoded `Technical Context` literal\""
+      - artifact: "spec.md NFR-004 (this round's new text): documentation-type plans checked \"via the same **(parameterized-heading)** bold-field-scan mechanism as `software-dev`\" — the `(parameterized-heading)` qualifier is new this round (compare the pre-round text at `git show 66b6ae043:kitty-specs/.../spec.md` line 96, which said only \"same bold-field-scan mechanism\", no heading qualifier)"
+      - artifact: "spec.md Clarifications / Decision 3, AND/OR combination rule: \"the template's FIRST scaffolded field is the primary field and must be substantive\" — and explicitly assigns `Research Context` as `research`'s primary (AND-required, not OR'd)"
+      - code: "src/specify_cli/missions/_substantive.py:160-166 — heading match (`## Technical Context`, would become the parameterized heading)"
+      - code: "src/specify_cli/missions/_substantive.py:171-178 — a SEPARATE, independently-hardcoded regex requires the literal label `Language/Version` as the primary field; `if lang_match is None: return False` short-circuits BEFORE any peer field is even scanned, regardless of what the (would-be-parameterized) heading matched"
+      - artifact: "packs/built-in/missions/documentation/templates/documentation-plan-template.md:12-24 — documentation's plan template ALREADY uses the identical heading `## Technical Context` (no heading parameterization needed at all for this type), yet its fields are `Documentation Framework`/`Languages Detected`/`Output Format`/`Hosting Platform`/`Build Commands`/`Theme` — none named `Language/Version`"
+      - artifact: "packs/built-in/missions/research/templates/research-plan-template.md:9-15 — `research`'s `## Research Context` (the AND/OR rule's designated primary for `research`) fields are `Research Question`/`Research Type`/`Domain`/`Time Frame`/`Resources Available` — none named `Language/Version`"
+      - artifact: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:36-39 — `plan`'s `## Scope — MoSCoW` fields are `Must`/`Should`/`Could`/`Won't (this cut)` — none named `Language/Version`"
+      - artifact: "packs/built-in/missions/software-dev/templates/plan-template.md:26 — confirms `Language/Version` is literally software-dev's first Technical Context field, which is why the current hardcoded literal happens to work for software-dev only"
+    claim: >
+      `_has_substantive_technical_context` performs TWO independent hardcoded matches, not one:
+      (1) locate the `## Technical Context` heading, then (2) within that section, require the
+      literal bold field `**Language/Version**` before any peer field is even considered
+      (`_substantive.py:171-178`). This round's fix text (Decision 3 item 2, FR-006, and the
+      newly-added "(parameterized-heading)" qualifier in NFR-004) describes the generalization
+      as parameterizing ONLY the heading name, and states this closes the gap for `plan`'s
+      `Scope — MoSCoW` with "no new mechanism." That claim is verifiably incomplete: the second
+      literal (the required primary-field label) is untouched by a heading-only parameterization,
+      and none of `Scope — MoSCoW`'s fields, `Research Context`'s fields, or even
+      `documentation`'s own (already-shipped, prior-round) Technical Context fields is named
+      `Language/Version`. Documentation is the sharpest proof this is not hypothetical: its
+      template already uses the exact heading `## Technical Context` — zero heading
+      parameterization is needed for that type — yet a plan.md following that template to the
+      letter can never satisfy the unmodified `lang_match` check, because `Language/Version`
+      never appears there. Applied to `research`, the AND/OR rule (new this round) makes this
+      fatal rather than merely incomplete: `Research Context` is designated the AND-required
+      primary field for `research`, so under the described mechanism `research`-type plans could
+      NEVER pass the substantive gate regardless of content — directly contradicting AC5 and
+      NFR-004's requirement that a fully-populated `research`-type plan.md return `True`. For
+      `plan`, the same gap silently drops `Scope — MoSCoW` from ever registering as substantive
+      (it can only ever contribute 0 to the OR), which is the exact "convenient subset" exemption
+      pattern NFR-004's own "not a convenient subset" clause and NFR-005's non-vacuity principle
+      were written this mission to forbid — it would just be masked in test coverage whenever
+      `Sequencing & Prioritisation` or `Decisions` alone satisfies the OR.
+    remediation: >
+      State explicitly, in Decision 3 item 2, FR-006, and NFR-004, that the generalized
+      bold-field-peer-scan takes the primary-field LABEL as a second parameter alongside the
+      section heading (not "no new mechanism" — this is new mechanism), and give its value per
+      type: `Language/Version` for `software-dev`, `Documentation Framework` for `documentation`,
+      `Research Question` for `research`'s `Research Context`, and an explicit choice for
+      `Scope — MoSCoW` (e.g. `Must`, or drop the primary-field requirement entirely for OR'd peer
+      sections and accept any one substantive bold field). This also corrects the pre-existing
+      "(parameterized-heading)" framing of `documentation`'s own clause in NFR-004, which has the
+      identical gap even though `documentation`'s heading already matches `## Technical Context`
+      verbatim (no heading parameterization is needed there at all — proof that heading alone
+      was never the whole mechanism). Verify the revised description against
+      `_substantive.py:171-178` before closing.

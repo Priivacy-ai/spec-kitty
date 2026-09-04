@@ -4,7 +4,7 @@ description: 'Internal Release Candidate notes for spec-kitty-cli 3.2.6rc1: an o
 doc_status: active
 type: reference
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-08-12'
+updated: '2026-09-03'
 related:
 - docs/changelog/CHANGELOG.md
 - docs/changelog/index.md
@@ -16,6 +16,9 @@ _For the existing Spec Kitty operator/maintainer deciding whether to pull this c
 
 > [!WARNING]
 > **`3.2.6rc1` is a Release Candidate — an internal, delta build published for validation, NOT an official `3.2.6` release.** It ships as a GitHub _prerelease_ and to PyPI as a PEP 440 prerelease, so ordinary installers skip it unless you explicitly opt in with `--pre`. Do **not** use it for production or general rollout. The last official release remains `v3.2.5`; when `3.2.6` is finalized its changelog section supersedes this candidate.
+
+> [!NOTE]
+> **Update 2026-09-03 — the release-critical work that remained after this candidate has fully landed.** At rc1 time, a set of release-blocking bugs (the 3.2.6 execution DAG, tracker #3692) still gated the final tag. That book is now empty — all twenty DAG nodes are closed, #3692 is closed, and the milestone stands at 0 remaining work items. This candidate's highlights below are the rc1 snapshot; the finalized `3.2.6` changelog section is the authoritative record of everything the release ships.
 
 ## Install for testing
 

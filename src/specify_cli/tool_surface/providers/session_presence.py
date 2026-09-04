@@ -28,6 +28,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from specify_cli.session_presence.content import (
+    SECTION_CLOSE,
     SECTION_OPEN,
     SessionPresenceContent,
 )
@@ -58,6 +59,8 @@ from ..findings import (
     SESSION_PRESENCE_INCOMPLETE,
     SEVERITY_ERROR,
     SEVERITY_INFO,
+    SEVERITY_WARNING,
+    STALE_GENERATED_SURFACE,
     make_finding,
 )
 from ..model import SurfaceDefinition, SurfaceInstance
@@ -66,6 +69,7 @@ from ..status import (
     STATE_MISSING,
     STATE_NOT_APPLICABLE,
     STATE_PRESENT,
+    STATE_STALE,
     SurfaceStatus,
     _surface_id,
 )
@@ -198,8 +202,28 @@ class SessionPresenceProvider:
         if str(instance.path) == _RESEARCH_GAP_SENTINEL:
             return self._research_gap_status(instance)
         if _instance_present(instance):
+            if _orientation_version_is_stale(instance):
+                return self._stale_status(instance)
             return SurfaceStatus(instance=instance, state=STATE_PRESENT)
         return self._missing_status(instance)
+
+    @staticmethod
+    def _stale_status(instance: SurfaceInstance) -> SurfaceStatus:
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_STALE,
+            findings=(
+                make_finding(
+                    STALE_GENERATED_SURFACE,
+                    SEVERITY_WARNING,
+                    f"Orientation version stale for {instance.owner}: {instance.path}",
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=instance.path,
+                    repair_command=_REPAIR_HINT,
+                ),
+            ),
+        )
 
     @staticmethod
     def _research_gap_status(instance: SurfaceInstance) -> SurfaceStatus:
@@ -266,7 +290,7 @@ class SessionPresenceProvider:
         dry_run: bool = False,
     ) -> RepairResult:
         """Rewrite session presence for affected tools via their writers."""
-        actionable = [s for s in statuses if s.state == STATE_MISSING]
+        actionable = [s for s in statuses if s.state in (STATE_MISSING, STATE_STALE)]
         skipped = tuple(
             _surface_id(s.instance)
             for s in statuses
@@ -394,6 +418,74 @@ def _orientation_section_present(target: Path) -> bool:
         return SECTION_OPEN in target.read_text(encoding="utf-8")
     except OSError:
         return False
+
+
+#: The prefix ``SessionPresenceContent.render`` stamps immediately before the
+#: version (``**Spec Kitty v{version}** — ...``). The version runs up to the
+#: closing ``**``.
+_VERSION_PREFIX = "**Spec Kitty v"
+_VERSION_SUFFIX = "**"
+
+
+def _on_disk_orientation_version(target: Path) -> str | None:
+    """Return the version stamped in ``target``'s orientation block, or ``None``.
+
+    The parse is scoped to the marker-delimited managed block (the same
+    delimiters the writer uses to locate it), so a stray ``**Spec Kitty v...**``
+    elsewhere in the file — a pasted example or a second stamp — cannot be
+    mistaken for the managed version.
+
+    ``None`` means the file is absent, unreadable, has no managed block, or the
+    block carries no parseable ``**Spec Kitty v...**`` stamp — in which case the
+    block is left alone rather than churned (a hand-edited block is drift,
+    handled by a different rule).
+    """
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    open_at = text.find(SECTION_OPEN)
+    if open_at == -1:
+        return None
+    close_at = text.find(SECTION_CLOSE, open_at)
+    section = text[open_at : close_at if close_at != -1 else len(text)]
+    start = section.find(_VERSION_PREFIX)
+    if start == -1:
+        return None
+    start += len(_VERSION_PREFIX)
+    end = section.find(_VERSION_SUFFIX, start)
+    if end == -1:
+        return None
+    stamped = section[start:end].strip()
+    return stamped or None
+
+
+# Orientation-bearing surfaces carry the version stamp: always-on context files
+# and path/glob-activated rule/steering files (both written by the Markdown
+# family). Hooks do not, so they are excluded from the staleness check.
+_ORIENTATION_STAMPED_KINDS = frozenset(
+    {ToolSurfaceKind.CONTEXT_FILE, ToolSurfaceKind.RULE}
+)
+
+
+def _orientation_version_is_stale(instance: SurfaceInstance) -> bool:
+    """Return whether a present orientation surface's version stamp is outdated (#2265).
+
+    Covers every Markdown-family orientation surface (context files AND
+    rule/steering files) uniformly. Staleness is a pure version-string mismatch
+    against the installed CLI, so a legitimate health-line change (e.g.
+    ``upgrade-available`` -> ``healthy``) at the same version does not churn the
+    block on every upgrade.
+    """
+    if instance.definition.kind not in _ORIENTATION_STAMPED_KINDS:
+        return False
+    project_root, writer = _resolve_writer_for_instance(instance)
+    if project_root is None or writer is None:
+        return False
+    on_disk = _on_disk_orientation_version(project_root / writer.rules_path)
+    if on_disk is None:
+        return False
+    return bool(on_disk != _orientation_content(project_root).version)
 
 
 def _claude_hooks_present(project_root: Path) -> bool:

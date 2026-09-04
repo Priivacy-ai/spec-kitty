@@ -3191,6 +3191,14 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "runtime.next._internal_runtime.planner::resolve_next_workflow_action",
         "runtime.next._internal_runtime.planner::serialize_decision",
         "runtime.next._internal_runtime.schema::CommitContext",
+        # runtime.next.committed_authority::mission_terminal_verdict --
+        # convergence port PR #1066 (2026-09-03): verbatim upstream pick of
+        # next-committed-state-authority WP01 (#2947/#3780). Its runtime
+        # caller is runtime_bridge's mission-terminal wiring (upstream WP02),
+        # a conflicted commit deliberately deferred on the #1065 manual
+        # re-port queue. TODO(triage): #1065 -- wire the runtime_bridge
+        # caller and delete this entry (FR-303).
+        "runtime.next.committed_authority::mission_terminal_verdict",
         "runtime.next.decision::derive_mission_state",
         "runtime.next.decision::evaluate_guards",
         "runtime.next.runtime_bridge::KITTIFY_DIR",

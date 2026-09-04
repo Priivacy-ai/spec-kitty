@@ -1,0 +1,36 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      WP01's Context code block (line 131) now calls payload.to_dry_run_dict([]) instead of
+      payload.alternatives, with an explicit note (lines 135-144) that InvocationPayload has
+      no alternatives slot until WP02's T009 and that payload.alternatives/the no-arg form
+      would AttributeError before then; T005 still says "exactly as shown in Context above"
+      but Context itself is now correct so this no longer produces a contradiction.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: >-
+      A fresh grep -rn "RouterDecision(" --include="*.py" . finds exactly 5 sites
+      (router.py:262,345,365; empty_charter.py:123; test_invocation_e2e.py:781), matching
+      WP02's Context/T008 table exactly; test_invocation_e2e.py is now listed in owned_files
+      in both wps.yaml and the WP02 frontmatter, and T008 step 6 names the L781 fixture fix.
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: >-
+      WP02's Context now explicitly scopes the "never None" mypy-strict/compile-time
+      enforcement claim to RouterDecision only, states plainly that InvocationPayload gets no
+      such enforcement, and T009 step 5 adds a required (not optional) fail-fast raise at the
+      point alternatives is read for serialization, coherent with executor.py's real
+      __init__(**kwargs) + to_dict()'s getattr(self, s, None) fallback pattern confirmed by
+      reading the live file.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      WP01's T001 step 1 now names test_dry_run_profile_hint_returns_exact_confidence (FR-008)
+      and test_dry_run_under_empty_charter_fallback (FR-010) with markers verified against the
+      live pytestmark in test_dispatch.py/test_dispatch_recommendation.py/test_chokepoint.py,
+      and Reviewer Guidance's last bullet now requires every requirement_refs entry to trace to
+      a named T001 test, naming both tests explicitly.

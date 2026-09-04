@@ -1,0 +1,76 @@
+work_packages:
+  - id: WP01
+    title: "#3830 composition dispatch — remove misplaced early return, log genuine resolution failures"
+    dependencies: []
+    owned_files:
+      - "src/runtime/next/runtime_bridge_composition.py"
+      - "src/runtime/next/runtime_bridge.py"
+      - "src/specify_cli/mission_step_contracts/executor.py"
+      - "tests/next/test_composition_gate_widening.py"
+      - "tests/runtime/test_bridge_composition.py"
+    requirement_refs:
+      - "FR-001"
+      - "FR-002"
+      - "FR-003"
+      - "NFR-001"
+    subtasks:
+      - "T001"
+      - "T002"
+      - "T003"
+      - "T004"
+      - "T005"
+      - "T006"
+      - "T007"
+    prompt_file: "tasks/WP01-composition-dispatch.md"
+    cross_cutting: false
+
+  - id: WP02
+    title: "#3831 loud fallback — CLI-visible signal when mission-type resolution falls back to software-dev"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/mission.py"
+      - "src/specify_cli/cli/commands/mission_type.py"
+      - "tests/specify_cli/cli/commands/test_mission_type_current_fallback_signal.py"
+    requirement_refs:
+      - "FR-004"  # descoped — traceability only, NOT implemented; see plan.md §"#3831 Split Verdict" and WP02 T006
+      - "FR-005"
+      - "NFR-002"
+    subtasks:
+      - "T001"
+      - "T002"
+      - "T003"
+      - "T004"
+      - "T005"
+      - "T006"
+    prompt_file: "tasks/WP02-loud-fallback.md"
+    cross_cutting: false
+
+  - id: WP03
+    title: "#3832 substantive gate — template-derived per-type field declaration and shape detectors"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/missions/_substantive.py"
+      - "src/specify_cli/cli/commands/agent/mission_setup_plan.py"
+      - "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py"
+      - "tests/specify_cli/missions/test_substantive_gate_formats.py"
+      - "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py"
+      - "tests/specify_cli/cli/commands/agent/test_mission_check_prerequisites.py"
+    requirement_refs:
+      - "FR-006"
+      - "FR-008"
+      - "NFR-003"
+      - "NFR-004"
+      - "NFR-005"
+    subtasks:
+      - "T001"
+      - "T002"
+      - "T003"
+      - "T004"
+      - "T005"
+      - "T006"
+      - "T007"
+      - "T008"
+      - "T009"
+      - "T010"
+    prompt_file: "tasks/WP03-substantive-gate.md"
+    cross_cutting: false

@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "mission_slug": "custom-mission-type-second-class-citizens-01M1FQXD",
+  "mission_id": "01M1FQXDWCTNGATWP0VEYF3R0B",
+  "mission_branch": "kitty/mission-custom-mission-type-second-class-citizens-01M1FQXD",
+  "target_branch": "fix/custom-mission-type-second-class-3830",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "tests/next/test_composition_gate_widening.py",
+        "tests/runtime/test_bridge_composition.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/mission.py",
+        "tests/specify_cli/cli/commands/test_mission_type_current_fallback_signal.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/missions/_substantive.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_check_prerequisites.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py",
+        "tests/specify_cli/missions/test_substantive_gate_formats.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-02T09:51:57.295279+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b8fcdc439e04bc2fa52fdf9a71aee02d5195fc70"
+}

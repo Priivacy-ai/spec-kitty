@@ -1,0 +1,290 @@
+# review-findings/v1 (merged) — mechanical concatenation of spec-gov, spec-arch, spec-verify
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: merged
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+# R2 merge/dedup note: 7 findings from 3 lens groups (gov=1, arch=4, verify=2).
+# No duplicates found — no two findings cite the same artifact section / file:line
+# with substantially the same claim. All 7 kept verbatim, original ids preserved,
+# no renumbering.
+findings:
+- id: SPEC-GOV-001
+  lens: terminology
+  severity: 1
+  title: Prose uses the prohibited term "feature" outside of quoted code identifiers
+  evidence:
+  - artifact: "spec.md \xA7 User Story 2 (lines 34, 36)"
+  - code: 'AGENTS.md / CLAUDE.md Terminology Canon: "Feature / Features are prohibited in canonical, operator,
+      and user-facing language for active systems."'
+  claim: "Two occurrences of \"feature\" in spec.md's prose are not quoting an existing code identifier:\
+    \ line 34 (\"the legacy `Mission`/`mission.yaml` object for my feature\") and line 36 (\"this is a\
+    \ correctness and trust defect, not merely a missing feature\"). The Terminology Canon (restated in\
+    \ this repo's own AGENTS.md/CLAUDE.md, binding per the charter's terminology-adherence governing principle)\
+    \ prohibits \"feature\"/\"Features\" in operator/user-facing language for active systems. A third\
+    \ occurrence on line 38 (\"a feature whose `meta.json` declares that type\") is the same pattern.\
+    \ None of the three is inside backticks naming an actual code symbol (contrast with the correctly-backticked\
+    \ `get_mission_for_feature`/`_mission_path_by_name` references elsewhere in the same paragraphs, which\
+    \ are legitimate quotations of existing legacy function names). This is a wording nit only \u2014\
+    \ no FR, AC, or SC relies on this prose, and the legacy code's own `feature_dir`/`get_mission_for_feature`\
+    \ naming is correctly out of this mission's fix scope, so nothing here would produce a wrong implementation.\n"
+  remediation: 'Reword the three prose occurrences to use "mission" (e.g. "for my mission", "not merely
+    a missing capability", "a mission whose `meta.json` declares that type"), reserving unquoted "feature"
+    only for direct citations of existing legacy code identifiers where backticked.
+
+    '
+- id: SPEC-ARCH-001
+  lens: Four-type blast-radius / non-regression coverage
+  severity: 4
+  severity_reasoning: "Rubric #4 (\"high\") applies as \"FR/NFR without coverage\": NFR-001's own text\
+    \ is the ONLY place `plan` is mentioned for the #3830 fix, phrased as \"must likewise be unaffected\
+    \ wherever it currently traverses this path\" \u2014 no Acceptance Scenario, Independent Test, or\
+    \ Success Criterion is tied to it, so it is untestable as written. Verified against the checkout,\
+    \ `plan` DOES currently traverse this exact hot path and is ALREADY broken there by a distinct, adjacent\
+    \ defect the spec never surfaces \u2014 silence here risks the fix landing with zero evidence that\
+    \ the pre-existing `plan`-type failure mode is preserved rather than subtly changed.\n"
+  title: plan (4th built-in type) composition-dispatch non-regression is untestable prose, and the spec
+    is silent that plan is ALREADY broken on this exact hot path by a different, adjacent defect
+  evidence:
+  - artifact: "spec.md \xA7 User Story 1, Acceptance Scenario 3 (only tests software-dev/research/documentation)"
+  - artifact: "spec.md \xA7 NFR-001 (\"plan ... must likewise be unaffected wherever it currently traverses\
+      \ this path\")"
+  - artifact: "spec.md \xA7 C-003 (\"every FR above must state (via its paired NFR) what must NOT regress\
+      \ for each built-in type\")"
+  - code: 'src/charter/activation/mission_type_profiles.py:16-20 ("The four canonical mission types are:
+      software-dev, documentation, research, plan") and :283-289 (action_sequence is non-empty by construction
+      for all four, locked by golden-parity suite)'
+  - code: "src/runtime/next/runtime_bridge_composition.py:150-197 (_should_dispatch_via_composition: the\
+      \ first branch returns True whenever the normalized step_id is in `resolve_mission_type_context(...).action_sequence`\
+      \ \u2014 for ANY mission type, not gated to software-dev, despite this module's own header comment\
+      \ at :96-108 and runtime_bridge.py:1774-1780 both stating dispatch is \"hard-guarded on mission\
+      \ == 'software-dev'\" (C-008) \u2014 that comment is stale/contradicted by the live code)"
+  - code: "src/specify_cli/mission_step_contracts/executor.py:72-87 (_ACTION_PROFILE_DEFAULTS has entries\
+      \ for software-dev/research/documentation only \u2014 zero entries for mission type 'plan')"
+  - code: "packs/built-in/missions/built_in_step_contracts/*.step-contract.yaml \u2014 grep for 'mission:'\
+      \ shows only software-dev, research, documentation; no file declares 'mission: plan'"
+  - code: "src/specify_cli/mission_step_contracts/executor.py:207 (\"No step contract found for mission/action\
+      \ {context.mission}/{context.action}\" \u2014 the failure StepContractExecutor.execute() raises\
+      \ today for mission=plan, BEFORE _resolve_profile_hint is ever reached)"
+  claim: "Composition dispatch (`_should_dispatch_via_composition` in runtime_bridge_composition.py) is\
+    \ NOT actually hard-guarded to `mission == \"software-dev\"` as its own header comment and C-008 claim\
+    \ \u2014 it fires for any mission type whose dispatched action is a member of that type's `action_sequence`,\
+    \ and `action_sequence` is populated for all four built-in types including `plan`. Because no `built_in_step_contracts/*.yaml`\
+    \ declares `mission: plan` and `_ACTION_PROFILE_DEFAULTS` has no `plan` entries, the built-in `plan`\
+    \ mission type ALREADY fails composition dispatch today with `StepContractExecutionError(\"No step\
+    \ contract found for mission/action plan/<action>\")` \u2014 a different, adjacent defect from #3830's\
+    \ `profile_hint is required` symptom, on the exact same hot path C-003 says every fix must state non-regression\
+    \ for. The spec's own Acceptance Scenario 3 (User Story 1) tests only software-dev/research/ documentation;\
+    \ `plan` is mentioned nowhere except NFR-001's untestable hedge. An implementer has no spec-derived\
+    \ signal that `plan` is already broken here, and no AC forces them to verify the fix leaves that failure\
+    \ mode unchanged (rather than, say, silently \"fixing\" it into a different failure, or accidentally\
+    \ routing `plan` through `_resolve_step_agent_profile`/a newly-reachable code path that behaves unpredictably\
+    \ for a type with no registered contracts).\n"
+  remediation: 'Add an explicit Acceptance Scenario to User Story 1 (or a dedicated edge case) covering
+    `plan`: given a `plan`-type mission dispatching an action in its own `action_sequence`, confirm the
+    fix does not change the failure mode away from "no step contract found for mission/action plan/<action>"
+    (or, if the plan/research phase decides to also register step contracts for `plan` as part of this
+    mission, state that explicitly as new scope). Tie NFR-001''s `plan` clause to a concrete, testable
+    AC/SC entry instead of leaving it as untestable prose, and correct or flag the stale "hard-guarded
+    on mission == software-dev" comment in runtime_bridge_composition.py/runtime_bridge.py as drift the
+    implementer should not trust.
+
+    '
+- id: SPEC-ARCH-002
+  lens: Four-type blast-radius / non-regression coverage
+  severity: 4
+  severity_reasoning: "Rubric #4 \"FR/NFR without coverage\": NFR-004 explicitly promises tested behavior\
+    \ for `documentation`, `research`, and `plan` under the corrected #3832 scope, but zero Acceptance\
+    \ Scenario in User Story 3 exercises any of those three types \u2014 only `qa` (custom) and `software-dev`\
+    \ are tested. An implementer following only the Acceptance Scenarios (the concrete, testable contract)\
+    \ could ship a fix that happens to work for qa/software-dev while `documentation`'s distinct peer-field\
+    \ shape (Documentation Framework / Languages Detected / Output Format / Hosting Platform / Build Commands)\
+    \ is never exercised \u2014 exactly the \"corrected scope\" defect class Decision 1 itself calls out.\n"
+  title: User Story 3's Acceptance Scenarios never test documentation, research, or plan, despite NFR-004
+    and Decision 1 naming them as in-scope, corrected-scope built-in types
+  evidence:
+  - artifact: "spec.md \xA7 User Story 3, Acceptance Scenarios 1-3 (AC1: qa custom type; AC2: software-dev;\
+      \ AC3: mission_check_prerequisites.py:364 reconciliation) \u2014 none reference documentation/research/plan"
+  - artifact: "spec.md \xA7 NFR-004 (\"documentation-type plans must be checked against documentation's\
+      \ own template fields ... research/plan-type plans must be checked against the fact that their own\
+      \ templates scaffold neither Technical Context nor a peer field\")"
+  - artifact: "spec.md \xA7 Decision 1 (\"the live, verified evidence above shows the defect ALSO breaks\
+      \ three of the four BUILT-IN mission types \u2014 documentation, research, and plan\")"
+  - code: "packs/built-in/missions/documentation/templates/documentation-plan-template.md:12-24 (## Technical\
+      \ Context present with Documentation Framework/Languages Detected/Output Format/Hosting Platform/Build\
+      \ Commands \u2014 confirmed via grep, matches spec's own table)"
+  claim: "Decision 1's corrected-scope table and NFR-004 both assert that this mission fixes `documentation`/`research`/`plan`\
+    \ too, not just `qa`, but the only place that gets turned into a testable AC is the NFR text itself\
+    \ \u2014 User Story 3's Independent Test and Acceptance Scenarios (the artifact's actual testable\
+    \ contract) stop at `qa` and `software-dev`. This is the same class of gap the mission's own mission-derived\
+    \ lens exists to catch: a corrected-scope claim without a corresponding testable AC is functionally\
+    \ equivalent to not having made the claim, since nothing forces an implementer or reviewer to verify\
+    \ it.\n"
+  remediation: 'Add at least one Acceptance Scenario to User Story 3 exercising `documentation` (its own
+    distinct peer fields, no Language/Version) end-to-end through `is_substantive(plan_file, "plan")`,
+    and either an Acceptance Scenario or an explicitly-scoped follow-on for `research`/`plan` once Decision
+    1''s Edge Case (see SPEC-ARCH-003) is resolved. Mirror SC-003''s phrasing ("verified for at least
+    qa and documentation") into a concrete AC, not just a Success Criterion.
+
+    '
+- id: SPEC-ARCH-003
+  lens: Four-type blast-radius / non-regression coverage
+  severity: 4
+  severity_reasoning: "Rubric #4 \"untestable/vacuous AC\" and \"contradicts existing code/spec\": the\
+    \ spec's own Edge Cases section offers \"a documented neutral pass\" (i.e., research/plan plans are\
+    \ always substantive) as an acceptable resolution, but NFR-005 requires the gate to be able to fail\
+    \ for EVERY mission type it applies to (\"no mission type may be structurally exempted from ever having\
+    \ its plan checked\"). Verified against the checkout, research and plan plan templates are NOT empty\
+    \ of substantive content (Research Context/Methodology/Data Sources for research; Problem Decomposition/Scope-MoSCoW/Sequencing/Decisions\
+    \ for plan) \u2014 only Technical-Context-shaped fields are absent. A \"neutral pass\" resolution\
+    \ would leave those two built-in types with a gate that can never fail, directly contradicting NFR-005,\
+    \ yet the spec offers \"neutral pass\" as a live option without flagging the conflict, and the one\
+    \ place that requires a decision (NFR-004: \"must be an explicit, tested decision\") never states\
+    \ what that decision is \u2014 a load-bearing behavioral fork left unresolved at spec time on the\
+    \ FR-006 fix shape that Decision 1 declares BINDING.\n"
+  title: Edge Cases offer a 'neutral pass' resolution for research/plan that would violate the spec's
+    own NFR-005 non-vacuity requirement, and the actual behavioral decision is never made
+  evidence:
+  - artifact: "spec.md \xA7 Edge Cases (\"What happens for research and plan mission types ... treat plan.md\
+      \ as substantive by a different, template-declared criterion, or a documented neutral pass ... this\
+      \ must not silently resolve to ... 'always passes' without an explicit decision recorded during\
+      \ planning\")"
+  - artifact: "spec.md \xA7 NFR-005 (\"the fixed is_substantive plan check ... must be a gate that CAN\
+      \ fail for every mission type it applies to \u2014 no mission type may be structurally exempted\"\
+      )"
+  - artifact: "spec.md \xA7 NFR-004 (\"behavior for this case must be an explicit, tested decision ...\
+      \ not an accidental always-pass/always-fail\") \u2014 states a requirement but not the decision\
+      \ itself"
+  - code: "packs/built-in/missions/research/templates/research-plan-template.md:1-60 (Research Context,\
+      \ Methodology phases, Data Sources \u2014 substantive content exists, just not Technical-Context-shaped)"
+  - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:1-60 (Problem Decomposition, Scope\
+      \ \u2014 MoSCoW, Sequencing & Prioritisation, Decisions \u2014 same pattern)"
+  claim: "FR-006 requires the check to \"check for the fields that mission type's OWN resolved plan template\
+    \ declares\" \u2014 a general mechanism that, applied uniformly, would derive required fields from\
+    \ whatever `research`/`plan` templates DO scaffold (Methodology, Problem Decomposition, Decisions,\
+    \ etc.), not treat the absence of a Technical-Context-shaped section as \"nothing to check.\" But\
+    \ the Edge Cases text explicitly leaves \"documented neutral pass\" (always-substantive) on the table\
+    \ as an acceptable outcome for these two types, which is exactly the structural-exemption pattern\
+    \ NFR-005 forbids, and does so without naming the conflict. This is a spec self-contradiction on a\
+    \ fix shape Decision 1 marks BINDING, not merely an implementation detail properly deferred to plan\
+    \ phase \u2014 it determines whether `research`/`plan` mission authors can ship an empty plan.md and\
+    \ have it accepted, which is directly the correctness property this mission exists to fix.\n"
+  remediation: 'Resolve the fork in the spec itself: either (a) state that a "neutral pass" is explicitly
+    REJECTED as a resolution for research/plan (consistent with NFR-005), and require FR-006''s template-derived
+    mechanism to check research/plan''s own actual template fields (Methodology/Decisions/etc.) the same
+    way it does for documentation''s peer fields, or (b) if a neutral pass is genuinely intended for types
+    with no Technical-Context-shaped section, add an explicit NFR-005 carve-out naming research/plan so
+    the two NFRs do not read as contradictory. Either way, state the decision in Clarifications (mirroring
+    Decision 1/2''s format) rather than leaving it as an Edge Case with two unresolved options.
+
+    '
+- id: SPEC-ARCH-004
+  lens: Reflexivity
+  severity: 3
+  title: 'Spec is silent on what happens to missions already mid-flight (blocked by #3830, mis-substituted
+    by #3831, or gated by #3832) when this fix lands'
+  evidence:
+  - artifact: "spec.md \xA7 Summary (\"spec-kitty's own runtime machinery \u2014 the tooling every downstream\
+      \ mission (including this one) depends on\")"
+  - artifact: "spec.md \xA7 Edge Cases / Clarifications \u2014 no entry addresses in-flight mission state"
+  - artifact: "spec.md \xA7 C-007 (addresses the pre-existing RED test baseline, but not pre-existing\
+      \ mission run state)"
+  claim: "All three defects are in spec-kitty's own control-loop machinery, which every currently-running\
+    \ mission (including this one, and including any real qa-type mission such as int-e2e-qa-run-01M1F2N8\
+    \ cited as the original repro) depends on. The spec never states what should happen to a mission that\
+    \ is currently: (a) blocked with a recorded `StepContractExecutionError`/`profile_hint is required`\
+    \ Decision from #3830 \u2014 does re-running `spec-kitty next` after the fix simply succeed, or does\
+    \ stale `run/state.json` need any reconciliation? (b) already silently evaluated (and possibly had\
+    \ artifacts/commits made) against `software-dev`'s path conventions and required-artifact set per\
+    \ #3831 \u2014 once `_mission_path_by_name` starts resolving the org tier correctly, does re-evaluation\
+    \ against the CORRECT mission type's conventions retroactively flag previously-accepted artifacts\
+    \ as missing/misplaced? (c) had a plan.md manually contorted to satisfy the old software-dev-shaped\
+    \ gate (e.g. a fake Technical Context section added just to pass #3832's check) \u2014 does the corrected,\
+    \ type-aware check now reject that plan.md differently than before? None of these are addressed by\
+    \ an FR, NFR, or Edge Case.\n"
+  remediation: 'Add an Edge Case (or a short "Landing this fix" note) stating the expected behavior for
+    missions already in-flight when the PR merges: confirm re-running `spec-kitty next` on a previously-blocked
+    mission is the expected recovery path with no state migration needed, and note explicitly whether
+    a mission already mis-evaluated under #3831''s software-dev substitution needs any operator-visible
+    re-validation step (this is a natural place to point at FR-005''s "loud fallback" signal as the operator''s
+    cue to re-check affected missions).
+
+    '
+- id: SPEC-VERIFY-001
+  lens: baseline-honesty / mandatory-correspondence
+  severity: 3
+  title: "\"Ledger entry #3284\" mischaracterizes provenance \u2014 SPEC-KITTY-LEDGER.md has no #3284\
+    \ entry"
+  evidence:
+  - artifact: "spec.md \xA7 C-007 (line 108), \xA7 Edge Cases (line 71), \xA7 SC-005 (line 163)"
+  - code: "SPEC-KITTY-LEDGER.md (workspace root, outside this repo) (grep '3284' \u2014 single hit, line\
+      \ 1331, unrelated to this mission: an example inside SK-95/mission `cascade-asset-silent-drop-01M0RME0`'s\
+      \ issue-matrix discussion, not a documented baseline entry)"
+  - code: "GitHub issue #3830/#3831/#3832 upstream \u2014 confirmed via `gh issue view 3284`: the 23-failures/2-errors\
+      \ detail genuinely exists, but as the BODY of GitHub issue #3284 itself, not as ledger content"
+  claim: "C-007 states \"Ledger entry #3284 documents 23 pre-existing test failures + 2 errors on main,\"\
+    \ and the Edge Cases / SC-005 sections repeat \"ledger #3284\" as the citation form. SPEC-KITTY-LEDGER.md\
+    \ (the tracked defect ledger this repo's CLAUDE.md/AGENTS.md instruct every agent to read first) contains\
+    \ no entry keyed by \"#3284\" and no content resembling the 23-failures/2-errors breakdown \u2014\
+    \ it has exactly one incidental mention of the string \"3284\" elsewhere, in an unrelated mission's\
+    \ issue-matrix example. The real source of the 23-failures/2-errors data is GitHub issue #3830...#3284\
+    \ itself (confirmed live via `gh issue view 3284`), not the ledger file. Two prior missions in this\
+    \ same workspace (mission-scaffold-tasks-lanes-defects-01M0NERD's analysis-report.md \xA78, and mission-types-empty-action-sequence-01M0RMCA's\
+    \ WP01 task file) already independently documented this exact confusion (\"SPEC-KITTY-LEDGER.md has\
+    \ no #3284 entry ... gh issue view 3284 and its comments are the real source, not the ledger\"). This\
+    \ spec repeats the same imprecise citation instead of correcting it, which risks an implementer/reviewer\
+    \ searching SPEC-KITTY-LEDGER.md for \"the #3284 entry\" per C-007/SC-005, finding nothing, and either\
+    \ wrongly concluding the baseline claim is unsubstantiated or wasting time re-deriving what is already\
+    \ a confirmed, live GitHub issue. Severity reasoning (rubric #3, moderate): the underlying numeric\
+    \ baseline fact (23 failures + 2 errors) IS accurate and independently verified against the live issue,\
+    \ so this does not produce a wrong implementation outright \u2014 but it is a load-bearing provenance\
+    \ citation tied directly to the charter's Pre-existing Failure Reporting Rule (C-007, SC-005), and\
+    \ getting the citation wrong is exactly the kind of gap likely to cause rework inside the WP that\
+    \ has to classify test reds against this baseline.\n"
+  remediation: "Reword C-007, the Edge Cases bullet, and SC-005 to cite \"GitHub issue #3284 (23 pre-existing\
+    \ test failures + 2 errors)\" and \"GitHub issue #3283 (shared test-venv lock)\" rather than \"ledger\
+    \ entry #3284\" / \"ledger #3284\" \u2014 since neither is actually documented in SPEC-KITTY-LEDGER.md.\
+    \ If the intent was to also record these in the ledger for future missions' benefit, that should be\
+    \ a separate, explicit action item, not implied by the current citation wording.\n"
+- id: SPEC-VERIFY-002
+  lens: mandatory-correspondence
+  severity: 3
+  title: User Story 3 / Acceptance Scenario 1 still claims three call sites for is_substantive(plan_file,
+    "plan") after FR-007 corrected the count to two
+  evidence:
+  - artifact: "spec.md \xA7 User Story 3, Acceptance Scenario 1 (line 58): \"mission_setup_plan.py calls\
+      \ is_substantive(plan_file, \\\"plan\\\") (its three call sites, symbols _commit_plan_if_substantive\
+      \ and the resume/finalize paths, currently unguarded \u2014 see verified citations below)\""
+  - artifact: "spec.md \xA7 FR-007 (line 85): \"verified: line 794 inside _commit_plan_if_substantive,\
+      \ and line 1230 in the scaffold/resume path \u2014 both kind=\\\"plan\\\"; a third call site at\
+      \ line 553 checks kind=\\\"spec\\\" and is out of scope for this FR\""
+  - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:553 \u2014 `spec_is_substantive =\
+      \ is_substantive(spec_file, \"spec\")` (kind=\"spec\", operates on spec_file, NOT plan_file)"
+  - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:794 \u2014 `if is_substantive(plan_file,\
+      \ \"plan\"):` inside `_commit_plan_if_substantive` (def at line 769)"
+  - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:1230 \u2014 `plan_is_substantive =\
+      \ is_substantive(plan_file, \"plan\")`"
+  claim: "Verified directly against mission_setup_plan.py: `is_substantive(plan_file, \"plan\")` (the\
+    \ exact call form named in AC1) occurs at exactly TWO locations (794, 1230), not three \u2014 the\
+    \ third occurrence (553) calls `is_substantive(spec_file, \"spec\")`, a different kind and a different\
+    \ argument variable. FR-007 (two paragraphs later in the same document) correctly states this corrected\
+    \ two-plan/one-spec breakdown, and the mission's own tracer file (tracer-design-decisions.md lines\
+    \ 26/32) records the correction explicitly: \"is_substantive (plan_file, \"plan\") at three call sites\
+    \ (~553, 794, 1230)\" was the pre-correction belief, and \"FR-007 targets the two genuine kind=\"\
+    plan\" call sites\" is the corrected picture. AC1 in User Story 3 was not updated to match \u2014\
+    \ it still asserts \"its three call sites\" in the same breath as `is_substantive(plan_file, \"plan\"\
+    )`, which is now internally inconsistent with FR-007 in the same artifact. Per the charter's ATDD-first\
+    \ governing principle (\"the acceptance test is the contract\"), an implementer or test-writer working\
+    \ directly from AC1 without cross-referencing FR-007 could reasonably (but wrongly) target three kind=\"\
+    plan\" call sites, or apply the template-derived fix to the kind=\"spec\" call site at line 553, which\
+    \ FR-007 explicitly places out of scope. Severity reasoning (rubric #3, moderate): the correct information\
+    \ exists elsewhere in the same document (FR-007) and in the tracer file, so this will not silently\
+    \ reach implementation uncaught \u2014 but it is a genuine, verifiable self-contradiction inside a\
+    \ \"mandatory\" load-bearing artifact section (Acceptance Scenarios), which is exactly the class of\
+    \ ambiguity likely to cause rework inside the WP that implements/tests FR-006/FR-007.\n"
+  remediation: 'Update User Story 3''s Acceptance Scenario 1 to match FR-007''s corrected count: replace
+    "its three call sites" with "its two kind=\"plan\" call sites (line 794 inside _commit_plan_if_substantive,
+    and line 1230 in the scaffold/resume path)" and drop the implication that all three occurrences of
+    is_substantive in mission_setup_plan.py share the same (plan_file, "plan") signature.
+
+    '

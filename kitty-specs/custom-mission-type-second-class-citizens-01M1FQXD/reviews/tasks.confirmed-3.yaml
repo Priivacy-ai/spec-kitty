@@ -1,0 +1,90 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: round3-targets
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: TASKS-FRESH2-001
+    lens: mechanism-verification
+    severity: 4
+    title: T007's message-generalization instruction only swaps label text, not describe_technical_context_gap's shape-(a)-only detection dispatch
+    evidence:
+      - artifact: "tasks/WP03-substantive-gate.md § T007 (message-generalization extension)"
+      - artifact: "tasks/WP03-substantive-gate.md § T008 (message-content assertion extension)"
+      - code: "src/specify_cli/missions/_substantive.py:211-236 (describe_technical_context_gap)"
+      - artifact: "tasks/WP03-substantive-gate.md § T004 (plan's Problem Decomposition is shape (b), table-detected)"
+    claim: >
+      T007's extension instructs the implementer to generalize describe_technical_context_gap
+      by "build[ing] every heading/label reference in its output from that declaration" —
+      i.e. a text substitution of the container-heading and primary-field label. But the
+      function's own detection logic (verified live: lines 211-224) is intrinsically
+      shape-(a)-specific — it locates the declared heading, then matches the primary field
+      via a `\*\*{label}\*\*[ \t]*:[ \t]*` bold-field regex (today `**Language/Version**`)
+      to decide which of three diagnostic strings to return (section absent / primary
+      missing-or-placeholder / peer missing). For `plan`, whose primary field
+      (`Problem Decomposition`) is shape (b) — a table row, per T004, not a bold field —
+      a naive label-only substitution of this same regex will never match a table row, so
+      `lang_match` is always `None` and the function will ALWAYS return the "primary field
+      is missing or carries only placeholder content" message (lines 226-229), even when
+      Problem Decomposition is genuinely populated and the real gate failure is a missing
+      peer field (Scope/Sequencing/Decisions) — the opposite of what actually failed. The
+      same risk applies to `research`'s Data Sources peer (shape c-ii, nested heading) once
+      any type's PEER field is non-bold-field-shaped. T008's own new message-content
+      assertion ("names that type's OWN primary-field/heading label" and "do NOT contain
+      the literal 'Technical Context' or 'Language/Version'") is satisfied by this wrong,
+      naively-substituted message too — it still names the right label and omits the old
+      literals — so the fixture matrix as extended cannot catch this class of regression.
+      Neither the original T003-T005 shape-dispatch design nor T007's extension directs the
+      implementer to give describe_technical_context_gap the same per-shape dispatch the
+      boolean gate gets.
+    remediation: >
+      Extend T007 to explicitly direct describe_technical_context_gap to dispatch its
+      diagnostic construction by the declared shape (a/b/c), reusing the shape detectors'
+      own primary/peer sub-results (from T003-T005) to decide which diagnostic string to
+      emit, rather than re-running a bold-field-only regex against every type. In addition,
+      strengthen T008's message-content assertion to include at least one negative fixture
+      per non-`software-dev` type where the PRIMARY field is populated but the PEER field is
+      not (or vice versa), asserting the message names the field that actually failed — this
+      is the only assertion shape that would force the shape-(b)/(c) dispatch gap to surface
+      during implementation instead of shipping silently.
+
+  - id: TASKS-FRESH2-002
+    lens: canonical-source-integrity
+    severity: 4
+    title: finalize-tasks' branch_strategy generator is topology-blind; a future non-validate-only run would silently regress the single_branch WP-frontmatter fix
+    evidence:
+      - artifact: "tasks/WP01-composition-dispatch.md frontmatter (`branch_strategy`) — identical pattern in WP02/WP03"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:1432-1440 (_branch_strategy_text)"
+      - code: "./.venv/bin/spec-kitty agent mission finalize-tasks --mission custom-mission-type-second-class-citizens-01M1FQXD --validate-only --json → would_modify[*].changes.branch_strategy"
+    claim: >
+      All three WP files' committed `branch_strategy` frontmatter (fixed in commit
+      f68510687, "correct WP branch frontmatter for single_branch topology") reads:
+      "...this mission ships as a single branch/one PR onto that existing branch (topology
+      single_branch)... completed changes must merge back into
+      fix/custom-mission-type-second-class-3830, never a dependency-specific or per-WP
+      branch." Running the exact validate-only command this review requires shows the
+      canonical generator disagrees: it reports `would_modify` for WP01/WP02/WP03, each
+      proposing to overwrite `branch_strategy` with "...During /spec-kitty.implement this WP
+      may branch from a dependency-specific base, but completed changes must merge back into
+      ... unless the human explicitly redirects the landing branch." Tracing the source
+      confirms why: `_branch_strategy_text()` (mission_finalize.py:1432-1440) takes no
+      topology argument at all and unconditionally emits the "may branch from a
+      dependency-specific base" wording for every mission, regardless of its actual
+      coordination topology. The prior round's WP-frontmatter fix is therefore a hand-edit
+      that diverges from the canonical generator rather than a fix to the generator itself
+      (the exact anti-pattern CLAUDE.md's "Use Canonical Sources, Never Improvise" section
+      warns against) — any future non-`--validate-only` `finalize-tasks` invocation (a
+      normal recovery/re-entry operation, not a hypothetical one) will silently revert all
+      three WPs' branch_strategy back to language that directly contradicts this mission's
+      own documented single-branch/one-PR topology and its explicit "never a
+      dependency-specific or per-WP branch" instruction, risking a WP actually being
+      implemented off the wrong branch.
+    remediation: >
+      File an upstream spec-kitty gap so `_branch_strategy_text()` accepts the mission's
+      resolved coordination topology and, for `single_branch`, emits wording matching what
+      commit f68510687 hand-wrote (no per-WP/dependency-specific branching permitted). Until
+      that lands, record in the mission tracer (or as an explicit note in each WP file) that
+      `finalize-tasks` must not be re-run for this mission except with `--validate-only`, or
+      that the branch_strategy field must be manually re-corrected immediately after any
+      non-validate-only run.

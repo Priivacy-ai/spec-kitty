@@ -2,7 +2,7 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-08-12'
+updated: '2026-09-03'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
@@ -20,6 +20,33 @@ related:
 ## Intent of 3.2.x
 
 3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md) is the domain's canonical map of that split.
+
+## Addendum 2026-09-03 — 3.2.6 release DAG fully discharged (#3692 closed)
+
+*Read-only reconciliation against live GitHub state on 2026-09-03. Supersedes the
+"Ownership gap / ~19 unowned issues" red flag that the 3.2.6 execution DAG (#3692)
+carried through its 2026-08-26 regeneration.*
+
+**Every node in the 3.2.6 release DAG is now CLOSED.** The tracker issue #3692
+("3.2.6 release DAG and execution order") enumerated the milestone's release-blocking
+book across seven clusters — all twenty issues are discharged:
+
+- mission-completion / lane integrity — #3590, #2945, #3281, #2947
+- review-verdict integrity — #3235
+- merge recovery & retention — #3579, #3131
+- accept portability — #3016
+- commit-boundary completeness — #2693, #3716, #2739
+- upgrade missions — #3282, #2265, #2316
+- charter / doctrine integrity — #3702, #3704, #3705, #3728, #2940
+- diagnostic cleanliness — #3435
+
+**Milestone posture:** 3.2.6 stands at 66 closed / 0 remaining work items; the only
+issue that was still "open" on the milestone was the #3692 tracker itself, now closed.
+No open PR gates the tag — the current open PRs carry the 3.2.7 milestone or none, and
+none close a 3.2.6 DAG node. The 08-12 addendum below judged an rc cuttable on
+code-health grounds; that judgement now extends to the final tag on the functional
+axis: the release-blocking bug book is empty. Sonar's standing backlog (below) and the
+broader 3.2.x cycle exit criteria remain their own, separately-tracked concerns.
 
 ## Addendum 2026-08-12 — release-posture refresh (CI green except the standing Sonar backlog)
 

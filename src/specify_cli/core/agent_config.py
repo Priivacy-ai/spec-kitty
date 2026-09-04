@@ -71,6 +71,16 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
         logger.error(f"Failed to load config: {e}")
         raise AgentConfigError(f"Invalid YAML in {config_file}: {e}") from e
 
+    # A YAML document need not be a mapping -- a bare scalar or a list parses
+    # without error but is not a dict, and the unguarded `data.get(...)` below
+    # raised a bare `AttributeError` on it (same defect class as ledger SK-16,
+    # `charter status --json`'s leaked-exception bug). Treat a non-mapping top
+    # level as a config error, matching the sibling raise two lines above --
+    # not a silent default, so the operator learns their config is corrupt
+    # instead of getting an unexplained "no agents configured".
+    if not isinstance(data, dict):
+        raise AgentConfigError(f"Invalid config shape in {config_file}: expected a YAML mapping at the top level, got {type(data).__name__}")
+
     agents_data = data.get("agents") or data.get("tools") or {}
 
     # Parse settings from either the agents/tools dict or the top level

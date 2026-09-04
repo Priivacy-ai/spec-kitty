@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-31T16:44:37.739436Z",
+      "decision_id": "01M1CBARZBBWVGWBTWRMHPP661",
+      "final_answer": "Relocate the canonical cached load_manifest wholesale into charter; deprecation shim re-export from specify_cli/dossier; re-point ALL consumers incl. charter-tier mission_type_profiles; retire from_yaml_file orphan; arch-gate bare model_validate; add an ADR for the charter relocation. Cleanest single-authority end-state (operator choice).",
+      "input_key": "unification_scope_depth",
+      "mission_id": "01M1C9VQZ28CFRW741WRADS6SZ",
+      "mission_slug": "expected-artifacts-loader-unification-01M1C9VQ",
+      "opened_by": "cli",
+      "options": [
+        "Scoped: brief 3 mirrors + follow-up",
+        "Full: shared charter-side helper",
+        "Relocate loader into charter"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How far should #3770 unification reach, given C-001 (charter must not import specify_cli) and a 4th charter-tier raw-mapping loader?",
+      "rationale": null,
+      "resolved_at": "2026-08-31T16:44:39.035265Z",
+      "resolved_by": null,
+      "slot_key": "specify.unification.scope-depth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M1C9VQZ28CFRW741WRADS6SZ",
+  "version": 1
+}

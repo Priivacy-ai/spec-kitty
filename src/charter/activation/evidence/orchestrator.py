@@ -12,10 +12,26 @@ from charter.activation.synthesizer.evidence import CodeSignals, CorpusSnapshot,
 from kernel.clock import now_utc_iso
 
 __all__ = [
+    "ConfigShapeError",
     "EvidenceOrchestrator",
     "load_url_list_from_config",
 ]
 
+
+class ConfigShapeError(RuntimeError):
+    """Raised when ``.kittify/config.yaml``'s top-level YAML content is not a mapping.
+
+    A YAML document need not be a mapping — ``just-a-string``, ``- a\\n- b``, and
+    ``42`` all parse without error but are not a ``dict``. Before this guard, a
+    corrupted or hand-edited config.yaml in this shape made ``config.get(...)``
+    raise a bare ``AttributeError`` that propagated, unhandled, all the way through
+    ``charter status --json`` (and ``synthesize``/``resynthesize``), leaking raw
+    Python exception text through the structured ``--json`` error envelope
+    (ledger SK-16). Raising this typed, message-carrying exception here keeps the
+    fail-closed outcome the ledger's SK-16 entry says is correct (exit 1,
+    ``success: false``) while replacing the leaked exception text with a
+    controlled diagnostic that names the file and the real problem.
+    """
 
 
 @dataclass
@@ -85,7 +101,20 @@ def load_url_list_from_config(repo_root: Path) -> tuple[str, ...]:
     `.kittify/charter/charter.yaml` rather than an inline mapping, so
     `synthesis_inputs.url_list` has no live config home there anymore.
     Returns an empty tuple whenever the key is absent, the file does not
-    exist, or `charter` is not a mapping (e.g. the path-string shape).
+    exist, or `charter` is not a mapping (e.g. the path-string shape) --
+    all of those are *valid, understood* config shapes.
+
+    A non-mapping *top-level* document is different: it is not a valid
+    config.yaml shape at all (corruption or a hand-editing mistake), so this
+    raises :class:`ConfigShapeError` rather than silently returning ``()``.
+    Silently returning empty here would make ``charter status --json`` exit 0
+    with a full success envelope on a corrupted config file -- exactly the
+    "silent success" failure mode this repository's own ledger (SK-16) and
+    charter treat as a defect class, not a style choice.
+
+    Raises:
+        ConfigShapeError: ``config.yaml``'s top-level YAML content parses but
+            is not a mapping (e.g. a bare scalar or a list).
     """
     config_path = repo_root / ".kittify" / "config.yaml"
     if not config_path.exists():
@@ -96,6 +125,12 @@ def load_url_list_from_config(repo_root: Path) -> tuple[str, ...]:
             config = yaml.load(fh) or {}
     except Exception:  # noqa: BLE001
         return ()
+    if not isinstance(config, dict):
+        raise ConfigShapeError(
+            f"{config_path} must be a YAML mapping at the top level; found "
+            f"{type(config).__name__} instead. Repair the file (it should look "
+            "like `charter: ...`) or restore it from version control."
+        )
     charter_cfg = config.get("charter") or {}
     if not isinstance(charter_cfg, dict):
         charter_cfg = {}

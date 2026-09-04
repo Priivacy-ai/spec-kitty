@@ -1,0 +1,7 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-4
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings: []

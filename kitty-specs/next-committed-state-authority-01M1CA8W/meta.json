@@ -1,0 +1,33 @@
+{
+  "accept_commit": "dbb2d7345b2124d37320aa8a5e6e9721de792965",
+  "acceptance_history": [
+    {
+      "accept_commit": "dbb2d7345b2124d37320aa8a5e6e9721de792965",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-31T18:39:55.266791+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "b9783f75db50ec1c90dc0dd527a3c1a78681b4f1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-31T18:39:55.266791+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "b9783f75db50ec1c90dc0dd527a3c1a78681b4f1",
+  "coordination_branch": "kitty/mission-next-committed-state-authority-01M1CA8W",
+  "created_at": "2026-08-31T16:26:07.137430+00:00",
+  "flattened": false,
+  "friendly_name": "Next Resolves State From Committed Authority",
+  "mission_id": "01M1CA8WD0HSRY5MAJ3WR3DM3A",
+  "mission_number": null,
+  "mission_slug": "next-committed-state-authority-01M1CA8W",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a mission has already merged, or an operator has deliberately canceled a work package, the mission loop should recognize that from the authoritative committed record. Today it can instead read a stale coordination checkout or a lane value in isolation, causing it to restart finished work or refuse to move past an honest ending. This mission routes the loop's state decisions through committed status and the existing operator-provenance authority, and fails closed (blocked/error) when the workspace is stale or missing artifacts rather than pretending the work never started.",
+  "purpose_tldr": "spec-kitty next reads committed mission status and operator provenance — never a stale worktree or lane alone — so merged missions aren't restarted and operator-canceled work doesn't stall the loop.",
+  "slug": "next-committed-state-authority-01M1CA8W",
+  "status_phase": "1",
+  "target_branch": "fix/next-committed-state-authority",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-31T17:06:55.159398+00:00"
+}
