@@ -2,11 +2,12 @@
 title: 'Doctrine & Charter — Domain Plan'
 description: 'Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
 doc_status: durable
-updated: '2026-08-12'
+updated: '2026-09-04'
 related:
 - docs/plans/index.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/glossary-doctrine-overhaul-program.md
+- docs/changelog/4.0.0.md
 - docs/plans/doctrine/charter-sole-door-deferred-issues.md
 - docs/plans/doctrine/index.md
 - docs/plans/domains/saas-hosted-sync-domain-plan.md
@@ -27,6 +28,53 @@ related:
 > the canonical map; where they disagree on *what ships in a given tag*, the milestone
 > roadmap and the owning epic win. Keep this plan factual and current; do not let it
 > accrete release-scoped tracking that belongs in an epic.
+
+---
+
+## Addendum 2026-09-04 — milestone re-key + resolved sub-areas (post-2026-08-23 reconciliation)
+
+*This durable plan was last revised 2026-08-12, **11 days before** the 2026-08-23
+release-queue reconciliation; its milestone labels (§3 open-issue lists and the §5 table)
+predate it, and several sub-areas have since closed out. Per this plan's own status contract
+— "where they disagree on *what ships in a given tag*, the milestone roadmap and the owning
+epic win" — the labels and closed items are corrected here from live GitHub state (queried
+2026-09-04, `GITHUB_TOKEN` unset). The **invariants and sub-areas (the durable "why") are
+unchanged**; only the release-scoped "what ships when" moved. See the roadmap's
+[2026-09-04 re-anchor](../3-2-x-milestone-roadmap.md#addendum-2026-09-04--milestone-taxonomy-re-anchor-the-delayed-action-r)
+and the [4.0.0 declaration](../../changelog/4.0.0.md).*
+
+**Taxonomy change.** The **3.3.x** milestone was **retired** (closed 2026-08-23) and
+milestone #4 repurposed into **Product backlog**. Read every "3.3.x" label below as
+**4.0.0** unless the issue is closed; the structural/extensibility epics that were implicitly
+"3.2.x-cycle work" now sit in **Product backlog** — validated but on no committed release.
+
+**Owning epic re-milestoned 3.2.x → 4.0.0:** **#2519** (charter authoring & lifecycle
+robustness — §3.1 design-of-record and the §5 owning epic for the now-closed #3282). The
+extensibility/spine epics **#2466 / #2467 / #2468 / #2216** (§3.2), **#2652** (§3.3),
+**#645 / #3179** (§3.6), and **#2539** (deferred verified distribution) are all in **Product
+backlog** — none is committed to 3.2.7 or 4.0.0; they need an explicit release-milestone
+decision (see the roadmap addendum's disposition note).
+
+**§3.5 (meta.json fail-closed read routing) is DONE — strike the whole sub-area's open list.**
+Epic **#3259 is CLOSED**, and every child listed open — **#3230 / #3229 / #3228 / #3240** —
+**CLOSED** (the children 2026-08-11). The §3.5 "Open issues" block and its four §5 table rows
+are resolved; the invariant now holds as shipped state, not pending work.
+
+**Other resolved-but-unstruck items (verified 2026-09-04):**
+
+- **#3282 CLOSED** — the §3.1 load-bearing P0 (pointer-based charters lack mission-type
+  activations on upgrade) shipped under **3.2.6**; the §5 table carries it as open 3.2.x.
+- **#3176 CLOSED** — the §3.1 / §5 "last builder-unreachable site" P1 residual is discharged.
+- **#3183 CLOSED** and **#2657 CLOSED** — §3.3 lists both as open (#3183 the
+  activation-vs-loadability collision; #2657 the external blocker on #2659's provisioned
+  default charter). #2652 and #3251 remain open (Product backlog).
+- **#2262 CLOSED** — referenced under §3.4 of the SaaS plan; noted here for cross-consistency.
+
+**Still-live gaps (unchanged by the reconciliation):** §4 gap 1 (doctrine content-QA has no
+owning workstream — **#3275** still P3/no-milestone/no-epic) and §4 gap 4 (activation
+reachability R1/R2, unspecced and blast-radius-bearing) remain the domain's largest
+declared-vs-in-force gaps. Treat the §5 table's `Milestone` column as superseded by this
+addendum until it is next revised in place.
 
 ---
 
