@@ -34,6 +34,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
 
+from specify_cli.status.store import StoreError
+
 #: NFR-002: `tail_events()`'s poll interval, in seconds, MUST be a fixed, documented
 #: value in [0.1s, 1.0s] -- the CLI shell (`events.py`) has no poll-interval flag or
 #: loop of its own; it simply iterates `tail_events()` at this default. 0.25s is chosen
@@ -156,6 +158,13 @@ def _content_invariant_at(fh: IO[bytes], offset: int) -> str:
     file and ``offset`` (no persisted line length needed) because ``offset`` is
     always a line boundary. At ``offset == 0`` this naturally reduces to
     ``EMPTY_DIGEST`` (the SHA-256 of ``b""``) with no special-casing needed.
+
+    THREAT MODEL (load-bearing): hashing only the last consumed line -- not the
+    whole ``[0, offset)`` prefix -- is sufficient *because* the sole in-place
+    rewriter of this log, ``coordination/transaction.py``, only ever truncates a
+    suffix and re-appends; it never rewrites an earlier prefix while leaving a
+    later byte identical. A future writer that rewrites in place would defeat this
+    single-line invariant and must extend the hash to the full consumed prefix.
     """
     start = _start_of_last_line(fh, offset)
     fh.seek(start)
@@ -287,6 +296,14 @@ def poll_once(path: Path, cursor: TailCursor) -> PollResult:
     last_complete_line: bytes | None = None
     for chunk in complete_chunks:
         parsed = json.loads(chunk)
+        if not isinstance(parsed, dict):
+            # Mirror store.read_events_raw()'s corruption contract: a valid-JSON but
+            # non-object line (a scalar or array) is a corrupt event, not a tolerated
+            # tear. Raise the canonical StoreError here rather than let the
+            # reader-key injection below fail with an opaque TypeError.
+            raise StoreError(
+                "Invalid event structure in tail stream: expected JSON object"
+            )
         consumed_bytes += len(chunk) + 1  # +1 for the chunk's own trailing `\n`
         last_complete_line = chunk + b"\n"
         # plan.md's Tail Envelope & Cursor Schema: every PASS-THROUGH envelope gets
