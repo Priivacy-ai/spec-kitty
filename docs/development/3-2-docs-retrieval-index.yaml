@@ -6421,7 +6421,8 @@ pages:
     - {slug: "trigger-registry", text: "Trigger Registry", level: 3}
     - {slug: "charter-facade", text: "Charter Facade", level: 3}
     - {slug: "mission-type-profile", text: "Mission-Type Profile", level: 3}
-    - {slug: "selected-lt-kind-gt-required-lt-kind-gt", text: "selected_&lt;kind&gt; / required_&lt;kind&gt;", level: 3}
+    - {slug: "selected-required", text: "`selected_<kind>` / `required_<kind>`", level: 3}
+    - {slug: "activated", text: "`activated_<kind>`", level: 3}
     - {slug: "three-layer-drg", text: "Three-layer DRG", level: 3}
     - {slug: "tension-in-tension-with-drg-relation", text: "Tension — `in_tension_with` (DRG Relation)", level: 3}
     - {slug: "reconciliation-reconciles-tension-drg-relation", text: "Reconciliation — `reconciles_tension` (DRG Relation)", level: 3}

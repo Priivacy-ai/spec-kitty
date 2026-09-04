@@ -2,7 +2,7 @@
 title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
-updated: '2026-08-28'
+updated: '2026-09-03'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -257,11 +257,11 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | Architectural pattern in which the project / org charter is the sole authority that decides which doctrine artifacts apply to a given mission run. Doctrine is the knowledge store; charter is the selector; runtime asks charter for the activated set rather than reaching into doctrine directly. Enforced via the runtime → charter → doctrine boundary. |
+| **Definition** | Architectural pattern in which the project / org charter is the sole authority that decides which doctrine artifacts apply to a given mission run. Doctrine is the knowledge store; charter is the selector; runtime asks charter for the activated set rather than reaching into doctrine directly. Enforced via the runtime → charter → doctrine boundary. This framing is correct at the architectural level; the MECHANISM by which the charter's activation decision is actually resolved today is [activated_&lt;kind&gt;](#activated_kind) — not `selected_<kind>` alone. `selected_<kind>` is the authoring record of what an interview/pack once selected; `activated_<kind>` is what `PackContext.from_config` resolves via the INV-2 two-file pointer chase. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Global Selection](#global-selection), [Context-Scoped Selection](#context-scoped-selection), [Charter Facade](#charter-facade), [Doctrine Pack](#doctrine-pack) |
+| **Related terms** | [Global Selection](#global-selection), [Context-Scoped Selection](#context-scoped-selection), [Charter Facade](#charter-facade), [Doctrine Pack](#doctrine-pack), [activated_&lt;kind&gt;](#activated_kind) |
 
 ---
 
@@ -269,11 +269,11 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | Selection mode in which the charter declares an artifact is *always* active for every WP prompt regardless of action or mission type. Expressed via `selected_<kind>: [<id>, ...]` on the project charter or `required_<kind>: [<id>, ...]` on the org charter. Example: *"this project always uses the python-conventions styleguide."* |
+| **Definition** | Selection mode in which the charter declares an artifact *should be* active for every WP prompt regardless of action or mission type. Expressed via `selected_<kind>: [<id>, ...]` on the project charter or `required_<kind>: [<id>, ...]` on the org charter. Example: *"this project always uses the python-conventions styleguide."* Declaring is not the same as activating: whether a declared entry is actually delivered depends on the resolved [activated_&lt;kind&gt;](#activated_kind) set (`PackContext`) — `selected_<kind>`/`required_<kind>` are additive/unioned onto the `activated_<kind>`-derived base at the surfaces that resolve activation today (e.g. `resolve_project_governance`), not an independent activation source in their own right. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Context-Scoped Selection](#context-scoped-selection), [Charter-Mediated Selection](#charter-mediated-selection) |
+| **Related terms** | [Context-Scoped Selection](#context-scoped-selection), [Charter-Mediated Selection](#charter-mediated-selection), [activated_&lt;kind&gt;](#activated_kind) |
 
 ---
 
@@ -375,15 +375,27 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 ---
 
-### selected_&lt;kind&gt; / required_&lt;kind&gt;
+### `selected_<kind>` / `required_<kind>`
 
 | | |
 |---|---|
-| **Definition** | The field-naming convention for [Global Selection](#global-selection) entries. On the project charter (`DoctrineSelectionConfig`), each artifact kind gets a `selected_<kind>: [<id>, ...]` field — `selected_directives`, `selected_styleguides`, `selected_toolguides`, `selected_paradigms`, `selected_tactics`, `selected_procedures`, `selected_agent_profiles`, `selected_mission_step_contracts`. On the org charter (`OrgCharterPolicy`), the mirror is `required_<kind>: [<id>, ...]`. `apply_org_charter_to_interview` unions the org `required_<kind>` into the project `selected_<kind>` non-destructively. The architectural test `test_artifact_selection_completeness.py` enforces parity — every `DoctrineService` artifact kind has both a `selected_*` and a `required_*` field. |
+| **Definition** | The field-naming convention for [Global Selection](#global-selection) entries. On the project charter (`DoctrineSelectionConfig`), each artifact kind gets a `selected_<kind>: [<id>, ...]` field — `selected_directives`, `selected_styleguides`, `selected_toolguides`, `selected_paradigms`, `selected_tactics`, `selected_procedures`, `selected_agent_profiles`, `selected_mission_step_contracts`. On the org charter (`OrgCharterPolicy`), the mirror is `required_<kind>: [<id>, ...]`. `apply_org_charter_to_interview` unions the org `required_<kind>` into the project `selected_<kind>` non-destructively. The architectural test `test_artifact_selection_completeness.py` enforces parity — every `DoctrineService` artifact kind has both a `selected_*` and a `required_*` field. These fields are the CHARTER-AUTHORED record of a selection, not an independent activation source: they are unioned as an additive project-local layer over the resolved [activated_&lt;kind&gt;](#activated_kind) base (`PackContext.from_config`) at the surfaces that resolve activation today (e.g. `_resolve_directive_base` in `resolver.py`). |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Global Selection](#global-selection), [Charter-Mediated Selection](#charter-mediated-selection) |
+| **Related terms** | [Global Selection](#global-selection), [Charter-Mediated Selection](#charter-mediated-selection), [activated_&lt;kind&gt;](#activated_kind) |
+
+---
+
+### `activated_<kind>`
+
+| | |
+|---|---|
+| **Definition** | The `.kittify/config.yaml`-resolved, three-state per-kind activation authority for a doctrine artifact kind (`activated_paradigms`, `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`, `activated_glossary_packs`). Resolved via `PackContext.from_config`'s INV-2 two-file pointer chase: read `.kittify/config.yaml` directly, unless it carries a string `charter:` pointer, in which case follow it to the pointed `.kittify/charter/charter.yaml` and read the keys there instead. Three states per kind, applied independently: an ABSENT key resolves to `None` ("all built-ins available"); an explicit empty list (`[]`) is an explicit opt-out (nothing of that kind activated); a non-empty list is the explicit activated set. This is the field the compiler (`compile_charter`) and — after mission `spdd-reasons-activation-split-brain-01M1K6VN` — `is_spdd_reasons_active`, `_load_action_doctrine_bundle`, and `resolve_project_governance` all resolve activation from: the actual mechanism behind [Charter-Mediated Selection](#charter-mediated-selection), distinct from the charter-authored [selected_&lt;kind&gt; / required_&lt;kind&gt;](#selected_kind--required_kind) declaration surface. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Charter-Mediated Selection](#charter-mediated-selection), [Global Selection](#global-selection), [selected_&lt;kind&gt; / required_&lt;kind&gt;](#selected_kind--required_kind) |
 
 ---
 
