@@ -612,7 +612,7 @@ When user's request matches a skill, invoke via Skill tool. When in doubt, invok
 - Save/resume context → `/context-save` / `/context-restore`
 
 <!-- spec-kitty:orientation -->
-**Spec Kitty v3.2.0rc39** — project: unknown (healthy)
+**Spec Kitty v3.2.7rc1** — project: spec-kitty (healthy)
 
 Two usage patterns:
 - **Full mission** (spec → plan → tasks → implement → review → merge):
@@ -625,6 +625,6 @@ Two usage patterns:
   `spec-kitty dispatch "<request verbatim>" --profile <profile-id>`
   Reason: `spec-kitty dispatch` loads governance context, routes the request,
   and opens the Op. Skipping it produces ungoverned, untracked responses.
-  After finishing the work, close the Op:
-  `spec-kitty profile-invocation complete --invocation-id <id> --outcome <done|failed|abandoned>`
+  After finishing the work, close the Op with the command printed in the capsule
+  (`spec-kitty profile-invocation complete --invocation-id <id> --outcome <done|failed|abandoned>`).
 <!-- /spec-kitty:orientation -->
