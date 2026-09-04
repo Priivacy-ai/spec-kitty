@@ -15,7 +15,6 @@ import time
 from pathlib import Path
 
 import pytest
-from ruamel.yaml.error import YAMLError
 
 from charter.offering.spdd_reasons import (
     append_spdd_reasons_guidance,
@@ -80,6 +79,34 @@ def _write_directives(tmp_path: Path, body: str) -> Path:
     return path
 
 
+def _write_config_yaml(tmp_path: Path, **activated: list[str]) -> Path:
+    """Write .kittify/config.yaml's activated_* keys (WP04 bucket-3 rewrite).
+
+    ``is_spdd_reasons_active`` (WP01) reads ``.kittify/config.yaml``'s
+    ``activated_paradigms``/``activated_tactics``/``activated_directives``
+    directly -- these bucket-3 fixtures must write that file (in addition to
+    a legacy ``governance:``/``directives:`` write with the real
+    SPDD-relevant selector nulled out) so the rewritten fixture is
+    genuinely red-first against WP01's OLD body and green against the NEW
+    body. A ``charter:`` pointer is not used here -- direct-on-config.yaml
+    is simplest for these fixtures (WP04 Context note).
+    """
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    config_dir = tmp_path / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_path = config_dir / "config.yaml"
+    document = yaml.load(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
+    if not isinstance(document, dict):
+        document = {}
+    for key, value in activated.items():
+        document[key] = list(value)
+    with config_path.open("w", encoding="utf-8") as fh:
+        yaml.dump(document, fh)
+    return config_path
+
+
 def _empty_governance() -> str:
     return (
         "doctrine:\n"
@@ -126,73 +153,121 @@ class TestActivation:
 
     # Case 3
     def test_paradigm_selected_returns_true(self, tmp_path: Path) -> None:
+        # WP04 bucket-3 item 1: is_spdd_reasons_active (WP01) reads
+        # .kittify/config.yaml's activated_paradigms, not charter.yaml's
+        # governance:/doctrine: selected_paradigms -- null out the legacy
+        # selector so this stays red-first against the OLD body (leaving
+        # the real id in governance: would pass on the OLD body regardless
+        # of config.yaml's content).
         _write_governance(
             tmp_path,
             "doctrine:\n"
-            "  selected_paradigms:\n"
-            "    - structured-prompt-driven-development\n"
+            "  selected_paradigms: []\n"
             "  selected_directives: []\n"
             "  available_tools: []\n",
+        )
+        _write_config_yaml(
+            tmp_path, activated_paradigms=["structured-prompt-driven-development"]
         )
         assert is_spdd_reasons_active(tmp_path) is True
 
     # Case 4
     def test_only_tactic_fill_returns_true(self, tmp_path: Path) -> None:
+        # WP04 bucket-3 item 2: null out selected_tactics in the legacy
+        # write and activate the tactic via .kittify/config.yaml instead.
         _write_governance(
             tmp_path,
             "doctrine:\n"
             "  selected_paradigms: []\n"
             "  selected_directives: []\n"
-            "  selected_tactics:\n"
-            "    - reasons-canvas-fill\n"
+            "  selected_tactics: []\n"
             "  available_tools: []\n",
         )
+        _write_config_yaml(tmp_path, activated_tactics=["reasons-canvas-fill"])
         assert is_spdd_reasons_active(tmp_path) is True
 
     # Case 5
     def test_only_tactic_review_returns_true(self, tmp_path: Path) -> None:
+        # WP04 bucket-3 item 3: null out selected_tactics in the legacy
+        # write and activate the tactic via .kittify/config.yaml instead.
         _write_governance(
             tmp_path,
             "doctrine:\n"
             "  selected_paradigms: []\n"
             "  selected_directives: []\n"
-            "  selected_tactics:\n"
-            "    - reasons-canvas-review\n"
+            "  selected_tactics: []\n"
             "  available_tools: []\n",
         )
+        _write_config_yaml(tmp_path, activated_tactics=["reasons-canvas-review"])
         assert is_spdd_reasons_active(tmp_path) is True
 
     # Case 6
     def test_only_directive_038_returns_true(self, tmp_path: Path) -> None:
+        # WP04 bucket-3 item 4: null out selected_directives in the legacy
+        # write and activate DIRECTIVE_038 via .kittify/config.yaml instead.
         _write_governance(
             tmp_path,
             "doctrine:\n"
             "  selected_paradigms: []\n"
-            "  selected_directives:\n"
-            "    - DIRECTIVE_038\n"
+            "  selected_directives: []\n"
             "  available_tools: []\n",
         )
+        _write_config_yaml(tmp_path, activated_directives=["DIRECTIVE_038"])
         assert is_spdd_reasons_active(tmp_path) is True
 
-    # Case 6b — directive recorded only in directives.yaml entry list
+    # Case 6b — directive recorded via the numeric-hint slug form
     def test_directive_038_via_directives_yaml(self, tmp_path: Path) -> None:
+        # WP04 bucket-3 item 5: this test's name references "directives_yaml"
+        # (the old entry-list DIRECTIVE_038 match against charter.yaml's
+        # directives: section) -- to keep exercising a *different*
+        # _is_directive_038 matching-logic variant than item 4's literal
+        # "DIRECTIVE_038" id, this rewrite uses the numeric-hint slug form
+        # "038-structured-prompt-boundary" against activated_directives
+        # (comment per the WP file's "state which" instruction).
         _write_governance(tmp_path, _empty_governance())
-        _write_directives(
-            tmp_path,
-            "directives:\n"
-            "  - id: DIRECTIVE_038\n"
-            "    title: Structured Prompt Boundary\n",
+        # Drop the DIRECTIVE_038 entry from charter.yaml's directives: list
+        # entirely -- leaving it there would make the OLD body's
+        # _directives_select_pack return True regardless of config.yaml.
+        _write_directives(tmp_path, "directives: []\n")
+        _write_config_yaml(
+            tmp_path, activated_directives=["038-structured-prompt-boundary"]
         )
         assert is_spdd_reasons_active(tmp_path) is True
 
     # Case 7
     def test_malformed_governance_raises(self, tmp_path: Path) -> None:
-        # A structurally-invalid charter.yaml (not just a malformed governance
-        # sub-block, which _write_governance's own YAML.load would refuse to
-        # persist) -- the loader exception propagates unchanged (FR-007).
-        path = _charter_yaml_path(tmp_path)
-        path.write_text("governance:\n  doctrine: [this: is: not: valid\n", encoding="utf-8")
-        with pytest.raises(YAMLError):
+        # WP04 bucket-3 item 9: is_spdd_reasons_active (WP01) no longer
+        # reads .kittify/charter/charter.yaml for this decision at all -- it
+        # reads .kittify/config.yaml. Under the OLD body, a malformed
+        # charter.yaml here would raise, but a malformed config.yaml with NO
+        # .kittify/charter/ directory at all does not even get opened (the
+        # OLD body's early absent-charter_dir check returns False without
+        # raising) -- so re-pointing this fixture at config.yaml is
+        # genuinely red-first: OLD body returns False (assertion fails,
+        # no exception), NEW body raises.
+        #
+        # The NEW body's _load_mapping wraps every YAML loader exception in
+        # its own _SpddActivationConfigError (never propagates a raw
+        # ruamel.yaml.error.YAMLError) -- FR-005's intent ("malformed
+        # activation-source data raises, never a silent False/True") is
+        # preserved, but the concrete exception type this fixture must
+        # assert on changed with the rewrite.
+        # _SpddActivationConfigError is a private module symbol (not in
+        # __all__) -- imported locally here (not at module scope) so a
+        # module swapped back to WP01's pre-fix body (which does not define
+        # this symbol at all) still collects this test file cleanly; only
+        # THIS test fails at runtime against the OLD body, matching the
+        # OLD body's real behavior (no .kittify/charter/ dir -> returns
+        # False, no exception) rather than an unrelated collection error.
+        # Precedent: tests/charter/test_spdd_reasons_activation_parity.py
+        # already imports a private symbol (_is_directive_038) from this
+        # module the same way.
+        from charter.offering.spdd_reasons.activation import _SpddActivationConfigError
+
+        config_path = tmp_path / ".kittify" / "config.yaml"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("activated_paradigms: [this: is: not: valid\n", encoding="utf-8")
+        with pytest.raises(_SpddActivationConfigError):
             is_spdd_reasons_active(tmp_path)
 
 
@@ -325,13 +400,19 @@ class TestCharterContextActive:
         # NFR-002: one render call must complete well under 2s. The renderer
         # is in-memory and trivially fast; this guards against accidental
         # algorithmic regressions (e.g. someone adding a YAML round-trip).
+        # WP04 bucket-3 item 10 (ANALYZE-COVER-001): this fixture writes
+        # ONLY charter.yaml's governance: section via _write_governance,
+        # which is_spdd_reasons_active (WP01) no longer reads -- null out
+        # the legacy selector and activate via .kittify/config.yaml.
         _write_governance(
             tmp_path,
             "doctrine:\n"
-            "  selected_paradigms:\n"
-            "    - structured-prompt-driven-development\n"
+            "  selected_paradigms: []\n"
             "  selected_directives: []\n"
             "  available_tools: []\n",
+        )
+        _write_config_yaml(
+            tmp_path, activated_paradigms=["structured-prompt-driven-development"]
         )
         clear_activation_cache()
 
@@ -366,17 +447,21 @@ class TestParadigmRoundTrip:
         from charter.activation.charter_yaml_io import save_charter_yaml
         from charter.activation.schemas import DoctrineSelectionConfig, GovernanceConfig
 
-        # Build a minimal GovernanceConfig with the paradigm selected, then
-        # write it into charter.yaml's governance: section the way the
-        # hand-authored charter would carry it.
+        # WP04 bucket-3 item 6: null out selected_paradigms in the
+        # governance: write (the OLD body's _governance_selects_pack reads
+        # exactly this field) and write .kittify/config.yaml's
+        # activated_paradigms instead -- the source the NEW body reads.
         gov = GovernanceConfig(
             charter=DoctrineSelectionConfig(
-                selected_paradigms=["structured-prompt-driven-development"],
+                selected_paradigms=[],
             )
         )
         charter_yaml_path = _charter_yaml_path(tmp_path)
         save_charter_yaml(
             charter_yaml_path, {"governance": gov.model_dump(mode="json")}
+        )
+        _write_config_yaml(
+            tmp_path, activated_paradigms=["structured-prompt-driven-development"]
         )
 
         assert is_spdd_reasons_active(tmp_path) is True
@@ -473,12 +558,30 @@ class TestSelectedTacticsRoundTrip:
         assert "reasons-canvas-fill" in governance.charter.selected_tactics
 
         # 4. Write charter.yaml's governance: section the way the
-        #    hand-authored charter would carry it, then let the activation
-        #    helper read it back from disk.
+        #    hand-authored charter would carry it -- WP04 bucket-3 item 7:
+        #    null out selected_tactics in this on-disk write (leaving
+        #    "reasons-canvas-fill" here would make the OLD body's
+        #    _governance_selects_pack return True regardless of
+        #    config.yaml), then ALSO write tmp_path/.kittify/config.yaml's
+        #    activated_tactics from the SAME pack_context.activated_tactics
+        #    already used to compile -- the fixed function's real source of
+        #    truth -- so the test stays a genuine end-to-end round-trip.
         charter_yaml_path = _charter_yaml_path(tmp_path)
+        governance_no_tactics = GovernanceConfig(
+            charter=DoctrineSelectionConfig(
+                selected_paradigms=governance.charter.selected_paradigms,
+                selected_directives=governance.charter.selected_directives,
+                selected_tactics=[],
+                available_tools=governance.charter.available_tools,
+                template_set=governance.charter.template_set,
+            )
+        )
         save_charter_yaml(
             charter_yaml_path,
-            {"governance": governance.model_dump(mode="json")},
+            {"governance": governance_no_tactics.model_dump(mode="json")},
+        )
+        _write_config_yaml(
+            tmp_path, activated_tactics=sorted(pack_context.activated_tactics)
         )
 
         clear_activation_cache()
