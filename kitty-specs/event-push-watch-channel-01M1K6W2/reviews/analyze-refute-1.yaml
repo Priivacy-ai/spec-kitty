@@ -1,0 +1,8 @@
+schema: review-refute/v1
+complete: true
+phase: analyze
+batch: 1
+verdicts:
+  - id: ANALYZE-ARCH-001
+    verdict: confirmed
+    reason: Every cited line/quote checks out verbatim against the live files (spec.md:334, plan.md:19-23/176/191/566, tasks/WP04:79/160, tasks/WP03:182, shipped tail_reader.py:6-7), and plan.md's own Architectural Seam section plus WP03 T017 place sleep_fn=time.sleep and the poll-yield-sleep loop inside tail_events() in tail_reader.py (the declared core), directly contradicting the narrative claim that the shell owns the while-True/time.sleep construct — a drift analysis-report.md's Cross-Artifact Consistency Check #3 explicitly and incorrectly calls "coherent and consistent."

@@ -1,0 +1,144 @@
+{
+  "event_count": 30,
+  "last_event_id": "01M1M58J94JN60VQTQVH9TTTE7",
+  "materialized_at": "2026-09-03T17:32:29.348808+00:00",
+  "mission_number": "",
+  "mission_slug": "event-push-watch-channel-01M1K6W2",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 5,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M1KKPHFADPJ7K6W8ZF3BMYZD",
+      "last_transition_at": "2026-09-03T12:25:32.906868+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP01 independent review: red-first reproduced live, fd-sharing test empirically validated against named lazy-bug pattern, 100% diff coverage reproduced, 0 findings above severity 1",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2322012,
+      "shell_pid_created_at": "1788437049.31"
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1KNR2X8MM7AD1Y2YEQY4JD7",
+      "last_transition_at": "2026-09-03T13:01:20.680458+00:00",
+      "review_result": {
+        "reference": "WP02 independent review: 14/14 checks re-derived clean, red-first RED reproduced live for T009+T010, fd-sharing lazy-bug catch confirmed by actual injection on T013, 55/55 diff coverage reproduced, mypy/ruff/terminology-guard all clean, 2 non-blocking nits",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 2521484,
+      "shell_pid_created_at": "1788438421.17",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1KX2ZQX725SQ4D4CQ7C2DGD",
+      "last_transition_at": "2026-09-03T15:09:37.917466+00:00",
+      "review_result": {
+        "reference": "WP03 independent review: 15/15 checklist items re-derived, red-first RED reproduced live, core/shell docstring correction verified clean via mutation testing, T019(b) mandatory shape verified load-bearing via mutation testing, F1/E1 doc fixes verified line-by-line, 100% diff coverage reproduced, zero regressions across 4170 tests, force-free transitions. One moderate non-blocking finding accepted: T016/T019(a) docstring overclaims sleep_fn-path coverage (structurally unreachable for that fixture shape per mutation test) but the real defect class is genuinely caught by T019(a)/(b) per a second mutation test; recommended fast-follow, not blocking.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3241630,
+      "shell_pid_created_at": "1788444498.62",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1M19S2SHZ324G99PXXMKBD1",
+      "last_transition_at": "2026-09-03T16:23:14.777938+00:00",
+      "review_result": {
+        "reference": "WP04 independent review: 19/19 checklist items re-derived (core/shell loop-ownership verified via grep, four-step dispatch order verified, stderr/stdout split verified per error code, marker-discipline fix verified via real --collect-only, both second-session defect fixes verified genuine via revert-and-reproduce, docs/glossary regen verified, full suite 3157/3157 reproduced exactly). One non-blocking minor finding (severity 2): untested repo_root_not_found branch, recommended fast-follow. One reviewer informational note was independently re-checked by the orchestrator and found inaccurate (spec.md FR-011 and plan.md line 26 already correctly state core owns the loop, no stale shell-owns-loop text present) -- no action needed.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3588404,
+      "shell_pid_created_at": "1788448291.71",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M1M58J94JN60VQTQVH9TTTE7",
+      "last_transition_at": "2026-09-03T17:32:29.348808+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Two overrides, both deliberate and explained. (1) Pre-review regression gate skipped via its purpose-built --skip-pre-review-gate flag: the gate's scope measures 610s wall clock (7776 passed, 235 skipped, 2 xfailed in 606s; 24 cores, load ~3.5) against CAPTURE_BASELINE_TIMEOUT_SECONDS=300, a hardcoded constant in src/specify_cli/review/baseline.py, so it cannot pass on any machine. Verified by running the gate's exact scope directly, not inferred from the timeout. Ledger SK-167. (2) --force used only to override the assignee check: WP05 is assigned to 'implement-command', whose session was terminated by a host disk-quota outage mid-transition; the mission orchestrator is completing the lane move on its behalf. No gate on the work itself was bypassed. WP05's implementation, tests and red-first proof are complete and green on lane-c a23ee7689; this moves only the lane, and WP05 still requires full independent review before approval."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP05 independent review: 16/16 checklist items re-derived, red-first RED reproduced live at WP04 tip (byte-level assertion failure, not collection error), genuine cross-thread overlap traced and verified via 5x repeated runs with thread-exception-as-error, byte-identical comparison mechanics verified via monkeypatch tracing, seed-counter fix diagnosis corroborated independently, both CI marker selectors verified against live workflow file, baseline-red and full-regression numbers reproduced exactly, SK-167 610s-vs-300s claim independently verified against baseline.py:45. One non-blocking nit (severity 2): docstring overstates exact guarantee timing of overlap window, mechanism itself sound.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 4029165,
+      "shell_pid_created_at": "1788452696.82",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
+    }
+  }
+}

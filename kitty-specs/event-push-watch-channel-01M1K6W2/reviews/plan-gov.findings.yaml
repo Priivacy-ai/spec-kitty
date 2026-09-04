@@ -1,0 +1,91 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: PLAN-GOV-001
+    lens: Scope-creep-vs-locality (mission-specific) / Directive (canonical-sources, RECONCILE_CHANGE_SCOPE_TENSIONS)
+    severity: 4
+    title: "Glossary-registration-now decision is justified by a CI-gate claim that is false; the real gate is agnostic to whether the entries are added at all"
+    evidence:
+      - artifact: "plan.md § Contracts (\"Glossary candidates\"), lines 421-433"
+      - artifact: "plan.md § Gate Set, line 457 (\"the CLI-shell WP's glossary commit is what keeps it green\")"
+      - code: "scripts/generate_contextive_glossaries.py:329-353 (cmd_check — diffs the CURRENTLY generated .contextive/*.yml files against what generate() would produce from the CURRENTLY committed docs/context/*.md; it has no notion of \"new terms introduced by code\" at all)"
+      - code: ".github/workflows/ci-quality.yml:851-872 (the Contextive step; the path-filter at 861-864 only decides whether the check STEP RUNS, not what it checks)"
+    claim: >
+      Plan.md's Contracts section states registering "Tail cursor / resume token / log_truncated
+      / Tail envelope" in docs/context/system-events.md inside IC-04's own final commit "is not
+      optional scope creep, it is what keeps that gate green," and the Gate Set table repeats this
+      as the load-bearing reason the Contextive check passes. This is a mischaracterization of the
+      gate's actual mechanics, verified directly against scripts/generate_contextive_glossaries.py.
+      cmd_check() only asserts that the already-committed generated .contextive/*.yml files are
+      byte-identical to what generate() would produce from the already-committed docs/context/*.md
+      source — it never compares against code (src/specify_cli/**) at all. If IC-04 makes ZERO
+      changes to docs/context/system-events.md (i.e. defers the glossary decision, exactly as
+      spec.md Clarifications §4 explicitly permits — "to be resolved at plan/implement time"), the
+      Contextive check is still perfectly green: nothing changed in docs/context, so nothing is
+      stale. The gate is true (the CHECK STEP runs, because src/specify_cli/** changed — that part
+      of the citation is accurate) but the causal claim built on it ("so this is not optional scope
+      creep") is false: registering the terms now does not keep the gate green, it is orthogonal to
+      it. Worse, the plan's own justification is self-undermining: IF the WP does add entries to
+      docs/context/system-events.md, cmd_check WILL then fail unless the derived
+      src/specify_cli/.contextive/*.yml (and any scope .contextive.yml) files are also regenerated
+      via `scripts/generate_contextive_glossaries.py generate` and committed in the same commit —
+      and plan.md never mentions this regeneration step anywhere (grep confirms zero occurrences of
+      "generate_contextive_glossaries.py generate" in plan.md). So the plan's own stated mechanism
+      for "keeping the gate green" would, if followed literally as written, produce a gate FAILURE
+      in WP04/IC-04 the moment the markdown entries are added and the generated YAML is not
+      regenerated. Separately, this is exactly the RECONCILE_CHANGE_SCOPE_TENSIONS-governed
+      decision the charter names (.kittify/charter/charter.md:113-144): step 1 (smallest-viable-
+      diff) would not put docs/context/system-events.md in IC-04's file set at all (no test or gate
+      requires it, unlike docs/api/cli-commands.md which genuinely is required by
+      tests/architectural/test_docs_cli_reference_parity.py, confirmed present and non-optional in
+      .github/workflows/ci-quality.yml:1875-1899/1898); step 2 (Boy Scout) explicitly forbids ADDING
+      a file to that set; step 3 (Locality of Change) requires a rationale for any extension beyond
+      it. Plan.md invokes "Locality of Change"/"smallest-viable-diff" twice elsewhere (lines 145,
+      407) but never once for this specific file-set-growing decision, and the one rationale it does
+      give (the false gate-necessity claim) is not a valid Locality-of-Change rationale once
+      verified. spec.md Clarifications §4 left both "whether" and "when" open ("to be resolved at
+      plan/implement time, not decided unilaterally by this document") — the plan is entitled to
+      decide "register now," but must do so on a rationale that survives verification, and must
+      route the file-set growth through the charter's own reconciliation policy rather than an
+      incorrect CI-mandate claim.
+    remediation: >
+      Rewrite plan.md's Contracts/Gate-Set glossary rationale to drop the false "keeps the gate
+      green" framing. Either (a) defer the glossary registration decision explicitly to the
+      implement phase per spec.md Clarifications §4's own license, keeping IC-04's file set to the
+      files an actual gate requires (docs/api/cli-commands.md, per
+      test_docs_cli_reference_parity.py); or (b) keep the "register now" decision but re-justify it
+      honestly through RECONCILE_CHANGE_SCOPE_TENSIONS (a Boy-Scout/Locality-of-Change judgment call
+      that new user-facing terms should be documented immediately, not a CI-mandated one), and if so,
+      add the missing step to IC-04's task description: after editing docs/context/system-events.md,
+      run `scripts/generate_contextive_glossaries.py generate` and commit the resulting
+      src/specify_cli/.contextive/*.yml (and any scope .contextive.yml) diff in the same commit, or
+      the Contextive check step will fail on exactly the change the plan claims protects it.
+
+  - id: PLAN-GOV-002
+    lens: Directive (canonical-sources / verify-before-cite)
+    severity: 2
+    title: "Cited code line for the stderr error-envelope precedent (agent_retrospect.py:415) does not match the pattern described; the real precedent is at lines 593/600"
+    evidence:
+      - artifact: "plan.md § Tail Envelope & Cursor Schema, lines 366-368"
+      - code: "src/specify_cli/cli/commands/agent_retrospect.py:405-424 (line 415 region: uses `_console.print_json` — STDOUT, not stderr — with a richer schema: schema_version/command/status/outcome/error/handle/next_action)"
+      - code: "src/specify_cli/cli/commands/agent_retrospect.py:593 and :600 (the actual `_err_console.print_json(json.dumps({\"error\": <code>, \"detail\": <message>}))` shape the plan describes)"
+    claim: >
+      Plan.md cites "the existing agent_retrospect.py:415 pattern: err_console.print_json(json.dumps({"error":
+      <code>, "detail": <message>})) + raise typer.Exit(<n>)" as the model for FR-009/FR-004/FR-013's
+      stderr error envelope. Verified against the current checkout: line 415 is inside the
+      MissionNotFoundError branch, which prints via `_console.print_json` (the STDOUT console, not
+      `_err_console`) and uses a different, richer JSON shape
+      (schema_version/command/status/outcome/error/handle/next_action), not the simple
+      {"error":..., "detail":...} shape the plan quotes. The shape the plan actually describes
+      (err_console + {"error", "detail"}) does exist in the same file, but at lines 593 and 600 (the
+      record_malformed / io_error branches), not 415. A WP04 author who opens the file at the cited
+      line to copy the pattern will find the wrong console object and the wrong schema.
+    remediation: >
+      Correct the citation in plan.md's Tail Envelope & Cursor Schema section to
+      `agent_retrospect.py:593` (or `:600`), and note that the same file's mission_not_found branch
+      (line ~408-415) uses a different, richer stdout-JSON shape that should NOT be copied for this
+      mission's stderr envelope.

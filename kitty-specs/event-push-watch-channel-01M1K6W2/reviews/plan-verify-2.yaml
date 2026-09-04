@@ -1,0 +1,31 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      Plan now states Boy-Scout "cannot" license adding the file per charter step 2's explicit text and
+      attributes the addition solely to step 3's Locality-of-Change extension clause, matching the
+      independently re-read charter.md "Reconciling change-scope tensions" section verbatim.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      A new "Same commitment for validate_resume_cursor()" paragraph gives it the identical single-fd
+      invariant (structural check + backward scan + hash-check read all via os.fstat(fd)/same fd), and
+      IC-02's "Also required" list adds a dedicated ATDD test for it.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: >-
+      IC-01's test now also monkeypatches a second Path.open/os.open to raise after the initial open (not
+      just Path.stat), which catches the plan's own counter-example of path.stat() for size plus a
+      separate path.open('rb') for the hash-check read as an illegal second open; IC-02 adds the
+      hash-check-specific and validate_resume_cursor-specific halves of the assertion.
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: >-
+      src/specify_cli/.contextive/system-events.yml exists in the checkout and .kittify/traceability/contextive-map.yaml
+      confirms system-events context maps to that file; it is now listed in both the Project Structure
+      tree and the Write-Scope Disjointness section, with PR #3842/#3845 independently re-checked here via
+      gh pr diff --name-only (no .contextive path in either) and the unpushed branch explicitly flagged as
+      not independently checkable, to be re-confirmed before merge.

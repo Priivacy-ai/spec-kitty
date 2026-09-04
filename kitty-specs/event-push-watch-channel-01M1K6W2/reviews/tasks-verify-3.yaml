@@ -1,0 +1,12 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    remaining_severity: 3
+    reason: plan.md's Architectural Seam / IC-01 section now carries a new bullet (lines 643-651) that states the FR-008 try/except FileNotFoundError-around-the-single-path.open() rule, explicitly forbids Path.exists()/Path.is_file()/Path.is_dir(), and gives the CPython 3.11/3.12 Path.stat()-internals reason — matching WP01 T006 steps 1-2 in substance with no drift.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    remaining_severity: 3
+    reason: WP02 T013's first bullet now reads "exclusively for the size check" (dropping "/existence"), matching WP01 T007's and plan.md's parallel wording verbatim, plus a new parenthetical correctly attributing the FR-008 existence check to try/except FileNotFoundError; a grep of WP01/WP02/WP03/WP04/WP05/plan.md found no other os.fstat+existence conflation anywhere (WP03/WP04/WP05 contain zero fstat mentions), confirming the fixer's claim.
