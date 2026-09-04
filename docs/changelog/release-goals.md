@@ -57,4 +57,7 @@ issue types this plugs into.
 ## Declared cycles
 
 - [3.2.x goals](3.2.x.md) — focus for the 3.2.x line.
-- [3.3.x goals](3.3.x.md) — focus for the 3.3.x line.
+- [3.3.x goals](3.3.x.md) — **retired** (milestone closed 2026-08-23; work re-triaged into
+  4.0.0 or Product backlog). Kept as the historical declaration.
+- [4.0.0 goals](4.0.0.md) — hosted collaboration + the open-core structural finish;
+  supersedes the 3.3.x hosted/experience declaration.

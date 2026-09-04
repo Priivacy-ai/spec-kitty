@@ -5435,6 +5435,23 @@ pages:
     - {slug: "non-goals", text: "Non-goals", level: 2}
     - {slug: "success-criteria-placeholder-refine-when-the-cycle-activates", text: "Success criteria (placeholder — refine when the cycle activates)", level: 2}
     - {slug: "links", text: "Links", level: 2}
+  - path: "docs/changelog/4.0.0.md"
+    title: "4.0.0 — Hosted collaboration & the open-core structural finish"
+    divio_type: "explanation"
+    abstract: "Declaration of intent for the 4.0.0 cycle: hosted collaboration (sync, consent, auth) plus the open-core structural strangler finish deferred from 3.2.x."
+    anchors:
+    - {slug: "why-now", text: "Why now", level: 2}
+    - {slug: "theme", text: "Theme", level: 2}
+    - {slug: "goals", text: "Goals", level: 2}
+    - {slug: "g1-hosted-collaboration-team-kitty", text: "G1 — Hosted collaboration (Team Kitty)", level: 3}
+    - {slug: "g2-next-generation-product-capabilities", text: "G2 — Next-generation product capabilities", level: 3}
+    - {slug: "g3-finish-the-open-core-structural-strangler-proposed", text: "G3 — Finish the open-core structural strangler (proposed)", level: 3}
+    - {slug: "committed-scope-verified-milestone-4-0-0-2026-09-04", text: "Committed scope (verified milestone `4.0.0`, 2026-09-04)", level: 2}
+    - {slug: "candidate-scope-pending-a-release-milestone-decision", text: "Candidate scope pending a release-milestone decision", level: 2}
+    - {slug: "non-goals", text: "Non-goals", level: 2}
+    - {slug: "success-criteria-placeholder-refine-when-the-cycle-activates", text: "Success criteria (placeholder — refine when the cycle activates)", level: 2}
+    - {slug: "emergent-patches", text: "Emergent patches", level: 2}
+    - {slug: "links", text: "Links", level: 2}
   - path: "docs/changelog/CHANGELOG.md"
     title: "Changelog"
     divio_type: "none"
@@ -9469,6 +9486,7 @@ pages:
     divio_type: "none"
     abstract: "Executive/stakeholder synthesis of 3.2.x goals and progress since the 3.2.4 release — from a PO, C-suite, and customer point of view."
     anchors:
+    - {slug: "addendum-2026-09-04-the-milestone-map-moved-two-decisions-now-sit-with-the-po", text: "Addendum 2026-09-04 — the milestone map moved; two decisions now sit with the PO", level: 2}
     - {slug: "bottom-line", text: "Bottom line", level: 2}
     - {slug: "what-3-2-x-is-for-in-business-terms", text: "What 3.2.x is for (in business terms)", level: 2}
     - {slug: "progress-since-3-2-4-what-it-means-for-customers", text: "Progress since 3.2.4 — what it means for customers", level: 2}
@@ -9481,6 +9499,11 @@ pages:
     abstract: "Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items."
     anchors:
     - {slug: "intent-of-3-2-x", text: "Intent of 3.2.x", level: 2}
+    - {slug: "addendum-2026-09-04-milestone-taxonomy-re-anchor-the-delayed-action-r", text: "Addendum 2026-09-04 — milestone-taxonomy re-anchor (the delayed Action R)", level: 2}
+    - {slug: "1-the-milestone-taxonomy-the-body-speaks-no-longer-exists", text: "1. The milestone taxonomy the body speaks no longer exists", level: 3}
+    - {slug: "2-resolved-but-unstruck-items-in-this-doc-and-its-siblings", text: "2. Resolved-but-unstruck items in this doc and its siblings", level: 3}
+    - {slug: "3-g1-g2-code-claims-are-unrefreshed-2026-07-30-vintage", text: "3. G1 / G2 code claims are unrefreshed 2026-07-30 vintage", level: 3}
+    - {slug: "4-disposition-note-spine-epics-now-on-no-release-milestone-operator-decision-needed", text: "4. Disposition note — spine epics now on no release milestone (operator decision needed)", level: 3}
     - {slug: "addendum-2026-09-03-3-2-6-release-dag-fully-discharged-3692-closed", text: "Addendum 2026-09-03 — 3.2.6 release DAG fully discharged (#3692 closed)", level: 2}
     - {slug: "addendum-2026-08-12-release-posture-refresh-ci-green-except-the-standing-sonar-backlog", text: "Addendum 2026-08-12 — release-posture refresh (CI green except the standing Sonar backlog)", level: 2}
     - {slug: "addendum-2026-07-30-verified-status-re-read-spine-re-anchoring", text: "Addendum 2026-07-30 — verified status re-read + spine re-anchoring", level: 2}
@@ -10281,6 +10304,7 @@ pages:
     divio_type: "none"
     abstract: "Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary."
     anchors:
+    - {slug: "addendum-2026-09-04-milestone-re-key-resolved-sub-areas-post-2026-08-23-reconciliation", text: "Addendum 2026-09-04 — milestone re-key + resolved sub-areas (post-2026-08-23 reconciliation)", level: 2}
     - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
     - {slug: "2-where-doctrine-charter-planning-lives-today-honest-inventory", text: "2. Where doctrine/charter planning lives today (honest inventory)", level: 2}
     - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
@@ -10320,6 +10344,7 @@ pages:
     divio_type: "none"
     abstract: "Durable, version-spanning domain plan for the SaaS / hosted-sync surface: sync & event-envelope integrity, consent & identity, auth & token lifecycle, and hosted rollout readiness."
     anchors:
+    - {slug: "addendum-2026-09-04-milestone-re-key-post-2026-08-23-reconciliation", text: "Addendum 2026-09-04 — milestone re-key (post-2026-08-23 reconciliation)", level: 2}
     - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
     - {slug: "2-where-saas-planning-lives-today-honest-inventory", text: "2. Where SaaS planning lives today (honest inventory)", level: 2}
     - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}

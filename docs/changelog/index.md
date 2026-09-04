@@ -30,7 +30,8 @@ Where the project is going next — the declared intent of each release line:
 
 - [Release goals convention](release-goals.md) — how release goals are declared and tracked.
 - [3.2.x goals](3.2.x.md) — focus for the 3.2.x line.
-- [3.3.x goals](3.3.x.md) — focus for the 3.3.x line.
+- [3.3.x goals](3.3.x.md) — retired 2026-08-23 (work re-triaged into 4.0.0 / Product backlog); historical.
+- [4.0.0 goals](4.0.0.md) — hosted collaboration + the open-core structural finish.
 - [3.2.x milestone roadmap](../plans/3-2-x-milestone-roadmap.md) — operator-facing
   execution roadmap (a plans/ working document under the distil-then-retire lifecycle).
 
