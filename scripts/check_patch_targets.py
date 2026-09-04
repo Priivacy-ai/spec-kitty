@@ -20,6 +20,7 @@ Usage (called by CI):
 """
 from __future__ import annotations
 
+import ast
 import importlib
 import importlib.util
 import re
@@ -65,6 +66,53 @@ _SKIP_MODULE_PREFIXES = frozenset(
 def _should_skip(module_path: str) -> bool:
     top = module_path.split(".")[0]
     return top in _SKIP_MODULE_PREFIXES
+
+
+def _call_is_patch(call: ast.Call) -> bool:
+    """True when *call*'s callee is (``...``.)``patch`` -- ``@patch(...)`` or
+    ``patch(...)`` / ``mock.patch(...)`` / ``unittest.mock.patch(...)``."""
+    func = call.func
+    name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+    return name == "patch"
+
+
+def _call_has_create_true(call: ast.Call) -> bool:
+    """True when *call* passes the ``create=True`` keyword argument.
+
+    ``unittest.mock.patch(..., create=True)`` is the documented mechanism for
+    patching a target that does not (yet, or any more) exist -- the target
+    string is intentionally exempt from existence validation in that case. See
+    ``tests/charter/test_action_doctrine_bundle_activation.py``'s WP02 comment
+    for a real example: the patched attribute was deliberately removed by the
+    same change the test asserts on, and ``create=True`` keeps the test
+    collectible (and correct) on both sides of that removal.
+    """
+    return any(
+        kw.arg == "create" and isinstance(kw.value, ast.Constant) and kw.value.value is True
+        for kw in call.keywords
+    )
+
+
+def _create_true_line_ranges(path: Path) -> set[int]:
+    """Return every source line covered by a ``patch(..., create=True)`` call.
+
+    A target string's regex-matched line (from :func:`extract_targets`) falling
+    inside one of these ranges is exempt from :func:`validate` -- the call
+    itself declares the target need not resolve. Parsed via ``ast`` (not the
+    extraction regex) so multi-line calls and nested parens/strings are
+    handled correctly; a file that fails to parse contributes no exemptions
+    (falls back to full validation, the safe direction).
+    """
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        return set()
+    lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _call_is_patch(node) and _call_has_create_true(node):
+            end = node.end_lineno or node.lineno
+            lines.update(range(node.lineno, end + 1))
+    return lines
 
 
 def extract_targets(path: Path) -> list[tuple[str, int]]:
@@ -261,8 +309,11 @@ def main(argv: list[str] | None = None) -> int:
 
     for root in roots:
         for test_file in sorted(root.rglob("*.py")):
+            create_true_lines = _create_true_line_ranges(test_file)
             for target, line in extract_targets(test_file):
                 checked += 1
+                if line in create_true_lines:
+                    continue
                 err = validate(target)
                 if err:
                     errors.append(f"{test_file}:{line}: {err}")
