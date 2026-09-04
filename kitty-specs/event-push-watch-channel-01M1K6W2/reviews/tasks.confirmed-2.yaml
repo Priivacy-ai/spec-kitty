@@ -1,0 +1,83 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed-round-2
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: TASKS-FRESH-001
+    lens: debugger-debbie / structural-root-cause
+    severity: 4
+    title: "WP01 T007's corrected 'Path.stat raises unconditionally' fd-sharing test contradicts WP01's own T006 missing-file check on CI's actual Python (3.12)"
+    evidence:
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T006 (unchanged by this fix round)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T007 Step 1 (changed by this fix round: 'Monkeypatch pathlib.Path.stat to raise ... UNCONDITIONALLY on ANY invocation ... there is zero legitimate call to Path.stat() anywhere inside poll_once(), at any point in the call')"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtasks T013/T014 (reuse the identical 'unconditional raise' pattern against the same poll_once()/validate_resume_cursor())"
+      - code: "empirically verified in this environment: Python 3.11 and 3.12's pathlib.Path.exists() implementation is `try: self.stat() except OSError: return False` — it calls self.stat() internally. Python 3.13+ changed exists() to os.path.exists(self), which does NOT route through Path.stat(). Repo CI (.github/workflows/ci-quality.yml) pins python-version: '3.12' throughout; pyproject.toml requires-python = '>=3.11'."
+    claim: >
+      T006 (unchanged, pre-existing scope) instructs the implementer to add a check "at the top of
+      poll_once(), before the T003 open, check whether path exists" and to run this check on EVERY
+      call (not only when the file is actually missing). The natural, idiomatic implementation of
+      that instruction is `if not path.exists(): ...` (or `.is_file()`) — pathlib's own affordance
+      for exactly this purpose. Neither T006 nor T007 nor the Reviewer Guidance anywhere warns the
+      implementer away from `Path.exists()`/`Path.is_file()`/`Path.is_dir()`. On CPython 3.11 and
+      3.12 — the versions this repo actually requires and actually runs in CI — `Path.exists()`
+      calls `self.stat()` internally (empirically confirmed above), so a fully correct, T006-compliant
+      `poll_once()` that uses `Path.exists()` for its missing-file gate would have T007's newly
+      "corrected" unconditional-raise mock fire on EVERY invocation of `poll_once()` — not just
+      missing-file calls — because the exists() check runs before the open on every call per T006's
+      own wording. This breaks T007 itself, and (since T013/T014 in WP02 explicitly copy the identical
+      "unconditional raise" pattern against the same `poll_once()`/`validate_resume_cursor()`) it would
+      also spuriously fail T013 and T014 the same way. The corrected test pattern is logically sound
+      against the plan's named `path.stat().st_size`-then-`open()` TOCTOU bug (verified independently:
+      the unconditional raise does catch that lazy pattern, since `Path.stat()` fires before the one
+      `open()` call regardless of ordering) — but the fix round did not check it against T006's own
+      mandated call site, and the WP's own reasoning ("zero legitimate Path.stat() calls exist anywhere
+      in the function") is not actually true if T006 is implemented the obvious way. This is exactly
+      the "legitimate call pattern this new instruction accidentally forbids" failure mode, and it is
+      version-dependent in a way that would mask itself in local dev on a newer interpreter while
+      breaking on the CI-pinned 3.12.
+    remediation: >
+      Add an explicit instruction to WP01's T006 (and a corresponding note in T007's Steps/Risks and
+      WP02's T013/T014) mandating that the missing-file check must NOT go through any method that
+      internally calls `Path.stat()`. Two concrete options: (a) fold the existence check into the
+      single `path.open("rb")` call itself — `try: fh = path.open("rb") except FileNotFoundError:
+      return <missing PollResult>` — eliminating the separate check entirely (also closes the
+      TOCTOU window between an exists() check and the open, which is arguably the more correct design
+      anyway); or (b) if a separate up-front check is kept, mandate `os.path.exists(path)` specifically
+      (which resolves via `os.stat`, not `pathlib.Path.stat`, and is therefore untouched by the T007
+      mock) and explicitly forbid `Path.exists()`/`Path.is_file()`/`Path.is_dir()`. Whichever is chosen,
+      T007/T013/T014's Steps should state the constraint explicitly, the same way they already call out
+      the `os.open()` vs `Path.open()` trap, since it is the identical class of "wrong mock target /
+      wrong API surface" hazard.
+
+  - id: TASKS-FRESH-002
+    lens: debugger-debbie / cross-artifact-consistency
+    severity: 3
+    title: "plan.md's IC-01/IC-02 'Also required' fd-sharing test guidance was left in the OLD, now-repudiated 'raise after initial open' form after WP01/WP02's task files were corrected"
+    evidence:
+      - artifact: "plan.md lines 612-631 (IC-01 'Also required' bullet) — 'Monkeypatch both Path.stat ... and pathlib.Path.open ... to each raise if called from within poll_once() after its initial open — equivalently, spy on Path.open and assert exactly ONE call happens per poll_once() invocation.'"
+      - artifact: "plan.md lines 664-678 (IC-02 'Also required' bullets 1-2) — same 'raise if called after the initial open' phrasing for both the hash-check test and the validate_resume_cursor() test."
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T007 Step 3 (fix-round text): 'A test built on a shared \"after initial open\" condition for both patches — or one that treats the Path.open-call-count assertion alone as sufficient — silently passes against this exact bug.'"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Risks (fix-round text): 'A same-condition \"after initial open\" guard on both Path.stat and Path.open (or the Path.open-call-count check alone) gives false confidence.'"
+    claim: >
+      The fix round rewrote WP01's T007 and WP02's T013/T014 to explicitly repudiate the
+      "raise if called after the initial open" pattern (correctly demonstrating that it fails to
+      catch the plan's own named lazy `path.stat().st_size`-then-`open()` bug, since Path.stat()
+      fires before the one open() call and therefore never falls "after" it). But plan.md — cited
+      by all three of these subtasks as the authoritative source ("plan.md's Architectural Seam",
+      "IC-01's 'Also required' bullet, made concrete") — was not updated and still prescribes exactly
+      the pattern the task files now call insufficient and false-confidence-inducing. A reviewer or a
+      future WP author who consults plan.md directly (rather than only the already-corrected task
+      files) receives self-contradictory guidance for the same test: plan.md says "raise after initial
+      open," the task files say that exact pattern "silently passes against this exact bug" and "gives
+      false confidence." This is a genuine, unresolved contradiction between a fixed artifact and an
+      unchanged sibling artifact the fix round did not touch.
+    remediation: >
+      Update plan.md's IC-01 "Also required" bullet (lines 612-631) and IC-02 "Also required" bullets
+      (lines 664-678) to match the corrected asymmetric pattern now in the task files: Path.stat raises
+      unconditionally on any invocation (no "after initial open" carve-out), Path.open is separately
+      asserted to be called exactly once total, and the accompanying prose should state why the
+      same-condition "after initial open" form is insufficient (the same TOCTOU-ordering argument now
+      in WP01 T007 step 3 and WP02 T013/T014). This keeps plan.md as a reliable point of reference
+      rather than a source that actively misleads anyone who reads it instead of (or before) the
+      corrected task files.

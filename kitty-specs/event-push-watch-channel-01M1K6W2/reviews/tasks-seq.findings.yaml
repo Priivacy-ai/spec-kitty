@@ -1,0 +1,99 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: TASKS-SEQ-001
+    lens: Chokepoints (mission-derived — codebase-wide exemption honesty)
+    severity: 4
+    title: WP02/WP03 prose claims they do not list tail_reader.py in owned_files — they demonstrably do, and the alternative the prose describes would be unsafe under the real lane-collapse mechanism
+    evidence:
+      - artifact: "wps.yaml WP02 (lines 42-45)"
+      - code: "kitty-specs/event-push-watch-channel-01M1K6W2/wps.yaml:43 — owned_files includes \"src/specify_cli/status/tail_reader.py\"; :45 scope: codebase-wide"
+      - artifact: "wps.yaml WP03 (lines 74-77)"
+      - code: "kitty-specs/event-push-watch-channel-01M1K6W2/wps.yaml:75 — owned_files includes \"src/specify_cli/status/tail_reader.py\"; :77 scope: codebase-wide"
+      - artifact: "tasks/WP02-truncation-detection.md frontmatter, lines 33-35"
+      - code: "tasks/WP02-truncation-detection.md:33-35 — owned_files: [src/specify_cli/status/tail_reader.py, tests/status/test_tail_reader_truncation.py] — mirrors wps.yaml"
+      - artifact: "tasks/WP02-truncation-detection.md Context section, lines 65-72"
+      - claim: "prose reads: 'even though that file is NOT listed in this WP's owned_files above ... this mission's resolution is that only the file's creator (WP01) lists tail_reader.py in owned_files; WP02 and WP03 both extend the same file without ever claiming it there.' This is false against the frontmatter eight lines above it in the same file."
+      - artifact: "tasks/WP03-bounded-generator-core.md frontmatter, lines 31-33, and Context section lines 62-70"
+      - claim: "WP03 repeats the identical false claim ('This WP has NO exclusive owned_files ... only the file's creator (WP01) lists it; WP02 and WP03 extend it without claiming it') against its own frontmatter, which does list tail_reader.py (lines 31-33)."
+      - artifact: "lanes.json collapse_report, lines 82-95"
+      - claim: "lanes.json's own machine-computed collapse_report independently corroborates that WP01/WP02 and WP01/WP03 owned_files DO overlap on 'src/specify_cli/status/tail_reader.py' (rule: write_scope_overlap, evidence quotes the overlapping glob verbatim) — a third, independent confirmation that the WP02/WP03 prose's factual claim about their own owned_files is wrong."
+      - code: "src/specify_cli/lanes/compute.py:1-11 (module docstring: \"Dependency edges do not collapse lanes by themselves\"), :277-296 (find_overlap_pairs, glob-overlap only), :453-466 (Rule 1 write_scope_overlap unions only on owned_files overlap; dependency info is descriptive evidence text only, never a union trigger)"
+    claim: >
+      The mission's own WP02/WP03 prompt files assert, in prose immediately below their own
+      frontmatter, that "this mission's resolution" to the tail_reader.py chokepoint is that only
+      WP01 claims the file in owned_files while WP02/WP03 extend it "without ever claiming it
+      there." This is factually false: wps.yaml and both WP files' own frontmatter list
+      tail_reader.py under WP02's and WP03's owned_files, and lanes.json's collapse_report
+      independently detected and reported that same overlap. The actual mechanism that made the
+      mission pass ownership validation and produce a safe, single sequential lane (lane-a =
+      WP01+WP02+WP03) is owned_files-overlap-triggered lane collapse plus `scope: codebase-wide`
+      on WP02/WP03 (which is the documented exemption in
+      packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md:71-81) — not the
+      "only-WP01-claims-it" story the prose tells.
+      This is not merely a documentation nit: verified directly against
+      src/specify_cli/lanes/compute.py, lane collapse triggers ONLY on owned_files/write-scope
+      overlap (Rule 1) or a shared-surface heuristic (Rule 2) — never on a bare dependency edge
+      with disjoint owned_files. Had the mission's data actually matched the prose (tail_reader.py
+      removed from WP02/WP03's owned_files, relying on the WP01->WP02->WP03 dependency chain
+      alone), lane collapse would NOT have fired, WP02 and WP03 would have landed on independent,
+      unlinearized lanes, and the "WP01 -> WP02 -> WP03 MUST execute strictly sequentially... same
+      worktree/lane" guarantee both WP files spend a full paragraph insisting on would have been
+      silently broken — reintroducing exactly the concurrent-write hazard on the shared file this
+      mission's own Risks sections warn against. So the mission-derived question ("is this
+      resolution honest, or does it launder a real ownership overlap through a broad exemption")
+      resolves as: the DATA (owned_files + codebase-wide) is the correct and necessary choice given
+      how the real tooling works, but the PROSE that claims to explain why it's safe describes a
+      different, unimplemented, and actually-unsafe-if-implemented alternative. A future editor
+      who trusts the prose over the data (e.g., "cleans up" WP02/WP03's owned_files to match what
+      the prose says the resolution is) would silently defeat lane collapse and reopen the
+      concurrent-write hazard, with nothing in this mission's own artifacts to catch it — no check
+      anywhere cross-references WP prompt-file prose against wps.yaml's owned_files list.
+      Secondary, lower-weight observation on lens 3(b): `scope: codebase-wide` is a per-WP,
+      all-or-nothing exemption in validate_no_overlap (filters codebase-wide WPs out of the overlap
+      check entirely) — not scoped to just tail_reader.py. WP02/WP03's actual owned_files today are
+      narrow (2 files each) so the practical blast radius is small right now, but the exemption
+      would silently suppress overlap detection for any OTHER file either WP might later be
+      expanded to touch, without any additional signal in wps.yaml that the exemption's scope is
+      meant to cover only the one chokepoint file.
+    remediation: >
+      Rewrite the Context section of tasks/WP02-truncation-detection.md (lines ~65-76) and
+      tasks/WP03-bounded-generator-core.md (lines ~62-70) to state the mechanism that is actually
+      in wps.yaml: "WP02 (and WP03) DOES list tail_reader.py in owned_files (wps.yaml:43/:75) —
+      this overlap with WP01's owned_files is what correctly triggers lanes.json's
+      write_scope_overlap lane collapse, merging WP01+WP02+WP03 into one sequential lane
+      (lane-a). scope: codebase-wide (wps.yaml:45/:77) is the separate, additional flag needed to
+      pass tasks-finalize's static ownership-overlap validator (per
+      tasks-finalize/prompt.md's Ownership Overlap guidance) without misrepresenting owned_files
+      as disjoint. Do NOT remove tail_reader.py from owned_files to 'clean up' this WP — verified
+      against src/specify_cli/lanes/compute.py, lane collapse triggers only on owned_files
+      overlap, never on a bare dependency edge, so removing it would silently break the lane
+      collapse that keeps WP01/WP02/WP03 in one worktree and reopen the concurrent-write hazard."
+      Optionally also add a one-line note to wps.yaml's WP02/WP03 entries (as a YAML comment, since
+      the schema has no free-text field) pointing back at this Context section so the two artifacts
+      cannot drift silently again.
+findings_summary_note: >
+  Lenses checked with no findings: (1) Phasing — WP01->WP02->WP03->WP04->WP05 is a single acyclic
+  chain (tasks.md, wps.yaml, lanes.json parallel_group 0/1/2 all agree); risky/unknown work
+  (core primitives, truncation detection) is front-loaded and the one true
+  integration/concurrency tier (WP05) is last by design, matching the plan's own framing. All 13
+  FR-* IDs and NFR-*/C-* IDs in spec.md are mapped to at least one WP (verified by union of
+  wps.yaml requirement_refs). plan.md's Campsite-Clean Scope section states "No campsite-clean
+  debt found in the touched surface" and no tasks/WP file contradicts this by either fabricating
+  cleanup subtasks or silently dropping mentioned debt.
+  (2) Write scopes vs. concurrent PRs — ran `gh pr diff 3842 --name-only` and
+  `gh pr diff 3845 --name-only` live. Both touch docs/api/cli-commands.md, which is also in
+  lane-b's (WP04's) write_scope; this real overlap is not silently missed — plan.md's
+  "Write-Scope Disjointness From Concurrently Open Work" section and WP04's own Context/Subtask
+  T028 name it explicitly with cited line ranges (PR #3842 lines 540-548, PR #3845 lines
+  1112-1115), and `gh pr diff` confirms both hunks land exactly where claimed (PR #3842's hunk
+  header is @@ -540,6 +540,14 @@ inside "## spec-kitty charter list"; PR #3845's is
+  @@ -1111,6 +1111,8 @@ inside "## spec-kitty dispatch" -- one line off the stated 1112 start,
+  immaterial). The unpushed feat/design-phase-orchestrator-api-3837 branch is correctly flagged in
+  plan.md:778-783 as "Not independently checkable from this checkout" rather than asserted with
+  false certainty.
+  (4) SK-146 — grepped wps.yaml for "kitty-specs"; zero matches. No WP's owned_files is rooted
+  under kitty-specs/.

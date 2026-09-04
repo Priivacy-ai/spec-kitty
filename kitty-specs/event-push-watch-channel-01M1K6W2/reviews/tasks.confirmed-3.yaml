@@ -1,0 +1,86 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed-round-3-final
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: TASKS-FRESH2-001
+    lens: plan-tasks-correspondence
+    severity: 3
+    title: "plan.md was not updated with T006's new FileNotFoundError/Path.exists() design rule, despite the task files repeatedly citing plan.md as its source"
+    evidence:
+      - artifact: "plan.md § Architectural Seam: Core vs. Shell (FR-011 / NFR-001), lines 152-190"
+      - artifact: "plan.md § IC-01 'Also required' bullet, lines 611-638 (the only part of plan.md this round's commit touched)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T006, steps 1-2 (lines 335-356)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Risks, 'Path.exists()/Path.is_file()/Path.is_dir() internally call Path.stat() on Python 3.11/3.12 (T006)' bullet (lines 564-573)"
+    claim: >
+      This round rewrote WP01 T006/T007, WP02 T013/T014 to mandate a specific, non-trivial
+      implementation pattern for the FR-008 missing-file check: fold the existence check into the
+      single `path.open("rb")` call via `try`/`except FileNotFoundError`, and explicitly forbid
+      `Path.exists()`/`Path.is_file()`/`Path.is_dir()` because (the task files claim) those methods
+      route through `pathlib.Path.stat()` internally on CPython 3.11/3.12 but not on 3.13+. T006 step
+      2 frames this as "consistent with plan.md's Architectural Seam fd-sharing reasoning," and the
+      WP01 Risks bullet frames the whole CPython-version analysis as a load-bearing correctness
+      constraint that both WP01 (T007) and WP02 (T013, by cross-reference) depend on. Yet plan.md
+      itself — the document task files are supposed to translate, and which this same commit DID
+      edit for the adjacent Path.stat/Path.open asymmetric-pattern fix — contains no mention of
+      `FileNotFoundError`, `Path.exists`, `is_file()`, `is_dir()`, or any CPython 3.11/3.12-vs-3.13
+      pathlib-internals distinction anywhere in the file (grep confirms zero hits). Plan.md's own
+      Architectural Seam code-level description of `poll_once()`'s pipeline ("ONE reopen-by-path →
+      stat → dual-truncation-check → drain...") and its IC-01 "Also required" bullet (FR-008 is
+      merely named in the "Covers" list, with zero implementation detail) give no indication this
+      specific implementation trap exists or that this specific mitigation is mandatory. A reviewer
+      or future WP author who consults plan.md alone — the document plan.md's own header calls the
+      binding design source — would have no way to discover this constraint; they would only find it
+      by independently reading WP01's task file. This is a real plan/tasks correspondence gap
+      introduced by this round: the round edited plan.md for one half of the round's fix (the
+      Path.stat asymmetric-pattern correction) but not the other half (the FileNotFoundError/
+      Path.exists() correction) that landed in the very same commit, on the very same design surface
+      (T006/T007's fd-sharing test), for the very same underlying reason (closing a gap in the
+      fd-sharing invariant's test coverage).
+    remediation: >
+      Add a short paragraph to plan.md's Architectural Seam section (or a new subsection under
+      IC-01) stating the FR-008 missing-file design decision explicitly: `poll_once()` must fold its
+      existence check into the single `path.open("rb")` call via `try`/`except FileNotFoundError`,
+      never via `Path.exists()`/`Path.is_file()`/`Path.is_dir()`, because those routines call
+      `Path.stat()` internally on the CPython versions this repo requires/CI runs (3.11/3.12) and
+      would therefore spuriously fail the fd-sharing invariant test on every `poll_once()` call, not
+      just missing-file ones. This keeps plan.md as the authoritative source WP01/WP02 both correctly
+      cite it as being.
+
+  - id: TASKS-FRESH2-002
+    lens: cross-wp-consistency
+    severity: 3
+    title: "WP02 T013's fd-sharing bullet claims os.fstat covers the 'existence check' — contradicting the newly-added paragraph in the same subtask (and drifting from WP01 T007's/plan.md's parallel wording)"
+    evidence:
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T013, first bullet: 'The design mandates os.fstat(fh.fileno()) exclusively for every size/existence check poll_once() performs...' (line 311)"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T013, new paragraph this round: 'Per WP01 T006's corrected constraint, that check must be implemented as a try/except FileNotFoundError around the single path.open(\"rb\") call...' (lines 317-224)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T007, step 1: 'The design mandates os.fstat(fh.fileno()) exclusively for the size check (T003); there is zero legitimate call to Path.stat() anywhere inside poll_once()' (lines 386-389)"
+      - artifact: "plan.md § IC-01 'Also required' bullet: '...the design mandates os.fstat(fh.fileno()) exclusively for the size check...' (lines 622-624)"
+    claim: >
+      WP02's T013 first bullet says `os.fstat(fh.fileno())` is used "exclusively for every
+      size/existence check `poll_once()` performs" — i.e. it claims the FR-008 existence check is
+      implemented via `os.fstat()`. That is not, and cannot be, correct: `os.fstat()` operates on an
+      already-open file descriptor, so it is structurally incapable of implementing an *existence*
+      check (which by definition must run before or at the moment of opening). The actual FR-008
+      existence check, per WP01's corrected T006, is implemented by catching `FileNotFoundError` from
+      the `path.open("rb")` call itself — a mechanism this round's own new paragraph, appended two
+      sentences later in this same subtask ("that check must be implemented as a try/except
+      FileNotFoundError around the single path.open(...) call"), correctly describes. The subtask
+      now contains two adjacent, mutually incompatible descriptions of how the missing-file case is
+      detected. This drift is also visible against the parallel text this bullet is supposed to
+      mirror: WP01 T007's equivalent sentence says `os.fstat(fh.fileno())` is used "exclusively for
+      the size check" (no existence-check claim), and plan.md's IC-01 "Also required" bullet uses the
+      identical "exclusively for the size check" phrasing — WP02 T013 is the only one of the three
+      parallel passages that says "size/existence check." Before this round, T006 did not mandate any
+      specific existence-check implementation, so this ambiguity in WP02 T013 was latent/harmless;
+      this round's fix to T006/T007 (which makes "zero legitimate Path.stat() calls, and existence is
+      checked via FileNotFoundError-on-open" an explicit, load-bearing claim) is what turns WP02
+      T013's pre-existing "os.fstat... for every size/existence check" wording into an active,
+      readable-in-context contradiction, immediately below the correct statement of the same fact.
+    remediation: >
+      In WP02 T013's first bullet, change "The design mandates os.fstat(fh.fileno()) exclusively for
+      every size/existence check poll_once() performs" to match WP01 T007's wording: "The design
+      mandates os.fstat(fh.fileno()) exclusively for the size check" — dropping the "/existence"
+      claim, since existence is established by catching FileNotFoundError on the open() call (per the
+      paragraph immediately below), not by any fstat/stat call.

@@ -1,0 +1,76 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true               # flipped after the yaml self-check passed
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >
+      WP01 (lines 130-135), WP02 (lines 135-139), and WP03 (lines 123-127) each now carry a
+      PR-shape recap bullet matching WP04/WP05's substance verbatim in meaning — "aggregate diff
+      NOT trivially reviewable in one sitting" / "WP-level review ... must NOT be compressed or
+      skipped" — confirmed by direct grep and full-context read of all five WP files.
+
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: >
+      wps.yaml verified directly: WP01, WP02, and WP03 all list tail_reader.py in owned_files, with
+      scope: codebase-wide set on WP02 and WP03. lanes.json's collapse_report confirms two
+      write_scope_overlap events (WP01/WP02 and WP01/WP03) on tail_reader.py, matching wps.yaml.
+      WP02's Context (lines 63-86) and WP03's Context (lines 60-81) now state the true mechanism
+      precisely — both list the file, scope:codebase-wide is the validator exemption (not what
+      triggers collapse), write_scope_overlap is what collapses the lane, and both explicitly warn
+      against "cleaning up" owned_files. The old false claim is completely gone, not softened. R4's
+      claim of also fixing WP01's own chokepoint paragraph (lines 81-102) and WP02's T011 (lines
+      243-246) and DoD checklist (lines 397-400) verified independently — both carry the same
+      corrected narrative.
+
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: >
+      WP02's T009 step 1 (lines 178-180) now explicitly instructs "Create
+      tests/status/test_tail_reader_truncation.py with pytestmark = [pytest.mark.fast] at module
+      scope ... before any test function is written." WP04's line 101 already carries the
+      equivalent pytestmark instruction for tests/cli/test_events_tail.py; a diff against the
+      pre-fix commit (769acd606) confirms zero change to that line, corroborating R4's claim that
+      it was pre-existing, not newly added.
+
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >
+      WP01 T007 (lines 81-113) and WP02 T013/T014 now give Path.stat and Path.open asymmetric
+      tolerance: Path.stat raises UNCONDITIONALLY on any invocation (no "after initial open"
+      carve-out) while Path.open is separately spied and asserted called exactly once total.
+      Walked the logic against the plan's named lazy bug (path.stat().st_size then a separate
+      path.open('rb'), one open call, no stat after it): the unconditional Path.stat raise fires
+      on the lazy pattern's single stat() call regardless of ordering, so the corrected test WOULD
+      actually fail against that exact implementation — the gap is closed, not merely reworded.
+
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >
+      WP02 T015 step 2 (lines ~156-171) adds a dedicated test calling validate_resume_cursor()
+      with a valid offset+invariant, asserting success, then feeding the returned cursor into
+      poll_once()/tail_events() and asserting exactly M new events are yielded. WP04 T025 (line
+      148) adds a parallel CLI-level success test using --from-offset/--from-invariant against a
+      real tmp-path log, asserting exit 0 and the correct event set with none duplicated/re-emitted.
+
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: >
+      WP02 T009 step 7 and T010 step 5 each add a follow-up poll_once() call immediately after the
+      log_truncated assertion, asserting emitted events exactly match current file content from
+      offset 0 and that no pre-truncation event still absent from the file is fabricated or
+      replayed — covering the recovery half of AC2 in both the clean-truncation and
+      truncate-then-regrow scenarios.
+
+  - id: TASKS-VERIFY-004
+    status: resolved
+    reason: >
+      WP03 T019(b) is now labeled "MANDATORY shape ... a required, single concrete test," the
+      degenerate zero-new-poll alternative is explicitly named and excluded ("NOT an acceptable
+      substitute"), and the required shape uses the injected sleep_fn call itself as the
+      synchronization point for the mid-run append while explicitly forbidding real wall-clock
+      sleeping (time.sleep, threading.Event.wait with a real timeout). Reviewer Guidance section
+      reinforces the same mandatory-shape check.
+findings_count: 7
