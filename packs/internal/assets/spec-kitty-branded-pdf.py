@@ -48,7 +48,7 @@ def _default_design_repo() -> Path:
     return Path.home() / "spec-kitty-design"
 
 
-def _css(fonts: Path, logo: Path) -> str:
+def _css(fonts: Path) -> str:
     f = str(fonts)
     return f"""
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -89,7 +89,12 @@ body {{ font-family:var(--body); color:var(--ink); background:var(--page); line-
 .cover h1.title {{ font-family:var(--display); font-weight:900; font-size:44pt; line-height:1.02; color:var(--ink); margin:0 0 6mm; letter-spacing:-.01em; }}
 .cover .subtitle {{ font-family:var(--display); font-weight:500; font-size:15pt; color:var(--ink); margin:0 0 3mm; max-width:135mm; }}
 .cover .lede {{ font-size:11pt; color:var(--ink-soft); max-width:130mm; margin:0 0 14mm; line-height:1.55; }}
-.cover .meta {{ position:absolute; bottom:26mm; left:24mm; right:24mm; border-top:1.5pt solid var(--yellow); padding-top:5mm; display:flex; justify-content:space-between; font-family:var(--mono); font-size:8.5pt; color:var(--ink-soft); letter-spacing:.04em; }}
+.cover .meta {{
+  position:absolute; bottom:26mm; left:24mm; right:24mm;
+  border-top:1.5pt solid var(--yellow); padding-top:5mm;
+  display:flex; justify-content:space-between;
+  font-family:var(--mono); font-size:8.5pt; color:var(--ink-soft); letter-spacing:.04em;
+}}
 .cover .meta b {{ color:var(--ink); font-weight:500; }}
 
 .content {{ padding:0; }}
@@ -108,14 +113,22 @@ ul li::marker {{ color:var(--yellow-deep); }}
 hr {{ border:none; border-top:1pt solid var(--hair); margin:6mm 0; }}
 
 code {{ font-family:var(--mono); font-size:8.4pt; background:var(--input); color:#6B4E00; padding:.3mm 1.2mm; border-radius:2px; }}
-pre {{ background:var(--muted); border:1pt solid var(--hair); border-left:3pt solid var(--yellow-deep); border-radius:3px; padding:3mm 4mm; overflow:hidden; page-break-inside:avoid; }}
+pre {{
+  background:var(--muted); border:1pt solid var(--hair);
+  border-left:3pt solid var(--yellow-deep); border-radius:3px;
+  padding:3mm 4mm; overflow:hidden; page-break-inside:avoid;
+}}
 pre code {{ background:none; color:var(--ink); font-size:8pt; padding:0; line-height:1.45; }}
 
 blockquote {{ margin:3mm 0; padding:2mm 4mm; background:var(--card); border-left:3pt solid var(--yellow); color:var(--ink-soft); }}
 blockquote p {{ margin:1mm 0; }}
 
 table {{ width:100%; border-collapse:collapse; margin:3mm 0 4mm; font-size:8.8pt; page-break-inside:avoid; }}
-thead th {{ font-family:var(--display); font-weight:700; font-size:8.6pt; background:var(--yellow); color:var(--ink); text-align:left; padding:1.6mm 2.4mm; letter-spacing:.01em; }}
+thead th {{
+  font-family:var(--display); font-weight:700; font-size:8.6pt;
+  background:var(--yellow); color:var(--ink); text-align:left;
+  padding:1.6mm 2.4mm; letter-spacing:.01em;
+}}
 tbody td {{ padding:1.4mm 2.4mm; border-bottom:.6pt solid var(--hair); vertical-align:top; }}
 tbody tr:nth-child(even) {{ background:var(--input); }}
 tbody code {{ font-size:7.8pt; }}
@@ -135,7 +148,7 @@ def build(args: argparse.Namespace) -> int:
         check=True, capture_output=True, text=True,
     ).stdout
 
-    css = _css(fonts, logo).replace("__FOOTER__", _html.escape(args.footer_center))
+    css = _css(fonts).replace("__FOOTER__", _html.escape(args.footer_center))
     meta = "".join(
         f"<span>{_html.escape(k)} <b>{_html.escape(v)}</b></span>"
         for k, v in (args.meta or [])
@@ -162,6 +175,9 @@ def build(args: argparse.Namespace) -> int:
     tmp_html = out.with_suffix(".build.html")
     tmp_html.write_text(doc, encoding="utf-8")
     try:
+        # weasyprint is an optional runtime dep: it ships no type stubs, and may
+        # be absent entirely (we fall back to the CLI below). A bare ignore covers
+        # both import-untyped and import-not-found without pinning an env-specific code.
         import weasyprint  # type: ignore
         weasyprint.HTML(filename=str(tmp_html)).write_pdf(str(out))
     except ImportError:

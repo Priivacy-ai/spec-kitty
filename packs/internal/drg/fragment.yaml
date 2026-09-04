@@ -35,7 +35,7 @@ nodes:
     body_path: styleguides/report-writing.styleguide.yaml
   - id: project-evolution-postmortem
     kind: procedures
-    title: "Project-Evolution Post-Mortem (research squads + branded report)"
+    title: "Project-Evolution Postmortem (research squads + branded report)"
     body_path: procedures/project-evolution-postmortem.procedure.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
@@ -48,7 +48,7 @@ edges:
   - source: landing-contributor-prs
     target: "tactic:pr-agent-worktree-isolation"
     relation: refines
-  # Post-mortem authoring chain (all targets are local nodes declared above).
+  # Postmortem authoring chain (all targets are local nodes declared above).
   # The procedure suggests the writing styleguide and the branded-deliverable
   # tactic; the tactic requires the generation toolguide; the toolguide requires
   # the generator asset.

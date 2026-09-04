@@ -30,7 +30,7 @@ packs/internal/
 │   └── spk-internal.glossary-pack.yaml              # spk-internal-glossary — maintainer/engineering glossary
 ├── procedures/
 │   ├── landing-contributor-prs.procedure.yaml       # maintainer PR-landing runbook
-│   └── project-evolution-postmortem.procedure.yaml  # cycle post-mortem: research squads + branded report
+│   └── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
 ├── styleguides/
 │   └── report-writing.styleguide.yaml               # audience-first, anti-AI-prose, Spec Kitty voice
 ├── tactics/

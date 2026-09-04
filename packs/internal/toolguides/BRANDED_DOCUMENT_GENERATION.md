@@ -34,8 +34,10 @@ constraints, not suggestions:
   reserved by the design system for light-mode *headings* only; the print
   pipeline does not promote it to a lead or accent role. Do not reintroduce it.
 - **Typefaces.** Falling Sky for display and headings, Swansea for body,
-  JetBrains Mono for code, labels, and the eyebrow. The fonts are loaded from
-  the sibling `spec-kitty-design` repo.
+  JetBrains Mono for code, labels, and the eyebrow. Falling Sky and Swansea are
+  loaded as local `@font-face` files from the sibling `spec-kitty-design` repo;
+  JetBrains Mono is pulled over the network via a Google Fonts `@import`, so an
+  offline run falls back to the platform monospace face for those spans.
 - **Voice.** Composed, direct, concrete. Sentence case. No emoji. No
   exclamation marks. Source prose you feed the generator must already comply —
   the tool renders what you give it.

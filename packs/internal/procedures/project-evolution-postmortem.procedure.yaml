@@ -1,9 +1,9 @@
 schema_version: "1.0"
 id: project-evolution-postmortem
-name: Project Technical-Evolution Post-Mortem
+name: Project Technical-Evolution Postmortem
 purpose: >
   The maintainer workflow for producing a project-technical-evolution
-  post-mortem: a report that describes how the project moved over a cycle —
+  postmortem: a report that describes how the project moved over a cycle —
   architecture and roadmap currency, code and design quality, bug trend,
   contribution distribution, velocity, community-versus-maintainer authorship,
   and the friction the Missions themselves surfaced. It is driven by parallel
