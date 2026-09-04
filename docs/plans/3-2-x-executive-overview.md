@@ -45,21 +45,20 @@ perf-CI, dedups), and **4.0.0** (the hosted product plus the deferred structural
 
 **The strategic read is unchanged, but two things a stakeholder should hear plainly:**
 
-1. **The structural "finish the strangler" work this cycle exists for is currently on no
-   committed release.** The G1/G2 spine (execution-context root, degod/unshim, seam-binding,
-   the pack-ecosystem extensibility kinds) sits in **Product backlog** — validated and
-   largely designed, but unscheduled. 3.2.7 is scoped to the stabilization tail; 4.0.0 to
-   hosted product. This is a scheduling gap, not a regression: the foundation held (see
-   the strategic-position section), but the remaining structural push is unowned by a release.
-2. **The one failing quality gate (21 security findings) rides on that same unscheduled
-   work.** Our SonarCloud security backlog maps almost 1:1 onto the deferred structural
-   slices, so the security debt and the structural remediation are stranded together — with
-   the exception of 3 path-traversal blockers that are a called-out ~90-min fix on their own.
+1. **The structural "finish the strangler" work this cycle exists for is now committed to
+   4.0.0** (operator decision 2026-09-04). The G1/G2 spine (execution-context root,
+   degod/unshim, seam-binding, the pack-ecosystem extensibility kinds) had sat unscheduled in
+   Product backlog; it now carries milestone 4.0.0. 3.2.7 remains the stabilization tail;
+   4.0.0 is the hosted product plus this deferred structural finish. The foundation held (see
+   the strategic-position section); the remaining structural push now has a release home.
+2. **The one failing quality gate (21 security findings) rides with that structural work —
+   now scheduled in 4.0.0.** Our SonarCloud security backlog maps almost 1:1 onto the degod
+   slices, so the security debt and the structural remediation land together — with the
+   exception of 3 path-traversal blockers that are a called-out ~90-min fix on their own.
 
-**Decisions for the PO** (in addition to the release-timing call already noted below):
-give the Product-backlog spine epics an explicit release home — close, pull into 3.2.7/4.0.0,
-or mark as accepted backlog structural debt — rather than leaving them implicitly
-"3.2.x-cycle work" while off every release. The 4.0.0 goals are now declared in
+**Decision resolved:** the strangler-spine epics are committed to 4.0.0 (2026-09-04), no
+longer implicitly "3.2.x-cycle work" off every release. The remaining PO call is release
+timing (noted below). The 4.0.0 goals are declared in
 [`docs/changelog/4.0.0.md`](../changelog/4.0.0.md).
 
 ## Bottom line
