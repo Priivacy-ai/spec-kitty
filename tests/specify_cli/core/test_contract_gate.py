@@ -97,8 +97,7 @@ def test_planning_artifact_pin_target_is_outside_every_archive_root() -> None:
     pin_target = _PLANNING_ARTIFACT_RELATIVE.as_posix() + "/"
     violating_roots = [root for root in _ARCHIVE_ROOTS if pin_target.startswith(root)]
     assert not violating_roots, (
-        f"contract pin target {_PLANNING_ARTIFACT_RELATIVE.as_posix()!r} lives under "
-        f"archive root(s) {violating_roots!r} — this reopens SK-154"
+        f"contract pin target {_PLANNING_ARTIFACT_RELATIVE.as_posix()!r} lives under archive root(s) {violating_roots!r} — this reopens SK-154"
     )
 
 
