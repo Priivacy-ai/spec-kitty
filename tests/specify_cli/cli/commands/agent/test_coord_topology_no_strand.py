@@ -1,4 +1,11 @@
-"""Regression (#2533 / WP02): a pr-bound mission on an UNPROTECTED primary mints no coord branch.
+"""Guard (#2533 / WP02, fixed): a pr-bound mission on an UNPROTECTED primary mints no coord branch.
+
+A permanent behavioral guard against the #2533 defect recurring — the fix
+shipped with this test, so it is green by construction, not a red-first
+reproduction (it therefore lives in its functional home under
+``tests/specify_cli/cli/commands/agent/`` beside its sibling create-time
+tripwire, and carries the ``integration``/``git_repo`` marks — never
+``regression``).
 
 The #2533 split-brain (and the B16-clause-2 "cross-contamination" appearance,
 research D-002) came from ``--pr-bound`` unconditionally minting a ``coord``
