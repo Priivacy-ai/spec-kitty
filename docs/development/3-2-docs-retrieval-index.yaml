@@ -5458,110 +5458,111 @@ pages:
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
     - {slug: "unreleased-3-2-7rc1", text: "[Unreleased] - 3.2.7rc1", level: 2}
+    - {slug: "fixed", text: "Fixed", level: 3}
     - {slug: "3-2-6-2026-09-03", text: "[3.2.6] - 2026-09-03", level: 2}
     - {slug: "breaking-removed", text: "💥 Breaking / 🗑️ Removed", level: 3}
     - {slug: "added", text: "✨ Added", level: 3}
     - {slug: "changed", text: "♻️ Changed", level: 3}
-    - {slug: "fixed", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-2", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-6rc2-2026-08-20", text: "[3.2.6rc2] - 2026-08-20", level: 2}
     - {slug: "added-2", text: "✨ Added", level: 3}
     - {slug: "changed-2", text: "♻️ Changed", level: 3}
-    - {slug: "fixed-2", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-3", text: "🐛 Fixed", level: 3}
     - {slug: "breaking-changes", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-6rc1-2026-08-12", text: "[3.2.6rc1] - 2026-08-12", level: 2}
     - {slug: "added-3", text: "✨ Added", level: 3}
-    - {slug: "fixed-3", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-4", text: "🐛 Fixed", level: 3}
     - {slug: "changed-3", text: "♻️ Changed", level: 3}
     - {slug: "breaking-changes-2", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-5-2026-07-08", text: "[3.2.5] - 2026-07-08", level: 2}
     - {slug: "added-4", text: "✨ Added", level: 3}
-    - {slug: "fixed-4", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-5", text: "🐛 Fixed", level: 3}
     - {slug: "changed-4", text: "♻️ Changed", level: 3}
     - {slug: "breaking-changes-3", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-4-2026-07-05", text: "[3.2.4] - 2026-07-05", level: 2}
     - {slug: "breaking-changes-4", text: "💥 Breaking Changes", level: 3}
     - {slug: "changed-5", text: "♻️ Changed", level: 3}
-    - {slug: "fixed-5", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-6", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-3-2026-06-29", text: "[3.2.3] - 2026-06-29", level: 2}
     - {slug: "added-5", text: "✨ Added", level: 3}
     - {slug: "breaking-changes-5", text: "💥 Breaking Changes", level: 3}
-    - {slug: "fixed-6", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-7", text: "🐛 Fixed", level: 3}
     - {slug: "changed-6", text: "♻️ Changed", level: 3}
     - {slug: "3-2-2-2026-06-24", text: "[3.2.2] - 2026-06-24", level: 2}
     - {slug: "added-6", text: "✨ Added", level: 3}
-    - {slug: "fixed-7", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-8", text: "🐛 Fixed", level: 3}
     - {slug: "contract", text: "⚠️ Contract", level: 3}
     - {slug: "3-2-1-2026-06-18", text: "[3.2.1] - 2026-06-18", level: 2}
-    - {slug: "fixed-8", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-9", text: "🐛 Fixed", level: 3}
     - {slug: "changed-7", text: "🔧 Changed", level: 3}
     - {slug: "fixed-security-follow-up", text: "🐛 Fixed (security follow-up)", level: 3}
     - {slug: "3-2-0-2026-06-16", text: "[3.2.0] - 2026-06-16", level: 2}
     - {slug: "added-changed", text: "✨ Added / 🔧 Changed", level: 3}
     - {slug: "3-2-0rc45-2026-06-15", text: "[3.2.0rc45] - 2026-06-15", level: 2}
-    - {slug: "fixed-9", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-10", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc44-2026-06-14", text: "[3.2.0rc44] - 2026-06-14", level: 2}
     - {slug: "added-7", text: "✨ Added", level: 3}
-    - {slug: "fixed-10", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-11", text: "🐛 Fixed", level: 3}
     - {slug: "maintenance", text: "🧹 Maintenance", level: 3}
     - {slug: "3-2-0rc43-2026-06-11", text: "[3.2.0rc43] - 2026-06-11", level: 2}
     - {slug: "added-changed-2", text: "✨ Added / 🔧 Changed", level: 3}
     - {slug: "3-2-0rc42-2026-06-11", text: "[3.2.0rc42] - 2026-06-11", level: 2}
     - {slug: "changed-8", text: "💥 Changed", level: 3}
-    - {slug: "fixed-11", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-12", text: "🐛 Fixed", level: 3}
     - {slug: "added-changed-3", text: "✨ Added / 🔧 Changed", level: 3}
     - {slug: "3-2-0rc41-2026-06-08", text: "[3.2.0rc41] - 2026-06-08", level: 2}
     - {slug: "added-8", text: "✨ Added", level: 3}
     - {slug: "changed-9", text: "🔧 Changed", level: 3}
-    - {slug: "fixed-12", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-13", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc40-2026-06-07", text: "[3.2.0rc40] - 2026-06-07", level: 2}
     - {slug: "added-9", text: "✨ Added", level: 3}
     - {slug: "changed-10", text: "🔧 Changed", level: 3}
-    - {slug: "fixed-13", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-14", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc39-2026-06-07", text: "[3.2.0rc39] - 2026-06-07", level: 2}
     - {slug: "added-10", text: "✨ Added", level: 3}
-    - {slug: "fixed-14", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-15", text: "🐛 Fixed", level: 3}
     - {slug: "docs", text: "📝 Docs", level: 3}
     - {slug: "3-2-0rc38-2026-06-06", text: "[3.2.0rc38] - 2026-06-06", level: 2}
     - {slug: "added-11", text: "✨ Added", level: 3}
     - {slug: "improved", text: "🔧 Improved", level: 3}
-    - {slug: "fixed-15", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-16", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc37-2026-06-04", text: "[3.2.0rc37] - 2026-06-04", level: 2}
     - {slug: "added-12", text: "Added", level: 3}
     - {slug: "changed-11", text: "Changed", level: 3}
-    - {slug: "fixed-16", text: "Fixed", level: 3}
+    - {slug: "fixed-17", text: "Fixed", level: 3}
     - {slug: "3-2-0rc36-2026-06-03", text: "[3.2.0rc36] - 2026-06-03", level: 2}
     - {slug: "changed-12", text: "Changed", level: 3}
     - {slug: "3-2-0rc35-2026-06-02", text: "[3.2.0rc35] - 2026-06-02", level: 2}
     - {slug: "added-13", text: "Added", level: 3}
     - {slug: "changed-13", text: "Changed", level: 3}
-    - {slug: "fixed-17", text: "Fixed", level: 3}
+    - {slug: "fixed-18", text: "Fixed", level: 3}
     - {slug: "3-2-0rc34-2026-06-02", text: "[3.2.0rc34] - 2026-06-02", level: 2}
     - {slug: "changed-14", text: "Changed", level: 3}
-    - {slug: "fixed-18", text: "Fixed", level: 3}
+    - {slug: "fixed-19", text: "Fixed", level: 3}
     - {slug: "3-2-0rc33-2026-06-01", text: "[3.2.0rc33] - 2026-06-01", level: 2}
     - {slug: "changed-15", text: "Changed", level: 3}
     - {slug: "3-2-0rc32-2026-06-01", text: "[3.2.0rc32] - 2026-06-01", level: 2}
     - {slug: "added-14", text: "Added", level: 3}
     - {slug: "changed-16", text: "Changed", level: 3}
-    - {slug: "fixed-19", text: "Fixed", level: 3}
+    - {slug: "fixed-20", text: "Fixed", level: 3}
     - {slug: "documentation", text: "Documentation", level: 3}
     - {slug: "3-2-0rc31-rolled-into-rc32", text: "[3.2.0rc31] (rolled into rc32)", level: 2}
-    - {slug: "fixed-20", text: "Fixed", level: 3}
+    - {slug: "fixed-21", text: "Fixed", level: 3}
     - {slug: "3-2-0rc30-2026-05-29", text: "[3.2.0rc30] - 2026-05-29", level: 2}
     - {slug: "added-15", text: "Added", level: 3}
     - {slug: "changed-17", text: "Changed", level: 3}
-    - {slug: "fixed-21", text: "Fixed", level: 3}
+    - {slug: "fixed-22", text: "Fixed", level: 3}
     - {slug: "security-lint", text: "Security / Lint", level: 3}
     - {slug: "3-2-0rc29-2026-05-29", text: "[3.2.0rc29] - 2026-05-29", level: 2}
     - {slug: "added-16", text: "Added", level: 3}
     - {slug: "changed-18", text: "Changed", level: 3}
-    - {slug: "fixed-22", text: "Fixed", level: 3}
+    - {slug: "fixed-23", text: "Fixed", level: 3}
     - {slug: "deferred", text: "Deferred", level: 3}
     - {slug: "3-2-0rc28-2026-05-27", text: "[3.2.0rc28] - 2026-05-27", level: 2}
     - {slug: "changed-19", text: "Changed", level: 3}
-    - {slug: "fixed-23", text: "Fixed", level: 3}
-    - {slug: "3-2-0rc27-2026-05-26", text: "[3.2.0rc27] - 2026-05-26", level: 2}
     - {slug: "fixed-24", text: "Fixed", level: 3}
+    - {slug: "3-2-0rc27-2026-05-26", text: "[3.2.0rc27] - 2026-05-26", level: 2}
+    - {slug: "fixed-25", text: "Fixed", level: 3}
     - {slug: "3-2-0rc26-2026-05-26", text: "[3.2.0rc26] - 2026-05-26", level: 2}
     - {slug: "breaking-changes-6", text: "Breaking changes", level: 3}
     - {slug: "changed-20", text: "Changed", level: 3}
@@ -5585,60 +5586,60 @@ pages:
     - {slug: "3-2-0rc9-rolled-into-rc10", text: "[3.2.0rc9] (rolled into rc10)", level: 2}
     - {slug: "added-18", text: "Added", level: 3}
     - {slug: "changed-21", text: "Changed", level: 3}
-    - {slug: "fixed-25", text: "Fixed", level: 3}
+    - {slug: "fixed-26", text: "Fixed", level: 3}
     - {slug: "documentation-2", text: "Documentation", level: 3}
     - {slug: "deferred-2", text: "Deferred", level: 3}
     - {slug: "removed", text: "Removed", level: 3}
     - {slug: "3-2-0rc8-2026-05-14", text: "[3.2.0rc8] - 2026-05-14", level: 2}
     - {slug: "changed-22", text: "Changed", level: 3}
-    - {slug: "fixed-26", text: "Fixed", level: 3}
+    - {slug: "fixed-27", text: "Fixed", level: 3}
     - {slug: "3-2-0rc7-2026-05-12", text: "[3.2.0rc7] - 2026-05-12", level: 2}
     - {slug: "added-19", text: "Added", level: 3}
     - {slug: "changed-23", text: "Changed", level: 3}
-    - {slug: "fixed-27", text: "Fixed", level: 3}
+    - {slug: "fixed-28", text: "Fixed", level: 3}
     - {slug: "3-2-0rc6-2026-05-11", text: "[3.2.0rc6] - 2026-05-11", level: 2}
     - {slug: "changed-24", text: "Changed", level: 3}
-    - {slug: "fixed-28", text: "Fixed", level: 3}
+    - {slug: "fixed-29", text: "Fixed", level: 3}
     - {slug: "3-2-0rc5-2026-05-11", text: "[3.2.0rc5] - 2026-05-11", level: 2}
     - {slug: "changed-25", text: "Changed", level: 3}
-    - {slug: "fixed-29", text: "Fixed", level: 3}
+    - {slug: "fixed-30", text: "Fixed", level: 3}
     - {slug: "3-2-0rc4-2026-05-11", text: "[3.2.0rc4] - 2026-05-11", level: 2}
     - {slug: "changed-26", text: "Changed", level: 3}
     - {slug: "3-2-0rc3-2026-05-06", text: "[3.2.0rc3] - 2026-05-06", level: 2}
-    - {slug: "fixed-30", text: "Fixed", level: 3}
+    - {slug: "fixed-31", text: "Fixed", level: 3}
     - {slug: "3-2-0rc2-2026-05-05", text: "[3.2.0rc2] - 2026-05-05", level: 2}
     - {slug: "added-20", text: "Added", level: 3}
     - {slug: "changed-27", text: "Changed", level: 3}
     - {slug: "3-2-0rc1-2026-05-05", text: "[3.2.0rc1] - 2026-05-05", level: 2}
-    - {slug: "fixed-31", text: "Fixed", level: 3}
+    - {slug: "fixed-32", text: "Fixed", level: 3}
     - {slug: "release-validation", text: "Release Validation", level: 3}
     - {slug: "known-limitations", text: "Known Limitations", level: 3}
     - {slug: "3-2-0a10-2026-05-04", text: "[3.2.0a10] - 2026-05-04", level: 2}
-    - {slug: "fixed-32", text: "Fixed", level: 3}
+    - {slug: "fixed-33", text: "Fixed", level: 3}
     - {slug: "internal", text: "Internal", level: 3}
     - {slug: "3-2-0a9-2026-05-03", text: "[3.2.0a9] - 2026-05-03", level: 2}
     - {slug: "added-21", text: "Added", level: 3}
-    - {slug: "fixed-33", text: "Fixed", level: 3}
+    - {slug: "fixed-34", text: "Fixed", level: 3}
     - {slug: "internal-2", text: "Internal", level: 3}
     - {slug: "3-2-0a8-2026-05-01", text: "[3.2.0a8] - 2026-05-01", level: 2}
-    - {slug: "fixed-34", text: "Fixed", level: 3}
+    - {slug: "fixed-35", text: "Fixed", level: 3}
     - {slug: "internal-3", text: "Internal", level: 3}
     - {slug: "3-2-0a7-2026-05-01", text: "[3.2.0a7] - 2026-05-01", level: 2}
-    - {slug: "fixed-35", text: "Fixed", level: 3}
+    - {slug: "fixed-36", text: "Fixed", level: 3}
     - {slug: "internal-4", text: "Internal", level: 3}
     - {slug: "3-2-0a6-2026-04-30", text: "[3.2.0a6] - 2026-04-30", level: 2}
-    - {slug: "fixed-36", text: "Fixed", level: 3}
+    - {slug: "fixed-37", text: "Fixed", level: 3}
     - {slug: "internal-5", text: "Internal", level: 3}
     - {slug: "tranche-2-acceptance-pass-sc-001-sc-008", text: "Tranche-2 acceptance pass (SC-001..SC-008)", level: 3}
     - {slug: "3-2-0a5-2026-04-27", text: "[3.2.0a5] - 2026-04-27", level: 2}
-    - {slug: "fixed-37", text: "Fixed", level: 3}
+    - {slug: "fixed-38", text: "Fixed", level: 3}
     - {slug: "changed-28", text: "Changed", level: 3}
     - {slug: "removed-2", text: "Removed", level: 3}
     - {slug: "internal-6", text: "Internal", level: 3}
     - {slug: "added-22", text: "Added", level: 3}
     - {slug: "changed-29", text: "Changed", level: 3}
     - {slug: "removed-3", text: "Removed", level: 3}
-    - {slug: "fixed-38", text: "Fixed", level: 3}
+    - {slug: "fixed-39", text: "Fixed", level: 3}
     - {slug: "added-documentation-mission-composition-rewrite-502-461-phase-6-wp6-4", text: "Added - Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)", level: 3}
     - {slug: "added-23", text: "Added", level: 3}
     - {slug: "changed-30", text: "Changed", level: 3}
@@ -5646,37 +5647,37 @@ pages:
     - {slug: "out-of-scope-tracked-separately", text: "Out of scope (tracked separately)", level: 3}
     - {slug: "migration-notes", text: "Migration notes", level: 3}
     - {slug: "added-phase-4-trail-follow-on", text: "Added (Phase 4 trail follow-on)", level: 3}
-    - {slug: "fixed-39", text: "Fixed", level: 3}
+    - {slug: "fixed-40", text: "Fixed", level: 3}
     - {slug: "changed-31", text: "Changed", level: 3}
     - {slug: "3-2-0a4-2026-04-21", text: "[3.2.0a4] - 2026-04-21", level: 2}
     - {slug: "added-24", text: "Added", level: 3}
     - {slug: "added-25", text: "Added", level: 3}
     - {slug: "3-2-0a3-2026-04-21", text: "[3.2.0a3] - 2026-04-21", level: 2}
-    - {slug: "fixed-40", text: "Fixed", level: 3}
+    - {slug: "fixed-41", text: "Fixed", level: 3}
     - {slug: "3-2-0a2-2026-04-21", text: "[3.2.0a2] - 2026-04-21", level: 2}
     - {slug: "changed-32", text: "Changed", level: 3}
     - {slug: "removed-4", text: "Removed", level: 3}
     - {slug: "3-2-0a1-2026-04-20", text: "[3.2.0a1] - 2026-04-20", level: 2}
     - {slug: "added-26", text: "Added", level: 3}
     - {slug: "changed-33", text: "Changed", level: 3}
-    - {slug: "fixed-41", text: "Fixed", level: 3}
+    - {slug: "fixed-42", text: "Fixed", level: 3}
     - {slug: "removed-5", text: "Removed", level: 3}
     - {slug: "3-1-8-2026-04-29", text: "[3.1.8] - 2026-04-29", level: 2}
-    - {slug: "fixed-42", text: "Fixed", level: 3}
-    - {slug: "3-1-7-2026-04-28", text: "[3.1.7] - 2026-04-28", level: 2}
     - {slug: "fixed-43", text: "Fixed", level: 3}
+    - {slug: "3-1-7-2026-04-28", text: "[3.1.7] - 2026-04-28", level: 2}
+    - {slug: "fixed-44", text: "Fixed", level: 3}
     - {slug: "changed-34", text: "Changed", level: 3}
     - {slug: "3-1-6-2026-04-20", text: "[3.1.6] - 2026-04-20", level: 2}
-    - {slug: "fixed-44", text: "Fixed", level: 3}
+    - {slug: "fixed-45", text: "Fixed", level: 3}
     - {slug: "docs-2", text: "Docs", level: 3}
     - {slug: "3-1-5-2026-04-16", text: "[3.1.5] - 2026-04-16", level: 2}
     - {slug: "changed-35", text: "Changed", level: 3}
-    - {slug: "fixed-45", text: "Fixed", level: 3}
+    - {slug: "fixed-46", text: "Fixed", level: 3}
     - {slug: "docs-3", text: "Docs", level: 3}
     - {slug: "3-1-4-2026-04-15", text: "[3.1.4] - 2026-04-15", level: 2}
-    - {slug: "fixed-46", text: "Fixed", level: 3}
-    - {slug: "3-1-3-2026-04-15", text: "[3.1.3] - 2026-04-15", level: 2}
     - {slug: "fixed-47", text: "Fixed", level: 3}
+    - {slug: "3-1-3-2026-04-15", text: "[3.1.3] - 2026-04-15", level: 2}
+    - {slug: "fixed-48", text: "Fixed", level: 3}
     - {slug: "docs-4", text: "Docs", level: 3}
     - {slug: "3-1-2-2026-04-15", text: "[3.1.2] - 2026-04-15", level: 2}
     - {slug: "fixed-ci-recovery-release-readiness", text: "Fixed - CI recovery & release readiness", level: 3}
@@ -5684,83 +5685,83 @@ pages:
     - {slug: "changed-36", text: "Changed", level: 3}
     - {slug: "unchanged-explicitly", text: "Unchanged (explicitly)", level: 3}
     - {slug: "refs", text: "Refs", level: 3}
-    - {slug: "fixed-48", text: "Fixed", level: 3}
+    - {slug: "fixed-49", text: "Fixed", level: 3}
     - {slug: "added-28", text: "Added", level: 3}
     - {slug: "recovery-for-users-already-affected", text: "Recovery for users already affected", level: 3}
     - {slug: "3-1-2a4-2026-04-14", text: "[3.1.2a4] - 2026-04-14", level: 2}
     - {slug: "added-29", text: "Added", level: 3}
-    - {slug: "fixed-49", text: "Fixed", level: 3}
-    - {slug: "3-1-2a3-2026-04-12", text: "[3.1.2a3] - 2026-04-12", level: 2}
     - {slug: "fixed-50", text: "Fixed", level: 3}
+    - {slug: "3-1-2a3-2026-04-12", text: "[3.1.2a3] - 2026-04-12", level: 2}
+    - {slug: "fixed-51", text: "Fixed", level: 3}
     - {slug: "3-1-2a2-2026-04-11", text: "[3.1.2a2] - 2026-04-11", level: 2}
     - {slug: "added-30", text: "Added", level: 3}
     - {slug: "changed-37", text: "Changed", level: 3}
-    - {slug: "fixed-51", text: "Fixed", level: 3}
+    - {slug: "fixed-52", text: "Fixed", level: 3}
     - {slug: "3-1-2a1-2026-04-10", text: "[3.1.2a1] - 2026-04-10", level: 2}
     - {slug: "added-31", text: "Added", level: 3}
     - {slug: "changed-38", text: "Changed", level: 3}
-    - {slug: "fixed-52", text: "Fixed", level: 3}
+    - {slug: "fixed-53", text: "Fixed", level: 3}
     - {slug: "3-1-1-2026-04-09", text: "[3.1.1] - 2026-04-09", level: 2}
     - {slug: "added-32", text: "Added", level: 3}
     - {slug: "changed-39", text: "Changed", level: 3}
-    - {slug: "fixed-53", text: "Fixed", level: 3}
+    - {slug: "fixed-54", text: "Fixed", level: 3}
     - {slug: "3-1-1a3-2026-04-07", text: "[3.1.1a3] - 2026-04-07", level: 2}
     - {slug: "added-33", text: "Added", level: 3}
     - {slug: "changed-40", text: "Changed", level: 3}
     - {slug: "3-1-1a2-2026-04-07", text: "[3.1.1a2] - 2026-04-07", level: 2}
-    - {slug: "fixed-54", text: "Fixed", level: 3}
+    - {slug: "fixed-55", text: "Fixed", level: 3}
     - {slug: "added-34", text: "Added", level: 3}
     - {slug: "changed-41", text: "Changed", level: 3}
     - {slug: "3-1-1a1-2026-04-07", text: "[3.1.1a1] - 2026-04-07", level: 2}
     - {slug: "added-35", text: "Added", level: 3}
     - {slug: "changed-42", text: "Changed", level: 3}
-    - {slug: "fixed-55", text: "Fixed", level: 3}
+    - {slug: "fixed-56", text: "Fixed", level: 3}
     - {slug: "3-1-0-2026-04-07", text: "[3.1.0] - 2026-04-07", level: 2}
     - {slug: "added-36", text: "Added", level: 3}
     - {slug: "3-1-0a8-2026-04-07", text: "[3.1.0a8] - 2026-04-07", level: 2}
     - {slug: "added-37", text: "Added", level: 3}
-    - {slug: "fixed-56", text: "Fixed", level: 3}
+    - {slug: "fixed-57", text: "Fixed", level: 3}
     - {slug: "3-1-0a7-2026-04-06", text: "[3.1.0a7] - 2026-04-06", level: 2}
     - {slug: "added-38", text: "Added", level: 3}
-    - {slug: "fixed-57", text: "Fixed", level: 3}
+    - {slug: "fixed-58", text: "Fixed", level: 3}
     - {slug: "3-1-0a6-2026-04-06", text: "[3.1.0a6] - 2026-04-06", level: 2}
     - {slug: "added-39", text: "Added", level: 3}
-    - {slug: "fixed-58", text: "Fixed", level: 3}
-    - {slug: "3-1-0a5-2026-04-06", text: "[3.1.0a5] - 2026-04-06", level: 2}
     - {slug: "fixed-59", text: "Fixed", level: 3}
+    - {slug: "3-1-0a5-2026-04-06", text: "[3.1.0a5] - 2026-04-06", level: 2}
+    - {slug: "fixed-60", text: "Fixed", level: 3}
     - {slug: "added-40", text: "Added", level: 3}
     - {slug: "3-1-0a4-2026-04-06", text: "[3.1.0a4] - 2026-04-06", level: 2}
-    - {slug: "fixed-60", text: "Fixed", level: 3}
-    - {slug: "3-1-0a3-2026-04-05", text: "[3.1.0a3] - 2026-04-05", level: 2}
     - {slug: "fixed-61", text: "Fixed", level: 3}
+    - {slug: "3-1-0a3-2026-04-05", text: "[3.1.0a3] - 2026-04-05", level: 2}
+    - {slug: "fixed-62", text: "Fixed", level: 3}
     - {slug: "changed-43", text: "Changed", level: 3}
     - {slug: "added-41", text: "Added", level: 3}
     - {slug: "3-1-0a2-2026-04-05", text: "[3.1.0a2] - 2026-04-05", level: 2}
     - {slug: "changed-44", text: "Changed", level: 3}
-    - {slug: "fixed-62", text: "Fixed", level: 3}
+    - {slug: "fixed-63", text: "Fixed", level: 3}
     - {slug: "documentation-3", text: "Documentation", level: 3}
     - {slug: "3-0-3-2026-04-01", text: "[3.0.3] - 2026-04-01", level: 2}
     - {slug: "added-42", text: "Added", level: 3}
     - {slug: "3-0-2-2026-04-01", text: "[3.0.2] - 2026-04-01", level: 2}
-    - {slug: "fixed-63", text: "Fixed", level: 3}
-    - {slug: "3-0-1-2026-03-31", text: "[3.0.1] - 2026-03-31", level: 2}
     - {slug: "fixed-64", text: "Fixed", level: 3}
+    - {slug: "3-0-1-2026-03-31", text: "[3.0.1] - 2026-03-31", level: 2}
+    - {slug: "fixed-65", text: "Fixed", level: 3}
     - {slug: "3-0-0-2026-03-30", text: "[3.0.0] - 2026-03-30", level: 2}
     - {slug: "breaking-changes-7", text: "Breaking Changes", level: 3}
     - {slug: "added-43", text: "Added", level: 3}
     - {slug: "removed-6", text: "Removed", level: 3}
-    - {slug: "fixed-65", text: "Fixed", level: 3}
+    - {slug: "fixed-66", text: "Fixed", level: 3}
     - {slug: "2-1-4-2026-03-27", text: "[2.1.4] - 2026-03-27", level: 2}
     - {slug: "added-44", text: "Added", level: 3}
     - {slug: "2-1-3-2026-03-27", text: "[2.1.3] - 2026-03-27", level: 2}
-    - {slug: "fixed-66", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-67", text: "🐛 Fixed", level: 3}
     - {slug: "2-1-2-2026-03-23", text: "[2.1.2] - 2026-03-23", level: 2}
     - {slug: "improved-2", text: "🔧 Improved", level: 3}
     - {slug: "added-45", text: "✨ Added", level: 3}
-    - {slug: "fixed-67", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-68", text: "🐛 Fixed", level: 3}
     - {slug: "maintenance-2", text: "🧹 Maintenance", level: 3}
     - {slug: "2-1-1-2026-03-21", text: "[2.1.1] - 2026-03-21", level: 2}
-    - {slug: "fixed-68", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-69", text: "🐛 Fixed", level: 3}
     - {slug: "2-1-0-2026-03-21", text: "[2.1.0] - 2026-03-21", level: 2}
     - {slug: "added-46", text: "✅ Added", level: 3}
     - {slug: "changed-45", text: "🔧 Changed", level: 3}
@@ -5770,86 +5771,86 @@ pages:
     - {slug: "documentation-4", text: "📄 Documentation", level: 3}
     - {slug: "2-0-10-2026-03-20", text: "[2.0.10] - 2026-03-20", level: 2}
     - {slug: "added-47", text: "✅ Added", level: 3}
-    - {slug: "fixed-69", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-70", text: "🐛 Fixed", level: 3}
     - {slug: "changed-46", text: "🔧 Changed", level: 3}
     - {slug: "2-0-9-2026-03-15", text: "[2.0.9] - 2026-03-15", level: 2}
     - {slug: "added-48", text: "✅ Added", level: 3}
-    - {slug: "fixed-70", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-71", text: "🐛 Fixed", level: 3}
     - {slug: "changed-47", text: "🔧 Changed", level: 3}
     - {slug: "2-0-8-2026-03-11", text: "[2.0.8] - 2026-03-11", level: 2}
-    - {slug: "fixed-71", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-72", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-7-2026-03-11", text: "[2.0.7] - 2026-03-11", level: 2}
     - {slug: "added-49", text: "✅ Added", level: 3}
-    - {slug: "fixed-72", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-73", text: "🐛 Fixed", level: 3}
     - {slug: "changed-48", text: "🔧 Changed", level: 3}
     - {slug: "2-0-6-2026-03-10", text: "[2.0.6] - 2026-03-10", level: 2}
-    - {slug: "fixed-73", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-74", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-5-2026-03-10", text: "[2.0.5] - 2026-03-10", level: 2}
     - {slug: "added-50", text: "✅ Added", level: 3}
-    - {slug: "fixed-74", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-75", text: "🐛 Fixed", level: 3}
     - {slug: "documentation-5", text: "📄 Documentation", level: 3}
     - {slug: "2-0-4-2026-03-06", text: "[2.0.4] - 2026-03-06", level: 2}
-    - {slug: "fixed-75", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-76", text: "🐛 Fixed", level: 3}
     - {slug: "changed-49", text: "🔧 Changed", level: 3}
     - {slug: "2-0-2-2026-02-27", text: "[2.0.2] - 2026-02-27", level: 2}
     - {slug: "added-51", text: "✅ Added", level: 3}
     - {slug: "changed-50", text: "🔧 Changed", level: 3}
     - {slug: "2-0-1-2026-02-26", text: "[2.0.1] - 2026-02-26", level: 2}
-    - {slug: "fixed-76", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-77", text: "🐛 Fixed", level: 3}
     - {slug: "changed-51", text: "🔧 Changed", level: 3}
     - {slug: "2-0-0-2026-02-22", text: "[2.0.0] - 2026-02-22", level: 2}
     - {slug: "changed-52", text: "🔧 Changed", level: 3}
-    - {slug: "fixed-77", text: "🐛 Fixed", level: 3}
-    - {slug: "2-0-0a5-2026-02-14", text: "[2.0.0a5] - 2026-02-14", level: 2}
     - {slug: "fixed-78", text: "🐛 Fixed", level: 3}
+    - {slug: "2-0-0a5-2026-02-14", text: "[2.0.0a5] - 2026-02-14", level: 2}
+    - {slug: "fixed-79", text: "🐛 Fixed", level: 3}
     - {slug: "maintenance-3", text: "🧹 Maintenance", level: 3}
     - {slug: "2-0-0a4-2026-02-13", text: "[2.0.0a4] - 2026-02-13", level: 2}
-    - {slug: "fixed-79", text: "🐛 Fixed", level: 3}
-    - {slug: "2-0-0a3-2026-02-11", text: "[2.0.0a3] - 2026-02-11", level: 2}
     - {slug: "fixed-80", text: "🐛 Fixed", level: 3}
-    - {slug: "2-0-0a2-2026-02-11", text: "[2.0.0a2] - 2026-02-11", level: 2}
+    - {slug: "2-0-0a3-2026-02-11", text: "[2.0.0a3] - 2026-02-11", level: 2}
     - {slug: "fixed-81", text: "🐛 Fixed", level: 3}
+    - {slug: "2-0-0a2-2026-02-11", text: "[2.0.0a2] - 2026-02-11", level: 2}
+    - {slug: "fixed-82", text: "🐛 Fixed", level: 3}
     - {slug: "0-13-26-2026-02-04", text: "[0.13.26] - 2026-02-04", level: 2}
     - {slug: "refactored", text: "🛠️ Refactored", level: 3}
-    - {slug: "fixed-82", text: "🐛 Fixed", level: 3}
-    - {slug: "0-13-25-2026-02-04", text: "[0.13.25] - 2026-02-04", level: 2}
     - {slug: "fixed-83", text: "🐛 Fixed", level: 3}
+    - {slug: "0-13-25-2026-02-04", text: "[0.13.25] - 2026-02-04", level: 2}
+    - {slug: "fixed-84", text: "🐛 Fixed", level: 3}
     - {slug: "0-13-24-2026-02-04", text: "[0.13.24] - 2026-02-04", level: 2}
     - {slug: "improved-3", text: "🔧 Improved", level: 3}
     - {slug: "0-13-20-2026-01-30", text: "[0.13.20] - 2026-01-30", level: 2}
-    - {slug: "fixed-84", text: "🐛 Fixed", level: 3}
-    - {slug: "0-13-7-2026-01-27", text: "[0.13.7] - 2026-01-27", level: 2}
     - {slug: "fixed-85", text: "🐛 Fixed", level: 3}
-    - {slug: "0-13-6-2026-01-27", text: "[0.13.6] - 2026-01-27", level: 2}
+    - {slug: "0-13-7-2026-01-27", text: "[0.13.7] - 2026-01-27", level: 2}
     - {slug: "fixed-86", text: "🐛 Fixed", level: 3}
+    - {slug: "0-13-6-2026-01-27", text: "[0.13.6] - 2026-01-27", level: 2}
+    - {slug: "fixed-87", text: "🐛 Fixed", level: 3}
     - {slug: "added-52", text: "Added", level: 3}
     - {slug: "changed-53", text: "Changed", level: 3}
     - {slug: "fixed-non-critical", text: "Fixed (Non-Critical)", level: 3}
     - {slug: "0-13-5-2026-01-26", text: "[0.13.5] - 2026-01-26", level: 2}
-    - {slug: "fixed-87", text: "🐛 Fixed", level: 3}
-    - {slug: "0-13-4-2026-01-26", text: "[0.13.4] - 2026-01-26", level: 2}
     - {slug: "fixed-88", text: "🐛 Fixed", level: 3}
-    - {slug: "0-13-2-2026-01-26", text: "[0.13.2] - 2026-01-26", level: 2}
+    - {slug: "0-13-4-2026-01-26", text: "[0.13.4] - 2026-01-26", level: 2}
     - {slug: "fixed-89", text: "🐛 Fixed", level: 3}
+    - {slug: "0-13-2-2026-01-26", text: "[0.13.2] - 2026-01-26", level: 2}
+    - {slug: "fixed-90", text: "🐛 Fixed", level: 3}
     - {slug: "documentation-6", text: "📚 Documentation", level: 3}
     - {slug: "0-13-1-2026-01-25", text: "[0.13.1] - 2026-01-25", level: 2}
     - {slug: "added-53", text: "✨ Added", level: 3}
     - {slug: "documentation-7", text: "📚 Documentation", level: 3}
     - {slug: "0-13-0-2026-01-25", text: "[0.13.0] - 2026-01-25", level: 2}
     - {slug: "added-54", text: "✨ Added", level: 3}
-    - {slug: "fixed-90", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-91", text: "🐛 Fixed", level: 3}
     - {slug: "closed", text: "🎉 Closed", level: 3}
     - {slug: "documentation-8", text: "📚 Documentation", level: 3}
     - {slug: "migration-notes-2", text: "Migration Notes", level: 3}
     - {slug: "0-12-1-2026-01-24", text: "[0.12.1] - 2026-01-24", level: 2}
-    - {slug: "fixed-91", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-92", text: "🐛 Fixed", level: 3}
     - {slug: "migration-notes-3", text: "Migration Notes", level: 3}
     - {slug: "0-12-0-2026-01-23", text: "[0.12.0] - 2026-01-23", level: 2}
     - {slug: "added-55", text: "✨ Added", level: 3}
     - {slug: "documentation-9", text: "📚 Documentation", level: 3}
-    - {slug: "fixed-92", text: "🐛 Fixed", level: 3}
-    - {slug: "0-11-1-2026-01-16", text: "[0.11.1] - 2026-01-16", level: 2}
     - {slug: "fixed-93", text: "🐛 Fixed", level: 3}
+    - {slug: "0-11-1-2026-01-16", text: "[0.11.1] - 2026-01-16", level: 2}
+    - {slug: "fixed-94", text: "🐛 Fixed", level: 3}
     - {slug: "added-56", text: "📚 Added", level: 3}
     - {slug: "0-11-0-2026-01-12", text: "[0.11.0] - 2026-01-12", level: 2}
     - {slug: "breaking-changes-workspace-model-changed-feature-010", text: "🚨 BREAKING CHANGES - Workspace Model Changed (Feature 010)", level: 3}
@@ -5862,45 +5863,45 @@ pages:
     - {slug: "documentation-feature-010", text: "📖 Documentation - Feature 010", level: 3}
     - {slug: "why-these-changes", text: "🎯 Why These Changes?", level: 3}
     - {slug: "0-10-13-2026-01-12", text: "[0.10.13] - 2026-01-12", level: 2}
-    - {slug: "fixed-94", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-95", text: "🐛 Fixed", level: 3}
     - {slug: "improved-4", text: "♻️ Improved", level: 3}
     - {slug: "migration-for-v0-10-12-users", text: "📋 Migration for v0.10.12 Users", level: 3}
     - {slug: "0-10-12-2026-01-12", text: "[0.10.12] - 2026-01-12", level: 2}
     - {slug: "security-important", text: "🔒 Security (IMPORTANT)", level: 3}
-    - {slug: "fixed-95", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-96", text: "🐛 Fixed", level: 3}
     - {slug: "refactored-2", text: "♻️ Refactored", level: 3}
     - {slug: "0-10-11-2026-01-07", text: "[0.10.11] - 2026-01-07", level: 2}
-    - {slug: "fixed-96", text: "🐛 Fixed", level: 3}
-    - {slug: "0-10-11-2026-01-07-2", text: "[0.10.11] - 2026-01-07", level: 2}
     - {slug: "fixed-97", text: "🐛 Fixed", level: 3}
+    - {slug: "0-10-11-2026-01-07-2", text: "[0.10.11] - 2026-01-07", level: 2}
+    - {slug: "fixed-98", text: "🐛 Fixed", level: 3}
     - {slug: "added-58", text: "✨ Added", level: 3}
     - {slug: "0-10-10-2026-01-06", text: "[0.10.10] - 2026-01-06", level: 2}
-    - {slug: "fixed-98", text: "🐛 Fixed", level: 3}
-    - {slug: "0-10-9-2026-01-06", text: "[0.10.9] - 2026-01-06", level: 2}
     - {slug: "fixed-99", text: "🐛 Fixed", level: 3}
+    - {slug: "0-10-9-2026-01-06", text: "[0.10.9] - 2026-01-06", level: 2}
+    - {slug: "fixed-100", text: "🐛 Fixed", level: 3}
     - {slug: "added-59", text: "✨ Added", level: 3}
     - {slug: "migration-upgrade-path", text: "📚 Migration & Upgrade Path", level: 3}
     - {slug: "breaking-changes-8", text: "🔒 Breaking Changes", level: 3}
     - {slug: "0-10-8-2025-12-30", text: "[0.10.8] - 2025-12-30", level: 2}
-    - {slug: "fixed-100", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-101", text: "🐛 Fixed", level: 3}
     - {slug: "changed-54", text: "🔧 Changed", level: 3}
     - {slug: "0-10-7-2025-12-30", text: "[0.10.7] - 2025-12-30", level: 2}
-    - {slug: "fixed-101", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-102", text: "🐛 Fixed", level: 3}
     - {slug: "closed-2", text: "🔄 Closed", level: 3}
     - {slug: "0-10-6-2025-12-18", text: "[0.10.6] - 2025-12-18", level: 2}
     - {slug: "added-60", text: "✨ Added", level: 3}
     - {slug: "changed-55", text: "🔧 Changed", level: 3}
-    - {slug: "fixed-102", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-103", text: "🐛 Fixed", level: 3}
     - {slug: "0-9-4-2025-12-17", text: "[0.9.4] - 2025-12-17", level: 2}
     - {slug: "documentation-validation", text: "📚 Documentation & Validation", level: 3}
     - {slug: "0-9-3-2025-12-17", text: "[0.9.3] - 2025-12-17", level: 2}
-    - {slug: "fixed-103", text: "🐛 Fixed", level: 3}
-    - {slug: "0-9-2-2025-12-17", text: "[0.9.2] - 2025-12-17", level: 2}
     - {slug: "fixed-104", text: "🐛 Fixed", level: 3}
+    - {slug: "0-9-2-2025-12-17", text: "[0.9.2] - 2025-12-17", level: 2}
+    - {slug: "fixed-105", text: "🐛 Fixed", level: 3}
     - {slug: "0-9-1-2025-12-17", text: "[0.9.1] - 2025-12-17", level: 2}
     - {slug: "bug-fixes-improvements", text: "🔧 Bug Fixes & Improvements", level: 3}
     - {slug: "added-61", text: "🆕 Added", level: 3}
-    - {slug: "fixed-105", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-106", text: "🐛 Fixed", level: 3}
     - {slug: "changed-56", text: "🔧 Changed", level: 3}
     - {slug: "migration", text: "🚀 Migration", level: 3}
     - {slug: "0-9-0-2025-12-17", text: "[0.9.0] - 2025-12-17", level: 2}
@@ -5911,12 +5912,12 @@ pages:
     - {slug: "documentation-10", text: "📚 Documentation", level: 3}
     - {slug: "testing", text: "🧪 Testing", level: 3}
     - {slug: "migration-guide", text: "🚀 Migration Guide", level: 3}
-    - {slug: "fixed-106", text: "🐛 Fixed", level: 3}
+    - {slug: "fixed-107", text: "🐛 Fixed", level: 3}
     - {slug: "related", text: "🔗 Related", level: 3}
     - {slug: "0-8-2-2025-12-17", text: "[0.8.2] - 2025-12-17", level: 2}
     - {slug: "added-63", text: "Added", level: 3}
     - {slug: "0-8-1-2025-12-17", text: "[0.8.1] - 2025-12-17", level: 2}
-    - {slug: "fixed-107", text: "Fixed", level: 3}
+    - {slug: "fixed-108", text: "Fixed", level: 3}
     - {slug: "0-8-0-2025-12-15", text: "[0.8.0] - 2025-12-15", level: 2}
     - {slug: "breaking-changes-10", text: "Breaking Changes", level: 3}
     - {slug: "added-64", text: "Added", level: 3}
@@ -5926,71 +5927,71 @@ pages:
     - {slug: "0-7-4-2025-12-14", text: "[0.7.4] - 2025-12-14", level: 2}
     - {slug: "added-65", text: "Added", level: 3}
     - {slug: "0-7-3-2025-12-14", text: "[0.7.3] - 2025-12-14", level: 2}
-    - {slug: "fixed-108", text: "Fixed", level: 3}
-    - {slug: "0-7-2-2025-12-14", text: "[0.7.2] - 2025-12-14", level: 2}
     - {slug: "fixed-109", text: "Fixed", level: 3}
-    - {slug: "0-7-1-2025-12-14-yanked", text: "[0.7.1] - 2025-12-14 [YANKED]", level: 2}
+    - {slug: "0-7-2-2025-12-14", text: "[0.7.2] - 2025-12-14", level: 2}
     - {slug: "fixed-110", text: "Fixed", level: 3}
+    - {slug: "0-7-1-2025-12-14-yanked", text: "[0.7.1] - 2025-12-14 [YANKED]", level: 2}
+    - {slug: "fixed-111", text: "Fixed", level: 3}
     - {slug: "0-7-0-2025-12-14", text: "[0.7.0] - 2025-12-14", level: 2}
     - {slug: "added-66", text: "Added", level: 3}
-    - {slug: "fixed-111", text: "Fixed", level: 3}
-    - {slug: "0-6-7-2025-12-13", text: "[0.6.7] - 2025-12-13", level: 2}
     - {slug: "fixed-112", text: "Fixed", level: 3}
-    - {slug: "0-6-6-2025-12-13", text: "[0.6.6] - 2025-12-13", level: 2}
+    - {slug: "0-6-7-2025-12-13", text: "[0.6.7] - 2025-12-13", level: 2}
     - {slug: "fixed-113", text: "Fixed", level: 3}
+    - {slug: "0-6-6-2025-12-13", text: "[0.6.6] - 2025-12-13", level: 2}
+    - {slug: "fixed-114", text: "Fixed", level: 3}
     - {slug: "changed-59", text: "Changed", level: 3}
     - {slug: "0-6-5-2025-12-13", text: "[0.6.5] - 2025-12-13", level: 2}
     - {slug: "added-67", text: "Added", level: 3}
-    - {slug: "fixed-114", text: "Fixed", level: 3}
-    - {slug: "0-6-4-2025-11-26", text: "[0.6.4] - 2025-11-26", level: 2}
     - {slug: "fixed-115", text: "Fixed", level: 3}
-    - {slug: "0-6-3-2025-11-25", text: "[0.6.3] - 2025-11-25", level: 2}
+    - {slug: "0-6-4-2025-11-26", text: "[0.6.4] - 2025-11-26", level: 2}
     - {slug: "fixed-116", text: "Fixed", level: 3}
-    - {slug: "0-6-2-2025-11-18", text: "[0.6.2] - 2025-11-18", level: 2}
+    - {slug: "0-6-3-2025-11-25", text: "[0.6.3] - 2025-11-25", level: 2}
     - {slug: "fixed-117", text: "Fixed", level: 3}
-    - {slug: "0-6-1-2025-11-18", text: "[0.6.1] - 2025-11-18", level: 2}
+    - {slug: "0-6-2-2025-11-18", text: "[0.6.2] - 2025-11-18", level: 2}
     - {slug: "fixed-118", text: "Fixed", level: 3}
-    - {slug: "0-6-0-2025-11-16", text: "[0.6.0] - 2025-11-16", level: 2}
+    - {slug: "0-6-1-2025-11-18", text: "[0.6.1] - 2025-11-18", level: 2}
     - {slug: "fixed-119", text: "Fixed", level: 3}
+    - {slug: "0-6-0-2025-11-16", text: "[0.6.0] - 2025-11-16", level: 2}
+    - {slug: "fixed-120", text: "Fixed", level: 3}
     - {slug: "changed-60", text: "Changed", level: 3}
     - {slug: "added-68", text: "Added", level: 3}
     - {slug: "0-5-3-2025-11-15", text: "[0.5.3] - 2025-11-15", level: 2}
-    - {slug: "fixed-120", text: "Fixed", level: 3}
+    - {slug: "fixed-121", text: "Fixed", level: 3}
     - {slug: "changed-61", text: "Changed", level: 3}
     - {slug: "added-69", text: "Added", level: 3}
     - {slug: "changed-62", text: "Changed", level: 3}
     - {slug: "removed-8", text: "Removed", level: 3}
     - {slug: "0-5-2-2025-11-14", text: "[0.5.2] - 2025-11-14", level: 2}
-    - {slug: "fixed-121", text: "Fixed", level: 3}
+    - {slug: "fixed-122", text: "Fixed", level: 3}
     - {slug: "changed-63", text: "Changed", level: 3}
     - {slug: "added-70", text: "Added", level: 3}
     - {slug: "0-5-1-2025-11-14", text: "[0.5.1] - 2025-11-14", level: 2}
     - {slug: "added-71", text: "Added", level: 3}
     - {slug: "changed-64", text: "Changed", level: 3}
-    - {slug: "fixed-122", text: "Fixed", level: 3}
+    - {slug: "fixed-123", text: "Fixed", level: 3}
     - {slug: "documentation-11", text: "Documentation", level: 3}
     - {slug: "testing-2", text: "Testing", level: 3}
     - {slug: "0-5-0-2025-11-13", text: "[0.5.0] - 2025-11-13", level: 2}
     - {slug: "added-72", text: "Added", level: 3}
     - {slug: "changed-65", text: "Changed", level: 3}
-    - {slug: "fixed-123", text: "Fixed", level: 3}
+    - {slug: "fixed-124", text: "Fixed", level: 3}
     - {slug: "documentation-12", text: "Documentation", level: 3}
     - {slug: "testing-3", text: "Testing", level: 3}
     - {slug: "0-4-13-2025-11-13", text: "[0.4.13] - 2025-11-13", level: 2}
-    - {slug: "fixed-124", text: "Fixed", level: 3}
+    - {slug: "fixed-125", text: "Fixed", level: 3}
     - {slug: "0-4-12-2025-11-13", text: "[0.4.12] - 2025-11-13", level: 2}
     - {slug: "added-73", text: "Added", level: 3}
     - {slug: "changed-66", text: "Changed", level: 3}
     - {slug: "0-4-11-2025-11-13", text: "[0.4.11] - 2025-11-13", level: 2}
-    - {slug: "fixed-125", text: "Fixed", level: 3}
+    - {slug: "fixed-126", text: "Fixed", level: 3}
     - {slug: "added-74", text: "Added", level: 3}
     - {slug: "changed-67", text: "Changed", level: 3}
     - {slug: "0-4-10-2025-11-13", text: "[0.4.10] - 2025-11-13", level: 2}
-    - {slug: "fixed-126", text: "Fixed", level: 3}
+    - {slug: "fixed-127", text: "Fixed", level: 3}
     - {slug: "0-4-9-2025-11-13", text: "[0.4.9] - 2025-11-13", level: 2}
     - {slug: "added-75", text: "Added", level: 3}
     - {slug: "changed-68", text: "Changed", level: 3}
-    - {slug: "fixed-127", text: "Fixed", level: 3}
+    - {slug: "fixed-128", text: "Fixed", level: 3}
     - {slug: "llm-context-improvements", text: "LLM Context Improvements", level: 3}
     - {slug: "testing-4", text: "Testing", level: 3}
     - {slug: "security", text: "Security", level: 3}
@@ -6007,19 +6008,19 @@ pages:
     - {slug: "0-4-8-2025-11-10", text: "[0.4.8] - 2025-11-10", level: 2}
     - {slug: "added-79", text: "Added", level: 3}
     - {slug: "changed-72", text: "Changed", level: 3}
-    - {slug: "fixed-128", text: "Fixed", level: 3}
+    - {slug: "fixed-129", text: "Fixed", level: 3}
     - {slug: "security-2", text: "Security", level: 3}
     - {slug: "removed-9", text: "Removed", level: 3}
     - {slug: "0-4-7-2025-11-07", text: "[0.4.7] - 2025-11-07", level: 2}
     - {slug: "added-80", text: "Added", level: 3}
     - {slug: "changed-73", text: "Changed", level: 3}
-    - {slug: "fixed-129", text: "Fixed", level: 3}
+    - {slug: "fixed-130", text: "Fixed", level: 3}
     - {slug: "0-4-5-2025-11-06", text: "[0.4.5] - 2025-11-06", level: 2}
     - {slug: "added-81", text: "Added", level: 3}
     - {slug: "changed-74", text: "Changed", level: 3}
     - {slug: "security-3", text: "Security", level: 3}
     - {slug: "0-4-6-2025-11-06", text: "[0.4.6] - 2025-11-06", level: 2}
-    - {slug: "fixed-130", text: "Fixed", level: 3}
+    - {slug: "fixed-131", text: "Fixed", level: 3}
     - {slug: "0-4-4-2025-11-06", text: "[0.4.4] - 2025-11-06", level: 2}
     - {slug: "security-4", text: "Security", level: 3}
     - {slug: "changed-75", text: "Changed", level: 3}
@@ -6033,7 +6034,7 @@ pages:
     - {slug: "0-3-0-2025-11-02", text: "[0.3.0] - 2025-11-02", level: 2}
     - {slug: "added-83", text: "Added", level: 3}
     - {slug: "changed-78", text: "Changed", level: 3}
-    - {slug: "fixed-131", text: "Fixed", level: 3}
+    - {slug: "fixed-132", text: "Fixed", level: 3}
     - {slug: "0-2-20-2025-11-02", text: "[0.2.20] - 2025-11-02", level: 2}
     - {slug: "added-84", text: "Added", level: 3}
     - {slug: "changed-79", text: "Changed", level: 3}
@@ -6050,10 +6051,10 @@ pages:
     - {slug: "0-2-0-2025-10-28", text: "[0.2.0] - 2025-10-28", level: 2}
     - {slug: "added-88", text: "Added", level: 3}
     - {slug: "changed-83", text: "Changed", level: 3}
-    - {slug: "fixed-132", text: "Fixed", level: 3}
+    - {slug: "fixed-133", text: "Fixed", level: 3}
     - {slug: "removed-10", text: "Removed", level: 3}
     - {slug: "0-1-3-2025-10-28", text: "[0.1.3] - 2025-10-28", level: 2}
-    - {slug: "fixed-133", text: "Fixed", level: 3}
+    - {slug: "fixed-134", text: "Fixed", level: 3}
     - {slug: "0-1-2-2025-10-28", text: "[0.1.2] - 2025-10-28", level: 2}
     - {slug: "changed-84", text: "Changed", level: 3}
     - {slug: "0-1-1-2025-10-07", text: "[0.1.1] - 2025-10-07", level: 2}
@@ -6789,10 +6790,25 @@ pages:
     anchors:
     - {slug: "files", text: "Files", level: 2}
     - {slug: "validation", text: "Validation", level: 2}
+  - path: "docs/convergence/charter-fetch.md"
+    title: "charter-fetch"
+    divio_type: "none"
+    abstract: "| sha | kind | disposition | evidence | one-line rationale | |---|---|---|---|---| | d56f24e11 | fix | applies | Current `src/charter/kind_vocabulary.py:240-252` documents a live residual: nested org styleguides load at runtime but are not resolved by charter activation, and says the correct fix is a single recursion authority. | The recursion-parity defect survives on this line even though parts of the kind vocabulary were later consolidated. | | 7062c6740 | feat | applies | Current `src/charter/_drg_helpers.py:136-145` states cascade reads root-level `*.graph.yaml` only and that edges authored only in `drg/fragment.yaml` are invisible; `src/specify_cli/doctrine/pack_validator.py:118-123` flags only `drg/*.graph.yaml`, not `fragment.yaml`. | Org `drg/fragment.yaml` edges still do not enter the charter cascade and the validator still misses the fragment-only shape. | | 3b87cc843 | fix | applies | Current `src/charter/synthesizer/project_drg.py:45-49` maps only `directive`, `tactic`, and `styleguide`; `src/charter/synthesizer/project_drg.py:172-177` skips every unsupported target kind, and `src/doctrine/drg/project_scan.py` is absent. | Project-tier `agent_profile` artifacts still are not emitted as cascade-reachable project DRG nodes. | | 4b03c48f2 | fix | applies | Current `_ActionDoctrineBundle` has no glossary-pack slot at `src/charter/action_doctrine_bundle.py:54-60`; `src/charter/context_renderers/delivery_table.py:113` maps `NodeKind.GLOSSARY_PACK` to `slot=None`; `src/charter/context.py:486-494` omits glossary packs from JSON delivery. | The loaded-doctrine delivery gap survives for glossary packs even though procedures/assets and several renderer seams have moved on. | | b8d66d95b | fix | applies | Current JSON delivery calls `build_disclosure_payload` with only directives, tactics, styleguides, toolguides, procedures, and assets at `src/charter/context.py:486-494`; there is no `glossary_pack_ids` carrier on `_ActionDoctrineBundle` at `src/charter/action_doctrine_bundle.py:54-60`. | Delivered glossary packs still cannot appear in `charter context --json` `references[]`. | | 7bc586dd3 | fix | applies | Current `build_charter_context_include` gates only `agent_profile` through `_build_activation_aware_doctrine_service` at `src/charter/context.py:353-367`; `_render_doctrine_artifact_include` has no `glossary_pack` renderer at `src/charter/context_renderers/template_include.py:228-265`. | `--include glossary-pack:<id>` still neither routes through the activation gate nor has a renderer. | | 5d70ff380 | fix | obsolete | Current `_build_activation_aware_doctrine_service` signature has no `agent_profile_overlay_dir` parameter at `src/charter/doctrine_service_builder.py:159-201`, and current raw `DoctrineService.__init__` accepts no such parameter at `src/doctrine/service.py:25-30`. | The monkeypatch seam this fixed no longer exists in the current builder/API shape. | | ee43f2d95 | feat | applies | Current `BOOTSTRAP_ACTIONS` remains a hard-coded four-token set at `src/charter/context.py:113`; non-bootstrap actions return compact before resolving action-node membership at `src/charter/context.py:253-261`, while action bundle resolution is only reached afterward at `src/charter/context.py:268-277`. | Action delivery is still gated by the four-token vocabulary, not by declared DRG `action:<type>/<action>` nodes. | | 25fdb08ca | fix | applies | Current `resolve_mission_type_context` still uses project-wide `_project_has_doctrine_overrides(repo_root)` at `src/charter/mission_type_profiles.py:633-656`; `src/charter/mission_type_profiles.py:1238` retains that helper instead of a per-type governance-profile probe. | Unknown mission-type tolerance is still project-wide rather than tied to a matching project/org `governance-profile.yaml`. | | 968ff863b | feat | applies | Current `FetchResult` has no `unchanged` or `etag` field at `src/specify_cli/doctrine/sources/protocol.py:30-50`; `HttpsBundleSource._headers()` sends only authorization at `src/specify_cli/doctrine/sources/https_source.py:150-157`; `fetch()` treats any status `>=400` as error and never handles `304` at `src/specify_cli/doctrine/sources/https_source.py:62-81`. | HTTPS doctrine fetches still cannot perform ETag conditional refresh or report an unchanged snapshot. | | fcb45d66e | fix | applies | Current HTTPS fetch sets `pack_version = self.ref or response.headers.get(\"ETag\")` at `src/specify_cli/doctrine/sources/https_source.py:139`, but there is no persisted `etag` manifest field in `src/specify_cli/doctrine/snapshot.py:191-197` and no stored-ETag forwarding before `source.fetch()` at `src/specify_cli/doctrine/snapshot.py:90-97`. | The conditional-refresh hardening is still absent because ETag state is not stored separately or replayed into the next request. | | 48e3c7fd4 | fix | hostile | Current `compute_pack_manifest_hash` is exported from `src/specify_cli/doctrine/pack_manifest.py:282-295`; `tests/architectural/test_no_dead_symbols.py:185-190` records the unified pack-manifest hash surface as a declared public API. | Porting the demotion would remove a public manifest-hash API the current line intentionally preserves. | | 77abd0557 | fix | superseded | Current `src/specify_cli/doctrine/pack_manifest.py:131-142` defines `compute_pack_manifest_hash`, `src/specify_cli/doctrine/pack_manifest.py:145-156` uses it, and `src/specify_cli/doctrine/pack_manifest.py:282-295` exports it. | The public manifest hash API already exists on this line. | | 0988e70ab | fix | applies | Current `resolve_org_expected_artifacts` looks for `org_root / mission_type / expected-artifacts.yaml` at `src/charter/org_expected_artifacts.py:51-57` and `src/charter/org_expected_artifacts.py:80-83`, not under `missions/<type>/`. | Org-tier expected-artifacts are still anchored at the wrong path for the current pack layout. |"
+    anchors: []
+  - path: "docs/convergence/doctrine-drg.md"
+    title: "doctrine-drg"
+    divio_type: "none"
+    abstract: "| sha | kind | disposition | evidence | one-line rationale | |---|---|---|---|---| | 358c081c4 | feat | applies | Current line has no `src/doctrine/agent_profiles/operating_procedures.py` and no `resolve_operating_procedure_entries` symbol (`rg` finds none); `src/doctrine/drg/migration/extractor.py:333` and `:469` still hand-pin `agent_profile:doctrine-daphne` and `agent_profile:researcher-robbie` procedure edges while `src/doctrine/agent_profiles/profile.py:161` still accepts `operating_procedures`. | The operating-procedures field is still not validated/data-driven into the DRG, so the old validate-and-derive fix targets a live defect. | | 41e8333fa | feat | applies | `src/charter/cascade.py:87-89` defines `REFERENCE_RELATIONS` as only `REQUIRES`, `SUGGESTS`, and `REFINES`; `src/charter/cascade.py:244-259` returns every artifact-kind reachable candidate without filtering through `CHARTER_ACTIVATABLE_KINDS`. | Mission-type cascade still cannot follow the `mission_type -> action -> scope/instantiates` hop and can still offer non-activatable artifact kinds. | | f28b6c94b | fix | applies | `src/doctrine/directives/models.py:30-37` keeps `DirectiveReference` to only `type` and `id`, so `reason` remains schema-forbidden; `src/doctrine/drg/migration/hand_authored_overlay.py:18-35` still documents extractor-regeneration overlay dependence; `src/doctrine/drg/migration/extractor.py:669` still describes directive references as `{type, id, when?}`. | Residual orphan wiring and reference rationale still cannot move losslessly from overlay edges into directive frontmatter. | | e2ccc391f | fix | applies | Current `src/doctrine/drg/migration/extractor.py:1066-1220` discovers mission types and emits `mission_type --requires--> action` edges, but has no `_GOVERNANCE_PROFILE_SCOPE_FIELDS` or `extract_governance_profile_scope_edges`; `src/charter/mission_type_profiles.py:971-1017` reads expected artifacts but not DRG projection of type-wide governance. | Type-wide `governance-profile.yaml` selections still do not project into the DRG, and the old projection/binding change remains the right shape. | | 1763bf2ae | fix | applies | `src/doctrine/missions/repository.py:362-383` catches `YAMLError` in `get_expected_artifacts` and returns `None`, the same return used when `_expected_artifacts_path` is absent at `:371-373`; there is no `MalformedManifestError` symbol in `src/`. | A present malformed `expected-artifacts.yaml` is still indistinguishable from an absent manifest. | | d8beee276 | fix | applies | Current extractor has no `assert_governance_scope_edges_resolve` symbol, and its graph-generation path lacks any check between mission-governance edge extraction and node minting; the current governance-profile fields are only resolved in charter readers such as `src/charter/mission_type_profiles.py:1197-1316`. | Built-in governance-profile selections still lack a DRG-generation fail-loud guard for unresolved targets. | | a03a39c7f | fix | applies | `src/doctrine/missions/mission_type_repository.py:209-253` defines `_inject_projected_fields` without a `pack_context` parameter and hardcodes `resolve_all_for_mission_type(..., pack_context=None)` at `:243-246`, while layered consumers pass real pack contexts elsewhere (`src/charter/mission_type_profiles.py:1068-1071`). | Org/project mission-type step projection still drops the caller's pack context at the repository injection seam. | | dc8a88218 | feat | applies | `src/charter/synthesizer/topic_resolver.py:36-47` hand-restates `_DRG_NODE_KINDS` and omits live `NodeKind` values from `src/doctrine/drg/models.py:43-76`, including `mission_step_contract`, `template`, `asset`, `glossary`, `glossary_pack`, `mission_type`, and `anti_pattern`. | DRG topic resolution still has a drift-prone, incomplete node-kind gate instead of deriving from `NodeKind`. | | 60e021ed4 | feat | applies | There is no `src/doctrine/drg/org_governance.py`; `src/doctrine/drg/org_pack_loader.py:495-520` loads `drg/fragment.yaml` plus augmentation projection only, and `rg` finds org-tier `governance-profile.yaml` handling only in charter/profile readers and tests, not in DRG org-pack projection. | Org-tier governance-profile selections still never become DRG `scope` edges, so unresolved org selections cannot fail through graph validation. | | 0d8b49d9a | fix | applies | `src/charter/action_doctrine_bundle.py:187` calls `load_validated_graph(repo_root, org_root=org_root, org_roots=org_roots)` without `org_fragments`; `src/specify_cli/mission_step_contracts/executor.py:344` and `:362` do the same, while `load_org_drg` exists and tests cover `drg/fragment.yaml` packs elsewhere. | The action-doctrine bundle and step-contract executor still drop org `drg/fragment.yaml` contributions at their DRG load seams. |"
+    anchors: []
   - path: "docs/convergence/interim-ci-producer.md"
     title: "interim-ci-producer"
     divio_type: "none"
     abstract: "The existing factory `.github/workflows/ci.yml` remains untouched and is not an upstream restore."
+    anchors: []
+  - path: "docs/convergence/landing.md"
+    title: "landing"
+    divio_type: "none"
+    abstract: "| sha | kind | disposition | evidence | one-line rationale | |---|---|---|---|---| | 9248683b5 | fix | obsolete | Current tree has no `src/specify_cli/cli/commands/sync.py`; 2.0 decision `HIC-EPHEMERAL-TEAM-STATUS-2026-08-25.md` deletes CLI-to-SaaS sync transport. | The tracker-egress doctor renderer lived only in the deleted sync command surface. | | 3bacb5b98 | fix | applies | Current `src/specify_cli/cli/commands/agent/status.py:239-326` exposes `--review-ref` and `--evidence-json`, but no `--review-result-json`; current `src/specify_cli/orchestrator_api/commands.py:1311-1342` keeps the review-result parser private to orchestrator. | Agent status emit still cannot carry the structured `ReviewResult` path that the status FSM requires for `in_review` exits. | | 9115e9184 | fix | applies | Current `src/specify_cli/orchestrator_api/commands.py:1271-1308` enforces the for_review commit gate, and calls it at `src/specify_cli/orchestrator_api/commands.py:1426-1427`; `src/specify_cli/cli/commands/agent/status.py:326-358` transitions without any `for_review` gate call. | The same ungated agent-status path still lets a lane WP reach `for_review` without the orchestrator's commit check. | | 625f8547c | fix | superseded | Current `src/specify_cli/migration/mission_state.py:673-681` calls `enforce_primary_write_ownership(Path.cwd(), resolved_repo_root)` inside `repair_repo` before selecting or writing mission dirs. | The repair entry point is already self-protecting against foreign-lane invocation. | | 53a731240 | fix | superseded | Current `src/specify_cli/dossier/manifest.py:104-154` defines `ManifestSchemaError`, and `ManifestRegistry.load_manifest` raises it on built-in and org schema failures at `src/specify_cli/dossier/manifest.py:304` and `src/specify_cli/dossier/manifest.py:340`; old sync consumers are deleted. | The live manifest boundary already uses a domain exception, and the sync misattribution consumer no longer exists. | | 9818657a6 | fix | obsolete | Current `src/specify_cli/cli/commands/_doctrine_collect.py` has no `_run_operating_procedures_check` or `collect_operating_procedure_entries` call, and `rg 'built_in_root\\(\\) / \"agent_profiles\"' src/specify_cli/cli/commands/_doctrine_collect.py` returns no matches. | The exact local built-in agent_profiles path composition this fixed is gone. | | a87fcdc84 | fix | superseded | Current `src/runtime/next/runtime_bridge.py:1666-1673` scopes the CLI guard pre-check with `mission_type == MISSION_TYPE_SOFTWARE_DEV`. | The fail-open non-software-dev guard routing is already prevented by the current mission-type check. | | 4c6eef424 | fix | obsolete | Current tree has no `src/specify_cli/sync/admission_negotiation.py`; 2.0 decisions replace the sync admission handshake with team admission plus live relay capability minting. | The cached sync admission handshake hook no longer exists on this line. | | b0edb11a3 | fix | obsolete | Current tree has no `kitty-specs/rc3-canonical-mission-type-reader-01M0GGWM/meta.json`. | The dogfood mission artifact that needed `status_phase` stamping is not present in the EXPERIMENTAL line. | | 22fa2123b | fix | applies | Current `src/specify_cli/cli/commands/agent/mission_setup_plan.py:387-388` still documents a supported legacy `mission` field, and the error at `src/specify_cli/cli/commands/agent/mission_setup_plan.py:416` still says `mission_type` or legacy field `mission`. | The operator-facing plan-template error still advertises the retired legacy `mission` field. | | 8ad6c8182 | fix | superseded | `rg 'SPEC_KITTY_CMD_OUTPUT_FILE=/tmp/x\\|/tmp/x' tests/review/test_baseline.py tests/architectural` returns no matches; the current guard is `tests/architectural/test_no_tmp_paths_in_tests.py:62`. | The shared `/tmp` literals are already absent from the live baseline tests. | | 1121b2385 | fix | superseded | Current `src/mission_runtime/__init__.py:73-78` imports `ReadDegradeStrategy`, `ReadDirDecision`, and `resolve_read_dir_or_degrade`, and exports them at `src/mission_runtime/__init__.py:95-119`; `rg 'from mission_runtime\\.read_dir_degrade' src/specify_cli src/runtime` returns no matches. | The read-dir degrade API is already available through the mission_runtime root for external consumers. | | e6e3b7357 | fix | obsolete | Current tree has no `kitty-specs/rc3-lane-allocation-single-seam-01M0GGX8/status.events.jsonl`. | The malformed dogfood status log with `WP1` through `WP5` annotation rows is not present in this line. | | c113d3746 | fix | applies | Current `src/specify_cli/runtime/agent_commands.py:315-318` and `src/specify_cli/runtime/agent_commands.py:335-338` still perform `chmod`, `write_text`, then `chmod` in place, with no symlink refusal and no atomic temp-then-replace writer. | Generated command writes still have the same non-atomic, symlink-following pattern after the old writer module was deleted. | | 3bce08000 | fix | applies | Current no-migrations JSON path folds worktree upgrade errors into `worktree_warnings` at `src/specify_cli/cli/commands/upgrade.py:842-845`, but `upgrade_failed` ignores them at `src/specify_cli/cli/commands/upgrade.py:885` and JSON `errors` is built only from mission activation and surface drift at `src/specify_cli/cli/commands/upgrade.py:891-893`. | A worktree-stamp failure can still be reported as warnings while `success` remains true and `errors` remains empty. | | d060cff9a | fix | superseded | Current `src/specify_cli/core/mission_creation.py:721-738` and `src/specify_cli/core/mission_creation.py:760-777` wrap `_commit_feature_file` and raise `RuntimeError(f\"meta.json commit failed: {exc}\")`; `tests/core/test_mission_create_checkout_restore.py:253-317` pins the message. | Meta.json commit failures already name the failed step and preserve the underlying git error. | | ed5321d04 | fix | obsolete | Current `src/specify_cli/mission_step_contracts/executor.py:20-32` imports DRG helpers through `charter.drg` and has no `load_org_pack` or `OrgPack*Error` imports; `src/charter/drg.py:102-105` already re-exports `load_org_pack` and `OrgPackMissingError`. | The direct executor import path from `doctrine.drg.org_pack_loader` is gone. | | d76aa3f5d | fix | superseded | Current up-to-date upgrade path calls `_print_dry_run_provisioning_notice(project_path, dry_run=dry_run, json_output=json_output)` at `src/specify_cli/cli/commands/upgrade.py:882-884`; the helper is defined at `src/specify_cli/cli/commands/upgrade.py:526-540`. | Up-to-date dry runs already preview missing `mission_type_activations` provisioning. |"
     anchors: []
   - path: "docs/development/agent-memory-migration-manifest.md"
     title: "Agent-Memory Migration Manifest"
@@ -9638,7 +9654,7 @@ pages:
     - {slug: "scope-of-work", text: "Scope of work", level: 3}
     - {slug: "src-specify-cli-cli-commands-sync-py-split-the-safe-wins-from-the-refactor", text: "`src/specify_cli/cli/commands/sync.py` — split the safe wins from the refactor", level: 2}
     - {slug: "tier-1-mechanical-wins-safe-now-1h-15-findings", text: "Tier 1 — mechanical wins, safe now (~1h, 15 findings)", level: 3}
-    - {slug: "tier-2-cognitive-complexity-ride-wave-4-3h-11x-s3776", text: "Tier 2 — cognitive complexity, ride Wave 4 (~3h, 11x S3776)", level: 3}
+    - {slug: "tier-2-cognitive-complexity-ride-wave-4-3h-10x-s3776", text: "Tier 2 — cognitive complexity, ride Wave 4 (~3h, 10x S3776)", level: 3}
     - {slug: "effort-summary", text: "Effort summary", level: 2}
   - path: "docs/plans/doctrine/3179-public-api-surface-scoping.md"
     title: "2026-08-10 — #3179 doctrine public API surface — scoping brief"
@@ -11258,7 +11274,7 @@ pages:
     - {slug: "2-evidence-the-real-surfaces-file-line", text: "2. Evidence — the real surfaces (file:line)", level: 2}
     - {slug: "2-1-gap-1-bootstrap-snapshot-no-re-sync", text: "2.1 Gap 1 — bootstrap snapshot, no re-sync", level: 3}
     - {slug: "2-2-gap-2-the-narrow-reconciliation-that-already-exists-the-extension-point", text: "2.2 Gap 2 — the narrow reconciliation that already exists (the extension point)", level: 3}
-    - {slug: "2-3-the-single-workspace-rebase-why-it-does-not-cover-gap-2", text: "2.3 The single-workspace rebase (why it does NOT cover Gap 2)", level: 3}
+    - {slug: "2-3-the-single-workspace-rebase-why-it-did-not-cover-gap-2", text: "2.3 The single-workspace rebase (why it did NOT cover Gap 2)", level: 3}
     - {slug: "2-4-symptom-b-diff-compliance-gate-blocks-on-the-mission-s-own-runtime-state", text: "2.4 Symptom B — diff-compliance gate blocks on the mission's own runtime state", level: 3}
     - {slug: "2-5-symptom-a-out-of-scope-composes-with-pr-2612", text: "2.5 Symptom A (out of scope — composes with PR#2612)", level: 3}
     - {slug: "3-proposed-solution-shape-component-by-component", text: "3. Proposed solution shape (component by component)", level: 2}
