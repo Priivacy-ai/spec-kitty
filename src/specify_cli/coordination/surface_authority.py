@@ -54,11 +54,15 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 #: The remedy offered when a primary/planning-kind commit is refused on a
-#: protected primary target with no coordination route (rule 3). Named once so the
-#: task-command helpers, ``spec-commit`` and ``commit_router`` all cite the SAME
-#: string (contract §2 rule 3; #2739). ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1``
-#: is the operator hatch that folds ``primary_protected`` to ``False`` at the caller
-#: boundary (rule 6), degrading rule 3 to rule 4.
+#: protected primary target with no coordination route (rule 3; contract §2 rule 3;
+#: #2739). The task-command refuse helpers (``tasks_shared``) cite this shared
+#: constant directly. ``commit_router`` and ``spec-commit`` currently emit their own
+#: semantically-aligned protected-primary guidance rather than this literal string;
+#: folding those two loci (and the ``implement`` refuse twin) onto this constant so a
+#: single remedy vocabulary is emitted everywhere is remaining scope under epic #2160.
+#: ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`` is the operator hatch that folds
+#: ``primary_protected`` to ``False`` at the caller boundary (rule 6), degrading rule
+#: 3 to rule 4.
 REMEDY_PROTECTED_PRIMARY: Final[str] = (
     "--start-branch <feature-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
 )
