@@ -293,9 +293,20 @@ def _classify_artifact_urns(
         # a non-empty closure so a minimal stub ``merged`` (some callers only
         # implement ``get_node``) is never asked for ``.edges`` when there is
         # nothing to gate.
+        # ``Relation.SCOPE`` is two-grain (accepted debt #3604/#3633,
+        # ``charter.offering.drg.models`` NodeKind.MISSION_TYPE docstring):
+        # ``source`` is EITHER an ``action:`` URN (this action's own scope)
+        # OR a ``mission_type:`` URN (type-wide governance, applying to
+        # every action of that mission type). Only an ``action:``-sourced
+        # edge means "a different ACTION claims this URN" -- the ownership
+        # question this gate exists to answer (see the docstring above). A
+        # ``mission_type:``-sourced owner must stay invisible to this map,
+        # or type-wide-scoped doctrine reached via the closure gets treated
+        # as foreign-owned and silently dropped, regardless of how many
+        # actions of that mission type it is meant to widen into.
         scope_owners: dict[str, set[str]] = {}
         for edge in merged.edges:
-            if edge.relation is Relation.SCOPE:
+            if edge.relation is Relation.SCOPE and edge.source.startswith("action:"):
                 scope_owners.setdefault(edge.target, set()).add(edge.source)
 
         def _owned_by_a_different_action(urn: str) -> bool:
