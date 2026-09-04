@@ -34,19 +34,19 @@ from mission_runtime import (
     routes_through_coordination,
 )
 
+# ``__all__`` names only what a runtime (``src/``) caller currently imports — the
+# repo's dead-symbol gate (FR-303, ``tests/architectural/test_no_dead_symbols.py``)
+# requires every exported name to have a src consumer. The module's fuller public
+# vocabulary (``SurfaceVerdict``/``NoOp``/``NonCommittable``/``Surface``, the
+# ``REMEDY_*`` constants, ``classify_noncommit_outcome``, ``exit_code_for``) stays
+# defined at module scope and is imported directly by the tests; it rejoins
+# ``__all__`` as the remaining commit-surface loci are wired onto this authority
+# (epic #2160).
 __all__ = [
-    "REMEDY_PROTECTED_PRIMARY",
-    "REMEDY_WRONG_SURFACE",
     "RouteToCoord",
     "Refuse",
-    "NoOp",
-    "NonCommittable",
-    "Surface",
-    "SurfaceVerdict",
     "coord_topology_reachable",
     "resolve_surface_authority",
-    "classify_noncommit_outcome",
-    "exit_code_for",
 ]
 
 # ---------------------------------------------------------------------------
