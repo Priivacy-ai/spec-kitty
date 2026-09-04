@@ -183,6 +183,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import docs as docs_module
     from . import doctor as doctor_module
     from . import doctrine as doctrine_module
+    from . import events as events_module
     from . import glossary as glossary_module
     from . import implement as implement_module
     from . import intake as intake_module
@@ -247,6 +248,7 @@ def register_commands(app: typer.Typer) -> None:
         hidden=True,
     )
     app.add_typer(docs_module.app, name="docs", help="Common Docs retrieval commands")
+    app.add_typer(events_module.app, name="events", help="Event log tailing commands")
     app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")
     app.command()(implement_module.implement)
     app.command()(intake_module.intake)

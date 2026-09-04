@@ -1,0 +1,190 @@
+"""``spec-kitty events tail`` -- the thin CLI shell for the events push/watch channel.
+
+Mission ``event-push-watch-channel-01M1K6W2``, WP04. Per the mission's corrected
+architecture (spec.md FR-011/NFR-001/NFR-002, plan.md's "Architectural Seam: Core
+vs. Shell" section): the CORE (``src/specify_cli/status/tail_reader.py``, shipped by
+WP01-03) owns the poll-then-sleep loop via an injectable ``sleep_fn``. This module is
+the OPPOSITE of a loop-owner -- it holds no ``while True`` and makes no direct
+``time.sleep`` call of its own anywhere. ``--once`` calls ``poll_once()`` directly,
+once, with no loop and no sleep at all. The streaming case is a plain ``for`` loop
+over ``tail_events()`` (optionally bounded via ``itertools.islice`` when
+``--max-events`` is given).
+
+C-001 scope lock: this module builds ONLY ``spec-kitty events tail --mission <slug>
+--json`` (Option 1 from issue #3841's Clarifications). No daemon, no socket/SSE
+endpoint, no network listener, no fleet aggregation.
+
+The shell does exactly four things, none of them novel domain logic (plan.md's CLI
+Surface section):
+
+1. FR-004's own-flag-combo usage check (``--from-invariant`` without ``--from-offset``).
+2. Resolve the mission slug via the existing ``resolve_mission_handle()`` (FR-009 --
+   zero new resolution code).
+3. If ``--from-offset`` is given, call ``validate_resume_cursor()`` and turn a
+   ``ResumeRefused`` into the FR-013 stderr envelope + non-zero exit.
+4. Drive the core -- ``--once`` calls ``poll_once()`` directly, once; otherwise it
+   iterates ``tail_events()``.
+
+Every error/usage/refusal signal (``usage_error``, ``mission_not_found``,
+``invalid_resume_offset``, ``resume_content_mismatch``) goes through ``_err_console``
+(STDERR), never ``_console`` -- modeled on ``agent_retrospect.py:593``/``:600``'s
+pattern: ``_err_console.print_json(json.dumps({"error": ..., "detail": ...}))`` +
+``raise typer.Exit(<n>)``, NOT ``typer.BadParameter``. No Tail envelope is ever
+printed to stderr.
+
+``--mission``, never ``--feature*`` (C-003, charter Terminology Canon).
+
+``__all__`` (C-007/C-002) does NOT apply here: this module lives under
+``src/specify_cli/cli/commands/``, not ``src/charter/``/``src/kernel/``.
+"""
+
+from __future__ import annotations
+
+import itertools
+import json
+
+import typer
+
+from specify_cli.cli.console import err_console as _err_console
+from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.core.paths import locate_project_root
+from specify_cli.status.lifecycle_events import mission_event_log_path
+from specify_cli.status.tail_reader import (
+    EMPTY_DIGEST,
+    ResumeRefused,
+    TailCursor,
+    poll_once,
+    tail_events,
+    validate_resume_cursor,
+)
+
+app = typer.Typer(help="Event log tailing commands")
+
+
+@app.command("tail")
+def tail_command(
+    mission: str = typer.Option(
+        ...,
+        "--mission",
+        help="Mission slug/handle whose status.events.jsonl to tail (no legacy feature-alias flag, C-003).",
+    ),
+    json_output: bool = typer.Option(  # noqa: ARG001 -- accepted-but-unused flag, matches decision.py's --json precedent
+        True,
+        "--json",
+        help=(
+            "JSON output. Currently the only supported mode (accepted for parity "
+            "with the issue's invocation and with `docs query --json`; no "
+            "human-readable mode exists, so this flag has no observable effect "
+            "either way)."
+        ),
+    ),
+    once: bool = typer.Option(
+        False,
+        "--once",
+        help="Poll exactly once and exit -- no generator, no sleep, ever.",
+    ),
+    max_events: int | None = typer.Option(
+        None,
+        "--max-events",
+        help="Stop the stream after emitting this many events/signals.",
+    ),
+    from_offset: int | None = typer.Option(
+        None,
+        "--from-offset",
+        help="Resume from this byte offset in status.events.jsonl (FR-004/FR-013).",
+    ),
+    from_invariant: str | None = typer.Option(
+        None,
+        "--from-invariant",
+        help=(
+            "Content invariant (SHA-256 hex digest) paired with --from-offset for "
+            "cross-restart content verification (FR-004/FR-013). Requires "
+            "--from-offset; supplying this alone is a usage error."
+        ),
+    ),
+) -> None:
+    """Tail a mission's event log (``status.events.jsonl``) as JSON lines on stdout.
+
+    Ordered dispatch (plan.md's CLI Surface section -- "exactly four things, none of
+    them novel domain logic"):
+
+    1. FR-004 usage check: ``--from-invariant`` without ``--from-offset``.
+    2. FR-009 mission resolve.
+    3. FR-013 resume validation (only when ``--from-offset`` is given).
+    4. Drive the core.
+    """
+    # ------------------------------------------------------------------
+    # 1. FR-004 usage check -- before ANY file/mission access.
+    # ------------------------------------------------------------------
+    if from_invariant is not None and from_offset is None:
+        _err_console.print_json(
+            json.dumps(
+                {
+                    "error": "usage_error",
+                    "detail": "--from-invariant requires --from-offset to anchor it",
+                }
+            )
+        )
+        raise typer.Exit(2)
+
+    # ------------------------------------------------------------------
+    # 2. FR-009 mission resolve -- zero new resolution code. On an
+    #    unresolvable slug resolve_mission_handle already emits the
+    #    JSON-mode {"error": "mission_not_found", "handle": ...} shape on
+    #    stderr and raises SystemExit(2); let that propagate as-is rather
+    #    than re-wrapping it.
+    # ------------------------------------------------------------------
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _err_console.print_json(
+            json.dumps(
+                {
+                    "error": "repo_root_not_found",
+                    "detail": (
+                        "Could not locate project root. Ensure you are inside a "
+                        "spec-kitty project (has .kittify/ or kitty-specs/)."
+                    ),
+                }
+            )
+        )
+        raise typer.Exit(1)
+
+    resolved = resolve_mission_handle(mission, repo_root, json_mode=True)
+    log_path = mission_event_log_path(resolved.feature_dir)
+
+    # ------------------------------------------------------------------
+    # 3. FR-013 resume validation -- only when --from-offset is supplied,
+    #    called exactly once, before any streaming begins. Zero Tail
+    #    envelopes are emitted for a refused invocation.
+    # ------------------------------------------------------------------
+    if from_offset is not None:
+        try:
+            cursor = validate_resume_cursor(log_path, from_offset, from_invariant)
+        except ResumeRefused as exc:
+            code = "resume_content_mismatch" if exc.reason == "content_mismatch" else "invalid_resume_offset"
+            _err_console.print_json(json.dumps({"error": code, "detail": str(exc)}))
+            raise typer.Exit(2) from exc
+    else:
+        cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
+
+    # ------------------------------------------------------------------
+    # 4. Drive the core. --once calls poll_once() directly, once -- no
+    #    generator, no sleep at all (this is why "exits 0 without
+    #    blocking", User Story 1 AC1, is trivially true). Otherwise iterate
+    #    tail_events() (the core's own bounded-generator, injectable
+    #    sleep_fn) in a plain `for` loop, optionally bounded by
+    #    itertools.islice when --max-events is given. Neither branch ever
+    #    opens log_path for writing (FR-010) -- both poll_once() and
+    #    tail_events() are pure readers.
+    # ------------------------------------------------------------------
+    if once:
+        result = poll_once(log_path, cursor)
+        for event in result.events:
+            print(json.dumps(event))
+        return
+
+    stream = tail_events(log_path, cursor)
+    if max_events is not None:
+        stream = itertools.islice(stream, max_events)
+    for event in stream:
+        print(json.dumps(event))
