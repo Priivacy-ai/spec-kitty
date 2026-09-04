@@ -37,9 +37,13 @@ write (``set_origin_ticket``) the real implementation performs after its SaaS
 call succeeds — so the reproduced symptom is the real symptom, not a stand-in.
 
 NOTE: mission-create trips the "inside a worktree" guard when the test
-process itself runs from a git worktree checkout — run this file from the
-PRIMARY repository checkout (not a ``.worktrees/...`` or landing worktree),
-pointing ``PYTHONPATH`` at the worktree under review if the fix lives there.
+process itself runs from a git worktree checkout (the CI lane checks the
+suite out into a per-SHA ``git worktree add --detach`` tree). Both calls
+below therefore pass ``allow_worktree_context=True`` — the bypass reserved
+for programmatic test callers (``tests/_factories`` defaults it on for the
+same reason; ``tests/architectural/test_no_production_worktree_guard_bypass.py``
+keeps it out of ``src/``). The guard under test here is the step-9.5
+post-bind meta.json commit, not the step-2 process-cwd worktree guard.
 """
 
 from __future__ import annotations
@@ -172,6 +176,7 @@ def test_pending_origin_bind_leaves_clean_tree_after_create(tmp_path: Path) -> N
                 tmp_path,
                 "pending-origin-guard",
                 topology=MissionTopology.SINGLE_BRANCH,
+                allow_worktree_context=True,
                 **_mission_summary("pending-origin-guard"),
             )
     finally:
@@ -231,6 +236,7 @@ def test_pending_origin_bind_failure_does_not_trigger_extra_commit(
                 tmp_path,
                 "pending-origin-guard-fail",
                 topology=MissionTopology.SINGLE_BRANCH,
+                allow_worktree_context=True,
                 **_mission_summary("pending-origin-guard-fail"),
             )
     finally:
