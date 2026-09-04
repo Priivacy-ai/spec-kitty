@@ -60,6 +60,7 @@ the agent's CLI capabilities:
 | Claude Code | `claude` | `claude -p "prompt" --output-format json` | Yes | 1 |
 | GitHub Codex | `codex` | `codex exec --sandbox danger-full-access -C <dir> -` (stdin) | Yes | 1 |
 | Google Gemini | `gemini` | `gemini -p "prompt" --yolo --output-format json` | Yes | 1 |
+| LLxprt Code | `llxprt` | `llxprt -p "prompt" --approval-mode=yolo` | Yes | 1 |
 | GitHub Copilot | `copilot` | `copilot -p "prompt" --yolo --silent` | Yes | 1 |
 | OpenCode | `opencode` | `opencode run "prompt" --format json` | Yes | 1 |
 | Qwen Code | `qwen` | `qwen -p "prompt" --yolo --output-format json` | Yes | 1 |
@@ -316,6 +317,9 @@ printf '%s' "$PROMPT_CONTENT" | codex exec --sandbox danger-full-access -C "$WOR
 # Google Gemini:
 gemini -p "$PROMPT_CONTENT" --yolo --output-format json -C "$WORKSPACE"
 
+# LLxprt Code (no -C flag; cd into the workspace first):
+(cd "$WORKSPACE" && llxprt -p "$PROMPT_CONTENT" --approval-mode=yolo)
+
 # OpenCode:
 opencode run "$PROMPT_CONTENT" --format json -C "$WORKSPACE"
 
@@ -442,6 +446,9 @@ claude -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --output-format json -C 
 
 # Example for gemini:
 gemini -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --yolo --output-format json -C "$WORKTREE"
+
+# Example for llxprt (no -C flag; cd into the worktree first):
+(cd "$WORKTREE" && llxprt -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --approval-mode=yolo)
 ```
 
 Capture the reviewer command exit status. If the configured/chosen reviewer

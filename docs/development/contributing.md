@@ -80,13 +80,14 @@ Supported contribution types are listed in the [emoji key](https://allcontributo
 
 ## Supported AI Agents
 
-Spec Kitty supports **12 AI coding agents**. When contributing features that affect slash commands, migrations, or templates, ensure changes apply to ALL agents:
+Spec Kitty supports **13 AI coding agents**. When contributing features that affect slash commands, migrations, or templates, ensure changes apply to ALL agents:
 
 - **Claude Code** (`.claude/commands/`)
 - **GitHub Copilot** (`.github/prompts/`)
 - **GitHub Codex** (`.codex/prompts/`)
 - **OpenCode** (`.opencode/command/`)
 - **Google Gemini** (`.gemini/commands/`)
+- **LLxprt Code** (`.llxprt/commands/`)
 - **Cursor** (`.cursor/commands/`)
 - **Windsurf** (`.windsurf/workflows/`)
 - **Qwen Code** (`.qwen/commands/`)

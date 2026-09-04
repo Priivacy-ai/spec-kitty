@@ -31,7 +31,7 @@ EXPECTED_REGISTRY_KEYS = frozenset({
     # Pattern A
     "claude",
     # Pattern B — "roo" removed (Roo Code shut down 2026-05-15, C-007)
-    "cursor", "windsurf", "copilot", "kiro", "gemini",
+    "cursor", "windsurf", "copilot", "kiro", "gemini", "llxprt",
     # Pattern C
     "codex", "opencode", "antigravity",
     # Pattern D
@@ -158,7 +158,7 @@ class TestAgentsMdWriterRemove:
 
 class TestRegistryCompleteness:
     def test_all_expected_keys_present(self) -> None:
-        """WRITER_REGISTRY must cover all 17 harness keys — no silent gaps."""
+        """WRITER_REGISTRY must cover all 18 harness keys — no silent gaps."""
         missing = EXPECTED_REGISTRY_KEYS - set(WRITER_REGISTRY.keys())
         assert not missing, f"Registry is missing keys: {sorted(missing)}"
 
