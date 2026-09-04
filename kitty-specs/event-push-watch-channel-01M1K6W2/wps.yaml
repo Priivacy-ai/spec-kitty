@@ -1,0 +1,170 @@
+work_packages:
+  - id: WP01
+    title: "Core tail reader primitives — TailCursor, poll_once(), tear tolerance, missing-file wait"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/status/tail_reader.py"
+      - "tests/status/test_tail_reader.py"
+    requirement_refs:
+      - FR-002
+      - FR-003
+      - FR-006
+      - FR-008
+      - NFR-003
+      - NFR-005
+      - C-002
+      - C-004
+      - C-005
+      - C-006
+      - C-007
+      - C-008
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+      - T008
+    prompt_file: "tasks/WP01-core-tail-reader-primitives.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP02
+    title: "Truncation detection — size check, hash check, FR-013 resume validation"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/status/tail_reader.py"
+      - "tests/status/test_tail_reader_truncation.py"
+    scope: codebase-wide
+    requirement_refs:
+      - FR-005
+      - FR-007
+      - FR-013
+      - NFR-003
+      - NFR-005
+      - C-008
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+      - T015
+    prompt_file: "tasks/WP02-truncation-detection.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP03
+    title: "Bounded generator core — tail_events()"
+    dependencies:
+      - WP01
+      - WP02
+    owned_files:
+      - "src/specify_cli/status/tail_reader.py"
+      - "tests/status/test_tail_reader.py"
+    scope: codebase-wide
+    requirement_refs:
+      - FR-011
+      - NFR-001
+      - NFR-002
+      - NFR-005
+      - C-008
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T016
+      - T017
+      - T018
+      - T019
+      - T020
+    prompt_file: "tasks/WP03-bounded-generator-core.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP04
+    title: "CLI shell — events tail command, registration, docs, glossary"
+    dependencies:
+      - WP01
+      - WP02
+      - WP03
+    owned_files:
+      - "src/specify_cli/cli/commands/events.py"
+      - "src/specify_cli/cli/commands/__init__.py"
+      - "tests/cli/test_events_tail.py"
+      - "docs/api/cli-commands.md"
+      - "docs/context/system-events.md"
+      - "src/specify_cli/.contextive/system-events.yml"
+    requirement_refs:
+      - FR-001
+      - FR-004
+      - FR-009
+      - FR-010
+      - FR-012
+      - NFR-003
+      - NFR-005
+      - C-001
+      - C-002
+      - C-003
+      - C-008
+      - C-009
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T021
+      - T022
+      - T023
+      - T024
+      - T025
+      - T026
+      - T027
+      - T028
+      - T029
+      - T030
+    prompt_file: "tasks/WP04-cli-shell-events-tail.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP05
+    title: "Concurrency proof — writer safety under a concurrent tail reader"
+    dependencies:
+      - WP01
+      - WP02
+      - WP03
+      - WP04
+    owned_files:
+      - "tests/status/test_events_tail_concurrency.py"
+    requirement_refs:
+      - NFR-004
+      - NFR-005
+      - C-008
+      - C-009
+      - C-010
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T031
+      - T032
+      - T033
+      - T034
+      - T035
+    prompt_file: "tasks/WP05-concurrency-proof.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: ""

@@ -1,0 +1,95 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: fresh
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: ANALYZE-FRESH-001
+    lens: cross-artifact-consistency
+    severity: 3
+    title: spec.md's NFR-001 still frames the CLI shell itself as the "infinite-poll" owner, contradicting the just-corrected FR-011/plan.md architecture
+    evidence:
+      - artifact: "spec.md:342 (NFR-001, unchanged by this fix round): \"The core reader MUST be implemented as a pure, finite generator/iterator (accepting a `max_events` cap or equivalent) separate from the infinite-poll CLI shell.\""
+      - artifact: "spec.md:334 (FR-011, as just corrected): \"...a pure, finite generator/iterator core whose own internal poll loop (repeated poll-then-sleep-if-nothing-new) is driven by an injectable `sleep_fn`... with the Typer CLI shell reduced to a plain `for`-loop consumer of that generator, holding no explicit `while True` and no direct `time.sleep` call of its own...\""
+      - artifact: "plan.md:21-27 (Summary, as just corrected): `tail_events()` \"owns the actual poll-then-sleep loop\"; the shell \"merely iterates `tail_events()` in a plain `for` loop, with no explicit `while True` and no direct `time.sleep` call of its own.\""
+    claim: >
+      The fix round reworded FR-011's title and body, and plan.md's Summary/Architectural-Seam
+      prose, to state that the poll-then-sleep mechanism now lives inside the core
+      (`tail_events()`), and the shell is a thin, bound-or-unbound *consumer* of that generator —
+      it owns no loop construct of its own. NFR-001 was left untouched and still describes the
+      architecture in the OLD shape: "the core reader... separate from the infinite-poll CLI
+      shell" — i.e. it still attributes the infinite-polling mechanism to the shell itself, the
+      exact narrative-vs-detailed-design mismatch this fix round was created to close for FR-011.
+      A reader of NFR-001 in isolation (a future WP05/reviewer/consumer of the canonical spec) gets
+      the pre-fix mental model back, even though FR-011 right below it now says the opposite. This
+      is the same defect class as the confirmed drift, just in an unchanged section the fix round
+      did not sweep.
+    remediation: >
+      Reword NFR-001's body to match FR-011's corrected framing, e.g.: "...separate from the thin
+      CLI shell, which merely consumes the core's generator via a plain `for` loop and owns no poll
+      mechanism of its own; whether the overall invocation polls indefinitely is determined by
+      whether the shell bounds that consumption (`--once`/`--max-events`), not by any loop construct
+      in the shell itself." Alternatively, drop the phrase "infinite-poll CLI shell" entirely and
+      state the requirement purely in terms of core testability (bounded input, no wall-clock
+      reliance), which is NFR-001's actual substantive requirement and does not depend on naming
+      which component owns the loop.
+
+  - id: ANALYZE-FRESH-002
+    lens: cross-artifact-consistency
+    severity: 2
+    title: Two plan-phase documents outside spec.md/plan.md/WP03 still assert the pre-fix "shell owns while True + time.sleep" architecture
+    evidence:
+      - artifact: "tracer-approach.md:20-22 (unchanged by this fix round): \"**Shell** — `src/specify_cli/cli/commands/events.py`. Owns the `while True`, `time.sleep`, flag parsing, `resolve_mission_handle()` reuse, and JSON rendering.\""
+      - artifact: "tracer-approach.md:29 (unchanged): \"...NFR-001 (\"no test needs to hang a `while True` loop...\")\""
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md:76-78 (unchanged by this fix round, Context section): \"The **shell** (WP04's `src/specify_cli/cli/commands/events.py`) is the thin, infinite `while True` + `time.sleep` polling wrapper that owns Typer flags, mission-slug resolution, and stdout/stderr JSON rendering.\""
+    claim: >
+      plan.md explicitly describes tracer-approach.md as seeded "so it survives independently of
+      the full plan prose" — i.e. it is meant to be a standalone, trustworthy record of the seam
+      decision for anyone who does not re-read the full plan. As written it still states the shell
+      "owns" `while True`/`time.sleep`, which is now false: the fix round moved that ownership to
+      `tail_events()` in the core. tasks/WP01-core-tail-reader-primitives.md's Context section
+      carries the identical stale claim, and matches word-for-word the stale module docstring
+      WP01's shipped code carries (confirmed present in
+      `.worktrees/event-push-watch-channel-01M1K6W2-lane-a/src/specify_cli/status/tail_reader.py:6-7`) —
+      that code docstring is being fixed by WP03's T017, but neither of these two plan-phase
+      documents was swept in the same fix round, so the mission's own tracer record and its WP01
+      historical prompt both continue to misstate the architecture the mission actually landed on.
+    remediation: >
+      Update tracer-approach.md's "Shell" bullet to read "Owns no loop of its own — merely iterates
+      `tail_events()` in a plain `for` loop" (matching plan.md's corrected Architectural Seam
+      section), and correct its NFR-001 paraphrase at line 29 the same way. For
+      tasks/WP01-core-tail-reader-primitives.md (an already-executed, approved WP prompt), add a
+      short dated addendum note near line 77 clarifying that this description was superseded by the
+      fix landed in WP03's T017, rather than silently leaving the historical prompt as the only
+      place in the mission's docs that still states the false claim without qualification.
+
+  - id: ANALYZE-FRESH-003
+    lens: work-package-internal-consistency
+    severity: 3
+    title: WP03's Definition of Done and Reviewer Guidance have no line item verifying the newly-added module-docstring correction was actually done
+    evidence:
+      - artifact: "tasks/WP03-bounded-generator-core.md:203-215 (T017, the fix-round addition): \"Also update the module docstring in the same file... correct that docstring sentence to state that the core... owns the actual poll loop... Do not leave the stale shell-owns-the-loop claim standing once this subtask's code makes it self-contradictory.\""
+      - artifact: "tasks/WP03-bounded-generator-core.md:318-339 (Definition of Done, unchanged by the fix round): no bullet mentions the module docstring at all — the six bullets cover T016 RED verification, GREEN, diff-coverage, sleep_fn discipline, commit trailers, and the terminology guard only."
+      - artifact: "tasks/WP03-bounded-generator-core.md:354-380 (Reviewer Guidance, unchanged by the fix round): six bullets covering sleep_fn/max_events discipline, monotonic-clock assertions, call-counting, T019(b)'s mandatory shape, the poll-interval doc comment, and \"no new test file\" — none instructs the reviewer to check the module docstring was corrected."
+    claim: >
+      The fix round added a substantial, explicitly-worded new obligation to T017 (correct the
+      stale module docstring so it no longer contradicts the shipped `tail_events()` code) but did
+      not add a corresponding checklist line to either the Definition of Done or the Reviewer
+      Guidance section. Nothing in CI or the test suite asserts on docstring text, so this
+      correction has no automated gate; the only enforcement mechanism was supposed to be human
+      diligence, and the fix round did not wire that diligence into the two checklists this WP
+      prompt provides specifically for that purpose. If a WP03 implementer or reviewer works
+      strictly off the DoD/Reviewer-Guidance checklists (as WP prompts elsewhere in this mission
+      explicitly instruct — e.g. WP04's own DoD table is treated as the binding completion
+      contract), the docstring fix — which is the literal deliverable this whole fix round exists
+      to land in code — could be silently skipped with no checklist catching the omission, and the
+      exact self-contradiction the adversarial squad just confirmed would resurface in shipped
+      code.
+    remediation: >
+      Add a Definition of Done bullet: "The module docstring at the top of tail_reader.py no longer
+      claims the shell owns the `while True`/`time.sleep` polling loop — it states that
+      `tail_events()` (in this module) owns the poll-then-sleep loop via `sleep_fn`, and that
+      `events.py` merely iterates it in a plain `for` loop." Add a matching Reviewer Guidance
+      bullet instructing the reviewer to diff the module docstring specifically and reject the WP
+      if the stale "shell is the thin, infinite while True + time.sleep polling wrapper" sentence
+      (or an equivalent restatement) is still present anywhere in the file.

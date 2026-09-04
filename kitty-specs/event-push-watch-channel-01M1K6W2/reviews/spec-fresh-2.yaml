@@ -1,0 +1,132 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-2
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: SPEC-FRESH2-001
+    lens: trace-based-observability / falsifiability
+    severity: 4
+    title: >-
+      "Content invariant" is still defined as "a hash of, or the raw bytes of" the
+      last-consumed line — an unresolved either/or that is now load-bearing for the new
+      --from-invariant CLI flag and envelope field, and the "raw bytes" branch is
+      falsified by the spec's own cited 610KB-line evidence
+    evidence:
+      - artifact: "spec.md § FR-005: \"a content invariant (a hash of, or the raw bytes of,\
+          \ the last-consumed line/boundary immediately preceding offset O)\""
+      - artifact: "spec.md § FR-004 (this round's new text): \"optionally paired with\
+          \ `--from-invariant <VALUE>`... emit, in each envelope, both its current offset\
+          \ AND the FR-005 content-invariant value for that offset\""
+      - artifact: "spec.md § Key Entities → Tail cursor: \"a content invariant — a hash of,\
+          \ or the raw bytes of, the last-consumed line/boundary at that offset\" (same\
+          \ unresolved either/or, repeated)"
+      - artifact: "spec.md § User Story 4 / Edge Cases (mid-line JSON tear): \"SK-131\
+          \ measured this directly: 33,389 of 4.5M concurrent stat samples caught a 610KB\
+          \ line mid-write\" — the spec's own evidence that a single event line can be\
+          \ ~610KB"
+    claim: >-
+      FR-005's "hash of, or the raw bytes of" phrasing was already present before this
+      round, but until now it was purely an internal poll-time comparison inside the
+      reader process — never serialized, never crossing a process boundary, so either
+      reading was survivable as an implementation detail. This round's FR-004 addition
+      changes that: the content invariant must now (a) be emitted as a field in every
+      pass-through Tail envelope on stdout, and (b) be re-supplied by the consumer as
+      the literal string value of a `--from-invariant <VALUE>` CLI argument on restart.
+      Under the "raw bytes" reading — which FR-005's own text offers as an equally valid
+      choice, with no criterion given for picking one over the other — an implementer
+      would be required to (1) embed up to ~610KB of raw event-line bytes in every single
+      streamed JSON envelope, defeating the "one JSON envelope per line" streaming design
+      the whole command is built around, and (2) ask an external consumer to pass that
+      same ~610KB blob back as a shell command-line argument on every restart, which is
+      impractical or outright unworkable under real argv/ARG_MAX and Windows command-line
+      length limits. The spec's own User Story 4 / Edge Cases evidence (610KB lines
+      measured in this exact codebase) directly falsifies "raw bytes" as a viable choice
+      for the mechanism FR-004 just added, yet FR-005's either/or phrasing — copied
+      verbatim into Key Entities → Tail cursor — still presents it as an open, equally
+      legitimate option. This is the same class of hand-waved "e.g."/"and/or" ambiguity
+      SPEC-VERIFY-001 flagged for `--from-offset` last round (refuted then only because
+      FR-002 closed the gap elsewhere) — but here nothing in the document closes it: the
+      Tail envelope entity explicitly defers only the "exact JSON schema" (field names/
+      structure) as an implementation-phase decision, not the underlying hash-vs-raw-bytes
+      choice, and no other FR or Key Entity narrows the choice down or bounds it by line
+      size.
+    remediation: >-
+      Commit to "a hash" (drop "or the raw bytes of") as the content invariant's
+      representation in FR-005, FR-004, and the Tail cursor entity, and state the general
+      contract the plan phase must fill in (fixed-width digest, e.g. content-hash of the
+      boundary bytes) so both the envelope field and the `--from-invariant <VALUE>` CLI
+      argument carry a small, fixed-size value regardless of event-line size. If "raw
+      bytes" is retained as an option, bound it explicitly (e.g. only for lines under some
+      size threshold, falling back to a hash above it) and reconcile that bound against the
+      610KB evidence already in this same document.
+
+  - id: SPEC-FRESH2-002
+    lens: falsifiability
+    severity: 3
+    title: >-
+      SC-002's reword closes the FR-005 poll-time coverage gap but still omits the new
+      FR-013 resume-time content-mismatch detection path (User Story 3 Acceptance
+      Scenario 4), leaving it measured only by the blanket NFR-003, not a dedicated
+      Success Criterion
+    evidence:
+      - artifact: "spec.md § SC-002: \"A rollback truncation — whether observed as a size\
+          \ shrink on the next poll, or as a truncate-then-regrow whose content invariant\
+          \ no longer matches (FR-005) — is detected...\" (both clauses describe live-\
+          \ process, poll-time detection only)"
+      - artifact: "spec.md § FR-013 / User Story 3 Acceptance Scenario 4 (new this round):\
+          \ resume-time detection of \"a rollback-then-regrow happened entirely while the\
+          \ consumer was offline\" — not observed on any poll, since the consumer process\
+          \ was not running"
+      - artifact: "spec.md § NFR-003: \"Every non-nominal condition covered by FR-005,\
+          \ FR-007, FR-008, FR-009, and FR-013 MUST produce an explicit signal\" — the only\
+          \ place FR-013 is tied to a measurable/testable obligation"
+    claim: >-
+      This round reworded SC-002 specifically to close SPEC-FRESH-003 (the FR-005(b)
+      poll-time truncate-then-regrow path), and it does that correctly. But the same
+      round also added an entirely new detection path — FR-013's resume-time content-
+      invariant check, exercised by User Story 3's new Acceptance Scenario 4 — which is
+      the more likely place for an undetected rollback to land (per SPEC-FRESH-001's own
+      reasoning: the consumer was offline and never saw a live FR-005 signal). SC-002's
+      reword does not mention this path at all; it still frames detection only in terms
+      of "the next poll" and FR-005. The only textual tie between FR-013 and a measurable
+      Success Criterion is NFR-003's blanket "every non-nominal condition ... MUST produce
+      an explicit signal," which is real but generic — it does not give FR-013's resume-
+      time path the same explicit, scenario-named measurable-outcome treatment SC-002
+      gives FR-005. A plan/tasks author deriving the mission's test-coverage checklist
+      primarily from the Success Criteria section (as SC-004's own wording implies is the
+      expected practice) could build a complete-looking SC-002 test suite that never
+      exercises Acceptance Scenario 4 at all.
+    remediation: >-
+      Either add a dedicated SC (e.g. SC-002b or fold into SC-002 a third clause) stating
+      that a rollback-then-regrow that completes entirely while the consumer is offline is
+      detected and fails closed on resume per FR-013/Acceptance Scenario 4, or explicitly
+      cross-reference Acceptance Scenario 4 inside SC-002's text so a plan/tasks author
+      reading Success Criteria alone does not miss it.
+
+  - id: SPEC-FRESH2-003
+    lens: falsifiability
+    severity: 2
+    title: >-
+      No stated behavior for `--from-invariant` supplied without `--from-offset`
+    evidence:
+      - artifact: "spec.md § FR-004: \"accept a resume point (`--from-offset <N>`,\
+          \ optionally paired with `--from-invariant <VALUE>`)\" — invariant is only ever\
+          \ described as paired with an offset, never as independently valid"
+      - artifact: "spec.md § FR-013 last sentence: \"When the consumer supplies\
+          \ `--from-offset` without a paired `--from-invariant`, only the structural checks\
+          \ apply\" — covers offset-without-invariant, but not the inverse"
+    claim: >-
+      FR-004 and FR-013 both specify what happens when `--from-offset` is supplied alone
+      vs. paired with `--from-invariant`, but neither specifies what the reader must do if
+      a consumer supplies `--from-invariant` alone (no `--from-offset`) — a plausible CLI
+      misuse case (e.g. a scripting error dropping one flag). Left unstated, an
+      implementer could pick any of: silently ignore the orphaned invariant, treat it as
+      "resume from offset 0 but somehow verify an invariant" (incoherent, since there is
+      no offset to anchor the invariant check to), or reject it as a CLI usage error — all
+      differ in observable behavior and none is mandated.
+    remediation: >-
+      Add one sentence to FR-004 or FR-013 requiring the CLI to reject
+      `--from-invariant` supplied without `--from-offset` as a usage error (structured
+      stderr, non-zero exit), consistent with FR-009's existing pattern for other
+      malformed-input rejections.

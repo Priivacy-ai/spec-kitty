@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: analyze
+results:
+  - id: ANALYZE-ARCH-001
+    status: resolved
+    reason: plan.md's subsection header now reads "How this avoids ever exercising an unbounded poll loop in tests" (no shell attribution), and spec.md's NFR-001 now says the core's internal poll-then-sleep loop is driven by an injectable sleep_fn while "the CLI shell holds no loop construct of its own," matching FR-011's corrected framing with no residual contradiction.
+  - id: ANALYZE-FRESH-001
+    status: resolved
+    reason: NFR-001 still contains the original substantive requirement verbatim — "Every test of the core MUST run against a bounded input and MUST terminate without relying on a wall-clock timeout to kill a runaway loop" — unweakened, only the surrounding architectural framing was reworded.
+  - id: ANALYZE-FRESH-002
+    status: resolved
+    reason: tracer-approach.md's Shell bullet now reads "Owns no loop construct of its own — it merely iterates tail_events() in a plain for loop" and its NFR-001 paraphrase was updated to the corrected wording; WP01's diff is addition-only (a dated addendum note pointing to WP03/T017 and plan.md), with zero deletions/rewrites of the original historical text confirmed via `git diff`.
+  - id: ANALYZE-FRESH-003
+    status: resolved
+    reason: WP03 gained a concrete Definition-of-Done bullet ("tail_reader.py's module docstring no longer claims the shell owns the while True/time.sleep polling loop...") and a matching Reviewer Guidance bullet ("Diff tail_reader.py's module docstring specifically... Reject the WP if the stale sentence... is still present"), both actionable and specific rather than vague.

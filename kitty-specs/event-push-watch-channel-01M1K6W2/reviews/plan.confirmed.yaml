@@ -1,0 +1,289 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: event-push-watch-channel-01M1K6W2
+source: reviews/plan.merged.yaml filtered by reviews/plan-refute-1.yaml (all refuted=0, confirmed=7)
+findings:
+- id: PLAN-GOV-001
+  origin: gov
+  lens: Scope-creep-vs-locality (mission-specific) / Directive (canonical-sources, RECONCILE_CHANGE_SCOPE_TENSIONS)
+  severity: 4
+  title: Glossary-registration-now decision is justified by a CI-gate claim that is false; the real gate
+    is agnostic to whether the entries are added at all
+  evidence:
+  - artifact: plan.md § Contracts ("Glossary candidates"), lines 421-433
+  - artifact: plan.md § Gate Set, line 457 ("the CLI-shell WP's glossary commit is what keeps it green")
+  - code: scripts/generate_contextive_glossaries.py:329-353 (cmd_check — diffs the CURRENTLY generated
+      .contextive/*.yml files against what generate() would produce from the CURRENTLY committed docs/context/*.md;
+      it has no notion of "new terms introduced by code" at all)
+  - code: .github/workflows/ci-quality.yml:851-872 (the Contextive step; the path-filter at 861-864 only
+      decides whether the check STEP RUNS, not what it checks)
+  claim: 'Plan.md''s Contracts section states registering "Tail cursor / resume token / log_truncated
+    / Tail envelope" in docs/context/system-events.md inside IC-04''s own final commit "is not optional
+    scope creep, it is what keeps that gate green," and the Gate Set table repeats this as the load-bearing
+    reason the Contextive check passes. This is a mischaracterization of the gate''s actual mechanics,
+    verified directly against scripts/generate_contextive_glossaries.py. cmd_check() only asserts that
+    the already-committed generated .contextive/*.yml files are byte-identical to what generate() would
+    produce from the already-committed docs/context/*.md source — it never compares against code (src/specify_cli/**)
+    at all. If IC-04 makes ZERO changes to docs/context/system-events.md (i.e. defers the glossary decision,
+    exactly as spec.md Clarifications §4 explicitly permits — "to be resolved at plan/implement time"),
+    the Contextive check is still perfectly green: nothing changed in docs/context, so nothing is stale.
+    The gate is true (the CHECK STEP runs, because src/specify_cli/** changed — that part of the citation
+    is accurate) but the causal claim built on it ("so this is not optional scope creep") is false: registering
+    the terms now does not keep the gate green, it is orthogonal to it. Worse, the plan''s own justification
+    is self-undermining: IF the WP does add entries to docs/context/system-events.md, cmd_check WILL then
+    fail unless the derived src/specify_cli/.contextive/*.yml (and any scope .contextive.yml) files are
+    also regenerated via `scripts/generate_contextive_glossaries.py generate` and committed in the same
+    commit — and plan.md never mentions this regeneration step anywhere (grep confirms zero occurrences
+    of "generate_contextive_glossaries.py generate" in plan.md). So the plan''s own stated mechanism for
+    "keeping the gate green" would, if followed literally as written, produce a gate FAILURE in WP04/IC-04
+    the moment the markdown entries are added and the generated YAML is not regenerated. Separately, this
+    is exactly the RECONCILE_CHANGE_SCOPE_TENSIONS-governed decision the charter names (.kittify/charter/charter.md:113-144):
+    step 1 (smallest-viable- diff) would not put docs/context/system-events.md in IC-04''s file set at
+    all (no test or gate requires it, unlike docs/api/cli-commands.md which genuinely is required by tests/architectural/test_docs_cli_reference_parity.py,
+    confirmed present and non-optional in .github/workflows/ci-quality.yml:1875-1899/1898); step 2 (Boy
+    Scout) explicitly forbids ADDING a file to that set; step 3 (Locality of Change) requires a rationale
+    for any extension beyond it. Plan.md invokes "Locality of Change"/"smallest-viable-diff" twice elsewhere
+    (lines 145, 407) but never once for this specific file-set-growing decision, and the one rationale
+    it does give (the false gate-necessity claim) is not a valid Locality-of-Change rationale once verified.
+    spec.md Clarifications §4 left both "whether" and "when" open ("to be resolved at plan/implement time,
+    not decided unilaterally by this document") — the plan is entitled to decide "register now," but must
+    do so on a rationale that survives verification, and must route the file-set growth through the charter''s
+    own reconciliation policy rather than an incorrect CI-mandate claim.
+
+    '
+  remediation: 'Rewrite plan.md''s Contracts/Gate-Set glossary rationale to drop the false "keeps the
+    gate green" framing. Either (a) defer the glossary registration decision explicitly to the implement
+    phase per spec.md Clarifications §4''s own license, keeping IC-04''s file set to the files an actual
+    gate requires (docs/api/cli-commands.md, per test_docs_cli_reference_parity.py); or (b) keep the "register
+    now" decision but re-justify it honestly through RECONCILE_CHANGE_SCOPE_TENSIONS (a Boy-Scout/Locality-of-Change
+    judgment call that new user-facing terms should be documented immediately, not a CI-mandated one),
+    and if so, add the missing step to IC-04''s task description: after editing docs/context/system-events.md,
+    run `scripts/generate_contextive_glossaries.py generate` and commit the resulting src/specify_cli/.contextive/*.yml
+    (and any scope .contextive.yml) diff in the same commit, or the Contextive check step will fail on
+    exactly the change the plan claims protects it.
+
+    '
+- id: PLAN-GOV-002
+  origin: gov+arch (merged, see dedup_note)
+  lens: Directive (canonical-sources / verify-before-cite); generated-artifacts
+  severity: 3
+  title: Cited code line for the stderr error-envelope precedent (agent_retrospect.py:415) does not match
+    the pattern described; the real precedent is at lines 593/600
+  evidence:
+  - artifact: plan.md § Tail Envelope & Cursor Schema, lines 366-368
+  - code: 'src/specify_cli/cli/commands/agent_retrospect.py:408-419 (line 415 region: `_console.print_json(...)`
+      — STDOUT, imported at agent_retrospect.py:21 as `from specify_cli.cli.console import console as
+      _console` — with a richer, unrelated schema: schema_version/command/status/outcome/error/handle/next_action)'
+  - code: src/specify_cli/cli/console.py:126-127 (`console = CliConsole()` is stdout; `err_console = CliConsole(stderr=True)`
+      is stderr — two distinct objects)
+  - code: 'src/specify_cli/cli/commands/agent_retrospect.py:593 and :600 (the actual `_err_console.print_json(json.dumps({"error":
+      <code>, "detail": <message>}))` shape the plan describes, on stderr, with the {error, detail} shape)'
+  claim: 'Plan.md cites "the existing agent_retrospect.py:415 pattern: err_console.print_json(json.dumps({"error":
+    <code>, "detail": <message>})) + raise typer.Exit(<n>)" as the model for FR-009/FR-004/FR-013''s stderr
+    error envelope. Verified against the current checkout: line 415 is inside the MissionNotFoundError
+    branch, which prints via `_console.print_json` (the STDOUT console, not `_err_console`) and uses a
+    different, richer JSON shape (schema_version/command/status/outcome/error/handle/next_action), not
+    the simple {"error":..., "detail":...} shape the plan quotes. The shape the plan actually describes
+    (err_console + {"error", "detail"}) does exist in the same file, but at lines 593 and 600 (the record_malformed
+    / io_error branches), not 415. A WP04 author who opens the file at the cited line to copy the pattern
+    will find the wrong console object and the wrong schema — and if copied verbatim would leak the FR-013/FR-004
+    usage-error and resume-refused signals onto stdout, contradicting the plan''s own Design Decision
+    #3 ("errors are stderr-only, never on the stdout Tail-envelope stream").
+
+    '
+  remediation: 'Correct the citation in plan.md''s Tail Envelope & Cursor Schema section to `agent_retrospect.py:593`
+    (or `:600`), and note that the same file''s mission_not_found branch (line ~408-419) uses a different,
+    richer stdout-JSON shape that should NOT be copied for this mission''s stderr envelope. No design
+    change needed — the plan''s prose description of the target pattern is otherwise correct, only the
+    citation is wrong.
+
+    '
+- id: PLAN-ARCH-001
+  origin: arch
+  lens: mission-specific (content-invariant algorithmic soundness / TOCTOU safety)
+  severity: 4
+  title: poll_once() never commits to a single held fd for stat + hash-check + drain, leaving an intra-call
+    TOCTOU race the plan's own test plan does not cover
+  evidence:
+  - artifact: 'plan.md § Architectural Seam: Core vs. Shell (FR-011 / NFR-001)'
+  - artifact: plan.md § Truncation Detection Design (FR-005, FR-007, FR-013)
+  - artifact: plan.md § Reopen-by-path composability (FR-003)
+  - code: src/specify_cli/status/store.py:358 (_append_serialized_atomic, full inode swap via os.replace
+      at :392)
+  - code: src/specify_cli/coordination/transaction.py:921 (_rollback), :938 (in-place fh.truncate on the
+      SAME inode via a fresh open(path,"ab"))
+  claim: 'The plan describes poll_once() as "ONE reopen-by-path → stat → dual-truncation-check → drain-available-complete-lines
+    → parse pass" and separately promises "poll_once() reopens the file by path, inside itself, on every
+    call". This closes the INTER-call race (a different poll_once() invocation always reopens), and the
+    one test it prescribes for this ("write a file, call poll_once, replace the file with a different
+    inode via os.replace, call poll_once again, assert the new inode''s content is observed") only exercises
+    that inter-call case. Nowhere does the plan commit to the narrower, load-bearing invariant that closes
+    the INTRA-call race: that the size check (os.fstat on the fd already opened at the top of this call),
+    the hash-check read, and the new-bytes drain read all read through that SAME already-open file descriptor,
+    never a fresh path.stat() or a second open() call partway through poll_once(). Without that explicit
+    commitment, a natural (even idiomatic) Python implementation — e.g. `size = path.stat().st_size` for
+    the cheap size check, followed by a separate `path.open("rb")` (or a second `os.stat`) for the hash-check
+    read — reintroduces exactly the race User Story 2 Scenario 3 exists to close: a writer''s rollback-truncate
+    (an in-place fh.truncate on the SAME inode, transaction.py:938) or a locked-writer os.replace inode
+    swap (store.py:392) landing BETWEEN the size stat and the hash-check read within the SAME poll_once()
+    call would let the size check observe one snapshot and the hash check observe a different, later one
+    — a race narrower than "one poll interval" that the plan''s own dual-check design does not structurally
+    rule out, because it never states which syscalls must share the same fd. This is precisely the defect
+    class DIRECTIVE_043 (Close Defect Classes by Construction) flags: a design that depends on an unstated
+    implementation discipline ("remember to use fstat, not stat-by-path") to be correct is structurally
+    incomplete. Because the crafted-file unit tests IC-01/IC-02 describe are sequential (write-then-call,
+    not concurrent), an implementation with this flaw could pass every test in the plan''s own Test Strategy
+    and only manifest under real concurrent production load (NFR-004''s actual, expected use case) — the
+    worst kind of gap to leave implicit.
+
+    '
+  remediation: 'Add one sentence to the Architectural Seam / Truncation Detection Design section making
+    the fd-sharing invariant explicit and testable: "poll_once() opens exactly one file descriptor per
+    call; the size check uses os.fstat(fd) on that descriptor (never Path.stat() or a second open()),
+    and the hash-check read and the new-bytes drain read both read through that same fd via seek()+read()
+    — no operation in a single poll_once() call re-resolves the path after the initial open." Add this
+    as an explicit IC-01 test requirement: a test that monkeypatches Path.stat (or pathlib''s stat) to
+    raise if called from within poll_once(), forcing the implementation to route every size query through
+    the already-open fd, so the invariant is enforced by a failing test rather than a discipline reminder.
+
+    '
+- id: PLAN-VERIFY-001
+  origin: verify
+  lens: Gates
+  severity: 4
+  title: Gate Set table omits the enforced diff-coverage job, which directly gates the new core module
+  evidence:
+  - artifact: plan.md § Gate Set (table, lines ~447-472)
+  - code: '.github/workflows/ci-quality.yml:3308 (job `diff-coverage`, header comment at :3305: "PR-only
+      diff coverage gate (90% on critical-path changed lines)")'
+  - code: .github/workflows/ci-quality.yml:3374 (`critical_paths` array entry `'src/specify_cli/status/*'`)
+  - code: '.github/workflows/ci-quality.yml:3358 (step "diff-coverage (critical-path, enforced)": `diff-cover
+      ... --fail-under=90 --include "${critical_paths[@]}"`)'
+  - code: .github/workflows/ci-quality.yml:4276-4331 (`quality-gate` job `needs:` list includes `diff-coverage`,
+      confirming it is part of the required aggregate check)
+  claim: 'The plan''s Gate Set table enumerates commitlint, markdownlint, Contextive, TID251, Bandit,
+    pip-audit, the `kernel-tests`/`mission-loader-coverage` per-package 90% floors, and SonarCloud (correctly
+    excluded, since `sonarcloud` only runs on `schedule`/`workflow_dispatch` per its own `if:` at line
+    ~3524, never `pull_request` — verified). It never mentions the separate `diff-coverage` job at all
+    (confirmed via grep: zero occurrences of "diff-coverage" or "diff coverage" in plan.md). This job
+    is a distinct, ENFORCED gate: it runs `diff-cover --fail-under=90` scoped to changed lines under a
+    `critical_paths` allowlist that explicitly includes `''src/specify_cli/status/*''` — the exact directory
+    this mission''s plan places its "actual novel domain work" (`tail_reader.py`, the module the plan
+    itself calls out as needing the highest rigour). The job consumes the `coverage-fast-status.xml` artifact
+    that `fast-tests-status` (`.github/workflows/ci-quality.yml:1321`, `--cov=src/specify_cli/status`)
+    uploads, so it will score this mission''s new lines. This is a real, applicable 90% line-coverage-on-the-diff
+    floor for `tail_reader.py` that is materially different from (and in addition to) the two per-package
+    floors the plan correctly rules out — and it is entirely unaddressed, so no WP author is told it exists
+    or that `tail_reader.py`''s new lines need ≥90% coverage on the diff specifically (as opposed to just
+    "the core is the highest-rigour tier").
+
+    '
+  remediation: 'Add a row to the Gate Set table for `diff-coverage` (job at `ci-quality.yml:3308`): Applies
+    — Yes, because `src/specify_cli/status/*` is a listed `critical_path` (`ci-quality.yml:3374`) and
+    this mission adds `src/specify_cli/status/tail_reader.py`; note that `src/specify_cli/cli/commands/events.py`
+    is NOT in the critical-path list, so only the advisory full-diff step (not the enforced 90% floor)
+    applies to the CLI shell. State explicitly that IC-01/IC-02/IC-03''s test coverage of `tail_reader.py`
+    must clear 90% of new/changed lines, not merely "be the highest-rigour tier."
+
+    '
+- id: PLAN-VERIFY-002
+  origin: verify
+  lens: mission-specific (IC-02 vs sibling-mission defect class)
+  severity: 4
+  title: IC-02's two named ATDD tests never exercise FR-007's literal claim — a plain clean-boundary truncation
+    with a still-parseable remainder, detected via the size check independent of parse outcome
+  evidence:
+  - artifact: plan.md § Implementation Concern Map — IC-02 (ATDD bullet, lines ~525-529)
+  - artifact: 'spec.md § Edge Cases — "Clean record-boundary truncation (shape b)" (lines 282-290): literal
+      definition is a simple truncation at a line boundary with a still-parseable remainder — no regrow
+      involved.'
+  - artifact: spec.md § User Story 2, Acceptance Scenario 1 (lines 169-173, the size-check-alone case)
+      vs. Acceptance Scenario 3 (lines 178-186, the truncate-then-regrow-within-one-poll race requiring
+      the hash check).
+  - artifact: 'spec.md FR-007 (line 330): "FR-005''s size-shrink check must fire even when the remaining
+      bytes parse cleanly" — this is a claim about the SIZE check, not the hash check.'
+  claim: 'IC-02''s ATDD section names exactly two tests: (1) the mid-line-tear test (already IC-01''s,
+    shape (a)), and (2) "shape-clean-truncation-detected-via-hash-even-when-size-regrows (User Story 2
+    AC3)". AC3 is specifically the truncate-then-regrow-within-one-poll-interval race, constructed so
+    that "the size check alone (current size < O) never observes a shrink" — i.e. by the time the reader
+    samples the file, `current_size >= O` and the size check is, by design, a no-op for that test. Neither
+    named test constructs the plain case Edge Cases literally calls shape (b) and FR-007 literally requires:
+    a file simply truncated at a line boundary (no regrow), where the remainder still parses as valid
+    JSON, detected via the SIZE check firing regardless of parse success. That plain case is precisely
+    the sibling mission''s rejected defect as the mission brief and spec.md''s Edge Cases section state
+    it ("a reader that only defends against shape (a) will read the shrunk file successfully and report
+    a confidently wrong (incomplete) result"). A plausible-but-lazy implementation that only runs its
+    truncation check as a fallback when `json.loads` raises (i.e. gates the size check behind a parse
+    failure, believing "if it parses, it''s fine") would: pass the tear test (parse fails, the fallback
+    path is exercised, nothing is emitted — correct behavior for shape a); pass the AC3 test (parse of
+    the regrown content likely succeeds, but the HASH check — a separate code path the lazy implementation
+    still has to implement to pass AC3 — catches the mismatch); and STILL fail to detect a plain shape-(b)
+    truncation with a parseable remainder, because that case never reaches the fallback (parsing succeeds)
+    and the hash check is unreached if the lazy implementation also gated it behind parse failure for
+    consistency. IC-02''s "Covers" line claims FR-007 is covered, but the two named ATDD tests do not
+    demonstrate that coverage.
+
+    '
+  remediation: 'Add a third, explicitly named failing-first test to IC-02''s ATDD bullet for User Story
+    2 Acceptance Scenario 1 / Edge Cases shape (b) literally: truncate a log at a line boundary (no regrow),
+    assert the remaining bytes DO parse as valid JSON (so the test fails if the fixture accidentally constructs
+    a mid-line tear instead), and assert `log_truncated` fires anyway — via the size check specifically,
+    independent of whether parsing of the remainder would have succeeded. This is the test that most directly
+    reproduces the sibling mission''s exact rejected scenario and should be named as such.
+
+    '
+- id: PLAN-VERIFY-003
+  origin: verify
+  lens: mission-specific (IC-02 vs sibling-mission defect class)
+  severity: 3
+  title: '"named separately" does not require separate top-level test functions, undermining fresh-eyes
+    distinguishability in CI output'
+  evidence:
+  - artifact: 'plan.md § Implementation Concern Map — IC-02 (ATDD bullet: "TWO independently failing-first
+      tests, named separately")'
+  claim: 'The mission brief''s stated lesson from the sibling mission''s rejection is that a reviewer
+    should be able to tell, from CI failure output alone, which truncation shape broke. "Named separately"
+    is satisfied by two distinctly-named `pytest.mark.parametrize` cases inside one test function, or
+    even by two `assert`-with-message statements inside one function body with descriptive local variable
+    names — neither of which gives CI failure output the same fresh-eyes distinguishability as two independent
+    top-level test functions (a single assert failure in a combined function also masks whether the OTHER
+    shape''s assertion would also have failed, since execution stops at the first failure). The plan does
+    not foreclose either weaker interpretation.
+
+    '
+  remediation: 'Change IC-02''s ATDD wording to explicitly require "two separate, independently-invokable
+    top-level pytest test functions (not two `parametrize` cases sharing one body, not two asserts in
+    one function)" so a WP author and reviewer both have an unambiguous bar, and so a CI failure names
+    the specific broken shape in the test node ID.
+
+    '
+- id: PLAN-VERIFY-004
+  origin: verify
+  lens: mission-specific (IC-02 vs sibling-mission defect class)
+  severity: 3
+  title: The AC3 test's "cannot pass by accident via the size check alone" guarantee rests on an un-enforced
+    fixture-construction detail
+  evidence:
+  - artifact: 'plan.md § Truncation Detection Design (lines ~256-260): states the regrow-to-size->=O requirement
+      in prose, describing the mechanism, not as an instruction to the WP author''s test.'
+  - artifact: 'plan.md § Implementation Concern Map — IC-02 (ATDD bullet): asserts the conclusion ("cannot
+      pass by accident via the size check alone") without restating the construction requirement or requiring
+      the test to self-verify it.'
+  claim: 'The guarantee that IC-02''s second test "cannot pass by accident via the size check alone" depends
+    entirely on the fixture regrowing the file to `current_size >= O` before the reader''s next poll samples
+    it (per User Story 2 AC3''s own wording). This precise byte-size relationship is stated as descriptive
+    prose in the Truncation Detection Design section, cross-referenced only by naming "(User Story 2 AC3)"
+    in the IC-02 bullet — it is not restated as a load-bearing MUST for the WP author, and the plan does
+    not require the test itself to assert the precondition (e.g. `assert regrown_size >= O` before calling
+    `poll_once`) so a reviewer can verify by reading the test alone, without re-deriving the byte-size
+    arithmetic, that the size check was genuinely inert for this test.
+
+    '
+  remediation: 'In IC-02''s ATDD bullet (or the test file itself), require the AC3-derived test to assert
+    its own precondition explicitly — e.g. `assert Path(log).stat().st_size >= O` immediately before the
+    `poll_once()`/`tail_events()` call under test — so the "cannot pass by accident" claim is self-evident
+    from the test body, not something a reviewer must reconstruct from a separate section of the plan.
+
+    '

@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: analyze
+results:
+  - id: ANALYZE-FRESH3-001
+    status: resolved
+    reason: >-
+      The Context section's root sentence now states the corrected architecture directly
+      ("shell... holds no loop construct of its own — it merely iterates tail_events()'s
+      poll-then-sleep loop... in a plain for loop"), matching FR-011/NFR-001/NFR-002's
+      injectable-sleep_fn/for-loop-shell phrasing; grep confirms no leftover
+      "while True"/"time.sleep"/"infinite"/"superseded"/"was wrong" text anywhere in the file,
+      the added one-line Note is non-contradictory, and the diff (hunk @@ -74,12 +74,16 @@) falls
+      entirely inside the Context section (lines 71-159) — frontmatter, owned_files, Subtasks,
+      Definition of Done, and Reviewer Guidance are untouched.
+  - id: ANALYZE-FRESH3-002
+    status: resolved
+    reason: >-
+      The broken "(see the dashboard precedent, C-006)" cross-reference (C-006 is actually about
+      ATDD, unrelated) was replaced with a verified inline citation — dashboard.js:1623 was read
+      directly and does contain "setInterval(fetchData, 1000);" polling fetchData (which fetches
+      /api/features), and grep of pyproject.toml and src/ confirms no watchdog/inotify precedent
+      exists anywhere in the checkout, so the new claim is accurate and evidence-backed rather than
+      invented.
