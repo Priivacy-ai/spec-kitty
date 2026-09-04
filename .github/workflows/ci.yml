@@ -39,7 +39,14 @@ jobs:
     # no Actions scope (docs/BLACKSMITH-CI.md) — and the checker only remaps
     # GITHUB_TOKEN -> GH_TOKEN when GITHUB_TOKEN is present in its environment.
     # The missing export made every PR-head run abort HTTP 403 "Resource not
-    # accessible by personal access token" -> terminal [ci] infra-error.
+    # accessible by personal access token" -> terminal [ci] infra-error. Proof
+    # run 33874130455 then showed the remap working (error became "Resource not
+    # accessible by integration") but the job token still denied: the Actions
+    # API requires an explicit actions: read grant — the default token set
+    # (contents/metadata) does not cover it.
+    permissions:
+      actions: read
+      contents: read
     env:
       GITHUB_TOKEN: ${{ github.token }}
     steps:
