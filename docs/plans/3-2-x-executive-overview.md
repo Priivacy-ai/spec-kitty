@@ -2,7 +2,7 @@
 title: '3.2.x Executive Overview'
 description: 'Executive/stakeholder synthesis of 3.2.x goals and progress since the 3.2.4 release — from a PO, C-suite, and customer point of view.'
 doc_status: active
-updated: '2026-09-03'
+updated: '2026-09-04'
 related:
 - docs/changelog/3.2.x.md
 - docs/plans/3-2-x-milestone-roadmap.md
@@ -25,6 +25,42 @@ the [open-core delivery plan](3-2-x-open-core-delivery-plan.md), and what actual
 shipped is the [changelog](../changelog/index.md). Status was verified by two read-only
 audits on 2026-07-30; the delivery plan carries the evidence and the unverified-item
 flags.*
+
+## Addendum 2026-09-04 — the milestone map moved; two decisions now sit with the PO
+
+*Read-only reconciliation against live GitHub milestone state on 2026-09-04. The
+[2026-09-03 update](#release-readiness--risk-candid) below correctly reported that 3.2.6's
+release-blocking book is now empty; this addendum re-anchors the **milestone taxonomy** the
+rest of this overview still speaks, per the roadmap's own
+[2026-09-04 re-anchor](3-2-x-milestone-roadmap.md#addendum-2026-09-04--milestone-taxonomy-re-anchor-the-delayed-action-r).*
+
+**What changed under the plans.** A release-queue reconciliation on **2026-08-23**
+reorganised our release milestones. The single "3.2.x milestone" this overview is written
+against was **repurposed into "Product backlog"** (validated work not committed to any
+release), and the "3.3.x" milestone everything was "deferred to" was **retired** — its work
+re-triaged to **4.0.0** (hosted collaboration + next-generation product) or Product backlog.
+We now run three discrete milestones: **3.2.6** (shipped-clean stabilization, code-complete),
+**3.2.7** (a tight near-term follow-up: doctrine-term renames, profile-load reliability,
+perf-CI, dedups), and **4.0.0** (the hosted product plus the deferred structural work).
+
+**The strategic read is unchanged, but two things a stakeholder should hear plainly:**
+
+1. **The structural "finish the strangler" work this cycle exists for is currently on no
+   committed release.** The G1/G2 spine (execution-context root, degod/unshim, seam-binding,
+   the pack-ecosystem extensibility kinds) sits in **Product backlog** — validated and
+   largely designed, but unscheduled. 3.2.7 is scoped to the stabilization tail; 4.0.0 to
+   hosted product. This is a scheduling gap, not a regression: the foundation held (see
+   the strategic-position section), but the remaining structural push is unowned by a release.
+2. **The one failing quality gate (21 security findings) rides on that same unscheduled
+   work.** Our SonarCloud security backlog maps almost 1:1 onto the deferred structural
+   slices, so the security debt and the structural remediation are stranded together — with
+   the exception of 3 path-traversal blockers that are a called-out ~90-min fix on their own.
+
+**Decisions for the PO** (in addition to the release-timing call already noted below):
+give the Product-backlog spine epics an explicit release home — close, pull into 3.2.7/4.0.0,
+or mark as accepted backlog structural debt — rather than leaving them implicitly
+"3.2.x-cycle work" while off every release. The 4.0.0 goals are now declared in
+[`docs/changelog/4.0.0.md`](../changelog/4.0.0.md).
 
 ## Bottom line
 
