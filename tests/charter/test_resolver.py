@@ -396,7 +396,14 @@ directives:
     result = resolve_project_governance(tmp_path, tool_registry={"git"})
 
     assert result.directives == ["DIRECTIVE_A", "DIRECTIVE_C"]
-    assert result.metadata["directives_source"] == "charter+project_local"
+    # WP03 (FR-012): _resolve_directive_base now ALWAYS consults the
+    # activated_*-derived base first (no config.yaml activated_directives key
+    # here -> catalog_fallback, which happens to already contain both A and
+    # C), then unions the charter selection onto it -- so the label reflects
+    # BOTH sources were consulted, not "charter" alone as it did when a
+    # non-empty selected_directives fully short-circuited the base lookup.
+    # The union RESULT (INV-3: DIRECTIVE_A never narrowed away) is unchanged.
+    assert result.metadata["directives_source"] == "catalog_fallback+charter+project_local"
     # Selected id is never narrowed away (INV-3).
     assert "DIRECTIVE_A" in result.directives
     assert any(
