@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 
 from specify_cli.status import tail_reader
+from specify_cli.status.store import StoreError
 from specify_cli.status.tail_reader import EMPTY_DIGEST, ResumeRefused, TailCursor, poll_once
 
 pytestmark = [pytest.mark.fast]
@@ -215,6 +216,27 @@ def test_interior_corrupt_line_raises_distinct_from_tear(tmp_path: Path) -> None
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
     with pytest.raises(json.JSONDecodeError):
+        poll_once(log_path, cursor)
+
+
+@pytest.mark.parametrize("bad_line", [b"[1, 2]", b"42", b'"x"', b"true", b"null"])
+def test_interior_non_object_line_raises_store_error(
+    tmp_path: Path, bad_line: bytes
+) -> None:
+    """A valid-JSON but non-object interior line is corruption, not a tear.
+
+    Landing-squad finding: ``poll_once`` parsed the line then wrote reader keys
+    (``parsed["tail_offset"] = ...``) with no ``isinstance(parsed, dict)`` guard,
+    so a scalar/array line raised an opaque ``TypeError`` instead of the canonical
+    corruption error. This pins the guard to ``store.read_events_raw()``'s contract
+    (``StoreError`` "expected JSON object", ``store.py:555``) — the single authority
+    for "what is a valid event line".
+    """
+    log_path = tmp_path / "status.events.jsonl"
+    log_path.write_bytes(b'{"event": "ok"}\n' + bad_line + b'\n{"event": "unreached"}\n')
+
+    cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
+    with pytest.raises(StoreError, match="expected JSON object"):
         poll_once(log_path, cursor)
 
 
