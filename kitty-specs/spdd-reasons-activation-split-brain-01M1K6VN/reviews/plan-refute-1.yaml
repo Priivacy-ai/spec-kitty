@@ -1,0 +1,129 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    severity: 3
+    reasoning: >-
+      Verified against the live files. tests/charter/test_action_bundle_delivery.py calls
+      `context._classify_artifact_urns(resolved.artifact_urns, graph, set())` (or `filtered`
+      for the graph arg) at exactly lines 88, 190, 330, and 348, each followed by an assertion
+      that the reachable directive/procedure IS delivered (e.g. line 88's test asserts
+      `result["directives"] == ("d1",)`; line 190's asserts `delivered.get("directives") ==
+      ("d1",)`). src/charter/activation/context_renderers/delivery_table.py:238's current guard
+      is `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in
+      project_directives` — bare truthiness, so a literal `set()` short-circuits the guard
+      (falsy) and nothing is excluded, matching these tests' current green assertions. Under
+      FR-006/FR-014's mandated fix (`project_directives is not None and artifact_id not in
+      project_directives`), the same literal `set()` becomes truthy-for-"is not None" and
+      excludes every directive, flipping all four assertions to fail. Plan.md's Source Code
+      file inventory (lines ~89-113) and WP2 phasing bullet (~487-489) list only
+      `action_doctrine_bundle.py` and `delivery_table.py` as edited files plus 3 unrelated
+      pinning files under FR-010's triage — `tests/charter/test_action_bundle_delivery.py`
+      is absent from both. This is a genuine plan-completeness gap that will produce four
+      newly-red tests mid-WP2, exactly as the finding describes. Severity 3 (moderate, WP2-scoped
+      rework) matches my own assessment — it is a real gap but self-contained to one file's
+      four call sites, not a wrong-implementation risk to the FR itself.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    severity: 4
+    reasoning: >-
+      Verified against plan.md directly. Section (a) item 1's 4th bullet states the rewrite
+      must "Apply the three-state per-kind semantics verbatim (absent key -> `None`/'all
+      built-ins'; `[]` -> explicit empty; non-empty -> explicit set)". Section (b) "What it
+      compares" then gives the parity oracle formula verbatim as `PARADIGM_ID in
+      (pack_context.activated_paradigms or set())`, `{TACTIC_FILL_ID, TACTIC_REVIEW_ID} &
+      (pack_context.activated_tactics or set())`, and an analogous `... or set()` form for
+      directives. Python's `x or set()` idiom collapses `None` to `set()` identically to an
+      explicit `[]`, so for the "key absent" fixture state the oracle asserts the selector is
+      NOT satisfied — directly contradicting section (a)'s "None = all built-ins" rule one
+      section earlier, and contradicting section (m) row 4's own restated principle for a
+      different file ("`None` (all built-ins) and `frozenset()` (explicit empty) must never be
+      conflated at the point of use"). This is a real, load-bearing self-contradiction: whichever
+      of section (a) or section (b) an implementer follows, the parity test and the intended
+      semantics disagree for the absent-key case. Severity 4 (high) is correct — this is the
+      mission's own designated regression oracle (FR-002/C-003, "mandatory, not optional") and
+      a literal implementation of section (b) silently locks in the wrong three-state behavior
+      as "verified by test."
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    severity: 4
+    reasoning: >-
+      Verified by reading src/charter/activation/compiler.py directly. `_resolve_config_activated_roots`
+      (compiler.py:153-181, matching the finding's cited range) computes `project_configured =
+      pack_context is not None and any(getattr(pack_context, field) is not None for field in
+      _CONFIG_ACTIVATION_FIELDS)` (the 7 `activated_<kind>` fields, lines 102-110) and its nested
+      `_stems` helper does `if value is None and project_configured: return frozenset()` —
+      i.e. once ANY of the 7 kinds is configured, an omitted OTHER kind's key resolves to
+      "nothing" rather than "all built-ins," per the FR-018/T038 comment at lines 161-170.
+      `compile_charter` (line 401-409) builds `pack_context = PackContext.from_config(repo_root)`
+      (the same raw three-state object spec.md's Decision Record 1 treats as the authority) and
+      immediately feeds it through `_resolve_config_activated_roots` before anything is
+      delivered — so `compile_charter`'s real per-kind delivery genuinely differs from
+      `PackContext.from_config`'s raw fields for a "partially configured" project, confirming
+      the finding's central technical claim. On the scoping question: spec.md's Decision Record
+      1 (~lines 117-123) explicitly cites this exact function and line range
+      ("`_resolve_config_activated_roots`, `compiler.py:153-240`") as "compile_charter's own
+      activated_*-authority resolution" and states FR-001's algorithm is meant to be "faithful
+      to the authority this spec's Summary actually cites" — but the only nuance it discusses
+      from that citation is the separate `activated_kinds` gate (consulted elsewhere, by
+      `_node_is_activated`), not the `project_configured`/FR-018 gate that lives inside the very
+      same cited lines. Neither spec.md nor plan.md ever mentions "project_configured" or
+      "FR-018" anywhere (grepped both files, zero hits), so this is not a deliberate,
+      evidence-based carve-out comparable to FR-004's absent-config-file carve-out — it is an
+      unaddressed gap in a citation the spec itself made. Confirmed this repo's own
+      `.kittify/charter/charter.yaml` has all 7 `activated_<kind>` keys present (grepped), so
+      the mission's own live reproduction and the planned parity fixture matrix (states x kinds
+      x pointer-shape, never a "one kind configured, sibling kind absent" fixture) would not
+      surface this divergence. This is a real, not distinction-without-a-difference, gap.
+      Severity 4 (high) matches my assessment: it produces a wrong implementation that
+      contradicts compile_charter's actual delivered behavior on a realistic project shape,
+      even though it is narrower than a guaranteed-to-fire production regression (hence not 5).
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    severity: 3
+    reasoning: >-
+      Verified against .github/workflows/ci-quality.yml directly. The "[ENFORCED] Run Bandit
+      security scan" step (id: bandit) does carry `continue-on-error: true`, but a later step
+      in the same `lint` job, "[ENFORCED] Fail job if security checks failed", explicitly reads
+      `steps.bandit.outcome` and `steps.pip_audit.outcome` and does `exit 1` if either is not
+      `"success"` — confirmed present verbatim, immediately after the lint-feedback-artifact
+      steps. `quality-gate`'s `needs:` list (starting ~line 4277) includes `lint`, and the gate's
+      decision step consumes `NEEDS_JSON: toJSON(needs)` (the full per-job result context) rather
+      than a hand-picked subset, so a failed `lint` job (caused by a Bandit finding) genuinely
+      propagates into the blocking decision. This is the opposite of "effectively informational"
+      — Bandit is a real, CI-enforced gate, unlike ruff/mypy which really are advisory (they only
+      populate a `has_failures` output feeding the non-blocking `lint-feedback` PR-comment job).
+      Plan.md's Gate table row for Bandit is verified false. Severity 3 matches my assessment:
+      it is a documentation/classification error in the plan, not a wrong-implementation risk —
+      the plan's substantive conclusion ("no src/ change here trips Bandit") may still be
+      correct, but it is asserted on a false premise that could mislead an implementer into
+      skipping a local Bandit run before push.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    severity: 4
+    reasoning: >-
+      Verified against the live code. Plan.md section (a) item 3 and its table row both commit
+      the delivery_table.py/action_doctrine_bundle.py change to "only ... the guard at line 238."
+      But src/charter/activation/context_renderers/delivery_table.py's `_classify_artifact_urns`
+      unconditionally does `start_urns = {f"directive:{directive_id}" for directive_id in
+      project_directives}` before the guard is ever reached (confirmed by reading the function
+      body) — this would raise `TypeError: 'NoneType' object is not iterable` if
+      `project_directives` is `None`. Separately, src/charter/activation/action_doctrine_bundle.py's
+      `_load_action_doctrine_bundle` currently builds `project_directives` as a plain set
+      comprehension over `doctrine_selection.selected_directives` (never `None` today), then
+      constructs `roots = (action_urn, *(f"directive:{d}" for d in project_directives), ...)`
+      (confirmed at the cited site) — also an unconditional iteration with no None-guard. FR-006
+      re-derives `project_directives` from `pack_context.activated_directives`, which IS a real
+      three-state value that can be `None` (absent key). Neither of these two sites is named in
+      plan.md's explicit, narrow "only line 238" scope commitment, and WP2's own FR-014 test only
+      exercises the explicit-empty (`frozenset()`) state, never the absent-key (`None`) state, so
+      nothing in WP2's own red-first suite would catch this crash. This is a distinct code-site
+      concern from PLAN-GOV-001 (which is about the line-238 guard's truthiness flip breaking
+      existing tests that pass a literal `set()`, not about `None` reaching an unguarded
+      iteration) — verified independently, not a duplicate. Severity 4 (high) matches my
+      assessment: an unhandled crash on a real, common project shape (unconfigured
+      `activated_directives`) is a wrong/broken implementation, not merely a documentation gap.

@@ -1,0 +1,37 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: confirmed
+complete: true
+note: >-
+  All 6 merged findings (analyze.merged.yaml) were confirmed in R3 (analyze-refute-1.yaml),
+  zero refuted. In addition, the original analysis-report.md findings A1 (severity high) and
+  A2 (severity low) are folded into this R4 fix round's scope alongside the 6 confirmed
+  review findings, since A2 and ANALYZE-VERIFY-001 address the same underlying gap
+  (NFR-004/C-004 ownership) and A1 is itself a confirmed, unrefuted defect this mission's own
+  analyze pass found.
+findings:
+- id: A1
+  severity: high
+  source: analysis-report.md (original analyze pass)
+- id: A2
+  severity: low
+  source: analysis-report.md (original analyze pass)
+- id: ANALYZE-COVER-001
+  severity: 4
+  source: R1 cover lens, confirmed R3
+- id: ANALYZE-VERIFY-001
+  severity: 3
+  source: R1 verify lens, confirmed R3
+- id: ANALYZE-COVER-002
+  severity: 3
+  source: R1 cover lens, confirmed R3
+- id: ANALYZE-GOV-001
+  severity: 2
+  source: R1 gov lens, confirmed R3
+- id: ANALYZE-COVER-003
+  severity: 2
+  source: R1 cover lens, confirmed R3
+- id: ANALYZE-COVER-004
+  severity: 2
+  source: R1 cover lens, confirmed R3
