@@ -383,7 +383,10 @@ class TestCreateWindowCommitBoundaryNFR001:
         from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
         from specify_cli.coordination import workspace as ws_module
         from mission_runtime import MissionArtifactKind
-        from specify_cli.coordination.commit_router import commit_for_mission
+        from specify_cli.coordination.commit_router import (
+            CoordWorktreeResolutionError,
+            commit_for_mission,
+        )
         from specify_cli.git.protection_policy import ProtectionPolicy
         from mission_runtime import CommitTarget
         from unittest.mock import patch
@@ -438,15 +441,26 @@ class TestCreateWindowCommitBoundaryNFR001:
             lambda _root, _slug: _MID8,
         ):
             # Phase 2: COMMIT boundary - materialisation MUST occur here.
+            #
+            # The spy records the CoordinationWorkspace.resolve call at the START of
+            # resolution, BEFORE the real resolve shells out to ``git worktree list``.
+            # This minimal fixture is not a real git repo, so that real resolve now
+            # fails loud (``CoordWorktreeResolutionError`` — WP04 #2533/#2300, refusing
+            # to silently misroute a coordination-kind write to primary) instead of
+            # being swallowed by the now-retired silent primary-fallback. The invariant
+            # this test proves — materialisation is ATTEMPTED at the commit boundary,
+            # not at read time — is unaffected: the spy fires regardless of whether the
+            # subsequent git resolution succeeds.
             policy = ProtectionPolicy.resolve(tmp_path)
-            commit_for_mission(
-                repo_root=tmp_path,
-                mission_slug=_BARE_SLUG,
-                files=(report_path,),
-                message="acceptance-matrix: first write",
-                policy=policy,
-                kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
-            )
+            with pytest.raises(CoordWorktreeResolutionError):
+                commit_for_mission(
+                    repo_root=tmp_path,
+                    mission_slug=_BARE_SLUG,
+                    files=(report_path,),
+                    message="acceptance-matrix: first write",
+                    policy=policy,
+                    kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+                )
 
         calls_after_commit = len(materialise_calls)
         assert calls_after_commit > 0, (
