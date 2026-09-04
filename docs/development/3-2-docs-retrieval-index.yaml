@@ -5445,9 +5445,9 @@ pages:
     - {slug: "goals", text: "Goals", level: 2}
     - {slug: "g1-hosted-collaboration-team-kitty", text: "G1 — Hosted collaboration (Team Kitty)", level: 3}
     - {slug: "g2-next-generation-product-capabilities", text: "G2 — Next-generation product capabilities", level: 3}
-    - {slug: "g3-finish-the-open-core-structural-strangler-proposed", text: "G3 — Finish the open-core structural strangler (proposed)", level: 3}
+    - {slug: "g3-finish-the-open-core-structural-strangler", text: "G3 — Finish the open-core structural strangler", level: 3}
     - {slug: "committed-scope-verified-milestone-4-0-0-2026-09-04", text: "Committed scope (verified milestone `4.0.0`, 2026-09-04)", level: 2}
-    - {slug: "candidate-scope-pending-a-release-milestone-decision", text: "Candidate scope pending a release-milestone decision", level: 2}
+    - {slug: "structural-strangler-spine-committed-to-4-0-0-2026-09-04", text: "Structural strangler spine — committed to 4.0.0 (2026-09-04)", level: 2}
     - {slug: "non-goals", text: "Non-goals", level: 2}
     - {slug: "success-criteria-placeholder-refine-when-the-cycle-activates", text: "Success criteria (placeholder — refine when the cycle activates)", level: 2}
     - {slug: "emergent-patches", text: "Emergent patches", level: 2}
@@ -9503,7 +9503,7 @@ pages:
     - {slug: "1-the-milestone-taxonomy-the-body-speaks-no-longer-exists", text: "1. The milestone taxonomy the body speaks no longer exists", level: 3}
     - {slug: "2-resolved-but-unstruck-items-in-this-doc-and-its-siblings", text: "2. Resolved-but-unstruck items in this doc and its siblings", level: 3}
     - {slug: "3-g1-g2-code-claims-are-unrefreshed-2026-07-30-vintage", text: "3. G1 / G2 code claims are unrefreshed 2026-07-30 vintage", level: 3}
-    - {slug: "4-disposition-note-spine-epics-now-on-no-release-milestone-operator-decision-needed", text: "4. Disposition note — spine epics now on no release milestone (operator decision needed)", level: 3}
+    - {slug: "4-disposition-spine-epics-committed-to-4-0-0-operator-decision-2026-09-04", text: "4. Disposition — spine epics committed to 4.0.0 (operator decision 2026-09-04)", level: 3}
     - {slug: "addendum-2026-09-03-3-2-6-release-dag-fully-discharged-3692-closed", text: "Addendum 2026-09-03 — 3.2.6 release DAG fully discharged (#3692 closed)", level: 2}
     - {slug: "addendum-2026-08-12-release-posture-refresh-ci-green-except-the-standing-sonar-backlog", text: "Addendum 2026-08-12 — release-posture refresh (CI green except the standing Sonar backlog)", level: 2}
     - {slug: "addendum-2026-07-30-verified-status-re-read-spine-re-anchoring", text: "Addendum 2026-07-30 — verified status re-read + spine re-anchoring", level: 2}

@@ -94,37 +94,35 @@ trio degod as `PARTIALLY QUEUED` (#2160 OPEN) while the 07-30 delivery claims it
 Two active documents disagree and neither carries a post-August read — the tie needs a
 single current code read before either claim drives a decision.
 
-### 4. Disposition note — spine epics now on no release milestone (operator decision needed)
+### 4. Disposition — spine epics committed to 4.0.0 (operator decision 2026-09-04)
 
-The G1/G2 strangler spine the cycle exists to finish now sits in **Product backlog**
-(validated, **not committed to any active release**) — it is neither 3.2.7 (renames/perf-CI)
-nor 4.0.0 (hosted product). Exit criterion 8's own anti-drift guard ("nothing rides into
-3.3.x silently") fired in a blind spot: the work rode into **Product backlog** silently
-instead. These need an **explicit release-milestone decision** (close / pull into 3.2.7 or
-4.0.0 / mark as backlog structural debt), not implicit "3.2.x cycle work" status:
+The G1/G2 strangler spine the cycle exists to finish is **committed to 4.0.0 by operator
+decision (2026-09-04)**. It had sat in **Product backlog** (validated, on no active release —
+exit criterion 8's anti-drift guard, "nothing rides into 3.3.x silently," fired in a blind
+spot as the work rode into Product backlog silently instead). The epics below now carry
+milestone 4.0.0 on the live tracker; full 4.0.0 scoping: [`docs/changelog/4.0.0.md`](../changelog/4.0.0.md):
 
-| Epic | Role | Live milestone |
+| Epic | Role | Milestone |
 |---|---|---|
-| **#1619** | mission-execution-context root (P0) | Product backlog |
-| **#1797** | degod / unshim delivery | Product backlog |
-| **#1868** | seam-binding enabler (WS4/WS6) | Product backlog |
-| **#1746** | Mission Clarity Layer (P1, first functional pickup) | Product backlog |
-| **#2160** | coord-artifact authority (P0, Wave 2 anchor) | Product backlog |
-| **#1676** | deterministic structured authoring (P0, off-spine) | Product backlog |
-| **#2466 / #2467 / #2468** | pack ecosystem + extensibility kinds (the declared G1 exit condition) | Product backlog |
-| **#2539** | pack trust / verified distribution | Product backlog |
-| **#3179 / #645** | stable public API surface | Product backlog |
+| **#1619** | mission-execution-context root (P0) | 4.0.0 |
+| **#1797** | degod / unshim delivery | 4.0.0 |
+| **#1868** | seam-binding enabler (WS4/WS6) | 4.0.0 |
+| **#1746** | Mission Clarity Layer (P1, first functional pickup) | 4.0.0 |
+| **#2160** | coord-artifact authority (P0, Wave 2 anchor) | 4.0.0 |
+| **#1676** | deterministic structured authoring (P0, off-spine) | 4.0.0 |
+| **#2466 / #2467 / #2468** | pack ecosystem + extensibility kinds (the declared G1 exit condition) | 4.0.0 |
+| **#2539** | pack trust / verified distribution | 4.0.0 |
+| **#3179 / #645** | stable public API surface | 4.0.0 |
 
-Already **moved to 4.0.0** by the reconciliation (no longer 3.2.x-cycle work): **#2173**
-(runtime ports) and **#2519** (charter authoring & lifecycle).
+Also on **4.0.0** from the reconciliation: **#2173** (runtime ports) and **#2519** (charter
+authoring & lifecycle).
 
 **Security-debt coupling:** the 21 SonarCloud vulnerabilities (the sole failing gate —
 17 `S6350` subprocess + 3 `S2083` path-traversal, all pre-dating any current rc) are
 mapped by the [08-12 addendum](#addendum-2026-08-12--release-posture-refresh-ci-green-except-the-standing-sonar-backlog)
-onto the **QUEUED Wave 2/Wave 4 degod slices** — precisely the Product-backlog spine epics
-above. So the security red and the structural remediation are **stranded on the same
-unscheduled work**. The 3 `S2083` blockers remain a called-out ~90-min targeted fix
-independent of any wave.
+onto the Wave 2/Wave 4 degod slices — precisely the spine epics above — so the security
+backlog rides with the structural remediation, now both scheduled in 4.0.0. The 3 `S2083`
+blockers remain a called-out ~90-min targeted fix that can land independent of any wave.
 
 > **Doc-tooling note:** this re-anchor adds a new page, [`docs/changelog/4.0.0.md`](../changelog/4.0.0.md).
 > The docs retrieval index and page inventory will need regenerating so it is discoverable.
