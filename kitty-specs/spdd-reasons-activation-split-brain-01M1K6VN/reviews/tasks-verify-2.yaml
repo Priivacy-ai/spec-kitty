@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+round: 2
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      T009 step 1's corrected snippet (directives_arg = pack_context.activated_directives if
+      pack_context is not None else None; catalog default whenever directives_arg is None) collapses
+      pack_context is None and pack_context-present-with-activated_*=None to the identical catalog-default
+      branch for all three of project_directives/selected_tactics/selected_paradigms (prose explicitly
+      extends the same shape to tactics/paradigms, not just directives), while frozenset() still lands
+      distinctly in the non-None/empty-set branch, preserving the three-state contract; tracing this
+      through _load_action_doctrine_bundle (project_directives/selected_tactics/selected_paradigms feed
+      only _classify_artifact_urns and roots, unaffected by pack_context's separate, WP02-untouched
+      filter_graph_by_activation no-op gate) confirms test_context_bundle_none_path_matches_no_filter_at_all
+      would pass under the corrected design, and its 3 siblings (reference_resolver/compiler
+      closure/cross-kind-refs) are in files WP02 never touches so they are unaffected either way; the test
+      file is now named explicitly in both the Context section (new paragraph) and Risks section, and T010
+      step 2 adds a named re-run of all four *_none_path_matches_no_filter_at_all tests as an explicit gate
+      distinct from the generic baseline diff; a full sweep of the rest of WP02 (Context prose lines
+      118-152, T006-T008, T010, Risks, Reviewer Guidance) found every remaining "pack_context is None"
+      mention now consistently states the unified catalog-default rule with no residual "degrade-gracefully
+      to empty sets" branch, and no new inconsistency was introduced elsewhere in the file.

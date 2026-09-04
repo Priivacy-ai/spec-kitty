@@ -1,0 +1,54 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      resolver.py's resolve_project_governance/_resolve_directive_base reads the identical
+      governance.charter.selected_* section, fully overrides activated_directives when
+      selected_directives is non-empty (line ~723-726) and sources selected_paradigms with
+      zero activated_* fallback (line ~847), and its GovernanceResolution output is
+      verifiably consumed by four real, activation-adjacent surfaces (prompt_builder.py's
+      legacy governance fallback, context_json.py's all_directives/directives_source JSON
+      payload, compact.py's summary, doctor.py's check) that the spec never names or scopes
+      as Non-Goals despite Decision Record 2's own methodology applying cleanly to it.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      docs/context/charter.md is verified doc_status active/updated 2026-08-28 and its
+      Global Selection and Charter-Mediated Selection entries (quoted verbatim, confirmed)
+      define selected_<kind> as itself the activation mechanism with no mention of
+      activated_<kind> anywhere in the file, directly contradicting the spec's premise
+      sourced only from the compiler docstring, and FR-009's doc-update scope (confirmed)
+      names only two contracts/*.md files, not this canonical glossary page, despite
+      AGENTS.md's own quoted "flag the drift instead of picking silently" rule.
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: >-
+      Grep of the full spec confirms NFR-002 lists seven src modules but the FR table
+      commits only activation.py and action_doctrine_bundle.py to an actual edit;
+      compiler.py, bootstrap_text.py, org_pack_discovery.py, sync.py, and
+      template_renderer.py are referenced only as context, read-for-analysis, or
+      call-sites-to-verify, never as edit targets in any FR.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      activation.py's cache is confirmed keyed on the hardcoded charter.yaml path and its
+      mtime alone, while PackContext.from_config performs no caching at all and always
+      re-reads; FR-001's rewrite algorithm and the Edge Cases section (both read in full)
+      never address cache-key composition under the new two-file INV-2 resolution, and
+      FR-002's parity test as described is a single-shot fixture comparison that would not
+      exercise a same-process mutate-between-calls scenario.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      delivery_table.py line 238's guard is confirmed a plain Python truthiness check on
+      project_directives, while pack_context.py confirms activated_directives is genuinely
+      three-state (None, empty frozenset, or a populated frozenset); FR-006 only says derive
+      project_directives from pack_context.activated_directives without addressing this
+      collapse, the spec's one empty-activated-set Edge Case covers a different mechanism
+      (the org-required union step, not this exclusion filter), and neither FR-007 nor
+      FR-008's named scenarios exercise an explicit empty-activated-directives case.

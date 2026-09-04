@@ -1,0 +1,158 @@
+{
+  "event_count": 30,
+  "last_event_id": "01M1M6SZVEE04G3EX7SN3B4G9N",
+  "materialized_at": "2026-09-03T17:59:28.878363+00:00",
+  "mission_number": "",
+  "mission_slug": "spdd-reasons-activation-split-brain-01M1K6VN",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 5,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1KYYWR9DJD7111T3CX0SMV5",
+      "last_transition_at": "2026-09-03T15:42:20.937060+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review regression gate (300s budget, scope tests/charter+tests/doctrine+3x specify_cli suites) timed out twice under concurrent sibling-mission CPU contention (9+ pytest processes observed, load avg 7.8) without producing a real pass/fail signal -- not a gate FAILURE, a gate TIMEOUT. Skipping it here because its own purpose is already independently satisfied: I manually ran the WP file's actual required scope (pytest tests/charter/ tests/architectural/test_charter_offering_does_not_import_activation.py tests/architectural/test_no_dead_symbols.py) to completion in isolation (own --basetemp to dodge #3283's shared tmp-dir eviction) -- 2563 passed, 10 failed, 25 skipped, all 10 failures individually classified (9 within-mission intentionally-flipped bucket-3 pinning tests that are WP04's explicit fixture-triage responsibility per spec.md FR-010, incl. 1 newly-flagged sibling test not in FR-010's own enumeration; 1 unrelated worktree-execution-context artifact reproduced in isolation, MissionCreationError: cannot create missions from inside a worktree). Also independently verified: parity suite + both architectural gates together (70 passed), ruff clean, mypy clean, --collect-only marker confirmation (37 tests). Full detail in tracer-tooling-friction.md items 4-5 and the WP01 final report. T001-T005 all marked done (see status.events.jsonl). Commits: fd9ece966 (red-first test), 71741700a (implementation)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "independent review: RED reproduced by pre-fix body swap (25 failed/12 passed), C-004 layering gate 7/7, dead-symbols 26/26, zero truthiness-collapse, FR-004/FR-005 exercised live, worktree clean after revert-and-restore",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 3173858,
+      "shell_pid_created_at": "1788443978.55",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1M5FKSH4ZY2HAZMWA7GBTF0",
+      "last_transition_at": "2026-09-03T17:36:20.273713+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate times out under shared contention (same structural budget/scope mismatch as WP01/WP04, ~650-750s actual vs 300s fixed budget). Independently verified twice: implementer's own clean run (1 failed [SK-162], 2544 passed, 25 skipped) and a fresh independent reviewer's own separately-run clean baseline, both post-ruling-2, both matching. Reviewer verdict: APPROVED."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "3 constructed adversarial checks passed (bogus id in neither catalog nor graph excluded; in-graph-but-out-of-scope id still excluded by ruling-1 ownership gate; active graph confirmed activation-filtered in code, not unbounded); all 4 ruling-2 acceptance signals independently re-verified byte-identical/passing against true mission base 4b6b9c6b3; red-first fixture reverted and restored by reviewer directly; full baseline 1 failed [SK-162]/2544 passed/25 skipped; SK-161 boundary confirmed untouched; one severity-2 process finding (wp02.ruling-2.md not yet committed at review time, now committed) non-blocking",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 3988420,
+      "shell_pid_created_at": "1788452223.1",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1M0V82TH63RQDA7ZHE552XX",
+      "last_transition_at": "2026-09-03T16:15:18.618249+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "11/11 checks verified live; red-first proven by swap-in against pre-fix resolver.py (FR-012/FR-013/step-6 stem-form all failed pre-fix, agreement case already green); priority inversion and paradigm-base union confirmed (dict.fromkeys, base preserved); stem-form normalization load-bearing in both branches; zero scope creep; 5/5 consumers verified structural; dead-symbols 26/26, ruff+TID251 clean; scoped baseline 1 failed/2539 passed/25 skipped (sole failure = SK-162 worktree artifact); one severity-1 non-blocking citation nit",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 3036090,
+      "shell_pid_created_at": "1788443040.54",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1M3J8Q1EGBKX73KYBNECPET",
+      "last_transition_at": "2026-09-03T17:02:50.081769+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate times out under shared contention (documented friction, same as WP01/#3283-class); scoped verification already performed manually and independently: tests/charter/ + tests/architectural/test_charter_offering_does_not_import_activation.py + tests/architectural/test_no_dead_symbols.py -> 1 failed (SK-162 worktree artifact), 2572 passed, 25 skipped in 634.41s, clean post-outage run"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "4 items RED-before/GREEN-after independently re-run across 3+ construction mechanisms (simple governance null-out, directives-yaml, PackContext-object-based, raise-case); item 9 re-pin rationale verified against parity suite; item 10 rewrite confirmed present; no over-fix on 5 spot-checked items; marker discipline clean; scoped baseline 1 failed/2572 passed/25 skipped (sole failure = SK-162 worktree artifact); one severity-1 cosmetic nit (comment mischaracterizes item 9 RED mechanism as assertion-fail vs actual ImportError, non-blocking)",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 3846082,
+      "shell_pid_created_at": "1788451018.78",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M1M6SZVEE04G3EX7SN3B4G9N",
+      "last_transition_at": "2026-09-03T17:59:28.878363+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "all 4 glossary entries verified true against live landed code (activation.py INV-2 read, resolver.py union-not-replace, action_doctrine_bundle.py pack_context.activated_* + ruling-2 graph-union); new mission-dossier file verified accurate (failure-modes table line-by-line, performance section, implementation-seam citation exact match at bootstrap_text.py:332-333, unaffected-section claim verified); NFR-002 re-run independently: git diff fc4acaa897 HEAD on frozen contracts/ empty, test_archive_root_byte_identical.py 2 passed; SK-146 exemption confirmed via live _is_confined_planning_wp check; cross-references intact; markdown hygiene clean (pre-existing MD060 pattern unrelated to this diff); zero findings severity>=2",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 342443,
+      "shell_pid_created_at": "1788457477.15",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done"
+      }
+    }
+  }
+}

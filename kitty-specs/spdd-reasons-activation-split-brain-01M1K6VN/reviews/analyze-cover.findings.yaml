@@ -1,0 +1,156 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: cover
+complete: true
+findings:
+- id: ANALYZE-COVER-001
+  severity: 4
+  category: coverage
+  summary: >-
+    WP04 (tasks/WP04-triage-pinning-tests.md) misses a 10th pinning test that will break, not
+    merely fail to be red-first, once WP01 lands: `TestCharterContextActive::test_performance_under_2s_active`
+    (tests/charter/test_charter_context_spdd_reasons.py:323-344). It calls `_write_governance`
+    (which, verified live at tests/charter/test_charter_context_spdd_reasons.py:43-64, writes
+    ONLY `.kittify/charter/charter.yaml`'s `governance:` section and never touches
+    `.kittify/config.yaml`) with `selected_paradigms: [structured-prompt-driven-development]`,
+    then asserts `is_spdd_reasons_active(tmp_path) is True` inside a loop over all 5 actions.
+    Under WP01's FR-004 pin (absent `.kittify/config.yaml` -> `False`), this fixture has no
+    `.kittify/config.yaml` at all, so the assertion will fail after WP01's rewrite lands -- a
+    genuine, currently-uncaught regression. WP04's own Context section
+    (tasks/WP04-triage-pinning-tests.md, "Bucket 1 -- kept" paragraph) explicitly claims
+    `TestCharterContextActive` gates "via direct construction (not charter.yaml fixtures)" and
+    needs "no fixture change expected" -- verified false for this one method by direct read of
+    the live test file; every sibling method in the same class (test_active_output_contains_action_subsection
+    etc.) genuinely does use direct construction and never calls `is_spdd_reasons_active`, so the
+    blanket Bucket-1 claim is accurate for 6 of 7 methods in the class and wrong for this 7th one.
+    This test is not among FR-010's named 8 bucket-3 methods, not WP04's own found 9th
+    (`test_malformed_governance_raises`), and not raised anywhere in spec.md/plan.md/tasks.md or
+    analysis-report.md's Investigation (a)/(b)/(e). Verified via `grep -c
+    test_performance_under_2s_active` across spec.md/plan.md/tasks.md/all tasks/WP0*.md/analysis-report.md:
+    zero hits everywhere except the live test file itself.
+  evidence: >-
+    tasks/WP04-triage-pinning-tests.md, "Bucket 1 -- kept" paragraph (the false "direct
+    construction, no fixture change" claim) and its enumerated bucket-3 list (items 1-9, this
+    method absent from all of them); tests/charter/test_charter_context_spdd_reasons.py:323-344
+    (the test itself); tests/charter/test_charter_context_spdd_reasons.py:43-64 (`_write_governance`'s
+    real body, confirming it never writes `.kittify/config.yaml`); spec.md FR-004 (the absent-config
+    pin this test's fixture will hit).
+  remediation: >-
+    Add this method as bucket-3 item 10 to WP04 (T014's steps, or a new T014.x): rewrite its
+    fixture to also write `.kittify/config.yaml`'s `activated_paradigms:
+    [structured-prompt-driven-development]` and null out `selected_paradigms` in the
+    `_write_governance` call (`selected_paradigms: []`), mirroring items 1-8's pattern exactly,
+    with the same RED-before-WP01/GREEN-after-WP01 blocking-gate discipline T014's other 7 items
+    already require. Correct the "Bucket 1 -- kept" paragraph's blanket claim about
+    `TestCharterContextActive` to carve out this one method explicitly.
+- id: ANALYZE-COVER-002
+  severity: 3
+  category: coverage
+  summary: >-
+    WP01's cache-key fix (FR-001(e), tasks/WP01-activation-rewrite-parity-test.md T004 step 2)
+    offers two options and states T002's same-process mutation case (T002 step 4) "exercises
+    whichever option you pick" -- but as specified, that fixture only mutates `.kittify/config.yaml`
+    directly between two same-process calls (a non-pointer/legacy shape: "activated_paradigms: []"
+    then rewrite config.yaml with the paradigm added), never the pointed-at `charter.yaml` file. If
+    an implementer picks cache option (i) (compose the key from BOTH `.kittify/config.yaml`'s mtime
+    AND the resolved pointer target's mtime) but a partial/naive implementation composes the key
+    from ONLY `config.yaml`'s own mtime -- omitting the pointer-target file's mtime component --
+    no fixture in T002 would catch a same-process edit to the POINTED-AT `charter.yaml` failing to
+    invalidate the cache. This is precisely this repo's own dogfood shape (spec.md Summary: this
+    repo's `.kittify/config.yaml` points via a `charter:` key to `.kittify/charter/charter.yaml`,
+    where the real `activated_*` keys live) -- the exact scenario the mission's own reflexivity
+    claim (NFR-004, "this repo's own SPDD/REASONS status changes... the moment it merges") depends
+    on being correctly cache-invalidated for any same-process re-check. This is the concrete
+    "could a partial implementation silently serve a stale cached False/True without any test
+    catching it" risk on a NEW code path (the composite-mtime fix), the same shape of gap as
+    Finding A1 (a normalization step correct-by-design-claim with no fixture proving the specific
+    sub-case).
+  evidence: >-
+    tasks/WP01-activation-rewrite-parity-test.md, Subtask T002 step 4 (the only cache-invalidation
+    fixture, mutating config.yaml directly -- as written it cannot be the pointer-present shape,
+    since mutating config.yaml's own mirror key would do nothing if a pointer were present and the
+    real keys lived in the pointed file) and Subtask T004 step 2 (the two cache-key options,
+    neither backed by a pointer-target-mutation fixture).
+  remediation: >-
+    Add a second same-process mutation fixture to T002: construct a pointer-present `config.yaml`
+    (`charter: <path-to-charter.yaml>`), call `is_spdd_reasons_active(tmp_path)` once, then mutate
+    ONLY the pointed-at `charter.yaml`'s `activated_paradigms` field on disk (leaving
+    `.kittify/config.yaml` itself untouched), call again in the same process, and assert the second
+    call reflects the mutation -- this catches a composite-key implementation that omits the
+    pointer-target file's mtime component.
+- id: ANALYZE-COVER-003
+  severity: 2
+  category: traceability
+  summary: >-
+    analysis-report.md's Investigation (a) states "C-001/C-002/C-003/C-006 are satisfied
+    structurally (by what the WPs do NOT touch -- schema, relocation) and are not orphaned in a
+    way that needs a dedicated task." This mischaracterizes C-003 ("Parity test is mandatory, not
+    optional"), which is a POSITIVE requirement satisfied by an affirmative deliverable (FR-002's
+    parity test), unlike C-001/C-002/C-006, which are genuinely "satisfied by what the WPs do NOT
+    do." Independently re-built the trace table for all six constraints against tasks.md/tasks/WP0*.md's
+    structured `requirement_refs` frontmatter (not prose mentions): `grep -rn "C-00[1-6]"
+    tasks.md tasks/*.md` shows C-001/C-002/C-004 are present in WP01's structured `requirement_refs`
+    list (tasks.md:10, tasks/WP01-activation-rewrite-parity-test.md:14-16), but C-003 appears
+    exactly ONCE anywhere in the tasks corpus, buried in WP01's Context prose
+    (tasks/WP01-activation-rewrite-parity-test.md:74, "...is exactly why the parity test (T002) is
+    mandatory, not optional (C-003)") and is absent from every WP's structured `requirement_refs`.
+    C-005 is similarly prose-only (one WP01 Context mention). C-006 does not appear ANYWHERE in
+    tasks.md or any tasks/WP0*.md file, not even in prose. The underlying substance is not
+    orphaned in practice (FR-002 already delivers C-003's substance; no WP performs the
+    C-006-forbidden relocation), but the tasks artifact's own machine-checkable traceability
+    metadata (`requirement_refs`) does not thread C-003/C-005/C-006 the way it threads
+    C-001/C-002/C-004 -- a tooling-based traceability check against `requirement_refs` alone would
+    report all three as untraced, and the analysis report's own prose lumps C-003 into the wrong
+    bucket of reasoning.
+  evidence: >-
+    analysis-report.md, Investigation (a) paragraph ("C-001/C-002/C-003/C-006 are satisfied
+    structurally..."); tasks.md:10 and tasks/WP01-activation-rewrite-parity-test.md:14-16
+    (structured requirement_refs listing C-001/C-002/C-004 but never C-003); grep of C-003/C-005/C-006
+    across tasks.md and all tasks/WP0*.md files (C-003: 1 prose hit only; C-005: 1 prose hit only;
+    C-006: 0 hits anywhere).
+  remediation: >-
+    Add C-003 and C-005 to WP01's structured `requirement_refs` (alongside FR-002 and C-004,
+    since T002/T005 are the subtasks that actually deliver/verify them); either add C-006 to a
+    WP's `requirement_refs` as an explicit "not violated" scope note or state in plan.md/tasks.md
+    that C-006 is a scope-boundary constraint with no owning WP by design. Correct the analysis
+    report's Investigation (a) sentence to stop grouping C-003 with the "satisfied by omission"
+    reasoning that applies only to C-001/C-002/C-006.
+- id: ANALYZE-COVER-004
+  severity: 2
+  category: coverage
+  summary: >-
+    `resolver.py`'s `resolve_governance_for_profile` (verified live, same file WP03 edits) is a
+    fourth, structurally-identical `governance.charter.selected_*`-adjacent reader that WP03's
+    4-boundary Union/Exclusion Boundary Audit does not enumerate at all: it builds
+    `GovernanceResolution.directives` via `_merge_unique(profile_directives,
+    interview.selected_directives)` -- entirely bypassing `PackContext.activated_*` -- the same
+    shape Decision Records 1-3 found and fixed in `is_spdd_reasons_active`,
+    `_load_action_doctrine_bundle`, and `_resolve_directive_base`/`resolve_project_governance` in
+    this same module. It is not mentioned anywhere in spec.md, plan.md, tasks.md, or WP03's file.
+    Verified live (`grep -rln resolve_governance_for_profile` across the whole repo excluding
+    kitty-specs/tests) that, unlike the three confirmed instances, it has ZERO production call
+    sites under `src/` -- only `src/charter/__init__.py`'s re-export and three test files
+    (tests/charter/test_alias_deleted_regression.py, tests/charter/test_resolver.py,
+    tests/merge/test_profile_charter_e2e.py) reference it -- so it is not currently producing live
+    incorrect behavior the way the three fixed instances are, and spec.md's Summary explicitly
+    requires in-scope findings to be "reproduced live... not merely cited." spec.md's Non-Goals
+    section also explicitly bounds this mission to the three named, live-verified consumers. This
+    is flagged for completeness per the "hunt in places the analysis report may not have looked
+    hard enough" instruction, not as a live defect this mission must fix.
+  evidence: >-
+    src/charter/activation/resolver.py (the `resolve_governance_for_profile` function, roughly
+    the block following `collect_governance_diagnostics`'s definition site, before `_merge_unique`);
+    `grep -rln resolve_governance_for_profile` (repo-wide, excluding kitty-specs/tests archives)
+    showing only src/charter/__init__.py + src/charter/activation/resolver.py as non-test hits;
+    tasks/WP03-resolver-activated-base.md's "Union/Exclusion Boundary Audit" section (4 boundaries
+    enumerated, none of them this function); spec.md Non-Goals ("A general audit of every other
+    consumer of governance.charter.selected_* ... beyond the three named ... is explicitly OUT OF
+    SCOPE").
+  remediation: >-
+    No code change required within this mission's scope (spec.md's Non-Goals already bounds this
+    deliberately). Add one sentence to spec.md's Non-Goals section (or a SPEC-KITTY-LEDGER.md
+    entry, per the mission's own stated intent to "become the reference entry for the class")
+    naming `resolve_governance_for_profile` as a known-dormant instance of the same defect class,
+    so a future change that wires a real caller to it does not silently reintroduce the bug
+    unaudited.

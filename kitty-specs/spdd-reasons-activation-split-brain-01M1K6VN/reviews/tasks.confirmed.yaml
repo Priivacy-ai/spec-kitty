@@ -1,0 +1,151 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+round: 1
+findings:
+- id: TASKS-DECOMP-001
+  lens: decomp (single-concern / one-PR-shape reviewability)
+  severity: 2
+  title: WP01 points to WP05 for "the final call on the one-PR-shape decision", but WP05 never addresses
+    it
+  evidence:
+  - artifact: tasks/WP01-activation-rewrite-parity-test.md § Context, "One-PR-shape note" paragraph
+  - artifact: 'tasks/WP05-docs-activation-authority.md (full file: Objective, Context, T017, T018, Definition
+      of Done, Risks, Reviewer Guidance)'
+  - artifact: plan.md § "PR shape" (lines ~675-685)
+  claim: 'WP01''s Context section states: "This WP''s diff is the largest single-file change ... but is
+    self-contained and narrowly scoped ... it does not by itself make the aggregate diff unreviewable
+    in one sitting; see WP05 for the final call on the one-PR-shape decision." WP05 contains no mention
+    of one-PR-shape, diff size, reviewability, or a "final call" anywhere. The actual "final call" already
+    lives in plan.md''s "PR shape" section, which WP01 itself correctly cites two sentences earlier in
+    the same paragraph. Dangling forward-reference — same citation-drift failure mode this mission HALTed
+    on before, now self-inflicted between two WP-authoring artifacts in the same tasks phase.
+
+    '
+  remediation: 'Either (a) delete the dangling "see WP05 for the final call" clause from WP01''s Context
+    section since plan.md''s "PR shape" section already is the final call and is already cited in the
+    same sentence, or (b) add a short paragraph to WP05 restating the decision and pointing back to plan.md''s
+    "PR shape" section as the source of record.
+
+    '
+- id: TASKS-SEQ-001
+  lens: mission-derived (tooling-hazard fidelity)
+  severity: 2
+  title: WP05 cites a nonexistent "tasks/ authoring report" as evidence for the SK-146 owned_files exemption
+  evidence:
+  - artifact: tasks/WP05-docs-activation-authority.md § '1. finalize-tasks's owned_files-under-kitty-specs/
+      rejection (ledger SK-146)'
+    note: 'Text: "The tasks-authoring session ran `finalize-tasks --validate-only` against exactly this
+      shape and confirmed it does NOT reject these `owned_files` entries — see this mission''s own `tasks/`
+      authoring report for the observed command output."'
+  - code: kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tasks/ (directory listing)
+    note: Only WP01-05 prompt files and README.md exist; no authoring-report artifact of any kind.
+  - code: kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md
+    note: Records exactly two items; neither documents a finalize-tasks --validate-only run/output for
+      the SK-146 exemption.
+  - code: git log --oneline -- kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/ (commit 05bfac90d)
+    note: Tasks-authoring commit adds only wps.yaml/tasks.md/tasks/*.md — no authoring-report file.
+  claim: WP05's Context section cites a specific "tasks/ authoring report" as evidence for the SK-146
+    exemption claim. No such artifact exists anywhere in the mission directory or git history. Independently
+    re-running `finalize-tasks --validate-only` during review confirms the underlying substance IS true
+    today, and the live `_is_confined_planning_wp` code genuinely implements the claimed exemption — so
+    this is not a substantively false claim, only an unlocatable evidence trail.
+  remediation: Either (a) capture the actual `finalize-tasks --validate-only --json` output in tracer-tooling-friction.md
+    and have WP05 cite that file instead of an unnamed "authoring report", or (b) reword WP05's Context
+    section to drop the implication that a separate report artifact exists, relying on Reviewer Guidance's
+    instruction to re-run the command live.
+- id: TASKS-SEQ-002
+  lens: mission-derived (None-as-"all built-ins" consistency)
+  severity: 3
+  title: plan.md's documented project_configured-gate carve-out (a real, adjudicated boundary on the None-means-"all
+    built-ins" rule) is not carried into WP01's task prompt
+  evidence:
+  - artifact: plan.md § (a) 'Seam and placement', item 1, lines 171-197 ('Explicit carve-out, mirroring
+      FR-004's precedent')
+    note: Plan documents that compile_charter's real delivered authority applies an additional project_configured
+      gate; this mission's rewritten is_spdd_reasons_active deliberately does NOT apply this gate (Decision
+      Record 1 scopes the replication to PackContext's raw per-ID semantics only). Plan states this explicitly
+      needs a named starting point for future readers.
+  - code: src/charter/activation/compiler.py:101-179 (_CONFIG_ACTIVATION_FIELDS, _resolve_config_activated_roots,
+      project_configured gate)
+    note: 'Re-verified live: the project_configured gate genuinely exists as plan.md describes.'
+  - artifact: tasks/WP01-activation-rewrite-parity-test.md (full file)
+    note: Grepped for "project_configured", "_CONFIG_ACTIVATION_FIELDS", "FR-018" — zero matches. WP01
+      T004 step 1a DOES require a code comment for the sibling FR-004 carve-out but no equivalent instruction
+      exists for this second, independently-documented divergence.
+  claim: Plan.md treats the project_configured-gate divergence as important enough to require a permanent,
+    named record for future readers — identical treatment to the FR-004 carve-out, which DID make it into
+    WP01 as a mandatory code comment. WP01's task prompt omits this second carve-out entirely, risking
+    rework/pushback inside WP01's review cycle over a question the plan phase already settled.
+  remediation: Add a short note to WP01's T004 (mirroring the existing FR-004 carve-out instruction) requiring
+    a code comment on the rewritten is_spdd_reasons_active stating that the replication intentionally
+    does not apply compile_charter's project_configured gate, citing Decision Record 1's scope boundary.
+- id: TASKS-VERIFY-001
+  lens: bug-preserving-test hunt
+  severity: 4
+  title: 'WP04''s bucket-3 fixture rewrites explicitly permit/mandate keeping the OLD governance:/directives:
+    write, which makes the rewritten fixtures pass on WP01''s OLD body too (not red-first)'
+  evidence:
+  - artifact: tasks/WP04-triage-pinning-tests.md § Context, item 1 (test_paradigm_selected_returns_true)
+  - artifact: tasks/WP04-triage-pinning-tests.md § Context, item 7 (test_tactic_only_selection_round_trips_to_governance_and_activates)
+  - artifact: tasks/WP04-triage-pinning-tests.md § Context, item 8 (test_config_sourced_compile_keeps_spdd_active)
+  - code: 'src/charter/offering/spdd_reasons/activation.py:96-134 (_compute_active/_governance_selects_pack/_directives_select_pack
+      — the OLD body; reads ONLY .kittify/charter/charter.yaml''s governance:/directives: sections, never
+      .kittify/config.yaml, verified live)'
+  - code: tests/charter/test_charter_context_spdd_reasons.py:128-138 (test_paradigm_selected_returns_true's
+      _write_governance call, verified live)
+  - code: tests/charter/test_activate_resolves_no_answers_edit.py:196-198 (test_config_sourced_compile_keeps_spdd_active,
+      verified live)
+  claim: 'WP04''s own text tells the implementer, for item 1: "Keep the governance: write too (or drop
+    it) — your call." For item 7 it mandates keeping it: "Keep the existing compiled.markdown/governance.charter.selected_tactics
+    assertions unchanged." Item 8 similarly keeps the charter.yaml write. But the OLD (pre-WP01) is_spdd_reasons_active
+    body never reads .kittify/config.yaml at all — it reads ONLY charter.yaml''s governance:/directives:
+    sections. If the implementer follows "keep it" (offered or mandated), the rewritten fixture returns
+    True on the OLD body purely from the retained governance:/directives: content — the new config.yaml
+    write is never actually exercised as the thing making the assertion pass. The result is a test that
+    passes on BOTH the pre-fix and post-fix implementation — the exact bug-preserving-test class that
+    HALTed this mission''s plan phase twice, now recurring inside the tasks phase''s own WP04 instructions,
+    across all 8-9 bucket-3 methods.
+
+    '
+  remediation: 'Rewrite WP04''s Context section for every bucket-3 item (1 through 8) to MANDATE removing
+    (or fully zeroing out, for the specific selector under test) the legacy governance:/directives: content
+    in the rewritten fixture — never offer "keep it, your call." Correct item 7/8''s explicit "keep it
+    unchanged" instruction to null out just the SPDD-relevant selector while keeping unrelated round-trip
+    assertions on separate, unaffected fixture state. Elevate T014/T015''s "confirm RED" step from an
+    observational note to a blocking gate: if a rewritten fixture is not actually RED against WP01''s
+    pre-implementation body, the fixture rewrite itself is wrong and must be corrected before the WP is
+    considered done — state this in Definition of Done and Reviewer Guidance.
+
+    '
+- id: TASKS-VERIFY-002
+  lens: catalog verify
+  severity: 4
+  title: FR-004's own falsifiable Acceptance Criterion (a test through the real apply_spdd_blocks_for_project
+    entry point) is not assigned to any subtask in any WP
+  evidence:
+  - artifact: 'spec.md FR-004 row — falsifiable AC: a regression test asserting apply_spdd_blocks_for_project(text,
+      repo_root) strips REASONS template blocks when repo_root has no .kittify/config.yaml on disk, run
+      through a real entry point or an equivalent direct call'
+  - artifact: tasks/WP01-activation-rewrite-parity-test.md § Subtask T001 — only asserts is_spdd_reasons_active(tmp_path)
+      is False for an absent .kittify/config.yaml; never calls apply_spdd_blocks_for_project
+  - code: src/charter/offering/spdd_reasons/template_renderer.py:179 (apply_spdd_blocks_for_project —
+      the real entry point FR-004's AC names)
+  - code: tests/prompts/test_prompt_fragment_rendering.py:95 (the only existing test calling apply_spdd_blocks_for_project
+      with a bare repo_root — but repo_root=None, testing an unmatched-marker-raise case, not an absent-.kittify/config.yaml-with-real-repo_root
+      case)
+  claim: 'FR-004 states its Acceptance Criterion explicitly and calls it "falsifiable": a test exercising
+    apply_spdd_blocks_for_project with a repo_root that has no .kittify/config.yaml, asserting REASONS
+    blocks are stripped — distinct from merely asserting is_spdd_reasons_active(tmp_path) is False in
+    isolation. No subtask across WP01 through WP05 assigns this test. This is an FR whose own explicit,
+    falsifiable AC has no assigned coverage in the tasks breakdown.
+
+    '
+  remediation: 'Add a subtask (or extend WP01''s T001/T002) that constructs a tmp_path repo_root with
+    no .kittify/config.yaml, calls apply_spdd_blocks_for_project(template_text, repo_root) directly, and
+    asserts the REASONS template blocks are stripped from the output — committed alongside T001''s is_spdd_reasons_active(tmp_path)
+    is False pin.
+
+    '

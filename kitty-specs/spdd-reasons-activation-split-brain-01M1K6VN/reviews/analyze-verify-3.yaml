@@ -1,0 +1,55 @@
+schema_version: 1
+artifact_type: review-verify
+phase: analyze
+round: 3
+final: true
+complete: true
+verdicts:
+- finding_id: ANALYZE-FRESH2-001
+  status: resolved
+  evidence: >-
+    tasks/WP02-action-doctrine-bundle-activated-derivation.md T009 step 2 (lines ~531-533) now reads:
+    "The required red-first fixture for this normalization step already exists — see T007 step 6
+    (org-required stem-form directive normalization, TASKS-FRESH2-001) for its full construction and
+    the 'why this MUST fail on pre-this-round T009 text' reasoning; it is not a fresh instruction to
+    add here." The stale ~17-line duplicate block (the false "T007 currently exercises the
+    org-required union path NOT AT ALL" claim, plus the "add as a fifth case" imperative) is gone —
+    confirmed by reading the live file end to end around T009 step 2; no residual duplicate text
+    remains anywhere in the WP02 file. Cross-checked T007 step 6 (lines ~324-397): it does exist,
+    is fully self-contained (org-pack registration mechanics, `required_directives:
+    [001-architectural-integrity-standard]`, assertion on canonical `DIRECTIVE_001` in both
+    `directive_ids` and `roots`/`start_urns`, plus the "why this MUST fail on pre-this-round T009
+    text" reasoning), and itself cross-references back ("The fixture passes once T009 step 2's
+    normalization instruction (below) is implemented") — the two sections now correctly point at
+    each other instead of duplicating content. Cross-reference is accurate.
+- finding_id: ANALYZE-FRESH2-002
+  status: resolved
+  evidence: >-
+    Independently verified all three legs live, not on the fixer's report: (1)
+    src/charter/activation/profile_resolution.py:203-220 `_normalize_directive_id` — read the full
+    function body; confirmed it never raises for any input: DIRECTIVE_NNN passthrough, numeric-prefix
+    stem conversion, and a final unconditional fallback `return raw.upper().replace("-", "_")` for
+    everything else. The "never raises, falls back to naive uppercase transform" claim is accurate.
+    (2) src/charter/offering/drg/query.py:331-374 `resolve_transitive_refs` — read the full docstring
+    and body; confirmed "Raises: Nothing... Unknown start URNs are recorded in `unresolved`, per the
+    frozen contract" is verbatim accurate, and the body's handling (`node is None` -> append to
+    `unresolved`, no exception path) matches. (3) Read the new caveat text on WP02 boundaries 1, 3, 5,
+    6 (tasks/WP02-...md lines ~219-282) and WP03 boundary 1 (tasks/WP03-resolver-activated-base.md
+    lines ~164-179): each accurately states the gap is in `_normalize_directive_id`'s own pre-existing
+    contract ("predates this mission," "this WP does not regress it," "out of this WP's scope to
+    close"), cites live line ranges that match (profile_resolution.py:203-220), quotes the same
+    "Raises: Nothing" contract, and adds no claim of new validation code — appropriately scoped as
+    documentation-honesty only, mirroring WP02's own pre-existing boundary-4 disclosure pattern
+    exactly as claimed. No overclaiming found.
+    Re-checked the fixer's partial refutation on WP03 boundary 2 by reading src/charter/activation/
+    resolver.py:673-726 (`_resolve_directive_base` and the `doctrine.selected_directives` branch)
+    directly: `valid_ids = set(local_ids)` (from `directives_cfg.directives` ids) unioned with
+    `doctrine_catalog.directives` — both canonical-only (`DIRECTIVE_NNN`) sets — then `if
+    doctrine.selected_directives: missing = sorted(d for d in doctrine.selected_directives if d not
+    in valid_ids)` raises `GovernanceResolutionError` listing the missing ids. This branch never
+    calls `_normalize_directive_id` at all — it validates by canonical-set membership directly, so a
+    stem-form or garbage entry in `doctrine.selected_directives` is rejected outright regardless of
+    `_normalize_directive_id`'s gap. The fixer's claim that boundary 2 "genuinely fails loud
+    independent of `_normalize_directive_id`'s gap" is confirmed true by direct reading of the live
+    code, not accepted on faith — correctly excluded from the caveat.
+new_findings: []

@@ -1,0 +1,58 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: gov
+complete: true
+findings:
+- id: ANALYZE-GOV-001
+  severity: 2
+  category: scope-discipline / template-conformance
+  summary: >
+    analysis-report.md's closing "## Verdict" section goes beyond a one-line
+    per-finding recommendation into near-implementation-level remediation detail
+    for A1 — it names the exact fixture ID to add
+    (`activated_directives: frozenset({"024-locality-of-change"})`), the exact
+    assertion to write, and the exact audit-table sentence to append — and the
+    report as a whole replaces the canonical `/spec-kitty.analyze` template's
+    structure (a findings table with a `Recommendation` column, a Coverage
+    Summary Table, a Metrics block, an Unmapped Tasks section — all specified
+    in packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md
+    step 6) with custom "Investigation (a)-(e)" sections and a discursive
+    Verdict paragraph. The canonical prompt's Operating Constraints mark
+    /analyze NON-REMEDIATING and its step 9 ("Offer Remediation") explicitly
+    gates concrete remediation edits behind an interactive user approval that
+    happens AFTER the report is persisted ("Ask the user... I can suggest
+    concrete remediation edits... Do NOT apply edits automatically") — the
+    persisted report is not the place a fully-worked fix belongs. This is a
+    minor deviation, not a functional problem: the remediation is explicitly
+    labeled "Recommended" / advisory prose, no edits are applied, and the
+    mission's own established review culture (reviews/tasks.ruling.md, the
+    operator ruling that closed the tasks-phase HALT) is itself even MORE
+    prescriptive — it names exact functions, exact severities, and exact fixes
+    ("normalize each ... entry via _normalize_directive_id before unioning...
+    add a stem-form red-first fixture to T007"). Judged against that mission
+    precedent, analysis-report.md's remediation detail is consistent with, not
+    an outlier from, how this mission's review artifacts already operate — so
+    this is flagged as a template-conformance nit, not a charter violation.
+  evidence: >
+    kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/analysis-report.md,
+    "## Verdict" section (final paragraph, "Recommended remediation before
+    implementation proceeds: add one red-first fixture..."); compare
+    packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md
+    ("Operating Constraints" NON-REMEDIATING clause, step 6 table structure
+    with a `Recommendation` column, step 9 "Offer Remediation" — do NOT apply
+    edits automatically); compare
+    kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/reviews/tasks.ruling.md
+    ("Ruling — fix both, and close the class inside the tasks artifact"
+    section) for the mission's established, even-more-prescriptive precedent.
+  remediation: >
+    No action required on this artifact (verdict/findings themselves are
+    correct and the "Recommended remediation" text is clearly advisory, not
+    applied). For future analyze-phase reports in this mission family,
+    consider trimming the Verdict section's remediation to a pointer at the
+    finding's category/location (matching the canonical template's
+    one-line-per-finding Recommendation column) and deferring the fully-worked
+    fixture example to the interactive step-9 offer, so the persisted,
+    auto-committed artifact stays strictly within the analyze phase's
+    report-and-verdict remit and the fix-round agent authors its own
+    remediation independently rather than anchoring on a pre-written one.

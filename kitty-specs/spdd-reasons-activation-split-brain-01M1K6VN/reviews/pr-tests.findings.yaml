@@ -1,0 +1,54 @@
+phase: pr
+lens: tests
+findings:
+  - id: PR-TESTS-001
+    severity: 3
+    title: "No regression test fails if the union-default's graph side stops being activation-filtered"
+    location: "src/charter/activation/action_doctrine_bundle.py:_graph_and_catalog_default_ids (called at lines ~301-325, from _load_action_doctrine_bundle); consumed via _catalog_default_or_activated"
+    claim: >
+      WP02 ruling 2 binds "None -> all built-ins" to a UNION of the real built-in
+      catalog with the ACTIVE, activation-filtered DRG graph (`merged`, after
+      `filter_graph_by_activation(merged, pack_context)` has already run). This is
+      the correct, documented behaviour. But live mutation testing found no test
+      that would fail if a future change accidentally used the pre-filter graph
+      (or otherwise stopped filtering before computing the union) -- which would
+      silently widen "all built-ins" to admit deactivated/org-pack content that
+      the activation gate exists to exclude. I disabled the
+      `filter_graph_by_activation` call in `_load_action_doctrine_bundle` (kept
+      `merged` unfiltered) and re-ran every test file that exercises this path:
+      `test_action_doctrine_bundle_activation.py`, `test_context_org_chain.py`,
+      `test_context.py`, `test_action_bundle_delivery.py`,
+      `test_activation_consumers.py`, `test_activation_filtered_drg.py`,
+      `test_drg_activation_gate.py`, `test_org_scan_dirs_activation_regression.py`,
+      `test_drg_filtering.py`, `test_glossary_pack_activation.py`,
+      `test_check_graph_kind_parity.py` -- all 120 tests across these files
+      stayed green with the filter disabled. This is a missing regression net on
+      a live, binding ruling (wp02.ruling-2.md), not a currently-wrong behaviour:
+      production code is correct (verified via the byte-identical restore below).
+    evidence: |
+      Backed up src/charter/activation/action_doctrine_bundle.py (md5
+      f8f0d377512f0884c51b77b87148da98), then edited the `if pack_context is not
+      None: merged = filter_graph_by_activation(merged, pack_context)` block to
+      always leave `merged` unfiltered (kept the pre-filter graph). Ran:
+        .venv/bin/python -m pytest tests/charter/test_action_doctrine_bundle_activation.py \
+          tests/charter/test_context_org_chain.py tests/charter/test_context.py \
+          tests/charter/test_action_bundle_delivery.py -q --tb=line
+        -> 65 passed, 3 warnings in 58.54s (no failures)
+        .venv/bin/python -m pytest tests/charter/test_activation_consumers.py \
+          tests/charter/test_activation_filtered_drg.py tests/charter/test_drg_activation_gate.py \
+          tests/charter/test_org_scan_dirs_activation_regression.py tests/charter/test_drg_filtering.py \
+          tests/charter/test_glossary_pack_activation.py tests/charter/test_check_graph_kind_parity.py \
+          -q --tb=line
+        -> 55 passed in 14.01s (no failures)
+      Restored the file from backup; md5sum matched f8f0d377512f0884c51b77b87148da98
+      and `git status --short` / `git diff --stat` were empty, confirming
+      byte-identical restore.
+    remediation: >
+      Add a regression fixture that constructs a graph containing a directive/
+      tactic/paradigm id that is present in the RAW merged graph but excluded by
+      `filter_graph_by_activation` for the active pack_context (e.g. wrong
+      activated_kinds, or an org pack not activated for this mission), with
+      `activated_<kind>=None` (the "all built-ins" path). Assert that id is
+      NOT delivered. This closes the gap between "the union is documented as
+      using the post-filter graph" and "a test proves it".
+complete: true

@@ -1,0 +1,94 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: fresh
+complete: true
+findings:
+- id: ANALYZE-FRESH-001
+  severity: 3
+  category: contradiction
+  summary: >-
+    spec.md's Non-Goals section now contains a direct, unreconciled contradiction between an
+    unchanged closure claim and this fix round's own new bullet. The unchanged sentence
+    (spec.md around line 583-585) states "every reader of `governance.charter.selected_*` found
+    during this spec's own review (Decision Records 2 and 3) is either fixed by this mission or
+    confirmed display-only above -- not a residual, unaudited category." Immediately below it,
+    this fix round added a new bullet naming `resolve_governance_for_profile` as "a sixth,
+    structurally-identical `governance.charter.selected_*`-adjacent reader" that is explicitly
+    NEITHER fixed by this mission NOR display-only -- it builds real `GovernanceResolution.directives`
+    via `_merge_unique(profile_directives, interview.selected_directives)`, entirely bypassing
+    `PackContext.activated_*`, and is deliberately left unfixed as a "known-dormant instance."
+    That is precisely the third, residual/unaudited-in-practice category the preceding sentence
+    says does not exist. The remediation this bullet implements (per
+    `reviews/analyze-cover.findings.yaml` ANALYZE-COVER-004) only instructed adding the sentence;
+    it did not flag that the immediately-preceding closure claim needed a caveat, so the fix
+    round introduced the contradiction while faithfully executing the letter of the remediation.
+  evidence: >-
+    spec.md:582-585 (unchanged: "...is either fixed by this mission or confirmed display-only
+    above -- not a residual, unaudited category.") directly followed by spec.md:586-593 (new,
+    this round's diff: the `resolve_governance_for_profile` bullet, explicitly a known-dormant,
+    unfixed reader). Cross-checked against `reviews/analyze-cover.findings.yaml` ANALYZE-COVER-004
+    (lines ~119-155), whose `remediation` field only asked for "one sentence... naming
+    `resolve_governance_for_profile`" and did not anticipate the adjacency conflict. Verified live
+    against `src/charter/activation/resolver.py:878-903` that `resolve_governance_for_profile`
+    does build `directives` from `interview.selected_directives` via `_merge_unique`, confirming
+    the new bullet's own technical claim is accurate -- the defect is purely in the unreconciled
+    English between the two adjacent paragraphs, not in the new bullet's facts.
+  remediation: >-
+    Amend the unchanged closure sentence to carve out the new exception explicitly, e.g. "...is
+    either fixed by this mission, confirmed display-only above, or named as a known-dormant
+    exception below -- not a residual, unaudited-and-unacknowledged category." Alternatively,
+    reorder so the `resolve_governance_for_profile` bullet appears before the closure sentence and
+    the closure sentence's own wording is adjusted to reference it directly by name, so a reader
+    scanning only the closure sentence is not left with a false completeness impression.
+
+- id: ANALYZE-FRESH-002
+  severity: 2
+  category: formatting
+  summary: >-
+    The new friction entry 4 added to `tracer-tooling-friction.md` this round uses a malformed
+    multi-line Markdown ATX heading: the `## 4.` heading line is hard-wrapped across three source
+    lines with no blank line separating the continuation from the heading, and the heading line
+    itself ends mid-clause on an unclosed opening quote ("...has no room for a "satisfied by).
+    Under standard/GFM Markdown, an ATX heading is a single line -- the two indented continuation
+    lines will render as an ordinary paragraph immediately following a heading that reads "4.
+    `wps.yaml`/`tasks/WP0*.md` structured `requirement_refs` frontmatter has no room for a
+    "satisfied by, with the closing text ("omission" or ... constraint (confirmed during R4 fix
+    round, ANALYZE-COVER-003)) demoted to body text and visually disconnected from the heading it
+    was meant to complete. This is inconsistent with friction entries 1-3 in the same file, which
+    are all single-line headings, and would also produce a garbled/truncated anchor-link and
+    table-of-contents entry for section 4 if either is ever generated from this file.
+  evidence: >-
+    tracer-tooling-friction.md:135-137 (new this round): `## 4. \`wps.yaml\`/\`tasks/WP0*.md\`
+    structured \`requirement_refs\` frontmatter has no room for a "satisfied by` on its own line,
+    followed immediately (no blank line) by `   omission" or affirmative-deliverable-without-a-
+    dedicated-line constraint (confirmed during R4 fix round,` and `   ANALYZE-COVER-003)`.
+    Contrast with tracer-tooling-friction.md:7, :41, :65 (friction entries 1-3), each a single,
+    complete `## N. ...` heading line.
+  remediation: >-
+    Collapse the three lines into one single-line `## 4. ...` heading (Markdown ATX headings do
+    not support hard-wrapping), matching the format of entries 1-3. The full heading text is
+    already present across the three lines; only the line breaks need removing.
+
+- id: ANALYZE-FRESH-003
+  severity: 1
+  category: terminology drift
+  summary: >-
+    WP01's Risks section still refers to "T002's same-process mutation case" in the singular after
+    this fix round split that single case into two (T002 step 4's direct `.kittify/config.yaml`
+    mutation and the new step 4a's pointer-target `charter.yaml` mutation, per
+    ANALYZE-COVER-002). The Definition of Done section two subsections above was correctly updated
+    to "BOTH of T002's same-process mutation cases," but the Risks section's "Cache-key omission"
+    bullet was not touched by this round's diff and was left describing a single case, which
+    under-specifies which of the two cases a reviewer should watch for regressing if a `-k`
+    filtered partial test run is used.
+  evidence: >-
+    tasks/WP01-activation-rewrite-parity-test.md:429-430 ("...would leave T002's same-process
+    mutation case failing silently if that specific assertion is accidentally skipped..." --
+    singular "case"), contrasted with the same file's Definition of Done section (line ~409,
+    updated this round): "BOTH of T002's same-process mutation cases pass -- step 4's direct
+    `.kittify/config.yaml` mutation and step 4a's pointer-target `charter.yaml` mutation."
+  remediation: >-
+    Update the Risks section's "Cache-key omission" bullet to plural, e.g. "...would leave one or
+    both of T002's same-process mutation cases (step 4, step 4a) failing silently if..." so the
+    Risks section stays in step with the Definition of Done's now-doubled fixture count.

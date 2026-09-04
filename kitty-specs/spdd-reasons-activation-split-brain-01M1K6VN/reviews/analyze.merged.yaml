@@ -1,0 +1,201 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: merged
+complete: false
+findings:
+- id: ANALYZE-COVER-001
+  severity: 4
+  category: coverage
+  summary: >-
+    WP04 (tasks/WP04-triage-pinning-tests.md) misses a 10th pinning test that will break, not
+    merely fail to be red-first, once WP01 lands: `TestCharterContextActive::test_performance_under_2s_active`
+    (tests/charter/test_charter_context_spdd_reasons.py:323-344). It calls `_write_governance`
+    (which, verified live at tests/charter/test_charter_context_spdd_reasons.py:43-64, writes
+    ONLY `.kittify/charter/charter.yaml`'s `governance:` section and never touches
+    `.kittify/config.yaml`) with `selected_paradigms: [structured-prompt-driven-development]`,
+    then asserts `is_spdd_reasons_active(tmp_path) is True` inside a loop over all 5 actions.
+    Under WP01's FR-004 pin (absent `.kittify/config.yaml` -> `False`), this fixture has no
+    `.kittify/config.yaml` at all, so the assertion will fail after WP01's rewrite lands -- a
+    genuine, currently-uncaught regression. WP04's own Context section
+    (tasks/WP04-triage-pinning-tests.md, "Bucket 1 -- kept" paragraph) explicitly claims
+    `TestCharterContextActive` gates "via direct construction (not charter.yaml fixtures)" and
+    needs "no fixture change expected" -- verified false for this one method by direct read of
+    the live test file; every sibling method in the same class genuinely does use direct
+    construction and never calls `is_spdd_reasons_active`, so the blanket Bucket-1 claim is
+    accurate for 6 of 7 methods in the class and wrong for this 7th one. This test is not among
+    FR-010's named 8 bucket-3 methods, not WP04's own found 9th
+    (`test_malformed_governance_raises`), and not raised anywhere in spec.md/plan.md/tasks.md or
+    analysis-report.md's Investigation (a)/(b)/(e).
+  evidence: >-
+    tasks/WP04-triage-pinning-tests.md, "Bucket 1 -- kept" paragraph (the false "direct
+    construction, no fixture change" claim) and its enumerated bucket-3 list (items 1-9, this
+    method absent from all of them); tests/charter/test_charter_context_spdd_reasons.py:323-344
+    (the test itself); tests/charter/test_charter_context_spdd_reasons.py:43-64 (`_write_governance`'s
+    real body, confirming it never writes `.kittify/config.yaml`); spec.md FR-004 (the absent-config
+    pin this test's fixture will hit).
+  remediation: >-
+    Add this method as bucket-3 item 10 to WP04 (T014's steps, or a new T014.x): rewrite its
+    fixture to also write `.kittify/config.yaml`'s `activated_paradigms:
+    [structured-prompt-driven-development]` and null out `selected_paradigms` in the
+    `_write_governance` call (`selected_paradigms: []`), mirroring items 1-8's pattern exactly,
+    with the same RED-before-WP01/GREEN-after-WP01 blocking-gate discipline T014's other 7 items
+    already require. Correct the "Bucket 1 -- kept" paragraph's blanket claim about
+    `TestCharterContextActive` to carve out this one method explicitly.
+  source_group: cover
+- id: ANALYZE-VERIFY-001
+  severity: 3
+  category: traceability / overloaded-term ambiguity
+  summary: >-
+    Independently re-checking Finding A2 (spec.md's local Constraint row C-004, "PR body must
+    cite `Closes #3838`", has no WP subtask/DoD line assigning ownership) surfaced a term
+    collision the analysis-report.md's Investigation (a) traceability sweep did not flag, which
+    makes A2's real-world risk higher than the "low" severity / "unlikely to be missed in
+    practice" framing suggests. The token "C-004" is genuinely overloaded across this mission's
+    own artifact set: spec.md's own Constraints table assigns "C-004" to the PR-body/Closes-#3838
+    requirement, while the SAME token is also a pre-existing, project-wide architectural-gate
+    nickname (the `charter.offering -> charter.activation` import ban, documented repo-wide in
+    `docs/changelog/CHANGELOG.md` and multiple `docs/adr/3.x/*.md` files predating this mission)
+    that plan.md, WP01, WP02, and WP03 all use extensively and correctly in that unrelated sense
+    -- and even spec.md's own NFR-003 row title uses "C-004" in that same layering-gate sense,
+    one row above its own Constraints table's differently-scoped C-004 row. tasks.md's WP01
+    frontmatter lists `requirement_refs: [... C-001, C-002, C-004]` -- read in isolation, a
+    reviewer could reasonably (but incorrectly) conclude WP01 satisfies spec's C-004 (the
+    PR-body requirement), when WP01's own body text shows every "C-004" reference there is to
+    the unrelated layering gate. This is exactly the class of defect the charter's own
+    "overloaded terms `primary`/`merge`/`routing` -- footgun" entries exist to guard against
+    (AGENTS.md, Terminology Canon section), applied here to a mission-local requirement ID
+    colliding with an established project-wide label -- and it was not caught by the analyze
+    pass's own Investigation (a) or its citation-verification table.
+  evidence: >-
+    analysis-report.md's Investigation (a) section (silent on this collision) and Finding A2's
+    text; spec.md:519 (Constraints table row "C-001 | C-004 layering is never violated"),
+    spec.md:511 (NFR-003 title "C-004 architectural gate stays green with non-vacuous
+    coverage"), spec.md:522 (Constraints table row "C-004 | PR body must cite `Closes #3838`");
+    plan.md:19,42,52,136,146,150,345,457 (all use "C-004" to mean the layering gate, confirmed
+    against `docs/changelog/CHANGELOG.md:29-30` and
+    `docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md:105,205`,
+    which establish "C-004" as an already-existing repo-wide gate nickname predating this
+    mission); tasks.md:10 (WP01's `Requirement Refs: ... C-001, C-002, C-004`);
+    tasks/WP01-activation-rewrite-parity-test.md:70,360,407 (WP01's own "C-004" usages, all in
+    the layering-gate sense).
+  remediation: >-
+    Two independent fixes, either sufficient on its own: (1) rename spec.md's local Constraints-
+    table row currently labeled "C-004" (PR body must cite `Closes #3838`) to a non-colliding ID
+    that does not reuse the established project-wide "C-004" architectural-gate nickname (e.g.
+    renumber to C-007, or adopt a distinct prefix for process-only constraints); (2)
+    independently of the rename, add the ownership line A2 already recommends (a
+    mission-close-out/PR-prep step, mirroring FR-009/SC-005's explicit-delegation pattern) for
+    NFR-004/C-004, and have that note explicitly disambiguate from the layering-gate "C-004".
+  source_group: verify
+- id: ANALYZE-COVER-002
+  severity: 3
+  category: coverage
+  summary: >-
+    WP01's cache-key fix (FR-001(e), tasks/WP01-activation-rewrite-parity-test.md T004 step 2)
+    offers two options and states T002's same-process mutation case (T002 step 4) "exercises
+    whichever option you pick" -- but as specified, that fixture only mutates `.kittify/config.yaml`
+    directly between two same-process calls (a non-pointer/legacy shape), never the pointed-at
+    `charter.yaml` file. If an implementer picks cache option (i) (compose the key from BOTH
+    `.kittify/config.yaml`'s mtime AND the resolved pointer target's mtime) but a naive
+    implementation composes the key from ONLY `config.yaml`'s own mtime -- omitting the
+    pointer-target file's mtime component -- no fixture in T002 would catch a same-process edit
+    to the POINTED-AT `charter.yaml` failing to invalidate the cache. This is precisely this
+    repo's own dogfood shape (this repo's `.kittify/config.yaml` points via a `charter:` key to
+    `.kittify/charter/charter.yaml`, where the real `activated_*` keys live) -- the exact
+    scenario the mission's own reflexivity claim (NFR-004) depends on being correctly
+    cache-invalidated for any same-process re-check.
+  evidence: >-
+    tasks/WP01-activation-rewrite-parity-test.md, Subtask T002 step 4 (the only cache-invalidation
+    fixture, mutating config.yaml directly) and Subtask T004 step 2 (the two cache-key options,
+    neither backed by a pointer-target-mutation fixture).
+  remediation: >-
+    Add a second same-process mutation fixture to T002: construct a pointer-present `config.yaml`
+    (`charter: <path-to-charter.yaml>`), call `is_spdd_reasons_active(tmp_path)` once, then mutate
+    ONLY the pointed-at `charter.yaml`'s `activated_paradigms` field on disk (leaving
+    `.kittify/config.yaml` itself untouched), call again in the same process, and assert the second
+    call reflects the mutation.
+  source_group: cover
+- id: ANALYZE-GOV-001
+  severity: 2
+  category: scope-discipline / template-conformance
+  summary: >-
+    analysis-report.md's closing "## Verdict" section goes beyond a one-line per-finding
+    recommendation into near-implementation-level remediation detail for A1 -- naming the exact
+    fixture, assertion, and audit-table sentence to add -- diverging from the canonical
+    `/spec-kitty.analyze` template's structure (a findings table with a `Recommendation` column,
+    a Coverage Summary Table, a Metrics block) and its NON-REMEDIATING operating constraint
+    (concrete remediation edits are gated behind an interactive post-persist user-approval step,
+    per packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md step 9). Judged
+    against this mission's own precedent (reviews/tasks.ruling.md is itself even MORE
+    prescriptive), this is a template-conformance nit, not a charter violation -- no edits are
+    applied, the remediation is explicitly advisory.
+  evidence: >-
+    kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/analysis-report.md, "## Verdict"
+    section; packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md ("Operating
+    Constraints" NON-REMEDIATING clause, step 6 table structure, step 9 "Offer Remediation");
+    kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/reviews/tasks.ruling.md (the
+    mission's established, even-more-prescriptive precedent).
+  remediation: >-
+    No action required on this artifact. For future analyze-phase reports in this mission
+    family, consider trimming the Verdict section's remediation to a pointer at the finding's
+    category/location and deferring the fully-worked fixture example to the interactive step-9
+    offer.
+  source_group: gov
+- id: ANALYZE-COVER-003
+  severity: 2
+  category: traceability
+  summary: >-
+    analysis-report.md's Investigation (a) states "C-001/C-002/C-003/C-006 are satisfied
+    structurally... and are not orphaned in a way that needs a dedicated task." This
+    mischaracterizes C-003 ("Parity test is mandatory, not optional"), which is a POSITIVE
+    requirement satisfied by an affirmative deliverable (FR-002's parity test), unlike
+    C-001/C-002/C-006, which are genuinely "satisfied by what the WPs do NOT do." Re-built the
+    trace table for all six constraints against tasks.md/tasks/WP0*.md's structured
+    `requirement_refs` frontmatter (not prose mentions): C-001/C-002/C-004 are present in WP01's
+    structured `requirement_refs` list, but C-003 appears exactly ONCE anywhere in the tasks
+    corpus, buried in WP01's Context prose, and is absent from every WP's structured
+    `requirement_refs`. C-005 is similarly prose-only. C-006 does not appear ANYWHERE in tasks.md
+    or any tasks/WP0*.md file, not even in prose. The underlying substance is not orphaned in
+    practice, but the tasks artifact's own machine-checkable traceability metadata does not
+    thread C-003/C-005/C-006 the way it threads C-001/C-002/C-004.
+  evidence: >-
+    analysis-report.md, Investigation (a) paragraph; tasks.md:10 and
+    tasks/WP01-activation-rewrite-parity-test.md:14-16 (structured requirement_refs listing
+    C-001/C-002/C-004 but never C-003); grep of C-003/C-005/C-006 across tasks.md and all
+    tasks/WP0*.md files (C-003: 1 prose hit only; C-005: 1 prose hit only; C-006: 0 hits
+    anywhere).
+  remediation: >-
+    Add C-003 and C-005 to WP01's structured `requirement_refs`; either add C-006 to a WP's
+    `requirement_refs` as an explicit "not violated" scope note or state in plan.md/tasks.md
+    that C-006 is a scope-boundary constraint with no owning WP by design. Correct the analysis
+    report's Investigation (a) sentence to stop grouping C-003 with the "satisfied by omission"
+    reasoning that applies only to C-001/C-002/C-006.
+  source_group: cover
+- id: ANALYZE-COVER-004
+  severity: 2
+  category: coverage
+  summary: >-
+    `resolver.py`'s `resolve_governance_for_profile` (same file WP03 edits) is a fourth,
+    structurally-identical `governance.charter.selected_*`-adjacent reader that WP03's
+    4-boundary Union/Exclusion Boundary Audit does not enumerate at all: it builds
+    `GovernanceResolution.directives` via `_merge_unique(profile_directives,
+    interview.selected_directives)` -- entirely bypassing `PackContext.activated_*` -- the same
+    shape Decision Records 1-3 found and fixed elsewhere in this module. Verified live that,
+    unlike the three confirmed instances, it has ZERO production call sites under `src/` -- only
+    `src/charter/__init__.py`'s re-export and three test files reference it -- so it is not
+    currently producing live incorrect behavior, and spec.md's Non-Goals section explicitly
+    bounds this mission to the three named, live-verified consumers. Flagged for completeness,
+    not as a live defect this mission must fix.
+  evidence: >-
+    src/charter/activation/resolver.py (`resolve_governance_for_profile`); grep-confirmed
+    zero non-test/non-re-export callers; tasks/WP03-resolver-activated-base.md's
+    "Union/Exclusion Boundary Audit" section (4 boundaries enumerated, none of them this
+    function); spec.md Non-Goals ("A general audit of every other consumer of
+    governance.charter.selected_* ... beyond the three named ... is explicitly OUT OF SCOPE").
+  remediation: >-
+    No code change required within this mission's scope. Add one sentence to spec.md's
+    Non-Goals section (or a SPEC-KITTY-LEDGER.md entry) naming `resolve_governance_for_profile`
+    as a known-dormant instance of the same defect class, so a future change that wires a real
+    caller to it does not silently reintroduce the bug unaudited.
+  source_group: cover

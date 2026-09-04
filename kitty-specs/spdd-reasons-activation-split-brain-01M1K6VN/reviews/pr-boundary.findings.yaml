@@ -1,0 +1,34 @@
+phase: pr
+lens: boundary
+findings:
+  - id: PR-BOUNDARY-001
+    severity: 3
+    title: Operator's home-directory path committed into a mission artifact destined for public repo history
+    location: "kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md:79,193,195,246"
+    claim: >
+      tracer-tooling-friction.md, a tracked mission artifact included in this
+      diff (git diff origin/main...HEAD), reproduces raw CLI/tool output
+      verbatim four times, each containing the operator's absolute
+      home-directory path "/home/jeroennouws/dev/SK-missions/3838/...". This
+      is exactly the leak class the review brief itself names ("a sibling PR
+      was sent back by a maintainer today for exactly that -- a
+      /home/<user>/... path ... committed into public history"). spec-kitty
+      is a PUBLIC repository; merging this exposes the operator's local
+      username and directory layout in permanent git history.
+    evidence: >
+      grep -n "jeroennouws" kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md
+      -> 4 matches: line 79 "  Missing: /home/jeroennouws/dev/SK-missions/3838/kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/analysis-report.md";
+      line 193 "'/tmp/pytest-of-jeroennouws/pytest-172'"; line 195 "...cd /home/jeroennouws/dev/SK-missions/3838 && pytest tests/charter/test_mission_type_profiles.py::...";
+      line 246 "'/tmp/pytest-of-jeroennouws/pytest-171'". Confirmed these are
+      the only operator-home-path occurrences in the whole diff:
+      `git diff origin/main...HEAD | grep -nE "/home/[a-zA-Z0-9_.-]+|/Users/[a-zA-Z0-9_.-]+"`
+      returned only these same two diff-hunk locations (tracer-tooling-friction.md
+      lines 79 and 195; the pytest-tmp-dir lines matched the same filename pattern).
+    remediation: >
+      Redact the absolute path in all four occurrences before this ships in
+      the PR -- replace "/home/jeroennouws/dev/SK-missions/3838" with a
+      repo-relative form (e.g. "<repo-root>" or ".") in
+      tracer-tooling-friction.md, or exclude tracer/tooling-friction scratch
+      notes from the PR diff if they are not intended to ship as permanent
+      public history.
+complete: true

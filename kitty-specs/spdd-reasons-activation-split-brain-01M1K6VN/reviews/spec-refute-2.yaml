@@ -1,0 +1,21 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: Verified drg_activation.py:433 gates on pack_context.activated_kinds and compiler.py's _resolve_config_activated_roots (153-226, grepped for the whole file) never consults activated_kinds, and spec.md's Decision Record 1 four-step enumeration (lines 104-115) and FR-001's algorithm text likewise never mention activated_kinds, so the documentation-completeness gap is real even though the finding itself correctly concludes it is not a correctness defect against compile_charter.
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: activation.py:33 imports `from ruamel.yaml import YAML` and _load_yaml (line 197) uses `YAML(typ="safe")`, and pack_context.py:32/294-298 likewise use ruamel.yaml's YAML class — Python has no stdlib YAML parser at all, so Decision Record 1's "only stdlib YAML parsing" (spec.md:123) is a verifiable misstatement.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: Traced the call chain in init.py — install_skills_for_agent (~line 909) -> command_installer._render_command_skill (~260) -> command_renderer.render, which calls apply_spdd_blocks_for_project(raw_text, repo_root) at command_renderer.py:442 — and confirmed this runs before save_agent_config/_save_vcs_config write .kittify/config.yaml (~lines 1220-1227), with no earlier config.yaml write found in init.py; FR-004's text (spec.md row FR-004) indeed gives no concrete acceptance criterion for "recording the finding," so both the reachability claim and the falsifiability gap are supported.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: Read all cited test methods — _write_governance (tests/charter/test_charter_context_spdd_reasons.py:44-53) and every True-asserting case in TestActivation (128-176), TestParadigmRoundTrip::test_paradigm_in_governance_activates_pack (365-379), TestSelectedTacticsRoundTrip (413-484), and test_activate_resolves_no_answers_edit.py's test_config_sourced_compile_keeps_spdd_active (194-249) — and confirmed none of them write .kittify/config.yaml to tmp_path (grep for config.yaml found zero hits in the first test file), only charter.yaml's governance section, so FR-010's kept/flipped binary genuinely omits the fixture-rewrite bucket these tests need.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: spec.md:218 states User Story 1 wants agreement "in every case" while FR-004 (spec.md row FR-004) and the Edge Cases absent-config.yaml bullet (spec.md:303-320) pin a deliberate carve-out to False for that one case, so the User Story's standalone framing is imprecise exactly as claimed, even though the finding correctly notes the spec is not self-contradicting when read in full.
