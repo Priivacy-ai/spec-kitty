@@ -101,9 +101,7 @@ def _init_repo(tmp_path: Path) -> Path:
     """
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(
-        ["git", "init", "-b", "wp03-work"], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "init", "-b", "wp03-work"], cwd=repo, check=True, capture_output=True)
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test User")
     (repo / ".kittify").mkdir()
@@ -184,9 +182,7 @@ def test_specify_creates_mission_with_enriched_scaffold_state(tmp_path: Path) ->
     assert (feature_dir / "meta.json").exists()
 
 
-def test_specify_success_data_carries_mission_slug_even_if_delegate_omits_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_specify_success_data_carries_mission_slug_even_if_delegate_omits_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fold-in review finding: unlike ``plan``/``tasks``/
     ``check_prerequisites`` (each ``setdefault``s ``mission_slug`` from the
     resolved mission identity), ``specify`` relied entirely on the delegate
@@ -338,9 +334,7 @@ def test_tasks_finalizes_wp_manifest_as_raw_pass_through(tmp_path: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-def test_specify_twice_for_same_slug_fails_closed_with_structured_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Second ``specify`` call for the identical slug must NOT succeed silently
     and must NOT propagate a bare exception/traceback — it must fail closed
     with a structured ``error_code``, leaving the first mission's meta.json

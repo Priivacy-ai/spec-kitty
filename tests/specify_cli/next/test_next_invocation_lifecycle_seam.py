@@ -112,16 +112,13 @@ def assert_lifecycle_seam_effects(
 
     new_events = events_after[len(events_before) :]
     assert any(e.get("type") == "MissionNextInvoked" for e in new_events), (
-        "expected emit_mission_next_invoked to append a MissionNextInvoked "
-        f"entry; new mission-events.jsonl entries: {new_events!r}"
+        f"expected emit_mission_next_invoked to append a MissionNextInvoked entry; new mission-events.jsonl entries: {new_events!r}"
     )
     assert paired_after > paired_before, (
-        "expected pair_previous_lifecycle_record to pair an outstanding "
-        f"`started` record (paired count {paired_before} -> {paired_after})"
+        f"expected pair_previous_lifecycle_record to pair an outstanding `started` record (paired count {paired_before} -> {paired_after})"
     )
     assert started_after > started_before, (
-        "expected write_issuance_lifecycle_record to write a new `started` "
-        f"record (started count {started_before} -> {started_after})"
+        f"expected write_issuance_lifecycle_record to write a new `started` record (started count {started_before} -> {started_after})"
     )
 
 
@@ -142,12 +139,8 @@ def assert_lifecycle_seam_effects(
 
 
 def _init_git_repo(path: Path) -> None:
-    subprocess.run(
-        ["git", "init", "--initial-branch=main"], cwd=path, capture_output=True, check=True
-    )
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"], cwd=path, capture_output=True, check=True
-    )
+    subprocess.run(["git", "init", "--initial-branch=main"], cwd=path, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=path, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=path, capture_output=True, check=True)
     (path / "README.md").write_text("# test", encoding="utf-8")
     subprocess.run(["git", "add", "README.md"], cwd=path, capture_output=True, check=True)
@@ -267,12 +260,8 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
 class TestNextAnswerLifecycleSeamEffects:
     """Drives the real ``spec-kitty next --answer`` CLI path (T004 step 3)."""
 
-    def test_answer_path_pairs_and_issues_through_the_shared_seam(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        repo_root = _scaffold_project(
-            tmp_path, mission_slug=_MISSION_SLUG, mission_type=_MISSION_TYPE
-        )
+    def test_answer_path_pairs_and_issues_through_the_shared_seam(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo_root = _scaffold_project(tmp_path, mission_slug=_MISSION_SLUG, mission_type=_MISSION_TYPE)
         _write_three_step_input_mission(repo_root, mission_type=_MISSION_TYPE)
         monkeypatch.chdir(repo_root)
         feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
@@ -352,9 +341,7 @@ class TestNextAnswerLifecycleSeamEffects:
 # ---------------------------------------------------------------------------
 
 
-def _setup_mission_dir(
-    repo_root: Path, *, mission_slug: str, mission_id: str | None
-) -> Path:
+def _setup_mission_dir(repo_root: Path, *, mission_slug: str, mission_id: str | None) -> Path:
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta: dict[str, object] = {"mission_type": "software-dev"}
@@ -385,14 +372,10 @@ class TestSeamFunctionsEffectiveRootFork:
     """``effective_root is not None`` routes through ``mission_context_for``
     instead of ``placement_seam`` -- all three functions share this fork."""
 
-    def test_pair_previous_lifecycle_record_uses_effective_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_pair_previous_lifecycle_record_uses_effective_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-effective-root-mission"
         mission_id = "01HSEAMEFFECTIVEROOTULID01"
-        feature_dir = _setup_mission_dir(
-            tmp_path, mission_slug=mission_slug, mission_id=mission_id
-        )
+        feature_dir = _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
         from specify_cli.invocation.lifecycle import write_started
 
         write_started(
@@ -418,26 +401,17 @@ class TestSeamFunctionsEffectiveRootFork:
         from specify_cli.invocation.lifecycle import read_lifecycle_records
 
         records = read_lifecycle_records(tmp_path)
-        assert any(r.phase == "completed" for r in records), (
-            "expected the effective_root fork to still pair the outstanding "
-            f"started record; records={records!r}"
-        )
+        assert any(r.phase == "completed" for r in records), f"expected the effective_root fork to still pair the outstanding started record; records={records!r}"
 
-    def test_write_issuance_lifecycle_record_uses_effective_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_write_issuance_lifecycle_record_uses_effective_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-effective-root-mission-2"
         mission_id = "01HSEAMEFFECTIVEROOTULID02"
-        feature_dir = _setup_mission_dir(
-            tmp_path, mission_slug=mission_slug, mission_id=mission_id
-        )
+        feature_dir = _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
         monkeypatch.setattr(
             "mission_runtime.mission_context_for",
             lambda *_a, **_k: _FakeMissionContext(feature_dir),
         )
-        decision = SimpleNamespace(
-            action="step_one", mission_state="step_one", kind="step", wp_id=None
-        )
+        decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
 
         write_issuance_lifecycle_record(
             "wp02-direct",
@@ -450,17 +424,11 @@ class TestSeamFunctionsEffectiveRootFork:
         from specify_cli.invocation.lifecycle import read_lifecycle_records
 
         records = read_lifecycle_records(tmp_path)
-        assert any(r.phase == "started" for r in records), (
-            f"expected a started record via the effective_root fork; records={records!r}"
-        )
+        assert any(r.phase == "started" for r in records), f"expected a started record via the effective_root fork; records={records!r}"
 
-    def test_emit_mission_next_invoked_uses_effective_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_emit_mission_next_invoked_uses_effective_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-effective-root-mission-3"
-        feature_dir = _setup_mission_dir(
-            tmp_path, mission_slug=mission_slug, mission_id="01HSEAMEFFECTIVEROOTULID03"
-        )
+        feature_dir = _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id="01HSEAMEFFECTIVEROOTULID03")
         monkeypatch.setattr(
             "mission_runtime.mission_context_for",
             lambda *_a, **_k: _FakeMissionContext(feature_dir),
@@ -483,17 +451,13 @@ class TestSeamFunctionsEffectiveRootFork:
         )
 
         events = read_events(feature_dir)
-        assert any(e.get("type") == "MissionNextInvoked" for e in events), (
-            f"expected the effective_root fork to still emit the event; events={events!r}"
-        )
+        assert any(e.get("type") == "MissionNextInvoked" for e in events), f"expected the effective_root fork to still emit the event; events={events!r}"
 
 
 class TestSeamFunctionsFailClosedBranches:
     """Every best-effort ``except``/early-return branch, exercised directly."""
 
-    def test_pair_previous_lifecycle_record_swallows_placement_seam_exception(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_pair_previous_lifecycle_record_swallows_placement_seam_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "runtime.next.next_invocation_lifecycle.placement_seam",
             lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
@@ -501,9 +465,7 @@ class TestSeamFunctionsFailClosedBranches:
         # Must not raise -- best-effort, fail-closed.
         pair_previous_lifecycle_record("agent", "no-such-mission", "success", tmp_path)
 
-    def test_pair_previous_lifecycle_record_swallows_corrupt_meta(
-        self, tmp_path: Path
-    ) -> None:
+    def test_pair_previous_lifecycle_record_swallows_corrupt_meta(self, tmp_path: Path) -> None:
         mission_slug = "042-corrupt-meta-mission"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
@@ -512,9 +474,7 @@ class TestSeamFunctionsFailClosedBranches:
         # Must not raise -- MissionMetaReadError is caught, not propagated.
         pair_previous_lifecycle_record("agent", mission_slug, "success", tmp_path)
 
-    def test_pair_previous_lifecycle_record_noop_without_mission_id(
-        self, tmp_path: Path
-    ) -> None:
+    def test_pair_previous_lifecycle_record_noop_without_mission_id(self, tmp_path: Path) -> None:
         mission_slug = "042-legacy-no-mission-id"
         _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=None)
 
@@ -525,9 +485,7 @@ class TestSeamFunctionsFailClosedBranches:
 
         assert read_lifecycle_records(tmp_path) == []
 
-    def test_pair_previous_lifecycle_record_non_success_result_writes_failed_phase(
-        self, tmp_path: Path
-    ) -> None:
+    def test_pair_previous_lifecycle_record_non_success_result_writes_failed_phase(self, tmp_path: Path) -> None:
         mission_slug = "042-blocked-result-mission"
         mission_id = "01HSEAMBLOCKEDRESULTULID04"
         _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
@@ -551,39 +509,27 @@ class TestSeamFunctionsFailClosedBranches:
         assert paired[0].phase == "failed"
         assert paired[0].reason == "blocked"
 
-    def test_write_issuance_lifecycle_record_swallows_placement_seam_exception(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_write_issuance_lifecycle_record_swallows_placement_seam_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "runtime.next.next_invocation_lifecycle.placement_seam",
             lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
         )
-        decision = SimpleNamespace(
-            action="step_one", mission_state="step_one", kind="step", wp_id=None
-        )
+        decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
         write_issuance_lifecycle_record("agent", "no-such-mission", tmp_path, decision)
 
-    def test_write_issuance_lifecycle_record_swallows_corrupt_meta(
-        self, tmp_path: Path
-    ) -> None:
+    def test_write_issuance_lifecycle_record_swallows_corrupt_meta(self, tmp_path: Path) -> None:
         mission_slug = "042-corrupt-meta-mission-2"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text("{not valid json", encoding="utf-8")
-        decision = SimpleNamespace(
-            action="step_one", mission_state="step_one", kind="step", wp_id=None
-        )
+        decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
 
         write_issuance_lifecycle_record("agent", mission_slug, tmp_path, decision)
 
-    def test_write_issuance_lifecycle_record_noop_without_mission_id(
-        self, tmp_path: Path
-    ) -> None:
+    def test_write_issuance_lifecycle_record_noop_without_mission_id(self, tmp_path: Path) -> None:
         mission_slug = "042-legacy-no-mission-id-2"
         _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=None)
-        decision = SimpleNamespace(
-            action="step_one", mission_state="step_one", kind="step", wp_id=None
-        )
+        decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
 
         write_issuance_lifecycle_record("agent", mission_slug, tmp_path, decision)
 
@@ -591,9 +537,7 @@ class TestSeamFunctionsFailClosedBranches:
 
         assert read_lifecycle_records(tmp_path) == []
 
-    def test_write_issuance_lifecycle_record_swallows_canonical_id_value_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_write_issuance_lifecycle_record_swallows_canonical_id_value_error(self, tmp_path: Path) -> None:
         mission_slug = "042-whitespace-action-mission"
         mission_id = "01HSEAMWHITESPACEULID05"
         _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
@@ -601,9 +545,7 @@ class TestSeamFunctionsFailClosedBranches:
         # ``if not action or not mission_state`` guard, then
         # ``make_canonical_action_id`` raises ValueError, which must be
         # swallowed (fail-closed), not propagated.
-        decision = SimpleNamespace(
-            action=" ", mission_state="step_one", kind="step", wp_id=None
-        )
+        decision = SimpleNamespace(action=" ", mission_state="step_one", kind="step", wp_id=None)
 
         write_issuance_lifecycle_record("agent", mission_slug, tmp_path, decision)
 
@@ -611,9 +553,7 @@ class TestSeamFunctionsFailClosedBranches:
 
         assert read_lifecycle_records(tmp_path) == []
 
-    def test_write_issuance_lifecycle_record_swallows_write_started_oserror(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_write_issuance_lifecycle_record_swallows_write_started_oserror(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-write-started-oserror-mission"
         mission_id = "01HSEAMOSERRORULID06"
         _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
@@ -621,26 +561,18 @@ class TestSeamFunctionsFailClosedBranches:
             "specify_cli.invocation.lifecycle.write_started",
             lambda *_a, **_k: (_ for _ in ()).throw(OSError("disk full")),
         )
-        decision = SimpleNamespace(
-            action="step_one", mission_state="step_one", kind="step", wp_id=None
-        )
+        decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
 
         # Must not raise -- the lifecycle log is observability only.
         write_issuance_lifecycle_record("agent", mission_slug, tmp_path, decision)
 
-    def test_emit_mission_next_invoked_degrades_feature_dir_to_none_on_exception(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_emit_mission_next_invoked_degrades_feature_dir_to_none_on_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "runtime.next.next_invocation_lifecycle.placement_seam",
             lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
         )
-        decision = SimpleNamespace(
-            kind="query", action=None, wp_id=None, mission_state=None, mission="no-such-mission"
-        )
+        decision = SimpleNamespace(kind="query", action=None, wp_id=None, mission_state=None, mission="no-such-mission")
 
         # Must not raise -- degrades to an un-persisted (feature_dir=None)
         # emit_event call rather than propagating.
-        emit_mission_next_invoked(
-            "agent", "success", "no-such-mission", tmp_path, decision
-        )
+        emit_mission_next_invoked("agent", "success", "no-such-mission", tmp_path, decision)

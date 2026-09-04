@@ -117,17 +117,19 @@ def pair_previous_lifecycle_record(
     # the seam's own internal fold for a PRIMARY-partition kind.
     try:
         if effective_root is None:
-            feature_dir = placement_seam(
-                repo_root_path, mission_slug
-            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+            feature_dir = placement_seam(repo_root_path, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         else:
             from mission_runtime import mission_context_for
 
-            feature_dir = mission_context_for(
-                repo_root_path,
-                mission_slug,
-                effective_root=effective_root,
-            ).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+            feature_dir = (
+                mission_context_for(
+                    repo_root_path,
+                    mission_slug,
+                    effective_root=effective_root,
+                )
+                .artifact(MissionArtifactKind.PRIMARY_METADATA)
+                .read_dir
+            )
     except Exception:
         return
 
@@ -213,17 +215,19 @@ def write_issuance_lifecycle_record(
     # the seam's own internal fold for a PRIMARY-partition kind.
     try:
         if effective_root is None:
-            feature_dir = placement_seam(
-                repo_root_path, mission_slug
-            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+            feature_dir = placement_seam(repo_root_path, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         else:
             from mission_runtime import mission_context_for
 
-            feature_dir = mission_context_for(
-                repo_root_path,
-                mission_slug,
-                effective_root=effective_root,
-            ).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+            feature_dir = (
+                mission_context_for(
+                    repo_root_path,
+                    mission_slug,
+                    effective_root=effective_root,
+                )
+                .artifact(MissionArtifactKind.PRIMARY_METADATA)
+                .read_dir
+            )
     except Exception:
         return
 
@@ -287,17 +291,19 @@ def emit_mission_next_invoked(
 
     try:
         if effective_root is None:
-            feature_dir = placement_seam(repo_root_path, mission_slug).read_dir(
-                MissionArtifactKind.STATUS_STATE
-            )
+            feature_dir = placement_seam(repo_root_path, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
         else:
             from mission_runtime import mission_context_for
 
-            feature_dir = mission_context_for(
-                repo_root_path,
-                mission_slug,
-                effective_root=effective_root,
-            ).artifact(MissionArtifactKind.STATUS_STATE).read_dir
+            feature_dir = (
+                mission_context_for(
+                    repo_root_path,
+                    mission_slug,
+                    effective_root=effective_root,
+                )
+                .artifact(MissionArtifactKind.STATUS_STATE)
+                .read_dir
+            )
     except Exception:
         feature_dir = None
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so
