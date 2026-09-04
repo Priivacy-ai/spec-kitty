@@ -33,6 +33,22 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'squad:exhausted')
     runs-on: blacksmith-16vcpu-ubuntu-2404
     timeout-minutes: 90
+    # planning#1876: the pre-suite workflow-integrity check (bin/ci-run.sh ->
+    # check_workflow_integrity.py) reads live workflow registrations via gh api.
+    # That read must use the Actions JOB token — SK_CI_TOKEN deliberately carries
+    # no Actions scope (docs/BLACKSMITH-CI.md) — and the checker only remaps
+    # GITHUB_TOKEN -> GH_TOKEN when GITHUB_TOKEN is present in its environment.
+    # The missing export made every PR-head run abort HTTP 403 "Resource not
+    # accessible by personal access token" -> terminal [ci] infra-error. Proof
+    # run 33874130455 then showed the remap working (error became "Resource not
+    # accessible by integration") but the job token still denied: the Actions
+    # API requires an explicit actions: read grant — the default token set
+    # (contents/metadata) does not cover it.
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Require SK_CI_TOKEN
         run: |
