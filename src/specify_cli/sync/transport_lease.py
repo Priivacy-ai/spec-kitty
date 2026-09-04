@@ -7,15 +7,17 @@ eligibility check, transport start, and result recording across processes.
 
 from __future__ import annotations
 
-import fcntl
 import os
-import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
+
+from filelock import FileLock
+
+from specify_cli.core.checkout_file_lock import acquire_or_raise
 
 from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.sync.project_context import (
@@ -84,17 +86,14 @@ def acquire_project_transport_lease(
     identity = f"{label}:pid:{os.getpid()}:acquisition:{uuid.uuid4()}"
 
     path = store.egress_lock_path
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+b") as handle:
-        deadline = time.monotonic() + lock_timeout_seconds
-        while True:
-            try:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError as exc:
-                if time.monotonic() >= deadline:
-                    raise ProjectStoreLockedError("project transport lease is locked") from exc
-                time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
+    lock = FileLock(path)
+    acquire_or_raise(
+        lock,
+        path,
+        timeout_seconds=lock_timeout_seconds,
+        build_timeout_error=lambda: ProjectStoreLockedError("project transport lease is locked"),
+    )
+    try:
         try:
             _register_live_lease(
                 identity,
@@ -104,7 +103,8 @@ def acquire_project_transport_lease(
             yield TransportLeaseContext(store=store, lease_identity=identity, lock_path=path)
         finally:
             _unregister_live_lease(identity)
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    finally:
+        lock.release()
 
 
 def transport_lease_is_live(lease_identity: str | None) -> bool:

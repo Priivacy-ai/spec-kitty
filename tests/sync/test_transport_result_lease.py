@@ -160,6 +160,7 @@ def test_same_label_reacquisition_does_not_reactivate_cached_context(
             mark_transport_started(unit, stale_context, "attempt-lease")
 
 
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="Requires POSIX fork semantics")
 def test_forked_child_does_not_inherit_live_lease_authority(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
