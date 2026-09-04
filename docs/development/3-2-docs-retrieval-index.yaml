@@ -3555,6 +3555,8 @@ pages:
     - {slug: "spec-kitty-doctrine-pack-validate", text: "spec-kitty doctrine pack validate", level: 2}
     - {slug: "spec-kitty-doctrine-regenerate-graph", text: "spec-kitty doctrine regenerate-graph", level: 2}
     - {slug: "spec-kitty-doctrine-validate", text: "spec-kitty doctrine validate", level: 2}
+    - {slug: "spec-kitty-events", text: "spec-kitty events", level: 2}
+    - {slug: "spec-kitty-events-tail", text: "spec-kitty events tail", level: 2}
     - {slug: "spec-kitty-glossary", text: "spec-kitty glossary", level: 2}
     - {slug: "spec-kitty-glossary-conflicts", text: "spec-kitty glossary conflicts", level: 2}
     - {slug: "spec-kitty-glossary-list", text: "spec-kitty glossary list", level: 2}
@@ -6802,6 +6804,10 @@ pages:
     - {slug: "anomaly-event", text: "Anomaly Event", level: 3}
     - {slug: "wpstatuschanged", text: "WPStatusChanged", level: 3}
     - {slug: "lamport-clock", text: "Lamport Clock", level: 3}
+    - {slug: "tail-cursor", text: "Tail cursor", level: 3}
+    - {slug: "resume-token", text: "resume token", level: 3}
+    - {slug: "log-truncated", text: "`log_truncated`", level: 3}
+    - {slug: "tail-envelope", text: "Tail envelope", level: 3}
   - path: "docs/context/technology-foundations.md"
     title: "Context: Technology Foundations"
     divio_type: "none"
