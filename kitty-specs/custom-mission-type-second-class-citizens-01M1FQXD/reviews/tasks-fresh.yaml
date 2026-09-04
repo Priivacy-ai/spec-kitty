@@ -1,0 +1,51 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: TASKS-FRESH-001
+    lens: fresh-eyes-code-fidelity
+    severity: 3
+    title: WP03 generalizes the boolean substantive-gate but leaves three hardcoded "Technical Context"/"Language/Version" operator-facing messages untouched, so research/plan/qa-type operators get wrong guidance text
+    evidence:
+      - artifact: "tasks/WP03-substantive-gate.md § Subtasks T002-T007 (Decisions 1-5), § Definition of Done"
+      - code: "src/specify_cli/missions/_substantive.py:198-235 (describe_technical_context_gap — still anchored to `## Technical Context` / `**Language/Version**` literals)"
+      - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:825 (scaffold-only console message: \"populate Technical Context and re-run setup-plan\")"
+      - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:833-834 (blocked_reason string: \"populate Technical Context with real values (Language/Version plus at least one peer field...)\")"
+      - artifact: "plan.md § Campsite-Clean Scope (only names `_has_substantive_technical_context`, `_has_substantive_fr_row`, `is_substantive` as the touched functions — `describe_technical_context_gap` and the two console/blocked_reason message sites are never mentioned anywhere in plan.md, spec.md, research.md, or WP03's ten subtasks)"
+    claim: >
+      WP03's T002-T007 generalize `_has_substantive_technical_context` (the boolean gate)
+      by parameter so `is_substantive()` correctly evaluates research/plan/documentation/
+      custom-type plan.md files against their own template fields. But three
+      operator-facing message sites that describe *why* the gate failed remain hardcoded
+      to "Technical Context" / "Language/Version" and are never scoped into any WP03
+      subtask or Decision 1-5: (1) `describe_technical_context_gap` in `_substantive.py`
+      itself (same file WP03 owns) duplicates the old hardcoded regex/labels and is called
+      from `_commit_plan_if_substantive` to build the `Detail:` suffix of the blocked
+      message; (2) the scaffold-only console message at `mission_setup_plan.py:825`; (3)
+      the blocked_reason string at `mission_setup_plan.py:833-834`. After WP03 ships, an
+      operator running `setup-plan` on an insufficiently-populated `research`, `plan`, or
+      `qa`-type plan.md will see "populate Technical Context with real values
+      (Language/Version plus at least one peer field, such as Primary Dependencies)" and/or
+      "Technical Context section is missing from plan.md" — fields that do not exist
+      anywhere in those types' templates (verified: `research-plan-template.md` uses
+      `Research Question`/`Data Sources`; `plan-plan-skeleton.md` uses `Problem
+      Decomposition`/etc.; neither scaffolds `Technical Context` or `Language/Version`).
+      This directly undermines the mission's own stated goal (correct, template-derived
+      per-type behavior for non-software-dev mission types) and would ship undetected,
+      since existing test patterns in `test_mission_setup_plan_phases.py` only assert
+      `blocked_reason is not None`, never message content, and none of WP03's ten
+      subtasks or T008's non-vacuity fixture matrix mention verifying message content per
+      type.
+    remediation: >
+      Add a WP03 subtask (or extend T002/T007) to thread the same per-type field
+      declaration into `describe_technical_context_gap` (generalizing its container
+      heading / primary-field label the same way T003 generalizes
+      `_has_substantive_technical_context`), and update the two hardcoded strings in
+      `mission_setup_plan.py` (lines 825 and 833-834) to name the resolved type's own
+      primary/peer field labels instead of the literal "Technical Context"/"Language/
+      Version" text. Add an assertion to T008's fixture matrix (or a new subtask) that
+      checks message content — not just the boolean gate outcome — for at least one
+      non-software-dev negative fixture.

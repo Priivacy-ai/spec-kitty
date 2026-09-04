@@ -1,0 +1,112 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: SPEC-FRESH-001
+    lens: structural-root-cause (Debugger Debbie / architectural-integrity)
+    severity: 4
+    title: "Decision 3 / NFR-004 / AC5's 'own scaffolded fields' mechanism for research/plan is not achievable with the codebase's existing placeholder-detection vocabulary, so AC5's own non-vacuity claim is unverified and likely false as specified"
+    evidence:
+      - artifact: "spec.md § Clarifications / Decision 3 (\"FR-006's template-derived mechanism checks research's own scaffolded fields ... and plan's own scaffolded fields — Problem Decomposition, Scope (MoSCoW), Sequencing & Prioritisation, Decisions\")"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 5 (\"a research/plan plan.md missing substantive content in those sections returns False, so the gate remains capable of failing for these two types exactly as NFR-005 requires\")"
+      - artifact: "spec.md § NFR-004, NFR-005 (gate 'must be a gate that CAN fail for every mission type it applies to')"
+      - code: "src/specify_cli/missions/_substantive.py:31-48 (_PLACEHOLDER_PATTERNS — a fixed, hand-tuned list: [NEEDS CLARIFICATION...], [e.g.,...], [FEATURE], [###-feature...], [Short title], [Measurable threshold...], [role], [goal], [benefit], [specific capability...], [key interaction...], [data requirement...], [behavior...], [domain-specific...], [if applicable...], [Project-specific...], [single/web/mobile...] — none of which matches bracket placeholders like \"[Sub-problem statement]\", \"[Cluster name]\", \"[SP-# or none]\", \"[Primary question]\", or \"[Database 1: e.g., IEEE Xplore, PubMed, arXiv]\" (does not match the [e.g.,...] pattern, which requires the literal text to START with \"[e.g.,\"))"
+      - code: "src/specify_cli/missions/_substantive.py:158-186 (_has_substantive_technical_context — the ONLY existing 'template-derived-ish' mechanism in the codebase: a single regex that finds a `## Technical Context` section and scans for `**Label**: value` bold-field lines, rejecting a value only if it matches _PLACEHOLDER_PATTERNS after stripping)"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:17-52 (## Problem Decomposition is a markdown TABLE with placeholder cells like \"[Sub-problem statement]\"/\"[Cluster name]\"/\"[SP-# or none]\"; ## Sequencing & Prioritisation (line 41) is also a markdown TABLE — neither has any `**Label**: value` bold-field line for the existing mechanism to scan)"
+      - code: "packs/built-in/missions/research/templates/research-plan-template.md:9,22,56 (## Research Context is a top-level bold-field section at line 9; ## Methodology at line 22 is narrative/nested, not bold-field; ### Data Sources at line 56 is a THIRD-LEVEL heading nested inside ## Methodology, not a sibling top-level section as Decision 3's flat list \"Research Context / Methodology / Data Sources\" implies)"
+    claim: >
+      Decision 1's binding fix shape (C-004) — and the pre-existing
+      `_has_substantive_technical_context` mechanism it generalizes — is a
+      single, specific detection algorithm: find one named section, then scan
+      for `**Bold Label**: value` lines and reject placeholder-only values via
+      a hand-curated `_PLACEHOLDER_PATTERNS` list. This mechanism generalizes
+      cleanly to `documentation` (AC4) because `documentation-plan-template.md`
+      scaffolds the SAME shape — a `## Technical Context` heading with
+      `**Bold Label**: value` peer fields, using the SAME bracket-placeholder
+      vocabulary the existing regex list already recognizes (`[... or NEEDS
+      CLARIFICATION]`, matching the existing `[NEEDS CLARIFICATION...]`
+      pattern).
+
+      Decision 3 (new, this fix round) extends the same "own scaffolded
+      fields" language to `research` and `plan`, but those two templates do
+      NOT share that shape: `plan`'s "Problem Decomposition" and "Sequencing &
+      Prioritisation" sections are markdown TABLES with bracket placeholders
+      (`[Sub-problem statement]`, `[Cluster name]`, `[SP-# or none]`) that the
+      existing `_PLACEHOLDER_PATTERNS` list does not recognize as
+      placeholders (verified: none of the 17 patterns match this bracket
+      vocabulary), and `research`'s "Data Sources" is a third-level heading
+      nested inside "Methodology," not a sibling top-level section as
+      Decision 3's flat citation implies. Applying the existing
+      field-scan-and-placeholder-strip mechanism naively to these sections
+      would either find no `**Label**: value` lines to scan at all (the table
+      sections) or treat literal, unfilled bracket placeholders as "real"
+      content because the placeholder vocabulary was never extended to cover
+      them — meaning a freshly-scaffolded, essentially-empty `plan`-type
+      plan.md could be accepted as substantive, directly contradicting AC5's
+      own claim ("a research/plan plan.md missing substantive content ...
+      returns False") and NFR-005's non-vacuity requirement.
+
+      This is not a plan-phase implementation detail properly left open:
+      Decision 3 is marked BINDING and its own text asserts the mechanism
+      IS resolved ("Resolution (option a): FR-006's template-derived
+      mechanism checks ... as the substantive-content criterion"), and AC5
+      asserts the fail-capable behavior as an already-settled, testable
+      outcome. Neither the spec nor the tracer file acknowledges that the
+      table-shaped and nested-heading structure of `plan`/`research`'s own
+      templates requires either (a) a materially different detection
+      algorithm from the bold-field-scan approach that works for
+      `software-dev`/`documentation`, or (b) new placeholder-pattern
+      entries recognizing these templates' bracket vocabulary — both of
+      which are real implementation work this spec is silent about, despite
+      claiming the "how" is already decided.
+    remediation: >
+      Either (a) add an explicit note under Decision 3 / FR-006 acknowledging
+      that `plan`'s table-shaped sections and `research`'s nested `Data
+      Sources` heading need a distinct detection approach from the
+      bold-field-scan mechanism (e.g., non-placeholder-row-count for tables,
+      mirroring the existing `_has_substantive_fr_row` table-row detector
+      already in the same module) and that the placeholder-pattern list must
+      be extended to cover `plan`/`research`'s own bracket vocabulary — making
+      this new, real implementation work visible in FR-006/FR-007 rather than
+      implying it is a drop-in reuse of the existing field-scan regex; or (b)
+      if this detail is genuinely meant to be settled in the plan phase,
+      soften Decision 3/AC5's language from "Resolution" (settled) to
+      "resolved principle, detection mechanism deferred to plan phase" so an
+      implementer is not misled into believing a literal reuse of
+      `_has_substantive_technical_context`'s regex approach will satisfy
+      NFR-005 for `research`/`plan`.
+
+  - id: SPEC-FRESH-002
+    lens: cross-artifact consistency (Debugger Debbie / conceptual alignment)
+    severity: 2
+    title: "SC-001 was not updated to mirror the new plan non-regression clause added to NFR-001 / User Story 1 AC4"
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-001 (\"...with zero regression in profile resolution for `software-dev`, `research`, and `documentation` actions covered by `_ACTION_PROFILE_DEFAULTS`. (#3830)\")"
+      - artifact: "spec.md § NFR-001 (fix-round addition: \"...concretely, User Story 1 Acceptance Scenario 4: `plan` must still fail with `StepContractExecutionError(\\\"No step contract found for mission/action plan/<action>\\\")`, not `profile_hint is required` or any newly-introduced behavior.\")"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 4 (fix-round addition, covers `plan`'s non-regression explicitly)"
+    claim: >
+      The fix round strengthened NFR-001 and added a new Acceptance Scenario
+      (User Story 1 AC4) specifically to make `plan`'s non-regression
+      testable — closing SPEC-ARCH-001's untestable-prose gap. But SC-001,
+      the top-level measurable outcome for #3830 that a reviewer or
+      implementer would naturally scan as the final checklist, was left
+      unchanged: it still enumerates "zero regression" only for
+      `software-dev`, `research`, and `documentation` (the three
+      `_ACTION_PROFILE_DEFAULTS` types), omitting `plan` entirely even though
+      `plan`'s own distinct non-regression contract (a specific, different
+      failure mode that must be preserved unaltered) is now a first-class,
+      testable requirement elsewhere in the same document. This is a minor
+      completeness gap, not a defect in the underlying fix: AC4 and NFR-001
+      already carry the real, testable obligation, so an implementation
+      following the ACs would still come out right — but a reviewer relying
+      on Success Criteria as the summary contract would see no signal that
+      `plan`'s adjacent, pre-existing failure mode is part of what SC-001 is
+      supposed to certify.
+    remediation: >
+      Add a clause to SC-001 (or a new SC-001a) stating that `plan`'s
+      pre-existing composition-dispatch failure mode
+      (`StepContractExecutionError("No step contract found for mission/action
+      plan/<action>")`) is verified unchanged by the fix, mirroring NFR-001's
+      updated text and User Story 1 AC4.

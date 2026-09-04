@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "mission_slug": "dispatch-dry-run-route-only-01M1HKV2",
+  "mission_id": "01M1HKV2FARCBJGF3Y14W5J9P3",
+  "mission_branch": "kitty/mission-dispatch-dry-run-route-only-01M1HKV2",
+  "target_branch": "feat/dispatch-dry-run-route-only-3840",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/dispatch.py",
+        "src/specify_cli/invocation/empty_charter.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/router.py",
+        "tests/glossary/test_chokepoint.py",
+        "tests/invocation/test_dispatch_recommendation.py",
+        "tests/specify_cli/invocation/cli/test_dispatch.py",
+        "tests/specify_cli/invocation/test_invocation_e2e.py",
+        "tests/specify_cli/invocation/test_router.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-02T20:23:19.233904+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "39ba9013479122b6a55b9966280a9a5d0d63ac6b",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/invocation/executor.py' vs 'src/specify_cli/invocation/executor.py', 'src/specify_cli/invocation/router.py' vs 'src/specify_cli/invocation/router.py', 'tests/specify_cli/invocation/cli/test_dispatch.py' vs 'tests/specify_cli/invocation/cli/test_dispatch.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/invocation/router.py' vs 'src/specify_cli/invocation/router.py'"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

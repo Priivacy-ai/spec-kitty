@@ -949,6 +949,35 @@ def _create_mission_core_impl(
     )
 
     # ------------------------------------------------------------------
+    # 9.5 Commit the origin-ticket binding (squad follow-on to #2739/#2693)
+    #
+    # ``_consume_pending_origin_if_present`` -> ``bind_mission_origin`` calls
+    # the SaaS binder FIRST, then writes the updated ``origin_ticket`` subtree
+    # to ``meta.json`` locally via ``set_origin_ticket`` (``write_meta`` — a
+    # plain disk write, no commit). The step-8.5 scaffold commit above already
+    # landed BEFORE this write, so on the ticket-first flow a successful
+    # origin bind leaves ``meta.json`` modified-uncommitted in the working
+    # tree while the CLI's ``--json`` envelope reports the mission created —
+    # ``git status --porcelain`` shows ``M meta.json`` even though creation
+    # "succeeded". Land it through the SAME sanctioned commit surface used at
+    # step 8.5 so the tree is clean the moment origin binding succeeds.
+    # Mirrors step 8.5's FR-001 discipline: raise rather than silently leave
+    # the tree dirty on a hard commit failure.
+    # ------------------------------------------------------------------
+    if origin_binding_succeeded:
+        try:
+            _commit_feature_file(
+                meta_file,
+                mission_slug_formatted,
+                "origin-ticket binding",
+                resolved_root,
+                worktree_root=effective_root,
+                create_time_target=create_time_target,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"origin-ticket binding commit failed: {exc}") from exc
+
+    # ------------------------------------------------------------------
     # 10. Build result
     # ------------------------------------------------------------------
     created_files = [spec_file, meta_file, tasks_readme]

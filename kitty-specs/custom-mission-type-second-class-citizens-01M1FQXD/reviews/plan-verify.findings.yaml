@@ -1,0 +1,182 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Architectural gate non-vacuity (NFR-005)
+    severity: 4
+    title: >-
+      The custom-type (qa) row of §Architectural Gate Non-Vacuity names the wrong
+      negative fixture, and contradicts §ATDD-First's own stated test plan for the
+      same FR cluster
+    evidence:
+      - artifact: >-
+          plan.md § Architectural Gate Non-Vacuity, table row "Custom (`qa`, in the
+          WP that exercises it)": positive = "plan.md faithfully populated per
+          `test-plan-template.md`'s own eight sections"; negative =
+          "malformed/missing/unresolvable template — the gate must fail closed,
+          never silently pass or crash (Edge Cases)"
+      - artifact: >-
+          plan.md § ATDD-First / RED-FIRST, FR-006/FR-008 row: "...then confirm
+          each of the four built-in types plus `qa` passes when faithfully
+          populated and FAILS WHEN SCAFFOLD-ONLY"
+      - artifact: >-
+          spec.md NFR-005: "the gate must be demonstrably CAPABLE of both PASSING
+          (given a plan.md faithfully populated per that type's own template) and
+          FAILING (given an unfilled/placeholder-only scaffold of that type's own
+          template) — no mission type may be structurally exempted"
+    claim: >-
+      For every one of the four built-in rows (software-dev, documentation,
+      research, plan) the non-vacuity table's negative fixture is the same shape
+      required by NFR-005: an unfilled/placeholder-only scaffold of that type's
+      OWN template, proving the new per-type combination-rule detector can
+      actually return False through its normal code path. The qa row substitutes
+      a different scenario — a malformed/missing/unresolvable template triggering
+      fail-closed behavior — which exercises a completely different code path
+      (error handling / degradation), not the combination-rule detector itself.
+      Nothing in plan.md's own non-vacuity table demonstrates that a
+      well-formed-but-scaffold-only qa plan.md (the fixture §ATDD-First itself
+      says must be tested) actually returns False through the new per-type
+      declaration + shape-detector + AND/OR combination mechanism. A WP author
+      who satisfies the non-vacuity table literally could ship a custom-type gate
+      that is proven to fail-closed on broken input but never proven capable of a
+      normal, detector-driven False — i.e. the exact vacuous-gate defect class
+      this mission exists to eliminate, now reintroduced one level down for
+      custom types specifically. This is also an internal contradiction within
+      plan.md: the ATDD-First row for the same FR cluster explicitly requires the
+      "fails when scaffold-only" fixture for qa that the non-vacuity table omits.
+    remediation: >-
+      Change the qa row's negative fixture in §Architectural Gate Non-Vacuity to
+      match the other four rows' shape: "unfilled/placeholder-only scaffold of
+      `test-plan-template.md` (all eight sections present, populated only with
+      the template's own placeholder text)". Keep the malformed/missing/
+      unresolvable-template fail-closed behavior as a separate, additional edge
+      case (it already has a home in spec.md's Edge Cases section) rather than
+      substituting it for the required non-vacuity negative fixture.
+
+  - id: PLAN-VERIFY-002
+    lens: Test strategy concreteness
+    severity: 3
+    title: >-
+      FR-002 (distinguish a genuine resolve_mission_type_context failure from the
+      "action in own sequence" branch) has no concrete acceptance-test anchor,
+      and the plan's described mechanism does not actually add a distinguishing
+      signal
+    evidence:
+      - artifact: >-
+          plan.md § Summary, bullet 1 and § Architecture — Seam Mapping, #3830
+          row: "The fix removes that misplaced early return so the canonical
+          resolution path always runs, and separates 'resolution genuinely
+          failed' from 'resolution succeeded, blank the hint' in the
+          `except Exception: pass` around it."
+      - artifact: >-
+          plan.md § ATDD-First / RED-FIRST, FR-001/002/003 row — only names an
+          acceptance contract/entry point for FR-001 (profile_hint resolves) and
+          the AC4 non-regression for `plan`; no separate contract or RED-FIRST
+          reproduction is named for FR-002's own AC2 ("no error is silently
+          swallowed... a real resolution failure must be distinguishable")
+      - code: "src/runtime/next/runtime_bridge_composition.py:318-329"
+    claim: >-
+      Live code at the fix site (verified this session) shows the `except
+      Exception: pass` today swallows a genuine `resolve_mission_type_context`
+      failure and an "action not in action_sequence" outcome identically — both
+      fall through to `_rb._resolve_step_agent_profile(...)`. The only
+      behavioral fork today is "resolution succeeded AND action in
+      action_sequence" -> blank the hint. Removing that one early return (the
+      FR-001 fix) makes ALL THREE cases (success+in-sequence, success+not-in-
+      sequence, exception) converge to the same fallthrough call — which
+      satisfies FR-001 but adds no new signal that would let a "genuine
+      resolution failure" be distinguished from a normal "action in own
+      sequence" case, contrary to what the Architecture section's prose claims
+      ("separates... distinguish genuine failure... in the surrounding except
+      Exception"). Spec.md's own AC2 requires this distinction be observable/
+      testable, not merely intended. Without a concrete mechanism (e.g. narrow
+      the caught exception type, log-and-reraise for unexpected exceptions, or
+      surface a distinct blocked/error Decision when resolution demonstrably
+      failed vs. resolved-but-not-relevant) and a RED-FIRST reproduction proving
+      it, an implementer can complete FR-001 and believe FR-002 is automatically
+      satisfied as a side effect, when in fact the "malformed mission type
+      surfaces a diagnosable error" half of FR-002's own description
+      (executor.py FR-002 text) remains unaddressed.
+    remediation: >-
+      Add a row (or a sub-bullet under the existing FR-001-003 row) to
+      §ATDD-First naming FR-002's own acceptance contract concretely: what
+      exception/signal a genuine `resolve_mission_type_context` failure (e.g. a
+      malformed org pack) must now produce, and a RED-FIRST reproduction that
+      currently shows the malformed-pack case silently falling through
+      unnoticed, then confirms it becomes diagnosable after the fix — as a case
+      distinct from "action not in the mission type's own action_sequence" (that
+      case must legitimately keep resolving via `_resolve_step_agent_profile`
+      unchanged, per NFR-001, since it is not an error).
+
+  - id: PLAN-VERIFY-003
+    lens: Gate concreteness (mission-derived)
+    severity: 2
+    title: >-
+      research.md §R5's critical_paths citation misquotes the actual
+      ci-quality.yml dashboard entries
+    evidence:
+      - artifact: >-
+          research.md § R5: "Confirmed present: `src/kernel/*`, `src/charter/*`,
+          `src/specify_cli/status/*`, `src/specify_cli/lanes/branch_naming.py`,
+          `src/specify_cli/dashboard/*`, `src/specify_cli/merge/*`,
+          `src/runtime/next/*`, `src/mission_runtime/*`, plus several
+          `review/`-scoped files."
+      - code: ".github/workflows/ci-quality.yml:3370-3396 (critical_paths array)"
+    claim: >-
+      The live `critical_paths` array (verified this session) contains
+      `'src/specify_cli/dashboard/handlers/*'` and
+      `'src/specify_cli/dashboard/scanner.py'` — two specific entries — not a
+      blanket `'src/specify_cli/dashboard/*'` entry as research.md states. It
+      also omits the separately-listed `'src/charter/offering/*'` entry (subsumed
+      textually but not verbatim by the `'src/charter/*'` mention) and the two
+      `tasks_move_task.py`/`tasks_verdict_persistence.py` entries that are not
+      actually under `review/`. None of this changes the mission's own
+      applicability conclusion (no fix-site file in this mission is under
+      `dashboard/`, so the gate-inclusion table in plan.md is unaffected), but it
+      is an inaccurate quote of a CI file this lens was specifically asked to
+      verify, and a future reader relying on research.md's list for a
+      dashboard-touching change would be misled into thinking any dashboard file
+      is covered by the enforced 90% gate.
+    remediation: >-
+      Correct research.md §R5's bullet to quote the two actual dashboard entries
+      verbatim (`src/specify_cli/dashboard/handlers/*`,
+      `src/specify_cli/dashboard/scanner.py`) instead of the paraphrased
+      `dashboard/*`, and likewise list `src/charter/offering/*` as its own entry
+      alongside `src/charter/*`.
+
+  - id: PLAN-VERIFY-004
+    lens: Baseline/SC-005 correspondence
+    severity: 2
+    title: >-
+      §Baseline Discipline omits the charter's specific content requirement for
+      a newly-filed pre-existing-failure issue
+    evidence:
+      - artifact: >-
+          plan.md § Baseline Discipline, item 2: "Any red not already covered by
+          #3284... gets filed as its own GitHub issue before being treated as
+          baseline"
+      - artifact: >-
+          .kittify/charter/charter.md § Pre-existing Failure Reporting Rule: "The
+          issue must include the command run, the relevant failure summary, and
+          why the agent believes the failures are pre-existing rather than
+          introduced by its current change."
+    claim: >-
+      Plan.md correctly operationalizes the charter rule's core mechanism
+      (classify against #3284 before attributing; file a new issue for anything
+      uncovered) but does not restate the charter's explicit content requirement
+      for that filed issue — the command run, the failure summary, and the
+      rationale for believing it is pre-existing. Because §Baseline Discipline is
+      the document a WP implementer will actually follow at execution time
+      (rather than re-reading the charter section-by-section), an issue filed per
+      this plan's instructions could satisfy "filed as its own GitHub issue"
+      while omitting the reproduction command or the pre-existing rationale the
+      charter separately requires, which would fail the charter rule on a
+      technicality the plan gave no reason to catch.
+    remediation: >-
+      Add one bullet under §Baseline Discipline item 2 restating the charter's
+      required issue content (command run, failure summary, pre-existing
+      rationale) so the plan is self-sufficient for a WP implementer without a
+      round-trip back to the charter text.

@@ -1,0 +1,16 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: >-
+      T002 now states the declaration is five entries (four built-ins plus a WP-constructed,
+      test-only `qa` proof-of-mechanism fixture) with a concrete fixture-authoring plan
+      independently verified against the real test-file conventions in
+      test_substantive_gate_formats.py and test_mission_setup_plan_phases.py, T002(b)
+      documents the NFR-005 scope reconciliation, a concrete fail-closed/distinct-diagnostic
+      decision is stated for a resolvable template with no declaration entry and backed by a
+      T008 test requirement, T008's qa row now references the WP-constructed fixture
+      explicitly, and the Definition of Done's NFR-005 bullet matches the reconciled scope.

@@ -1,0 +1,118 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: SPEC-FRESH2-001
+    lens: structural-root-cause
+    severity: 4
+    title: >-
+      New Decision-3 detection-mechanism note covers only 2 of `plan`'s 4
+      NFR-004-required sections, and its "plan's sections are tables"
+      premise is false for the other 2
+    evidence:
+      - artifact: "spec.md § NFR-004 (row, current)"
+      - artifact: "spec.md § Clarifications / Decision 3, 'Detection-mechanism note (added this fix round, SPEC-FRESH-001)'"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 5"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:17 (## Problem Decomposition, table)"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:32-39 (## Scope — MoSCoW, bulleted '- **Field**: value' list, NOT a table)"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:41 (## Sequencing & Prioritisation, table)"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:53-71 (## Decisions, content nested under '### Decision D-1: [Decision title]' with bulleted '- **Context**:'/'- **Decision**:'/etc. fields — a THIRD-LEVEL-heading shape, analogous to research's '### Data Sources')"
+      - code: "src/specify_cli/missions/_substantive.py:180-186 (peer_fields regex already tolerates an optional leading '- '/'* ' bullet marker before the bolded label — the FR-013/#1896 fix — i.e. the existing bold-field-scan algorithm already handles a bulleted '- **Field**: value' shape like Scope — MoSCoW's)"
+    claim: >-
+      NFR-004 (edited this round) still requires `plan`-type plans to be
+      checked against all four of its own scaffolded fields — "Problem
+      Decomposition / Scope — MoSCoW / Sequencing & Prioritisation /
+      Decisions". This round's new Decision-3 detection-mechanism note and
+      the reworded AC5, however, specify a concrete mechanism for only two
+      of those four: a table-row detector (mirroring
+      `_has_substantive_fr_row`) for `Problem Decomposition` and `Sequencing
+      & Prioritisation`, plus a nested-heading-scan extension — but that
+      extension is scoped explicitly to research's `### Data Sources` only,
+      never to plan's own `### Decision D-1` nested heading under `##
+      Decisions`, which has the identical "nested, not sibling" shape the
+      note calls out as the reason research needs special handling. `Scope —
+      MoSCoW` is not a table at all — it is a bulleted `- **Field**: value`
+      list, the exact shape the EXISTING `_has_substantive_technical_context`
+      peer-field regex already supports (it explicitly tolerates a leading
+      bullet marker per its own FR-013 comment) — so the note's blanket
+      justification for needing "a distinct, non-bold-field-scan detection
+      mechanism ... rather than the documentation/software-dev bold-field
+      scan" is empirically false for 2 of plan's 4 required sections. The
+      note also never states whether a `plan` plan.md must have ALL FOUR
+      sections substantive, or ANY ONE of them, to pass — an AND/OR
+      combination question the round's added technical detail was the
+      obvious place to resolve and did not.
+    remediation: >-
+      Either (a) add explicit mechanism coverage for `Scope — MoSCoW` (reuse
+      the existing bulleted-bold-field-scan, generalized to a configurable
+      heading name/pattern instead of the hardcoded "Technical Context"
+      literal) and for `Decisions` (extend the nested-heading-scan already
+      proposed for research's `Data Sources` to also reach plan's `###
+      Decision D-1` heading), correcting the note's "plan's sections are
+      tables" premise to state it applies to only 2 of the 4 fields; or (b)
+      narrow NFR-004/FR-006/AC5 to state explicitly that only `Problem
+      Decomposition` and `Sequencing & Prioritisation` gate `plan`'s
+      substantive-check (with `Scope — MoSCoW`/`Decisions` explicitly
+      descoped and a one-line rationale). Either way, state the AND/OR
+      combination rule across whichever fields end up in scope.
+
+  - id: SPEC-FRESH2-002
+    lens: trace-based-observability
+    severity: 2
+    title: >-
+      New citation `_substantive.py:158-186` for
+      `_has_substantive_technical_context` truncates the function 9 lines
+      before its actual close
+    evidence:
+      - artifact: "spec.md § Clarifications / Decision 3, 'Detection-mechanism note': \"`_has_substantive_technical_context` (`src/specify_cli/missions/_substantive.py:158-186`) detects a `## Technical Context` section and scans it for `**Bold Label**: value` peer-field lines...\""
+      - code: "src/specify_cli/missions/_substantive.py:158 (def _has_substantive_technical_context) through :195 (final 'return False') — the actual function body"
+      - code: "src/specify_cli/missions/_substantive.py:186 (mid-function: the peer_fields = re.finditer(...) call, not the function's end)"
+    claim: >-
+      This fix round introduced a new precise line-range citation for
+      `_has_substantive_technical_context` as `:158-186`. The function's
+      real span is `:158-195` — line 186 lands inside the `peer_fields`
+      regex construction, before the `for field in peer_fields:` loop and
+      the function's two `return` statements that actually decide the
+      verdict. The cited range therefore omits the part of the function that
+      does the accept/reject logic the note is trying to describe as the
+      "algorithm" being contrasted with the new plan/research mechanism.
+    remediation: >-
+      Correct the citation to `_substantive.py:158-195` (or drop the
+      line-range suffix and cite by function name only, consistent with how
+      other citations in this same paragraph reference `_PLACEHOLDER_PATTERNS`
+      loosely).
+
+  - id: SPEC-FRESH2-003
+    lens: five-whys
+    severity: 2
+    title: >-
+      New NFR-005 rationale sentence conflates two incompatible failure
+      modes into one non-sequitur causal claim
+    evidence:
+      - artifact: "spec.md § NFR-005 (row, current): \"...a naive reuse of the `documentation`/`software-dev` bold-field scan would find nothing to scan in `plan`'s table sections and would accept `research`/`plan`'s own unfilled bracket placeholders as content, making the gate vacuously pass.\""
+      - code: "src/specify_cli/missions/_substantive.py:185-195 (peer_fields regex specifically pattern-matches '**Label**: value'; against a markdown table it matches nothing and the function returns False, i.e. fail-closed — it does not 'accept' unmatched table-cell placeholder text as content)"
+    claim: >-
+      This round's added NFR-005 sentence asserts, as a single causal chain,
+      that a "naive reuse of the bold-field scan" (a) finds nothing to scan
+      in plan's table sections AND (b) therefore accepts unfilled bracket
+      placeholders as content, making the gate vacuously pass. These are two
+      different bugs, not one: a bold-field-scan applied to a table
+      literally finds zero `**Label**: value` matches and returns False
+      (fail-closed — the opposite of "vacuously pass"), it does not somehow
+      "accept" the unmatched bracket text. The vacuous-pass risk the
+      sentence is gesturing at (an implementation that treats "some
+      non-whitespace text is present" as sufficient, without placeholder
+      stripping) is a real and separate risk, but the sentence as written
+      attributes it to "naive reuse of the bold-field scan," which is not
+      the mechanism that would produce that failure mode.
+    remediation: >-
+      Split the sentence into its two distinct risks: (1) a literal
+      bold-field-scan reuse against plan's table sections fails closed
+      (finds nothing, always False) rather than deriving any real signal —
+      not itself vacuous-pass, but also not a working check; (2) a
+      length/non-empty-only check without placeholder-pattern coverage for
+      research/plan's own bracket vocabulary would vacuously pass an
+      unfilled scaffold. Name each risk against the specific naive
+      implementation that would produce it.

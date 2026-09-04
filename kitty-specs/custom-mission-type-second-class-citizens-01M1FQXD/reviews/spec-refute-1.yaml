@@ -1,0 +1,27 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: Direct read of spec.md lines 34/36/38 shows three unquoted "feature" occurrences distinct from the correctly-backticked get_mission_for_feature/_mission_path_by_name identifiers, and charter.md:532 confirms the binding prohibition verbatim.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: Direct read of runtime_bridge_composition.py:150-197 confirms the first branch of _should_dispatch_via_composition checks action_sequence membership for whatever mission string is passed (no software-dev gate), the header comment and runtime_bridge.py:1774-1780 both still claim a software-dev hard-guard, no built_in_step_contracts/*.yaml declares mission=plan, get_by_action does exact-match with no fallback, and mission_type_profiles/plan.yaml's action steps (specify/research/plan/review) all have non-empty action_sequence entries, so a plan-type mission dispatching e.g. "specify" would hit StepContractExecutionError exactly as claimed.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: spec.md User Story 3 Acceptance Scenarios 1-3 (qa, software-dev, and a guard-reconciliation review) confirmed to contain zero scenario exercising documentation/research/plan, while SC-003 explicitly promises documentation coverage and Decision 1 names all three as corrected in-scope types — a real AC/SC gap.
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: spec.md Edge Cases genuinely offers "a documented neutral pass" as a live option for research/plan, and research-plan-template.md/plan-plan-skeleton.md confirm both templates DO scaffold substantive non-Technical-Context content (Methodology/Data Sources; Problem Decomposition/MoSCoW/Decisions) — an always-pass resolution would still be a structural exemption forbidden by NFR-005's "CAN fail for every mission type" text, and the spec never flags this tension.
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: grep of spec.md for in-flight/re-run/state.json/already-evaluated language returns zero hits — the artifact is genuinely silent on mid-flight mission handling as claimed.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: grep of SPEC-KITTY-LEDGER.md for "3284" returns exactly one hit (line 1331), which is an unrelated mission's issue-matrix example string, not a documented #3284 baseline entry, matching the finding's claim precisely.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: grep of mission_setup_plan.py confirms only lines 794 and 1230 call is_substantive(plan_file, "plan"); line 553 calls is_substantive(spec_file, "spec") — a different kind and variable — so AC1's "its three call sites" (stated in the same breath as the plan_file/"plan" call form) is a genuine internal contradiction with FR-007's corrected two-site count in the same document.

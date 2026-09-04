@@ -164,6 +164,11 @@ class RouterDecision:
     # itself (that seam pre-empts the router entirely at the executor branch).
     confidence: Literal["exact", "canonical_verb", "domain_keyword", "generic_fallback"]
     match_reason: str
+    # WP2/#3840 (FR-005): every non-winning candidate the router considered,
+    # each {"profile_id", "action", "confidence", "match_reason"}. Always a
+    # list, never None -- no default, so every construction site must supply
+    # it explicitly (mypy --strict enforces this at every production site).
+    alternatives: list[dict[str, str]]
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +269,9 @@ class ActionRouter:
                 action=action,
                 confidence="exact",
                 match_reason=f"explicit profile_hint '{profile_hint}'",
+                # WP2/#3840: the router never computes candidates on the
+                # explicit-hint path (Edge Case / Acceptance Scenario 2).
+                alternatives=[],
             )
 
         tokens = _normalize_tokens(request_text)
@@ -347,6 +355,8 @@ class ActionRouter:
                 action=c["action"],
                 confidence=c["_confidence"],  # type: ignore[arg-type]
                 match_reason=c["match_reason"],
+                # WP2/#3840: only one candidate existed -- nothing lost.
+                alternatives=[],
             )
 
         # ------------------------------------------------------------------
@@ -367,6 +377,21 @@ class ActionRouter:
                 action=c["action"],
                 confidence=c["_confidence"],  # type: ignore[arg-type]
                 match_reason=c["match_reason"] + " (selected by routing_priority)",
+                # WP2/#3840 (FR-005, SC-003): every non-winning candidate from
+                # the FULL `candidates` list, not just `top_candidates` -- a
+                # candidate that lost the priority tiebreaker before ever
+                # reaching `top_candidates` is still a real alternative the
+                # router considered.
+                alternatives=[
+                    {
+                        "profile_id": other["profile_id"],
+                        "action": other["action"],
+                        "confidence": other["_confidence"],
+                        "match_reason": other["match_reason"],
+                    }
+                    for other in candidates
+                    if other is not c
+                ],
             )
 
         # Still ambiguous after tiebreaker
@@ -378,6 +403,11 @@ class ActionRouter:
                     "profile_id": c["profile_id"],
                     "action": c["action"],
                     "match_reason": c["match_reason"],
+                    # FR-009: sourced from the same _confidence value computed
+                    # above during the verb/keyword match passes -- so
+                    # build_ambiguous_dry_run_payload can build `alternatives`
+                    # from err.candidates without a schema mismatch.
+                    "confidence": c["_confidence"],
                 }
                 for c in top_candidates
             ],

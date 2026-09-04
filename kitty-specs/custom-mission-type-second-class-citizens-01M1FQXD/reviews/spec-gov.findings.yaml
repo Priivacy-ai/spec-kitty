@@ -1,0 +1,34 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: SPEC-GOV-001
+    lens: terminology
+    severity: 1
+    title: Prose uses the prohibited term "feature" outside of quoted code identifiers
+    evidence:
+      - artifact: "spec.md § User Story 2 (lines 34, 36)"
+      - code: "AGENTS.md / CLAUDE.md Terminology Canon: \"Feature / Features are prohibited in canonical, operator, and user-facing language for active systems.\""
+    claim: >
+      Two occurrences of "feature" in spec.md's prose are not quoting an existing code
+      identifier: line 34 ("the legacy `Mission`/`mission.yaml` object for my feature")
+      and line 36 ("this is a correctness and trust defect, not merely a missing
+      feature"). The Terminology Canon (restated in this repo's own AGENTS.md/CLAUDE.md,
+      binding per the charter's terminology-adherence governing principle) prohibits
+      "feature"/"Features" in operator/user-facing language for active systems. A third
+      occurrence on line 38 ("a feature whose `meta.json` declares that type") is the
+      same pattern. None of the three is inside backticks naming an actual code symbol
+      (contrast with the correctly-backticked `get_mission_for_feature`/`_mission_path_by_name`
+      references elsewhere in the same paragraphs, which are legitimate quotations of
+      existing legacy function names). This is a wording nit only — no FR, AC, or SC
+      relies on this prose, and the legacy code's own `feature_dir`/`get_mission_for_feature`
+      naming is correctly out of this mission's fix scope, so nothing here would produce
+      a wrong implementation.
+    remediation: >
+      Reword the three prose occurrences to use "mission" (e.g. "for my mission",
+      "not merely a missing capability", "a mission whose `meta.json` declares that
+      type"), reserving unquoted "feature" only for direct citations of existing legacy
+      code identifiers where backticked.

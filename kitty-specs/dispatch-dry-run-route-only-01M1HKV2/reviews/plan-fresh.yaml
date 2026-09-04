@@ -1,0 +1,132 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: PLAN-FRESH-001
+    lens: fresh-eyes / cross-reference integrity
+    severity: 3
+    title: >-
+      Helper relocation to executor.py was not propagated to plan.md's own
+      Project Structure section or tracer-approach.md, which both still say
+      dispatch.py
+    evidence:
+      - artifact: "plan.md § Seam table (row for executor.py), line 101"
+      - artifact: >-
+          plan.md § \"The mechanism, stated explicitly\" / \"Two JSON shapes
+          on the dry-run path\", lines 197-204 (\"colocated in `executor.py`
+          ... rather than living as a `dispatch.py`-local helper\")
+      - artifact: "plan.md § Project Structure › Source Code, line 583"
+      - artifact: "tracer-approach.md lines 30-36"
+    claim: >-
+      The fix round deliberately moved `build_ambiguous_dry_run_payload()`
+      from a `dispatch.py`-local helper to a module-level function colocated
+      in `executor.py` beside `to_dry_run_dict()` — stated explicitly and
+      twice in the revised Seam table and the new "The mechanism, stated
+      explicitly" subsection ("not in dispatch.py"). But two other places in
+      the mission's own artifacts were never updated to match: (1) plan.md's
+      own Project Structure › Source Code tree still annotates
+      `cli/commands/dispatch.py` with "# WP1: --dry-run flag, dry-run branch,
+      ambiguous-payload helper" (line 583) while the parallel `executor.py`
+      line (586) lists only `dry_run()`/`to_dry_run_dict()`, with no mention
+      of the ambiguous-payload helper at all; (2) tracer-approach.md line 34
+      still reads "...built by a small dedicated helper in `dispatch.py`,
+      not by forcing `Optional` through `InvocationPayload`'s non-Optional
+      ... slots." Both are stale leftovers from before this fix round's
+      relocation decision, and directly contradict the plan's own
+      newly-authored Seam table / mechanism section. An implementer skimming
+      the Project Structure block (a common last-stop summary) or the tracer
+      file (which charter Standing Order #3 says is read/appended during
+      implementation) would place the helper in the wrong file, recreating
+      exactly the split-across-layers problem this fix round's relocation
+      was meant to close.
+    remediation: >-
+      Update plan.md line 583's dispatch.py comment to drop
+      "ambiguous-payload helper" (or move that annotation to the executor.py
+      line 586 comment), and update tracer-approach.md line 34 to read
+      "...built by a small dedicated helper colocated in `executor.py`
+      beside `to_dry_run_dict()`, not in `dispatch.py` ..." so all three
+      artifacts (Seam table, Project Structure, tracer-approach.md) agree.
+
+  - id: PLAN-FRESH-002
+    lens: fresh-eyes / code-citation accuracy
+    severity: 2
+    title: >-
+      Fix round changed a correct router.py line citation (L373) to an
+      incorrect one (L372), which now points at a comment, not the raise
+      statement
+    evidence:
+      - artifact: "plan.md § Seam table (row for router.py), line 103"
+      - code: "src/specify_cli/invocation/router.py:372-373"
+    claim: >-
+      The original plan (087a93c06) cited "`ROUTER_AMBIGUOUS` raise at
+      L373". The fix commit (0060cf037) changed this to "L372" while leaving
+      the rest of that sentence and every other line citation in the same
+      row (L262, L343, L363) untouched. Checked against the actual current
+      `src/specify_cli/invocation/router.py`: line 372 is the comment
+      `# Still ambiguous after tiebreaker`; line 373 is
+      `raise RouterAmbiguityError(`. The pre-fix citation (L373) was
+      correct; the fix round's edit made it wrong by one line. This is a
+      documentation-only regression — an implementer reading the actual
+      function body will still find the right raise statement regardless of
+      the stray digit — but it is a real, fix-introduced inaccuracy in a
+      plan whose own Constitution Check and multiple sections take pains to
+      ground every code claim in "what actually exists in this checkout,
+      not assumed."
+    remediation: >-
+      Change "L372" back to "L373" in the router.py Seam-table row (plan.md
+      line 103) so the citation matches the actual `raise
+      RouterAmbiguityError(` line.
+
+  - id: PLAN-FRESH-003
+    lens: fresh-eyes / scope-and-accounting consistency
+    severity: 3
+    title: >-
+      New WP3 CHANGELOG.md requirement, added by the fix round, is not
+      reflected in the plan's own file-accounting sections (Scale/Scope,
+      Seam table, Project Structure, PR shape)
+    evidence:
+      - artifact: >-
+          plan.md § \"Downstream/external consumer impact (WP3)\", line
+          ~545 (\"WP3's implementation commit must include a `CHANGELOG.md`
+          entry\")
+      - artifact: >-
+          plan.md § Technical Context \"Scale/Scope\", lines 63-65 (\"5
+          implementation files touched ... 1 generated doc ... 1
+          hand-maintained contract doc ... 3 test files extended. No new
+          files.\")
+      - artifact: "plan.md § Seam table, lines 98-107"
+      - artifact: "plan.md § Project Structure › Source Code, lines 579-609"
+      - artifact: "plan.md § PR shape, lines 552-558"
+    claim: >-
+      The fix round added an entirely new "Downstream/external consumer
+      impact (WP3)" subsection (absent from the original 087a93c06 plan)
+      that imposes a new binding obligation — "WP3's implementation commit
+      must include a `CHANGELOG.md` entry" describing the auto-routing
+      behavior change. This is a reasonable response to a real risk
+      (silent, user-visible behavior change on the CLI's most common
+      entry point), and is independently grounded in the charter's Code
+      Review Checklist ("Breaking changes documented in CHANGELOG.md"). But
+      the fix round did not thread this requirement through any of the
+      plan's other file-accounting sections: the Technical Context
+      "Scale/Scope" count ("5 implementation files ... No new files")
+      excludes it, the Seam table (the plan's own authoritative
+      file-by-file change list, referenced repeatedly elsewhere as "the
+      Seam table above") has no row for CHANGELOG.md, the Project Structure
+      source tree lists no CHANGELOG.md line, and "PR shape" ("Blast Radius
+      names 5 implementation files ... small enough to review in a single
+      sitting") does not count it either. A WP3 implementer or reviewer
+      consulting any of those four authoritative summaries — rather than
+      reading the "Downstream/external consumer impact" prose in full —
+      would not know CHANGELOG.md needs to change, and the requirement also
+      appears in no ATDD test and no gate in "The gate set" section, so
+      nothing mechanically catches its omission.
+    remediation: >-
+      Add a CHANGELOG.md row to the Seam table, add it to the Project
+      Structure source tree with a "WP3: CHANGELOG entry for auto-routing
+      behavior change" annotation, and update the Scale/Scope sentence to
+      count it (e.g. "5 implementation files touched ... plus a CHANGELOG.md
+      entry (WP3)"), so the requirement is discoverable from any of the
+      plan's summary sections, not only the prose paragraph that introduces
+      it.

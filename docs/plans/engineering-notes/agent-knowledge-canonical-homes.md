@@ -6,7 +6,7 @@ updated: '2026-07-22'
 related:
 - docs/plans/engineering-notes/index.md
 - docs/context/orchestration.md
-- src/doctrine/skills/spec-kitty-charter-doctrine/references/doctrine-artifact-structure.md
+- src/charter/offering/skills/spec-kitty-charter-doctrine/references/doctrine-artifact-structure.md
 ---
 # Agent knowledge: canonical homes for rules, practices, reference, and learned facts
 

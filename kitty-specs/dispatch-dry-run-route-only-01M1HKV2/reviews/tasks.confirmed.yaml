@@ -1,0 +1,146 @@
+# review-findings/v1 — confirmed subset of reviews/tasks.merged.yaml per R3
+# (reviews/tasks-refute-1.yaml). Refuted findings (TASKS-DECOMP-004) stay in the merged
+# file for audit trail and are NOT sent to the fixer.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: dispatch-dry-run-route-only-01M1HKV2
+source_files:
+  - reviews/tasks.merged.yaml
+  - reviews/tasks-refute-1.yaml
+findings:
+  - id: TASKS-DECOMP-001
+    lens: "Work packages single-concern and reviewable (concrete enough to implement without re-deriving)"
+    severity: 4
+    title: "WP01's illustrative dispatch.py code references payload.alternatives, a field its own subtask forbids adding until WP02"
+    evidence:
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Context (lines ~116-133)"
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Subtask T002 step 2 (lines ~262-269)"
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Subtask T005 step 2 ('add the dry-run branch exactly as shown in Context above')"
+      - code: "src/specify_cli/invocation/executor.py:213-224 (InvocationPayload.__slots__ — no 'alternatives' member at WP01 time)"
+    claim: >
+      WP01's Context section gives a code block implementers are told (T005 step 2) to follow
+      "exactly as shown": `typer.echo(json.dumps(payload.to_dry_run_dict(payload.alternatives)))`.
+      But `payload` is an `InvocationPayload` returned by WP01's own `dry_run()`, and
+      `InvocationPayload` gains no `alternatives` slot until WP02's T009 lands — WP01's T002
+      step 2 explicitly says the opposite for this WP: "for this WP, thread it through as a
+      parameter so `to_dry_run_dict` doesn't need to know about a field that doesn't exist yet
+      ... do not add the slot here." An implementer who follows T005's literal instruction
+      produces `payload.alternatives` → `AttributeError` (the name isn't in `__slots__` at
+      WP01's final commit), crashing every successful (non-ambiguous) `--dry-run` call — the
+      WP's own headline scenario (SC-001/SC-002/DoD's first bullet).
+    remediation: >
+      Fix the Context code block to call `payload.to_dry_run_dict([])` for WP01 (matching T002's
+      "thread it through as a parameter" design), and add a one-line note that WP02's T009
+      subtask 4 is what later changes the call site to `payload.to_dry_run_dict(payload.alternatives)`
+      (or the simplified no-arg form) — so WP01 and WP02 implementers are not left to silently
+      reconcile the contradiction themselves.
+    refuter_reason: >
+      WP01 T005 step 2 tells implementers to add the dry-run branch "exactly as shown in Context
+      above", whose code block calls payload.to_dry_run_dict(payload.alternatives), but T002
+      step 2 explicitly forbids adding an alternatives slot to InvocationPayload for this WP and
+      executor.py's InvocationPayload.__slots__ (lines 213-224) has no alternatives member, so
+      following T005 literally raises AttributeError.
+
+  - id: TASKS-DECOMP-002
+    lens: "Work packages single-concern and reviewable (concrete enough to implement without re-deriving)"
+    severity: 4
+    title: "WP02's '4 call sites — do not miss one' claim is false: a 5th RouterDecision(...) construction site exists outside WP02's owned_files"
+    evidence:
+      - artifact: "tasks/WP02-router-decision-alternatives.md § Context ('There are exactly four construction sites (plan.md \"4 call sites\" — do not miss one)')"
+      - artifact: "wps.yaml § WP02 owned_files (router.py, executor.py, empty_charter.py, test_router.py, test_dispatch.py — no test_invocation_e2e.py)"
+      - code: "tests/specify_cli/invocation/test_invocation_e2e.py:781-786 (fake_router.route.return_value = RouterDecision(profile_id=..., action=..., confidence=..., match_reason=...) — no alternatives kwarg)"
+      - code: "src/specify_cli/invocation/router.py:155-164 (RouterDecision is @dataclass(frozen=True) with no defaults on any field)"
+    claim: >
+      `grep -rn "RouterDecision(" --include="*.py" .` finds five construction sites, not four:
+      the three in `router.py` (L262, L345, L365), one in `empty_charter.py` (L123), and a fifth
+      in `tests/specify_cli/invocation/test_invocation_e2e.py:781`, which builds a
+      `MagicMock().route.return_value = RouterDecision(...)` fixture without an `alternatives`
+      kwarg. Because `RouterDecision` is a real frozen dataclass with no default for any field,
+      once WP02 adds `alternatives: list[dict[str, str]]` (no default), this line raises
+      `TypeError: __init__() missing 1 required keyword-only argument: 'alternatives'` at test
+      collection/run time. `test_invocation_e2e.py` is not in WP02's `owned_files`, and WP02's
+      own T008 "Validation" step would fail this grep-count check today.
+    remediation: >
+      Add `tests/specify_cli/invocation/test_invocation_e2e.py` to WP02's `owned_files` in both
+      `wps.yaml` and the WP02 prompt frontmatter, add the fifth site to T008's construction-site
+      table (update the L781 fixture to pass `alternatives=[]`), and correct "4 call sites — do
+      not miss one" to "5 call sites (4 production + 1 test fixture)" throughout WP02's Context,
+      Definition of Done, and Reviewer Guidance sections.
+    refuter_reason: >
+      A live grep for "RouterDecision(" across the tree finds five construction sites
+      (router.py:262,345,365; empty_charter.py:123; test_invocation_e2e.py:781), the fifth being
+      a MagicMock fixture missing an alternatives kwarg against a frozen dataclass with no
+      defaults, and that test file is absent from WP02's owned_files in both wps.yaml and the
+      WP02 frontmatter, making T008's "grep confirms exactly 4" validation gate false as written.
+
+  - id: TASKS-DECOMP-003
+    lens: "Work packages single-concern and reviewable (concrete enough to implement without re-deriving)"
+    severity: 4
+    title: "WP02 claims InvocationPayload.alternatives gets RouterDecision-style compile-time enforcement, but InvocationPayload's constructor accepts arbitrary **kwargs and silently defaults missing fields to None"
+    evidence:
+      - artifact: "tasks/WP02-router-decision-alternatives.md § Context ('alternatives is never None. Enforced by: (a) the type annotation ... on the frozen RouterDecision dataclass, so a caller passing None fails at construction under mypy --strict, not silently at serialization')"
+      - artifact: "tasks/WP02-router-decision-alternatives.md § Subtask T009 step 1 ('Add alternatives: list[dict[str, str]] (no default, no Optional) to InvocationPayload')"
+      - code: "src/specify_cli/invocation/executor.py:228 (InvocationPayload.__init__(self, **kwargs: object) -> None — no required/typed keyword params)"
+      - code: "src/specify_cli/invocation/executor.py:234-255 (to_dict(): val = getattr(self, s, None); ... else: result[s] = val — a missing slot silently serializes as None)"
+      - code: "tests/invocation/test_dispatch_recommendation.py:398-410 (_sample_payload() already omits multiple InvocationPayload slots, e.g. empty_charter_fallback, with no error — demonstrating the class already tolerates partial construction)"
+    claim: >
+      Unlike `RouterDecision` (a genuine `@dataclass(frozen=True)`), `InvocationPayload` is a
+      hand-rolled `__slots__` class whose `__init__` accepts `**kwargs: object` and does
+      `setattr` per key — there is no mechanism, mypy-strict or runtime, that requires a caller
+      to supply every slot. If either of `invoke()`'s or `dry_run()`'s final `InvocationPayload(...)`
+      construction is missed when threading through `alternatives=result.alternatives` (T009
+      steps 2-3), no type error and no runtime error occurs at construction; `to_dict()`'s
+      `getattr(self, s, None)` fallback would silently serialize `"alternatives": null` in the
+      JSON payload — directly contradicting SC-003's contract and the "never renders as None"
+      guarantee WP02's Context and Definition of Done both assert is structurally enforced.
+    remediation: >
+      Correct WP02's Context/DoD language so it does not claim mypy-strict/compile-time
+      enforcement for `InvocationPayload.alternatives` — state plainly that the backstop for
+      this field is the T007 ATDD tests asserting `== []`, not the type system. Optionally
+      strengthen the guarantee for real: either migrate `InvocationPayload` to a real
+      dataclass/attrs class with required constructor params, or add an explicit
+      `assert self.alternatives is not None` fail-fast check at the point `alternatives` is
+      read in `to_dict()`/`to_dry_run_dict()`.
+    refuter_reason: >
+      WP02's "alternatives is never None" enforcement argument and its Risks-section
+      mypy-strict guarantee are scoped only to the real frozen RouterDecision dataclass, but the
+      DoD ties the same "never renders as None" guarantee to SC-003 (which governs the
+      InvocationPayload/JSON output level), and executor.py confirms InvocationPayload's
+      __init__(**kwargs) plus to_dict()'s getattr(self, s, None) fallback (already exercised by
+      test_dispatch_recommendation.py's _sample_payload omitting a slot without error) would
+      silently serialize alternatives as null if a T009 construction site were missed, a gap
+      WP02 never flags.
+
+  - id: TASKS-VERIFY-001
+    lens: "Per-AC test strategy concrete / Red-first stated per WP"
+    severity: 3
+    title: "WP01's T001 RED-first test list omits named tests for FR-008 (--dry-run --profile) and FR-010 (empty-charter fallback), though both are claimed via requirement_refs and both appear as Definition-of-Done checkboxes"
+    evidence:
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md frontmatter requirement_refs (lists FR-008, FR-010) and § Subtask T001 (lines 190-251), which enumerates six named tests for test_dispatch.py plus one test each for test_dispatch_recommendation.py and test_chokepoint.py — none named for the `--dry-run --profile` combo or the empty-charter-fallback dry-run behavior"
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Definition of Done: two checkboxes for FR-008 and FR-010 with no corresponding T001 test name"
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Reviewer Guidance (5 bullets) — none instructs the reviewer to confirm FR-008/FR-010 have a dedicated committed-first regression test"
+      - code: "spec.md lines 175 (FR-008) and 177 (FR-010); C-001 (spec.md line 192) states ATDD-first applies per work package, requiring 'its own failing-first test pinning user-observable behavior' — not merely a DoD checkbox verified ad hoc"
+    claim: >
+      WP01's Definition of Done lists FR-008 and FR-010 as required outcomes, and both are in
+      the WP's requirement_refs — but Subtask T001's explicit, enumerated RED-first test list
+      (the only tests instructed to be written and committed BEFORE the T002-T006 implementation
+      commit, per the charter's binding ATDD-first / C-011 discipline) names no test for either
+      behavior. Every other FR this WP claims has a directly-traceable named test in T001;
+      FR-008 and FR-010 do not. Contrast WP02 and WP03, where every DoD bullet traces to a named
+      T007/T011 test — this WP is the outlier.
+    remediation: >
+      Add two named tests to WP01's Subtask T001 step 1 list: (a)
+      `test_dry_run_profile_hint_returns_exact_confidence`; and (b)
+      `test_dry_run_under_empty_charter_fallback`. Both must be confirmed RED on
+      `feat/dispatch-dry-run-route-only-3840` at mission start and committed in T001's ATDD-only
+      commit, before T002-T006's implementation commit. Also add one bullet to WP01's Reviewer
+      Guidance instructing the reviewer to confirm every requirement_refs entry traces to a named
+      T001 test, not only to a DoD checkbox.
+    refuter_reason: >
+      FR-008 and FR-010 are both in WP01's requirement_refs and both have dedicated
+      Definition-of-Done checkboxes, but T001's enumerated RED-first test list names no test for
+      the --dry-run --profile combo or the empty-charter-fallback dry-run behavior, and none of
+      Reviewer Guidance's five bullets asks the reviewer to verify FR-008/FR-010 trace to a
+      named T001 test.

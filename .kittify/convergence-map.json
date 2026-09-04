@@ -2,454 +2,6 @@
  "base_commit": "38090b6493dd9fdf77826200348a82a22c5f61c4",
  "clusters": [
   {
-   "census_commit_count": 13,
-   "classification": "CONFLICT",
-   "commits": [
-    "e71573402dbf354ad9e5ca1e13e0f38c8bd310a5",
-    "fff9003bca2586cf53740c5f2836c64494c0d302",
-    "b88d9e4fc7a88f531013a196625459df9e6e4cec",
-    "98dfa9b2b6c7c6ece7b081caaf2336a2da57bc07",
-    "e931f75c42e58f3a90005393d984fb4f1586041a",
-    "db58423736998e80ec1f7150e17869d06375ac5d",
-    "c54486413bc984380e41c74d80161559be2f917b",
-    "97d00b572a31f47f42e8f2320612ade4897ef12d",
-    "7c0e047df2c978ba342e9971d59de9b00e1251ef",
-    "6464c4887fca5418495073eaa895b4d97c67e9fd",
-    "9260909f04477bbb16644083b1df69b2b434166c",
-    "eff63532607d2f292efc16e3f8bfd0e61e0544aa",
-    "c73aed0148d51c44c06ad9ccfaa4b86a26cc847b"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1026",
-   "id": "PR#3820-profile-load-manual-re-port",
-   "summary": "Manual re-port of the tidy-charter-cutover enabler bundle and profile-load architecture line"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "CLEAN (patch-equivalent on EXP main)",
-   "commits": [
-    "d64212009ccff35a96694ba77a5c5ff48612e562",
-    "83592db9a0756d78ba15c6cbfe0f05e018527bd4",
-    "c156c5afad40efbd99ef393fd0188291923073eb",
-    "63a35473c70bfee1f4ed9e44bf662ca418a0d65b"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1026",
-   "id": "profile-load-followups-patch-equivalent",
-   "summary": "Profile-load follow-ups already present on EXP main"
-  },
-  {
-   "census_commit_count": 6,
-   "classification": "**CONFLICT**",
-   "commits": [
-    "33710617bc62ee61f0588604d8ed747b73f15fbd",
-    "35983f326799b58f067db0fdda0117ac68b73b58",
-    "4e8fc05969e609e5d004bdb74b23e69e8df30c87",
-    "8fc118ffeb80702247fd37959c3c9f64b83d4e17",
-    "b7cde38d895830e4b2b8803c67866fb221fb0717",
-    "d849fbf0424af6b59ce8a5db594d771548ac7ad2"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3807",
-   "summary": "PR#3807 M2b offering<->activation two-module split (4e8fc0596..33710617b)"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "CONFLICT",
-   "commits": [
-    "882d92d6d5419bab7c70bdb02d448b9cb0493d7a",
-    "bedc234f10ac4ca19d8a33c5faeafc87b5c678e4",
-    "e755a9904af23a3a9fbbefa6668e49f173b62c05",
-    "f1da4c2f2f228d65bd1ff699838f5f7bf5d7bb4b"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3806",
-   "summary": "PR#3806 governance at the review gate (WP01-04)"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "**SKIP** (intent already realised by deletion)",
-   "commits": [
-    "19b34abb2f6fe1489c293ed19bc386a3e2eaaaaa",
-    "9dc0fe24543c36aa94a977668a0def6f818d84bc",
-    "a7c4ccc98bca702fd7ee29b149ce817917ffa5dd",
-    "d0c401bedcc5501e4ead09ebf08a28555c5473f4"
-   ],
-   "disposition": "FORBIDDEN",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3804",
-   "summary": "PR#3804 sync deactivate-by-default"
-  },
-  {
-   "census_commit_count": 6,
-   "classification": "**CONFLICT**",
-   "commits": [
-    "12cb70f3d6b3100b4e81c914066d1b53abf15b37",
-    "2b5335cf813431ca3a05782085270f6d5b0d88ba",
-    "34790048ed11ee6e6ac09475c25f5f5aed03665d",
-    "5e631c010b8748ca7db9ae03563b32d42ce2a0ac",
-    "92fc2af0324b752df57fe6a826112d01897f032e",
-    "e8a663da173abcd9e12e342f3f77188e1a4c1cec"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3800",
-   "summary": "PR#3800 M2 relocate src/doctrine → src/charter/offering (2b5335cf8; 261 R + 128 M + `src/doctrine.py` shim)"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CLEAN (tests)",
-   "commits": [
-    "72207d3f65c721b559c5fe649ea97eeb59390795"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3797",
-   "summary": "PR#3797 accept tests hermetic"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CONFLICT",
-   "commits": [
-    "321852650dde7a0cd873f5b80e228a996650559f"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3790",
-   "summary": "PR#3790 accept path_conventions override (new `specify_cli/config/`)"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "CLEAN",
-   "commits": [
-    "067aa04bc30a44c5d5a5a197138595b2c08682ad",
-    "1fa80c008c0ef65e3985657c9a72f92e25d266a2",
-    "a4b9cfdb0d0b57dfd56e0acd2cc71759ad8eeb85",
-    "e5b24d994109dfec792f0f4aa60a6c599b567c1a"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3792",
-   "summary": "PR#3792 next charter-freshness cache + retire NFR-003 gate"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "SKIP (tests/release deleted in EXP)",
-   "commits": [
-    "ff673c61ca6017a295d2c41339bd68d54548d617"
-   ],
-   "disposition": "FORBIDDEN",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3796",
-   "summary": "PR#3796 protect-main CI test"
-  },
-  {
-   "census_commit_count": 17,
-   "classification": "CONFLICT (light)",
-   "commits": [
-    "11148b89d56c8f597cb9aa4658aa4cb94240ace4",
-    "16ff80507893bc76e48a52611e6d02e70dfb7436",
-    "22882d72b0839abd01ae80782c3123bad5ac44f7",
-    "284eabb7bb60f0f1340d40530696a03248389fbd",
-    "397efd996d23fa758fa8b8ebe9d0589fc170d306",
-    "3bc17c10d2babcd245dd37a7a4378f5f82b54eb6",
-    "4538bafc00269675e2465027e6a32cdd6e8616a8",
-    "6e8c4ffd1d86468c6b28e977364f8dce810c8981",
-    "89c8e37375856192b9ec765e1b1d5f751af75689",
-    "8d95d7631160f62a2fc0418e5900dac708fa6c2d",
-    "9731ccd2d6e22d76b63329a622a060f83f22b672",
-    "c5884fd3173eec5858088772e8fc575680aa728f",
-    "cc7abd7e16d21f3708e57235c2c2a7a0e73caebc",
-    "cdee7f531e002259470b6f9e3eb4df2c80efa2ef",
-    "d7b3556cd3a42097ee4f713524540238eec4b7a6",
-    "da72467944c18f6d2343469586c5c52047390ea8",
-    "f74b742df262c117442d81ec90535915c5d1a99f"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3791",
-   "summary": "PR#3791 M1 charter authority flip + Terminology-Canon + answers migration"
-  },
-  {
-   "census_commit_count": 3,
-   "classification": "CLEAN (tests)",
-   "commits": [
-    "885a1d30cac2bc185433530e755f31d592879eb8",
-    "c2e56e1d0d126cde22abd5e60965f54ba77b6413",
-    "fc4acaa89706373b0c21c81866f13db0e002ab77"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3778/PR#3776",
-   "summary": "PR#3778 / PR#3776 agent tests off ambient branch"
-  },
-  {
-   "census_commit_count": 7,
-   "classification": "CONFLICT",
-   "commits": [
-    "137fd7aab4279dd6506e43cb8906fdb16765c79b",
-    "346153ba1cb7efdd750843ab34385e613ebd54e1",
-    "733c6c08a27baaa8f3317f42e895b281d2fb75e5",
-    "790891e7fa7545fa54d3a43066105cc9778aab44",
-    "7daccc3108379374bd67b15727b6b09d4aa9673c",
-    "b38f86872c49e137e0a41b1b7d604b7b2e39d868",
-    "bb2e670968174c612bead04031efb3d6fcf363dc"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3783",
-   "summary": "PR#3783 accept remediation honesty / contracts dedupe"
-  },
-  {
-   "census_commit_count": 12,
-   "classification": "CONFLICT",
-   "commits": [
-    "021024965224ef12006f2bb7cd76821c6b94e85d",
-    "076ef5b1d17b571c175c1e497519842089efdbd6",
-    "10e158bac8b54a2b6935d28c5e9868cfeb62cffd",
-    "27ab1ee2cae4f4dcdf07096fb76e2a6d541897df",
-    "27c232ad08df11efa4d44531bafadf26e12df4ef",
-    "39fcecef879f44cb971d5b3bffd3fea28a3d6477",
-    "6db34a0b483a049b92f6b7b41ae064f01b213e4a",
-    "944685092c8b2011a4e6d766520b41e533c8397c",
-    "a503e8477e4bddaa6b3f56a7a7ceeb092174a322",
-    "ab78438d473df916a0fdd27c11cbf9da7b3dab91",
-    "d2bd37f1fefc43eb5c1954c2c7dc38ef363558e0",
-    "dde9179db0dd4cb2e91a428cf706eb1ee7f3b5e6"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3774",
-   "summary": "PR#3774 honest terminal state for canceled WPs (WP01-06, new `tasks_authoring/`)"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "ALREADY-equivalent (EXP has own shim, spec-kitty#713/#715 in orchestrator_api/commands.py)",
-   "commits": [
-    "ab79a7651f431f30b169fb5d133e93dee65a5c25"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3782",
-   "summary": "PR#3782 typer 0.27.2 Abort/Exit shim"
-  },
-  {
-   "census_commit_count": 11,
-   "classification": "CONFLICT",
-   "commits": [
-    "0c8631a28f98f36dea77917a92699d272e81e2f6",
-    "12c59ca57337fd283c85762e6ae19c1197b5538c",
-    "480438768066ef3cff1f2ff834b7aca890bf9312",
-    "7b457bd523bc26115afc0f16ea238d1a30d8c9cf",
-    "a42e4c45d9f7b97890c74c6a78efda08e9e7e73b",
-    "ac894651e1dcf4fbe27a550872af82d5a7077b9c",
-    "ad7dd53bcd97d6897ec9bf74aec714ac7bd20f5b",
-    "c29b48ec392fc321d5992b5eb1d86432ff40a178",
-    "d1d3af775007a49ad23a54053790a0f099d40488",
-    "eb7e9f0070ca128170ffb3333c5c57c9d814d405",
-    "f93d701c580c1f74759dc18f72f172b7a5b4ca91"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3712",
-   "summary": "PR#3712 durable concurrent review-verdict saves (verdict_commit_queue, checkout_file_lock)"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CLEAN",
-   "commits": [
-    "f1f701d6e85cf0d23f215a11af29796c0431736c"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3015",
-   "summary": "PR#3015 charter preflight remediations clear own checks"
-  },
-  {
-   "census_commit_count": 3,
-   "classification": "CONFLICT",
-   "commits": [
-    "0056971d2cabda4d6a45a3c39239410b45026f45",
-    "81fdfbaf147ba9b0e88735a7e598fc966ea13540",
-    "8efecc7b0380256130943da939e6e11f19e5fccb"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3711",
-   "summary": "PR#3711 cascade reports kind-filtered nodes"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CONFLICT+strip (keep auth/verdict.py, _auth_doctor.py, _auth_status.py; drop sync.py/sync_*_core.py)",
-   "commits": [
-    "effbb6baae1575251fea825d6db881281da1b231"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3769",
-   "summary": "PR#3769 honest auth/sync diagnostics"
-  },
-  {
-   "census_commit_count": 11,
-   "classification": "**SKIP**",
-   "commits": [
-    "0602c8e2806aee74aff5fcdf77e1168c16a70af1",
-    "18af01e0d1c0a4f63c664d853922bb4a3965d8df",
-    "3964db0bff147904df027924c93dee2c0709bf3e",
-    "4c6eef4240b8a52b65312eaed3d005020297bb4a",
-    "a2fa4022ba7d4b0f12df2b2056ac5bd227466e9b",
-    "a59460ec158f14e0e46ec552dcb9f90dc8fb00bd",
-    "a7897fc98c69ed5f4fe1006f59e2c7932b9fe8f0",
-    "b136a62fb1a0676314e64031861455407526d227",
-    "b1aee16f16ea3a176933ac041e1c375ad76b19fa",
-    "b8085fc892e5727ebe8db9ffe2286206d4177697",
-    "bee54aedd4cd608ada33b8241e9e5bc8727fde6c"
-   ],
-   "disposition": "FORBIDDEN",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3768/PR#3766/PR#3765/PR#3725/PR#3626",
-   "summary": "PR#3768 / PR#3766 / PR#3765 / PR#3725 / PR#3626 sync daemon/share/project-store/preflight/admission"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "SKIP (sync-share purpose; auth/session.py bits optional)",
-   "commits": [
-    "05ae10310ed2c9b60d49bd4180d220ae73e12dec"
-   ],
-   "disposition": "FORBIDDEN",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3767",
-   "summary": "PR#3767 auth team slug for sync share"
-  },
-  {
-   "census_commit_count": 3,
-   "classification": "CONFLICT",
-   "commits": [
-    "3d577861626509341ac26521a0161e4f2e9a073d",
-    "4de3d765ee728f0dfc30c6ec141f11cf76c9defa",
-    "d0c1e8dfb3df3e34f031bc336da600286a80b184"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3729",
-   "summary": "PR#3729 custom mission families gate on own manifest"
-  },
-  {
-   "census_commit_count": 2,
-   "classification": "CONFLICT",
-   "commits": [
-    "e081ff454ac198cbda721470f891c8ab34176622",
-    "f602dde1384fbdefe067f96a09cc0ffd413f068b"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3717",
-   "summary": "PR#3717 refuse activation on empty action sequence"
-  },
-  {
-   "census_commit_count": 2,
-   "classification": "CONFLICT",
-   "commits": [
-    "19c9f36d6ab944951a1941615053c61af98f6c04",
-    "3a8dc2828d66b1d0469ba7d0c52244a77ed582a4"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3764",
-   "summary": "PR#3764 P0 reliability triad (squash 3a8dc2828 + 19c9f36d6)"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CLEAN",
-   "commits": [
-    "e7e7e16de1e35defb7b0d26d6f440f2780630c34"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3762",
-   "summary": "PR#3762 org fragments degrade per-pack"
-  },
-  {
-   "census_commit_count": 3,
-   "classification": "CONFLICT (light)",
-   "commits": [
-    "27a27b4d22e7299447816e98bf67b35c7a679f7b",
-    "319d315ee5bf1343b680baa535cb40a672151123",
-    "c816cee84f63dd72e89a7e552044cabe60429647"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3733",
-   "summary": "PR#3733 project-local directives additive"
-  },
-  {
-   "census_commit_count": 11,
-   "classification": "CONFLICT (light)",
-   "commits": [
-    "0d8b49d9ad0b17b31029bcb045fe721f57fd5b8b",
-    "34b8f2faa8ba0ea60e9efde09767a9d9806ef4e7",
-    "3768d469171f58267bacafdecab02ed04a6eb68f",
-    "48fc2f892593e62b39b8c1d1484933298d0bb93c",
-    "60e021ed446b0fd1deabb0d3df156484def683a9",
-    "7bcaeea3f9aa4bafc2be735c1dc88a53548927c1",
-    "9141ddbd6f65d3b8bd3a36c0672fc5494824e892",
-    "d76aa3f5d73e6df053cf9114a1b897d3e830af32",
-    "dc8a88218e2e5b67bed18ba9db6f5912dd219c75",
-    "e2a189d9e58424297216f6b833c8b48d7b165f61",
-    "ed5321d04d1e559cd76fcd538ab497922f2c4220"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3693",
-   "summary": "PR#3693 DRG silent-drop family"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "ALREADY? (#223; EXP mission_branch_context has pr-bound handling)",
-   "commits": [
-    "3861f85438878eec78594de2dbee0b63e2f0c4aa"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3666",
-   "summary": "PR#3666 preserve planning branch legacy PR-bound"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "ALREADY? (#223; 18 'cancel' hits in EXP finalization_eligibility.py)",
-   "commits": [
-    "e744a2dda2e3230903e74e3abcc9e038f233f7c8"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3713",
-   "summary": "PR#3713 exclude canceled WPs from lanes"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "ALREADY (cov 1.00)",
-   "commits": [
-    "c96484ab4cfef1d3821fb75289183aaa50b6056a"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3690",
-   "summary": "PR#3690 dossier guard/re-exports"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CONFLICT",
-   "commits": [
-    "55d34f250200d3a4335fc43d76d0fddafb10377f"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3686",
-   "summary": "PR#3686 upgrade autocommit root files + porcelain rename"
-  },
-  {
    "census_commit_count": 1,
    "classification": "CONFLICT (trivial: specify_cli/__init__.py)",
    "commits": [
@@ -461,427 +13,15 @@
    "summary": "PR#2239 copyable version output"
   },
   {
-   "census_commit_count": 7,
+   "census_commit_count": 1,
    "classification": "CLEAN",
    "commits": [
-    "0988e70ab050175dc3f8f3b30523105d7cec590b",
-    "0a722482d82dc62c2162b6743fec82b586ac1503",
-    "3f8716fac30bfd3f0b3861afc65d06d98f0d769a",
-    "aea72dcdcec184e5e8858d279140faf8047504f0",
-    "dab0779f13bb1da5ff4b1823e8039425084f2b8c",
-    "ed80150db19e378b44e7d983632d58267cfa9e4a",
-    "f53e35232b1978190604ee5a22ed9f030dcce3ca"
+    "f1f701d6e85cf0d23f215a11af29796c0431736c"
    ],
    "disposition": "PORT",
    "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3708",
-   "summary": "PR#3708 org-tier expected-artifacts anchor"
-  },
-  {
-   "census_commit_count": 6,
-   "classification": "CLEAN",
-   "commits": [
-    "31b7ada08a0681543c1e6b9a5dc0db212c6e53d6",
-    "362793084d65ae669808267c301dc8aa3cdfbfff",
-    "678a5839c6462dc6ccb2b4331f3e500df606eca3",
-    "9f748b42a4fa5610fb41ef5e5ef08b02ef7c9b4e",
-    "a03a39c7f97df5e59f21281c07e34b73c56a45c8",
-    "ca75f7efd93706bede9d3f965921715cd5b7c0ca"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3707",
-   "summary": "PR#3707 pack_context through mission-type projection"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "ALREADY? (#223; weak evidence: 1 'worktree' hit in agent/context.py)",
-   "commits": [
-    "af072f43055aa94c80dde4bd80b50882200e3092"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3691",
-   "summary": "PR#3691 caller worktree context in agent resolver"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "ALREADY (cherry -x)",
-   "commits": [
-    "3b7272515c0e417ffa060d2395607dd0ccd8a63e"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3672",
-   "summary": "PR#3672 dossier canonical spec-kitty-events types"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CONFLICT",
-   "commits": [
-    "a82b7b6311bd6473aa14ac660d0ca3b29ec3c923"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3710",
-   "summary": "PR#3710 gitignore .worktrees/ + rc3 migration"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "SKIP/N-A (hosted gate removed in EXP)",
-   "commits": [
-    "06881c0ff9b070e97360528d31cf895ee01556e4"
-   ],
-   "disposition": "FORBIDDEN",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3706",
-   "summary": "PR#3706 setup-plan local verification authoritative"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CONFLICT",
-   "commits": [
-    "a2055da19074a00655ad7ee5d7198dd51bba6bd0"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3697",
-   "summary": "PR#3697 pre-review gate observable/budget-aware"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "ALREADY? (#223; 12 'cycl' hits in EXP lanes/compute.py)",
-   "commits": [
-    "3442ca1afc20b1b83b27a7bc64fd7014050b12a1"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3696",
-   "summary": "PR#3696 reject cyclic lane graphs"
-  },
-  {
-   "census_commit_count": 2,
-   "classification": "ALREADY? (#223; d060cff9a cherry-picked, 751dd4e88 reworked)",
-   "commits": [
-    "751dd4e887f54f5f231b95e425969887d245f11d",
-    "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3681",
-   "summary": "PR#3681 scaffold/ownership/lane defects fail loud (751dd4e88)"
-  },
-  {
-   "census_commit_count": 9,
-   "classification": "CONFLICT+strip (12 sync/delivery files in mypy sweep fea9f1b47)",
-   "commits": [
-    "29deb962357e55facce61e404ac39ed19200bf60",
-    "3bce08000b0c136a0dac2141be9582bca6d7da32",
-    "4022d4aaaa5a9c17710977fd3278b37998fc618a",
-    "60869c1f30332797fcb9f3b1a9d4987bd9fad00d",
-    "6ca5ab4732a57280f3207b7bd8d1a0b246f5d5cf",
-    "a25a75fc169591b57f9db18a76f0306628d265c7",
-    "c113d37468fc24394b34d92de106fa0fc9ece3ee",
-    "eb1ec072669e05bc918853f163fff17280e0782a",
-    "fea9f1b470bbeb67c8078af4a5ae2812301a022b"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3679",
-   "summary": "PR#3679 upgrade hardening: generated_writer + commit-decision + scoped-consent (9 commits)"
-  },
-  {
-   "census_commit_count": 22,
-   "classification": "CONFLICT(partly-ported)+strip",
-   "commits": [
-    "106996964e5d8a7e1f8e1ae9922fc905aaba8298",
-    "2517516df13935feaaee57e2593467210e287ab3",
-    "2be4d269769d9a6d4a5c40f24bdff7b3fd97c521",
-    "32e3f61084e8218c641da233efd5e1bb6dfdf175",
-    "3de2e0a39f4cec4c6fbe5e34490cf6f134b662f8",
-    "48e3c7fd49306a3ffb98dcfec43640778e7e8f45",
-    "5e9c66309e6d75c74886b27a60acfdbd623ca4d5",
-    "627a4856a03d9bb41c62e533b667b48b2481a6f9",
-    "645a72d220ae24fab36b44a316ba05dd33528f5e",
-    "77abd05579c47f9ee25361447f4f0ddbd994a29c",
-    "7ab2f36090d7eae6b5ce75ec82acb6eb4b320a87",
-    "8ad7b17b241c675f4f352fb99f2e1ba87b38b497",
-    "968ff863bf2ebd0d2cd749a379cebab41bdd54f2",
-    "9c49208e8759300008ee5931190c5f8bb27d202b",
-    "9cfc55663bbdee4a60890cb571a209ef2d3bf7be",
-    "a376ef0c7f7bf0736a286c435a317c25d905916d",
-    "a51f988d9f580c5122c8c2ced1ef410f8eb69cd8",
-    "a69c2f04a7eb909b13f32e3e149a154518181fde",
-    "d3668cb6eab6982c6a0db7443a7e7cb11b3b4fd6",
-    "dcac73214adf814f0fc8c85c32b2a810c042ad93",
-    "ece2971a5c099cb462b9aaa8ccba2663b9505af3",
-    "fcb45d66e068f5f9fe207cacb69d05203003cac1"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3667",
-   "summary": "PR#3667 consolidated community fixes: 14× HTTPS pack-fetch hardening + dashboard avatars + print CSS + runtime constant"
-  },
-  {
-   "census_commit_count": 2,
-   "classification": "ALREADY? (#223; 1121b2385 cherry-picked, 27f205f2f reworked, cov 0.28)",
-   "commits": [
-    "1121b2385310479d9f9194618881589ebc3ac928",
-    "27f205f2fd1942eeb008ce0af8b901b1e0385bcf"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3661",
-   "summary": "PR#3661 M8 lane-allocation single seam"
-  },
-  {
-   "census_commit_count": 5,
-   "classification": "CLEAN(partly)",
-   "commits": [
-    "098088b148eefc55af4e6f26178f8e3e060fd5f7",
-    "8595726a4410b423eea9d1af0fa0eef5c0618221",
-    "d8beee276152db3920ae7d6b3d1947c79ad0180c",
-    "f526fa1c07092a78be87b034f3c36f900f70cab5",
-    "f8a11464d0f72a6b3b0f40936753e67b4f9ec798"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3658",
-   "summary": "PR#3658 M3 doctrine hardening"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "CONFLICT (light)",
-   "commits": [
-    "49312efc54aba91294c637ea9f117b1edca6ca68",
-    "54aa25ab18a716651e2a8a85fa021ee974aa90b9",
-    "8ad6c8182f0bb8aa30c960e4eb14d8cee7eeca08",
-    "ff927f847ecce444a7cbce8b5f199f48fffcc6bc"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3657",
-   "summary": "PR#3657 review baseline/scope-source"
-  },
-  {
-   "census_commit_count": 10,
-   "classification": "CONFLICT(partly)",
-   "commits": [
-    "22fa2123bc7cf521aee846a22c369422e388ae65",
-    "34bce6673c39be2c1dfbf9525496297db957d30a",
-    "35dc0a91b858ed9d4f48dd3415f835cf8b4f6f9d",
-    "40b2926b4c6711e8ecae92bcff43d0c1b11ebd77",
-    "6949d535e97750921eb5504535de67974478ff85",
-    "79ac690a3d8ac7bd5ebbf88a1f789f7cd331746d",
-    "8d078fd0db8deb80b0ada759d037d9638d909d54",
-    "bb9a5622619b996f41885fefd646b305a56eb4cc",
-    "d27b942b87dfcd3ec44212414e79c40eb928700d",
-    "e39ec749a9c73e0fdd1e33d6fd16a9bd1eee8fb9"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3649",
-   "summary": "PR#3649 M5 canonical mission-type reader"
-  },
-  {
-   "census_commit_count": 6,
-   "classification": "CONFLICT(partly)+strip (3ebfd1c01 sync emitter → drop)",
-   "commits": [
-    "1763bf2ae326afee1d3ca338bedffba59959f875",
-    "3ebfd1c01e9796d8ad357f249639ec3495b7e421",
-    "8a9eed4178e7b7f2bcd98bb21fa0ddd06913f969",
-    "bf422a548b703af1ab0f1c19a092fcf35dfc0d00",
-    "f11791683a89308f5b9d0f7a71145602fc5cfc8d",
-    "fbb78c1f386e3e531ac100058dd09596a5198dde"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3655",
-   "summary": "PR#3655 M4 operator-signal fail-loud sweep"
-  },
-  {
-   "census_commit_count": 8,
-   "classification": "DEFER (CI infra; 102 test/arch files, 1 src=pyproject)",
-   "commits": [
-    "3649d2bf9de44de1d48391de0acf1c28b936a3a0",
-    "38dce12cbcd3cfaa3ff9d3c734284fbce336d181",
-    "3cc65e8d59d098cb1ed5754f4662e62be17ef6c0",
-    "4ec1d3289241b2220bf55b83248161c8d1918422",
-    "83ef14584b9fa0063d2ad77c105719bc56a2ec13",
-    "b17e7ae887e9134a7d91091065947c070831d1e2",
-    "b78d7a998bec78cfd27d04881f1393e0240fb7f0",
-    "d7f1c53c3dd8d6d01fbc16afc61f467271a2e2b8"
-   ],
-   "disposition": "FORBIDDEN",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3662",
-   "summary": "PR#3662 CI flake-report + perf pipeline + pytest-benchmark"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "CONFLICT+strip",
-   "commits": [
-    "eb9919d67dd56472d96b4fafaeb4e81c87a9e6d2"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3659",
-   "summary": "PR#3659 consolidated community PRs #3630–#3646"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "**CONFLICT** (reclassified; helpers absent in EXP)",
-   "commits": [
-    "9fd919346e374a865db856d8b4e9a72f33121e55"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3660",
-   "summary": "PR#3660 specify: create mission before discovery"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "CLEAN",
-   "commits": [
-    "5433320f01cac76216b95a6bf8e76e1e76e107ed",
-    "8a03733e734f002ab97cc4ee74a006a70f683048",
-    "bfdd5ca33b5fa510096a86b092acf2f4a7eb14ed",
-    "e2ccc391f8932646018695190cc13466ec85f3ff"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3628",
-   "summary": "PR#3628 DRG projection completeness"
-  },
-  {
-   "census_commit_count": 9,
-   "classification": "CONFLICT(partly: 714f8201c, 5bf9a77a4 ported; a87fcdc84/fb9259dae/a987ef234 #223-reworked)",
-   "commits": [
-    "25fdb08ca3576efb2f499be72ee788dbbb65ca5c",
-    "5bf9a77a4c1b354f8dad3f217db31249742543f8",
-    "714f8201c973ab64a87e86e50b3f73b66c0ebcf8",
-    "9e1d40892e25178ba067700068a642e93f4c7488",
-    "a87fcdc84b306dfbe1ca102531abf9d29601982c",
-    "a987ef234adcf3b5fa24de9fb4143469ad1ed7e0",
-    "cf2006f3c95b56477f4b339b455e072b90523fc6",
-    "ee43f2d95c535a90667558e1007dc346a77205c5",
-    "fb9259dae17d3cd3294b1f78d78cd0b995d26f7c"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3617",
-   "summary": "PR#3617 M3 charter gate predicate inversion (#3407 CLI-guard chain a87fcdc84/fb9259dae)"
-  },
-  {
-   "census_commit_count": 2,
-   "classification": "ALREADY (cherry -x)",
-   "commits": [
-    "4e57499acc9a51981a170a69b31617fa4ef41838",
-    "c1c9f1f72ef564afacd77c3afd7bf42fed1ce858"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3623",
-   "summary": "PR#3623 M7 ExecutionMode→WorkProductKind"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "ALREADY (cherry -x; c44b4bcf8/6ea59c532 pip bump are test/pyproject leftovers)",
-   "commits": [
-    "4dab5285456771cbaf86e440889102ed01c435e0",
-    "6ea59c532f37ac3b239ca3aafd12b76fa0101bdc",
-    "c44b4bcf874290b15818e693ef03e7582a433c60",
-    "f96dc1891b231103f55b0b6fdd80698783ea8fa1"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3618/PR#3616",
-   "summary": "PR#3618 / PR#3616 lane --base honoring"
-  },
-  {
-   "census_commit_count": 3,
-   "classification": "ALREADY (cherry -x; 93d7e1392 test-only leftover)",
-   "commits": [
-    "78909d50a0bd21e499abe561e4b07de38145e4e3",
-    "93d7e139296d936f8668709c973040835ac8e491",
-    "c316bd5ae8553148f0c05a445753a22f48b6c13b"
-   ],
-   "disposition": "SUPERSEDED",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3614",
-   "summary": "PR#3614 M0 backfill-mission-type"
-  },
-  {
-   "census_commit_count": 1,
-   "classification": "SKIP (version bump; decide at release)",
-   "commits": [
-    "85baba7c9713856255612185beee22f8387e8888"
-   ],
-   "disposition": "FORBIDDEN",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3613",
-   "summary": "PR#3613 open 3.2.6rc3"
-  },
-  {
-   "census_commit_count": 2,
-   "classification": "CLEAN",
-   "commits": [
-    "41e8333fa7843a838e2927b9b97bf45f0625f8bf",
-    "f28b6c94bb195325969c59b9b425efe0a43fd268"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3600",
-   "summary": "PR#3600 M5 kind-complete cascade + orphan wiring"
-  },
-  {
-   "census_commit_count": 4,
-   "classification": "CONFLICT+strip (f9f806ed3 sync env shim → drop)",
-   "commits": [
-    "0ba09d2e641c6c3f0729bcec6a530ce6f2cb71b6",
-    "457a2bfe45f302a43b9dea8130654bdf27be813e",
-    "b49f6903b9d4914e27fda440789ace952a2447a7",
-    "f9f806ed369f51054f08bb6188befebc1f47aee8"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3601",
-   "summary": "PR#3601 triage quick-wins"
-  },
-  {
-   "census_commit_count": 8,
-   "classification": "CLEAN",
-   "commits": [
-    "4b03c48f22ffb4144f525d0efd8e2f0690346b67",
-    "5d70ff380a31bdffd9ad4dfa82db68b76450c4d6",
-    "6945699d23163c02e28b17997de6fa6b10e02e4a",
-    "787e392acf98e8a6dcd33f8cc2a0a58c040cc650",
-    "7bc586dd3a01a836dacc1dc82a4e0b1525417e33",
-    "b8d66d95bf3ab2bd43f7cff531aab3fa55e93922",
-    "cdcf090761bb03700f6f1181c62603e4c41670fd",
-    "e7ff5cd63518e4c25b1e27d8803e2ef8f3bd334b"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3592",
-   "summary": "PR#3592 M4 deliver loaded doctrine to dispatched agent"
-  },
-  {
-   "census_commit_count": 7,
-   "classification": "CONFLICT (light)",
-   "commits": [
-    "10ad39dbe0157316e2d7099d6e21a304d9a43772",
-    "311f056a279accb11138d9589264ae0e64035c41",
-    "358c081c442efbeda572a421e13e92532b345629",
-    "48720aa494df4d53190f80606b9977aa73969c0a",
-    "7773a76ace6ede66b12f4f400abeaa44488cc4f9",
-    "94343c662a3590714c9c1d732e5b930be5fdb2b2",
-    "9818657a671c6d9053aa564b5b7ab0c733445b8c"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3593",
-   "summary": "PR#3593 operating-procedures validate/triage"
+   "id": "PR#3015",
+   "summary": "PR#3015 charter preflight remediations clear own checks"
   },
   {
    "census_commit_count": 2,
@@ -896,55 +36,15 @@
    "summary": "PR#3413 expected-artifacts manifests fail loud"
   },
   {
-   "census_commit_count": 3,
-   "classification": "CONFLICT(partly)",
-   "commits": [
-    "3b87cc843785ffa62782de73f35217249dd2dcd1",
-    "794c6fc53e6cdffcdbf868eae1207fa299aed0e3",
-    "b288456cb551460145fa8f8816122a1d9b659542"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3591",
-   "summary": "PR#3591 project-tier agent_profile DRG node"
-  },
-  {
-   "census_commit_count": 2,
-   "classification": "CONFLICT(partly)",
-   "commits": [
-    "1f89ac01f348ef5578ac2cce5268148313672d71",
-    "7062c67402b7fe7d9bb7897ba04885a809124fe7"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3587",
-   "summary": "PR#3587 DRG read-path bridge org fragment edges"
-  },
-  {
-   "census_commit_count": 5,
-   "classification": "CONFLICT (light)",
-   "commits": [
-    "0333ffa9e4fa01c56d7c2a23378acb87f4086291",
-    "2bc478bbfb27d4ca742b4c6c384e0b40e9ee7b6b",
-    "2c9d6c9fc7315f627d30d7db264e2a90051885cd",
-    "d56f24e115a11fa6877ea12c98eac93dc0116e94",
-    "fa90c364b6d6e6bd73d2960da6e46c8657546cd6"
-   ],
-   "disposition": "PORT",
-   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3588",
-   "summary": "PR#3588 M1 single-authority resolution parity (kind_vocabulary)"
-  },
-  {
    "census_commit_count": 1,
-   "classification": "ALREADY",
+   "classification": "DEFER/noise (1 arch test tweak)",
    "commits": [
-    "9887adbd6b15626302ef6f31281268cf40e0b614"
+    "595209e7b6f2536c3e783645e6de57cb8bc44613"
    ],
-   "disposition": "SUPERSEDED",
+   "disposition": "FORBIDDEN",
    "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3576",
-   "summary": "PR#3576 stale comment"
+   "id": "PR#3557",
+   "summary": "PR#3557 docling research"
   },
   {
    "census_commit_count": 7,
@@ -983,14 +83,974 @@
   },
   {
    "census_commit_count": 1,
-   "classification": "DEFER/noise (1 arch test tweak)",
+   "classification": "ALREADY",
    "commits": [
-    "595209e7b6f2536c3e783645e6de57cb8bc44613"
+    "9887adbd6b15626302ef6f31281268cf40e0b614"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3576",
+   "summary": "PR#3576 stale comment"
+  },
+  {
+   "census_commit_count": 2,
+   "classification": "CONFLICT(partly)",
+   "commits": [
+    "1f89ac01f348ef5578ac2cce5268148313672d71",
+    "7062c67402b7fe7d9bb7897ba04885a809124fe7"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3587",
+   "summary": "PR#3587 DRG read-path bridge org fragment edges"
+  },
+  {
+   "census_commit_count": 5,
+   "classification": "CONFLICT (light)",
+   "commits": [
+    "0333ffa9e4fa01c56d7c2a23378acb87f4086291",
+    "2bc478bbfb27d4ca742b4c6c384e0b40e9ee7b6b",
+    "2c9d6c9fc7315f627d30d7db264e2a90051885cd",
+    "d56f24e115a11fa6877ea12c98eac93dc0116e94",
+    "fa90c364b6d6e6bd73d2960da6e46c8657546cd6"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3588",
+   "summary": "PR#3588 M1 single-authority resolution parity (kind_vocabulary)"
+  },
+  {
+   "census_commit_count": 3,
+   "classification": "CONFLICT(partly)",
+   "commits": [
+    "3b87cc843785ffa62782de73f35217249dd2dcd1",
+    "794c6fc53e6cdffcdbf868eae1207fa299aed0e3",
+    "b288456cb551460145fa8f8816122a1d9b659542"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3591",
+   "summary": "PR#3591 project-tier agent_profile DRG node"
+  },
+  {
+   "census_commit_count": 8,
+   "classification": "CLEAN",
+   "commits": [
+    "4b03c48f22ffb4144f525d0efd8e2f0690346b67",
+    "5d70ff380a31bdffd9ad4dfa82db68b76450c4d6",
+    "6945699d23163c02e28b17997de6fa6b10e02e4a",
+    "787e392acf98e8a6dcd33f8cc2a0a58c040cc650",
+    "7bc586dd3a01a836dacc1dc82a4e0b1525417e33",
+    "b8d66d95bf3ab2bd43f7cff531aab3fa55e93922",
+    "cdcf090761bb03700f6f1181c62603e4c41670fd",
+    "e7ff5cd63518e4c25b1e27d8803e2ef8f3bd334b"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3592",
+   "summary": "PR#3592 M4 deliver loaded doctrine to dispatched agent"
+  },
+  {
+   "census_commit_count": 7,
+   "classification": "CONFLICT (light)",
+   "commits": [
+    "10ad39dbe0157316e2d7099d6e21a304d9a43772",
+    "311f056a279accb11138d9589264ae0e64035c41",
+    "358c081c442efbeda572a421e13e92532b345629",
+    "48720aa494df4d53190f80606b9977aa73969c0a",
+    "7773a76ace6ede66b12f4f400abeaa44488cc4f9",
+    "94343c662a3590714c9c1d732e5b930be5fdb2b2",
+    "9818657a671c6d9053aa564b5b7ab0c733445b8c"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3593",
+   "summary": "PR#3593 operating-procedures validate/triage"
+  },
+  {
+   "census_commit_count": 2,
+   "classification": "CLEAN",
+   "commits": [
+    "41e8333fa7843a838e2927b9b97bf45f0625f8bf",
+    "f28b6c94bb195325969c59b9b425efe0a43fd268"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3600",
+   "summary": "PR#3600 M5 kind-complete cascade + orphan wiring"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "CONFLICT+strip (f9f806ed3 sync env shim → drop)",
+   "commits": [
+    "0ba09d2e641c6c3f0729bcec6a530ce6f2cb71b6",
+    "457a2bfe45f302a43b9dea8130654bdf27be813e",
+    "b49f6903b9d4914e27fda440789ace952a2447a7",
+    "f9f806ed369f51054f08bb6188befebc1f47aee8"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3601",
+   "summary": "PR#3601 triage quick-wins"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "SKIP (version bump; decide at release)",
+   "commits": [
+    "85baba7c9713856255612185beee22f8387e8888"
    ],
    "disposition": "FORBIDDEN",
    "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
-   "id": "PR#3557",
-   "summary": "PR#3557 docling research"
+   "id": "PR#3613",
+   "summary": "PR#3613 open 3.2.6rc3"
+  },
+  {
+   "census_commit_count": 3,
+   "classification": "ALREADY (cherry -x; 93d7e1392 test-only leftover)",
+   "commits": [
+    "78909d50a0bd21e499abe561e4b07de38145e4e3",
+    "93d7e139296d936f8668709c973040835ac8e491",
+    "c316bd5ae8553148f0c05a445753a22f48b6c13b"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3614",
+   "summary": "PR#3614 M0 backfill-mission-type"
+  },
+  {
+   "census_commit_count": 9,
+   "classification": "CONFLICT(partly: 714f8201c, 5bf9a77a4 ported; a87fcdc84/fb9259dae/a987ef234 #223-reworked)",
+   "commits": [
+    "25fdb08ca3576efb2f499be72ee788dbbb65ca5c",
+    "5bf9a77a4c1b354f8dad3f217db31249742543f8",
+    "714f8201c973ab64a87e86e50b3f73b66c0ebcf8",
+    "9e1d40892e25178ba067700068a642e93f4c7488",
+    "a87fcdc84b306dfbe1ca102531abf9d29601982c",
+    "a987ef234adcf3b5fa24de9fb4143469ad1ed7e0",
+    "cf2006f3c95b56477f4b339b455e072b90523fc6",
+    "ee43f2d95c535a90667558e1007dc346a77205c5",
+    "fb9259dae17d3cd3294b1f78d78cd0b995d26f7c"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3617",
+   "summary": "PR#3617 M3 charter gate predicate inversion (#3407 CLI-guard chain a87fcdc84/fb9259dae)"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "ALREADY (cherry -x; c44b4bcf8/6ea59c532 pip bump are test/pyproject leftovers)",
+   "commits": [
+    "4dab5285456771cbaf86e440889102ed01c435e0",
+    "6ea59c532f37ac3b239ca3aafd12b76fa0101bdc",
+    "c44b4bcf874290b15818e693ef03e7582a433c60",
+    "f96dc1891b231103f55b0b6fdd80698783ea8fa1"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3618/PR#3616",
+   "summary": "PR#3618 / PR#3616 lane --base honoring"
+  },
+  {
+   "census_commit_count": 2,
+   "classification": "ALREADY (cherry -x)",
+   "commits": [
+    "4e57499acc9a51981a170a69b31617fa4ef41838",
+    "c1c9f1f72ef564afacd77c3afd7bf42fed1ce858"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3623",
+   "summary": "PR#3623 M7 ExecutionMode→WorkProductKind"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "CLEAN",
+   "commits": [
+    "5433320f01cac76216b95a6bf8e76e1e76e107ed",
+    "8a03733e734f002ab97cc4ee74a006a70f683048",
+    "bfdd5ca33b5fa510096a86b092acf2f4a7eb14ed",
+    "e2ccc391f8932646018695190cc13466ec85f3ff"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3628",
+   "summary": "PR#3628 DRG projection completeness"
+  },
+  {
+   "census_commit_count": 10,
+   "classification": "CONFLICT(partly)",
+   "commits": [
+    "22fa2123bc7cf521aee846a22c369422e388ae65",
+    "34bce6673c39be2c1dfbf9525496297db957d30a",
+    "35dc0a91b858ed9d4f48dd3415f835cf8b4f6f9d",
+    "40b2926b4c6711e8ecae92bcff43d0c1b11ebd77",
+    "6949d535e97750921eb5504535de67974478ff85",
+    "79ac690a3d8ac7bd5ebbf88a1f789f7cd331746d",
+    "8d078fd0db8deb80b0ada759d037d9638d909d54",
+    "bb9a5622619b996f41885fefd646b305a56eb4cc",
+    "d27b942b87dfcd3ec44212414e79c40eb928700d",
+    "e39ec749a9c73e0fdd1e33d6fd16a9bd1eee8fb9"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3649",
+   "summary": "PR#3649 M5 canonical mission-type reader"
+  },
+  {
+   "census_commit_count": 6,
+   "classification": "CONFLICT(partly)+strip (3ebfd1c01 sync emitter → drop)",
+   "commits": [
+    "1763bf2ae326afee1d3ca338bedffba59959f875",
+    "3ebfd1c01e9796d8ad357f249639ec3495b7e421",
+    "8a9eed4178e7b7f2bcd98bb21fa0ddd06913f969",
+    "bf422a548b703af1ab0f1c19a092fcf35dfc0d00",
+    "f11791683a89308f5b9d0f7a71145602fc5cfc8d",
+    "fbb78c1f386e3e531ac100058dd09596a5198dde"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3655",
+   "summary": "PR#3655 M4 operator-signal fail-loud sweep"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "CONFLICT (light)",
+   "commits": [
+    "49312efc54aba91294c637ea9f117b1edca6ca68",
+    "54aa25ab18a716651e2a8a85fa021ee974aa90b9",
+    "8ad6c8182f0bb8aa30c960e4eb14d8cee7eeca08",
+    "ff927f847ecce444a7cbce8b5f199f48fffcc6bc"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3657",
+   "summary": "PR#3657 review baseline/scope-source"
+  },
+  {
+   "census_commit_count": 5,
+   "classification": "CLEAN(partly)",
+   "commits": [
+    "098088b148eefc55af4e6f26178f8e3e060fd5f7",
+    "8595726a4410b423eea9d1af0fa0eef5c0618221",
+    "d8beee276152db3920ae7d6b3d1947c79ad0180c",
+    "f526fa1c07092a78be87b034f3c36f900f70cab5",
+    "f8a11464d0f72a6b3b0f40936753e67b4f9ec798"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3658",
+   "summary": "PR#3658 M3 doctrine hardening"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CONFLICT+strip",
+   "commits": [
+    "eb9919d67dd56472d96b4fafaeb4e81c87a9e6d2"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3659",
+   "summary": "PR#3659 consolidated community PRs #3630–#3646"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "**CONFLICT** (reclassified; helpers absent in EXP)",
+   "commits": [
+    "9fd919346e374a865db856d8b4e9a72f33121e55"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3660",
+   "summary": "PR#3660 specify: create mission before discovery"
+  },
+  {
+   "census_commit_count": 2,
+   "classification": "ALREADY? (#223; 1121b2385 cherry-picked, 27f205f2f reworked, cov 0.28)",
+   "commits": [
+    "1121b2385310479d9f9194618881589ebc3ac928",
+    "27f205f2fd1942eeb008ce0af8b901b1e0385bcf"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3661",
+   "summary": "PR#3661 M8 lane-allocation single seam"
+  },
+  {
+   "census_commit_count": 8,
+   "classification": "DEFER (CI infra; 102 test/arch files, 1 src=pyproject)",
+   "commits": [
+    "3649d2bf9de44de1d48391de0acf1c28b936a3a0",
+    "38dce12cbcd3cfaa3ff9d3c734284fbce336d181",
+    "3cc65e8d59d098cb1ed5754f4662e62be17ef6c0",
+    "4ec1d3289241b2220bf55b83248161c8d1918422",
+    "83ef14584b9fa0063d2ad77c105719bc56a2ec13",
+    "b17e7ae887e9134a7d91091065947c070831d1e2",
+    "b78d7a998bec78cfd27d04881f1393e0240fb7f0",
+    "d7f1c53c3dd8d6d01fbc16afc61f467271a2e2b8"
+   ],
+   "disposition": "FORBIDDEN",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3662",
+   "summary": "PR#3662 CI flake-report + perf pipeline + pytest-benchmark"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "ALREADY? (#223; EXP mission_branch_context has pr-bound handling)",
+   "commits": [
+    "3861f85438878eec78594de2dbee0b63e2f0c4aa"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3666",
+   "summary": "PR#3666 preserve planning branch legacy PR-bound"
+  },
+  {
+   "census_commit_count": 22,
+   "classification": "CONFLICT(partly-ported)+strip",
+   "commits": [
+    "106996964e5d8a7e1f8e1ae9922fc905aaba8298",
+    "2517516df13935feaaee57e2593467210e287ab3",
+    "2be4d269769d9a6d4a5c40f24bdff7b3fd97c521",
+    "32e3f61084e8218c641da233efd5e1bb6dfdf175",
+    "3de2e0a39f4cec4c6fbe5e34490cf6f134b662f8",
+    "48e3c7fd49306a3ffb98dcfec43640778e7e8f45",
+    "5e9c66309e6d75c74886b27a60acfdbd623ca4d5",
+    "627a4856a03d9bb41c62e533b667b48b2481a6f9",
+    "645a72d220ae24fab36b44a316ba05dd33528f5e",
+    "77abd05579c47f9ee25361447f4f0ddbd994a29c",
+    "7ab2f36090d7eae6b5ce75ec82acb6eb4b320a87",
+    "8ad7b17b241c675f4f352fb99f2e1ba87b38b497",
+    "968ff863bf2ebd0d2cd749a379cebab41bdd54f2",
+    "9c49208e8759300008ee5931190c5f8bb27d202b",
+    "9cfc55663bbdee4a60890cb571a209ef2d3bf7be",
+    "a376ef0c7f7bf0736a286c435a317c25d905916d",
+    "a51f988d9f580c5122c8c2ced1ef410f8eb69cd8",
+    "a69c2f04a7eb909b13f32e3e149a154518181fde",
+    "d3668cb6eab6982c6a0db7443a7e7cb11b3b4fd6",
+    "dcac73214adf814f0fc8c85c32b2a810c042ad93",
+    "ece2971a5c099cb462b9aaa8ccba2663b9505af3",
+    "fcb45d66e068f5f9fe207cacb69d05203003cac1"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3667",
+   "summary": "PR#3667 consolidated community fixes: 14× HTTPS pack-fetch hardening + dashboard avatars + print CSS + runtime constant"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "ALREADY (cherry -x)",
+   "commits": [
+    "3b7272515c0e417ffa060d2395607dd0ccd8a63e"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3672",
+   "summary": "PR#3672 dossier canonical spec-kitty-events types"
+  },
+  {
+   "census_commit_count": 9,
+   "classification": "CONFLICT+strip (12 sync/delivery files in mypy sweep fea9f1b47)",
+   "commits": [
+    "29deb962357e55facce61e404ac39ed19200bf60",
+    "3bce08000b0c136a0dac2141be9582bca6d7da32",
+    "4022d4aaaa5a9c17710977fd3278b37998fc618a",
+    "60869c1f30332797fcb9f3b1a9d4987bd9fad00d",
+    "6ca5ab4732a57280f3207b7bd8d1a0b246f5d5cf",
+    "a25a75fc169591b57f9db18a76f0306628d265c7",
+    "c113d37468fc24394b34d92de106fa0fc9ece3ee",
+    "eb1ec072669e05bc918853f163fff17280e0782a",
+    "fea9f1b470bbeb67c8078af4a5ae2812301a022b"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3679",
+   "summary": "PR#3679 upgrade hardening: generated_writer + commit-decision + scoped-consent (9 commits)"
+  },
+  {
+   "census_commit_count": 2,
+   "classification": "ALREADY? (#223; d060cff9a cherry-picked, 751dd4e88 reworked)",
+   "commits": [
+    "751dd4e887f54f5f231b95e425969887d245f11d",
+    "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3681",
+   "summary": "PR#3681 scaffold/ownership/lane defects fail loud (751dd4e88)"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CONFLICT",
+   "commits": [
+    "55d34f250200d3a4335fc43d76d0fddafb10377f"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3686",
+   "summary": "PR#3686 upgrade autocommit root files + porcelain rename"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "ALREADY (cov 1.00)",
+   "commits": [
+    "c96484ab4cfef1d3821fb75289183aaa50b6056a"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3690",
+   "summary": "PR#3690 dossier guard/re-exports"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "ALREADY? (#223; weak evidence: 1 'worktree' hit in agent/context.py)",
+   "commits": [
+    "af072f43055aa94c80dde4bd80b50882200e3092"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3691",
+   "summary": "PR#3691 caller worktree context in agent resolver"
+  },
+  {
+   "census_commit_count": 11,
+   "classification": "CONFLICT (light)",
+   "commits": [
+    "0d8b49d9ad0b17b31029bcb045fe721f57fd5b8b",
+    "34b8f2faa8ba0ea60e9efde09767a9d9806ef4e7",
+    "3768d469171f58267bacafdecab02ed04a6eb68f",
+    "48fc2f892593e62b39b8c1d1484933298d0bb93c",
+    "60e021ed446b0fd1deabb0d3df156484def683a9",
+    "7bcaeea3f9aa4bafc2be735c1dc88a53548927c1",
+    "9141ddbd6f65d3b8bd3a36c0672fc5494824e892",
+    "d76aa3f5d73e6df053cf9114a1b897d3e830af32",
+    "dc8a88218e2e5b67bed18ba9db6f5912dd219c75",
+    "e2a189d9e58424297216f6b833c8b48d7b165f61",
+    "ed5321d04d1e559cd76fcd538ab497922f2c4220"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3693",
+   "summary": "PR#3693 DRG silent-drop family"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "ALREADY? (#223; 12 'cycl' hits in EXP lanes/compute.py)",
+   "commits": [
+    "3442ca1afc20b1b83b27a7bc64fd7014050b12a1"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3696",
+   "summary": "PR#3696 reject cyclic lane graphs"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CONFLICT",
+   "commits": [
+    "a2055da19074a00655ad7ee5d7198dd51bba6bd0"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3697",
+   "summary": "PR#3697 pre-review gate observable/budget-aware"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "SKIP/N-A (hosted gate removed in EXP)",
+   "commits": [
+    "06881c0ff9b070e97360528d31cf895ee01556e4"
+   ],
+   "disposition": "FORBIDDEN",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3706",
+   "summary": "PR#3706 setup-plan local verification authoritative"
+  },
+  {
+   "census_commit_count": 6,
+   "classification": "CLEAN",
+   "commits": [
+    "31b7ada08a0681543c1e6b9a5dc0db212c6e53d6",
+    "362793084d65ae669808267c301dc8aa3cdfbfff",
+    "678a5839c6462dc6ccb2b4331f3e500df606eca3",
+    "9f748b42a4fa5610fb41ef5e5ef08b02ef7c9b4e",
+    "a03a39c7f97df5e59f21281c07e34b73c56a45c8",
+    "ca75f7efd93706bede9d3f965921715cd5b7c0ca"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3707",
+   "summary": "PR#3707 pack_context through mission-type projection"
+  },
+  {
+   "census_commit_count": 7,
+   "classification": "CLEAN",
+   "commits": [
+    "0988e70ab050175dc3f8f3b30523105d7cec590b",
+    "0a722482d82dc62c2162b6743fec82b586ac1503",
+    "3f8716fac30bfd3f0b3861afc65d06d98f0d769a",
+    "aea72dcdcec184e5e8858d279140faf8047504f0",
+    "dab0779f13bb1da5ff4b1823e8039425084f2b8c",
+    "ed80150db19e378b44e7d983632d58267cfa9e4a",
+    "f53e35232b1978190604ee5a22ed9f030dcce3ca"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3708",
+   "summary": "PR#3708 org-tier expected-artifacts anchor"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CONFLICT",
+   "commits": [
+    "a82b7b6311bd6473aa14ac660d0ca3b29ec3c923"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3710",
+   "summary": "PR#3710 gitignore .worktrees/ + rc3 migration"
+  },
+  {
+   "census_commit_count": 3,
+   "classification": "CONFLICT",
+   "commits": [
+    "0056971d2cabda4d6a45a3c39239410b45026f45",
+    "81fdfbaf147ba9b0e88735a7e598fc966ea13540",
+    "8efecc7b0380256130943da939e6e11f19e5fccb"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3711",
+   "summary": "PR#3711 cascade reports kind-filtered nodes"
+  },
+  {
+   "census_commit_count": 11,
+   "classification": "CONFLICT",
+   "commits": [
+    "0c8631a28f98f36dea77917a92699d272e81e2f6",
+    "12c59ca57337fd283c85762e6ae19c1197b5538c",
+    "480438768066ef3cff1f2ff834b7aca890bf9312",
+    "7b457bd523bc26115afc0f16ea238d1a30d8c9cf",
+    "a42e4c45d9f7b97890c74c6a78efda08e9e7e73b",
+    "ac894651e1dcf4fbe27a550872af82d5a7077b9c",
+    "ad7dd53bcd97d6897ec9bf74aec714ac7bd20f5b",
+    "c29b48ec392fc321d5992b5eb1d86432ff40a178",
+    "d1d3af775007a49ad23a54053790a0f099d40488",
+    "eb7e9f0070ca128170ffb3333c5c57c9d814d405",
+    "f93d701c580c1f74759dc18f72f172b7a5b4ca91"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3712",
+   "summary": "PR#3712 durable concurrent review-verdict saves (verdict_commit_queue, checkout_file_lock)"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "ALREADY? (#223; 18 'cancel' hits in EXP finalization_eligibility.py)",
+   "commits": [
+    "e744a2dda2e3230903e74e3abcc9e038f233f7c8"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3713",
+   "summary": "PR#3713 exclude canceled WPs from lanes"
+  },
+  {
+   "census_commit_count": 2,
+   "classification": "CONFLICT",
+   "commits": [
+    "e081ff454ac198cbda721470f891c8ab34176622",
+    "f602dde1384fbdefe067f96a09cc0ffd413f068b"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3717",
+   "summary": "PR#3717 refuse activation on empty action sequence"
+  },
+  {
+   "census_commit_count": 3,
+   "classification": "CONFLICT",
+   "commits": [
+    "3d577861626509341ac26521a0161e4f2e9a073d",
+    "4de3d765ee728f0dfc30c6ec141f11cf76c9defa",
+    "d0c1e8dfb3df3e34f031bc336da600286a80b184"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3729",
+   "summary": "PR#3729 custom mission families gate on own manifest"
+  },
+  {
+   "census_commit_count": 3,
+   "classification": "CONFLICT (light)",
+   "commits": [
+    "27a27b4d22e7299447816e98bf67b35c7a679f7b",
+    "319d315ee5bf1343b680baa535cb40a672151123",
+    "c816cee84f63dd72e89a7e552044cabe60429647"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3733",
+   "summary": "PR#3733 project-local directives additive"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CLEAN",
+   "commits": [
+    "e7e7e16de1e35defb7b0d26d6f440f2780630c34"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3762",
+   "summary": "PR#3762 org fragments degrade per-pack"
+  },
+  {
+   "census_commit_count": 2,
+   "classification": "CONFLICT",
+   "commits": [
+    "19c9f36d6ab944951a1941615053c61af98f6c04",
+    "3a8dc2828d66b1d0469ba7d0c52244a77ed582a4"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3764",
+   "summary": "PR#3764 P0 reliability triad (squash 3a8dc2828 + 19c9f36d6)"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "SKIP (sync-share purpose; auth/session.py bits optional)",
+   "commits": [
+    "05ae10310ed2c9b60d49bd4180d220ae73e12dec"
+   ],
+   "disposition": "FORBIDDEN",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3767",
+   "summary": "PR#3767 auth team slug for sync share"
+  },
+  {
+   "census_commit_count": 11,
+   "classification": "**SKIP**",
+   "commits": [
+    "0602c8e2806aee74aff5fcdf77e1168c16a70af1",
+    "18af01e0d1c0a4f63c664d853922bb4a3965d8df",
+    "3964db0bff147904df027924c93dee2c0709bf3e",
+    "4c6eef4240b8a52b65312eaed3d005020297bb4a",
+    "a2fa4022ba7d4b0f12df2b2056ac5bd227466e9b",
+    "a59460ec158f14e0e46ec552dcb9f90dc8fb00bd",
+    "a7897fc98c69ed5f4fe1006f59e2c7932b9fe8f0",
+    "b136a62fb1a0676314e64031861455407526d227",
+    "b1aee16f16ea3a176933ac041e1c375ad76b19fa",
+    "b8085fc892e5727ebe8db9ffe2286206d4177697",
+    "bee54aedd4cd608ada33b8241e9e5bc8727fde6c"
+   ],
+   "disposition": "FORBIDDEN",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3768/PR#3766/PR#3765/PR#3725/PR#3626",
+   "summary": "PR#3768 / PR#3766 / PR#3765 / PR#3725 / PR#3626 sync daemon/share/project-store/preflight/admission"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CONFLICT+strip (keep auth/verdict.py, _auth_doctor.py, _auth_status.py; drop sync.py/sync_*_core.py)",
+   "commits": [
+    "effbb6baae1575251fea825d6db881281da1b231"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3769",
+   "summary": "PR#3769 honest auth/sync diagnostics"
+  },
+  {
+   "census_commit_count": 12,
+   "classification": "CONFLICT",
+   "commits": [
+    "021024965224ef12006f2bb7cd76821c6b94e85d",
+    "076ef5b1d17b571c175c1e497519842089efdbd6",
+    "10e158bac8b54a2b6935d28c5e9868cfeb62cffd",
+    "27ab1ee2cae4f4dcdf07096fb76e2a6d541897df",
+    "27c232ad08df11efa4d44531bafadf26e12df4ef",
+    "39fcecef879f44cb971d5b3bffd3fea28a3d6477",
+    "6db34a0b483a049b92f6b7b41ae064f01b213e4a",
+    "944685092c8b2011a4e6d766520b41e533c8397c",
+    "a503e8477e4bddaa6b3f56a7a7ceeb092174a322",
+    "ab78438d473df916a0fdd27c11cbf9da7b3dab91",
+    "d2bd37f1fefc43eb5c1954c2c7dc38ef363558e0",
+    "dde9179db0dd4cb2e91a428cf706eb1ee7f3b5e6"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3774",
+   "summary": "PR#3774 honest terminal state for canceled WPs (WP01-06, new `tasks_authoring/`)"
+  },
+  {
+   "census_commit_count": 3,
+   "classification": "CLEAN (tests)",
+   "commits": [
+    "885a1d30cac2bc185433530e755f31d592879eb8",
+    "c2e56e1d0d126cde22abd5e60965f54ba77b6413",
+    "fc4acaa89706373b0c21c81866f13db0e002ab77"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3778/PR#3776",
+   "summary": "PR#3778 / PR#3776 agent tests off ambient branch"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "ALREADY-equivalent (EXP has own shim, spec-kitty#713/#715 in orchestrator_api/commands.py)",
+   "commits": [
+    "ab79a7651f431f30b169fb5d133e93dee65a5c25"
+   ],
+   "disposition": "SUPERSEDED",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3782",
+   "summary": "PR#3782 typer 0.27.2 Abort/Exit shim"
+  },
+  {
+   "census_commit_count": 7,
+   "classification": "CONFLICT",
+   "commits": [
+    "137fd7aab4279dd6506e43cb8906fdb16765c79b",
+    "346153ba1cb7efdd750843ab34385e613ebd54e1",
+    "733c6c08a27baaa8f3317f42e895b281d2fb75e5",
+    "790891e7fa7545fa54d3a43066105cc9778aab44",
+    "7daccc3108379374bd67b15727b6b09d4aa9673c",
+    "b38f86872c49e137e0a41b1b7d604b7b2e39d868",
+    "bb2e670968174c612bead04031efb3d6fcf363dc"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3783",
+   "summary": "PR#3783 accept remediation honesty / contracts dedupe"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CONFLICT",
+   "commits": [
+    "321852650dde7a0cd873f5b80e228a996650559f"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3790",
+   "summary": "PR#3790 accept path_conventions override (new `specify_cli/config/`)"
+  },
+  {
+   "census_commit_count": 17,
+   "classification": "CONFLICT (light)",
+   "commits": [
+    "11148b89d56c8f597cb9aa4658aa4cb94240ace4",
+    "16ff80507893bc76e48a52611e6d02e70dfb7436",
+    "22882d72b0839abd01ae80782c3123bad5ac44f7",
+    "284eabb7bb60f0f1340d40530696a03248389fbd",
+    "397efd996d23fa758fa8b8ebe9d0589fc170d306",
+    "3bc17c10d2babcd245dd37a7a4378f5f82b54eb6",
+    "4538bafc00269675e2465027e6a32cdd6e8616a8",
+    "6e8c4ffd1d86468c6b28e977364f8dce810c8981",
+    "89c8e37375856192b9ec765e1b1d5f751af75689",
+    "8d95d7631160f62a2fc0418e5900dac708fa6c2d",
+    "9731ccd2d6e22d76b63329a622a060f83f22b672",
+    "c5884fd3173eec5858088772e8fc575680aa728f",
+    "cc7abd7e16d21f3708e57235c2c2a7a0e73caebc",
+    "cdee7f531e002259470b6f9e3eb4df2c80efa2ef",
+    "d7b3556cd3a42097ee4f713524540238eec4b7a6",
+    "da72467944c18f6d2343469586c5c52047390ea8",
+    "f74b742df262c117442d81ec90535915c5d1a99f"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3791",
+   "summary": "PR#3791 M1 charter authority flip + Terminology-Canon + answers migration"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "CLEAN",
+   "commits": [
+    "067aa04bc30a44c5d5a5a197138595b2c08682ad",
+    "1fa80c008c0ef65e3985657c9a72f92e25d266a2",
+    "a4b9cfdb0d0b57dfd56e0acd2cc71759ad8eeb85",
+    "e5b24d994109dfec792f0f4aa60a6c599b567c1a"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3792",
+   "summary": "PR#3792 next charter-freshness cache + retire NFR-003 gate"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "SKIP (tests/release deleted in EXP)",
+   "commits": [
+    "ff673c61ca6017a295d2c41339bd68d54548d617"
+   ],
+   "disposition": "FORBIDDEN",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3796",
+   "summary": "PR#3796 protect-main CI test"
+  },
+  {
+   "census_commit_count": 1,
+   "classification": "CLEAN (tests)",
+   "commits": [
+    "72207d3f65c721b559c5fe649ea97eeb59390795"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3797",
+   "summary": "PR#3797 accept tests hermetic"
+  },
+  {
+   "census_commit_count": 6,
+   "classification": "**CONFLICT**",
+   "commits": [
+    "12cb70f3d6b3100b4e81c914066d1b53abf15b37",
+    "2b5335cf813431ca3a05782085270f6d5b0d88ba",
+    "34790048ed11ee6e6ac09475c25f5f5aed03665d",
+    "5e631c010b8748ca7db9ae03563b32d42ce2a0ac",
+    "92fc2af0324b752df57fe6a826112d01897f032e",
+    "e8a663da173abcd9e12e342f3f77188e1a4c1cec"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3800",
+   "summary": "PR#3800 M2 relocate src/doctrine → src/charter/offering (2b5335cf8; 261 R + 128 M + `src/doctrine.py` shim)"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "**SKIP** (intent already realised by deletion)",
+   "commits": [
+    "19b34abb2f6fe1489c293ed19bc386a3e2eaaaaa",
+    "9dc0fe24543c36aa94a977668a0def6f818d84bc",
+    "a7c4ccc98bca702fd7ee29b149ce817917ffa5dd",
+    "d0c401bedcc5501e4ead09ebf08a28555c5473f4"
+   ],
+   "disposition": "FORBIDDEN",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3804",
+   "summary": "PR#3804 sync deactivate-by-default"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "CONFLICT",
+   "commits": [
+    "882d92d6d5419bab7c70bdb02d448b9cb0493d7a",
+    "bedc234f10ac4ca19d8a33c5faeafc87b5c678e4",
+    "e755a9904af23a3a9fbbefa6668e49f173b62c05",
+    "f1da4c2f2f228d65bd1ff699838f5f7bf5d7bb4b"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3806",
+   "summary": "PR#3806 governance at the review gate (WP01-04)"
+  },
+  {
+   "census_commit_count": 6,
+   "classification": "**CONFLICT**",
+   "commits": [
+    "33710617bc62ee61f0588604d8ed747b73f15fbd",
+    "35983f326799b58f067db0fdda0117ac68b73b58",
+    "4e8fc05969e609e5d004bdb74b23e69e8df30c87",
+    "8fc118ffeb80702247fd37959c3c9f64b83d4e17",
+    "b7cde38d895830e4b2b8803c67866fb221fb0717",
+    "d849fbf0424af6b59ce8a5db594d771548ac7ad2"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
+   "id": "PR#3807",
+   "summary": "PR#3807 M2b offering<->activation two-module split (4e8fc0596..33710617b)"
+  },
+  {
+   "census_commit_count": 13,
+   "classification": "CONFLICT",
+   "commits": [
+    "e71573402dbf354ad9e5ca1e13e0f38c8bd310a5",
+    "fff9003bca2586cf53740c5f2836c64494c0d302",
+    "b88d9e4fc7a88f531013a196625459df9e6e4cec",
+    "98dfa9b2b6c7c6ece7b081caaf2336a2da57bc07",
+    "e931f75c42e58f3a90005393d984fb4f1586041a",
+    "db58423736998e80ec1f7150e17869d06375ac5d",
+    "c54486413bc984380e41c74d80161559be2f917b",
+    "97d00b572a31f47f42e8f2320612ade4897ef12d",
+    "7c0e047df2c978ba342e9971d59de9b00e1251ef",
+    "6464c4887fca5418495073eaa895b4d97c67e9fd",
+    "9260909f04477bbb16644083b1df69b2b434166c",
+    "eff63532607d2f292efc16e3f8bfd0e61e0544aa",
+    "c73aed0148d51c44c06ad9ccfaa4b86a26cc847b"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1026",
+   "id": "PR#3820-profile-load-manual-re-port",
+   "summary": "Manual re-port of the tidy-charter-cutover enabler bundle and profile-load architecture line"
+  },
+  {
+   "census_commit_count": 64,
+   "classification": "PORT by execution (reverse-apply absent on all 64; none touch §5; 33 machine-portable landed in-PR; 31 manual re-port follow-up issue — 29 conflicted at pristine main + fc9a556855/0bb98b340a which import resolve_merge_retention defined only in the conflicted a62762c6a4)",
+   "commits": [
+    "7e32a7de57b09ef960ad76def5f7971b4e720b7f",
+    "aedd276f8eec89ca5f22f664c3a1b8b2516df878",
+    "2a5c309c437843f0cd2cceea91c53b495a630575",
+    "e0bcd28a27f8afa304dd50f2386ce2a6cff3d217",
+    "e8a6da58d14bfbcbf171b754bbe48a6670ccba09",
+    "fc9a556855f23ba880800039004cfc922f6cc3ce",
+    "0bb98b340ac0f8dbe3501773ace2c3de3634cf68",
+    "c8608668257a143aacef4da65343579f954e16d5",
+    "f36c9c92160c46354480c33eef8b8f02612b9901",
+    "0094d92f8f0ec1db1d770eafd9be9d2d2c468c33",
+    "910ca592303666bb6f1112ef837264d4e25a7633",
+    "56dca11b6f10a25900aac1658cbcabca96260be3",
+    "36200a871f69820e3228c5f6163ce2a0fe3c496c",
+    "614a91b2590c5e5909075d39a0518ef07e1df666",
+    "a975543dc07476e56d517358a9abd7e34344ec2a",
+    "c7640101614753983e5da8d0bd8f6715e985ae3e",
+    "52d4a491cafab2f48734e0a924f80c34b7c1157c",
+    "245836d115b14d645254f156dc8b40bd63c187ae",
+    "5aad47e3d6a92ad552f0c3ac4127a0d2039fd27e",
+    "4d4463e8673c9d8bfad841b4a309202fd3f06342",
+    "646978902016654e392c9d3393a977e7711886b7",
+    "94eae044630fa327bf78adc5e67fd52a370aa559",
+    "b0d66dbc18352c4d3ff12b9f596f160acb2ddcdc",
+    "147a1392f1b7c02ccbce8c31dfb7c9624bc56482",
+    "a52ab7d1e0cce5998936bbcb715a9e14390deb90",
+    "04b7f7fe19cfa336ee8e7be27c38b9ee3c4ef615",
+    "dfabbcade2eae9915e28dfd407faa396d4da96ef",
+    "33518dc58f177d82a8ef05eefc2092fcbc517dba",
+    "0b20df8f552365b3780937d830d1ff4a9e2e7b60",
+    "9f859bda5c6144f91789e4ab19a79f4245548b5e",
+    "845f035bdc26637da9b45708bd534b2cd1604c55",
+    "87ba8b80f68c5e95cd632335577f00e205a7bcdb",
+    "4c9efd3f26e157030bb4daab9865b401820075b3",
+    "f145c2ba4c042de0dae32dc39a07bec89200fc72",
+    "df75f9c0afb14a902d775181b0510aa6537cadf9",
+    "40a3e24dd689cfa90f574e5fc9869d0f7a5c4aa6",
+    "98c593c207c3d816a232c83a1e57d711815462ea",
+    "b5be6d50d5757f53fa0b5be7312e4dae69593355",
+    "e9576629b5dae87d23e4968051a3f1e9cd09fc9d",
+    "b5a63e6b625a4d4ea3780cebaf9358278942f432",
+    "b310a839f318c47789d82401142cda10b530c5ae",
+    "44c07ce584f9f5945d11e7788e1d7bf715324aa9",
+    "7b6c9f4fadf3f551e578f2c7176b8f134b38daaa",
+    "a62762c6a4546d84f90a206fda8e2024d9ea6967",
+    "836451fd3f547ab74ee241e25cffa96e694144d5",
+    "15c9cb4a73d38d95aca66936474538c89fc53f03",
+    "5abf67dee57b144fdb1bfab25474c4b97a2be8b0",
+    "87d851382fc50cd789ba542b28dbc4bc0fb37618",
+    "36ca5d1b98938501b719e1c005457b792ee6c981",
+    "243217daf892a2a4cea273f5dbba14c9a5c011cc",
+    "7765b99e12ca545f29b943e7ab367a8e70ac4a0e",
+    "8319d11deab01d6b60f80566d3bc0c15e4604024",
+    "8447cd08678c2e8c297637ee261d884f678a2bc0",
+    "a86a33a53596c92ccefbb76bc231a12d2d9583c5",
+    "4bd507fe6ac1d876d63f936673887d7ae35cc27e",
+    "d141c65841f8a8f80b8325af63f3ae9bb6632e4a",
+    "c80473ff8fd6fbef0ef0c36edda6747303174471",
+    "cf23b93d7fb5900bdff75eabebb96d53e9c601e9",
+    "9d43be5786c28e333f4a072be8a941fd6b182e44",
+    "e74f51e66161efd13967d70c1956b794d21bd758",
+    "db5014ab5b83bb72a0da5a2b68794592cdbb2147",
+    "30df2def023f22a491ac16a6c0bcc78437d1ccec",
+    "343cb98872cabbaf653a4f2168ee8f0ffdb08446",
+    "66a240c44ec6155acd69759f3cbc4489f4bda8b7"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5528591597",
+   "id": "census-0903-catchup-port-0902-0903",
+   "summary": "Daily catch-up cohort 09-02..09-03: committed-state authority (#2947/#3780), merge retention (#3131), expected-artifacts loader unification (#3770/#3412), custom mission types (#3830-#3832), dispatch dry-run (#3840), upgrade durability (#3771/#2265/#2316); dependency split: retention-resolver consumers move to the manual set"
   },
   {
    "census_commit_count": 312,
@@ -1313,6 +1373,66 @@
    "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
    "id": "non-src-noise",
    "summary": "Non-src/tests/pyproject bookkeeping and documentation commits from the census"
+  },
+  {
+   "census_commit_count": 4,
+   "classification": "CLEAN (patch-equivalent on EXP main)",
+   "commits": [
+    "d64212009ccff35a96694ba77a5c5ff48612e562",
+    "83592db9a0756d78ba15c6cbfe0f05e018527bd4",
+    "c156c5afad40efbd99ef393fd0188291923073eb",
+    "63a35473c70bfee1f4ed9e44bf662ca418a0d65b"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1026",
+   "id": "profile-load-followups-patch-equivalent",
+   "summary": "Profile-load follow-ups already present on EXP main"
+  },
+  {
+   "census_commit_count": 36,
+   "classification": "PORT by execution (reverse-apply absent on all 36; none touch §5; 11 machine-portable landed in-PR; 25 manual re-port follow-up on #1065 — 24 conflicted at PR head + 1 upstream-only tests/sync surface)",
+   "commits": [
+    "32c69d5db98a3e50dea1d5b69de440ccea161520",
+    "e64b661eda5d3aa5cd3b3ca653b2e8d45e0ab651",
+    "d9995cbc7f1848d771be8c6bd2d9ae784451575a",
+    "248618e31b3c3346f2ad18a364d02a4c3900c0f6",
+    "935301306d56c62f5951e7b7fc26042c54d5c08c",
+    "c7b7ff5f21134c37af53a408e730f62f0269acbf",
+    "7a2b2e1ec6e2648e44b0032f3622e51d9d271118",
+    "545e8e302f833d376084fce7a385ffa01726a941",
+    "d79e93942d70000263b460ef8e02bab9ae69618d",
+    "59679a1d8f2163e1b6ad53d33e7c50d7434bedf6",
+    "058945088876041cd1f4ce4f2a3471e95b4b6202",
+    "9a53cc63793451a7b99509b29b29a503ff5bc85c",
+    "7637ca33d2edb9e8b93e9680409759d2e50a3701",
+    "27c9062bb1d4a01ce400505014d7a582d8b2bcba",
+    "bb842568ef2884e4599c7e7f00a78b2ee0193d0f",
+    "fe41936f1295fa11695635bd5853e789e7eb4437",
+    "6589a515c9e6ce0ae20b7e2ffc594066c737fe8a",
+    "e7a3fbf10c85dc6b566e93e62c488ce0dfe3deb0",
+    "552b2931c8feb84b035438afe81890d5f755456e",
+    "625e9b854aa073c675821e29f373ed3d8b471690",
+    "823dcb42baac09dbfd57803af76f0058c3916251",
+    "c49264614ffa27a73d9e0b6b5436180ccdc5a9a7",
+    "03552057aae2eac19612fed9720bc7318d0801d5",
+    "9d582495f02a8bcd485108ee5fa3af52aec800c6",
+    "8418533b7f3486653ccd7825324a9d78d8119b90",
+    "f66e9ac10f0a8d53744e56afb9b1a66a2d62c2f0",
+    "f37e4076a23361046b54bb54d29c8981c8ae1491",
+    "7c2c37846d6614022427aa92ea20fdd37813cd67",
+    "a2735817f4d7b291ed2dfb0318c034e5df9f520a",
+    "84f69b0589343bd43b140ff969350ed9a9070f66",
+    "a567ddde5a23dc80ff44d151b0ba05e2f76477e7",
+    "d03571ff9c3ea39e15773422f21c1c2a1b4dceb2",
+    "ff65ab9de65bbf362e8c200b7d31e2d2af5367a5",
+    "2bd52663cb9fa08d610050e923712bc9f94d6cdb",
+    "c6ed4e7d6187551e0495ca8c004bfb8d4bcfe25d",
+    "d8da8cb1cb569995b76242bdd09d2dbd34bb7297"
+   ],
+   "disposition": "PORT",
+   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5530878766",
+   "id": "census-0903-catchup-port-0903-pm",
+   "summary": "Daily catch-up PM cohort 09-03 (66a240c44..d8da8cb1c): commit-boundary integrity batch (#3784/#2693/#3716/#2739), mypy-shim ci retarget + lint pass (#3847 residual), charter command honesty (#3816/#2940/#3435), release-DAG docs, charter list --json + config.yaml guard class, explicit owned-checkout landing extension"
   },
   {
    "id": "census-0904-catchup-port-v326-release",

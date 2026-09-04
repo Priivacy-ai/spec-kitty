@@ -124,7 +124,9 @@ KITTIFY_DIR = ".kittify"
 #     generate text or call models.
 #   - C-003 / FR-007: any lane-state writes inside composed steps go through
 #     ``emit_status_transition`` -- this bridge writes no raw lane strings.
-#   - C-008: dispatch is hard-guarded on ``mission == "software-dev"``.
+#   - C-008: dispatch is gated on ``action_sequence`` membership for the
+#     resolved mission type -- any mission type, not just ``software-dev``
+#     -- via ``_should_dispatch_via_composition``.
 
 # Legacy run snapshots and project-local templates may still contain the old
 # tasks substep IDs. Normalize them into the single public ``tasks`` action so

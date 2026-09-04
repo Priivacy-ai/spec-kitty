@@ -1,0 +1,74 @@
+work_packages:
+  - id: WP01
+    title: "Committed-authority module + status board"
+    dependencies: []
+    owned_files:
+      - "src/runtime/next/committed_authority.py"
+      - "src/specify_cli/cli/commands/agent/tasks_status_cmd.py"
+      - "tests/runtime/next/test_committed_authority.py"
+      - "tests/specify_cli/cli/commands/agent/test_tasks_status_committed_authority.py"
+    create_intent:
+      - "src/runtime/next/committed_authority.py"
+      - "tests/runtime/next/test_committed_authority.py"
+      - "tests/specify_cli/cli/commands/agent/test_tasks_status_committed_authority.py"
+    requirement_refs:
+      - FR-004
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-009
+      - NFR-002
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+      - IC-04
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP01-committed-authority-module-and-board.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: "claude-sonnet-4-6"
+
+  - id: WP02
+    title: "next loop routes through committed authority"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/runtime/next/runtime_bridge.py"
+      - "tests/specify_cli/next/test_runtime_bridge.py"
+      - "tests/runtime/next/test_merged_mission_terminal.py"
+    create_intent:
+      - "tests/runtime/next/test_merged_mission_terminal.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-005
+      - NFR-001
+      - C-001
+      - C-002
+      - C-003
+      - C-006
+      - C-007
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T007
+      - T008
+      - T009
+      - T010
+      - T011
+      - T012
+    prompt_file: "tasks/WP02-next-loop-committed-authority-routing.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: "claude-sonnet-4-6"

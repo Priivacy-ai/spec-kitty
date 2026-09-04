@@ -1,0 +1,47 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: TASKS-VERIFY-001
+    lens: "Per-AC test strategy concrete / Red-first stated per WP"
+    severity: 3
+    title: "WP01's T001 RED-first test list omits named tests for FR-008 (--dry-run --profile) and FR-010 (empty-charter fallback), though both are claimed via requirement_refs and both appear as Definition-of-Done checkboxes"
+    evidence:
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md frontmatter requirement_refs (lists FR-008, FR-010) and § Subtask T001 (lines 190-251), which enumerates six named tests for test_dispatch.py plus one test each for test_dispatch_recommendation.py and test_chokepoint.py — none named for the `--dry-run --profile` combo or the empty-charter-fallback dry-run behavior"
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Definition of Done: \"[ ] `--dry-run --profile <id>` returns `router_confidence: \\\"exact\\\"`, `alternatives: []` (FR-008)\" and \"[ ] `--dry-run` under the empty-charter fallback surfaces `empty_charter_fallback: true` and the generic-agent routing signal (FR-010)\" — both present as DoD checkboxes with no corresponding T001 test name"
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Reviewer Guidance (5 bullets) — none of the five bullets instructs the reviewer to confirm FR-008/FR-010 have a dedicated committed-first regression test, so this gap has no review-time safety net either"
+      - code: "spec.md lines 175 (FR-008) and 177 (FR-010) state both requirements at High/Medium priority; C-001 (spec.md line 192) states ATDD-first applies per work package, requiring \"its own failing-first test pinning user-observable behavior\" — not merely a DoD checkbox verified ad hoc"
+    claim: >
+      WP01's Definition of Done lists FR-008 (--dry-run combined with an explicit --profile hint
+      returns router_confidence: "exact" and alternatives: []) and FR-010 (dry-run under the
+      empty-charter fallback surfaces empty_charter_fallback: true and the generic routing
+      signal) as required outcomes, and both are in the WP's requirement_refs — but Subtask
+      T001's explicit, enumerated RED-first test list (the only tests instructed to be written
+      and committed BEFORE the T002-T006 implementation commit, per the charter's binding
+      ATDD-first / C-011 discipline) names no test for either behavior. Every other FR this WP
+      claims (FR-001/002/003/004/009) has a directly-traceable named test in T001; FR-008 and
+      FR-010 do not. Contrast WP02 and WP03, where every DoD bullet traces to a named T007/T011
+      test — this WP is the outlier. An implementer following T001 literally will not produce a
+      RED commit that pins FR-008/FR-010, and may only "discover" the gap while checking DoD
+      boxes at T006 time, at which point either an ad-hoc/non-committed-first verification is
+      used to satisfy the checkbox (breaking red-first discipline for these two ACs specifically)
+      or the implementer has to retroactively insert a test into the already-landed ATDD commit
+      (rework). This is exactly the failure mode Standing Order #4 / C-011 exist to prevent:
+      "reproduce RED-FIRST through the pre-existing entry point" for every claimed behavior, not
+      most of them.
+    remediation: >
+      Add two named tests to WP01's Subtask T001 step 1 list (in
+      tests/specify_cli/invocation/cli/test_dispatch.py, matching the file's
+      `non_sandbox`+`fast` markers): (a) `test_dry_run_profile_hint_returns_exact_confidence` —
+      `spec-kitty dispatch "<request>" --profile <valid-id> --dry-run --json` asserts
+      `router_confidence: "exact"` and `alternatives: []`; and (b)
+      `test_dry_run_under_empty_charter_fallback` — against a project with no compiled charter
+      bundle, assert the dry-run JSON payload carries `empty_charter_fallback: true` and a
+      populated generic-agent routing signal. Both must be confirmed RED on
+      `feat/dispatch-dry-run-route-only-3840` at mission start (same reason as the other T001
+      tests: `--dry-run` is an unrecognized Typer option) and committed in T001's ATDD-only
+      commit, before T002-T006's implementation commit. Also add one bullet to WP01's Reviewer
+      Guidance instructing the reviewer to confirm every requirement_refs entry traces to a named
+      T001 test, not only to a DoD checkbox.

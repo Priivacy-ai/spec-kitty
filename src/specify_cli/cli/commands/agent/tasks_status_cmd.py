@@ -89,6 +89,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.status import (
     PROGRESS_SEMANTICS,
+    CanonicalStatusNotFoundError,
     Lane,
     StatusEvent,
     StatusSnapshot,
@@ -179,6 +180,15 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     if not feature_dir.exists():
         # Last-ditch fallback to the original worktree-aware path so tests /
         # projects that stand up status files in unusual places still work.
+        # F2 (WP01, #2947): this CWD-derived candidate can be a stale
+        # coordination checkout, but it can no longer leak a stale LANE onto
+        # the board -- ``_st_load_work_packages`` sources each row's lane
+        # from committed authority (the PRIMARY surface) whenever that is
+        # available, regardless of which ``feature_dir`` this resolution
+        # picks. This fallback's closure is that downstream committed-lane
+        # override, not a change to the existence-fallback path itself (which
+        # stays load-bearing for legacy/no-primary-status fixtures --
+        # ``docs/development/reference/read-side-seam-classification.md``).
         status_read_root = _tasks.get_status_read_root(st.cwd)
         legacy_dir = candidate_feature_dir_for_mission(status_read_root, st.mission_slug)
         if legacy_dir.exists():
@@ -300,7 +310,50 @@ def _st_load_work_packages(st: _StatusState) -> None:
     each WP's frontmatter into a status row and freezes the declared dependencies
     for the pure ``build_status_view`` readiness map.
     """
+    from runtime.next.committed_authority import committed_wp_lane
     from specify_cli.cli.commands.agent import tasks as _tasks
+
+    def _committed_lane(wp_id: str | None) -> str | None:
+        """Return the committed PRIMARY-surface lane for *wp_id*, when available.
+
+        Routes through :func:`committed_wp_lane` (WP01 D10/IC-04): the board's
+        lane rollup must not misreport a merged mission's WPs as still-planned
+        just because the topology-resolved ``feature_dir`` happens to be a
+        stale, not-yet-cleaned-up coordination checkout (#2947). Returns
+        ``None`` when no *wp_id* is available, or when the committed status
+        log is genuinely absent on PRIMARY (an in-flight coordination-topology
+        mission whose status lives only on the coordination worktree until
+        merge) -- the caller then falls back to its own coordination-aware
+        read (``_st_runtime_row``'s ``lane``), unchanged. A committed
+        ``uninitialized`` result (WP absent from the PRIMARY snapshot) is
+        likewise treated as "no committed data" -- that sentinel must never
+        surface on the board (it is a non-display lane).
+
+        A CORRUPT (present-but-unparsable) PRIMARY event log also degrades to
+        ``None`` here -- the board must render, not crash, matching the
+        pre-existing defensive ``except Exception`` a few lines below that
+        already tolerates a corrupt event log for its own (non-committed)
+        read. ``CanonicalStatusNotFoundError`` is NOT part of this catch: a
+        genuinely-absent log is handled inside ``committed_wp_lane`` itself
+        (it checks ``has_event_log`` before ever reading), so this board-only
+        degrade path exists solely for parse/read failures on a log that DOES
+        exist on disk. Callers that need the fail-loud contract on a
+        genuinely-absent log (``wp_ending``, ``_should_advance_wp_step``) are
+        untouched -- this local except is scoped to the board's own display
+        fallback, not the shared committed-authority module.
+        """
+        if not wp_id:
+            return None
+        try:
+            lane = committed_wp_lane(st.main_repo_root, st.mission_slug, wp_id)
+        except CanonicalStatusNotFoundError:
+            raise
+        except Exception:
+            return None
+        if lane is None or lane == Lane.UNINITIALIZED:
+            return None
+        return lane
+
     try:
         from specify_cli.status import read_events as _st_read_events
         from specify_cli.status import reduce as _st_reduce
@@ -333,7 +386,9 @@ def _st_load_work_packages(st: _StatusState) -> None:
         # frontmatter-canonical (design intent for the HiC marker) and DISTINCT
         # from ``resolved_agent_profile`` (what actually ran) — C-008.
         _st_row = _st_runtime_row(st.feature_dir, wp_id)
-        lane = resolve_lane_alias(str(_st_row["lane"] or Lane.GENESIS))
+        committed_lane = _committed_lane(wp_id)
+        lane_source = committed_lane if committed_lane is not None else str(_st_row["lane"] or Lane.GENESIS)
+        lane = resolve_lane_alias(lane_source)
         st.work_packages.append(
             {
                 "id": wp_id,

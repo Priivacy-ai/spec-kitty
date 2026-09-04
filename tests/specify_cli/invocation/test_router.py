@@ -7,11 +7,16 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from unittest.mock import MagicMock
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specify_cli.invocation.errors import RouterAmbiguityError
+
+if TYPE_CHECKING:  # EXP-side typing adaptation (PR #1066): annotation-only import
+    from specify_cli.invocation.registry import ProfileRegistry
+
 from specify_cli.invocation.router import (
     CANONICAL_VERB_MAP,
     STOP_WORDS,
@@ -30,7 +35,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 
-def _make_registry(tmp_path: Path, profiles: list[str] | None = None):
+def _make_registry(tmp_path: Path, profiles: list[str] | None = None) -> ProfileRegistry:
     """Build a ProfileRegistry from the fixture profiles directory.
 
     Args:
@@ -55,7 +60,7 @@ def _make_registry(tmp_path: Path, profiles: list[str] | None = None):
     return ProfileRegistry(tmp_path)
 
 
-def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
+def _make_mock_registry(profile_specs: list[dict[str, Any]]) -> MagicMock:
     """Build a lightweight mock ProfileRegistry returning synthetic profiles.
 
     Each dict in *profile_specs* should have:
@@ -395,3 +400,205 @@ def test_router_makes_no_external_calls() -> None:
     forbidden_imports = ["import anthropic", "from anthropic", "import openai", "from openai"]
     for fi in forbidden_imports:
         assert fi not in source, f"Found forbidden import '{fi}' in router.py"
+
+
+# ---------------------------------------------------------------------------
+# WP2/#3840 (T007) — RouterDecision.alternatives, threaded to dry-run and
+# real dispatch (FR-005, SC-003). RED on WP01's final commit: `alternatives`
+# does not exist yet on RouterDecision/InvocationPayload -- every assertion
+# below fails with TypeError/AttributeError/KeyError until WP02's
+# implementation commit lands.
+# ---------------------------------------------------------------------------
+
+_COMPACT_CTX = MagicMock()
+_COMPACT_CTX.mode = "compact"
+_COMPACT_CTX.text = "compact governance context"
+
+
+def _setup_executor_project(tmp_path: Path) -> Path:
+    """Copy the real fixture profiles onto disk.
+
+    ``ProfileInvocationExecutor`` builds its own ``ProfileRegistry`` fresh
+    from ``repo_root`` (independent of any mocked router registry), so the
+    *winning* candidate's ``profile_id`` must resolve against real files on
+    disk for ``invoke()``/``dry_run()`` to succeed past routing. A losing
+    candidate's profile_id is never resolved this way (see router.py's
+    ``alternatives=`` construction), so it does not need a matching file.
+    """
+    profiles_dir = tmp_path / ".kittify" / "profiles"
+    profiles_dir.mkdir(parents=True)
+    for yaml_file in FIXTURES_DIR.glob("*.agent.yaml"):
+        shutil.copy(yaml_file, profiles_dir / yaml_file.name)
+    return tmp_path
+
+
+def test_alternatives_empty_on_single_candidate(tmp_path: Path) -> None:
+    """A request matching exactly one profile: alternatives == [] on the
+    router decision itself, on dry-run, and on real dispatch (SC-003,
+    Acceptance Scenario 1) -- an explicit empty list, never None/absent."""
+    from specify_cli.invocation.executor import ProfileInvocationExecutor
+
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-fixture",
+            "role_value": "implementer",
+            "routing_priority": 50,
+            "domain_keywords": [],
+        },
+    ])
+    router = ActionRouter(registry)
+
+    decision = router.route("implement the payment module")
+    assert decision.alternatives == []
+
+    project = _setup_executor_project(tmp_path)
+    executor = ProfileInvocationExecutor(project, router=router)
+    with (
+        patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX),
+        patch("specify_cli.invocation.executor.resolve_generic_fallback", return_value=None),
+    ):
+        dry_payload = executor.dry_run("implement the payment module")
+        real_payload = executor.invoke("implement the payment module", actor="test")
+
+    assert dry_payload.alternatives == []
+    assert real_payload.alternatives == []
+
+
+def test_alternatives_empty_on_explicit_profile_hint(tmp_path: Path) -> None:
+    """--profile <id> bypasses the router entirely (Level 1): router_confidence
+    is "exact" and alternatives is [] on dry-run (FR-008, Acceptance Scenario 2)."""
+    from specify_cli.invocation.executor import ProfileInvocationExecutor
+
+    project = _setup_executor_project(tmp_path)
+    executor = ProfileInvocationExecutor(project)
+    with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
+        payload = executor.dry_run("implement the feature", profile_hint="implementer-fixture")
+
+    assert payload.router_confidence == "exact"
+    assert payload.alternatives == []
+
+
+def test_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path: Path) -> None:
+    """A request matching two profiles (one canonical-verb, one domain-keyword,
+    so routing_priority decides today, pre-WP03): alternatives is non-empty and
+    carries the losing candidate's profile_id/action/confidence/match_reason
+    (User Story 2's own Independent Test; SC-003) -- on the router decision
+    itself and on dry-run."""
+    from specify_cli.invocation.executor import ProfileInvocationExecutor
+
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-fixture",
+            "role_value": "implementer",
+            "routing_priority": 80,
+            "domain_keywords": [],
+        },
+        {
+            "profile_id": "reviewer-fixture",
+            "role_value": "reviewer",
+            "routing_priority": 10,
+            # "gizmo" is not in CANONICAL_VERB_MAP -- a genuine domain-keyword
+            # match, not shadowed by a verb match on this profile's role.
+            "domain_keywords": ["gizmo"],
+        },
+    ])
+    router = ActionRouter(registry)
+
+    decision = router.route("implement and gizmo the module")
+    assert decision.profile_id == "implementer-fixture"
+    assert decision.confidence == "canonical_verb"
+    assert len(decision.alternatives) == 1  # golden-count: cardinality-is-contract — the tiebreak must surface exactly one alternative
+    alt = decision.alternatives[0]
+    assert alt["profile_id"] == "reviewer-fixture"
+    assert alt["confidence"] == "domain_keyword"
+    assert alt["action"]
+    assert alt["match_reason"]
+
+    project = _setup_executor_project(tmp_path)
+    executor = ProfileInvocationExecutor(project, router=router)
+    with (
+        patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX),
+        patch("specify_cli.invocation.executor.resolve_generic_fallback", return_value=None),
+    ):
+        dry_payload = executor.dry_run("implement and gizmo the module")
+
+    assert dry_payload.profile_id == "implementer-fixture"
+    assert len(dry_payload.alternatives) == 1  # golden-count: cardinality-is-contract — the dry-run payload mirrors the one-alternative tiebreak
+    assert dry_payload.alternatives[0]["profile_id"] == "reviewer-fixture"
+
+
+def test_router_ambiguous_candidates_carry_confidence_key() -> None:
+    """WP01 fixed the post-tiebreaker ROUTER_AMBIGUOUS raise's candidate-dict
+    shape to carry a `confidence` key; this WP's edits to the surrounding
+    route() code (alternatives= population) must not regress it -- re-confirms
+    it holds, does not re-implement the fix. Also confirms the dry-run
+    ambiguous-branch alternatives (built from err.candidates) carry the same
+    key (FR-009)."""
+    from specify_cli.invocation.executor import build_ambiguous_dry_run_payload
+
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-a",
+            "role_value": "implementer",
+            "routing_priority": 50,
+            "domain_keywords": [],
+        },
+        {
+            "profile_id": "implementer-b",
+            "role_value": "implementer",
+            "routing_priority": 50,
+            "domain_keywords": [],
+        },
+    ])
+    router = ActionRouter(registry)
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        router.route("implement the feature")
+
+    err = exc_info.value
+    assert err.error_code == "ROUTER_AMBIGUOUS"
+    # PR-TESTS-001 (pre-merge squad, mission dispatch-dry-run-route-only-01M1HKV2):
+    # pin the collection to non-empty/exact-size BEFORE the loop below, mirroring
+    # test_two_plus_domain_keyword_candidates_tied_priority_still_ambiguous's
+    # set-equality guard -- otherwise a future regression that empties
+    # err.candidates while keeping error_code == "ROUTER_AMBIGUOUS" would pass
+    # this loop vacuously.
+    candidate_ids = {c["profile_id"] for c in err.candidates}
+    assert candidate_ids == {"implementer-a", "implementer-b"}
+    for candidate in err.candidates:
+        assert "confidence" in candidate
+
+    dry_run_payload = build_ambiguous_dry_run_payload("implement the feature", err)
+    alternatives = dry_run_payload["alternatives"]
+    assert isinstance(alternatives, list)
+    # Same vacuity guard for the dry-run-payload mirror of err.candidates.
+    assert len(alternatives) == 2  # golden-count: cardinality-is-contract — both ambiguous candidates must be listed
+    for alt in alternatives:
+        assert "confidence" in alt
+
+
+def test_invocation_payload_to_dry_run_dict_raises_if_alternatives_missing() -> None:
+    """T009 step 5: unlike RouterDecision (a real frozen dataclass), nothing
+    at the type level stops a construction site from omitting alternatives=
+    on InvocationPayload -- to_dry_run_dict()'s explicit fail-fast guard is
+    the real backstop. Confirms it actually fires (not just described)."""
+    from specify_cli.invocation.executor import InvocationPayload
+
+    payload = InvocationPayload(
+        invocation_id="",
+        profile_id="implementer-fixture",
+        profile_friendly_name="Implementer (fixture)",
+        action="implement",
+        governance_context_text="compact governance context",
+        governance_context_hash="deadbeef01234567",
+        governance_context_available=True,
+        router_confidence="canonical_verb",
+        glossary_observations=None,
+        mode_of_work=None,
+        recommendation=None,
+        empty_charter_fallback=False,
+        # alternatives= deliberately omitted -- this is the missed-site case.
+    )
+
+    with pytest.raises(RuntimeError, match="alternatives"):
+        payload.to_dry_run_dict()

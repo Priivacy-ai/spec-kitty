@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import typer
 from specify_cli.cli.console import console
@@ -24,7 +24,11 @@ from specify_cli.invocation.errors import (
     ProfileNotFoundError,
     RouterAmbiguityError,
 )
-from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
+from specify_cli.invocation.executor import (
+    InvocationPayload,
+    ProfileInvocationExecutor,
+    build_ambiguous_dry_run_payload,
+)
 from specify_cli.invocation.modes import ModeOfWork, derive_mode
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.registry import ProfileRegistry
@@ -85,13 +89,41 @@ def _render_empty_charter_warning(payload: InvocationPayload) -> None:
     )
 
 
-def _render_rich_payload(payload: InvocationPayload) -> None:
-    """Rich console output for profile/action/context."""
+def _render_payload_capsule(payload: InvocationPayload, *, show_invocation_id: bool) -> None:
+    """Shared rich-console capsule body: profile/action/context/warnings.
+
+    Factored out of ``_render_rich_payload`` (WP01-002 fix) so the real
+    (Op-opening) path and the ``--dry-run`` success path (``show_invocation_id
+    =False`` -- no Op was opened, nothing to report an id for) render
+    identical governance content without hand-duplicating it. Extraction is
+    behavior-preserving for the real path: ``_render_rich_payload`` below
+    calls this with ``show_invocation_id=True`` in the exact same order as
+    before.
+
+    Also prints ``alternatives`` when non-empty (WP2/#3840, FR-005; PR-BOUNDARY-002
+    pre-merge finding), so BOTH the real (Op-opening) console path and the
+    ``--dry-run`` console path show the same routing-confidence signal a
+    machine consumer already gets from either path's ``--json`` envelope --
+    previously only the dry-run renderer printed this block, an unforced
+    asymmetry with no basis in cli-do-output.md (which is silent on
+    rich-console alternatives for either path). Read via ``getattr`` with a
+    default, same as ``_render_empty_charter_warning`` above and for the same
+    reason: ``InvocationPayload.__init__`` only sets keys callers pass, so
+    payloads built without the kwarg (e.g. pre-WP2 test fixtures such as
+    tests/invocation/test_dispatch_recommendation.py's ``_sample_payload``)
+    must not raise ``AttributeError`` here.
+    """
     console.print(f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})")
     console.print(f"[bold]Action:[/bold] {payload.action}")
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
-    console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
+    alternatives = getattr(payload, "alternatives", None)
+    if alternatives:
+        console.print(f"[dim]Alternatives considered ({len(alternatives)}):[/dim]")
+        for alt in alternatives:
+            console.print(f"  - {alt['profile_id']} ({alt['action']}, {alt['confidence']})")
+    if show_invocation_id:
+        console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
     _render_empty_charter_warning(payload)
     observations = payload.glossary_observations
     if observations is not None and observations.high_severity:
@@ -119,6 +151,47 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
         console.print(Panel(payload.governance_context_text, title="Governance Context", expand=False))
     else:
         console.print("[yellow]Governance context unavailable.[/yellow] Run 'spec-kitty charter synthesize'.")
+
+
+def _render_rich_payload(payload: InvocationPayload) -> None:
+    """Rich console output for profile/action/context (real dispatch, OPEN Op)."""
+    _render_payload_capsule(payload, show_invocation_id=True)
+
+
+def _render_dry_run_rich_payload(payload: InvocationPayload) -> None:
+    """Rich console output for the ``--dry-run`` success path (WP01-002 fix).
+
+    Mirrors ``_render_rich_payload`` minus ``invocation_id`` -- no Op was
+    opened, so there is nothing to report an id for
+    (contracts/cli-do-output.md's ``--dry-run`` success shape). ``alternatives``
+    rendering (WP2/#3840, FR-005) now lives in the shared
+    ``_render_payload_capsule`` body itself (PR-BOUNDARY-002), so both this
+    and ``_render_rich_payload`` print it identically -- no standalone block
+    needed here any more.
+    """
+    _render_payload_capsule(payload, show_invocation_id=False)
+    console.print("[dim]Dry run — no Op opened, nothing written.[/dim]")
+
+
+def _render_dry_run_ambiguous_rich(payload: dict[str, object]) -> None:
+    """Rich console output for the ``ROUTER_AMBIGUOUS`` dry-run branch (WP01-002 fix).
+
+    This is the ``FR-009`` exit-0 "no winner" shape built by
+    ``build_ambiguous_dry_run_payload`` -- a plain dict, not an
+    ``InvocationPayload`` (no profile was resolved, so no governance
+    context/recommendation exists to report; see that function's own
+    docstring). Respects ``json_output`` the same way the plain-success
+    dry-run branch does, for the same reason: this is still an exit-0
+    "success-shaped" outcome (FR-009's deliberate UI-probing affordance),
+    not an error.
+    """
+    console.print("[yellow]Routing is ambiguous[/yellow] — no single winner (router_confidence: ambiguous).")
+    alternatives = payload.get("alternatives")
+    if isinstance(alternatives, list) and alternatives:
+        console.print(f"[dim]Candidates considered ({len(alternatives)}):[/dim]")
+        for alt in alternatives:
+            console.print(f"  - {alt['profile_id']} ({alt['action']}, {alt['confidence']}) — {alt['match_reason']}")
+    console.print("[dim]Dry run — no Op opened, nothing written. Use --profile <id> to disambiguate.[/dim]")
 
 
 def _format_recommendation(recommendation: RoutingRecommendation) -> str:
@@ -158,6 +231,24 @@ def render_open_hint_task_execution(payload: InvocationPayload) -> None:
     console.print("[dim]Unclosed Ops are reported by `spec-kitty doctor ops` and swept to 'abandoned' when stale.[/dim]")
 
 
+def _emit_routing_error_and_exit(e: RouterAmbiguityError) -> NoReturn:
+    """Build and emit the one exit-1 structured routing-error JSON shape.
+
+    Shared by both the invoke()-path handler and the dry-run-path's non-
+    ROUTER_AMBIGUOUS branch (extracted so the two never hand-duplicate this
+    construction and silently drift apart).
+    """
+    error_obj = {
+        "error": "routing_failed",
+        "error_code": e.error_code,
+        "message": str(e),
+        "candidates": e.candidates,
+        "suggestion": e.suggestion,
+    }
+    typer.echo(json.dumps(error_obj), err=True)
+    raise typer.Exit(1) from e
+
+
 def profile_not_found_routing(error: ProfileNotFoundError) -> None:
     """Emit structured routing error JSON, then exit 1."""
     typer.echo(
@@ -183,20 +274,56 @@ def _dispatch_impl(
     *,
     repo_root: Path,
     executor: ProfileInvocationExecutor,
+    dry_run: bool = False,
 ) -> None:
-    """Open a standalone Op and emit either JSON or rich console output."""
+    """Open a standalone Op and emit either JSON or rich console output.
+
+    ``dry_run=True`` (FR-001) is a SECOND, separate try/except scoped only to
+    ``executor.dry_run(...)`` -- kept distinct from the invoke()-path
+    try/except below, never merged with it. Python ``except`` selects by
+    exception type, not a boolean: ROUTER_AMBIGUOUS and ROUTER_NO_MATCH are
+    the *same* exception type (``RouterAmbiguityError``, distinguished only
+    by ``e.error_code``), so the two paths' different policies for
+    ROUTER_AMBIGUOUS (exit 0 with a payload here; exit 1 on invoke()) cannot
+    share one ``except`` clause across two call sites.
+    """
+    if dry_run:
+        try:
+            payload = executor.dry_run(request, profile_hint=profile_hint, actor=_detect_actor())
+        except RouterAmbiguityError as e:
+            if e.error_code == "ROUTER_AMBIGUOUS":
+                # FR-009: exit 0 with the ambiguous dry-run payload, alternatives
+                # populated. WP01-002 fix: this is still an exit-0
+                # "success-shaped" outcome, so it respects json_output the
+                # same way the plain-success dry-run branch below does.
+                ambiguous_payload = build_ambiguous_dry_run_payload(request, e)
+                if json_output:
+                    typer.echo(json.dumps(ambiguous_payload))
+                else:
+                    _render_dry_run_ambiguous_rich(ambiguous_payload)
+                return
+            # ROUTER_NO_MATCH: "no partial signal worth reporting" — same
+            # exit-1 shape real dispatch already produces.
+            _emit_routing_error_and_exit(e)
+        except ProfileNotFoundError as e:
+            # LIVE branch: the executor's explicit-hint path calls
+            # registry.resolve(profile_hint) directly (NOT via route()), so a
+            # bad --profile raises the literal ProfileNotFoundError here.
+            # Guarded by test_dry_run_unknown_profile_still_raises. (route()
+            # runs only on the no-hint branch, where a miss surfaces as
+            # RouterAmbiguityError(error_code="PROFILE_NOT_FOUND") instead.)
+            profile_not_found_routing(e)
+            return  # pragma: no cover — handler always raises typer.Exit
+        if json_output:
+            typer.echo(json.dumps(payload.to_dry_run_dict()))
+            return
+        _render_dry_run_rich_payload(payload)
+        return
+
     try:
         payload = executor.invoke(request, profile_hint=profile_hint, actor=_detect_actor(), mode_of_work=mode)
     except RouterAmbiguityError as e:
-        error_obj = {
-            "error": "routing_failed",
-            "error_code": e.error_code,
-            "message": str(e),
-            "candidates": e.candidates,
-            "suggestion": e.suggestion,
-        }
-        typer.echo(json.dumps(error_obj), err=True)
-        raise typer.Exit(1) from e
+        _emit_routing_error_and_exit(e)
     except ProfileNotFoundError as e:
         profile_not_found_routing(e)
         return  # pragma: no cover — handler always raises typer.Exit
@@ -230,12 +357,19 @@ def dispatch(
         help="Optional profile ID. Bypasses the router — use when the request is ambiguous.",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Route the request and return the routing signal without opening an Op or writing anything.",
+    ),
 ) -> None:
     """Dispatch a request to a governed Op.
 
     Uses ActionRouter by default. Pass --profile to bypass routing when the
     request verb is ambiguous. Opens an Op record; the caller closes it with the
-    real outcome.
+    real outcome. Pass --dry-run to get the routing signal only -- no Op is
+    opened, no kitty-ops/ file is written, no glossary event is persisted, and
+    nothing is submitted to the SaaS propagator.
     """
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
@@ -246,4 +380,5 @@ def dispatch(
         json_output,
         repo_root=repo_root,
         executor=executor,
+        dry_run=dry_run,
     )
