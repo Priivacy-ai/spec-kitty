@@ -2112,6 +2112,68 @@ _Validate or assemble doctrine packs._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty events
+
+_Event log tailing commands_
+
+```
+ Usage: spec-kitty events [OPTIONS] COMMAND [ARGS]...
+
+ Event log tailing commands
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ tail  Tail a mission's event log (``status.events.jsonl``) as JSON lines on  │
+│       stdout.                                                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty events tail
+
+```
+ Usage: spec-kitty events tail [OPTIONS]
+
+ Tail a mission's event log (``status.events.jsonl``) as JSON lines on stdout.
+
+ Ordered dispatch (plan.md's CLI Surface section -- "exactly four things, none
+ of
+ them novel domain logic"):
+
+ 1. FR-004 usage check: ``--from-invariant`` without ``--from-offset``.
+ 2. FR-009 mission resolve.
+ 3. FR-013 resume validation (only when ``--from-offset`` is given).
+ 4. Drive the core.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                 TEXT     Mission slug/handle whose              │
+│                                       status.events.jsonl to tail (no legacy │
+│                                       feature-alias flag, C-003).            │
+│                                       [required]                             │
+│    --json                             JSON output. Currently the only        │
+│                                       supported mode (accepted for parity    │
+│                                       with the issue's invocation and with   │
+│                                       `docs query --json`; no human-readable │
+│                                       mode exists, so this flag has no       │
+│                                       observable effect either way).         │
+│                                       [default: True]                        │
+│    --once                             Poll exactly once and exit -- no       │
+│                                       generator, no sleep, ever.             │
+│    --max-events              INTEGER  Stop the stream after emitting this    │
+│                                       many events/signals.                   │
+│    --from-offset             INTEGER  Resume from this byte offset in        │
+│                                       status.events.jsonl (FR-004/FR-013).   │
+│    --from-invariant          TEXT     Content invariant (SHA-256 hex digest) │
+│                                       paired with --from-offset for          │
+│                                       cross-restart content verification     │
+│                                       (FR-004/FR-013). Requires              │
+│                                       --from-offset; supplying this alone is │
+│                                       a usage error.                         │
+│    --help            -h               Show this message and exit.            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty glossary
 
 _Glossary management commands_
