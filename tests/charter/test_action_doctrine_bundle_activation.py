@@ -582,6 +582,69 @@ def test_activated_directive_scoped_to_no_action_still_widens(tmp_path: Path) ->
     )
 
 
+def test_type_wide_scoped_directive_reached_by_closure_still_widens(
+    tmp_path: Path,
+) -> None:
+    """A directive scoped onto the MISSION TYPE (type-wide governance,
+    #3604/#3633's two-grain ``Relation.SCOPE``: ``source`` is either an
+    ``action:`` URN or a ``mission_type:`` URN) is a THIRD, distinct case
+    from both case 6 (owned by a different action) and case 7 above (no
+    owner anywhere): it DOES have a scope owner, but that owner is a
+    ``mission_type:`` node, never an ``action:`` node -- so it can never be
+    "a different action" claiming the URN.
+
+    RED against the ungated ``scope_owners`` map (pre-fix
+    ``delivery_table.py``, which keys ``scope_owners`` off every
+    ``Relation.SCOPE`` edge regardless of source): ``owners - {action_urn}``
+    is non-empty for a ``mission_type:``-sourced owner (a mission_type URN
+    can never equal the resolving ``action:`` URN), so
+    ``_owned_by_a_different_action`` returns ``True`` and DIRECTIVE_010 --
+    activated, reached via the closure widening step -- is silently dropped.
+    This reintroduces the exact split-brain (#3604/#3633) the scope gate
+    exists to prevent: type-wide-scoped doctrine must still widen into every
+    action of that mission type.
+    """
+    mission_type_urn = f"mission_type:{_MISSION_TYPE}"
+    graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
+    # DIRECTIVE_010 is scoped onto the MISSION TYPE itself (type-wide
+    # governance), never onto any action.
+    graph.nodes.append(DRGNode(urn=mission_type_urn, kind=NodeKind.MISSION_TYPE))
+    graph.nodes.append(
+        DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE)
+    )
+    graph.edges.append(
+        DRGEdge(
+            source=mission_type_urn,
+            target=f"directive:{_DIRECTIVE_010_CANONICAL}",
+            relation=Relation.SCOPE,
+        )
+    )
+    pack_context = _pack_context(
+        activated_directives=frozenset(
+            {_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}
+        ),
+        repo_root=tmp_path,
+    )
+
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
+        bundle = _load_action_doctrine_bundle(
+            repo_root=tmp_path,
+            action=_ACTION,
+            effective_depth=2,
+            mission_type=_MISSION_TYPE,
+            pack_context=pack_context,
+        )
+
+    assert _DIRECTIVE_038_CANONICAL in bundle.directive_ids
+    assert _DIRECTIVE_010_CANONICAL in bundle.directive_ids, (
+        "an activated directive scoped only onto the MISSION TYPE (type-wide "
+        "governance, never an action) must still widen into the resolving "
+        "action's delivered set -- a mission_type-sourced scope owner is not "
+        "'a different action'; delivered directives were: "
+        f"{sorted(bundle.directive_ids)}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 8. Operator ruling 2 (reviews/wp02.ruling-2.md) -- "None -> all built-ins"
 #    must resolve from the ACTIVE graph being resolved against, not a
