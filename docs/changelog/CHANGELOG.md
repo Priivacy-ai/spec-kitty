@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _The 3.2.7rc1 candidate cycle is open. Entries land here as missions merge._
 
+### Fixed
+
+- **A project could be handed the wrong governance — SPDD/REASONS guidance, org-required directives, tactics and paradigms — whenever its _active_ configuration had drifted from what it originally authored (`#3871`; closes `#3838`).** Four charter surfaces decided what doctrine to deliver by reading the authoring record (`selected_*`) instead of the resolved authority (`activated_*`), so a project whose activation differed from its authored set quietly received doctrine it never activated — and missed doctrine it did — with no error and no warning. Activation is now the single authority across all four surfaces: every directive, tactic and paradigm identifier is canonicalized at the moment it enters a union, an identifier whose form cannot be canonicalized fails loud instead of being silently dropped, and an absent activation set resolves to the documented built-in catalog default rather than collapsing to an empty set.
+
 ## [3.2.6] - 2026-09-03
 
 _The stabilization release: fail-loud honesty across the workflow, plus `orchestrator-api` 1.4.0 opening the full design pipeline to external hosts. Consolidated operator-facing notes: [release-notes-3.2.6.md](release-notes-3.2.6.md)._
