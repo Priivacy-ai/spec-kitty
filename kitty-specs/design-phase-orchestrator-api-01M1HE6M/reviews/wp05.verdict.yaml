@@ -1,0 +1,133 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP05
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  WP05 correctly implements Mechanism A: the task contract
+  (kitty-specs/.../tasks/WP05-decision-ledger-verbs.md) explicitly and
+  unambiguously names `decisions/index.json`-ledger decisions keyed by
+  `OriginFlow.CHARTER/SPECIFY/PLAN` (`decisions/models.py:36-41`), matches
+  spec.md's FR-006-FR-009/C-003 table rows verbatim, and explicitly
+  distinguishes itself from WP08's Mechanism B (`answer-decision`,
+  run-snapshot `pending_decisions`, no OriginFlow concept). The dispatch
+  brief's "DecisionKind cases in runtime/next/decision.py" framing was wrong;
+  the implementer's contract-first read is the correct one -- this is not a
+  severity-5 finding, it is the implementer doing exactly what Standing Order
+  discipline requires (follow the task contract over a stale/incorrect
+  briefing). All four verbs (`open-decision`/`resolve-decision`/
+  `defer-decision`/`cancel-decision`) are genuine 1:1 wraps of
+  `decisions/service.py`'s four functions -- verified by reading every
+  wrapped function's real signature (`service.py:260,528,575,612`) against
+  every argument commands.py passes, with zero reimplemented ledger
+  read/write logic in the orchestrator-api layer. The FR-012 OriginFlow guard
+  is a single shared helper (`_validate_origin_flow_or_fail`,
+  commands.py:2810) invoked ONLY from `open-decision`, correctly NOT wired
+  into resolve/defer/cancel (confirmed their service signatures take no
+  `origin_flow` parameter). Terminal-transition rejection is genuinely
+  boundary-tested, not happy-path-only: `test_resolve_decision_on_already_resolved_with_different_answer_rejected`
+  resolves once (succeeds), resolves again with a DIFFERENT answer (rejects
+  DECISION_TERMINAL_CONFLICT), and asserts the ledger retains the FIRST
+  answer -- a real anti-silent-overwrite check, not a shallow assertion.
+  DecisionError propagation is verbatim (`exc.code.value`/`exc.details`
+  through `_fail`, never flattened to a generic code) for all six
+  decision-specific error codes, and the deliberate divergence from the host
+  CLI's own confusing `--flow`-validation code reuse (MISSING_STEP_OR_SLOT)
+  in favor of a dedicated INVALID_ORIGIN_FLOW code is documented in the
+  helper's own docstring and is a genuine, reasoned improvement, not drift.
+  Contract registration was verified bidirectionally: all 6 new
+  `upstream_contract.json` codes trace to a real emission site (1 literal via
+  regex-matched `_fail`, 5 dynamic via `DecisionErrorCode` enum values
+  independently confirmed against `decisions/models.py:53-62`), and
+  `MISSION_NOT_FOUND`/`VERIFY_DRIFT` were correctly NOT re-registered
+  (already-registered / out-of-WP05-scope respectively).
+  `CONTRACT_VERSION` is untouched (zero diff on envelope.py, still "1.3.0").
+  Red-first was independently re-derived, not trusted: checking out
+  `commands.py` + `upstream_contract.json` to base commit 3be4a7aea's content
+  reproduces exactly the 18 claimed new-test failures, restoring HEAD gives
+  39/39 green in the three owned test files (matching the claimed 39 own),
+  14/14 in tests/contract/test_orchestrator_api.py (matching the claimed
+  contract count, 53 total), 57/57 across the whole
+  tests/specify_cli/orchestrator_api/ directory, and 357 passed / 2 skipped /
+  0 failed across the three-directory baseline surface -- strictly more green
+  than the 299/2/0 baseline, zero regressions. Markers/CI collection was
+  checked against the real `.github/workflows/ci-quality.yml` filter strings
+  via a live `--collect-only`: the integration filter
+  (`-m 'not windows_ci and (git_repo or integration or architectural) and not
+  timing and not regression'`) selects exactly the 8 claimed
+  `test_decision_verbs.py` tests, and the fast filter (`-m "fast and not
+  windows_ci and not regression"`) selects exactly the 10 claimed
+  fail-closed tests, both inside `specify-cli-rest`-shard path/ignore-args
+  that do not exclude `tests/specify_cli/orchestrator_api`. No test in the
+  new file creates two missions in the same repo/feature_dir in quick
+  succession, so SK-147's mid8 collision window does not apply here (each
+  test uses a fresh tmp_path with a unique slug) -- correctly not requiring a
+  clock freeze, unlike WP03's duplicate-specify scenario. Gates independently
+  re-run: `ruff check` clean, `mypy --strict` clean on commands.py + all
+  three owned test files, `check_patch_targets.py` reports "All 5259 patch()
+  targets valid", `test_json_group_typer_surface.py` 5/5, C-001 grep clean
+  (the one `spec-kitty-events` hit in upstream_contract.json is a
+  pre-existing, untouched provenance `_comment`, not a WP05-introduced
+  reference). One moderate finding below (a real, live-reproduced silent-success
+  gap on empty `--rationale`) and one minor test-coverage-completeness nit;
+  neither reaches severity 4, so WP05 is approved.
+findings:
+  - id: WP05-001
+    severity: 3
+    title: defer-decision/cancel-decision silently accept an empty --rationale, unlike the host CLI
+    evidence:
+      - code: "src/specify_cli/cli/commands/decision.py:341-348 (cmd_defer's own `if not rationale.strip():` guard)"
+      - code: "src/specify_cli/cli/commands/decision.py:391-398 (cmd_cancel's identical guard)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2913-2946 (defer_decision verb, no rationale-emptiness check)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2957-2990 (cancel_decision verb, no rationale-emptiness check)"
+      - code: "src/specify_cli/decisions/service.py:410-424 (_terminal_command itself performs no rationale validation either)"
+    claim: >
+      The host-CLI `agent decision defer`/`cancel` subcommands each reject an
+      empty/whitespace-only `--rationale` with a structured `DecisionError`
+      (reusing `DecisionErrorCode.MISSING_STEP_OR_SLOT`) BEFORE calling
+      `decisions/service.py`. WP05's `defer-decision`/`cancel-decision` verbs
+      pass `--rationale` straight through to `_svc_defer_decision`/
+      `_svc_cancel_decision` with no equivalent check, and
+      `decisions/service.py`'s own `_terminal_command` performs no such
+      validation either -- so the empty string is silently accepted and
+      persisted to the ledger. Live-reproduced: invoking `defer-decision
+      --rationale ""` against a real opened decision returns
+      `success: true`, `status: "deferred"`, with an empty rationale written
+      to `decisions/index.json` on disk -- no test in the WP05 diff exercises
+      this path (`--rationale` never appears with an empty value in any of
+      the three owned test files). This is a genuine behavioral fork from
+      the host CLI in exactly the class of case (silent success on invalid
+      input) the review brief names as this repo's dominant failure mode,
+      though it is not called out as an acceptance criterion in spec.md or
+      the WP05 task file's own T027 negative-path list (which asks only for
+      missing `--policy`, invalid `--origin`, and nonexistent
+      `--decision-id`), so it did not violate an explicit DoD item.
+    remediation: >
+      Add a `_validate_rationale_or_fail(cmd, rationale)` shared helper
+      (mirroring `_validate_origin_flow_or_fail`'s pattern) that rejects an
+      empty/whitespace-only `--rationale` with a structured error code before
+      calling `defer_decision`/`cancel_decision`, restoring parity with the
+      host CLI's own `cmd_defer`/`cmd_cancel` guard. Add a negative-path test
+      for each verb asserting the structured rejection and that no ledger
+      mutation occurs.
+  - id: WP05-002
+    severity: 1
+    title: DECISION_NOT_FOUND is negative-path-tested only via resolve-decision, not defer/cancel
+    evidence:
+      - code: "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py:456 (test_resolve_decision_nonexistent_decision_id_is_structured_not_bare -- the only nonexistent-decision-id test)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2913,2957 (defer_decision/cancel_decision follow the identical try/except DecisionError -> _fail pattern as resolve_decision)"
+    claim: >
+      T027's negative-path list only literally required "a `--decision-id`
+      naming a nonexistent decision" once (not once per verb), and it was
+      satisfied via `resolve-decision`. Since `defer_decision`/
+      `cancel_decision` route through the exact same `_terminal_command`
+      NOT_FOUND-raising code path and the exact same try/except wiring in
+      commands.py (confirmed by reading both), this is not a functional gap
+      -- but a reviewer or future maintainer reading only the test suite
+      cannot see that defer/cancel's own DECISION_NOT_FOUND wiring was ever
+      exercised.
+    remediation: >
+      Optional, non-blocking: add one parametrized or duplicated
+      DECISION_NOT_FOUND test each for defer-decision and cancel-decision so
+      the test suite documents parity across all three terminal verbs
+      instead of relying on code-reading to infer it.

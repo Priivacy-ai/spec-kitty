@@ -1185,6 +1185,21 @@
      "help": "Merge a lane-based mission into target.",
      "hidden": false,
      "deprecated": false
+    },
+    "specify": {
+     "help": "Create a mission scaffold, matching the host CLI's enriched ``specify --json`` contract.\n\nIn-process only (FR-001): calls\n``specify_cli.cli.commands.lifecycle._create_mission_for_specify_json``,\nthe SAME enrichment step the host CLI's ``--json`` path runs (adds\n``scaffold_only``/``spec_state``/``next_action``/``next_step`` on top of\n``agent_feature.create_mission``'s raw payload) -- never the unenriched\npayload one layer beneath it.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "plan": {
+     "help": "Scaffold plan.md for a mission -- an unenriched pass-through of ``setup_plan``.\n\nFR-002 / Clarification 1: deliberately asymmetric with ``specify`` -- the\nhost CLI's own ``--json`` path returns ``agent_feature.setup_plan``'s raw\ndict verbatim (``lifecycle.py`` adds no enrichment here), so this verb\ndoes the same. Do not add fields ``setup_plan`` does not already return.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "tasks": {
+     "help": "Finalize WP task metadata -- an unenriched pass-through of ``finalize_tasks``.\n\nFR-003 / Clarification 1: same deliberate asymmetry as ``plan`` -- the\nhost CLI's own ``--json`` path returns ``agent_feature.finalize_tasks``'s\nraw dict verbatim, so this verb does the same.",
+     "hidden": false,
+     "deprecated": false
     }
    }
   },

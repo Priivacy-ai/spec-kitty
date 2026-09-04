@@ -1,0 +1,19 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: confirmed-round3-final
+complete: true
+note: >-
+  R6 early-stop rule triggered: round-2 R5 sweep found 2 findings at severity>=3
+  (FRESH2-001, FRESH2-002), up from round-1's 1 (FRESH-001) -- not a reduction.
+  Both remaining findings are severity 3 (<=#3), so per the gate this is the FINAL
+  fix round: one more R4 targeting exactly these two, then a single R5a only
+  (no fresh sweep, no further rounds). All resolved -> phase passes. Anything
+  still unresolved -> HALT.
+findings:
+- id: ANALYZE-FRESH2-001
+  severity: 3
+  source: R5b fresh sweep round 2
+- id: ANALYZE-FRESH2-002
+  severity: 3
+  source: R5b fresh sweep round 2

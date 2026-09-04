@@ -1,0 +1,101 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP08
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  answer-decision (src/specify_cli/orchestrator_api/commands.py:3155-3313) genuinely
+  achieves the full parity operator ruling SPEC-FRESH2-001 requires. Read against
+  next_cmd.py's actual --answer handling, the call sequence and ordering match exactly:
+  auto-resolve/ambiguous/not-pending/no-pending handling mirrors _handle_answer, then
+  answer_decision_via_runtime (step 1), pair_previous_lifecycle_record (step 2, BEFORE
+  decide_next), decide_next (step 3, the engine call), emit_mission_next_invoked (step 4,
+  AFTER decide_next), write_issuance_lifecycle_record (step 5, conditional on
+  kind=="step") -- all three seam functions imported directly from WP02's
+  runtime.next.next_invocation_lifecycle module with no local reimplementation. I
+  reproduced the masking the implementer says motivated the SC-008 test redesign (the
+  naive [answer, bare follow-up] shape genuinely passes with the orchestrator's own
+  pairing call disabled), and independently confirmed both halves of the dual-caller
+  proof by disabling each caller's seam call in turn. Response shape (Decision.to_dict()
+  + answered_decision_id, no answer key), the upstream_contract.json registration, the
+  9-fail-then-9-pass RED-first sequence, the shard-map claim, NFR-002, and the 398/2/0
+  baseline all check out under direct re-run. One genuine, previously unflagged parity
+  gap: answer-decision does not validate --result against the CLI's {success, failed,
+  blocked} enum before persisting/advancing, unlike next_cmd.py's
+  _validate_result_and_answer -- a malformed --result value is silently accepted and
+  proceeds (evidence below), rather than surfacing a structured error the way the CLI
+  does. This does not touch the SPEC-FRESH2-001 seam-parity requirement itself (all
+  three seam calls still fire correctly even on this path) so it does not warrant
+  rejection, but it is a real gap worth fixing.
+findings:
+  - id: WP08-001
+    severity: 3
+    title: "--result is not validated against the CLI's {success,failed,blocked} enum"
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:3216-3222"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:610-616 (_validate_result_and_answer)"
+    claim: >
+      The WP08 task text directs T037 to "mirror next_cmd.py:743-750's exact sequence"
+      and cites _validate_result_and_answer as the reference for the --result contract,
+      but answer_decision only checks `result is None` (emitting RESULT_REQUIRED) and
+      never checks membership in next_cmd.py's _VALID_RESULTS = ("success", "failed",
+      "blocked"). I reproduced this live: invoking orchestrator-api answer-decision with
+      --result bogus_not_a_valid_result on a real pending decision returns
+      `success: true` and a fully-advanced Decision payload (DAG genuinely advances,
+      pair_previous_lifecycle_record records the bogus string as the paired record's
+      `reason`), whereas the equivalent `spec-kitty next --answer ... --result
+      bogus_not_a_valid_result` call exits 1 with "Error: --result must be one of
+      ('success', 'failed', 'blocked'), got 'bogus_not_a_valid_result'". This is a real
+      caller-observable divergence for malformed input -- an external host that sends a
+      typo'd --result gets a false-success envelope and a polluted lifecycle record
+      instead of a clear rejection. It does not defeat SPEC-FRESH2-001's seam-parity
+      requirement (all three seam calls still fire, correctly ordered, on this path) so
+      it is not a silent omission of the seam -- it is a narrower input-validation gap.
+    remediation: >
+      Add a `result not in {"success", "failed", "blocked"}` check immediately after the
+      `result is None` check in answer_decision, emitting a structured error_code (e.g.
+      INVALID_RESULT_VALUE) before any of the auto-resolve/persist/seam logic runs --
+      mirroring _validate_result_and_answer's full behaviour, not just its None-check
+      half. Register the new code in upstream_contract.json's allowed_error_codes
+      alongside the four already added, and add one negative-path test case to
+      test_answer_decision.py.
+  - id: WP08-002
+    severity: 1
+    title: "mypy --strict clean on commands.py is a vacuous claim, correctly caveated"
+    evidence:
+      - code: "pyproject.toml:400 (specify_cli.orchestrator_api.commands in the ignore_errors=true quarantine block starting pyproject.toml:354)"
+    claim: >
+      I verified empirically that this quarantine entry makes `mypy --strict` report
+      "Success: no issues found" even for an artificially-injected, obviously-wrong
+      type annotation inside answer_decision (a str default assigned to an int-typed
+      parameter) -- ignore_errors=true suppresses ALL diagnostics for this module
+      regardless of --strict. The implementer's own note that a clean result here
+      "proves less than it appears" is correct and precise: it proves the file parses
+      without a syntax error, nothing about type-correctness. Recorded for the record,
+      not a defect -- the implementer already flagged this honestly rather than
+      presenting the clean run as meaningful strict-mode coverage.
+    remediation: >
+      No action required for WP08. If a future WP wants real mypy coverage on this
+      module, it must first remove specify_cli.orchestrator_api.commands from the
+      pyproject.toml quarantine list (a separate, larger-scoped change, likely a repo-
+      hygiene WP of its own given the module's size).
+  - id: WP08-003
+    severity: 1
+    title: Static OriginFlow-absence regression test is narrowly but not perfectly scoped
+    evidence:
+      - code: "tests/specify_cli/orchestrator_api/test_answer_decision.py:543-551"
+    claim: >
+      test_answer_decision_never_applies_origin_flow_guard string-matches
+      inspect.getsource(orchestrator_commands.answer_decision) for "INVALID_ORIGIN_FLOW",
+      "OriginFlow", "--origin". This is meaningfully scoped to the function body (not the
+      whole file), so it will not false-positive on the module-level comment block above
+      the function that legitimately discusses FR-012/OriginFlow exemption -- I confirmed
+      that prose lives outside the function docstring inspect.getsource returns. It would
+      false-positive only if a future edit added explanatory prose inside the function's
+      own docstring/body mentioning these terms verbatim, which is unlikely but possible.
+      A genuine, low-cost regression guard as specified by the WP08 task's own reviewer
+      guidance -- not brittle in practice.
+    remediation: >
+      None required. If it ever false-positives on legitimate explanatory prose, narrow
+      the match to the guard-clause code region only rather than the whole function
+      source.

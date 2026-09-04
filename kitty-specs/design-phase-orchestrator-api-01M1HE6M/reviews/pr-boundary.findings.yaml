@@ -1,0 +1,88 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PR-BOUNDARY-001
+    lens: kernel-doctrine-cli-sync-seam
+    severity: 3
+    title: >-
+      answer-decision duplicates next_cmd.py's pending-decision auto-resolve
+      logic via a second direct import of the _internal_runtime.engine
+      private surface, instead of routing through the existing
+      runtime_bridge_engine.py concentration seam or extending WP02's shared
+      module
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:3299"
+      - code: "src/specify_cli/orchestrator_api/commands.py:3316-3335"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:829-841"
+      - code: "src/runtime/next/runtime_bridge_engine.py:1-25"
+      - code: "tests/runtime/test_bridge_engine.py:1-60"
+    claim: >-
+      WP08's answer-decision auto-resolves an omitted --decision-id by
+      reading the run snapshot's pending_decisions map. It does this with
+      `from runtime.next._internal_runtime.engine import _read_snapshot`
+      (commands.py:3299) and then reimplements next_cmd.py's own
+      `_handle_answer` auto-resolve branch (next_cmd.py:829-841) verbatim:
+      same three-way split (zero pending / exactly one / more than one),
+      same error semantics, in a second, independently-maintained block.
+      `_read_snapshot` is one of the six names `runtime_bridge_engine.py`
+      exists specifically to concentrate ("Sole home of the FR-013
+      grep-complete _internal_runtime engine/planner private surface"), and
+      `tests/runtime/test_bridge_engine.py` enforces that no OTHER module
+      under src/runtime/next/ reaches into `_internal_runtime.engine`/
+      `.planner` directly for these six names. next_cmd.py already bypassed
+      that adapter before this mission (pre-existing debt, out of this
+      mission's scope to fix), but commands.py is new code introduced by
+      this mission, and it chose to mirror next_cmd.py's existing bypass
+      rather than either (a) call through the adapter, or (b) extend WP02's
+      already-established next_invocation_lifecycle.py seam pattern to cover
+      this second piece of duplicated CLI-parity logic. This is not one of
+      the three side effects the operator ruling named (pair/emit/write),
+      so it does not trigger the ruling's explicit severity-4 bar, but it is
+      exactly the "seam one WP invented and the next WP ignored" class this
+      lens exists to catch, and it compounds pre-existing debt with a second
+      call site the architecture guard's own scoping (limited to
+      src/runtime/next/*.py) does not catch either.
+    remediation: >-
+      Extract the pending-decision auto-resolve branch (zero/one/many) into
+      one function next to the WP02 seam (e.g.
+      `resolve_pending_decision_id` in runtime.next.next_invocation_lifecycle
+      or a new sibling module under src/runtime/next/), have it call through
+      runtime_bridge_engine's concentrated `_read_snapshot` wrapper rather
+      than importing `_internal_runtime.engine` directly, and have both
+      next_cmd.py's `_handle_answer` and commands.py's `answer_decision` call
+      that one function instead of each independently walking
+      snapshot.pending_decisions.
+
+  - id: PR-BOUNDARY-002
+    lens: canonical-sources-unification
+    severity: 2
+    title: >-
+      _resolve_mission_dir_or_fail's docstring undercounts its call sites and
+      still frames it as "8 read endpoints" when this mission added 9 more
+      call sites including several write/mutating verbs
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:456-461"
+    claim: >-
+      The docstring on `_resolve_mission_dir_or_fail` reads "Single seam
+      consumed by all 8 read endpoints (avoids 8 divergent patches)". That
+      sentence predates this mission and was not touched by the diff. This
+      mission adds 9 more call sites (specify/plan/tasks/check-prerequisites/
+      record-analysis/open-decision/resolve-decision/defer-decision/
+      cancel-decision/answer-decision/design-status — 17 total per
+      `grep -c "_resolve_mission_dir_or_fail(cmd" commands.py`), several of
+      which are mutating verbs, not read endpoints. The comment is now
+      inaccurate on both count and category, which matters for this
+      function's own claimed purpose (a single canonical seam reviewers rely
+      on to confirm no verb reimplements mission-existence resolution) — a
+      future reader trusting the docstring undercounts how central this
+      function has become and may not recognize a new call site as
+      belonging to the same seam.
+    remediation: >-
+      Update the docstring to reflect the current call-site count and drop
+      "read" (e.g. "Single seam consumed by every mission-scoped
+      orchestrator-api endpoint (17 call sites as of the design-phase
+      mission; avoids N divergent patches)"), or state it generically
+      without a specific count that will drift again.

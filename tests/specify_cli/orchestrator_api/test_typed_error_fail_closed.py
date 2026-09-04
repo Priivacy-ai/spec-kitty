@@ -186,3 +186,134 @@ def test_genuine_not_found_still_emits_mission_not_found(tmp_path: Path) -> None
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# WP03 (design-phase-orchestrator-api-01M1HE6M / T013): specify/plan/tasks
+# typed-error fidelity. Kept ``fast`` (no real git I/O): the duplicate-mission
+# case mocks the delegate directly rather than racing a real ULID mid8
+# collision (see test_specify_plan_tasks_verbs.py's real e2e Scenario 4 for
+# the genuine, deterministically-frozen end-to-end proof of the same path).
+# ---------------------------------------------------------------------------
+
+
+def test_specify_duplicate_mission_classifies_to_structured_error_code(
+    tmp_path: Path,
+) -> None:
+    """The delegate's own bare ``{"error": ...}`` (a plain ``RuntimeError``
+    from an empty-changeset ``safe_commit``, verified against production --
+    see ``commands.py``'s ``_MISSION_DUPLICATE_MARKERS`` docstring) must be
+    classified into the structured ``MISSION_ALREADY_EXISTS`` code, never
+    surfaced as the bare unstructured payload it arrived as.
+    """
+    import typer
+
+    def _fake_duplicate(slug: str, mission_type: str | None, topology: object) -> None:
+        print(
+            json.dumps(
+                {
+                    "error": (
+                        "meta.json commit failed: safe_commit: nothing to "
+                        "commit for destination_ref='wp03-work' (empty changeset)"
+                    )
+                }
+            )
+        )
+        raise typer.Exit(1)
+
+    with patch(
+        "specify_cli.cli.commands.lifecycle._create_mission_for_specify_json",
+        side_effect=_fake_duplicate,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "specify",
+                "--mission",
+                "wp03-dup-classify",
+                "--mission-type",
+                "software-dev",
+                "--policy",
+                json.dumps(
+                    {
+                        "orchestrator_id": "test-orch",
+                        "orchestrator_version": "0.0.1",
+                        "agent_family": "claude",
+                        "approval_mode": "full_auto",
+                        "sandbox_mode": "workspace_write",
+                        "network_mode": "none",
+                        "dangerous_flags": [],
+                    }
+                ),
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_ALREADY_EXISTS"
+    assert "message" in envelope["data"]
+
+
+def test_plan_against_nonexistent_mission_emits_mission_not_found(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "plan",
+                "--mission",
+                "999-does-not-exist",
+                "--policy",
+                json.dumps(
+                    {
+                        "orchestrator_id": "test-orch",
+                        "orchestrator_version": "0.0.1",
+                        "agent_family": "claude",
+                        "approval_mode": "full_auto",
+                        "sandbox_mode": "workspace_write",
+                        "network_mode": "none",
+                        "dangerous_flags": [],
+                    }
+                ),
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+def test_tasks_against_nonexistent_mission_emits_mission_not_found(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "tasks",
+                "--mission",
+                "999-does-not-exist",
+                "--policy",
+                json.dumps(
+                    {
+                        "orchestrator_id": "test-orch",
+                        "orchestrator_version": "0.0.1",
+                        "agent_family": "claude",
+                        "approval_mode": "full_auto",
+                        "sandbox_mode": "workspace_write",
+                        "network_mode": "none",
+                        "dangerous_flags": [],
+                    }
+                ),
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"

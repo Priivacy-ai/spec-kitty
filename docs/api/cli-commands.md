@@ -826,7 +826,7 @@ _Charter pack management commands._
  **minimal artifact set** the runtime requires:
 
  1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
-    project-root resolver (``src/charter/_doctrine_paths.py``) is a
+    project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
     presence-only check; an empty directory is a valid project layer.
  2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
@@ -2048,7 +2048,7 @@ _Validate or assemble doctrine packs._
 
  Composes the DRG extractor + calibrator into per-populated-node-kind
  ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
- relocated from ``src/doctrine/`` by the pack flatten),
+ relocated from ``src/charter/offering/`` by the pack flatten),
  retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
  on unchanged inputs yields byte-identical fragments. With ``--check`` the
  command never writes: it regenerates into a temp directory and compares the
@@ -2524,13 +2524,9 @@ _Search tracker issues via the hosted read path_
 │ --delete-branch        --keep-branch                       Delete lane       │
 │                                                            branches after    │
 │                                                            merge             │
-│                                                            [default:         │
-│                                                            delete-branch]    │
 │ --remove-worktree      --keep-worktree                     Remove lane       │
 │                                                            worktrees after   │
 │                                                            merge             │
-│                                                            [default:         │
-│                                                            remove-worktree]  │
 │ --push                                                     Publish to origin │
 │                                                            after the local   │
 │                                                            merge (the        │
@@ -2994,13 +2990,13 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 
  Re-pin this repository's pre-commit hook to the current interpreter (#254).
 
- ``policy/hook_installer.py`` pins the absolute Python interpreter path into
- the pre-commit hook at install time. An install-method migration (e.g. pipx
- -> uv) moves that interpreter, and the OLD hook keeps pointing at a path
- that no longer exists. This command re-runs the same install the
- ``implement`` lane calls internally, but without requiring a mission or
- workspace — the repair does not depend on the very thing it is repairing
- (the ability to commit).
+ ``policy/hook_installer.py`` pins the absolute Python interpreter path
+ into the pre-commit hook at install time. An install-method migration
+ (e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing
+ at a path that no longer exists. This command re-runs the same install
+ the ``implement`` lane calls internally, but without requiring a mission
+ or workspace — the repair does not depend on the very thing it is
+ repairing (the ability to commit).
 
  Idempotent: safe to re-run; a hook already pinned to the current
  interpreter is re-written to the same effective hook (only the
@@ -3809,6 +3805,12 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │                       ``note`` annotation.                                   │
 │ accept-mission        Accept a mission after all WPs are approved or done.   │
 │ merge-mission         Merge a lane-based mission into target.                │
+│ specify               Create a mission scaffold, matching the host CLI's     │
+│                       enriched ``specify --json`` contract.                  │
+│ plan                  Scaffold plan.md for a mission -- an unenriched        │
+│                       pass-through of ``setup_plan``.                        │
+│ tasks                 Finalize WP task metadata -- an unenriched             │
+│                       pass-through of ``finalize_tasks``.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3912,6 +3914,26 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty orchestrator-api plan
+
+```
+ Usage: spec-kitty orchestrator-api plan [OPTIONS]
+
+ Scaffold plan.md for a mission -- an unenriched pass-through of
+ ``setup_plan``.
+
+ FR-002 / Clarification 1: deliberately asymmetric with ``specify`` -- the
+ host CLI's own ``--json`` path returns ``agent_feature.setup_plan``'s raw
+ dict verbatim (``lifecycle.py`` adds no enrichment here), so this verb
+ does the same. Do not add fields ``setup_plan`` does not already return.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission          TEXT  Mission slug [required]                          │
+│    --policy           TEXT  Policy metadata JSON (required)                  │
+│    --help     -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty orchestrator-api resolve-workspace
 
 ```
@@ -3929,6 +3951,40 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ *  --mission          TEXT  Mission slug [required]                          │
 │ *  --wp               TEXT  Work package ID [required]                       │
 │    --help     -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty orchestrator-api specify
+
+```
+ Usage: spec-kitty orchestrator-api specify [OPTIONS]
+
+ Create a mission scaffold, matching the host CLI's enriched ``specify --json``
+ contract.
+
+ In-process only (FR-001): calls
+ ``specify_cli.cli.commands.lifecycle._create_mission_for_specify_json``,
+ the SAME enrichment step the host CLI's ``--json`` path runs (adds
+ ``scaffold_only``/``spec_state``/``next_action``/``next_step`` on top of
+ ``agent_feature.create_mission``'s raw payload) -- never the unenriched
+ payload one layer beneath it.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission               TEXT                     Mission slug [required]  │
+│ *  --mission-type          TEXT                     Mission type (e.g.,      │
+│                                                     software-dev)            │
+│                                                     [required]               │
+│    --topology              [single_branch|lanes|co  Create-time mission      │
+│                            ord|lanes_with_coord]    shape: single_branch |   │
+│                                                     lanes | coord |          │
+│                                                     lanes_with_coord.        │
+│                                                     Default: context-derived │
+│                                                     (matches the host CLI's  │
+│                                                     own --topology default). │
+│    --policy                TEXT                     Policy metadata JSON     │
+│                                                     (required)               │
+│    --help          -h                               Show this message and    │
+│                                                     exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3963,6 +4019,24 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │    --review-ref          TEXT  Review feedback reference (optional, not      │
 │                                required for for_review→in_review)            │
 │    --help        -h            Show this message and exit.                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty orchestrator-api tasks
+
+```
+ Usage: spec-kitty orchestrator-api tasks [OPTIONS]
+
+ Finalize WP task metadata -- an unenriched pass-through of ``finalize_tasks``.
+
+ FR-003 / Clarification 1: same deliberate asymmetry as ``plan`` -- the
+ host CLI's own ``--json`` path returns ``agent_feature.finalize_tasks``'s
+ raw dict verbatim, so this verb does the same.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission          TEXT  Mission slug [required]                          │
+│    --policy           TEXT  Policy metadata JSON (required)                  │
+│    --help     -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4350,13 +4424,12 @@ _Cross-mission retrospective summary._
  dead-code scan step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Mission handle (id, mid8, or slug).          │
-│ --mode                    TEXT  Review mode: 'lightweight' (consistency      │
-│                                 check only) or 'post-merge' (full            │
-│                                 release-gate contract). Auto-detected from   │
-│                                 meta.json.baseline_merge_commit when         │
-│                                 omitted.                                     │
-│ --help            -h            Show this message and exit.                  │
+│ --mission          TEXT  Mission handle (id, mid8, or slug).                 │
+│ --mode             TEXT  Review mode: 'lightweight' (consistency check only) │
+│                          or 'post-merge' (full release-gate contract).       │
+│                          Auto-detected from meta.json.baseline_merge_commit  │
+│                          when omitted.                                       │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4685,10 +4758,9 @@ _Work-package mapping commands_
  Local providers use direct connectors with locally stored credentials.
 
  This command is purely informational and prints the hard-coded provider
- categories.  It does **not** consult hosted readiness — the rollout gate
- itself is enforced by ``tracker_callback`` (and by the conditional
- registration in ``cli/commands/__init__.py``), which is all the gating
- this static output needs.
+ categories.  It does **not** consult hosted readiness — ``tracker_callback``
+ is the sole rollout gate for the tracker Typer app, which is all the
+ gating this static output needs.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Render provider list as JSON                               │

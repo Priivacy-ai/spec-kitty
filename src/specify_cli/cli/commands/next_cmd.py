@@ -44,7 +44,6 @@ if TYPE_CHECKING:
 
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
-    MissionMetaReadError,
     get_main_repo_root,
     locate_project_root,
 )
@@ -338,92 +337,27 @@ def _pair_previous_lifecycle_record(
     *,
     effective_root: Path | None = None,
 ) -> None:
-    """Write the paired ``completed`` / ``failed`` record for the prior issuance.
+    """Thin delegating wrapper over the FR-014 shared seam.
 
-    Matches the most recent unpaired ``started`` for ``(agent, mission_id)``
-    in the local lifecycle store and appends a partner record carrying the
-    SAME ``canonical_action_id``. The id is propagated, never re-computed
-    (FR-011 / contract: "no rewriting at completion time").
-
-    Best-effort: a missing meta.json or empty store is silently a no-op so
-    new missions / first issuance behave naturally.
+    Kept as a private, patchable module-level name (rather than removed) so
+    external tests that ``monkeypatch``/``unittest.mock.patch`` this exact
+    name (e.g. ``tests/contract/test_next_no_implicit_success.py``,
+    ``tests/agent/cli/commands/test_next_preflight.py``,
+    ``tests/integration/test_next_lifecycle_records.py``,
+    ``tests/integration/test_identity_coord_read.py``,
+    ``tests/specify_cli/cli/commands/test_lifecycle_read_seam_migration.py``)
+    keep intercepting the real call path — the body itself is the whole
+    seam extraction (FR-014, operator ruling SPEC-FRESH2-001): the actual
+    logic lives in ``runtime.next.next_invocation_lifecycle``, the ONE
+    shared implementation both this CLI and orchestrator-api's WP08
+    ``answer-decision`` verb call, never a second copy.
     """
-    from pathlib import Path
-
-    from specify_cli.invocation.lifecycle import (
-        find_latest_unpaired_started,
-        read_lifecycle_records,
-        write_paired_completion,
+    from runtime.next.next_invocation_lifecycle import (
+        pair_previous_lifecycle_record as _seam_pair_previous_lifecycle_record,
     )
-    from specify_cli.mission_metadata import resolve_mission_identity
 
-    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
-    # FR-004 (#2186): the lifecycle ``mission_id`` MUST be read from the PRIMARY
-    # checkout. ``resolve_feature_dir_for_mission`` is topology-aware and selects
-    # the STATUS-only ``-coord`` husk once one exists — which carries no meta.json
-    # (a wrong-leg read raises or, with a stale husk meta, returns the wrong id).
-    # Anchor identity on the topology-blind PRIMARY dir (handle folded first so a
-    # bare mid8 / human slug resolves the durable ``<slug>-<mid8>`` home; an
-    # ambiguous handle RAISES — no silent pick, C-003).
-    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
-    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
-    # directly — PRIMARY_METADATA, since the read is meta.json's ``mission_id``.
-    # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
-    # the seam's own internal fold for a PRIMARY-partition kind.
-    try:
-        if effective_root is None:
-            feature_dir = placement_seam(
-                repo_root_path, mission_slug
-            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-        else:
-            from mission_runtime import mission_context_for
-
-            feature_dir = mission_context_for(
-                repo_root_path,
-                mission_slug,
-                effective_root=effective_root,
-            ).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
-    except Exception:
-        return
-
-    try:
-        identity = resolve_mission_identity(feature_dir)
-    except (FileNotFoundError, ValueError, TypeError, MissionMetaReadError):
-        # MissionMetaReadError (landing-fold, PR #3155): resolve_mission_identity
-        # now routes through load_meta_fail_closed, so a corrupt meta.json
-        # raises the typed error here instead of a raw ValueError -- this
-        # observability-only lookup must degrade the same way either case.
-        return
-    # #2278: the lifecycle pairing key is a ``mission_id`` field — it MUST be a
-    # canonical ULID, never a slug (same fail-closed contract as #2138/FR-004).
-    # A legacy mission without a minted ``mission_id`` skips the observability
-    # pairing rather than persisting a slug into a ULID-typed field. The
-    # ``started`` write fails closed identically, so the two stay symmetric.
-    mission_id = identity.mission_id
-    if mission_id is None:
-        return
-
-    records = read_lifecycle_records(repo_root_path)
-    started = find_latest_unpaired_started(
-        records,
-        agent=agent,
-        mission_id=mission_id,
-    )
-    if started is None:
-        return
-
-    if result == "success":
-        phase: str = "completed"
-        reason: str | None = None
-    else:
-        phase = "failed"
-        reason = result  # "failed" or "blocked" — preserves caller intent
-
-    write_paired_completion(
-        repo_root_path,
-        started=started,
-        phase=phase,  # type: ignore[arg-type]
-        reason=reason,
+    _seam_pair_previous_lifecycle_record(
+        agent, mission_slug, result, repo_root, effective_root=effective_root
     )
 
 
@@ -435,87 +369,20 @@ def _write_issuance_lifecycle_record(
     *,
     effective_root: Path | None = None,
 ) -> None:
-    """Write a ``started`` lifecycle record for the action just issued.
+    """Thin delegating wrapper over the FR-014 shared seam.
 
-    The canonical action id is ``f"{decision.mission_state}::{decision.action}"``
-    — the mission step + action that the runtime actually issued. This
-    value is read once here and never re-derived at completion time.
-
-    No-op when the decision did not issue a public action (e.g. terminal,
-    blocked, decision_required). Failures to write are swallowed: the
-    lifecycle log is observability, not a hard runtime dependency.
+    Kept as a private, patchable module-level name for the same external
+    -test-compatibility reason documented on ``_pair_previous_lifecycle_
+    record`` above — the real implementation lives in ``runtime.next.
+    next_invocation_lifecycle.write_issuance_lifecycle_record``.
     """
-    from pathlib import Path
-
-    from specify_cli.invocation.lifecycle import (
-        make_canonical_action_id,
-        write_started,
+    from runtime.next.next_invocation_lifecycle import (
+        write_issuance_lifecycle_record as _seam_write_issuance_lifecycle_record,
     )
-    from specify_cli.mission_metadata import resolve_mission_identity
 
-    action = getattr(decision, "action", None)
-    mission_state = getattr(decision, "mission_state", None)
-    kind = getattr(decision, "kind", None)
-    if not action or not mission_state or kind != "step":
-        return
-
-    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
-    # FR-004 (#2186): same PRIMARY anchoring as the completion pairing above — the
-    # ``started`` lifecycle record's ``mission_id`` must come from the PRIMARY
-    # meta.json, never the coord husk (which lacks it or carries a stale id).
-    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
-    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
-    # directly — PRIMARY_METADATA, since the read is meta.json's ``mission_id``.
-    # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
-    # the seam's own internal fold for a PRIMARY-partition kind.
-    try:
-        if effective_root is None:
-            feature_dir = placement_seam(
-                repo_root_path, mission_slug
-            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-        else:
-            from mission_runtime import mission_context_for
-
-            feature_dir = mission_context_for(
-                repo_root_path,
-                mission_slug,
-                effective_root=effective_root,
-            ).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
-    except Exception:
-        return
-
-    try:
-        identity = resolve_mission_identity(feature_dir)
-    except (FileNotFoundError, ValueError, TypeError, MissionMetaReadError):
-        # MissionMetaReadError (landing-fold, PR #3155): resolve_mission_identity
-        # now routes through load_meta_fail_closed, so a corrupt meta.json
-        # raises the typed error here instead of a raw ValueError -- this
-        # observability-only lookup must degrade the same way either case.
-        return
-    # #2278: symmetric with the completion-pairing site above — the ``started``
-    # record's ``mission_id`` field MUST be a canonical ULID, never a slug
-    # (#2138/FR-004 fail-closed contract). Skip the observability record for a
-    # legacy mission with no minted ``mission_id`` rather than persisting a slug.
-    mission_id = identity.mission_id
-    if mission_id is None:
-        return
-
-    try:
-        canonical_id = make_canonical_action_id(mission_state, action)
-    except ValueError:
-        return
-
-    try:
-        write_started(
-            repo_root_path,
-            canonical_action_id=canonical_id,
-            agent=agent,
-            mission_id=mission_id,
-            wp_id=getattr(decision, "wp_id", None),
-        )
-    except OSError:
-        # Lifecycle log is observability; failures must not break `next`.
-        return
+    _seam_write_issuance_lifecycle_record(
+        agent, mission_slug, repo_root, decision, effective_root=effective_root
+    )
 
 
 def _maybe_emit_runtime_notice(json_output: bool) -> None:
@@ -869,41 +736,19 @@ def _emit_mission_next_invoked(
     *,
     effective_root: Path | None = None,
 ) -> None:
-    from specify_cli.mission_v1.events import emit_event
+    """Thin delegating wrapper over the FR-014 shared seam.
 
-    # WP09/FR-001 (kind-correct): ``mission-events.jsonl`` is a legacy
-    # append-only per-mission event log, the same coord-aware STATUS-namespace
-    # shape as ``status.events.jsonl`` — route it through the seam on
-    # ``STATUS_STATE`` rather than the kind-blind resolver (NFR-001).
-    from mission_runtime import MissionArtifactKind, placement_seam
+    Kept as a private, patchable module-level name for the same external
+    -test-compatibility reason documented on ``_pair_previous_lifecycle_
+    record`` above — the real implementation lives in ``runtime.next.
+    next_invocation_lifecycle.emit_mission_next_invoked``.
+    """
+    from runtime.next.next_invocation_lifecycle import (
+        emit_mission_next_invoked as _seam_emit_mission_next_invoked,
+    )
 
-    try:
-        if effective_root is None:
-            feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-                MissionArtifactKind.STATUS_STATE
-            )
-        else:
-            from mission_runtime import mission_context_for
-
-            feature_dir = mission_context_for(
-                Path(str(repo_root)),
-                mission_slug,
-                effective_root=effective_root,
-            ).artifact(MissionArtifactKind.STATUS_STATE).read_dir
-    except Exception:
-        feature_dir = None
-    emit_event(
-        "MissionNextInvoked",
-        {
-            "agent": agent,
-            "result_input": result,
-            "decision_kind": decision.kind,
-            "action": decision.action,
-            "wp_id": decision.wp_id,
-            "mission_state": decision.mission_state,
-        },
-        mission_name=decision.mission,
-        feature_dir=feature_dir if feature_dir is not None and feature_dir.is_dir() else None,
+    _seam_emit_mission_next_invoked(
+        agent, result, mission_slug, repo_root, decision, effective_root=effective_root
     )
 
 

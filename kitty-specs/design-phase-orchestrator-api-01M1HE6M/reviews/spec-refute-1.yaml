@@ -1,0 +1,50 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      Confirmed against code (planner.py:388-470 shows decision_required fires for
+      pending_decisions, blocking-audit checkpoints, and missing-required-input decisions
+      at any DAG step, none OriginFlow-scoped; decisions/models.py:36-41 shows OriginFlow
+      has only charter/specify/plan; next_cmd.py:987-991 confirms `next --answer` resolves
+      against a run-snapshot store distinct from decisions/service.py's index.json) and
+      against the live GitHub issue #3837 body, which literally asks for "a
+      decision-resolution verb covering the DecisionKind cases (runtime/next/decision.py)"
+      — a request the spec's Clarification 3 mis-frames as already scoped by OriginFlow.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      Confirmed: commands.py shows every existing mutating verb (resolve-workspace,
+      start-implementation, start-review, append-history, accept-mission, merge-mission)
+      is VERB-NOUN, decision.py:213,306,349,397 shows the host CLI's decision_app is a
+      group-then-verb Typer group (not a flat verb), and the spec's FR-004-009 do invert
+      to NOUN-VERB (analyze-context, decision-open, etc.) with analyze-context plausibly
+      contradicting C-002's "performs no analysis reasoning itself."
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: >-
+      Confirmed by direct reading of spec.md: FR-010's title is literally "Design-phase
+      status/query verb" with no concrete token, User Story 4's scenarios and SC-006 never
+      name a literal verb, while every sibling FR (FR-001-009, FR-011) names one.
+  - id: SPEC-GOV-004
+    verdict: confirmed
+    reason: >-
+      Confirmed: commands.py:1239-1240 (start-implementation), 1333-1334 (start-review),
+      and 1516-1517 (transition) all pass ensure_sync_daemon=False, sync_dossier=False;
+      emit.py:814,973 show sync_dossier gates the dossier body-upload path; ledger
+      SPEC-KITTY-LEDGER.md:~1194-1201 confirms that is the exact SK-93 call chain — so at
+      least 2 of Clarification 5's 4 named verbs (start-implementation, transition) are not
+      shown to carry the exposure, contradicting the blanket claim.
+  - id: SPEC-GOV-005
+    verdict: confirmed
+    reason: >-
+      Confirmed: lifecycle.py shows specify()'s --json path (line ~160) calls
+      _create_mission_for_specify_json, which captures create_mission's raw stdout and
+      enriches it with scaffold_only/spec_state/next_action/next_step (lines 51-58,66-92)
+      before returning, while plan() (line 219) and tasks() (line 273) pass json_output
+      straight through with no wrapper — so FR-001 AC-1's claim that the new verb's data
+      should match raw agent_feature.create_mission(json_output=True) output is a real
+      mismatch with the actual host-CLI --json contract for specify specifically.

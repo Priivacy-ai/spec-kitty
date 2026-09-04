@@ -1,0 +1,89 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: TASKS-SEQ-001
+    lens: mission-derived (tooling-hazard fidelity)
+    severity: 2
+    title: WP05 cites a nonexistent "tasks/ authoring report" as evidence for the SK-146 owned_files exemption
+    evidence:
+      - artifact: "tasks/WP05-docs-activation-authority.md § '1. finalize-tasks's owned_files-under-kitty-specs/ rejection (ledger SK-146)'"
+        note: >-
+          Text: "The tasks-authoring session ran `finalize-tasks --validate-only` against exactly this
+          shape and confirmed it does NOT reject these `owned_files` entries — see this mission's own
+          `tasks/` authoring report for the observed command output."
+      - code: "kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tasks/ (directory listing)"
+        note: >-
+          Only WP01-05 prompt files and README.md exist; no authoring-report artifact of any kind.
+      - code: "kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md"
+        note: >-
+          Records exactly two items (archive-root conflict; tasks.md freeform-prose capacity) — neither
+          documents a finalize-tasks --validate-only run or output for the SK-146 exemption.
+      - code: "git log --oneline -- kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/ (commit 05bfac90d 'Add tasks for feature ...')"
+        note: "Tasks-authoring commit adds only wps.yaml/tasks.md/tasks/*.md — no authoring-report file, no command-output capture."
+    claim: >-
+      WP05's Context section asserts, as evidence for the SK-146 exemption claim, that a specific
+      "tasks/ authoring report" exists and recorded the observed `finalize-tasks --validate-only` output.
+      No such artifact exists anywhere in the mission directory or git history — grepping for
+      "SK-146", "validate-only", and "_is_confined_planning_wp" across the mission dir finds the string
+      only inside WP05's own prompt file. This is a dangling citation to evidence that cannot be located,
+      in a mission whose plan/spec phases HALTed twice specifically over uncheckable/stale citations.
+      Independently re-running `uv run spec-kitty agent tasks finalize-tasks --mission
+      spdd-reasons-activation-split-brain-01M1K6VN --validate-only --json` during this review confirms
+      the underlying substance IS true today (`"result": "validation_passed"`, WP05 unmodified) and the
+      live `_is_confined_planning_wp`/`_invalid_mission_specs_owned_files` code
+      (`src/specify_cli/cli/commands/agent/mission_parsing.py:222-277`) genuinely implements the claimed
+      exemption — so this is not a substantively false claim, only an unlocatable evidence trail for it.
+    remediation: >-
+      Either (a) capture the actual `finalize-tasks --validate-only --json` output in
+      tracer-tooling-friction.md (or a small dedicated note) at tasks-authoring time and have WP05 cite
+      that file instead of an unnamed "authoring report", or (b) reword WP05's Context section to drop
+      the implication that a separate report artifact exists, and rely solely on the Reviewer Guidance's
+      existing instruction to re-run the command live (which the review already does independently).
+
+  - id: TASKS-SEQ-002
+    lens: mission-derived (None-as-"all built-ins" consistency)
+    severity: 3
+    title: >-
+      plan.md's documented project_configured-gate carve-out (a real, adjudicated boundary on the
+      None-means-"all built-ins" rule) is not carried into WP01's task prompt
+    evidence:
+      - artifact: "plan.md § (a) 'Seam and placement', item 1, lines 171-197 ('Explicit carve-out, mirroring FR-004's precedent')"
+        note: >-
+          Plan documents that `compile_charter`'s real delivered authority applies an additional
+          `project_configured` gate (compiler.py's `_resolve_config_activated_roots`): once a project has
+          set ANY of the seven `activated_<kind>` fields, an OTHER still-absent `activated_<kind>` key no
+          longer falls back to "all built-ins" — it resolves to `frozenset()` instead. This mission's
+          rewritten `is_spdd_reasons_active` deliberately does NOT apply this gate (Decision Record 1
+          scopes the replication to PackContext's raw per-ID semantics only), so on a project that has
+          activated some but not all SPDD-relevant kinds, the rewritten function and compile_charter's
+          real delivered set can disagree. Plan.md states this explicitly "so a future reader... has a
+          named starting point rather than an implicit, undocumented divergence."
+      - code: "src/charter/activation/compiler.py:101-179 (_CONFIG_ACTIVATION_FIELDS, _resolve_config_activated_roots, project_configured gate)"
+        note: "Re-verified live for this review: the project_configured gate genuinely exists as plan.md describes (not stale)."
+      - artifact: "tasks/WP01-activation-rewrite-parity-test.md (full file)"
+        note: >-
+          Grepped for "project_configured", "_CONFIG_ACTIVATION_FIELDS", "FR-018" — zero matches anywhere
+          in WP01's prompt (Context, T004's steps, Risks, Definition of Done, Reviewer Guidance). WP01
+          T004 step 1a DOES require a code comment for the sibling FR-004 carve-out ("keep a code comment
+          here stating this is a deliberate, evidence-based divergence from full PackContext parity, not
+          an oversight") but no equivalent instruction exists for this second, independently-documented
+          divergence.
+    claim: >-
+      Plan.md treats the project_configured-gate divergence as important enough to require a permanent,
+      named record for future readers (identical treatment to the FR-004 absent-config carve-out, which
+      DID make it into WP01 as a mandatory code comment). WP01's task prompt — the artifact an
+      implementer and reviewer actually work from — omits this second carve-out entirely. A reviewer
+      diffing WP01's finished implementation against `compile_charter`'s real behavior on a
+      partially-configured project (some but not all activated_<kind> fields set) will observe a genuine
+      behavioral disagreement with no code comment or WP documentation explaining it is a deliberate,
+      already-adjudicated scope boundary rather than a bug — risking rework/pushback inside WP01's review
+      cycle over a question the plan phase already settled.
+    remediation: >-
+      Add a short note to WP01's T004 (mirroring the existing FR-004 carve-out instruction) requiring a
+      code comment on the rewritten `is_spdd_reasons_active` (or its module docstring) stating that the
+      replication intentionally does not apply compile_charter's `project_configured` gate, citing
+      Decision Record 1's scope boundary — so the divergence is visible at the point future readers and
+      reviewers will actually look, not only in plan.md.
