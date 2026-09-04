@@ -221,11 +221,33 @@ class TestSpddActivationDoesNotFlip:
         # markdown, so the live ``is_spdd_reasons_active`` assertion below
         # keeps covering the same activation path without the retired
         # scraper.
+        # WP04 bucket-3 item 8: is_spdd_reasons_active (WP01) reads
+        # .kittify/config.yaml's activated_* keys, not charter.yaml's
+        # governance: section -- null out the four SPDD-relevant selectors
+        # specifically (this repo's real dogfood interview/compiled data is
+        # very likely SPDD-active today -- that is the exact bug this
+        # mission fixes -- so leaving those ids in the on-disk governance:
+        # write would let the OLD body pass regardless of config.yaml's
+        # content), while leaving any other, unrelated ids untouched.
+        spdd_paradigm = "structured-prompt-driven-development"
+        spdd_tactics = {"reasons-canvas-fill", "reasons-canvas-review"}
+        spdd_directive = "DIRECTIVE_038"
+
+        selected_paradigms_no_spdd = [
+            p for p in interview.selected_paradigms if p != spdd_paradigm
+        ]
+        selected_directives_no_spdd = [
+            d for d in interview.selected_directives if d != spdd_directive
+        ]
+        selected_tactics_no_spdd = [
+            t for t in compiled.selected_tactics if t not in spdd_tactics
+        ]
+
         governance = GovernanceConfig(
             charter=DoctrineSelectionConfig(
-                selected_paradigms=interview.selected_paradigms,
-                selected_directives=interview.selected_directives,
-                selected_tactics=compiled.selected_tactics,
+                selected_paradigms=selected_paradigms_no_spdd,
+                selected_directives=selected_directives_no_spdd,
+                selected_tactics=selected_tactics_no_spdd,
                 available_tools=interview.available_tools,
                 template_set=compiled.template_set,
             )
@@ -247,6 +269,37 @@ class TestSpddActivationDoesNotFlip:
                 "metadata": {"generated_at": "2026-01-01T00:00:00Z", "bundle_schema_version": 2},
             },
         )
+
+        # ALSO write tmp_path/.kittify/config.yaml mirroring the SAME
+        # pack_context (already loaded from REPO_ROOT above) that fed the
+        # compile -- the real activated_* source the fixed function reads.
+        # None (three-state "all built-ins available") is preserved as-is
+        # rather than coerced to an empty list, matching PackContext's own
+        # semantics for an unconfigured kind.
+        from ruamel.yaml import YAML
+
+        config_path = tmp_path / ".kittify" / "config.yaml"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_document = {
+            "activated_paradigms": (
+                sorted(pack_context.activated_paradigms)
+                if pack_context.activated_paradigms is not None
+                else None
+            ),
+            "activated_directives": (
+                sorted(pack_context.activated_directives)
+                if pack_context.activated_directives is not None
+                else None
+            ),
+            "activated_tactics": (
+                sorted(pack_context.activated_tactics)
+                if pack_context.activated_tactics is not None
+                else None
+            ),
+        }
+        config_yaml = YAML()
+        with config_path.open("w", encoding="utf-8") as fh:
+            config_yaml.dump(config_document, fh)
 
         clear_activation_cache()
         assert is_spdd_reasons_active(tmp_path) is True, (
