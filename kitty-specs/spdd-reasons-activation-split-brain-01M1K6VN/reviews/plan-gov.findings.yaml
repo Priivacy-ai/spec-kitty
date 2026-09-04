@@ -1,0 +1,45 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: PLAN-GOV-001
+    lens: scope / directive (campsite-scope, touched-area test completeness)
+    severity: 3
+    title: "WP2's edited-file list omits tests/charter/test_action_bundle_delivery.py, which directly calls _classify_artifact_urns(..., set()) and will break under FR-006/FR-014's three-state guard"
+    evidence:
+      - artifact: "plan.md § Project Structure > Source Code (repository root) (lines 89-113)"
+      - artifact: "plan.md § (a) Seam and placement, row 3 (delivery_table.py)"
+      - artifact: "plan.md § Phasing into Work Packages, WP2 (lines 487-489)"
+      - code: "src/charter/activation/context_renderers/delivery_table.py:238 — current guard: `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives`"
+      - code: "tests/charter/test_action_bundle_delivery.py:88 — `result = context._classify_artifact_urns(resolved.artifact_urns, graph, set())` then asserts `result[\"directives\"] == (\"d1\",)`"
+      - code: "tests/charter/test_action_bundle_delivery.py:190,330,348 — three more direct calls passing a bare `set()` for `project_directives`, each asserting the reachable directive IS delivered (relying on today's bare-truthiness \"empty set == no filter\" semantics)"
+    claim: >
+      Plan.md's own FR-006/FR-014 design (correctly stated in section (a) item 3 and the spec) requires
+      `delivery_table.py`'s exclusion guard to become three-state-aware: `project_directives is not None
+      and artifact_id not in project_directives`, so that an explicit empty set (`frozenset()`/`set()`)
+      now means "exclude everything" rather than "no filter" (today's bare-truthiness collapse). But
+      `tests/charter/test_action_bundle_delivery.py` calls `_classify_artifact_urns` directly at four
+      call sites (lines 88, 190, 330, 348) passing a literal `set()` for `project_directives` and
+      asserting the reachable directive IS delivered — i.e. these tests currently depend on exactly the
+      old "empty set == no filter" semantics FR-014 is designed to retire. Under the corrected guard,
+      all four assertions flip from delivering the directive to excluding it, breaking four currently-
+      green tests. Neither plan.md's "Source Code" file inventory (which lists only
+      `action_doctrine_bundle.py`, `delivery_table.py`, and three unrelated `is_spdd_reasons_active`
+      pinning files under the FR-010 triage) nor the WP2 phasing bullet (FR-006/007/008/014) names this
+      file, its call sites, or a required update to them. FR-010's precedent (an explicit, enumerated
+      triage of every existing test whose fixture-construction assumptions the mission's rewrite
+      invalidates) was applied thoroughly to WP1's `activation.py` change but not extended to WP2's
+      `delivery_table.py` change, even though the parity/gate mechanism in plan.md § (g) will surface
+      these as "newly red, not in baseline" and require them to be fixed before WP2 is done — so the
+      gap is a plan-completeness gap (rework/confusion mid-WP2), not a silent-merge risk.
+    remediation: >
+      Add `tests/charter/test_action_bundle_delivery.py` to plan.md's Source Code test-file list and to
+      WP2's scope, with an explicit instruction analogous to FR-010: update the four `set()` call sites
+      (lines 88, 190, 330, 348) to pass `None` (the "all built-ins / no filter" sentinel) instead of a
+      bare empty `set()`, preserving each test's original intent (no project-directive scoping applied)
+      rather than silently flipping them to assert the opposite (nothing delivered). Distinguish this
+      from FR-014's own new test, which intentionally asserts the explicit-empty-`set()`-excludes-
+      everything behavior — the two must not be conflated into the same fixture value meaning two
+      different things in two different files.

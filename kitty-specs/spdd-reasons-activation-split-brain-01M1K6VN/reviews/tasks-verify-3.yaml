@@ -1,0 +1,136 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+round: 3
+ruling_ref: reviews/tasks.ruling.md
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      T009 step 2 (44a68e4f5) now mandates applying _normalize_directive_id to every
+      _read_org_required_selections(repo_root)["directives"] entry before the union onto
+      project_directives, and T007 step 6 adds a red-first fixture registering an org pack
+      with required_directives: [001-architectural-integrity-standard] asserting the
+      canonical DIRECTIVE_001 form lands in directive_ids/roots. Confirmed live:
+      org_pack_discovery.py's _read_org_required_selections (lines ~155-176) returns raw,
+      un-normalized strings, and profile_resolution.py's _normalize_directive_id
+      (lines 203-216) exists and folds stem forms to DIRECTIVE_NNN. Re-derived the pre-round
+      T009 text at b70d3fe27: step 2 said only "union its directives/tactics/paradigms
+      entries onto the activated_*-derived set" with zero mention of normalization -- an
+      implementer following that text literally would union the raw stem string, so the new
+      fixture (asserting canonical DIRECTIVE_001 presence) would fail against it.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >-
+      T004 step 1(d) (44a68e4f5) now adds an explicit fail-loud type-check mirroring
+      _read_list_key's real contract, and T002 step 6 adds a fixture asserting a bare-scalar
+      activated_<kind> value raises rather than being silently mis-iterated. Confirmed live:
+      pack_context.py:609-615's _read_list_key raises _config_error when a present key's
+      value is not a list -- byte-identical to the WP text's citation. Re-derived the pre-round
+      T004/T002 text at b70d3fe27: T004 step 1(d) named only the three states
+      (absent/[]/non-empty) with no present-but-non-list check, and T002's fixture matrix
+      enumerated only those same three states -- a literal implementation of that text would
+      treat a scalar as "present non-empty" and either iterate it character-by-character or
+      raise an unrelated TypeError, not the intended fail-loud exception, so the new fixture
+      would fail against it.
+  - id: WP05-NFR002-RELOCATION
+    status: resolved
+    reason: >-
+      (a) git diff b70d3fe27..HEAD -- kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/
+      is empty (0 lines) -- both frozen contract docs are genuinely untouched. (b) The literal
+      file kitty-specs/.../contracts-activation-authority-update.md does not yet exist on disk
+      -- correctly so: this mission is still at the tasks-authoring phase (meta.json/status.json
+      show all five WPs in lane "planned", zero implementation has run), so WP05's T018 (the
+      subtask that creates this file) has not executed. WP05's task text itself contains
+      detailed, non-stub content requirements for that future file (corrected failure-modes,
+      performance, acceptance-table, and implementation-seam subsections, each grounded in a
+      re-verify-live instruction) -- this is genuine authored guidance, not a placeholder. (c)
+      WP05's frontmatter owned_files and wps.yaml's WP05 owned_files both list exactly
+      docs/context/charter.md and the new mission-dossier path -- neither frozen contract path
+      remains. (d) Ran `.venv/bin/pytest tests/architectural/test_archive_root_byte_identical.py -q`
+      myself just now: "2 passed in 1.18s", matching the fixer's quoted result.
+boundary_audit:
+  - boundary: "WP02 #1: project_directives base from pack_context.activated_directives (T009 step 1, action_doctrine_bundle.py)"
+    status: canonicalizes
+    reason: >-
+      Task text specifies {_normalize_directive_id(d) for d in directives_arg}, absent -> catalog
+      default. Already fixed by the prior round; this round's audit only re-confirms it. Consistent
+      with the invariant.
+  - boundary: "WP02 #2: selected_tactics/selected_paradigms base from pack_context.activated_tactics/.activated_paradigms (T009 step 1)"
+    status: not_applicable
+    reason: >-
+      Independently confirmed zero tactic/paradigm files with id != filename stem across all 49
+      packs/built-in/tactics + packs/built-in/paradigms YAML files, and grep finds no
+      _normalize_tactic_id/_normalize_paradigm_id anywhere in src/ -- there is no alternate form to
+      fold, so "canonicalizes" is a no-op by construction. Absent converts to catalog default per T009
+      step 1's text, not an empty set.
+  - boundary: "WP02 #3: org-required union onto project_directives, directives entries (T009 step 2)"
+    status: canonicalizes
+    reason: >-
+      This round's literal fix (TASKS-FRESH2-001) -- see results above. _normalize_directive_id is now
+      mandated before the union.
+  - boundary: "WP02 #4: org-required union onto selected_tactics/selected_paradigms (T009 step 2, tactics/paradigms entries)"
+    status: not_applicable
+    reason: >-
+      Same no-stem-distinction fact as boundary #2 -- raw org-required tactic/paradigm strings are
+      already canonical by authoring convention. Membership (catalog-existence) validation is
+      explicitly and correctly scoped out by the WP text as a different, pre-existing defect class the
+      ruling's form-canonicalization invariant does not cover; confirmed independently that no such
+      validation exists for selected_tactics/selected_paradigms anywhere in the current code either, so
+      this WP does not regress anything.
+  - boundary: "WP02 #5: delivery_table.py's directive exclusion guard (_classify_artifact_urns, artifact_id not in project_directives)"
+    status: canonicalizes
+    reason: >-
+      Contingent on boundaries #1/#3 (both correct). Live-verified the guard at
+      delivery_table.py:238 (currently bare truthiness `project_directives and ...`, which T009 step 3
+      fixes to `is not None`). One caveat found independently: the WP text's supporting evidence
+      overstates when it says "every directive.yaml's id: field is DIRECTIVE_NNN form" -- 4 of 34
+      built-in directives (disciplined-refactoring, reconcile-change-scope-tensions,
+      use-c4-model-techniques, use-mutation-testing-to-validate-test-quality) have non-numeric
+      canonical ids. This does not change the verdict: _normalize_directive_id's fallback branch
+      (raw.upper().replace("-","_")) independently verified to correctly canonicalize these slug-form
+      ids too, so the guard still compares canonical-to-canonical; the WP's own module docstring for
+      _normalize_directive_id already documents this fallback's purpose. A wording nit in the audit's
+      evidence, not a functional gap.
+  - boundary: "WP02 #6: start_urns / roots tuple construction (action_doctrine_bundle.py f-string URN building)"
+    status: canonicalizes
+    reason: >-
+      Contingent on boundaries #1-#4, all confirmed correct above; live-verified this code only
+      consumes project_directives/selected_tactics/selected_paradigms after those conversions run, so
+      by construction it only ever sees already-canonicalized values.
+  - boundary: "WP03 #1: _resolve_directive_base's activated_directives 'activation' branch return (resolver.py, currently line 737)"
+    status: canonicalizes
+    reason: >-
+      Independently confirmed the un-fixed live code at resolver.py:730-737 returns
+      `sorted(activated_directives), "activation"` verbatim, with zero normalization -- a genuine,
+      previously-unreported instance of the defect class, exactly as this round's audit claims to have
+      found. Independently confirmed the load-bearing evidence: tests/charter/
+      test_answers_inert_and_org_union.py::TestOrgRequiredIdFormNormalizedBeforePromotion proves
+      PackContext.activated_directives legitimately stores stem-form ids (e.g.
+      "001-architectural-integrity-standard") after org-required promotion, not only canonical form.
+      T012 step 1's fix (add _normalize_directive_id to this return, before sort) closes this, backed
+      by T011 step 6's red-first fixture.
+  - boundary: "WP03 #2: union of doctrine.selected_directives onto the activated_*-derived base (T012 step 1, mirrors _resolve_directives_selection)"
+    status: fails_loud
+    reason: >-
+      Live-verified resolver.py:716-726 (line numbers match the WP text's citation exactly):
+      `missing = sorted(d for d in doctrine.selected_directives if d not in valid_ids)` raises
+      GovernanceResolutionError before the union runs for any entry not already canonical-form in
+      valid_ids (local_ids ∪ doctrine_catalog.directives, both canonical). Unchanged by this WP.
+  - boundary: "WP03 #3: resolve_project_governance's new PackContext.activated_paradigms base (T012 step 2, new this WP)"
+    status: not_applicable
+    reason: >-
+      Live-verified resolve_project_governance's current body (resolver.py ~838-849) never reads
+      PackContext or activated_paradigms at all today -- confirms "no activated_* paradigm read on
+      main today" is accurate. Same no-stem-distinction fact as WP02 boundaries #2/#4 applies: no
+      _normalize_paradigm_id exists or is needed since paradigm ids have one canonical form by
+      authoring convention (independently confirmed above).
+  - boundary: "WP03 #4: union of doctrine.selected_paradigms onto the new paradigm base (T012 step 2)"
+    status: fails_loud
+    reason: >-
+      Live-verified resolver.py:615-629's _validate_paradigm_selection (line range matches the WP
+      text's citation), called unconditionally in resolve_project_governance before any paradigm
+      resolution today, raises GovernanceResolutionError for any selected_paradigms entry not in
+      doctrine_catalog.paradigms. Unchanged by this WP; T012 step 2 must preserve this call site
+      (Reviewer Guidance in the WP text already flags this as a review checkpoint).
+overall_verdict: resolved

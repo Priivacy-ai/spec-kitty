@@ -1,0 +1,45 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+round: 1
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      WP01's Context now ends the One-PR-shape note at "...unreviewable in one sitting." with the
+      dangling "see WP05 for the final call" clause deleted (remediation option a); grep confirms no
+      orphan "final call"/one-PR-shape forward-reference remains anywhere in WP01/WP04/WP05.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >-
+      WP05's SK-146 section now states the finalize-tasks --validate-only result directly in prose
+      ("No separate authoring-report artifact records this; the result is stated here directly") instead
+      of citing a nonexistent "tasks/ authoring report", matching remediation option (b).
+  - id: TASKS-SEQ-002
+    status: resolved
+    reason: >-
+      WP01 T004 step 1 gained a new item (g) mandating a code comment on the rewritten
+      is_spdd_reasons_active documenting the project_configured-gate carve-out and citing Decision Record 1
+      / plan.md section (a) item 1, symmetric with the existing FR-004 carve-out comment in item (a).
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      Re-derived live against activation.py's pre-fix _compute_active/_governance_selects_pack/_directives_select_pack
+      (confirmed it reads ONLY charter.yaml's governance/directives sections, never config.yaml) and checked
+      every bucket-3 item in WP04 (1-9) individually; all "keep it, your call" language on the legacy SPDD
+      selector is gone. Items 1-6 and 8 now MANDATE nulling the specific legacy selector (e.g. "Do NOT leave
+      structured-prompt-driven-development in the governance write"), item 7 separates the kept round-trip
+      assertion (step 3, unaffected) from the now-mandatorily-nulled fixture write (step 4), and item 9
+      (test_malformed_governance_raises) correctly mandates re-pointing the malformed write to config.yaml
+      rather than offering to keep it -- its remaining "your call" is only about re-pin-vs-delete disposition,
+      a legitimate design choice unrelated to the bug-preserving-test defect. The RED-before check is also
+      elevated to a blocking gate in T014/T015, Definition of Done, and Reviewer Guidance.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >-
+      WP01 T001 step 4 now assigns a concrete test calling apply_spdd_blocks_for_project(template_text,
+      tmp_path) directly against an absent .kittify/config.yaml, and explicitly mandates a real
+      spdd reasons-block start/end marker pair in template_text because the function's own fast path skips
+      the activation read entirely when no marker is present -- verified live against
+      template_renderer.py's apply_spdd_blocks_for_project, whose real signature and fast-path short-circuit
+      (returning template_text unchanged when no marker substring is present) exactly match this description.
