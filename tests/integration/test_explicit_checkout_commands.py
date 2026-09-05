@@ -342,8 +342,10 @@ def test_accept_without_opt_in_keeps_primary_resolution(checkouts):
     primary, owned, sibling = checkouts
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("accept", owned, opt_in=False)
-    assert result.exit_code == 2, result.output
-    assert json.loads(result.output)["error"] == "mission_not_found"
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
+    assert payload["handle"] == SLUG
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 

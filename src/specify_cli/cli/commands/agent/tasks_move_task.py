@@ -58,11 +58,9 @@ docstring for the per-site detail and the C-003 grounds.
 
 from __future__ import annotations
 
-import contextlib
 import fnmatch
 import json
 import logging
-import traceback
 import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
@@ -3174,19 +3172,6 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
             else:
                 _tasks.console.print(f"[red]{e.code}: {e}[/red]")
             raise typer.Exit(1) from e
-        # The global error emitter has no explicit-root contract and can create
-        # sync bookkeeping in the ambient checkout. Owned mode rejects active
-        # sync up front, so preserve its isolation and report the error only via
-        # the command envelope instead of invoking that ambient writer.
-        if args.owned_checkout is None:
-            with contextlib.suppress(Exception):
-                _tasks.emit_error_logged(
-                    error_type="runtime",
-                    error_message=str(e),
-                    wp_id=args.task_id,
-                    stack_trace=traceback.format_exc(),
-                    agent_id=args.agent,
-                )
         if isinstance(e, _PostTransitionSideEffectFailure):
             diagnostic: dict[str, object] | None = _mt_post_transition_diagnostic(e)
         elif isinstance(e, VerdictPersistenceFailure):

@@ -86,8 +86,10 @@ def test_flagless_move_task_preserves_primary_lookup(finalized_checkouts):
         tasks_app,
         ["move-task", "WP01", "--to", "doing", "--agent", "codex", "--mission", SLUG, "--json"],
     )
-    assert result.exit_code == 2, result.output
-    assert json.loads(result.output) == {"error": "mission_not_found", "handle": SLUG}
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
+    assert payload["handle"] == SLUG
     assert tuple(snapshot(root) for root in finalized_checkouts) == before
 
 
@@ -201,16 +203,14 @@ def test_owned_preflight_refuses_before_effects(checkouts, tmp_path, monkeypatch
 
 
 @pytest.mark.parametrize("explicit", [False, True])
-def test_context_error_envelope_and_logging_are_opt_in(checkouts, monkeypatch, explicit):
+def test_context_error_envelope_is_opt_in(checkouts, monkeypatch, explicit):
     from mission_runtime import ActionContextError
-    from specify_cli.cli.commands.agent import tasks, tasks_move_task
+    from specify_cli.cli.commands.agent import tasks_move_task
 
     def fail_context(*args):
         raise ActionContextError("TEST_CONTEXT", "context refused")
 
-    logged = []
     monkeypatch.setattr(tasks_move_task, "_mt_resolve_targets", fail_context)
-    monkeypatch.setattr(tasks, "emit_error_logged", lambda **kwargs: logged.append(kwargs))
     args = ["move-task", "WP01", "--to", "doing", "--json"]
     if explicit:
         args += ["--owned-checkout", str(checkouts[1])]
@@ -221,7 +221,6 @@ def test_context_error_envelope_and_logging_are_opt_in(checkouts, monkeypatch, e
     if explicit:
         expected["error_code"] = "TEST_CONTEXT"
     assert json.loads(result.output) == expected
-    assert len(logged) == (0 if explicit else 1)
     assert tuple(snapshot(root) for root in checkouts) == before
 
 

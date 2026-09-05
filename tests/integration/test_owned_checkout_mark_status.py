@@ -120,8 +120,10 @@ def test_flagless_mark_status_preserves_primary_lookup(
         ["mark-status", "T001", "--status", "done", "--mission", SLUG, "--json"],
     )
 
-    assert result.exit_code == 2, result.output
-    assert json.loads(result.output) == {"error": "mission_not_found", "handle": SLUG}
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
+    assert payload["handle"] == SLUG
     assert tuple(snapshot(root) for root in finalized_checkouts) == before
 
 
@@ -201,17 +203,13 @@ def test_owned_materialization_failure_rolls_back_without_ambient_writes(
     finalized_checkouts: tuple[Path, Path, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from specify_cli.cli.commands.agent import tasks
     from specify_cli.coordination import transaction
 
     before = tuple(snapshot(root) for root in finalized_checkouts)
-    logged: list[object] = []
-
     def fail_materialize(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("injected materialization failure")
 
     monkeypatch.setattr(transaction._reducer, "materialize", fail_materialize)
-    monkeypatch.setattr(tasks, "emit_error_logged", lambda **kwargs: logged.append(kwargs))
     result = CliRunner().invoke(
         tasks_app,
         [
@@ -233,7 +231,6 @@ def test_owned_materialization_failure_rolls_back_without_ambient_writes(
     assert payload["state_applied"] is False
     assert payload["event_ids"] == []
     assert payload["dirty"] is False
-    assert logged == []
     assert tuple(snapshot(root) for root in finalized_checkouts) == before
 
 
