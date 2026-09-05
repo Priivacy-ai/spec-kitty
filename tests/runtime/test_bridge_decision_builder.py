@@ -435,8 +435,8 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     added the committed-authority merged-mission
     short-circuit, whose two verdicts (``kind=terminal`` and the
     conflict/stale-workspace case) are emitted from
-    ``_merged_mission_short_circuit``. Later EXP routing contributes two more
-    legitimate sites, making the live count 25. All go through
+    ``_merged_mission_short_circuit``. Later EXP routing contributes one more
+    legitimate site, making the live count 24. All go through
     ``_materialize_decision``; the
     zero-open-coded-``Decision`` invariant is unchanged. A regression on this
     exact count catches a silent re-introduction of an open-coded
@@ -448,7 +448,7 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
         for call in _iter_calls(tree)
         if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"
     ]
-    assert len(materialize_calls) == 25
+    assert len(materialize_calls) == 24
 
 
 def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:
