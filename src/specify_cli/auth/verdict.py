@@ -157,6 +157,7 @@ def evaluate_auth_verdict(
     now: datetime,
     *,
     server_probe: ServerProbe | None = None,
+    session_assessment_reason: str | None = None,
 ) -> HealthVerdict:
     """Derive the one honest auth :class:`HealthVerdict` from a session + clock.
 
@@ -170,6 +171,12 @@ def evaluate_auth_verdict(
     - access expired, refresh valid, probe live  -> ``ok``
     - access expired, refresh valid, probe failed -> ``fail``
     """
+    if session is None and session_assessment_reason == "storage_decryption_failed":
+        return HealthVerdict(
+            state="fail",
+            evidence="stored session could not be decrypted; unreadable session removed",
+            remediation=_LOGIN_REMEDIATION,
+        )
     if session is None:
         return HealthVerdict(
             state="fail",

@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.auth.errors import StorageDecryptionError
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
@@ -102,6 +103,22 @@ class TestStatusE2E:
         assert result.exit_code == 0, result.stdout
         assert "Not authenticated" in result.stdout
         assert "spec-kitty auth login" in result.stdout
+
+    def test_status_names_decryption_failure_instead_of_absent_session(self) -> None:
+        class UndecryptableStorage(FakeSecureStorage):
+            def read(self) -> StoredSession | None:
+                raise StorageDecryptionError("synthetic corrupt ciphertext")
+
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=UndecryptableStorage(),
+        ):
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "could not be decrypted" in result.stdout
+        assert "unreadable session removed" in result.stdout
+        assert "no active session" not in result.stdout
 
     def test_status_refresh_expired_prompts_re_login(
         self,
