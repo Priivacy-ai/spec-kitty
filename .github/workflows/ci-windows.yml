@@ -86,17 +86,6 @@ jobs:
           python -m pip install --upgrade pip pipx
           python -m pipx ensurepath
 
-      - name: Configure private git dependencies
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::SK_CI_TOKEN is required to install the pinned private git dependencies."
-            exit 1
-          fi
-          git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
-
       - name: Install spec-kitty-cli (editable) + test deps
         shell: bash
         env:

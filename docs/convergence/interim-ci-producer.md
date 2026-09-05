@@ -1,9 +1,9 @@
 ---
 doc_status: active
-updated: '2026-08-30'
+updated: '2026-09-05'
 ---
 
-The existing factory `.github/workflows/ci.yml` remains untouched and is not an upstream restore.
+The existing factory `.github/workflows/ci.yml` is not an upstream restore. It runs only in the private EXPERIMENTAL repository; the byte-identical public promotion uses the restored public release gates below. Those gates resolve the released PyPI dependencies without private-repository credentials.
 
 | path | disposition | reason |
 |---|---|---|
