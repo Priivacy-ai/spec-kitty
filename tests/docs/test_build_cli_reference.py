@@ -84,9 +84,7 @@ def synthetic_app() -> typer.Typer:
 
 
 class TestWalker:
-    def test_walk_returns_deterministic_sorted_entries(
-        self, synthetic_app: typer.Typer
-    ) -> None:
+    def test_walk_returns_deterministic_sorted_entries(self, synthetic_app: typer.Typer) -> None:
         first = walk(synthetic_app)
         second = walk(synthetic_app)
         assert first == second
@@ -161,10 +159,7 @@ class TestWalker:
         entry = next(e for e in walk(app) if e.path == ("body-only",))
 
         assert entry.help_summary == ""
-        assert entry.help_body == (
-            "Summary stays stable.\n\n"
-            "This second paragraph is part of the full help body."
-        )
+        assert entry.help_body == ("Summary stays stable.\n\nThis second paragraph is part of the full help body.")
 
     def test_walk_normalizes_inferred_command_name_like_typer(self) -> None:
         app = typer.Typer()
@@ -269,6 +264,11 @@ class TestRendering:
         section = build.render_section(entry, "Usage: spec-kitty foo")
         assert "> **Deprecated**:" in section.body
 
+    def test_render_section_emits_internal_banner_for_hidden_command(self) -> None:
+        entry = self._entry(hidden=True)
+        section = build.render_section(entry, "Usage: spec-kitty foo")
+        assert "> **Internal**:" in section.body
+
     def test_render_section_emits_summary_for_non_deprecated(self) -> None:
         entry = self._entry()
         section = build.render_section(entry, "X")
@@ -297,10 +297,7 @@ class TestRendering:
         assert "inner" in result
 
     def test_wrap_with_markers_splices_existing(self) -> None:
-        existing = (
-            f"# Title\n\nIntro prose\n\n{build.BEGIN_MARKER}\n"
-            f"old generated\n{build.END_MARKER}\n\nOutro prose\n"
-        )
+        existing = f"# Title\n\nIntro prose\n\n{build.BEGIN_MARKER}\nold generated\n{build.END_MARKER}\n\nOutro prose\n"
         result = build.wrap_with_markers("NEW BLOCK", existing=existing)
         assert "Intro prose" in result
         assert "Outro prose" in result
@@ -321,9 +318,7 @@ class TestRendering:
 
 
 class TestPartition:
-    def _entry(
-        self, path: tuple[str, ...], *, hidden: bool = False
-    ) -> CommandPathEntry:
+    def _entry(self, path: tuple[str, ...], *, hidden: bool = False) -> CommandPathEntry:
         return CommandPathEntry(
             path=path,
             kind="command",
@@ -372,9 +367,7 @@ class TestBuildCli:
     """End-to-end tests of ``main()`` against a stubbed Typer app."""
 
     @pytest.fixture()
-    def stub_specify_cli(
-        self, monkeypatch: pytest.MonkeyPatch, synthetic_app: typer.Typer
-    ) -> Iterator[None]:
+    def stub_specify_cli(self, monkeypatch: pytest.MonkeyPatch, synthetic_app: typer.Typer) -> Iterator[None]:
         """Substitute the live ``specify_cli`` import with the synthetic app."""
 
         import types
@@ -436,8 +429,7 @@ class TestBuildCli:
         out = tmp_path / "cli.md"
         agent_out = tmp_path / "agent.md"
         out.write_text(
-            f"# Existing\n\nHand prose\n\n{build.BEGIN_MARKER}\nold\n"
-            f"{build.END_MARKER}\n\nOutro\n",
+            f"# Existing\n\nHand prose\n\n{build.BEGIN_MARKER}\nold\n{build.END_MARKER}\n\nOutro\n",
             encoding="utf-8",
         )
         rc = build.main(
@@ -541,9 +533,7 @@ class TestBuildCli:
 
 
 class TestCaptureHelp:
-    def test_capture_help_calls_subprocess(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_capture_help_calls_subprocess(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: dict[str, Any] = {}
 
         class _Result:
@@ -573,9 +563,7 @@ class TestDirtyTarget:
         target = tmp_path / "absent.md"
         assert build.is_target_dirty(target, repo_root=tmp_path) is False
 
-    def test_is_dirty_handles_git_failure_gracefully(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_is_dirty_handles_git_failure_gracefully(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "exists.md"
         target.write_text("content", encoding="utf-8")
 
@@ -585,9 +573,7 @@ class TestDirtyTarget:
         monkeypatch.setattr(build.subprocess, "run", _raise)
         assert build.is_target_dirty(target, repo_root=tmp_path) is False
 
-    def test_is_dirty_returns_true_when_git_reports_changes(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_is_dirty_returns_true_when_git_reports_changes(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "exists.md"
         target.write_text("content", encoding="utf-8")
 

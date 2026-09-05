@@ -3125,10 +3125,10 @@ pages:
     - {slug: "spec-kitty-agent-status-validate", text: "spec-kitty agent status validate", level: 2}
     - {slug: "spec-kitty-agent-tasks", text: "spec-kitty agent tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-add-history", text: "spec-kitty agent tasks add-history", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
-    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-map-requirements", text: "spec-kitty agent tasks map-requirements", level: 2}
     - {slug: "spec-kitty-agent-tasks-mark-status", text: "spec-kitty agent tasks mark-status", level: 2}
     - {slug: "spec-kitty-agent-tasks-move-task", text: "spec-kitty agent tasks move-task", level: 2}
@@ -3642,6 +3642,22 @@ pages:
     - {slug: "spec-kitty-zeitgeist-outbox-show", text: "spec-kitty zeitgeist outbox show", level: 2}
     - {slug: "spec-kitty-zeitgeist-status", text: "spec-kitty zeitgeist status", level: 2}
     - {slug: "spec-kitty-zeitgeist-watch", text: "spec-kitty zeitgeist watch", level: 2}
+    - {slug: "internal-hidden-commands", text: "Internal / hidden commands", level: 2}
+    - {slug: "spec-kitty-force-multi-command-mode", text: "spec-kitty __force_multi_command_mode__", level: 2}
+    - {slug: "spec-kitty-agent-check-prerequisites", text: "spec-kitty agent check-prerequisites", level: 2}
+    - {slug: "spec-kitty-agent-decision-widen", text: "spec-kitty agent decision widen", level: 2}
+    - {slug: "spec-kitty-agent-profile", text: "spec-kitty agent profile", level: 2}
+    - {slug: "spec-kitty-agent-profile-get", text: "spec-kitty agent profile get", level: 2}
+    - {slug: "spec-kitty-commit-guard-hook", text: "spec-kitty commit-guard-hook", level: 2}
+    - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
+    - {slug: "spec-kitty-merge-driver-acceptance-matrix", text: "spec-kitty merge-driver-acceptance-matrix", level: 2}
+    - {slug: "spec-kitty-merge-driver-event-log", text: "spec-kitty merge-driver-event-log", level: 2}
+    - {slug: "spec-kitty-merge-driver-issue-matrix", text: "spec-kitty merge-driver-issue-matrix", level: 2}
+    - {slug: "spec-kitty-merge-driver-meta", text: "spec-kitty merge-driver-meta", level: 2}
+    - {slug: "spec-kitty-merge-driver-review-cycle", text: "spec-kitty merge-driver-review-cycle", level: 2}
+    - {slug: "spec-kitty-merge-driver-traces", text: "spec-kitty merge-driver-traces", level: 2}
+    - {slug: "spec-kitty-profiles-get", text: "spec-kitty profiles get", level: 2}
+    - {slug: "spec-kitty-zeitgeist-mcp-serve", text: "spec-kitty zeitgeist mcp-serve", level: 2}
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "none"

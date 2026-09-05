@@ -5477,9 +5477,8 @@ _Read-only access to one team's live Zeitgeist presence/focus stream and status-
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ status       One bounded snapshot of ``repo``'s live presence/focus state.   │
-│ watch        Print each live presence/focus frame for ``repo`` as it         │
-│              arrives,                                                        │
-│              bounded by whole-call ``--timeout`` and ``--max-frames`` count. │
+│ watch        Print live frames plus a final summary, bounded by whole-call   │
+│              ``--timeout`` and ``--max-frames`` count.                       │
 │ outbox       Inspect/approve/reject/revoke locally queued Zeitgeist prose.   │
 │              Every decision requires a real human at a real terminal — there │
 │              is no --yes/--force option and no reachability from MCP or a    │
@@ -5768,8 +5767,8 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ```
  Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 
- Print each live presence/focus frame for ``repo`` as it arrives, bounded by
- ``--timeout`` idleness and ``--max-frames`` count.
+ Print live frames plus a final summary, bounded by whole-call ``--timeout``
+ and ``--max-frames`` count.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   repo      [REPO]  Credential-store key this checkout's credential is       │
@@ -5778,8 +5777,8 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --timeout             FLOAT RANGE [x>=0.001]  Idle seconds before the watch  │
-│                                               ends (clamped to <= 90s, the   │
+│ --timeout             FLOAT RANGE [x>=0.001]  Maximum seconds for the whole  │
+│                                               watch (clamped to <= 90s, the  │
 │                                               honest reported-live ceiling). │
 │                                               [default: 5.0]                 │
 │ --max-frames          INTEGER RANGE [x>=1]    Stop after this many frames    │
@@ -5789,6 +5788,326 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │ --json                                        Emit plain JSON instead of a   │
 │                                               human-readable summary.        │
 │ --help        -h                              Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## Internal / hidden commands
+
+> The following commands are hidden from the default `--help` output but documented here for internal reference.
+
+
+## spec-kitty __force_multi_command_mode__
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty __force_multi_command_mode__ [OPTIONS]
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent check-prerequisites
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent check-prerequisites [OPTIONS]
+
+ Deprecated compatibility alias forwarding to agent mission
+ check-prerequisites.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission                TEXT  Mission slug                                  │
+│ --json                         Output JSON format                            │
+│ --paths-only                   Only output path variables                    │
+│ --include-tasks                Include tasks.md in validation                │
+│ --help           -h            Show this message and exit.                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent decision widen
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent decision widen [OPTIONS] DECISION_ID
+
+  Call the widen endpoint for a decision. Not for end users.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    decision_id      TEXT  ULID of the DecisionPoint to widen [required]    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --invited               TEXT  Comma-separated Teamspace user IDs to       │
+│                                  invite                                      │
+│                                  [required]                                  │
+│    --mission-slug          TEXT  Mission slug                                │
+│    --dry-run                     Print what would be called without calling  │
+│                                  it                                          │
+│    --help          -h            Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent profile
+
+> **Internal**: hidden from the default `--help` output.
+
+_Compatibility alias for listing agent profiles_
+
+```
+ Usage: spec-kitty agent profile [OPTIONS] COMMAND [ARGS]...
+
+ Compatibility alias for listing agent profiles
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List agent profiles (activated-only by default; --all for the full     │
+│       catalog).                                                              │
+│ show  Show the full resolved definition of an agent profile                  │
+│       (FR-013/014/015).                                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent profile get
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent profile get [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output JSON object.                                        │
+│ --all             Bypass the activation gate for inspection (show            │
+│                   non-activated profiles).                                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty commit-guard-hook
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty commit-guard-hook [OPTIONS] [_ARGS]...
+
+ Run the commit guard and exit with its result code.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine
+
+> **Internal**: hidden from the default `--help` output.
+
+> **Deprecated**: [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
+
+```
+ Usage: spec-kitty doctrine [OPTIONS] COMMAND [ARGS]...
+
+ (deprecated)
+ [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ fetch             Fetch org doctrine pack(s) from their configured remote    │
+│                   sources.                                                   │
+│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
+│                   (FR-009).                                                  │
+│ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
+│ validate          Validate project-layer doctrine artifacts against their    │
+│                   schemas (FR-017).                                          │
+│ pack              Validate or assemble doctrine packs.                       │
+│ org               Manage org-layer doctrine pack authoring (init, validate). │
+│ mission-type      Mission type commands.                                     │
+│ asset             Resolve shipped and overlay doctrine assets (no install —  │
+│                   C-002).                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-acceptance-matrix
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-acceptance-matrix [OPTIONS] BASE OURS THEIRS
+
+ Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours``
+ (FR-008).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-event-log
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-event-log [OPTIONS] BASE OURS THEIRS
+
+ Merge ``status.events.jsonl`` conflict inputs using event-log semantics.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-issue-matrix
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-issue-matrix [OPTIONS] BASE OURS THEIRS
+
+ Row-aware, 3-way merge of ``issue-matrix.json``; write result to ``ours``
+ (FR-008).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-meta
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-meta [OPTIONS] BASE OURS THEIRS
+
+ Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-review-cycle
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-review-cycle [OPTIONS] BASE OURS THEIRS
+
+ Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.
+
+ Two distinct verdict documents colliding under the same filename are
+ NEVER unioned/field-merged/interleaved into one document -- see the
+ module-level design-decision comment immediately above this function for
+ the full reasoning (embed both verbatim, never fabricate a blended
+ verdict). Unlike WP18's original T077 driver, a divergent collision no
+ longer aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is
+ non-authoritative, unread prose now that ``status.events.jsonl``'s
+ ``review_result`` event slot is the sole verdict authority, so refusing
+ the merge over it is no longer justified.
+
+ Identical content on both sides (byte-for-byte) is the trivial fast path:
+ resolves cleanly, exit 0, never reported as a conflict. Otherwise, both
+ raw documents are embedded verbatim inside standard git-style conflict
+ markers (never blended field-by-field -- a review verdict has no safely
+ mergeable sub-fields the way a JSON matrix row does) and the driver
+ exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
+ and the squash proceeds.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-traces
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-traces [OPTIONS] BASE OURS THEIRS
+
+ Union conflicting ``traces/*.md`` documents; write result to ``ours``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty profiles get
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty profiles get [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output JSON object.                                        │
+│ --all             Bypass the activation gate for inspection (show            │
+│                   non-activated profiles).                                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist mcp-serve
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty zeitgeist mcp-serve [OPTIONS]
+
+ Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the client
+ disconnects. Process entry point for an MCP client's launcher — not meant for
+ direct interactive use, hence hidden.
+
+ #190: switched off (`spec-kitty moments off`), this prints one line to
+ stderr and exits 0 — stdout stays clean for the MCP framing protocol —
+ rather than starting a server that would only ever look broken.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

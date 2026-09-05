@@ -2132,7 +2132,25 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/convergence/charter-fetch.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/convergence/doctrine-drg.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/convergence/interim-ci-producer.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/convergence/landing.md
   tag: current
   divio_type: none
   owning_workstream: none
