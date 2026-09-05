@@ -16,6 +16,7 @@ import concurrent.futures
 import json
 import os
 import stat
+import threading
 from kernel.clock import datetime, now_utc, timedelta
 from pathlib import Path
 
@@ -259,6 +260,44 @@ def test_concurrent_writes_do_not_corrupt(tmp_path: Path):
     assert loaded is not None
     # The final access_token must match one of the worker tokens.
     assert loaded.access_token.startswith("token-")
+
+
+def test_read_holds_lock_across_decrypt_while_session_rotates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A logout/login cannot make a reader delete the replacement session."""
+    storage = FastFileFallback(base_dir=tmp_path)
+    old_session = _make_session("old-token")
+    new_session = _make_session("new-token")
+    storage.write(old_session)
+
+    decrypt_started = threading.Event()
+    allow_decrypt = threading.Event()
+    mutation_finished = threading.Event()
+    original_decrypt = storage._decrypt
+
+    def paused_decrypt(blob: dict[str, object]) -> bytes:
+        decrypt_started.set()
+        assert allow_decrypt.wait(timeout=2)
+        return original_decrypt(blob)
+
+    monkeypatch.setattr(storage, "_decrypt", paused_decrypt)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        read_future = pool.submit(storage.read)
+        assert decrypt_started.wait(timeout=2)
+
+        def rotate_session() -> None:
+            storage.delete()
+            storage.write(new_session)
+            mutation_finished.set()
+
+        mutation_future = pool.submit(rotate_session)
+        assert not mutation_finished.wait(timeout=0.1)
+        allow_decrypt.set()
+        assert read_future.result(timeout=2) == old_session
+        mutation_future.result(timeout=2)
+
+    monkeypatch.setattr(storage, "_decrypt", original_decrypt)
+    assert storage.read() == new_session
 
 
 @pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")

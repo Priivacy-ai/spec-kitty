@@ -225,81 +225,89 @@ class FileFallbackStorage(SecureStorage):
     # ---- public API ------------------------------------------------------
 
     def read(self) -> StoredSession | None:
-        if not self._cred_file.exists():
-            return None
         self._ensure_dir()
-        self._check_file_permissions(self._cred_file)
         with FileLock(str(self._lock_file), timeout=10):
+            if not self._cred_file.exists():
+                return None
+            self._check_file_permissions(self._cred_file)
             raw = self._cred_file.read_text(encoding="utf-8")
-        try:
             try:
-                blob = json.loads(raw)
-            except json.JSONDecodeError as exc:
-                raise StorageDecryptionError(f"Session file {self._cred_file} is not valid JSON: {exc}") from exc
-            if not isinstance(blob, dict):
-                raise StorageDecryptionError(f"Session file {self._cred_file} is not a JSON object")
-            plaintext = self._decrypt(blob)
-            try:
-                session = StoredSession.from_json(plaintext.decode("utf-8"))
-            except (json.JSONDecodeError, KeyError, ValueError) as exc:
-                raise StorageDecryptionError(f"Decrypted session payload is not a valid session: {exc}") from exc
-        except StorageDecryptionError:
-            self._discard_unreadable_session()
-            raise
+                try:
+                    blob = json.loads(raw)
+                except json.JSONDecodeError as exc:
+                    raise StorageDecryptionError(f"Session file {self._cred_file} is not valid JSON: {exc}") from exc
+                if not isinstance(blob, dict):
+                    raise StorageDecryptionError(f"Session file {self._cred_file} is not a JSON object")
+                plaintext = self._decrypt(blob)
+                try:
+                    session = StoredSession.from_json(plaintext.decode("utf-8"))
+                except (json.JSONDecodeError, KeyError, ValueError) as exc:
+                    raise StorageDecryptionError(f"Decrypted session payload is not a valid session: {exc}") from exc
+            except StorageDecryptionError:
+                self._discard_unreadable_session_locked()
+                raise
 
-        if blob.get("version") == _LEGACY_FILE_FORMAT_VERSION:
-            self.write(session)
-            try:
-                self._salt_file.unlink(missing_ok=True)
-            except OSError as exc:
-                log.debug("Could not remove legacy salt file %s: %s", self._salt_file, exc)
-        return session
+            if blob.get("version") == _LEGACY_FILE_FORMAT_VERSION:
+                self._write_locked(session)
+                try:
+                    self._salt_file.unlink(missing_ok=True)
+                except OSError as exc:
+                    log.debug("Could not remove legacy salt file %s: %s", self._salt_file, exc)
+            return session
 
-    def _discard_unreadable_session(self) -> None:
-        """Best-effort self-heal after a decryption/format failure."""
+    def _discard_unreadable_session_locked(self) -> None:
+        """Best-effort self-heal while the caller holds ``session.lock``."""
         try:
-            self.delete()
+            self._delete_locked()
         except SecureStorageError as exc:
             log.warning("Could not remove unreadable session file: %s", exc)
 
     def write(self, session: StoredSession) -> None:
         self._ensure_dir()
         with FileLock(str(self._lock_file), timeout=10):
-            # Key creation, encryption, and replacement share one lock. A
-            # concurrent first write can therefore never encrypt with a key
-            # another writer replaces before the ciphertext lands.
-            plaintext = session.to_json().encode("utf-8")
-            blob = self._encrypt(plaintext)
-            tmp = self._cred_file.with_suffix(self._cred_file.suffix + ".tmp")
-            tmp.write_text(json.dumps(blob), encoding="utf-8")
-            try:
-                os.chmod(tmp, 0o600)
-            except OSError as exc:
-                # Best-effort on platforms without POSIX perms (Windows).
-                log.debug("Could not chmod %s: %s", tmp, exc)
-            tmp.replace(self._cred_file)
-            publish_session_hot_path(self._dir, session)
+            self._write_locked(session)
+
+    def _write_locked(self, session: StoredSession) -> None:
+        """Write atomically while the caller holds ``session.lock``."""
+        # Key creation, encryption, and replacement share one lock. A
+        # concurrent first write can therefore never encrypt with a key
+        # another writer replaces before the ciphertext lands.
+        plaintext = session.to_json().encode("utf-8")
+        blob = self._encrypt(plaintext)
+        tmp = self._cred_file.with_suffix(self._cred_file.suffix + ".tmp")
+        tmp.write_text(json.dumps(blob), encoding="utf-8")
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError as exc:
+            # Best-effort on platforms without POSIX perms (Windows).
+            log.debug("Could not chmod %s: %s", tmp, exc)
+        tmp.replace(self._cred_file)
+        publish_session_hot_path(self._dir, session)
 
     def delete(self) -> None:
         self._ensure_dir()
         with FileLock(str(self._lock_file), timeout=10):
-            if self._cred_file.exists():
-                try:
-                    self._cred_file.unlink()
-                except OSError as exc:
-                    raise SecureStorageError(f"Failed to delete session file: {exc}") from exc
-            # Rotate both the v3 key and any legacy v2 salt.
-            if self._salt_file.exists():
-                try:
-                    self._salt_file.unlink()
-                except OSError as exc:
-                    log.debug("Could not delete salt file %s: %s", self._salt_file, exc)
-            if self._key_file.exists():
-                try:
-                    self._key_file.unlink()
-                except OSError as exc:
-                    log.debug("Could not delete key file %s: %s", self._key_file, exc)
-            invalidate_session_hot_path(self._dir)
+            self._delete_locked()
+
+    def _delete_locked(self) -> None:
+        """Delete session material while the caller holds ``session.lock``."""
+        if self._cred_file.exists():
+            try:
+                self._cred_file.unlink()
+            except OSError as exc:
+                raise SecureStorageError(f"Failed to delete session file: {exc}") from exc
+        # Rotate both the v3 key and any legacy v2 salt.
+        if self._salt_file.exists():
+            try:
+                self._salt_file.unlink()
+            except OSError as exc:
+                log.debug("Could not delete salt file %s: %s", self._salt_file, exc)
+        if self._key_file.exists():
+            try:
+                self._key_file.unlink()
+            except OSError as exc:
+                log.debug("Could not delete key file %s: %s", self._key_file, exc)
+        invalidate_session_hot_path(self._dir)
 
 
 #: Public alias used by WindowsFileStorage and the auth-secure-storage contract.
