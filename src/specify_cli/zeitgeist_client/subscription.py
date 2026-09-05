@@ -376,7 +376,7 @@ def watch(
     frame_filter: Callable[[LiveFrame], bool] | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Yield each accepted frame, serialized, until ``timeout_s`` (clamped
-    to :data:`MAX_TIMEOUT_S`) of idleness, ``max_frames`` frames, or the
+    to :data:`MAX_TIMEOUT_S`) across the whole call, ``max_frames`` frames, or the
     relay closes the connection — whichever comes first. Bounded on both
     axes: never an unbounded stream from one call.
 

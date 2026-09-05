@@ -246,7 +246,7 @@ def test_two_subscriptions_never_share_state(managed_stream_double) -> None:
 
 
 def test_module_offers_no_multi_subscription_aggregate_helper() -> None:
-    """"no implicit multi-team aggregate": the module must not offer a
+    """ "no implicit multi-team aggregate": the module must not offer a
     function/method whose job is to merge several FilteredStream states."""
     banned_substrings = ("aggregate", "merge", "union", "combine_all")
     public_names = [n for n in dir(filtered_stream) if not n.startswith("_")]
@@ -311,6 +311,31 @@ def test_idle_timeout_stops_watch_without_raising(managed_stream_double) -> None
     with pytest.raises(StopIteration):
         next(gen)  # double never sends anything: idle timeout fires
     assert time.monotonic() - start < 3.0
+
+
+def test_timeout_is_a_hard_whole_call_bound_despite_sse_heartbeats(
+    managed_stream_double,
+) -> None:
+    stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
+    gen = stream.watch(idle_timeout_s=0.25)
+    stop = threading.Event()
+
+    def _heartbeat() -> None:
+        while not stop.wait(0.02):
+            managed_stream_double.push_raw(b": keepalive\n\n")
+
+    sender = threading.Thread(target=_heartbeat, daemon=True)
+    sender.start()
+    started = time.monotonic()
+    try:
+        with pytest.raises(StopIteration):
+            next(gen)
+    finally:
+        stop.set()
+        sender.join(timeout=1)
+
+    elapsed = time.monotonic() - started
+    assert 0.20 <= elapsed < 0.75
 
 
 # --- race: check() from another thread while watch() is applying frames -----
@@ -420,8 +445,14 @@ def _authed_config(double, *, kind: str = "presence") -> filtered_stream.TeamStr
     precedent)."""
     now = now_epoch()
     token = mint_capability_token(
-        double.capability_key, sub="probe", team="acme", deployment="d1",
-        repo="spec-kitty", kind=kind, iat=now, exp=now + 300,
+        double.capability_key,
+        sub="probe",
+        team="acme",
+        deployment="d1",
+        repo="spec-kitty",
+        kind=kind,
+        iat=now,
+        exp=now + 300,
     )
     double.set_shared_token(token)
     return filtered_stream.TeamStreamConfig(relay_url=double.url, capability_credential=token)
@@ -444,8 +475,14 @@ def test_watch_receives_real_frames_with_two_genuinely_independent_secrets(manag
     assert managed_stream_auth_double.shared_token != managed_stream_auth_double.capability_key
     now = now_epoch()
     capability_jwt = mint_capability_token(
-        managed_stream_auth_double.capability_key, sub="probe", team="acme", deployment="d1",
-        repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+        managed_stream_auth_double.capability_key,
+        sub="probe",
+        team="acme",
+        deployment="d1",
+        repo="spec-kitty",
+        kind="presence",
+        iat=now,
+        exp=now + 300,
     )
     stream = filtered_stream.FilteredStream(
         filtered_stream.TeamStreamConfig(
@@ -503,14 +540,18 @@ def test_watch_raises_401_when_authorization_bearer_is_wrong(managed_stream_auth
     a real relay."""
     now = now_epoch()
     valid_capability_token = mint_capability_token(
-        managed_stream_auth_double.capability_key, sub="probe", team="acme",
-        deployment="d1", repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+        managed_stream_auth_double.capability_key,
+        sub="probe",
+        team="acme",
+        deployment="d1",
+        repo="spec-kitty",
+        kind="presence",
+        iat=now,
+        exp=now + 300,
     )
     managed_stream_auth_double.set_shared_token("a-completely-different-shared-secret")
     stream = filtered_stream.FilteredStream(
-        filtered_stream.TeamStreamConfig(
-            relay_url=managed_stream_auth_double.url, capability_credential=valid_capability_token
-        )
+        filtered_stream.TeamStreamConfig(relay_url=managed_stream_auth_double.url, capability_credential=valid_capability_token)
     )
     gen = stream.watch()
     with pytest.raises(urllib.error.HTTPError) as exc_info:
@@ -528,11 +569,7 @@ def test_watch_raises_403_when_capability_signature_is_wrong(managed_stream_auth
     test below)."""
     bogus_credential = "not-a-real-capability-token"
     managed_stream_auth_double.set_shared_token(bogus_credential)  # passes the Authorization gate...
-    stream = filtered_stream.FilteredStream(
-        filtered_stream.TeamStreamConfig(
-            relay_url=managed_stream_auth_double.url, capability_credential=bogus_credential
-        )
-    )
+    stream = filtered_stream.FilteredStream(filtered_stream.TeamStreamConfig(relay_url=managed_stream_auth_double.url, capability_credential=bogus_credential))
     gen = stream.watch()
     with pytest.raises(urllib.error.HTTPError) as exc_info:
         next(gen)  # ...but fails managed_auth's HMAC verification
@@ -549,8 +586,14 @@ def test_raw_request_without_authorization_header_is_401_by_the_double(managed_s
     ran."""
     now = now_epoch()
     token = mint_capability_token(
-        managed_stream_auth_double.capability_key, sub="probe", team="acme",
-        deployment="d1", repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+        managed_stream_auth_double.capability_key,
+        sub="probe",
+        team="acme",
+        deployment="d1",
+        repo="spec-kitty",
+        kind="presence",
+        iat=now,
+        exp=now + 300,
     )
     req = urllib.request.Request(
         managed_stream_auth_double.url + "/managed/stream",
