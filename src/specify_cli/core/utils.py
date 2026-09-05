@@ -169,7 +169,11 @@ def write_text_within_directory(path: Path, content: str, *, root: Path, encodin
     existing_mode: int | None = None
     if safe_is_file(safe_path):
         existing_mode = S_IMODE(safe_path.stat().st_mode)
-        safe_path.chmod(existing_mode | _WRITE_BITS)
+        # Best effort: Windows needs the target write bit cleared before an
+        # atomic replace, while POSIX can still replace it when chmod itself
+        # is denied but the parent directory is writable.
+        with contextlib.suppress(OSError):
+            safe_path.chmod(existing_mode | _WRITE_BITS)
 
     fd, temp_path = tempfile.mkstemp(dir=safe_path.parent, prefix=f".{safe_path.name}.", suffix=".tmp")
     try:
@@ -177,7 +181,8 @@ def write_text_within_directory(path: Path, content: str, *, root: Path, encodin
             handle.write(content)
         Path(temp_path).replace(safe_path)
         if existing_mode is not None:
-            safe_path.chmod(existing_mode)
+            with contextlib.suppress(OSError):
+                safe_path.chmod(existing_mode)
     except Exception:
         if existing_mode is not None:
             with contextlib.suppress(OSError):
