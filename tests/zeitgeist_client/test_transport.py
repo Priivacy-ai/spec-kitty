@@ -97,6 +97,7 @@ def test_n3_slow_double_drops_at_budget_with_exactly_one_attempt(team_kitty_doub
     assert len(team_kitty_double.requests) == 1
 
 
+@pytest.mark.timing
 def test_n4_double_rejects_immediately(team_kitty_double):
     team_kitty_double.configure(status=503)
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
