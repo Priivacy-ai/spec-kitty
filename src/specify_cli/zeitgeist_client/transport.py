@@ -132,6 +132,7 @@ decision 7 ("caller fields are claims only") still governs it.
 from __future__ import annotations
 
 import json
+import re
 import socket
 import sys
 import threading
@@ -263,6 +264,44 @@ class OfferResult:
     outcome: OfferOutcome
     request_id: str  # ControlEnvelope.request_id (idempotency key)
     elapsed_s: float  # 0.0 for REFUSED_LOCAL — no network attempt was made
+    status_code: int | None = None  # HTTP response status; None when no response arrived
+    response_detail: str | None = None  # bounded, credential-redacted relay detail
+
+
+_RESPONSE_READ_BYTES = 8192
+_RESPONSE_DETAIL_CHARS = 512
+_SENSITIVE_RESPONSE_VALUE = re.compile(r'(?i)("(?:authorization|token|credential|bearer)"\s*:\s*")[^"]*(")')
+_BEARER_VALUE = re.compile(r"(?i)(\bbearer\s+)[^\s,;\"']+")
+
+
+def _safe_response_detail(body: bytes, *, secrets_to_redact: tuple[str, ...]) -> str | None:
+    """Extract one bounded diagnostic without retaining client credentials."""
+    if not body:
+        return None
+    raw = body[:_RESPONSE_READ_BYTES]
+    text = raw.decode("utf-8", errors="replace")
+    try:
+        decoded = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        detail = text
+    else:
+        if isinstance(decoded, dict):
+            decoded = next(
+                (decoded[key] for key in ("detail", "error", "message") if key in decoded),
+                decoded,
+            )
+        detail = decoded if isinstance(decoded, str) else json.dumps(decoded, ensure_ascii=False, separators=(",", ":"))
+
+    for secret in sorted((value for value in secrets_to_redact if value), key=len, reverse=True):
+        detail = detail.replace(secret, "[redacted]")
+    detail = _SENSITIVE_RESPONSE_VALUE.sub(r"\1[redacted]\2", detail)
+    detail = _BEARER_VALUE.sub(r"\1[redacted]", detail)
+    detail = " ".join(detail.split())
+    if not detail:
+        return None
+    if len(detail) > _RESPONSE_DETAIL_CHARS:
+        return detail[: _RESPONSE_DETAIL_CHARS - 1] + "…"
+    return detail
 
 
 def _classify_network_error(exc: BaseException) -> OfferOutcome:
@@ -301,9 +340,7 @@ class ZeitgeistClient:
         try:
             sanitizer.assert_clean(args)
         except sanitizer.ForbiddenFieldError:
-            return OfferResult(
-                outcome=OfferOutcome.REFUSED_LOCAL, request_id=request_id, elapsed_s=0.0
-            )
+            return OfferResult(outcome=OfferOutcome.REFUSED_LOCAL, request_id=request_id, elapsed_s=0.0)
 
         envelope = {
             "schema_version": _SCHEMA_VERSION,
@@ -323,41 +360,55 @@ class ZeitgeistClient:
         }
         url = self._config.relay_url.rstrip("/") + _MANAGED_CONTROL_PATH
 
-        def _post() -> int:
+        def _post() -> tuple[int, bytes]:
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
             try:
                 with budget.open_bounded(req, timeout=budget.OFFER_BUDGET_S) as resp:
-                    # The body is never read — only the status carries a
-                    # decision. The detail JSON a 429 carries is deliberately
-                    # not kept: nothing here persists (#180).
-                    return int(resp.status)
+                    return int(resp.status), resp.read(_RESPONSE_READ_BYTES + 1)
             except urllib.error.HTTPError as exc:
-                return exc.code
+                return exc.code, exc.read(_RESPONSE_READ_BYTES + 1)
 
         outcome = budget.run_with_deadline(_post, deadline_s=budget.OFFER_BUDGET_S)
         elapsed_s = outcome.elapsed_s
         if not outcome.completed:
             drop: OfferOutcome | None = OfferOutcome.DROPPED_BUDGET
             status = 0
+            response_body = b""
         elif outcome.error is not None:
             drop = _classify_network_error(outcome.error)
             status = 0
+            response_body = b""
         else:
             assert outcome.result is not None  # completed without error ⇒ a result
             drop = None
-            status = outcome.result
+            status, response_body = outcome.result
 
         if drop is not None:
             return OfferResult(outcome=drop, request_id=request_id, elapsed_s=elapsed_s)
+        response_detail = _safe_response_detail(
+            response_body,
+            secrets_to_redact=(
+                self._config.token,
+                self._config.capability_credential or self._config.token,
+            ),
+        )
         if status == _THROTTLED_STATUS:
             print(THROTTLE_NOTICE, file=sys.stderr)
             return OfferResult(
-                outcome=OfferOutcome.THROTTLED, request_id=request_id, elapsed_s=elapsed_s
+                outcome=OfferOutcome.THROTTLED,
+                request_id=request_id,
+                elapsed_s=elapsed_s,
+                status_code=status,
+                response_detail=response_detail,
             )
-        result_outcome = (
-            OfferOutcome.SENT if 200 <= status < 300 else OfferOutcome.REJECTED
+        result_outcome = OfferOutcome.SENT if 200 <= status < 300 else OfferOutcome.REJECTED
+        return OfferResult(
+            outcome=result_outcome,
+            request_id=request_id,
+            elapsed_s=elapsed_s,
+            status_code=status,
+            response_detail=response_detail,
         )
-        return OfferResult(outcome=result_outcome, request_id=request_id, elapsed_s=elapsed_s)
 
     # -- current-focus lifecycle (opt-in) ------------------------------
 
@@ -393,16 +444,12 @@ class ZeitgeistClient:
             focus_ref = mission_slug if wp_id is None else f"{mission_slug}.{wp_id}"
             self._focus_ref = focus_ref
             self._focus_started_at = now_utc()
-        return self.offer(
-            "focus.start", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S)
-        )
+        return self.offer("focus.start", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S))
 
     def focus_heartbeat(self) -> OfferResult:
         focus_ref = self._focus_ref
         if focus_ref is None:
-            return OfferResult(
-                outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0
-            )
+            return OfferResult(outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0)
         # FIX-M2-10: FocusArgs (managed_control.schema.json) REQUIRES ttl_s
         # on every non-end focus op, not just focus.start — a heartbeat with
         # no ttl_s is both schema-invalid (422) and functionally inert:
@@ -410,20 +457,14 @@ class ZeitgeistClient:
         # expires_at = received_at + args["ttl_s"] for start/heartbeat/pause
         # alike, so omitting it also silently failed to renew the server-
         # side TTL a heartbeat exists to renew.
-        return self.offer(
-            "focus.heartbeat", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S)
-        )
+        return self.offer("focus.heartbeat", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S))
 
     def focus_pause(self, reason: _FocusPauseReason = "user") -> OfferResult:
         if reason not in _VALID_PAUSE_REASONS:
-            raise ValueError(
-                f"focus_pause reason must be one of {sorted(_VALID_PAUSE_REASONS)!r}, got {reason!r}"
-            )
+            raise ValueError(f"focus_pause reason must be one of {sorted(_VALID_PAUSE_REASONS)!r}, got {reason!r}")
         focus_ref = self._focus_ref
         if focus_ref is None:
-            return OfferResult(
-                outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0
-            )
+            return OfferResult(outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0)
         # FIX-M2-10: FocusArgs has no `pause_reason` property at all
         # (additionalProperties: false) — zeitgeist's own focus_op() never
         # reads a pause reason either (op == "focus.pause" only ever sets
@@ -433,9 +474,7 @@ class ZeitgeistClient:
         # field to omit correctly; sending it as one was the bug (422,
         # unknown key). ttl_s IS required here, same reasoning as
         # focus_heartbeat above.
-        return self.offer(
-            "focus.pause", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S)
-        )
+        return self.offer("focus.pause", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S))
 
     def focus_end(self, reason: _FocusEndReason = "user") -> OfferResult:
         # Runtime guard, not just a type hint: "revoked" is a server-originated
@@ -453,9 +492,7 @@ class ZeitgeistClient:
             self._focus_ref = None
             self._focus_started_at = None
         if focus_ref is None:
-            return OfferResult(
-                outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0
-            )
+            return OfferResult(outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0)
         # FIX-M2-10: FocusEndArgs.required includes ttl_s too (schema
         # symmetry with FocusArgs) even though managed.py's own focus.end
         # handling never reads it (the entry is simply popped) — still
@@ -469,10 +506,7 @@ class ZeitgeistClient:
 
     def presence(self, activity: _PresenceActivity, path: str | None = None) -> OfferResult:
         if activity not in _VALID_PRESENCE_ACTIVITIES:
-            raise ValueError(
-                f"presence activity must be one of {sorted(_VALID_PRESENCE_ACTIVITIES)!r}, "
-                f"got {activity!r}"
-            )
+            raise ValueError(f"presence activity must be one of {sorted(_VALID_PRESENCE_ACTIVITIES)!r}, got {activity!r}")
         # FIX-M2-10: PresencePublish's wire field is `kind` (managed_
         # presence.schema.json — additionalProperties: false, no `activity`
         # property at all; managed.py's publish_presence() reads
@@ -487,13 +521,7 @@ class ZeitgeistClient:
     # -- not yet implemented in this pass -------------------------------
 
     def status(self) -> None:
-        raise NotImplementedError(
-            "ZeitgeistClient.status() is not implemented in this pass — see "
-            "docs/plans/zeitgeist-client-wp01-remaining.md"
-        )
+        raise NotImplementedError("ZeitgeistClient.status() is not implemented in this pass — see docs/plans/zeitgeist-client-wp01-remaining.md")
 
     def watch(self, *, idle_timeout_s: float | None = None) -> None:
-        raise NotImplementedError(
-            "ZeitgeistClient.watch() is not implemented in this pass — see "
-            "docs/plans/zeitgeist-client-wp01-remaining.md"
-        )
+        raise NotImplementedError("ZeitgeistClient.watch() is not implemented in this pass — see docs/plans/zeitgeist-client-wp01-remaining.md")

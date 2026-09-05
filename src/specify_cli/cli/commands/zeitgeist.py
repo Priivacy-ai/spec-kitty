@@ -121,10 +121,7 @@ def _resolve_store_key(repo: str | None) -> str:
 
 def _report_not_checked_out(exc: subscription.NotCheckedOut) -> None:
     console.print(f"[red]Error:[/red] {exc}")
-    console.print(
-        "[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo yet. "
-        "Run the checkout flow first, then retry."
-    )
+    console.print("[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo yet. Run the checkout flow first, then retry.")
     raise typer.Exit(1)
 
 
@@ -381,22 +378,21 @@ def _print_operability_report(report: operability.OperabilityReport) -> None:
     if report.offer is None or report.drop is None:
         console.print("  offer/drop/latency: (no stored checkout — no live probe attempted)")
     else:
+        response = ""
+        if report.offer.status_code is not None:
+            response = f" ({report.offer.status_code}"
+            if report.offer.response_detail:
+                response += f": {report.offer.response_detail}"
+            response += ")"
         console.print(
-            f"  offer     outcome={report.offer.outcome}  elapsed_s={report.offer.elapsed_s:.3f}  "
+            f"  offer     outcome={report.offer.outcome}{response}  elapsed_s={report.offer.elapsed_s:.3f}  "
             f"budget_s={report.offer.budget_s}  within_budget={report.offer.within_budget}"
         )
         console.print(f"  drop      dropped={report.drop.dropped}  reason={report.drop.reason}")
-    console.print(
-        f"  lease     active={report.lease.active}  ttl_s={report.lease.ttl_s}  remaining_s={report.lease.remaining_s}"
-    )
-    console.print(
-        f"  revoke    revocable_count={report.revoke.revocable_count}  model_reachable={report.revoke.model_reachable}"
-    )
+    console.print(f"  lease     active={report.lease.active}  ttl_s={report.lease.ttl_s}  remaining_s={report.lease.remaining_s}")
+    console.print(f"  revoke    revocable_count={report.revoke.revocable_count}  model_reachable={report.revoke.model_reachable}")
     console.print(f"  mcp       reachable={report.mcp.reachable}  tools={list(report.mcp.tool_names)}")
-    console.print(
-        f"  repair    observed={report.repair.observed}  reset_count={report.repair.reset_count}  "
-        f"last_reset_reason={report.repair.last_reset_reason}"
-    )
+    console.print(f"  repair    observed={report.repair.observed}  reset_count={report.repair.reset_count}  last_reset_reason={report.repair.last_reset_reason}")
 
 
 @operability_app.command("report")
@@ -423,10 +419,7 @@ def operability_drill_timeout(as_json: bool = _JSON_OPTION) -> None:
         console.emit_json(dataclasses.asdict(result))
         return
     color = "green" if result.outcome == "pass" else "red"
-    console.print(
-        f"[{color}]{result.outcome}[/{color}]  offer={result.offer.outcome}  "
-        f"elapsed_s={result.offer.elapsed_s:.3f}  budget_s={result.offer.budget_s}"
-    )
+    console.print(f"[{color}]{result.outcome}[/{color}]  offer={result.offer.outcome}  elapsed_s={result.offer.elapsed_s:.3f}  budget_s={result.offer.budget_s}")
 
 
 @operability_app.command("drill-rotation")
