@@ -830,8 +830,7 @@ def test_scratch_workspace_cleanup_stays_ungated_under_full_retention(
     with (
         patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
         patch.object(ex, "clear_state"),
-        patch.object(ex, "_emit_merge_diff_summary"),
-        patch.object(ex, "emit_mission_closed"),
+        patch.object(ex, "_render_stale_findings"),
     ):
         ex._phase_finalize_and_summary(run)
     cleanup_mock.assert_called_once()
