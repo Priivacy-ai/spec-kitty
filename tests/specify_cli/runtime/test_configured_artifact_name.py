@@ -382,16 +382,15 @@ class TestLoadBearingPathPatternPropagation:
         import specify_cli.acceptance as acceptance_module
         from charter.activation.manifest_loader import clear_cache
 
-        # WP02 (#3770): see test_analysis_report_hash_inputs_reflects_the_patch
-        # above -- the "before" reads populate the shared authority cache
-        # with real content, so it must be cleared before both the
-        # post-monkeypatch read and the post-undo restoration read.
+        # Acceptance resolves these compatibility attributes lazily through
+        # module ``__getattr__``. Exercise that call-time seam directly: an
+        # in-process reload would replace public exception classes and strand
+        # already-imported CLI handlers with stale class identities.
         original_spec_file = acceptance_module.SPEC_FILE
         original_plan_file = acceptance_module.PLAN_FILE
         monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
         clear_cache()
         try:
-            importlib.reload(acceptance_module)
             assert acceptance_module.SPEC_FILE == _SENTINEL_SPEC_FILENAME
             # PLAN_FILE is untouched by the patch -- proves the seam resolves
             # each artifact_key independently, not a single frozen tuple.
@@ -399,7 +398,6 @@ class TestLoadBearingPathPatternPropagation:
         finally:
             monkeypatch.undo()
             clear_cache()
-            importlib.reload(acceptance_module)
             assert original_spec_file == acceptance_module.SPEC_FILE
 
     def test_retrospect_precondition_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
