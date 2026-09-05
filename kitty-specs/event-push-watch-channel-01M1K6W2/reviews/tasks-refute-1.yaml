@@ -1,0 +1,90 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      Grepped all three files directly — the PR-Shape recap bullet ("this plan judges the
+      aggregate diff NOT trivially reviewable"/"not be compressed or skipped") is verbatim
+      present in WP04 (line 86) and WP05 (lines 83-88) and has zero matches anywhere in
+      WP01, WP02, or WP03, exactly as the finding claims.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: >
+      Verified every citation directly: wps.yaml:42-45/74-77 and tasks.md:23/34 both list
+      tail_reader.py in WP02's and WP03's owned_files with scope:codebase-wide; WP02's own
+      frontmatter (lines 33-35) and WP03's (31-33) list it too, yet WP02's Context (line 71)
+      and WP03's (line 62) each assert the opposite ("only WP01 lists it"/"NO exclusive
+      owned_files") — a direct self-contradiction within each file. compute.py:1-11 states
+      "dependency edges do not collapse lanes by themselves"; find_overlap_pairs
+      (:277-296) computes overlap purely from owned_files globs; the write_scope_overlap
+      rule (:453-466) fires only from that overlap-pairs list — confirming lane collapse
+      depends on owned_files overlap, not the dependency edge. lanes.json's collapse_report
+      (lines 82-95) independently corroborates write_scope_overlap firing on the
+      WP01/WP02 and WP01/WP03 tail_reader.py glob overlap. tasks-finalize/prompt.md:71-79
+      confirms scope:codebase-wide is stated as "the ONLY exemption" and explicitly warns
+      against fabricating disjoint owned_files — the opposite of what the WP02/WP03 prose
+      claims is "this mission's resolution." Every line citation is accurate and the
+      technical argument holds.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: >
+      Grepped WP02 for "pytestmark" — zero hits anywhere in the file, including inside
+      T009 (which does instruct creating the new file
+      tests/status/test_tail_reader_truncation.py but never mentions the marker) through
+      T015. WP01 line 142, WP03 line 239, and WP05 (~line 281) each explicitly instruct
+      adding pytestmark = [pytest.mark.fast] for their own new test files; WP02 has no
+      equivalent instruction anywhere in T009-T015, only an assertion of the target
+      marker in the DoD table (not an actionable instruction).
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Read T007 (WP01) and T013/T014 (WP02) in full. T007 step 1's guard raises only "if
+      called ... after its initial open" (or, in its stated "equivalent" form, only checks
+      Path.open's call count and does not patch Path.stat at all). Plan.md's named lazy
+      bug is path.stat() for the size check BEFORE a single path.open('rb') for the
+      hash-check read — the stat() call precedes the one open() call, so it is never
+      "after initial open" and the call-count-of-one assertion is still satisfied (only
+      one open() call exists). T013 explicitly "re-runs WP01's single-open assertion
+      pattern," propagating the identical blind spot for the hash-check read. T007 step 3's
+      own claim that the open-call-count assertion "closes that gap" is incorrect for this
+      exact named case, since there is no second open() call to catch — confirming the
+      finding's technical claim precisely.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >
+      spec.md lines 212-214 are exactly User Story 3 AC1 (the positive/non-refusal resume
+      guarantee). WP02's T015 step 1 lists only the four REFUSAL-shape tests (negative,
+      out_of_range, misaligned, content_mismatch); T012 implements success-return branches
+      but no subtask tests them. WP04's T025 tests are two ResumeRefused-raising cases only;
+      T026's happy-path test uses --once with a fresh cursor (offset=from_offset or 0, no
+      --from-offset supplied), not a validated resume cursor. Grepped WP03 and WP05 for
+      from-offset/from_invariant/resume — no hits. No WP anywhere tests a structurally
+      valid --from-offset/--from-invariant resume actually succeeding and feeding forward.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: >
+      spec.md's US2 AC2 (lines 174-177) requires re-emission from offset 0 post-truncation
+      with no fabricated/replayed stale events. WP02's T009 step 5 and T010 step 4 both stop
+      at asserting log_truncated fires; T015 adds only the four resume-refusal tests, no
+      re-emission-after-resync case. Grepped WP03/WP04/WP05 for "truncat" — no test anywhere
+      drives a follow-up poll after the truncation signal to verify the recovery contract.
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: >
+      spec.md lines 140-143 are exactly US1 AC2 (a running, unbounded tail process observing
+      a mid-run append within one poll interval). WP01's T008 item 1 is two sequential
+      poll_once() calls, not through the generator or CLI. WP03's T019(b) explicitly offers
+      "pre-write all N events" (a zero-new-poll fixture) as one valid option among several,
+      not a mandated concurrent-append case. WP04's own Risks table states plainly "no other
+      invocation shape exists anywhere in this WP's test suite" besides --once/--max-events
+      against static logs. WP05's T033 does add one secondary, explicitly "non-blocking"
+      sanity check that the reader "observed at least one event" from the concurrent writer,
+      but this checks only NFR-004 writer-safety as its primary purpose, asserts no ordering
+      or no-duplicate-emission guarantee, and does not fulfill AC2's full contract — the
+      finding's core claim (no single required test drives AC2's complete guarantee
+      end-to-end) stands even accounting for WP05.
+findings_count: 7

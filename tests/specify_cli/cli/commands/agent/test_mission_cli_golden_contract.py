@@ -112,6 +112,8 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--force-recreate-coordination-branch",
             "--topology",
             "--owned-checkout",  # added for the #3328 owned-checkout ownership fix (2026-08-13)
+            "--retain-branches",  # added for the #3131 merge-retention opt-in (2026-09-02)
+            "--retain-worktrees",  # added for the #3131 merge-retention opt-in (2026-09-02)
         }
     ),
     "check-prerequisites": frozenset(
@@ -122,6 +124,7 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--include-tasks",
             "--require-tasks",
             "--resume-probe",
+            "--owned-checkout",
         }
     ),
     "record-analysis": frozenset({"--mission", "--input-file", "--agent", "--json"}),
@@ -142,7 +145,7 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--no-auto-retry",
         }
     ),
-    "finalize-tasks": frozenset({"--mission", "--json", "--validate-only", "--target-branch"}),
+    "finalize-tasks": frozenset({"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout"}),
     "repair": frozenset({"--mission"}),
     # 2026-08-04 landing fold (PR #3175, fold-golden-flag-surface): re-pinned
     # to add the six negative-invariant-mode flags (--negative-invariant,

@@ -538,6 +538,12 @@ _PLAN_FIELD_DECLARATIONS: Final[dict[str, _PlanFieldDeclaration]] = {
 # resolved through the identical seam, scoped to the identical mission/tier,
 # as the template it describes.
 #
+# Org precedence for this asset is deliberately first-declared-root-wins
+# (``resolve_template``'s org loop returns on the first configured org root
+# that has the file) -- consistent with the ``plan-template.md`` it rides
+# alongside, and deliberately UNLIKE ``expected-artifacts.yaml``, which
+# resolves last-match across configured org roots.
+#
 # Core-shipped types (the four keys above) are checked FIRST and never touch
 # this seam in the common path — they keep their declarations exactly where
 # they live today (NFR-003: no behaviour change for existing types).
@@ -556,6 +562,27 @@ class _PackDeclarationError(ValueError):
     """
 
 
+# #3832 fold: per-kind allow-sets for unknown-key rejection, parity with
+# expected-artifacts.yaml's ``extra="forbid"`` posture -- a typo'd optional
+# key (e.g. ``labell``) must fail loud, not be silently ignored via
+# ``dict.get``.
+_COMMON_FIELD_KEYS: Final[frozenset[str]] = frozenset({"kind", "heading"})
+_FIELD_KIND_ALLOWED_KEYS: Final[dict[str, frozenset[str]]] = {
+    "bold_field": frozenset({"label", "sub_list_valued"}),
+    "any_bold_field": frozenset({"exclude_label", "example_label"}),
+    "table_field": frozenset(),
+    "nested_heading_field": frozenset({"sub_shape", "child_label"}),
+}
+
+
+def _reject_unknown_field_keys(entry: dict[str, object], kind: str) -> None:
+    """Raise :class:`_PackDeclarationError` if ``entry`` has keys outside ``kind``'s allow-set."""
+    allowed = _COMMON_FIELD_KEYS | _FIELD_KIND_ALLOWED_KEYS[kind]
+    unknown = sorted(set(entry) - allowed)
+    if unknown:
+        raise _PackDeclarationError(f"field entry {entry!r} has unknown key(s) {unknown!r} for kind {kind!r}")
+
+
 def _field_spec_from_mapping(entry: object) -> _FieldSpec:
     """Parse one YAML mapping into a :data:`_FieldSpec` (T-shape dispatch)."""
     if not isinstance(entry, dict):
@@ -565,11 +592,13 @@ def _field_spec_from_mapping(entry: object) -> _FieldSpec:
     if not isinstance(heading, str) or not heading.strip():
         raise _PackDeclarationError(f"field entry {entry!r} is missing a non-blank 'heading'")
     if kind == "bold_field":
+        _reject_unknown_field_keys(entry, kind)
         label = entry.get("label")
         if not isinstance(label, str) or not label.strip():
             raise _PackDeclarationError(f"bold_field entry {entry!r} is missing a non-blank 'label'")
         return _BoldField(heading=heading, label=label, sub_list_valued=bool(entry.get("sub_list_valued", False)))
     if kind == "any_bold_field":
+        _reject_unknown_field_keys(entry, kind)
         exclude_label = entry.get("exclude_label")
         example_label = entry.get("example_label")
         return _AnyBoldField(
@@ -578,8 +607,10 @@ def _field_spec_from_mapping(entry: object) -> _FieldSpec:
             example_label=example_label if isinstance(example_label, str) else None,
         )
     if kind == "table_field":
+        _reject_unknown_field_keys(entry, kind)
         return _TableField(heading=heading)
     if kind == "nested_heading_field":
+        _reject_unknown_field_keys(entry, kind)
         sub_shape = entry.get("sub_shape")
         if sub_shape not in ("repeatable", "named_sibling"):
             raise _PackDeclarationError(f"nested_heading_field entry {entry!r} has invalid 'sub_shape' {sub_shape!r}")
@@ -590,16 +621,22 @@ def _field_spec_from_mapping(entry: object) -> _FieldSpec:
     raise _PackDeclarationError(f"field entry {entry!r} has unknown or missing 'kind' {kind!r}")
 
 
+_TOP_LEVEL_DECLARATION_KEYS: Final[frozenset[str]] = frozenset({"primary", "peers"})
+
+
 def _plan_field_declaration_from_yaml(path: Path) -> _PlanFieldDeclaration:
     """Parse a pack-provided ``plan-field-declaration.yaml`` file."""
     import yaml  # noqa: PLC0415 — lazy: keeps a YAML dependency off this module's plain import path
 
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except yaml.YAMLError as exc:
-        raise _PackDeclarationError(f"{path} is not valid YAML: {exc}") from exc
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise _PackDeclarationError(f"{path} could not be read as YAML: {exc}") from exc
     if not isinstance(raw, dict) or "primary" not in raw:
         raise _PackDeclarationError(f"{path} must be a mapping with a 'primary' field entry")
+    unknown_top_level = sorted(set(raw) - _TOP_LEVEL_DECLARATION_KEYS)
+    if unknown_top_level:
+        raise _PackDeclarationError(f"{path} has unknown top-level key(s) {unknown_top_level!r}")
     primary = _field_spec_from_mapping(raw["primary"])
     raw_peers = raw.get("peers", [])
     if not isinstance(raw_peers, list) or not raw_peers:
@@ -621,6 +658,15 @@ def _pack_provided_declaration(mission_type: str, project_dir: Path) -> _PlanFie
     try:
         resolution = resolve_template(_PACK_DECLARATION_ASSET_NAME, project_dir, mission=mission_type)
     except FileNotFoundError:
+        return None
+    # resolve_template's tiers 1b/2/5 (global override, legacy, global
+    # non-mission) are mission-agnostic -- a single global
+    # plan-field-declaration.yaml at one of those tiers would otherwise gate
+    # EVERY undeclared mission type's plan against one type's fields. Only a
+    # mission-scoped hit (tiers 1a/3/4/6, all of which include
+    # "/missions/{mission_type}/" in the resolved path) is a genuine
+    # declaration for this mission type.
+    if f"/missions/{mission_type}/" not in resolution.path.as_posix():
         return None
     return _plan_field_declaration_from_yaml(resolution.path)
 
@@ -730,26 +776,6 @@ def _no_peer_gap_message(container: str, primary_name: str, peers: tuple[_FieldS
         else ""
     )
     return f"{container} has **{primary_name}** but no peer field with non-placeholder content{hint}. Checked peer(s): {peer_names}."
-
-
-def _has_substantive_technical_context(
-    body: str,
-    heading: str = "Technical Context",
-    label: str = "Language/Version",
-) -> bool:
-    """Return True iff ``## {heading}`` has ``label`` plus a peer field.
-
-    Decision 3(a): generalized by parameter from the pre-#3832 hardcoded
-    ``## Technical Context`` / ``**Language/Version**`` literals — the
-    defaults preserve exact prior single-argument-call behaviour
-    (``software-dev``'s own shape, NFR-003).
-    """
-    section_body = _extract_section_body(body, heading)
-    if section_body is None:
-        return False
-    if not _is_bold_field_substantive(section_body, label):
-        return False
-    return _any_other_bold_field_substantive(section_body, exclude_label=label)
 
 
 def describe_technical_context_gap(

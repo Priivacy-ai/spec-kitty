@@ -8,7 +8,6 @@ dossier registry can share pure doctrine-layer data models without importing
 from __future__ import annotations
 
 from enum import StrEnum
-from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -84,20 +83,6 @@ class ExpectedArtifactManifest(BaseModel):
         default_factory=list,
         description="Artifacts optional regardless of mission step",
     )
-
-    @classmethod
-    def from_yaml_file(cls, path: Path) -> ExpectedArtifactManifest:
-        """Load manifest from a YAML file."""
-        import ruamel.yaml
-
-        yaml = ruamel.yaml.YAML()
-        with path.open(encoding="utf-8") as f:
-            data = yaml.load(f)
-
-        if data is None:
-            data = {}
-
-        return cls(**data)
 
     def get_step_ids(self) -> list[str]:
         """Return all step IDs in ``required_by_step``."""

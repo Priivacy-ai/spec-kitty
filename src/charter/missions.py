@@ -33,6 +33,7 @@ from charter.offering.missions.mission_type_repository import (
     resolve_layered_mission_types,
 )
 from charter.offering.missions.repository import (
+    MalformedManifestError,
     MissionsRootNotFound,
     MissionTemplateRepository,
 )
@@ -45,6 +46,7 @@ __all__ = [
     "ArtifactClassEnum",
     "ExpectedArtifactManifest",
     "ExpectedArtifactSpec",
+    "MalformedManifestError",
     "MissionsRootNotFound",
     "MissionStepRepository",
     "MissionTemplateRepository",

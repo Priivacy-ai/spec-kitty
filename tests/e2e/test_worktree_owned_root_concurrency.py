@@ -34,6 +34,10 @@ pytestmark = [
     pytest.mark.e2e,
     pytest.mark.git_repo,
     pytest.mark.slow,
+    # Builds/installs one immutable wheel and mutates multiple linked worktrees.
+    # Parallel collection let unrelated repo-mutating tests contend on the shared
+    # source snapshot and hang this worker; test-full's stress pass is serial.
+    pytest.mark.stress,
 ]
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[2]

@@ -36,7 +36,10 @@ def _console() -> tuple[CliConsole, io.StringIO]:
 
 def _assert_clean(output: str) -> None:
     emitted = output.encode("utf-8")
-    assert SAFE_TEXT.encode("utf-8") in emitted
+    # Rich may insert a width-dependent line break inside otherwise-safe text.
+    # Normalize rendering whitespace so the assertion measures preservation of
+    # Unicode content rather than the worker's temporary-path length.
+    assert SAFE_TEXT in " ".join(output.split())
     assert b"\x1b" not in emitted
     assert b"[2J" not in emitted
     assert b"]0;x" not in emitted

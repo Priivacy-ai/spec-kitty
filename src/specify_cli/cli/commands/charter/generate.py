@@ -219,9 +219,23 @@ def _load_interview_for_generate(
 
     interview_data = read_interview_answers(answers_path) if from_interview else None
     if from_interview and interview_data is None:
+        rel_path = answers_path.relative_to(repo_root)
+        # #2940 honesty: ``read_interview_answers`` degrades BOTH a missing file
+        # AND a present-but-unreadable one (unparseable YAML, or a top level
+        # that is not a mapping) to ``None``. Reporting them identically sends
+        # the operator to re-run the interview when the real fault is a corrupt
+        # file a fresh interview would silently overwrite. Distinguish the two.
+        if answers_path.exists():
+            raise ValueError(
+                f"Charter interview answers at {rel_path} are present but "
+                "malformed — the file is not readable as a mapping (invalid "
+                "YAML, or a non-mapping top-level value). Repair or delete it, "
+                "re-run `spec-kitty charter interview --defaults` to rewrite it, "
+                "or pass `--no-from-interview` to generate from defaults."
+            )
         raise ValueError(
             "No charter interview answers found at "
-            f"{answers_path.relative_to(repo_root)}. "
+            f"{rel_path}. "
             "Run `/spec-kitty.charter` so the agent can capture guidance, "
             "run `spec-kitty charter interview --defaults` for a canned bootstrap, "
             "or pass `--no-from-interview` to generate from defaults explicitly."

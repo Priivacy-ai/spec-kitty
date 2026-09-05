@@ -2,11 +2,12 @@
 title: 'SaaS & Hosted Sync — Domain Plan'
 description: 'Durable, version-spanning domain plan for the SaaS / hosted-sync surface: sync & event-envelope integrity, consent & identity, auth & token lifecycle, and hosted rollout readiness.'
 doc_status: deprecated
-updated: '2026-08-31'
+updated: '2026-09-04'
 related:
 - docs/plans/index.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/glossary-doctrine-overhaul-program.md
+- docs/changelog/4.0.0.md
 - docs/adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md
 - docs/adr/3.x/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md
 - docs/adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md
@@ -30,6 +31,47 @@ related:
 > canonical map; where they disagree on *what ships in a given tag*, the milestone
 > roadmap and the owning epic win. Keep this plan factual and current; do not let it
 > accrete release-scoped tracking that belongs in an epic.
+
+---
+
+## Addendum 2026-09-04 — milestone re-key (post-2026-08-23 reconciliation)
+
+*This durable plan was last revised 2026-08-12, **11 days before** the 2026-08-23
+release-queue reconciliation, so its milestone labels below (§3 open-issue lists, §4, and
+the §5 table) predate it. Per this plan's own status contract — "where they disagree on
+*what ships in a given tag*, the milestone roadmap and the owning epic win" — the labels are
+corrected here from live GitHub state (queried 2026-09-04, `GITHUB_TOKEN` unset). The
+**invariants and sub-areas (the durable "why") are unchanged**; only the release-scoped
+"what ships when" moved. See the roadmap's
+[2026-09-04 re-anchor](../3-2-x-milestone-roadmap.md#addendum-2026-09-04--milestone-taxonomy-re-anchor-the-delayed-action-r)
+and the [4.0.0 declaration](../../changelog/4.0.0.md).*
+
+**Taxonomy change.** The **3.3.x** milestone was **retired** (closed 2026-08-23; work
+re-triaged to 4.0.0 or Product backlog) and milestone #4 was repurposed into **Product
+backlog**. Read every "3.3.x" label below as **4.0.0** unless the issue is closed, and
+every "3.2.x" as either 4.0.0 (if still open — see below) or shipped/closed.
+
+**Owning epics re-milestoned 3.3.x → 4.0.0** (verified 2026-09-04): **#1800** (SaaS sync &
+event-envelope hardening), **#1091** (Team Kitty launch gate), **#3322** (CLI auth &
+token-lifecycle reliability). The entire hosted surface now lands under **4.0.0**.
+
+**Open P0/P1 sync & consent issues re-milestoned 3.2.x → 4.0.0** (they are no longer
+current-cycle stabilization work): **#3278** (P0, sync false success), **#3178** (P0,
+wrong-authority egress), **#3197 / #3196 / #3198** (P1, consent & identity). The auth
+issues **#3279 / #3277** (P1) and **#3233** (P2) — labelled 3.3.x in §3.3 — are likewise
+now **4.0.0** under #3322.
+
+**Resolved since the last revision (strike where carried as open):**
+
+- **#3307 CLOSED.** §3.1, §4 item 2, and the §5 table carry it as an open P0 ("envelope
+  contract; reparent done"); it is discharged — remove it from the open-P0 readiness view.
+- **#3262 CLOSED** (per-project sync consent opt-in; §3.2 / §5, was → #1091, 3.3.x).
+
+**Net readiness read.** The §4 gap-1 auth epic (#3322) and gap-2 (#3307 reparent) are both
+resolved-or-moved; the load-bearing consequence is that the **hosted-surface P0 cluster
+(#3178 / #3278) is now 4.0.0 work, not 3.2.x stabilization** — it does not gate the 3.2.6
+tag and is not committed to 3.2.7. Treat the §5 table's `Milestone` column as superseded by
+this addendum until it is next revised in place.
 
 ---
 

@@ -85,7 +85,7 @@ def test_classify_returns_slot_keyed_mapping() -> None:
     graph = _scope_graph()
     resolved = resolve_context(graph, _ACTION_URN, depth=2)
 
-    result = context._classify_artifact_urns(resolved.artifact_urns, graph, set())
+    result = context._classify_artifact_urns(resolved.artifact_urns, graph, None)
 
     assert isinstance(result, Mapping)
     assert result["directives"] == ("d1",)
@@ -187,7 +187,7 @@ def test_delivered_equals_gate_intersect_reachable_through_real_pipeline() -> No
 
     filtered = filter_graph_by_activation(graph, pack)
     resolved = resolve_context(filtered, _ACTION_URN, depth=2)
-    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, set())
+    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, None)
 
     # ACTIVATED kind, activated → delivered.
     assert delivered.get("directives") == ("d1",)
@@ -327,7 +327,7 @@ def test_glossary_pack_classifies_into_glossary_packs_slot_through_real_pipeline
 
     filtered = filter_graph_by_activation(graph, pack)
     resolved = resolve_context(filtered, _ACTION_URN, depth=2)
-    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, set())
+    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, None)
 
     assert delivered["glossary_packs"] == ("g1",)
 
@@ -345,6 +345,6 @@ def test_glossary_pack_gated_out_when_kind_not_activated() -> None:
 
     filtered = filter_graph_by_activation(graph, pack)
     resolved = resolve_context(filtered, _ACTION_URN, depth=2)
-    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, set())
+    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, None)
 
     assert delivered.get("glossary_packs", ()) == ()

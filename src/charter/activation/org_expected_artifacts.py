@@ -36,7 +36,6 @@ fixed ``subdir`` string the way ``"mission_step_contracts"`` or
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -44,9 +43,9 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-__all__ = ["resolve_org_expected_artifacts"]
+from charter.offering.missions.repository import MalformedManifestError
 
-logger = logging.getLogger(__name__)
+__all__ = ["resolve_org_expected_artifacts"]
 
 _EXPECTED_ARTIFACTS_FILENAME = "expected-artifacts.yaml"
 
@@ -70,18 +69,19 @@ def resolve_org_expected_artifacts(
     an earlier org root's file for the same mission type — callers must not
     field-merge the result.
 
-    Returns ``None`` when no *org_roots* entry has a matching, parseable
-    file for *mission_type*. A file that exists but fails to parse as a YAML
-    mapping is treated the same as "no matching file" for that root (mirrors
-    ``MissionTemplateRepository.get_expected_artifacts``'s fail-closed
-    behaviour, for consistency with the built-in-tier reader) rather than
-    raising — an earlier root's good match, if any, still stands. Unlike
-    that pre-existing built-in-tier silence (which covers a path with no
-    operator-authored override to lose), a malformed *org* file hides a
-    genuine misconfiguration an operator authored and expected to take
-    effect — so this case logs a WARNING naming the offending file and the
-    parse failure (``logging.warning``, not ``warnings.warn``: the latter
-    deduplicates per call site and would drop the signal on repeat calls).
+    Returns ``None`` only for genuine absence: no *org_roots* entry has a
+    matching file for *mission_type* (Invariant I1). A file that IS present
+    for some *org_roots* entry but fails to parse as YAML, is unreadable
+    (``OSError``/``UnicodeDecodeError``), or does not parse to a YAML
+    mapping raises :class:`~charter.offering.missions.repository.MalformedManifestError`
+    (FR-007/FR-012, #3412) instead of being treated as "no matching file"
+    — mirroring ``MissionTemplateRepository.get_expected_artifacts``'s
+    fail-loud behaviour on the built-in tier (the sibling-error model,
+    D2). A malformed *org* file hides a genuine misconfiguration an
+    operator authored and expected to take effect, so it is never silently
+    substituted with an earlier root's good match or degraded to "not
+    overridden" (C-006) — the raise propagates immediately, before any
+    later *org_roots* entry is even consulted.
     """
     result: Mapping[str, Any] | None = None
     for org_root in org_roots:
@@ -93,12 +93,16 @@ def resolve_org_expected_artifacts(
 
 
 def _read_yaml_mapping(path: Path) -> Mapping[str, Any] | None:
-    """Read *path* as a YAML mapping, or ``None`` on any read/parse failure.
+    """Read *path* as a YAML mapping.
 
-    A present-but-unparseable (or non-mapping) file logs a WARNING naming
-    *path* and the failure before falling through to ``None`` — see
-    :func:`resolve_org_expected_artifacts`'s docstring for why this differs
-    from the built-in-tier reader's unlogged fail-closed behaviour.
+    Returns ``None`` only for genuine absence (``not path.is_file()``,
+    Invariant I1). A PRESENT file that fails to parse as YAML, cannot be
+    read/decoded (``OSError``/``UnicodeDecodeError``, FR-012), or does not
+    parse to a YAML mapping raises
+    :class:`~charter.offering.missions.repository.MalformedManifestError`
+    (FR-007, #3412) instead of degrading to "no override" — see
+    :func:`resolve_org_expected_artifacts`'s docstring for the rationale
+    (an operator authored this file and expects it to take effect).
     """
     if not path.is_file():
         return None
@@ -107,20 +111,9 @@ def _read_yaml_mapping(path: Path) -> Mapping[str, Any] | None:
         yaml = YAML(typ="safe")
         parsed = yaml.load(content)
     except (OSError, UnicodeDecodeError, YAMLError) as exc:
-        logger.warning(
-            "Org-tier expected-artifacts file %s failed to parse (%s); falling back "
-            "as if no org override were present for this mission type.",
-            path,
-            exc,
-        )
-        return None
+        raise MalformedManifestError(path, exc) from exc
     if not isinstance(parsed, Mapping):
-        logger.warning(
-            "Org-tier expected-artifacts file %s did not parse to a YAML mapping "
-            "(got %s); falling back as if no org override were present for this "
-            "mission type.",
-            path,
-            type(parsed).__name__,
+        raise MalformedManifestError(
+            path, TypeError(f"expected a YAML mapping, got {type(parsed).__name__}")
         )
-        return None
     return parsed

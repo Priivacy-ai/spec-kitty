@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
 from kernel.clock import now_utc_stamp
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
@@ -559,11 +560,13 @@ class WorkPackage:
         return str(view.resolved.lane)
 
 
-def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
+def locate_work_package(
+    repo_root: Path, feature: str, wp_id: str, *, effective_root: Path | None = None,
+) -> WorkPackage:
     """Locate a work package by ID, supporting both legacy and new formats.
 
-    Always uses main repo's kitty-specs/ regardless of current directory.
-    Main branch is authoritative for planning artifacts.
+    Uses the canonical planning partition unless an owned effective_root is
+    supplied. Explicit placement keeps both documents and status in that checkout.
 
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
@@ -580,10 +583,16 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
     # instead of the kind-blind ``resolve_planning_read_dir``.
     main_root = get_main_repo_root(repo_root)
-    feature_path = placement_seam(main_root, feature).read_dir(
+    placement = placement_seam(
+        main_root, feature, **effective_root_kwargs(effective_root),
+    )
+    feature_path = placement.read_dir(
         MissionArtifactKind.WORK_PACKAGE_TASK
     )
-    status_dir = resolve_status_surface(main_root, feature).parent
+    status_dir = (
+        placement.read_dir(MissionArtifactKind.STATUS_STATE)
+        if effective_root is not None else resolve_status_surface(main_root, feature).parent
+    )
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():

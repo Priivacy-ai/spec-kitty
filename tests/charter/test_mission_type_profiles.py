@@ -1112,6 +1112,83 @@ class TestOrgTierExpectedArtifactsThreading:
         ).get("plan")
 
 
+# ---------------------------------------------------------------------------
+# WP02 (#3770, FR-006): `_resolve_expected_artifacts_slot` now routes through
+# the validated authority instead of returning the raw, unvalidated parsed
+# mapping -- gaining schema validation. Previously an org-tier manifest
+# failing `ExpectedArtifactManifest` schema validation would silently return
+# as-is (this slot bypassed validation entirely); it now raises
+# `ManifestSchemaError` on first access, exactly like the other two
+# authority delegates (`resolve_configured_artifact_name` /
+# `gather_artifact_presence`).
+# ---------------------------------------------------------------------------
+
+
+class TestExpectedArtifactsSlotSchemaValidation:
+    """The slot gains real schema validation (was previously bypassed)."""
+
+    def test_org_tier_schema_invalid_manifest_raises_on_access(self, tmp_path: Path) -> None:
+        from charter.activation.manifest_loader import ManifestSchemaError
+
+        _git_init_minimal(tmp_path)
+        org_root = tmp_path / "org-pack"
+        _write_org_expected_artifacts(
+            org_root,
+            "software-dev",
+            # Missing the required `mission_type` field -> pydantic
+            # ValidationError, wrapped into ManifestSchemaError by the
+            # authority.
+            {"schema_version": "1.0", "manifest_version": "broken"},
+        )
+        _write_org_pack_config(
+            tmp_path,
+            packs=[("acme", org_root)],
+            activated_mission_types=["software-dev"],
+        )
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+        # The slot is memoised behind `@cached_property` (NFR-001) -- the
+        # raise fires on first ACCESS of `.expected_artifacts`, not at
+        # `resolve_mission_type_context()` call time.
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            _ = bundle.expected_artifacts
+
+        assert exc_info.value.mission_type == "software-dev"
+        assert "org-tier" in exc_info.value.origin
+
+
+# ---------------------------------------------------------------------------
+# WP02 T009 (#3770): the slot now delegates to the authority -- proves the
+# delegation is live, not an inert local copy that happens to agree with the
+# authority today.
+# ---------------------------------------------------------------------------
+
+
+class TestExpectedArtifactsSlotRoutesThroughAuthority:
+    def test_delegates_to_manifest_loader_load_manifest(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import charter.activation.manifest_loader as manifest_loader_module
+
+        _git_init_minimal(tmp_path)
+        _write_org_pack_config(tmp_path, packs=[], activated_mission_types=["software-dev"])
+
+        calls: list[tuple[str, Path | None]] = []
+        original_load_manifest = manifest_loader_module.load_manifest
+
+        def _tracking_load_manifest(mission_type: str, repo_root: Path | None = None) -> object:
+            calls.append((mission_type, repo_root))
+            return original_load_manifest(mission_type, repo_root=repo_root)
+
+        monkeypatch.setattr(manifest_loader_module, "load_manifest", _tracking_load_manifest)
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        _ = bundle.expected_artifacts
+
+        assert calls == [("software-dev", tmp_path)]
+
+
 class TestActionGrainBuiltinOnlyPathUnaffected:
     """T019 (WP04): `charter.activation.action_grain`'s built-in-only call site — which
     calls `_load_mission_type_profile(mission_type)` with NO `repo_root`

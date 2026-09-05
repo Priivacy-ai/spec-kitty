@@ -108,7 +108,16 @@ def _strip_this_venvs_spec_kitty_from_path(monkeypatch: pytest.MonkeyPatch) -> N
     invocation finds it.
     """
     venv_bin = Path(sys.executable).parent
-    kept = [entry for entry in os.environ.get("PATH", "").split(os.pathsep) if entry and Path(entry) != venv_bin and Path(entry).resolve() != venv_bin.resolve()]
+    kept = []
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry:
+            continue
+        path = Path(entry)
+        if path == venv_bin or path.resolve() == venv_bin.resolve():
+            continue
+        if (path / "spec-kitty").is_file():
+            continue
+        kept.append(entry)
     monkeypatch.setenv("PATH", os.pathsep.join(kept))
 
     assert shutil.which("git") is not None, (

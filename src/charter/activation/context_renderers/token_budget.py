@@ -121,6 +121,10 @@ class RenderedSection:
         Optional indentation applied to the fetch stanza lines when the
         section is substituted, so substituted output remains aligned
         with the surrounding list structure.
+    replacement_body:
+        Optional pre-rendered compact replacement. Used for global-selection
+        groups, where retaining the selected IDs plus one parameterized fetch
+        command is more useful than dropping the group to one selector.
     """
 
     section_id: str
@@ -130,15 +134,13 @@ class RenderedSection:
     when_doing_clause: str = ""
     substitutable: bool = True
     indent: str = ""
+    replacement_body: str | None = None
 
 
 def warning_line(count: int, budget: int) -> str:
     """Return the trailing warning line for *count* substitutions at *budget*."""
 
-    return (
-        f"# Governance payload: {count} sections substituted with fetch "
-        f"commands (budget={budget})."
-    )
+    return f"# Governance payload: {count} sections substituted with fetch commands (budget={budget})."
 
 
 def budget_without_warning_line(count: int, budget: int) -> int:
@@ -174,20 +176,24 @@ def _substituted_section(section: RenderedSection) -> RenderedSection:
     """Return a copy of *section* whose body is the canonical fetch stanza."""
 
     clause = section.when_doing_clause or DEFAULT_WHEN_CLAUSE
-    if not section.selector:
+    if section.replacement_body is not None:
+        replacement = section.replacement_body
+    elif section.selector:
+        replacement = fetch_stanza(section.selector, clause, indent=section.indent)
+    else:
         # No fetch path available — keep the original body so we don't
         # silently drop content with no recovery rail.  This is also
         # guarded by the ``substitutable`` flag in :func:`apply_token_budget`.
         return section
-    stanza = fetch_stanza(section.selector, clause, indent=section.indent)
     return RenderedSection(
         section_id=section.section_id,
         header=section.header,
-        body=stanza,
+        body=replacement,
         selector=section.selector,
         when_doing_clause=clause,
         substitutable=False,  # Already substituted; never re-swap.
         indent=section.indent,
+        replacement_body=None,
     )
 
 
@@ -238,11 +244,7 @@ def apply_token_budget(
 
     while len(joined) > budget_without_warning_line(len(notes), budget):
         # Pick the longest substitutable section with a non-empty selector.
-        candidates = [
-            (idx, sec)
-            for idx, sec in enumerate(current)
-            if sec.substitutable and sec.selector and sec.body
-        ]
+        candidates = [(idx, sec) for idx, sec in enumerate(current) if sec.substitutable and (sec.selector or sec.replacement_body is not None) and sec.body]
         if not candidates:
             # Nothing left to swap — break out and let the caller see the
             # over-budget text rather than looping forever.
@@ -254,9 +256,7 @@ def apply_token_budget(
         target_index, target_section = candidates[0]
         replaced = _substituted_section(target_section)
         current[target_index] = replaced
-        notes.append(
-            f"{target_section.section_id} (body {len(target_section.body)} chars -> fetch stanza)"
-        )
+        notes.append(f"{target_section.section_id} (body {len(target_section.body)} chars -> fetch stanza)")
         joined = _join_sections(current)
 
     if notes:
@@ -395,9 +395,7 @@ def _split_critical_sections(text: str) -> list[tuple[str, str, str]]:
     return result
 
 
-def _collect_section_block_candidates(
-    section_block: str, action: str
-) -> list[RenderedSection]:
+def _collect_section_block_candidates(section_block: str, action: str) -> list[RenderedSection]:
     """Build the per-heading swap candidates for *section_block*.
 
     ``section_block`` (the action-critical charter sections — Terminology
@@ -456,9 +454,7 @@ def _collect_section_block_candidates(
                 header=header,
                 body=body,
                 selector=f"section:critical-{action}",
-                when_doing_clause=(
-                    "need to consult the action-critical charter sections"
-                ),
+                when_doing_clause=("need to consult the action-critical charter sections"),
                 substitutable=True,
                 indent="  ",
             )
@@ -490,9 +486,7 @@ def _collect_profile_block_candidates(profile_block: str) -> list[RenderedSectio
                 header=header,
                 body=body,
                 selector="section:profile-citations",
-                when_doing_clause=(
-                    "need to consult the profile-cited directives and tactics"
-                ),
+                when_doing_clause=("need to consult the profile-cited directives and tactics"),
                 substitutable=True,
                 indent="  ",
             )
@@ -500,9 +494,58 @@ def _collect_profile_block_candidates(profile_block: str) -> list[RenderedSectio
     return candidates
 
 
-def _swap_candidates_into_text(
-    text: str, candidates: list[RenderedSection], budget: int
-) -> tuple[str, list[str]]:
+_SELECTION_GROUPS: dict[str, tuple[str, str]] = {
+    "Selected paradigms:": ("paradigm", "are about to choose a reasoning frame"),
+    "Selected directives:": ("directive", "are about to apply a code change"),
+    "Selected tactics:": ("tactic", "are about to apply a code change"),
+    "Selected styleguides:": ("styleguide", "are about to write styled output"),
+    "Selected toolguides:": ("toolguide", "are about to invoke a project tool"),
+    "Selected procedures:": ("procedure", "are about to follow a workflow"),
+    "Selected agent profiles:": ("agent_profile", "are about to apply a code change"),
+    "Selected mission step contracts:": (
+        "mission_step_contract",
+        "are about to step a mission action",
+    ),
+}
+
+
+def _collect_selection_block_candidates(selection_block: str) -> list[RenderedSection]:
+    """Build compactable per-kind candidates for global doctrine selections.
+
+    A project can deliberately select hundreds of artifacts. Their individual
+    bodies are useful while the aggregate fits, but must not bypass the 40k
+    prompt cap. Under pressure, retain every selected ID and replace only the
+    bodies with one parameterized, executable-shape fetch instruction per kind.
+    """
+    candidates: list[RenderedSection] = []
+    for header, body in _split_profile_blocks(selection_block):
+        group = _SELECTION_GROUPS.get(header)
+        if group is None or not body:
+            continue
+        kind, clause = group
+        id_lines = [line for line in body.splitlines() if line.startswith("  - ")]
+        if not id_lines:
+            continue
+        compact = "\n".join(
+            [
+                *id_lines,
+                f"  Run: spec-kitty charter context --include {kind}:SELECTED_ID",
+                (f"  When you {clause}, replace SELECTED_ID with an ID above and apply the returned rule."),
+            ]
+        )
+        candidates.append(
+            RenderedSection(
+                section_id=f"global-selection:{kind}",
+                header=header,
+                body=body,
+                substitutable=True,
+                replacement_body=compact,
+            )
+        )
+    return candidates
+
+
+def _swap_candidates_into_text(text: str, candidates: list[RenderedSection], budget: int) -> tuple[str, list[str]]:
     """Swap *candidates* (already sorted longest-first) into *text*.
 
     Iterates the sorted candidates, replacing each section's body with its
@@ -521,13 +564,15 @@ def _swap_candidates_into_text(
     for section in candidates:
         if len(current_text) <= budget_without_warning_line(len(swapped_ids), budget):
             break
-        stanza = "\n".join(
-            fetch_stanza_lines(
-                section.selector,
-                section.when_doing_clause,
-                indent=section.indent,
+        stanza = section.replacement_body
+        if stanza is None:
+            stanza = "\n".join(
+                fetch_stanza_lines(
+                    section.selector,
+                    section.when_doing_clause,
+                    indent=section.indent,
+                )
             )
-        )
         # Replace only the first occurrence — the block is rendered
         # exactly once in the bootstrap text.
         new_text = current_text.replace(section.body, stanza, 1)
@@ -545,6 +590,7 @@ def _enforce_token_budget(
     action: str,
     profile_block: str,
     section_block: str,
+    selection_block: str = "",
     budget: int = BUDGET_DEFAULT,
 ) -> str:
     """Apply the NFR-001 token budget to *text* (WP05, consolidated WP04 T019).
@@ -573,6 +619,7 @@ def _enforce_token_budget(
 
     candidates = _collect_section_block_candidates(section_block, action)
     candidates.extend(_collect_profile_block_candidates(profile_block))
+    candidates.extend(_collect_selection_block_candidates(selection_block))
 
     if not candidates:
         # Nothing safe to substitute — return the original text so we

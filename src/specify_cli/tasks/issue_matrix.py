@@ -47,6 +47,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from specify_cli.core.owned_mission import effective_root_kwargs
+
 if TYPE_CHECKING:
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
 
@@ -263,6 +265,7 @@ def write_issue_matrix(
     policy: ProtectionPolicyLike,
     actor: str = "system",
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> WriteSeamResult:
     """The ONE canonical ``issue-matrix.json`` writer (T020).
 
@@ -305,6 +308,7 @@ def write_issue_matrix(
         entry_id=actor,
         target_branch=target_branch,
         primary_paths_created_this_invocation=frozenset({path}),
+        effective_root=effective_root,
     )
 
 
@@ -321,6 +325,7 @@ def scaffold_issue_matrix(
     mission_slug: str,
     policy: ProtectionPolicyLike,
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> Path | None:
     """Author ``issue-matrix.json`` from detected GH issue refs (B3).
 
@@ -353,10 +358,17 @@ def scaffold_issue_matrix(
     """
     from mission_runtime import MissionArtifactKind, coord_read_dir_for
 
-    issue_matrix_dir = (
-        coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
-        or feature_dir
-    )
+    if effective_root is not None:
+        from mission_runtime import placement_seam
+
+        issue_matrix_dir = placement_seam(repo_root, mission_slug, effective_root=effective_root).read_dir(
+            MissionArtifactKind.ISSUE_MATRIX
+        )
+    else:
+        issue_matrix_dir = (
+            coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+            or feature_dir
+        )
     json_path = issue_matrix_dir / ISSUE_MATRIX_JSON_FILENAME
     if json_path.exists() or (issue_matrix_dir / ISSUE_MATRIX_MD_FILENAME).exists():
         # Respect existing content (JSON or legacy .md) -- idempotent re-runs
@@ -384,6 +396,7 @@ def scaffold_issue_matrix(
         policy=policy,
         actor="finalize-scaffold",
         target_branch=target_branch,
+        **effective_root_kwargs(effective_root),
     )
     if result.status in ("committed", "unchanged"):
         # ``issue_matrix_dir`` was resolved BEFORE the write and is unaffected
@@ -391,4 +404,6 @@ def scaffold_issue_matrix(
         # reuse it rather than ``feature_dir``, which write-seam residue
         # cleanup (R6) may already have unlinked for a coord-routed mission.
         return json_path
+    if effective_root is not None:
+        raise RuntimeError(result.diagnostic or "Owned issue matrix write failed.")
     return None

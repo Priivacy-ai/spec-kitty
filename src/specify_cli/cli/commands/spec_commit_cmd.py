@@ -7,15 +7,14 @@ command (which is mission-blind), this command derives the mission slug from a
 boundary, and routes the commit through
 :func:`~specify_cli.coordination.commit_router.commit_for_mission`.
 
-A protected primary refuses the commit outright: SPEC is a primary-partition
-kind, so it always targets the mission's primary ``target_branch`` and never
-transits the coordination worktree (FR-003 / C-005). The operator must move
-the mission onto a non-protected feature branch before retrying.
+SPEC is a PRIMARY/planning artifact, so it lands on the mission's primary
+target branch for every topology and NEVER routes through coordination
+(write-surface-coherence WP02/WP03). On a PROTECTED primary the commit is
+therefore refused — not silently transited to a coord worktree — with the two
+real remedies: create/check out a non-protected feature branch, or set the
+``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` operator hatch (#2739 B01).
 
 Design basis: WP02 / IC-02 / ADR ``2026-06-21-1``.
-
-C-001: reuses the canonical materialiser, no new materialiser.
-#1718: materialisation happens at this commit boundary, not at read time.
 """
 
 from __future__ import annotations
@@ -23,13 +22,15 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from specify_cli.cli.console import console
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index, resolve_owned_mission
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.task_utils import find_repo_root
 
@@ -74,6 +75,7 @@ def _payload(
     commit_hash: str | None = None,
     error: str | None = None,
     diagnostic: str | None = None,
+    reason: str | None = None,
 ) -> dict[str, object]:
     result: dict[str, object] = {
         "result": "success" if success else "error",
@@ -88,12 +90,50 @@ def _payload(
         result["error"] = error
     if diagnostic is not None:
         result["diagnostic"] = diagnostic
+    if reason is not None:
+        result["reason"] = reason
     return result
 
 
 # ---------------------------------------------------------------------------
 # Command
 # ---------------------------------------------------------------------------
+
+
+def _resolve_commit_inputs(
+    repo_root: Path, files: list[Path], mission: str | None,
+    owned_checkout: Path | None, target_branch: str | None,
+) -> tuple[str | None, list[Path], OwnedMission | None]:
+    """Resolve and validate the complete commit batch before any mutation."""
+    mission_slug = _derive_mission_slug(str(files[0]) if files else None, mission)
+    if owned_checkout is not None:
+        owned = resolve_owned_mission(repo_root, owned_checkout, mission_slug, target_override=target_branch)
+        abs_files = owned.files(files)
+        require_unstaged_index(owned)
+        return owned.slug, abs_files, owned
+    abs_files = [(repo_root / path).resolve() if not path.is_absolute() else path.resolve() for path in files]
+    return mission_slug, abs_files, None
+
+
+def _reject_directory_args(abs_files: list[Path], json_output: bool) -> None:
+    """Fail fast on directory arguments with a clear, files-only message.
+
+    #2739 B11: git stages a directory's files, but the safe-commit backstop
+    compares literally against the requested path (the directory), so a directory
+    arg would otherwise abort with the opaque "staging area contains unexpected
+    paths" error. Reject early with actionable guidance instead.
+    """
+    directory_args = [f for f in abs_files if f.is_dir()]
+    if not directory_args:
+        return
+    listed = ", ".join(str(d) for d in directory_args)
+    _err(
+        json_output,
+        "spec-commit takes individual file paths, not directories. "
+        f"Received director{'ies' if len(directory_args) > 1 else 'y'}: "
+        f"{listed}. Pass the specific files to commit instead.",
+    )
+    raise typer.Exit(1)
 
 
 def spec_commit_command(
@@ -123,24 +163,24 @@ def spec_commit_command(
         ),
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON."),
+    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit single-branch checkout root.")] = None,
 ) -> None:
     """Commit spec artifacts to the mission's resolved placement.
 
-    On a protected primary the commit is refused: the mission's target_branch
-    must be a non-protected feature branch before a retry can succeed. On an
-    unprotected or flattened primary the commit is direct.
+    SPEC is a primary/planning artifact: it lands on the mission's primary target
+    branch for every topology. On an unprotected or flattened primary the commit
+    is direct. On a PROTECTED primary the commit is refused (there is no fallback
+    surface); recover by either creating/checking out a non-protected feature
+    branch ('spec-kitty agent mission create --start-branch <feature-branch>') or
+    setting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current
+    branch.
+
+    Pass individual FILES, not directories.
     """
     try:
         repo_root = _current_repo_root()
-
-        # Normalise file paths.
-        abs_files: list[Path] = []
-        for f in files:
-            abs_files.append((repo_root / f).resolve() if not f.is_absolute() else f.resolve())
-
-        # Derive mission slug.
-        first_path_arg = str(files[0]) if files else None
-        mission_slug = _derive_mission_slug(first_path_arg, mission)
+        mission_slug, abs_files, owned = _resolve_commit_inputs(repo_root, files, mission, owned_checkout, target_branch)
+        _reject_directory_args(abs_files, json_output)
         if not mission_slug:
             _err(
                 json_output,
@@ -164,6 +204,7 @@ def spec_commit_command(
             # topology — no planning→coord transit.
             kind=MissionArtifactKind.SPEC,
             target_branch=target_branch,
+            effective_root=owned.root if owned else None,
         )
 
         if result.status == "committed":
@@ -183,7 +224,14 @@ def spec_commit_command(
                     console.print(f"[dim]Commit: {result.commit_hash[:7]}[/dim]")
 
         elif result.status == "unchanged":
-            payload = _payload(success=True, committed=False, placement_ref=result.placement_ref)
+            # #2739 B03: a committed:false success must carry a machine-readable
+            # reason so a caller can tell "nothing to do" from "silently wrong".
+            payload = _payload(
+                success=True,
+                committed=False,
+                placement_ref=result.placement_ref,
+                reason=result.reason or "no_op",
+            )
             if json_output:
                 print(json.dumps(payload, indent=2))
             else:
@@ -221,6 +269,13 @@ def spec_commit_command(
 
     except typer.Exit:
         raise
+    except ActionContextError as exc:
+        payload = {**_payload(success=False, error=str(exc)), "error_code": exc.code}
+        if json_output:
+            print(json.dumps(payload))
+        else:
+            console.print(f"[red]{exc.code}:[/red] {exc}")
+        raise typer.Exit(1) from exc
     except (RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
         payload = _payload(success=False, error=str(exc))
         if json_output:

@@ -2,7 +2,7 @@
 title: How to Merge a Mission
 description: 'How to merge a mission with Spec Kitty 3.2: Use this guide to merge completed work packages from a Spec Kitty mission into its target branch.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-31'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -274,6 +274,38 @@ spec-kitty merge --remove-worktree --delete-branch
 
 These flags are useful when you want to override a config default that keeps artifacts.
 
+### Mission Retention Policy
+
+A mission can declare a standing retention policy in its `meta.json` — `retain_branches: true` and/or `retain_worktrees: true` — instead of relying on an operator remembering `--keep-branch`/`--keep-worktree` on every merge. Mint it at mission creation (see [Declaring Retention at Creation](#declaring-retention-at-creation)); it is absent by default, so missions that never opt in keep today's default cleanup behavior unchanged.
+
+Effective cleanup resolves with this precedence:
+
+**explicit CLI flag (`--keep-branch`/`--delete-branch`, `--keep-worktree`/`--remove-worktree`) > `meta.json` retention policy > default (delete/remove)**
+
+The mapping onto the long-standing flags is 1:1: `retain_branches` resolves to an effective `--keep-branch`; `retain_worktrees` resolves to an effective `--keep-worktree`.
+
+**Fail-closed, and never silent:**
+
+- When no cleanup flag is passed and the mission's policy requests retention, merge **retains** the resource and prints an operator-visible warning naming the source (`meta.json`).
+- When an operator explicitly passes `--delete-branch` (or `--remove-worktree`) against a retaining mission, the deletion proceeds — but a **notice** is printed recording that the explicit flag overrode the mission's retention policy. Retention is never silently discarded.
+- A corrupt `meta.json` aborts the merge with a clear error rather than falling through to delete.
+- A malformed (non-boolean) retention value is treated as retaining, with a warning — never silently coerced to "delete".
+- `spec-kitty merge --dry-run` previews the **resolved** cleanup decision: for a retaining mission with no cleanup flags it reports `delete_branch: false` / `remove_worktree: false` and a `retention` provenance object, so you can confirm the policy is honored before running the real merge.
+
+**Coordination topology is retained/torn down as one unit.** For a coordination-topology mission, the coordination branch, its worktree, and its `coordination_branch` marker in `meta.json` are a single consistency triple. They are only torn down when **both** branches and worktrees resolve to delete/remove; if either resource resolves to "retain" (via meta.json or `--keep-*`), the whole coordination triple is kept together. This prevents a partial-retention request (e.g. `retain_branches: true` alone) from stranding a half-torn coordination state — the marker is never flattened while its worktree survives, and vice versa. `spec-kitty merge --abort` honors the same coupled decision for the coordination worktree during rollback.
+
+**The internal merge scratch worktree is not a retained resource.** `spec-kitty merge` uses a private scratch worktree under `.kittify/runtime/merge/<id>/workspace` as working plumbing during the merge — distinct from a mission's lane worktrees. It is always cleaned up unconditionally at the end of a merge, even when `retain_worktrees: true` is in effect.
+
+#### Declaring Retention at Creation
+
+Opt a mission into retention when creating it:
+
+```bash
+spec-kitty agent mission create "<slug>" --retain-branches --retain-worktrees ...
+```
+
+This mints `retain_branches`/`retain_worktrees` into the mission's `meta.json` at creation time, so the policy is machine-readable from the start rather than living only as prose a merge cannot read.
+
 ## Push After Merge
 
 Push to origin immediately after merge:
@@ -385,8 +417,8 @@ For the full command reference, see
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for multi-workspace missions) | `merge` |
-| `--delete-branch` / `--keep-branch` | Delete lane and mission branches after merge | Delete |
-| `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge | Remove |
+| `--delete-branch` / `--keep-branch` | Delete lane and mission branches after merge. Unset defers to the mission's `meta.json` `retain_branches` policy (see [Mission Retention Policy](#mission-retention-policy)); passing either flag always wins | Delete (unless `retain_branches: true` in `meta.json`) |
+| `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge. Unset defers to the mission's `meta.json` `retain_worktrees` policy; passing either flag always wins | Remove (unless `retain_worktrees: true` in `meta.json`) |
 | `--push` | Push to origin after merge | No push |
 | `--target` | target branch to merge into | `main` |
 | `--dry-run` | Show what would be done without executing | - |

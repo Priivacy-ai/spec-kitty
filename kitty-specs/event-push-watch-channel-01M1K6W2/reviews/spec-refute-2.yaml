@@ -1,0 +1,29 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-ARCH-002
+    verdict: refuted
+    reason: "US2 AC1's full sentence reads '...signal envelope on the JSON stream (see FR-005 for the exact shape), and resynchronizes...' — the finding's evidence quote drops the parenthetical cross-reference to FR-005 and the trailing '...' in the literal, both of which are exactly the same hedge pattern used everywhere else, so there is no tension."
+
+  - id: SPEC-VERIFY-001
+    verdict: refuted
+    reason: "FR-002 ('Byte-offset resumable reads... I want the reader to resume from a supplied byte offset') unconditionally mandates an offset-input mechanism with no and/or hedge, so even though FR-004's own wording is loosely hedged, the spec elsewhere already requires the accept-input path that makes US3 AC1 executable."
+
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: "Verified directly: User Story 2 (and only US2) has two Given/When/Then Acceptance Scenarios, both for shape (b); shape (a) (mid-line tear) appears only as an Edge Cases prose bullet and FR-006's table row, with no Given/When/Then anywhere in the file."
+
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: "NFR-003's first sentence explicitly names 'torn-line' among the paths that must not silently report success, and its second sentence blanket-requires an explicit signal for every FR-005–FR-009 condition, but FR-006's own text mandates the torn line be 'treated as not yet flushed and retried next poll' with no signal described — a genuine textual tension, not resolved elsewhere in the spec."
+
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: "Verified against the FR table: 'Log file does not exist yet' cites FR-007 (actually shape-b truncation) but the matching FR is FR-008 ('Wait for a not-yet-created log file'); 'Mission slug does not resolve' cites FR-008 (actually wait-for-file) but the matching FR is FR-009 ('Fail closed on an unresolvable mission slug') — both off-by-one exactly as claimed."
+
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: "Full read of FR-002, FR-004, NFR-003, and every Edge Cases bullet confirms none specify behavior for an invalid, negative, or out-of-range resume offset — a genuine, unaddressed gap."

@@ -878,6 +878,7 @@ def _missing_event_classification(
     return "missing_authoritative_event" if event_ids - governed_ids else "mutant_survived"
 
 
+@pytest.mark.stress
 def test_coordination_transaction_lock_negative_control_reports_exact_missing_event_cause(
     tmp_path: Path,
 ) -> None:

@@ -193,9 +193,10 @@ def _empty_slot_map() -> dict[str, list[str]]:
 def _classify_artifact_urns(
     artifact_urns: frozenset[str] | set[str],
     merged: DRGGraph,
-    project_directives: set[str],
+    project_directives: set[str] | None,
     selected_tactics: set[str] | None = None,
     selected_paradigms: set[str] | None = None,
+    action_urn: str | None = None,
 ) -> Mapping[str, tuple[str, ...]]:
     """Partition resolved artifact URNs into a slot-keyed mapping.
 
@@ -204,13 +205,70 @@ def _classify_artifact_urns(
     spawned five parallel per-kind projections that drifted apart, and every
     drift was a delivery defect (WP10/T053). A kind with no recorded verdict
     raises via :func:`action_bundle_bucket` rather than falling out unnoticed.
+
+    WP02 (Decision Record 2, FR-014): ``project_directives`` is three-state
+    (``None`` / ``frozenset()`` / non-empty) at THIS boundary too, mirroring
+    :func:`~charter.activation.action_doctrine_bundle._load_action_doctrine_bundle`'s
+    own three-state handling of its caller-facing fields. The production
+    caller never passes ``None`` here -- it converts once, at assignment,
+    before calling in -- but this function stays correct standing alone
+    (defense-in-depth, not the load-bearing fix) because
+    ``tests/charter/test_action_bundle_delivery.py`` calls it directly with
+    ``None`` to mean "no project-directive scoping applied" (PLAN-GOV-001).
+    ``None`` seeds no directive start URNs below (same as an empty set would
+    -- the seeding step is orthogonal to the exclusion guard's own
+    ``is not None`` semantics further down) and never crashes on iteration.
+
+    Follow-on fix (operator ruling, ``reviews/wp02.ruling.md``):
+    ``project_directives``/``selected_tactics``/``selected_paradigms`` serve
+    TWO different jobs here -- the exclusion-guard allowlist just below
+    (correctly ``None -> all built-ins``: an unconfigured project permits
+    everything) and the SEED set for the ``requires``/``suggests`` closure
+    walk (``selected_closure``). Those jobs must not share one unscoped
+    result: a seed URN is unconditionally "visited" by
+    :func:`~charter.offering.drg.query.walk_edges` (it is a start node), so
+    unioning the closure's raw output into ``artifact_urns`` with no
+    ownership check let a directive SCOPED TO A DIFFERENT ACTION leak into
+    every action's delivered set regardless of whether the graph's own
+    author ever placed it there -- the FR-005 (``DIRECTIVE_003``, scoped
+    onto ``plan``/``review``/etc, leaking onto ``implement``) and #883
+    (``DIRECTIVE_001``, scoped onto ``software-dev/implement``, leaking onto
+    ``documentation/implement``) leaks.
+
+    The gate is NOT "must be reachable within the resolving action's own
+    ``resolve_context``-style scope walk": that reading was tried first and
+    it broke ``tests/charter/test_context.py``'s
+    ``test_selected_directive_closure_contributes_action_context`` and
+    ``test_org_required_primary_kinds_contribute_to_prompt``, both of which
+    are pre-existing, load-bearing, and explicitly documented ("Selected
+    directives contribute their DRG closure even without action-scope
+    edges") -- a directive nobody has scoped to ANY action at all (a fully
+    "floating" catalog entry, activated project-wide) is meant to widen
+    into whichever action resolves it, precisely because no graph author
+    claimed it for somewhere else. The two failure classes are
+    distinguished by ownership, not reachability: *``action_urn``* (new,
+    optional, trailing) lets the caller identify the resolving action so a
+    closure result can be excluded exactly when some OTHER action's
+    ``Relation.SCOPE`` edge claims it (checked via a direct edge lookup, not
+    a walk) -- never merely because this action's own scope walk does not
+    happen to reach it. A closure result with zero scope owners anywhere in
+    the graph is never excluded on ownership grounds. Callers that supply no
+    ``action_urn`` (this module's own direct-call test fixtures) get the
+    conservative fallback: exclude any closure result that has ANY scope
+    owner at all (fail closed on the ambiguous case, never fail open).
     """
     from charter.offering.drg.models import Relation
     from charter.offering.drg.query import resolve_transitive_refs
 
+    # selected_tactics / selected_paradigms have no three-state exclusion
+    # guard anywhere in this function (only project_directives does, below) --
+    # these two lines are therefore defense-in-depth / a documented no-op
+    # guard against a caller passing None, not load-bearing after WP02 (the
+    # real caller, _load_action_doctrine_bundle, converts None to a concrete
+    # catalog-default set once, before calling in).
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()
-    start_urns = {f"directive:{directive_id}" for directive_id in project_directives}
+    start_urns = {f"directive:{directive_id}" for directive_id in (project_directives or ())}
     start_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_tactics)
     start_urns.update(f"paradigm:{paradigm_id}" for paradigm_id in selected_paradigms)
     selected_closure = resolve_transitive_refs(
@@ -219,10 +277,50 @@ def _classify_artifact_urns(
         relations={Relation.REQUIRES, Relation.SUGGESTS},
     )
     artifact_urns = set(artifact_urns)
-    artifact_urns.update(f"directive:{directive_id}" for directive_id in selected_closure.directives)
-    artifact_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_closure.tactics)
-    artifact_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
-    artifact_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
+
+    closure_urns: set[str] = set()
+    closure_urns.update(f"directive:{directive_id}" for directive_id in selected_closure.directives)
+    closure_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_closure.tactics)
+    closure_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
+    closure_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
+
+    if closure_urns:
+        # Scope gate: exclude a closure result exactly when it is scope-owned
+        # by a DIFFERENT action -- see the docstring above for why this is
+        # ownership, not reachability. Built as a direct SCOPE-edge lookup
+        # (every action URN that scopes each target), never a walk: ownership
+        # is a one-hop fact, not a transitive-closure question. Gated behind
+        # a non-empty closure so a minimal stub ``merged`` (some callers only
+        # implement ``get_node``) is never asked for ``.edges`` when there is
+        # nothing to gate.
+        # ``Relation.SCOPE`` is two-grain (accepted debt #3604/#3633,
+        # ``charter.offering.drg.models`` NodeKind.MISSION_TYPE docstring):
+        # ``source`` is EITHER an ``action:`` URN (this action's own scope)
+        # OR a ``mission_type:`` URN (type-wide governance, applying to
+        # every action of that mission type). Only an ``action:``-sourced
+        # edge means "a different ACTION claims this URN" -- the ownership
+        # question this gate exists to answer (see the docstring above). A
+        # ``mission_type:``-sourced owner must stay invisible to this map,
+        # or type-wide-scoped doctrine reached via the closure gets treated
+        # as foreign-owned and silently dropped, regardless of how many
+        # actions of that mission type it is meant to widen into.
+        scope_owners: dict[str, set[str]] = {}
+        for edge in merged.edges:
+            if edge.relation is Relation.SCOPE and edge.source.startswith("action:"):
+                scope_owners.setdefault(edge.target, set()).add(edge.source)
+
+        def _owned_by_a_different_action(urn: str) -> bool:
+            owners = scope_owners.get(urn)
+            if not owners:
+                return False
+            if action_urn is None:
+                # No resolving action identified -- can't confirm any owner
+                # IS this action, so fail closed: treat every owned URN as
+                # foreign.
+                return True
+            return bool(owners - {action_urn})
+
+        artifact_urns.update(urn for urn in closure_urns if not _owned_by_a_different_action(urn))
 
     slots = _empty_slot_map()
     for urn in sorted(artifact_urns):
@@ -235,7 +333,11 @@ def _classify_artifact_urns(
         if slot is None:
             continue
         artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
-        if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives:
+        if (
+            node.kind is NodeKind.DIRECTIVE
+            and project_directives is not None
+            and artifact_id not in project_directives
+        ):
             continue
         slots[slot].append(artifact_id)
     return {slot: tuple(ids) for slot, ids in slots.items()}

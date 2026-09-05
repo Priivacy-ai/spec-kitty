@@ -387,3 +387,47 @@ class TestIncludeHelp:
         normalized = " ".join(result.output.split())
         assert "agent-profile" in normalized
         assert "template" in normalized
+
+
+# ---------------------------------------------------------------------------
+# #3816 — the directive selector resolves the exact slug IDs the ``--json``
+# surface advertises, at parity with tactic/agent-profile. Exercised against
+# the REAL built-in directive corpus (not a stub) so the repository's own
+# id-normalization seam is under test, close-by-construction (directive 043):
+# every advertised built-in directive slug must resolve EXIT 0.
+# ---------------------------------------------------------------------------
+
+
+def _built_in_directive_stems() -> list[str]:
+    from charter.offering.artifact_kinds import ArtifactKind
+    from charter.offering.pack_paths import built_in_dir
+
+    return sorted(
+        p.name.split(".")[0]
+        for p in built_in_dir(ArtifactKind.DIRECTIVE).glob("*.directive.yaml")
+    )
+
+
+class TestDirectiveIncludeSlugParity:
+    def test_every_built_in_directive_slug_resolves(self, tmp_path: Path) -> None:
+        stems = _built_in_directive_stems()
+        # Non-vacuity: the corpus must actually be enumerable, or the loop
+        # below would pass trivially by iterating nothing.
+        assert len(stems) >= 20, "built-in directive corpus unexpectedly small"
+        for stem in stems:
+            text = build_charter_context_include(tmp_path, f"directive:{stem}")
+            assert text.startswith("Directive "), stem
+
+    def test_slug_and_canonical_forms_agree(self, tmp_path: Path) -> None:
+        # The slug the ``--json`` surface advertises and the DIRECTIVE_NNN
+        # canonical form must resolve to the same directive body.
+        by_slug = build_charter_context_include(tmp_path, "directive:025-boy-scout-rule")
+        by_canonical = build_charter_context_include(tmp_path, "directive:DIRECTIVE_025")
+        assert by_slug.startswith("Directive DIRECTIVE_025:")
+        assert by_slug == by_canonical
+
+    def test_unknown_directive_slug_still_fails_closed(self, tmp_path: Path) -> None:
+        # The gate must bite: a bogus slug is a structured miss, not a silent
+        # pass — otherwise the parity test above could never be red.
+        with pytest.raises(ValueError, match="No directive found"):
+            build_charter_context_include(tmp_path, "directive:999-not-a-real-directive")

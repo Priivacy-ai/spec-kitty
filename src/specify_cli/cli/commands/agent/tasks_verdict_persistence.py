@@ -303,6 +303,8 @@ def _resolve_revert_commit_worktree(
     when the coord-staged copy is already absent (idempotent no-op, mirroring
     the primary-copy check in the caller).
     """
+    if st.owned is not None:
+        return st.owned.root, original_path
     if target_ref == st.target_branch:
         return st.main_repo_root, original_path
 
@@ -343,7 +345,8 @@ def revert_committed_verdict_write(
     if not signal.durably_persisted or signal.artifact_path is None:
         return
     try:
-        with acquire_verdict_save_queue(st.main_repo_root):
+        queue_root = st.owned.root if st.owned is not None else st.main_repo_root
+        with acquire_verdict_save_queue(queue_root):
             _revert_committed_verdict_write_held(st, signal)
     except VerdictSaveBusy as exc:
         raise VerdictRevertError(
@@ -429,9 +432,11 @@ def _revert_committed_verdict_write_held(
         f"revert: undo review-cycle-{signal.cycle_number} verdict for "
         f"{st.task_id} on {st.mission_slug} (transition emit failed, FR-002)"
     )
-    target = placement_seam(st.main_repo_root, st.mission_slug).write_target(
-        kind=MissionArtifactKind.REVIEW_CYCLE
-    )
+    target = placement_seam(
+        st.main_repo_root,
+        st.mission_slug,
+        effective_root=st.owned.root if st.owned else None,
+    ).write_target(kind=MissionArtifactKind.REVIEW_CYCLE)
     worktree_root, commit_path = _resolve_revert_commit_worktree(
         st, target_ref=target.ref, original_path=original_path
     )
@@ -439,7 +444,7 @@ def _revert_committed_verdict_write_held(
         return  # coord-staged copy already reverted (or never landed) -- idempotent no-op
     try:
         safe_commit(
-            repo_root=st.main_repo_root,
+            repo_root=st.owned.root if st.owned is not None else st.main_repo_root,
             worktree_root=worktree_root,
             target=target,
             message=message,
@@ -537,7 +542,8 @@ def _persist_review_cycle_with_queue(
         ):
             review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
         else:
-            with acquire_verdict_save_queue(st.main_repo_root):
+            queue_root = st.owned.root if st.owned is not None else st.main_repo_root
+            with acquire_verdict_save_queue(queue_root):
                 review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
     except VerdictSaveBusy as exc:
         _raise_verdict_busy_failure(reason="verdict_save_busy", cause=exc)
@@ -845,7 +851,11 @@ def _persist_approved_review_cycle(
     """
     if st.request is not None and st.request.is_arbiter_override:
         return None
-    wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+    wp_slug = (
+        st.wp.path.stem
+        if st.owned is not None and st.wp is not None
+        else _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+    )
     lookup = event_sourced_review_result(st.feature_dir, st.task_id)
     # FR-007 (T2 / IC-04): a malformed/damaged event-sourced slot
     # (``slot_present=True, result=None``) stays a no-op, UNCHANGED — the
@@ -904,6 +914,7 @@ def _persist_approved_review_cycle(
             verdict="approved",
             commit_router=commit_router,
             reproduction_command=reproduction_command,
+            effective_root=st.owned.root if st.owned else None,
         )
 
     durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
@@ -932,10 +943,15 @@ def persist_rejected_review_cycle_for_rollback(
             main_repo_root=st.main_repo_root,
             mission_slug=st.mission_slug,
             wp_id=st.task_id,
-            wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
+            wp_slug=(
+                st.wp.path.stem
+                if st.owned is not None and st.wp is not None
+                else _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+            ),
             feedback_source=st.resolved_feedback_source,
             reviewer_agent=st.agent or "unknown",
             commit_router=commit_router,
+            effective_root=st.owned.root if st.owned else None,
         )
 
     durability_signal = _persist_review_cycle_with_queue(st, ports, _create)

@@ -509,6 +509,38 @@ def _emit_check_prerequisites_result(
         console.print(f"   • {warning}")
 
 
+def _run_resume_probe(
+    repo_root: Path,
+    feature: str | None,
+    *,
+    paths_only: bool,
+    include_tasks: bool,
+    require_tasks: bool,
+    json_output: bool,
+) -> None:
+    """Validate the resume-only options and report the existing resume contract."""
+    if not feature or not feature.strip():
+        _emit_console_or_json_error(
+            json_output=json_output,
+            message="--resume-probe requires --mission <provisional-slug>",
+        )
+        raise typer.Exit(1) from None
+    if paths_only or include_tasks or require_tasks:
+        _emit_console_or_json_error(
+            json_output=json_output,
+            message="--resume-probe cannot be combined with task/path validation flags",
+        )
+        raise typer.Exit(1) from None
+    try:
+        resume_payload = _build_resume_probe_payload(repo_root, feature.strip())
+    except ValueError as exc:
+        _emit_console_or_json_error(json_output=json_output, message=str(exc))
+        raise typer.Exit(1) from None
+    _emit_resume_probe_payload(resume_payload, json_output=json_output)
+    if resume_payload["resume_state"] in {"existing", "ambiguous", "malformed"}:
+        raise typer.Exit(1)
+
+
 def check_prerequisites(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -525,6 +557,7 @@ def check_prerequisites(
         bool,
         typer.Option("--require-tasks", hidden=True, help="Deprecated alias for --include-tasks"),
     ] = False,
+    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit single-branch checkout root.")] = None,
 ) -> None:
     """Validate mission structure and prerequisites.
 
@@ -556,27 +589,24 @@ def check_prerequisites(
             )
             raise typer.Exit(1) from None
 
+        owned = None
+        if owned_checkout is not None:
+            from specify_cli.core.owned_mission import resolve_owned_mission
+
+            owned = resolve_owned_mission(repo_root, owned_checkout, feature)
+            if resume_probe:
+                raise ActionContextError("OWNED_OPTION_UNSUPPORTED", "--resume-probe is not supported with --owned-checkout.")
+            repo_root = owned.root
+
         if resume_probe:
-            if not feature or not feature.strip():
-                _emit_console_or_json_error(
-                    json_output=json_output,
-                    message="--resume-probe requires --mission <provisional-slug>",
-                )
-                raise typer.Exit(1) from None
-            if paths_only or include_tasks or require_tasks:
-                _emit_console_or_json_error(
-                    json_output=json_output,
-                    message="--resume-probe cannot be combined with task/path validation flags",
-                )
-                raise typer.Exit(1) from None
-            try:
-                resume_payload = _build_resume_probe_payload(repo_root, feature.strip())
-            except ValueError as exc:
-                _emit_console_or_json_error(json_output=json_output, message=str(exc))
-                raise typer.Exit(1) from None
-            _emit_resume_probe_payload(resume_payload, json_output=json_output)
-            if resume_payload["resume_state"] in {"existing", "ambiguous", "malformed"}:
-                raise typer.Exit(1)
+            _run_resume_probe(
+                repo_root,
+                feature,
+                paths_only=paths_only,
+                include_tasks=include_tasks,
+                require_tasks=require_tasks,
+                json_output=json_output,
+            )
             return
 
         _mission._enforce_git_preflight(
@@ -603,7 +633,7 @@ def check_prerequisites(
         # single-authority-topology-cleanup mission (#1716 write-surface coherence).
         cwd = Path.cwd().resolve()
         try:
-            feature_dir = _mission._primary_anchored_feature_dir(repo_root, feature)
+            feature_dir = owned.directory if owned else _mission._primary_anchored_feature_dir(repo_root, feature)
             if feature_dir is None:
                 feature_dir = _mission._find_feature_directory(
                     repo_root,
@@ -635,6 +665,12 @@ def check_prerequisites(
 
     except typer.Exit:
         raise
+    except ActionContextError as e:
+        if json_output:
+            _emit_json({"error": str(e), "error_code": e.code})
+        else:
+            console.print(f"[red]{e.code}:[/red] {e}")
+        raise typer.Exit(1) from None
     except Exception as e:
         if json_output:
             _emit_json({"error": str(e)})

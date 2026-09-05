@@ -2,7 +2,7 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-09-03'
+updated: '2026-09-04'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
@@ -20,6 +20,112 @@ related:
 ## Intent of 3.2.x
 
 3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md) is the domain's canonical map of that split.
+
+## Addendum 2026-09-04 — milestone-taxonomy re-anchor (the delayed Action R)
+
+*Read-only reconciliation against live GitHub milestone/issue state on 2026-09-04
+(`gh api repos/Priivacy-ai/spec-kitty` with `GITHUB_TOKEN` unset). This addendum
+executes the taxonomy half of the [2026-07-30 Action R](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring)
+(re-anchor the tracker) that was filed but never run, and folds in the findings of the
+`work/3-2-x-checkup-2026-09-04/` roadmap checkup. The [2026-09-03 addendum](#addendum-2026-09-03--326-release-dag-fully-discharged-3692-closed)
+below correctly recorded the 3.2.6 DAG discharge but patched only that axis; the
+milestone map, the exit criteria, and the 2026-07-30 code claims were left stale. This
+addendum re-keys them. It does **not** rewrite the historical body — read the
+2026-07-04 spine, the 07-30 corrections, and every dated addendum through the milestone
+translation table below.*
+
+### 1. The milestone taxonomy the body speaks no longer exists
+
+A **release-queue reconciliation on 2026-08-23** reorganised the milestones. The entire
+corpus below (2026-07-04 body + the 07/08 addenda) is written in the *pre-reconciliation*
+dialect — "the 3.2.x milestone", "deferred to 3.3.x" — which is now obsolete. Live state:
+
+| # | Title | State | Open / Closed | What the body calls it |
+|---|---|---|---|---|
+| 4 | **Product backlog** | open | 552 / 468 | *"the 3.2.x milestone"* — repurposed; **validated but on no committed release** |
+| 5 | **3.3.x** | **closed** | 0 / 12 | *"deferred to 3.3.x"* — **retired 2026-08-23; work re-triaged to 4.0.0 or Product backlog** |
+| 7 | **3.2.6** | open | 0 / 67 | (post-body) stabilization — **code-complete, shipped-clean posture** |
+| 9 | **3.2.7** | open | 32 / 0 | (post-body) post-reconciliation follow-ups — doctrine-term renames, profile-load consolidation, perf CI, dedups (decision D10 / epic #830) |
+| 8 | **4.0.0** | open | 80 / 6 | (post-body) hosted collaboration + next-generation product |
+
+Milestone #5's own description is the citation: *"Retired after release-queue
+reconciliation on 2026-08-23. Open work was re-triaged into 4.0.0 or Product backlog."*
+
+**Translation table — read the body through this:**
+
+- Every *"3.2.x milestone"* / `milestone/4` link in the body now points at **Product
+  backlog** — a validated-but-uncommitted bucket, **not** a release. It is no longer the
+  cycle's burndown surface.
+- Every *"deferred to 3.3.x"* / `milestone/5` reference is stale — the 3.3.x milestone is
+  **closed/retired**; that work is now **4.0.0** (hosted product + deferred structural
+  epics) or **Product backlog** (uncommitted).
+- The clean GitHub boundary the plans never describe: **3.2.7** = finish the stabilization
+  tail cleanly (renames / profile-load / perf-CI / dedups); **4.0.0** = the hosted product
+  plus the deferred structural epics. The 4.0.0 declaration-of-intent is now written at
+  [`docs/changelog/4.0.0.md`](../changelog/4.0.0.md).
+
+### 2. Resolved-but-unstruck items in this doc and its siblings
+
+The following are asserted open in the body/exit-criteria but are demonstrably closed
+(verified 2026-09-04):
+
+- **Exit criterion 4 (`#2071` test-QA) cites an open blocker; #2071 CLOSED 2026-08-02.**
+  Read exit criterion 4 as satisfied-by-closure, not pending.
+- **The doctrine domain plan's §3.5 (meta.json fail-closed) lists #3230 / #3229 / #3228 /
+  #3240 as open children of epic #3259 — all five are CLOSED** (the children 2026-08-11,
+  the epic #3259 itself CLOSED). That whole sub-area is done; see the doctrine plan's own
+  2026-09-04 addendum.
+- **#3176** (the sole-door residual named in [Addendum 2026-08-04](#addendum-2026-08-04--charter-sole-door-bypass-closure-substantially-landed) item 3) is **CLOSED**.
+- **#2657 / #3183 / #2262** (doctrine arc / activation-availability) are **CLOSED**
+  (Aug 7 / — / Jul 26); the arc diagram and doctrine §3.3 still present them as pending.
+- **#3282 / #3307** (the P0s the exec overview and SaaS plan carried as open) are **CLOSED**
+  (#3282 under 3.2.6; #3307 discharged).
+
+### 3. G1 / G2 code claims are unrefreshed 2026-07-30 vintage
+
+The [2026-07-30 addendum](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring)
+G2 claims (`workflow.py`/`review.py` → 0 LOC, `core/execution_context.py` deleted, shim
+registry `shims: []`, only `_read_path_resolver` parked) are a **2026-07-30 audit that
+predates the entire 3.2.6 stabilization release** and has never been re-read against
+`3.2.7rc1` HEAD. They remain **unverified-as-of-current** here (a code re-audit is out of
+this doc-only pass's scope). Worse, they **contradict this roadmap's own Wave status
+board**: the [Wave board](#wave-status-board-degodunshim-roadmap) marks the coord-authority
+trio degod as `PARTIALLY QUEUED` (#2160 OPEN) while the 07-30 delivery claims it done.
+Two active documents disagree and neither carries a post-August read — the tie needs a
+single current code read before either claim drives a decision.
+
+### 4. Disposition — spine epics committed to 4.0.0 (operator decision 2026-09-04)
+
+The G1/G2 strangler spine the cycle exists to finish is **committed to 4.0.0 by operator
+decision (2026-09-04)**. It had sat in **Product backlog** (validated, on no active release —
+exit criterion 8's anti-drift guard, "nothing rides into 3.3.x silently," fired in a blind
+spot as the work rode into Product backlog silently instead). The epics below now carry
+milestone 4.0.0 on the live tracker; full 4.0.0 scoping: [`docs/changelog/4.0.0.md`](../changelog/4.0.0.md):
+
+| Epic | Role | Milestone |
+|---|---|---|
+| **#1619** | mission-execution-context root (P0) | 4.0.0 |
+| **#1797** | degod / unshim delivery | 4.0.0 |
+| **#1868** | seam-binding enabler (WS4/WS6) | 4.0.0 |
+| **#1746** | Mission Clarity Layer (P1, first functional pickup) | 4.0.0 |
+| **#2160** | coord-artifact authority (P0, Wave 2 anchor) | 4.0.0 |
+| **#1676** | deterministic structured authoring (P0, off-spine) | 4.0.0 |
+| **#2466 / #2467 / #2468** | pack ecosystem + extensibility kinds (the declared G1 exit condition) | 4.0.0 |
+| **#2539** | pack trust / verified distribution | 4.0.0 |
+| **#3179 / #645** | stable public API surface | 4.0.0 |
+
+Also on **4.0.0** from the reconciliation: **#2173** (runtime ports) and **#2519** (charter
+authoring & lifecycle).
+
+**Security-debt coupling:** the 21 SonarCloud vulnerabilities (the sole failing gate —
+17 `S6350` subprocess + 3 `S2083` path-traversal, all pre-dating any current rc) are
+mapped by the [08-12 addendum](#addendum-2026-08-12--release-posture-refresh-ci-green-except-the-standing-sonar-backlog)
+onto the Wave 2/Wave 4 degod slices — precisely the spine epics above — so the security
+backlog rides with the structural remediation, now both scheduled in 4.0.0. The 3 `S2083`
+blockers remain a called-out ~90-min targeted fix that can land independent of any wave.
+
+> **Doc-tooling note:** this re-anchor adds a new page, [`docs/changelog/4.0.0.md`](../changelog/4.0.0.md).
+> The docs retrieval index and page inventory will need regenerating so it is discoverable.
 
 ## Addendum 2026-09-03 — 3.2.6 release DAG fully discharged (#3692 closed)
 

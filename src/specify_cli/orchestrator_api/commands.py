@@ -34,6 +34,73 @@ Error codes used:
                                  carried no more specific error_code of its own (WP03)
   TASKS_FINALIZE_FAILED       -- tasks: the delegate finalize-tasks call failed and
                                  carried no more specific error_code of its own (WP03)
+  CHECK_PREREQUISITES_FAILED  -- check-prerequisites: the delegate validation call
+                                 failed and carried no more specific error_code of
+                                 its own (WP04)
+  RECORD_ANALYSIS_EMPTY_BODY  -- record-analysis: --input-file/stdin body was empty
+                                 (WP04)
+  RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND -- record-analysis: --input-file could not
+                                 be read (WP04)
+  RECORD_ANALYSIS_MALFORMED_CARRIER -- record-analysis: the submitted body carried
+                                 a present-but-invalid analysis-findings/v1 carrier
+                                 (WP04)
+  RECORD_ANALYSIS_WRITE_NOT_CONFIRMED -- record-analysis: no analysis-report.md
+                                 generated AFTER this call's start timestamp was
+                                 found on disk -- the write did not happen (or could
+                                 not be confirmed), regardless of the underlying
+                                 call's own return/raise/hang behavior (NFR-004 /
+                                 SK-93 / WP04)
+  RECORD_ANALYSIS_VERDICT_UNRELIABLE -- record-analysis: a write WAS confirmed
+                                 (fresh generated_at) but the re-read verdict is not
+                                 a trustworthy match for this call -- either it
+                                 diverges from the submitted verdict, or the
+                                 submitted verdict was itself `unknown` (no valid
+                                 carrier); `unknown` is NEVER reported as success
+                                 (SK-06 / #3133 / WP04)
+  DIRTY_WORKTREE               -- record-analysis: pre-existing uncommitted changes
+                                 block the write (classified from the delegate
+                                 preflight's own structured payload; WP04)
+  INVALID_ORIGIN_FLOW          -- open-decision: FR-012 scope guard -- --origin is
+                                 outside {charter, specify, plan}, rejected BEFORE
+                                 the decisions/service.py layer is ever called (WP05)
+  DECISION_MISSING_STEP_OR_SLOT -- open-decision: neither --step-id nor --slot-key
+                                 supplied (propagated verbatim from
+                                 decisions/service.py's DecisionError; WP05)
+  DECISION_ALREADY_CLOSED      -- open-decision: a matching logical-key entry
+                                 already exists in a terminal state (propagated
+                                 verbatim from DecisionError; WP05)
+  DECISION_NOT_FOUND           -- resolve/defer/cancel-decision: --decision-id is
+                                 not present in the mission's ledger (propagated
+                                 verbatim from DecisionError; WP05)
+  DECISION_TERMINAL_CONFLICT   -- resolve/defer/cancel-decision: the decision is
+                                 already terminal with a DIFFERENT outcome/payload
+                                 than requested -- the terminal-transition rejection
+                                 (propagated verbatim from DecisionError, same code
+                                 the host-CLI ``decision_app`` subcommands raise for
+                                 this case; WP05)
+  DECISION_EVENT_REPAIR_FAILED -- open-decision (idempotent-open path): the missing
+                                 DecisionPointOpened event could not be re-emitted
+                                 (propagated verbatim from DecisionError; WP05)
+  DESIGN_STATUS_EVENT_LOG_UNREADABLE -- design-status: status.events.jsonl could
+                                 not be read cleanly (a torn/truncated line --
+                                 ledger SK-131) while deriving the tasks/-finalized
+                                 signal; NEVER silently reported as "not finalized"
+                                 (WP06)
+  RESULT_REQUIRED              -- answer-decision: --result is required alongside
+                                 --answer (WP08)
+  INVALID_RESULT                -- answer-decision: --result is not one of the host
+                                 CLI's {success, failed, blocked} enum
+                                 (next_cmd.py:53,610-613), rejected BEFORE decision
+                                 resolution/persistence -- mirrors the host CLI's
+                                 own ``_validate_result_and_answer`` verbatim,
+                                 including its call-sequence position
+                                 (WP08-001 fold-in fix)
+  NO_PENDING_DECISION          -- answer-decision: no run-snapshot pending_decisions
+                                 entry exists to answer (WP08)
+  AMBIGUOUS_PENDING_DECISION   -- answer-decision: more than one pending decision
+                                 and --decision-id was omitted (WP08)
+  DECISION_NOT_PENDING         -- answer-decision: --decision-id does not match any
+                                 entry in the current run's pending_decisions (WP08)
 """
 
 from __future__ import annotations
@@ -42,19 +109,28 @@ import contextlib
 import io
 import json
 import re
+import subprocess
+import threading
 import uuid
-from kernel.clock import now_utc_stamp
+from kernel.clock import now_utc_iso, now_utc_stamp
 from pathlib import Path
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, NoReturn
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 if TYPE_CHECKING:
+    from specify_cli.analysis_report import AnalysisReportResult
+    from specify_cli.core.paths import RetentionDecision
+    from specify_cli.decisions.models import OriginFlow
+    from specify_cli.decisions.service import DecisionError
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.status import StatusSnapshot
 
 import typer
 
 from mission_runtime import CommitTarget, MissionTopology
-from specify_cli.core.contract_gate import validate_outbound_payload
+from runtime.next.decision import VALID_RESULT_VALUES
+from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
@@ -261,6 +337,15 @@ _MISSION_NOT_FOUND_MESSAGE = "Mission '{mission}' not found in kitty-specs/"
 _HELP_WP_ID = "Work package ID"
 _HELP_ACTOR = "Actor identity"
 _HELP_POLICY = "Policy metadata JSON (required)"
+_HELP_ANALYZER_AGENT = "Agent name that produced the analysis report"
+
+# WP04 / NFR-004 / SK-93: the enforced wall-clock bound record-analysis's
+# underlying write path (write_analysis_report + the best-effort commit) is
+# run under -- Thread.join(timeout=...) actually returns control to the
+# caller even if the worker thread is still running (a REAL bound; see
+# `_run_write_with_timeout`). Module-level so tests can monkeypatch it down
+# for a fast, genuine hang proof (T020).
+_RECORD_ANALYSIS_TIMEOUT_SECONDS = 10.0
 
 
 def _transition_requires_policy(lane: str) -> bool:
@@ -321,6 +406,50 @@ def _fail(command: str, error_code: str, message: str, data: dict | None = None)
 def _fail_wp_not_found(cmd: str, wp: str, mission: str) -> NoReturn:
     """The ONE ``WP_NOT_FOUND`` emission (S1192 5×; locks error-surface parity)."""
     _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+
+
+# PR-CONTRACT-002 (severity 2): a fallback for the ONE case the allow-list
+# guard below exists to catch -- a ``DecisionError`` whose ``code.value`` is
+# NOT registered in ``upstream_contract.json``'s ``allowed_error_codes``
+# (e.g. ``DecisionErrorCode.VERIFY_DRIFT``, dormant today but reachable the
+# moment ``decisions/service.py`` starts raising it). Itself contract-
+# registered (see ``upstream_contract.json``), so the guard's own fallback
+# can never re-trigger the same violation it exists to prevent.
+_DECISION_UNREGISTERED_CODE_FALLBACK = "DECISION_OPERATION_FAILED"
+
+
+def _fail_from_decision_error(cmd: str, exc: DecisionError) -> NoReturn:
+    """Fail from a ``DecisionError``, guarding against an unregistered
+    ``exc.code.value`` reaching the public ``error_code`` field verbatim.
+
+    open/resolve/defer/cancel-decision each catch ``DecisionError`` and, pre-
+    fix, trusted ``exc.code.value`` unconditionally -- correct for the six
+    ``DecisionErrorCode`` members ``decisions/service.py`` actually raises
+    today (all six ARE contract-registered), but structurally unsafe: NOTHING
+    at runtime cross-checked the propagated code against
+    ``upstream_contract.json``'s ``allowed_error_codes`` allow-list, and the
+    static ``TestAllowedErrorCodes`` regex check
+    (``tests/contract/test_orchestrator_api.py``) only sees a literal quoted
+    string passed directly as ``_fail``'s second argument -- a variable
+    expression like ``exc.code.value`` is invisible to it. A future code
+    path raising the currently-dormant ``DecisionErrorCode.VERIFY_DRIFT``
+    (unregistered) -- or any other not-yet-registered member added later --
+    would silently emit a CI-invisible contract violation. This is the ONE place that
+    membership check happens; an unregistered code degrades to the
+    registered ``_DECISION_UNREGISTERED_CODE_FALLBACK`` code instead of
+    leaking through, with the real code preserved as diagnostic ``data`` for
+    debugging (never silently dropped, never exposed as the public
+    ``error_code``).
+    """
+    code = exc.code.value
+    if is_allowed_error_code("orchestrator_api", code):
+        _fail(cmd, code, str(exc), exc.details)
+    _fail(
+        cmd,
+        _DECISION_UNREGISTERED_CODE_FALLBACK,
+        str(exc),
+        {**exc.details, "unregistered_error_code": code},
+    )
 
 
 def _parse_policy_or_fail(cmd: str, policy: str) -> dict:
@@ -390,7 +519,23 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
 def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slug: str) -> Path:
     """Resolve the mission status dir, emitting the correct failure envelope on a miss.
 
-    Single seam consumed by all 8 read endpoints (avoids 8 divergent patches):
+    PR-BOUNDARY-002: this is the ONE seam every mission-scoped
+    orchestrator-api endpoint routes through to resolve an EXISTING
+    mission's directory -- reads and MUTATING verbs alike
+    (``record-analysis``, ``open-decision``/``resolve-decision``/
+    ``defer-decision``/``cancel-decision``/``answer-decision``), not only
+    reads. Deliberately NOT documented as a call-site count: a hardcoded
+    number in this docstring has drifted twice already (an original "all 8
+    read endpoints" framing, both undercounted and miscategorized once this
+    mission added mutating call sites; then a "17 call sites" snapshot whose
+    own suggested verification grep matched its own quoted example text and
+    undercounted the true count by one). The invariant that matters is
+    structural, not numeric, and is asserted directly -- re-derived from the
+    live AST on every run, so it cannot silently drift the way a number in
+    prose does -- by
+    ``tests/specify_cli/orchestrator_api/test_resolve_mission_dir_or_fail_invariant.py``:
+    every mission-scoped endpoint routes through this ONE seam, avoiding one
+    divergent existence-resolution pattern per call site:
 
     * a typed :class:`StatusReadPathNotFound` (coord topology + stale/unaddressable
       primary) surfaces the resolver's real ``error_code`` plus the
@@ -581,8 +726,8 @@ def _execute_planning_only_merge(
     *,
     strategy: object,
     push: bool,
-    delete_branch: bool,
-    remove_worktree: bool,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
 ) -> None:
     """Run the hardened CLI closeout path while preserving JSON-only stdout."""
     import typer
@@ -605,6 +750,120 @@ def _execute_planning_only_merge(
         raise RuntimeError(f"Planning-artifact closeout failed with exit code {exc.exit_code}") from exc
 
 
+def _resolve_lane_merge_retention(
+    main_repo_root: Path,
+    mission_slug: str,
+    *,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
+) -> tuple[RetentionDecision, bool]:
+    """Resolve the retention decision + mission-branch-deletable flag (C-007/T010).
+
+    ``_execute_lane_merge`` is a genuine SECOND deletion implementation (not a
+    passthrough to ``merge/executor.py``), so NFR-003 ("all cleanup paths")
+    requires it to route through the same
+    :func:`~specify_cli.core.paths.resolve_merge_retention` authority rather
+    than deleting unconditionally. This mirrors the executor's topology-aware
+    coupling **GATE** (#3131 T008 / INV-2): for a coord-topology mission (its
+    primary meta.json carries a ``coordination_branch`` key) the
+    mission/coordination branch is only deletable when BOTH ``delete_branch``
+    and ``remove_worktree`` resolve True (``teardown_coordination``); for a
+    non-coord mission it stays keyed to ``delete_branch`` alone. This guarantees
+    a **retaining** coord mission's branch is never deleted here (NFR-003).
+
+    Scope note: only the deletion GATE mirrors the executor. The orchestrator
+    does NOT perform the executor's full coordination-triple teardown
+    (``_teardown_coordination_triple``: coord-marker flatten + coord-worktree
+    removal) — it only deletes the mission branch. A NON-retaining coord mission
+    merged through orchestrator-api therefore leaves the ``coordination_branch``
+    marker/worktree un-torn-down (a pre-existing orchestrator-api limitation,
+    tracked separately, NOT introduced by #3131). Full coord teardown is the
+    executor/CLI ``spec-kitty merge`` path's responsibility.
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.core.paths import resolve_merge_retention
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    primary_meta_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    retention = resolve_merge_retention(
+        primary_meta_dir,
+        explicit_delete_branch=delete_branch,
+        explicit_remove_worktree=remove_worktree,
+    )
+    is_coord = "coordination_branch" in load_meta_or_empty(primary_meta_dir)
+    mission_branch_deletable = (
+        retention.teardown_coordination if is_coord else retention.delete_branch
+    )
+    return retention, mission_branch_deletable
+
+
+def _apply_lane_merge_cleanup(
+    main_repo_root: Path,
+    mission_slug: str,
+    lanes_manifest: LanesManifest,
+    *,
+    retention: RetentionDecision,
+    mission_branch_deletable: bool,
+) -> None:
+    """Worktree removal + lane/mission branch deletion, gated on the RESOLVED
+    retention decision (#3131 T010) — extracted from ``_execute_lane_merge``
+    to stay under the complexity ceiling; not a passthrough (see there)."""
+    from specify_cli.core.git_ops import run_command
+    from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
+    from specify_cli.lanes.compute import is_planning_lane
+
+    if retention.remove_worktree:
+        for lane in lanes_manifest.lanes:
+            # Legacy lane-worktree grammar ({slug}-{lane}, no mid8) ⇒ mission_id=None
+            # reproduces the historical name byte-identically (FR-005).
+            wt_path = worktree_path(
+                main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
+            )
+            if wt_path.exists():
+                run_command(
+                    ["git", "worktree", "remove", str(wt_path), "--force"],
+                    cwd=main_repo_root,
+                    check_return=False,
+                )
+
+    # LANE branches stay keyed to the plain resolved ``delete_branch`` (no
+    # topology coupling — only the mission/coordination branch is coupled).
+    if retention.delete_branch:
+        for lane in lanes_manifest.lanes:
+            if is_planning_lane(lane):
+                continue
+            run_command(
+                [
+                    "git",
+                    "branch",
+                    "-D",
+                    lane_branch_name(
+                        mission_slug,
+                        lane.lane_id,
+                        planning_base_branch=lanes_manifest.target_branch,
+                    ),
+                ],
+                cwd=main_repo_root,
+                check_return=False,
+            )
+
+    # MISSION/coordination branch: the DELETION GATE is topology-aware (#3131
+    # T008/T010 — see ``_resolve_lane_merge_retention``), so a retaining coord
+    # mission's branch is never deleted here. NOTE: unlike the executor's
+    # ``_teardown_coordination_triple``, this path does NOT flatten the
+    # ``coordination_branch`` marker or remove the coord worktree — full coord
+    # teardown is the executor/CLI path's job (pre-existing orchestrator-api
+    # limitation, tracked separately).
+    if mission_branch_deletable:
+        run_command(
+            ["git", "branch", "-D", lanes_manifest.mission_branch],
+            cwd=main_repo_root,
+            check_return=False,
+        )
+
+
 def _execute_lane_merge(
     main_repo_root: Path,
     mission_dir: Path,
@@ -613,14 +872,13 @@ def _execute_lane_merge(
     *,
     strategy: str,
     push: bool,
-    delete_branch: bool,
-    remove_worktree: bool,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
 ) -> None:
     """Execute the lane-based merge flow without emitting console prose."""
     from specify_cli.cli.commands.merge import _mark_wp_merged_done
     from specify_cli.core.git_ops import has_remote, run_command
-    from specify_cli.lanes.branch_naming import lane_branch_name
-    from specify_cli.lanes.compute import is_planning_artifact_only, is_planning_lane
+    from specify_cli.lanes.compute import is_planning_artifact_only
     from specify_cli.lanes.merge import consolidate_lane_into_mission, integrate_mission_into_target
     from specify_cli.lanes.persistence import require_lanes_json
     from specify_cli.merge.config import MergeStrategy
@@ -644,6 +902,15 @@ def _execute_lane_merge(
             remove_worktree=remove_worktree,
         )
         return
+
+    # #3131 C-007/T010: resolve once, before any gate/merge work, so the
+    # cleanup gates below never delete unconditionally.
+    retention, mission_branch_deletable = _resolve_lane_merge_retention(
+        main_repo_root,
+        mission_slug,
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
+    )
 
     policy = load_policy_config(main_repo_root)
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
@@ -679,43 +946,15 @@ def _execute_lane_merge(
     if push and has_remote(main_repo_root):
         run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo_root)
 
-    if remove_worktree:
-        from specify_cli.lanes.branch_naming import worktree_path
-
-        for lane in lanes_manifest.lanes:
-            # Legacy lane-worktree grammar ({slug}-{lane}, no mid8) ⇒ mission_id=None
-            # reproduces the historical name byte-identically (FR-005).
-            wt_path = worktree_path(main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id)
-            if wt_path.exists():
-                run_command(
-                    ["git", "worktree", "remove", str(wt_path), "--force"],
-                    cwd=main_repo_root,
-                    check_return=False,
-                )
-
-    if delete_branch:
-        for lane in lanes_manifest.lanes:
-            if is_planning_lane(lane):
-                continue
-            run_command(
-                [
-                    "git",
-                    "branch",
-                    "-D",
-                    lane_branch_name(
-                        mission_slug,
-                        lane.lane_id,
-                        planning_base_branch=lanes_manifest.target_branch,
-                    ),
-                ],
-                cwd=main_repo_root,
-                check_return=False,
-            )
-        run_command(
-            ["git", "branch", "-D", lanes_manifest.mission_branch],
-            cwd=main_repo_root,
-            check_return=False,
-        )
+    # #3131 T010: gated on the RESOLVED decision, not the raw (possibly unset)
+    # caller args — a retaining mission's branches/worktree survive.
+    _apply_lane_merge_cleanup(
+        main_repo_root,
+        mission_slug,
+        lanes_manifest,
+        retention=retention,
+        mission_branch_deletable=mission_branch_deletable,
+    )
 
 
 # ── Command 1: contract-version ────────────────────────────────────────────
@@ -1812,6 +2051,10 @@ def merge_mission(
         return
 
     try:
+        # #3131 C-007/T010: unset (None) so the mission's meta.json retention
+        # policy governs — this CLI has no --delete-branch/--remove-worktree
+        # flags of its own, so hardcoding True/True here silently bypassed a
+        # retaining mission's policy every time (the exact NFR-003 gap).
         _execute_lane_merge(
             main_repo_root,
             mission_dir,
@@ -1819,8 +2062,8 @@ def merge_mission(
             preflight.target_branch,
             strategy=strategy,
             push=push,
-            delete_branch=True,
-            remove_worktree=True,
+            delete_branch=None,
+            remove_worktree=None,
         )
     except RuntimeError as exc:
         _fail(
@@ -2149,6 +2392,1407 @@ def tasks(
     payload.setdefault("mission_slug", _mission_identity_payload(mission_dir)["mission_slug"])
     validate_outbound_payload(payload, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=payload)
+    _emit(envelope)
+
+
+# ── Command 13: check-prerequisites ─────────────────────────────────────────
+
+
+_FEATURE_CONTEXT_UNRESOLVED = "FEATURE_CONTEXT_UNRESOLVED"
+
+
+def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str) -> Any:
+    """Recursively replace every occurrence of *forbidden* with *replacement*,
+    at any depth of nested dicts/lists (PR-TESTS-002), including as a dict
+    KEY and as a SUBSTRING of a larger string -- not only a whole-value
+    match.
+
+    ``_classify_check_prerequisites_error`` translates the top-level
+    ``error_code`` correctly, but the raw delegate ``payload`` it also
+    returns (spread verbatim into the envelope's ``data``) still carries its
+    OWN ``error_code`` key with the untranslated forbidden value -- a leak
+    of the terminology-canon-forbidden string one level down, in the SAME
+    response whose top-level ``error_code`` claims to have translated it.
+    Sanitizing recursively (not just the payload's top-level ``error_code``
+    key) closes the leak at whatever nesting level it appears, matching the
+    "no forbidden token anywhere in the serialized response" bar this fix's
+    regression test asserts.
+
+    A verifier (PR-TESTS-002 residual) defeated an earlier whole-value-only,
+    values-only version of this function two ways: the forbidden token as a
+    dict KEY (never visited -- only ``.items()`` VALUES were recursed), and
+    the forbidden token as a SUBSTRING of a longer string (an exact ``==``
+    match against the whole string never fires). Both are closed here: keys
+    are sanitized by substring replacement exactly like values, and string
+    values use ``str.replace`` (containment) rather than ``==`` (whole-value
+    equality), so a forbidden token embedded in a larger string is scrubbed
+    without needing the whole string to equal it.
+    """
+    if isinstance(value, dict):
+        return {
+            (_sanitize_forbidden_error_code(k, forbidden, replacement) if isinstance(k, str) else k): (
+                _sanitize_forbidden_error_code(v, forbidden, replacement)
+            )
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_sanitize_forbidden_error_code(v, forbidden, replacement) for v in value]
+    if isinstance(value, str) and forbidden in value:
+        return value.replace(forbidden, replacement)
+    return value
+
+
+def _classify_check_prerequisites_error(
+    payload: dict[str, Any] | None, raw_output: str
+) -> tuple[str, str, dict[str, Any]]:
+    """Classify a failed ``check-prerequisites`` delegate call.
+
+    The host CLI's own detection-failure payload carries
+    ``error_code: "FEATURE_CONTEXT_UNRESOLVED"`` (``mission_check_prerequisites.py``)
+    -- a feature-named code that must NEVER cross onto the orchestrator-api
+    surface verbatim (Terminology Canon; ``upstream_contract.json``'s
+    ``forbidden_error_codes`` bans the sibling ``FEATURE_NOT_FOUND``/
+    ``FEATURE_NOT_READY`` for the identical reason). This is the ONE place
+    that code is translated to this file's canonical ``MISSION_NOT_FOUND`` --
+    every other typed ``error_code`` the delegate carries is trusted verbatim,
+    mirroring ``_classify_delegate_error``. The translation is applied to the
+    WHOLE returned payload (``_sanitize_forbidden_error_code``), not just the
+    top-level ``error_code`` this function returns as its first tuple
+    element -- the untranslated payload's own nested ``error_code`` key was
+    leaking the forbidden string into ``data.error_code`` (PR-TESTS-002).
+    """
+    if payload is None:
+        message = raw_output.strip() or "check-prerequisites failed"
+        return "CHECK_PREREQUISITES_FAILED", message, {"raw_output": raw_output}
+    message = str(payload.get("error") or payload.get("message") or "check-prerequisites failed")
+    error_code = payload.get("error_code")
+    if error_code == _FEATURE_CONTEXT_UNRESOLVED:
+        sanitized = cast(
+            "dict[str, Any]",
+            _sanitize_forbidden_error_code(payload, _FEATURE_CONTEXT_UNRESOLVED, "MISSION_NOT_FOUND"),
+        )
+        return "MISSION_NOT_FOUND", message, sanitized
+    if error_code:
+        return str(error_code), message, payload
+    return "CHECK_PREREQUISITES_FAILED", message, payload
+
+
+@app.command(name="check-prerequisites")
+def check_prerequisites(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    include_tasks: bool = typer.Option(
+        False,
+        "--include-tasks",
+        help="Include tasks.md validation (matches the host CLI's own --include-tasks default)",
+    ),
+) -> None:
+    """Read-only mission-prerequisite context for ``/spec-kitty.analyze`` (FR-004).
+
+    C-002: this verb supplies context ONLY -- it never performs `analyze`'s
+    cross-artifact reasoning itself (mirrors ``start-review``'s "cannot
+    perform WP implementation itself" pattern). No ``--policy`` is required
+    (read-only, per spec Edge Cases: "Read-only verbs (check-prerequisites,
+    design-status) do not require --policy").
+
+    In-process only (FR-001-style parity): calls the host CLI's OWN
+    ``check_prerequisites`` Typer command function
+    (``mission_check_prerequisites.py:498``) directly -- the exact
+    established pattern WP03's ``plan``/``tasks`` verbs already use for a
+    registered ``agent mission`` Typer command (``setup_plan``/
+    ``finalize_tasks`` are registered identically:
+    ``app.command(...)(func)`` in ``mission.py``), so field-parity with
+    ``agent mission check-prerequisites --json --include-tasks`` is
+    guaranteed by construction rather than by re-deriving
+    ``validate_feature_structure``'s shaping logic a second time.
+    """
+    cmd = "check-prerequisites"
+
+    main_repo_root = _get_main_repo_root()
+    # Existence gate FIRST via the coord-aware read seam (consistent
+    # MISSION_NOT_FOUND envelope shared with every other read endpoint in
+    # this module) -- the delegate below is only reached for a mission that
+    # is already known to exist.
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.cli.commands.agent.mission_check_prerequisites import (
+        check_prerequisites as _host_check_prerequisites,
+    )
+
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            _host_check_prerequisites(feature=mission, json_output=True, include_tasks=include_tasks)
+    except typer.Exit:
+        raw_output = capture.getvalue()
+        payload = _extract_json_payload(raw_output)
+        error_code, message, error_data = _classify_check_prerequisites_error(payload, raw_output)
+        _fail(cmd, error_code, message, error_data)
+        return
+
+    raw_output = capture.getvalue()
+    payload = _extract_json_payload(raw_output)
+    if payload is None:
+        _fail(
+            cmd,
+            "CHECK_PREREQUISITES_FAILED",
+            "check-prerequisites produced no parseable JSON payload",
+            {"raw_output": raw_output},
+        )
+        return
+    # validate_feature_structure()'s own shape does not carry ``mission_slug``
+    # (verified against production) -- same transport-contract identity fill
+    # as ``plan``/``tasks`` above, never business-payload enrichment.
+    payload.setdefault("mission_slug", _mission_identity_payload(mission_dir)["mission_slug"])
+    validate_outbound_payload(payload, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=payload)
+    _emit(envelope)
+
+
+# ── Command 14: record-analysis ─────────────────────────────────────────────
+
+
+@dataclass
+class _TimedWriteOutcome:
+    """Outcome of a timeout-bounded call to the underlying write path (SK-93).
+
+    ``completed`` is set by the worker thread itself in a ``finally`` block
+    (never inferred from ``Thread.is_alive()`` after ``join`` -- a TOCTOU-safe
+    signal). NEITHER field drives ``record-analysis``'s ``success`` verdict --
+    that is determined SOLELY by re-reading the artifact off disk afterward;
+    this dataclass exists only to enrich the failure envelope's diagnostic
+    ``data`` (e.g. surfacing whether the underlying call raised or is still
+    running in a leaked daemon thread).
+    """
+
+    completed: bool = False
+    result: AnalysisReportResult | None = None
+    raised: Exception | None = None
+
+
+def _run_write_with_timeout(
+    fn: Callable[[], AnalysisReportResult], *, timeout_seconds: float
+) -> _TimedWriteOutcome:
+    """Run ``fn`` bounded by ``timeout_seconds`` in a daemon worker thread.
+
+    A REAL enforced bound (NFR-004(b) / T020): ``Thread.join(timeout=...)``
+    returns control to the caller once ``timeout_seconds`` elapses regardless
+    of whether the worker thread has finished -- this is not a decorative
+    ``try/except TimeoutError`` that never actually fires (Python offers no
+    safe thread-kill primitive, so a still-running worker is left as a leaked
+    daemon thread, never blocking process exit). Never re-raises: any
+    exception the underlying call raises is captured as diagnostic data, not
+    propagated -- ``record-analysis``'s success determination never depends
+    on whether this call raised, returned, or is still hanging (SK-93).
+    """
+    outcome = _TimedWriteOutcome()
+
+    def _worker() -> None:
+        try:
+            outcome.result = fn()
+        except Exception as exc:  # noqa: BLE001 -- deliberately broad: captures
+            # ANY failure from the underlying write path (including a test
+            # double's injected raise) as diagnostic data. Never re-raised;
+            # the re-read off disk is the sole success signal (SK-93).
+            outcome.raised = exc
+        finally:
+            outcome.completed = True
+
+    thread = threading.Thread(target=_worker, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout_seconds)
+    return outcome
+
+
+@dataclass(frozen=True)
+class _AnalysisReportReread:
+    """The re-read artifact state -- the SOLE success signal (SK-93)."""
+
+    path: Path
+    verdict: str | None
+    generated_at: str | None
+
+
+def _reread_analysis_report(path: Path) -> _AnalysisReportReread | None:
+    """Re-read ``analysis-report.md`` off disk, or ``None`` if absent.
+
+    Never trusts the write call's own return/raise/hang behavior (SK-93) --
+    this reads whatever landed on disk, if anything, after the write
+    attempt returned or the enforced timeout fired.
+    """
+    if not path.exists():
+        return None
+    from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
+
+    try:
+        frontmatter, _body = FrontmatterManager().read(path)
+    except FrontmatterError:
+        return _AnalysisReportReread(path=path, verdict=None, generated_at=None)
+    verdict = frontmatter.get("verdict")
+    generated_at = frontmatter.get("generated_at")
+    return _AnalysisReportReread(
+        path=path,
+        verdict=str(verdict) if verdict is not None else None,
+        generated_at=str(generated_at) if generated_at is not None else None,
+    )
+
+
+def _is_strictly_after(candidate_iso: str, reference_iso: str) -> bool:
+    """True if ``candidate_iso`` is a strictly later instant than ``reference_iso``.
+
+    Parses both through :func:`kernel.clock.parse_iso` (the single wall-clock
+    door, C-008) rather than comparing raw strings -- an explicit, honest
+    comparison instead of relying on ISO-8601 lexicographic-ordering luck.
+    """
+    from kernel.clock import parse_iso
+
+    try:
+        return parse_iso(candidate_iso) > parse_iso(reference_iso)
+    except ValueError:
+        return False
+
+
+def _read_record_analysis_body(input_file: str) -> str:
+    """Read the analysis report body from ``--input-file``, or stdin for ``-``.
+
+    Mirrors the host CLI's own ``record_analysis``'s ``--input-file`` flag
+    semantics exactly (``mission_record_analysis.py``).
+    """
+    if input_file == "-":
+        import sys
+
+        return sys.stdin.read()
+    return Path(input_file).read_text(encoding="utf-8")
+
+
+def _classify_record_analysis_failure(
+    *,
+    submitted_verdict: str,
+    reread: _AnalysisReportReread | None,
+    call_start: str,
+) -> tuple[str, str]:
+    """Classify a ``record-analysis`` failure into a structured ``(error_code, message)``.
+
+    Distinguishes "write did not happen" (no artifact re-read confirms a
+    fresh write after ``call_start`` -- SC-005(c)'s stale-but-matching-verdict
+    shape included) from "write happened, signal was noise" (a confirmed
+    fresh write whose verdict is not trustworthy -- either it disagrees with
+    what THIS call submitted, or the submission itself carried no valid
+    carrier and computed to ``unknown``, SK-06/#3133) -- never collapsed into
+    one generic code (T018 step 3).
+    """
+    from specify_cli.analysis_report import VERDICT_UNKNOWN
+
+    write_confirmed = (
+        reread is not None
+        and reread.generated_at is not None
+        and _is_strictly_after(reread.generated_at, call_start)
+    )
+    if not write_confirmed:
+        return "RECORD_ANALYSIS_WRITE_NOT_CONFIRMED", (
+            "record-analysis could not confirm a fresh write: no "
+            "analysis-report.md with a generated_at timestamp later than "
+            "this call's start was found on disk."
+        )
+    if submitted_verdict == VERDICT_UNKNOWN:
+        return "RECORD_ANALYSIS_VERDICT_UNRELIABLE", (
+            "The submitted analysis report carried no valid "
+            "analysis-findings/v1 carrier, so no reliable verdict could be "
+            "recorded (verdict: unknown is never reported as success)."
+        )
+    return "RECORD_ANALYSIS_VERDICT_UNRELIABLE", (
+        f"analysis-report.md was written but its verdict "
+        f"({reread.verdict if reread else None!r}) does not match the "
+        f"submitted verdict ({submitted_verdict!r})."
+    )
+
+
+def _do_record_analysis_write(
+    *,
+    write_feature_dir: Path,
+    main_repo_root: Path,
+    body: str,
+    agent: str | None,
+    mission_slug: str,
+) -> AnalysisReportResult:
+    """The underlying write path: ``write_analysis_report`` + a best-effort commit.
+
+    Option (a) from plan.md § (j) (NFR-004(b)'s explicitly offered
+    mitigation): calls ``write_analysis_report``/``commit_for_mission``
+    directly rather than going through ``record_analysis``'s full CLI
+    wrapper, so ``record_analysis``'s own unbounded
+    ``trigger_feature_dossier_sync_if_enabled`` tail
+    (``mission_record_analysis.py:384-388``, bounded only against a *raised*
+    exception via ``contextlib.suppress(Exception)`` -- NOT against a *hang*)
+    is never invoked at all. This function itself additionally runs under
+    :func:`_run_write_with_timeout` as defense-in-depth against any OTHER
+    hang (e.g. a wedged git subprocess inside ``commit_for_mission``).
+    """
+    from specify_cli.analysis_report import write_analysis_report
+
+    result = write_analysis_report(
+        feature_dir=write_feature_dir,
+        repo_root=main_repo_root,
+        body=body,
+        analyzer_agent=agent,
+    )
+
+    # Best-effort commit -- mirrors mission_record_analysis.py's own narrowed
+    # exception set (WP03/#3128 there): a commit failure (e.g. a protected
+    # target ref) never undoes the write already on disk.
+    with contextlib.suppress(subprocess.CalledProcessError, OSError, RuntimeError, ValueError):
+        from mission_runtime import MissionArtifactKind
+        from specify_cli.coordination.commit_router import commit_for_mission
+        from specify_cli.core.paths import get_feature_target_branch
+        from specify_cli.git.protection_policy import ProtectionPolicy
+
+        commit_for_mission(
+            repo_root=main_repo_root,
+            mission_slug=mission_slug,
+            files=(result.path,),
+            message=f"docs(record-analysis): record analysis report for mission {mission_slug}",
+            policy=ProtectionPolicy.resolve(main_repo_root),
+            kind=MissionArtifactKind.ANALYSIS_REPORT,
+            target_branch=get_feature_target_branch(main_repo_root, mission_slug),
+        )
+    return result
+
+
+@app.command(name="record-analysis")
+def record_analysis(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    input_file: str = typer.Option(
+        "-",
+        "--input-file",
+        help="Markdown report path, or '-' to read the report body from stdin",
+    ),
+    agent: str | None = typer.Option(None, "--agent", help=_HELP_ANALYZER_AGENT),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Persist an ``/spec-kitty.analyze`` report, verified against disk (FR-005).
+
+    NFR-004 / SK-93 (verified): a subprocess/call-level success signal
+    (return code, "did not raise") is UNTRUSTWORTHY -- SK-93 documented
+    ``record-analysis`` reporting a false timeout FAILURE after a write had
+    already genuinely succeeded. This verb instead:
+
+    1. Captures ``now_utc_iso()`` immediately before invoking the write path.
+    2. Calls ``write_analysis_report``/``commit_for_mission`` directly
+       (bypassing ``record_analysis``'s own unbounded dossier-sync trigger
+       entirely -- option (a), plan.md § (j)), under an enforced
+       :func:`_run_write_with_timeout` bound as defense-in-depth.
+    3. Re-reads ``analysis-report.md`` off disk unconditionally afterward.
+       ``success: true`` ONLY if BOTH (a) the re-read ``verdict`` matches
+       what THIS call submitted, AND (b) the re-read ``generated_at`` is
+       STRICTLY LATER than the call-start timestamp -- a verdict-string
+       match alone is never sufficient (distinguishes a genuine fresh write
+       from a stale, coincidentally-matching pre-existing artifact).
+
+    SK-06 / #3133: an ``unknown`` verdict (no valid ``analysis-findings/v1``
+    carrier in the submitted body) is NEVER reported as ``success: true``,
+    even when the write genuinely, freshly succeeds -- silently writing
+    ``verdict: unknown`` for an explicitly-intended report is this repo's
+    dominant failure mode and this verb refuses to propagate it as success.
+
+    A mutating verb: ``--policy`` is required (``POLICY_METADATA_REQUIRED``
+    pattern, matching ``specify``/``plan``/``tasks``).
+    """
+    cmd = "record-analysis"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for record-analysis")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    mission_slug = _mission_identity_payload(mission_dir)["mission_slug"]
+
+    # PR-CONTRACT-001 (host-CLI parity, R3-confirmed live ordering fork):
+    # placement resolution + the dirty-worktree preflight run BEFORE the
+    # body is read/validated -- matching the host CLI's own
+    # ``mission_record_analysis.record_analysis`` ordering EXACTLY
+    # (placement -> dirty-tree preflight -> THEN ``body = sys.stdin.read()``,
+    # mission_record_analysis.py's ``record_analysis`` function). Pre-fix,
+    # this verb read/validated the body FIRST, so an identical on-disk state
+    # (dirty tree + empty/malformed body) reported a DIFFERENT first
+    # error_code than the host CLI for the same request -- this is the
+    # THIRD instance of that ordering-fork class in this mission (after
+    # WP05-001/WP08-001). See ``tests/specify_cli/orchestrator_api/
+    # test_check_prerequisites_record_analysis.py``'s
+    # ``_host_record_analysis_error_code`` helper and its docstring
+    # for the reusable, verb-agnostic parity-test pattern added alongside
+    # this fix (and for why a production-code "by construction" ordering
+    # guard was judged infeasible within this diff, not silently skipped).
+    from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
+    from specify_cli.cli.commands.agent.mission_record_analysis import (
+        _enforce_analysis_report_write_preflight,
+        _require_record_analysis_placement,
+        _resolve_record_analysis_placement_ref,
+    )
+    from mission_runtime import placement_seam
+
+    placement_ref = _resolve_record_analysis_placement_ref(main_repo_root, mission_dir)
+    try:
+        placement_ref = _require_record_analysis_placement(placement_ref, mission_slug=mission_slug)
+    except PlacementResolutionRequired as exc:
+        _fail(cmd, "PLACEMENT_RESOLUTION_REQUIRED", str(exc), {"mission_slug": mission_slug})
+        return
+
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            _enforce_analysis_report_write_preflight(
+                main_repo_root, json_output=True, placement_ref=placement_ref, mission_slug=mission_slug
+            )
+    except typer.Exit:
+        raw_output = capture.getvalue()
+        payload = _extract_json_payload(raw_output)
+        error_code, message, error_data = _classify_delegate_error(
+            payload,
+            raw_output,
+            fallback_code="DIRTY_WORKTREE",
+            fallback_message="record-analysis dirty-tree preflight failed",
+        )
+        error_data.setdefault("mission_slug", mission_slug)
+        _fail(cmd, error_code, message, error_data)
+        return
+
+    try:
+        body = _read_record_analysis_body(input_file)
+    except OSError as exc:
+        _fail(
+            cmd,
+            "RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND",
+            f"Could not read --input-file {input_file!r}: {exc}",
+            {"mission_slug": mission_slug},
+        )
+        return
+    if not body.strip():
+        _fail(cmd, "RECORD_ANALYSIS_EMPTY_BODY", "Analysis report body is empty", {"mission_slug": mission_slug})
+        return
+
+    from specify_cli.analysis_report import VERDICT_UNKNOWN, FindingsCarrierError, parse_structured_findings
+
+    try:
+        structured = parse_structured_findings(body)
+    except FindingsCarrierError as exc:
+        _fail(cmd, "RECORD_ANALYSIS_MALFORMED_CARRIER", str(exc), {"mission_slug": mission_slug})
+        return
+    submitted_verdict = structured.verdict if structured is not None else VERDICT_UNKNOWN
+
+    write_feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(_kind_for_artifact("spec"))
+
+    # Step 1 (NFR-004 / SK-93): the call-start timestamp, captured
+    # IMMEDIATELY before invoking the write path -- everything above this
+    # line is preflight/validation, not "the underlying write call".
+    call_start = now_utc_iso()
+
+    def _do_write() -> AnalysisReportResult:
+        return _do_record_analysis_write(
+            write_feature_dir=write_feature_dir,
+            main_repo_root=main_repo_root,
+            body=body,
+            agent=agent,
+            mission_slug=mission_slug,
+        )
+
+    write_outcome = _run_write_with_timeout(_do_write, timeout_seconds=_RECORD_ANALYSIS_TIMEOUT_SECONDS)
+
+    # Step 3 (NFR-004 / SK-93): unconditional re-read -- the SOLE success
+    # signal, regardless of whether the call above returned, raised, or is
+    # still hanging in a leaked daemon thread.
+    report_path = write_feature_dir / "analysis-report.md"
+    reread = _reread_analysis_report(report_path)
+
+    write_confirmed = (
+        reread is not None
+        and reread.generated_at is not None
+        and _is_strictly_after(reread.generated_at, call_start)
+    )
+    success = write_confirmed and submitted_verdict != VERDICT_UNKNOWN and reread is not None and reread.verdict == submitted_verdict
+
+    if success and reread is not None:
+        data = {
+            **_mission_identity_payload(mission_dir),
+            "path": str(reread.path),
+            "verdict": reread.verdict,
+            "generated_at": reread.generated_at,
+        }
+        validate_outbound_payload(data, "orchestrator_api")
+        envelope = make_envelope(command=cmd, success=True, data=data)
+        _emit(envelope)
+        return
+
+    error_code, message = _classify_record_analysis_failure(
+        submitted_verdict=submitted_verdict, reread=reread, call_start=call_start
+    )
+    failure_data: dict[str, Any] = {"mission_slug": mission_slug, "submitted_verdict": submitted_verdict}
+    if reread is not None:
+        failure_data["reread_verdict"] = reread.verdict
+        failure_data["reread_generated_at"] = reread.generated_at
+    if not write_outcome.completed:
+        failure_data["underlying_call_timed_out"] = True
+    elif write_outcome.raised is not None:
+        failure_data["underlying_call_error"] = str(write_outcome.raised)
+    _fail(cmd, error_code, message, failure_data)
+
+
+# ── Commands 15-18: open/resolve/defer/cancel-decision (Mechanism A) ────────
+#
+# WP05: OriginFlow-keyed decisions/index.json ledger verbs (FR-006/007/008/
+# 009, FR-012, C-001/003). Wrap ``decisions/service.py``'s four pure
+# functions 1:1 -- the SAME functions the host-CLI ``spec-kitty agent
+# decision open|resolve|defer|cancel`` subcommands call
+# (``cli/commands/decision.py``). Deliberately do NOT reuse
+# ``decision.py``'s own ``_open_response_to_dict``/``_terminal_response_to_dict``/
+# ``_handle_decision_error`` helpers -- those are CLI-layer presentation code;
+# this WP shapes its own ``data`` dict independently and translates
+# ``DecisionError`` into this module's ``_fail``/``make_envelope`` shape,
+# matching how ``start-review`` independently shapes its own response rather
+# than reusing ``next_cmd.py``'s print helpers.
+#
+# Mechanism A only (spec Clarification 3): unrelated to WP08's
+# ``answer-decision`` (run-snapshot ``pending_decisions``, no ``OriginFlow``
+# concept at all) -- FR-012's ``INVALID_ORIGIN_FLOW`` guard below must NEVER
+# be applied to that verb.
+
+_HELP_DECISION_ID = "Decision ledger entry ID (ULID)"
+_HELP_ORIGIN_FLOW = "Origin flow: charter | specify | plan"
+_HELP_RATIONALE_REQUIRED = "Explanation of why (required)"
+_HELP_RESOLVED_BY = "Identity of the resolving/deferring/canceling party (falls back to --actor)"
+
+
+def _validate_origin_flow_or_fail(cmd: str, origin: str) -> OriginFlow:
+    """Validate ``--origin`` against ``OriginFlow``'s three members (FR-012).
+
+    Rejects BEFORE calling into ``decisions/service.py`` -- an invalid origin
+    must never reach the service layer and be silently accepted or
+    misfiled. Deliberately a DIFFERENT error_code than the host CLI's own
+    ``--flow`` validation (which reuses ``DecisionErrorCode.MISSING_STEP_OR_SLOT``
+    for this case, ``decision.py`` ``cmd_open`` -- a confusing reused code
+    this WP does not propagate): FR-012 is an orchestrator-api-specific scope
+    guard with its own dedicated code.
+
+    Only ``open-decision`` calls this helper (T026): ``resolve``/``defer``/
+    ``cancel``-decision operate on an EXISTING ``decision_id`` whose origin
+    was already validated at open time, and their
+    ``decisions/service.py`` functions take no ``origin_flow`` parameter at
+    all (confirmed from ``resolve_decision``/``defer_decision``/
+    ``cancel_decision``'s own signatures) -- wiring this guard into those
+    verbs would be inventing a flag their service layer does not need.
+    """
+    from specify_cli.decisions.models import OriginFlow as _OriginFlow
+
+    try:
+        return _OriginFlow(origin)
+    except ValueError:
+        valid = ", ".join(flow.value for flow in _OriginFlow)
+        _fail(
+            cmd,
+            "INVALID_ORIGIN_FLOW",
+            f"Invalid --origin value {origin!r}. Must be one of: {valid}",
+            {"origin": origin, "valid_values": valid},
+        )
+
+
+def _parse_decision_options_or_fail(cmd: str, options: str | None) -> tuple[str, ...]:
+    """Parse ``--options`` (a JSON array string, matching the host CLI's own
+    ``cmd_open`` flag shape, ``decision.py``) or ``_fail`` (NoReturn) on
+    malformed input.
+    """
+    if options is None:
+        return ()
+    try:
+        raw = json.loads(options)
+    except json.JSONDecodeError as exc:
+        _fail(
+            cmd,
+            "USAGE_ERROR",
+            f"--options must be a valid JSON array string, got: {options!r}",
+            {"options": options, "parse_error": str(exc)},
+        )
+    if not isinstance(raw, list):
+        _fail(
+            cmd,
+            "USAGE_ERROR",
+            "--options must be a JSON array (list), got a non-list value",
+            {"options": options},
+        )
+    return tuple(str(item) for item in raw)
+
+
+def _validate_rationale_or_fail(cmd: str, rationale: str) -> None:
+    """Reject an empty/whitespace-only ``--rationale`` BEFORE the service
+    layer is ever called (WP05-001 review fix).
+
+    Mirrors the host CLI's OWN ``cmd_defer``/``cmd_cancel`` guard verbatim
+    (``decision.py:341-348``/``391-398``): identical emptiness check
+    (``not rationale.strip()``), identical reused
+    ``DecisionErrorCode.MISSING_STEP_OR_SLOT`` code (already registered in
+    ``upstream_contract.json`` -- no new code needed), identical
+    ``{"field": "rationale"}`` details shape and message text. Pre-fix,
+    neither ``defer_decision``/``cancel_decision`` NOR
+    ``decisions/service.py``'s own ``_terminal_command`` performed this
+    check, so an empty rationale was silently accepted and persisted to the
+    ledger on disk -- a live-reproduced behavioural fork from the host CLI
+    (WP05 review finding WP05-001).
+    """
+    if rationale.strip():
+        return
+    from specify_cli.decisions.models import DecisionErrorCode
+
+    _fail(
+        cmd,
+        DecisionErrorCode.MISSING_STEP_OR_SLOT.value,
+        "--rationale must be a non-empty string",
+        {"field": "rationale"},
+    )
+
+
+@app.command(name="open-decision")
+def open_decision(  # noqa: PLR0913
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    origin: str = typer.Option(..., "--origin", help=_HELP_ORIGIN_FLOW),
+    input_key: str = typer.Option(..., "--input-key", help="The input key this decision governs"),
+    question: str = typer.Option(..., "--question", help="Human-readable question text"),
+    step_id: str = typer.Option(None, "--step-id", help="Interview step identifier"),
+    slot_key: str = typer.Option(None, "--slot-key", help="Slot key (use when step_id unavailable)"),
+    options: str = typer.Option(None, "--options", help="Candidate answers as a JSON array string"),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Open a new Decision Moment ledger entry, or return idempotently if one
+    already exists (FR-006). Wraps ``decisions/service.py.open_decision`` 1:1.
+    """
+    cmd = "open-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for open-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    origin_flow = _validate_origin_flow_or_fail(cmd, origin)
+    parsed_options = _parse_decision_options_or_fail(cmd, options)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import open_decision as _svc_open_decision
+
+    try:
+        resp = _svc_open_decision(
+            main_repo_root,
+            mission,
+            origin_flow=origin_flow,
+            input_key=input_key,
+            question=question,
+            options=parsed_options,
+            step_id=step_id,
+            slot_key=slot_key,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail_from_decision_error(cmd, exc)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": "open",
+        "idempotent": resp.idempotent,
+        "artifact_path": resp.artifact_path,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+@app.command(name="resolve-decision")
+def resolve_decision(  # noqa: PLR0913
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    decision_id: str = typer.Option(..., "--decision-id", help=_HELP_DECISION_ID),
+    final_answer: str = typer.Option(..., "--final-answer", help="The chosen answer (non-empty)"),
+    other_answer: bool = typer.Option(False, "--other-answer", help="True if answer is a write-in"),
+    rationale: str = typer.Option(None, "--rationale", help="Explanation of the choice"),
+    resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Resolve a decision with a concrete final answer (FR-007). Wraps
+    ``decisions/service.py.resolve_decision`` 1:1.
+
+    Terminal-transition rejection (Edge Cases, spec.md): resolving an
+    already-terminal decision with a DIFFERENT outcome/payload is NOT
+    pre-checked here -- it is the service layer's own
+    ``DecisionError(TERMINAL_CONFLICT)``, propagated verbatim, matching the
+    host-CLI ``decision_app resolve`` subcommand's own error code. A
+    redundant pre-check here could drift from the service layer's own
+    validation.
+    """
+    cmd = "resolve-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for resolve-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import resolve_decision as _svc_resolve_decision
+
+    try:
+        resp = _svc_resolve_decision(
+            main_repo_root,
+            mission,
+            decision_id,
+            final_answer=final_answer,
+            other_answer=other_answer,
+            rationale=rationale,
+            resolved_by=resolved_by,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail_from_decision_error(cmd, exc)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": resp.status.value,
+        "terminal_outcome": resp.terminal_outcome,
+        "idempotent": resp.idempotent,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+@app.command(name="defer-decision")
+def defer_decision(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    decision_id: str = typer.Option(..., "--decision-id", help=_HELP_DECISION_ID),
+    rationale: str = typer.Option(..., "--rationale", help=_HELP_RATIONALE_REQUIRED),
+    resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Defer a decision for later resolution (FR-008). Wraps
+    ``decisions/service.py.defer_decision`` 1:1.
+    """
+    cmd = "defer-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for defer-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+    _validate_rationale_or_fail(cmd, rationale)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import defer_decision as _svc_defer_decision
+
+    try:
+        resp = _svc_defer_decision(
+            main_repo_root,
+            mission,
+            decision_id,
+            rationale=rationale,
+            resolved_by=resolved_by,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail_from_decision_error(cmd, exc)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": resp.status.value,
+        "terminal_outcome": resp.terminal_outcome,
+        "idempotent": resp.idempotent,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+@app.command(name="cancel-decision")
+def cancel_decision(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    decision_id: str = typer.Option(..., "--decision-id", help=_HELP_DECISION_ID),
+    rationale: str = typer.Option(..., "--rationale", help=_HELP_RATIONALE_REQUIRED),
+    resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Cancel a decision (deemed no longer relevant) (FR-009). Wraps
+    ``decisions/service.py.cancel_decision`` 1:1.
+    """
+    cmd = "cancel-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for cancel-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+    _validate_rationale_or_fail(cmd, rationale)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import cancel_decision as _svc_cancel_decision
+
+    try:
+        resp = _svc_cancel_decision(
+            main_repo_root,
+            mission,
+            decision_id,
+            rationale=rationale,
+            resolved_by=resolved_by,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail_from_decision_error(cmd, exc)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": resp.status.value,
+        "terminal_outcome": resp.terminal_outcome,
+        "idempotent": resp.idempotent,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+# ---------------------------------------------------------------------------
+# Command: answer-decision (WP08, FR-013, Mechanism B, full event/lifecycle
+# parity)
+#
+# Resolves a ``spec-kitty next`` control-loop ``decision_required`` moment (a
+# blocking ``AuditStep`` checkpoint OR a ``PromptStep`` with an unmet
+# ``requires_inputs`` entry) -- the run-snapshot's ``pending_decisions`` map
+# (``_internal_runtime.engine._read_snapshot``), distinct from the
+# ``decisions/index.json`` ledger the four verbs above operate on (Mechanism
+# A, spec Clarification 3). Matches exactly what the real CLI invocation
+# ``spec-kitty next --answer <value> --decision-id <id> --agent <name>
+# --result <success|failed|blocked>`` does in one pass (``next_cmd.py:
+# 213-269``), never just the two engine calls:
+#
+#   1. ``runtime_bridge.answer_decision_via_runtime`` persists the answer
+#      against the (auto-resolved or explicit) ``decision_id``.
+#   2. ``pair_previous_lifecycle_record`` pairs the previous issuance's
+#      ``started`` lifecycle record BEFORE the DAG advances.
+#   3. ``decide_next`` (the ENGINE call, ``runtime.next.decision``, NOT part
+#      of WP02's seam) advances the DAG using THIS call's own ``--result``.
+#   4. ``emit_mission_next_invoked`` appends a ``MissionNextInvoked`` entry
+#      to the mission event log.
+#   5. ``write_issuance_lifecycle_record`` writes a new issuance ``started``
+#      record. Called unconditionally, exactly like the host CLI -- the
+#      function itself self-no-ops when the resulting ``decision.kind`` is
+#      not ``"step"``, so the predicate lives in the seam, not in this caller.
+#
+# Per operator ruling SPEC-FRESH2-001 (``kitty-specs/design-phase-
+# orchestrator-api-01M1HE6M/reviews/spec.ruling.md``), steps 2/4/5 are
+# REQUIRED, reached EXCLUSIVELY through WP02's extracted seam
+# (``runtime.next.next_invocation_lifecycle``) -- never inlined, never
+# reimplemented here. A verb performing only steps 1+3 (the two engine
+# calls) is precisely the silent-success regression the ruling exists to
+# prevent (SC-007/SC-008).
+#
+# Response shape: ``data`` is ``Decision.to_dict()`` from step 3 (byte-
+# identical, field-for-field, to ``next --answer ... --json``) PLUS one
+# sibling field, ``answered_decision_id`` (the ``decision_id`` persisted by
+# step 1) -- ``answer-decision``'s own self-documenting name for the CLI's
+# terser ``answered`` key. ``data`` carries NO ``answer`` key: the CLI's
+# second extra key (the echoed submitted answer, the ``d["answer"] = answer``
+# assignment inside ``next_cmd.py``'s ``_print_decision``) is intentionally
+# OMITTED per SPEC-FRESH2-002's resolution -- the host already possesses the
+# value it submitted in its own request.
+#
+# FR-012 does NOT apply here (spec Acceptance Scenario 6): this mechanism
+# operates on the run-snapshot, not ``decisions/index.json`` -- a mission
+# whose current phase has no ``OriginFlow`` member (``tasks``, ``analyze``)
+# can still have a pending ``decision_required`` moment, and this verb
+# resolves it normally. Do NOT apply the ``INVALID_ORIGIN_FLOW`` guard here.
+# ---------------------------------------------------------------------------
+
+_HELP_ANSWER_AGENT = "Agent/actor identity performing this call (required)"
+_HELP_ANSWER_VALUE = "The answer value to persist for the pending decision"
+_HELP_ANSWER_RESULT = (
+    "Outcome of the current issuance: success | failed | blocked "
+    "(required alongside --answer)"
+)
+_HELP_ANSWER_DECISION_ID = (
+    "Run-snapshot pending decision id to answer (auto-resolved when omitted "
+    "and exactly one decision is pending)"
+)
+
+# Single canonical source, shared with the host CLI's own
+# ``next_cmd._VALID_RESULTS`` (``next_cmd.py:51``) and mirroring
+# ``runtime.next._internal_runtime.engine.ResultType``: both CLI-facing
+# validators import ``VALID_RESULT_VALUES`` from ``runtime.next.decision``
+# instead of each keeping an independent literal copy (fold-in review
+# finding: this was previously a THIRD independent copy of the same enum).
+_VALID_ANSWER_RESULTS: tuple[str, ...] = VALID_RESULT_VALUES
+
+
+def _validate_answer_result_or_fail(cmd: str, result: str) -> None:
+    """Reject a ``--result`` value outside {success, failed, blocked}
+    (WP08-001 fold-in review fix, severity 3).
+
+    Mirrors the host CLI's own ``_validate_result_and_answer`` guard
+    (``next_cmd.py:610-613``) verbatim: identical condition
+    (``result not in _VALID_RESULTS``), identical message shape
+    (``"--result must be one of {...}, got '{result}'"``), and identical
+    POSITION in the call sequence -- called AFTER the mission-existence gate
+    (``_resolve_mission_dir_or_fail``, this verb's analogue of the host
+    CLI's ``_resolve_mission_slug``) but BEFORE any decision
+    resolution/auto-resolve or persistence (``get_or_start_run``,
+    ``_read_snapshot``, ``answer_decision_via_runtime``,
+    ``pair_previous_lifecycle_record``, ``decide_next``) -- exactly where
+    the host CLI's own ``_validate_result_and_answer`` runs relative to
+    ``_maybe_handle_answer``/``_handle_answer`` (``next_step``,
+    ``next_cmd.py:195-220``). Pre-fix, an invalid ``--result`` fell through
+    to whatever the decision-resolution logic produced (e.g.
+    ``NO_PENDING_DECISION`` for a mission with no pending decision) instead
+    of being rejected outright -- silently advancing the DAG when a pending
+    decision DID exist, with the garbage value persisted into the lifecycle
+    record's ``reason`` field by ``pair_previous_lifecycle_record``.
+
+    A DIFFERENT dedicated error_code than the host CLI's own check (which
+    is untyped -- a bare stderr print, no error_code at all): matches this
+    module's own precedent (``INVALID_ORIGIN_FLOW`` vs. the host CLI's
+    reused ``DecisionErrorCode.MISSING_STEP_OR_SLOT`` for ``--flow``) of
+    minting a dedicated, typed code for an orchestrator-api-specific
+    validation surface rather than propagating an untyped CLI print.
+    """
+    if result in _VALID_ANSWER_RESULTS:
+        return
+    _fail(
+        cmd,
+        "INVALID_RESULT",
+        f"--result must be one of {_VALID_ANSWER_RESULTS}, got '{result}'",
+        {"result": result, "valid_values": list(_VALID_ANSWER_RESULTS)},
+    )
+
+
+@app.command(name="answer-decision")
+def answer_decision(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    agent: str = typer.Option(..., "--agent", help=_HELP_ANSWER_AGENT),
+    answer: str = typer.Option(..., "--answer", help=_HELP_ANSWER_VALUE),
+    result: str = typer.Option(None, "--result", help=_HELP_ANSWER_RESULT),
+    decision_id: str = typer.Option(None, "--decision-id", help=_HELP_ANSWER_DECISION_ID),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Resolve a ``spec-kitty next`` ``decision_required`` moment (FR-013,
+    Mechanism B) with full CLI event/lifecycle-log parity (FR-014, operator
+    ruling SPEC-FRESH2-001). See the module comment block above this
+    function for the full five-step composite and the response-shape
+    contract.
+    """
+    cmd = "answer-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for answer-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    if result is None:
+        _fail(
+            cmd,
+            "RESULT_REQUIRED",
+            "--result is required alongside --answer for answer-decision",
+        )
+        return
+
+    main_repo_root = _get_main_repo_root()
+    # Existence gate FIRST via the coord-aware read seam (consistent
+    # MISSION_NOT_FOUND envelope shared with every other read/write endpoint
+    # in this module) -- the runtime resolution below is only reached for a
+    # mission already known to exist.
+    _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    # WP08-001: --result enum validation runs HERE -- after the
+    # mission-existence gate above (this verb's analogue of the host CLI's
+    # ``_resolve_mission_slug``), but BEFORE any decision resolution or
+    # persistence below (mirrors ``next_cmd.py``'s own ordering: mission
+    # resolution -> ``_validate_result_and_answer`` -> ``_maybe_handle_
+    # answer``). See ``_validate_answer_result_or_fail``'s docstring.
+    _validate_answer_result_or_fail(cmd, result)
+
+    from mission_runtime import MissionArtifactKind as _MissionArtifactKind
+    from mission_runtime import placement_seam as _placement_seam
+    from runtime.next.decision import decide_next
+    from runtime.next.next_invocation_lifecycle import (
+        AmbiguousPendingDecisionError,
+        NoPendingDecisionError,
+        emit_mission_next_invoked,
+        pair_previous_lifecycle_record,
+        resolve_pending_decision_id,
+        write_issuance_lifecycle_record,
+    )
+    from runtime.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
+    from runtime.next.runtime_bridge_engine import _read_snapshot
+    from specify_cli.mission import get_mission_type
+
+    # Mirrors ``next_cmd.py``'s ``_handle_answer`` exactly: the
+    # PRIMARY-partition read (never the coord-only husk) so ``mission_type``
+    # comes from the real ``meta.json``.
+    feature_dir = _placement_seam(main_repo_root, mission).read_dir(
+        _MissionArtifactKind.PRIMARY_METADATA
+    )
+    mission_type = get_mission_type(feature_dir)
+    run_ref = get_or_start_run(mission, main_repo_root, mission_type)
+    run_dir = Path(run_ref.run_dir)
+
+    if decision_id is None:
+        # Auto-resolve through the ONE shared seam (PR-BOUNDARY-001):
+        # ``runtime.next.next_invocation_lifecycle.resolve_pending_decision_id``
+        # is the same zero/one/many branch ``next_cmd.py``'s ``_handle_answer``
+        # now also calls -- no more independently-maintained duplicate here.
+        try:
+            resolved_decision_id = resolve_pending_decision_id(run_dir, None)
+        except NoPendingDecisionError as exc:
+            _fail(cmd, "NO_PENDING_DECISION", str(exc))
+            return
+        except AmbiguousPendingDecisionError as exc:
+            _fail(
+                cmd,
+                "AMBIGUOUS_PENDING_DECISION",
+                str(exc),
+                {"pending_decision_ids": exc.pending_ids},
+            )
+            return
+    else:
+        # An explicit --decision-id not currently pending (already answered,
+        # or naming a different step) must never be silently no-op'd or
+        # answer the wrong decision. Orchestrator-api-only guard (the host
+        # CLI's own ``_handle_answer`` performs no equivalent check) -- reads
+        # via the same ``runtime_bridge_engine`` concentration seam as the
+        # auto-resolve path above, never ``_internal_runtime.engine`` directly.
+        resolved_decision_id = decision_id
+        snapshot = _read_snapshot(run_dir)
+        if resolved_decision_id not in snapshot.pending_decisions:
+            _fail(
+                cmd,
+                "DECISION_NOT_PENDING",
+                f"Decision {resolved_decision_id!r} is not currently pending "
+                f"for mission {mission!r}",
+                {"decision_id": resolved_decision_id},
+            )
+            return
+
+    # --- Step 1: persist the answer. ---
+    answer_decision_via_runtime(mission, resolved_decision_id, answer, agent, main_repo_root)
+
+    # --- Step 2 (WP02 seam, REQUIRED, BEFORE the DAG advances): pair the
+    # previous issuance's `started` lifecycle record. ---
+    pair_previous_lifecycle_record(agent, mission, result, main_repo_root)
+
+    # --- Step 3 (ENGINE call, NOT part of WP02's seam): advance the DAG. ---
+    decision = decide_next(agent, mission, result, main_repo_root)
+
+    # --- Step 4 (WP02 seam, REQUIRED, AFTER decide_next returns): emit the
+    # mission event log entry. ---
+    emit_mission_next_invoked(agent, result, mission, main_repo_root, decision)
+
+    # --- Step 5 (WP02 seam, REQUIRED): write the new issuance lifecycle
+    # record. Called unconditionally, exactly like the host CLI
+    # (``next_cmd.py:262``) -- ``write_issuance_lifecycle_record`` itself
+    # self-no-ops on a non-"step" decision (``next_invocation_lifecycle.py``,
+    # the ``kind != "step"`` guard near its top), so the predicate belongs to
+    # the seam, not to each caller. ---
+    write_issuance_lifecycle_record(agent, mission, main_repo_root, decision)
+
+    data = decision.to_dict()
+    # Sibling field (SPEC-FRESH2-002): the persisted-answer confirmation,
+    # self-documenting per this repo's own curated-field-name convention --
+    # never a substitute for the full Decision.to_dict() shape above, and
+    # deliberately NOT the CLI's terser `answered` key. No `answer` echo key
+    # is set here (the host already possesses the value it submitted).
+    data["answered_decision_id"] = resolved_decision_id
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+# ---------------------------------------------------------------------------
+# Command: design-status (WP06, FR-010)
+#
+# A narrow, design-phase-only reduction over on-disk artifact presence
+# (spec.md/plan.md/tasks/-finalized/analysis-report.md, all PRIMARY-partition)
+# and the decisions/index.json ledger (COORD-partition) -- spec Clarification
+# 6. Mirrors list-ready's own "no state transition, no event emission"
+# read-only contract: no --policy required, reduces state rather than
+# invoking the full DAG engines.
+#
+# HARD CONSTRAINT (Clarification 6): never import or call
+# resolve_next_workflow_action (_internal_runtime/planner.py) or
+# decide_next/_resolve_next_unified_step/runtime_bridge.query_current_state --
+# both return a WP-loop/run-state-shaped payload (action/wp_id/prompt_file),
+# not FR-010's four design-phase fields, and decide_next's query path
+# materializes/reads a runtime run (get_or_start_run) as a side effect this
+# read-only verb must not depend on. A reviewer should reject any import of
+# either.
+# ---------------------------------------------------------------------------
+
+
+def _tasks_are_finalized(mission_dir: Path) -> bool:
+    """True once ``finalize-tasks`` has bootstrapped canonical status for at
+    least one WP -- the SAME signal ``bootstrap_canonical_state``
+    (``status/bootstrap.py``) writes, and the SAME reduction ``list-ready``
+    already performs via ``reduce(read_events(mission_dir))`` (T029: reuse
+    finalize-tasks's own signal, not a new heuristic). A ``tasks/`` directory
+    merely populated by an earlier tasks-outline/tasks-packages pass does
+    NOT set this -- only finalize-tasks's own bootstrap write does (verified
+    against ``status/bootstrap.py``: ``bootstrap_canonical_state`` is called
+    exclusively from the finalize-tasks command family, never from the
+    outline/packages phases).
+
+    Torn/truncated read handling (ledger SK-131, WP06-001 review finding):
+    two DISTINCT corruption shapes, two distinct defenses --
+
+    1. A genuinely torn line (an unlocked-writer race landing mid-read;
+       only 2 of 6 ``status.events.jsonl`` writers take the feature status
+       lock) breaks JSON parsing itself: ``read_events`` raises
+       ``StoreError`` on a malformed JSON line or invalid event structure.
+       This function does NOT catch that exception -- it propagates to
+       ``design_status``, which turns it into a structured
+       ``DESIGN_STATUS_EVENT_LOG_UNREADABLE`` failure envelope instead of
+       guessing.
+    2. A rollback-truncated log (``coordination/transaction.py``'s
+       ``_rollback``: ``fh.truncate(self._pre_emit_size)``, a byte offset
+       captured BEFORE the append began) does NOT break JSON parsing --
+       the file is append-only, so truncating to a pre-append offset
+       always lands on a line boundary and every remaining line is still
+       valid JSON. ``StoreError`` never fires for this shape, so (1)'s
+       defense does not catch it: silently reducing the truncated log
+       would return a plausible-but-wrong ``current_phase``/
+       ``next_action`` snapshot, exactly the silent-success failure class
+       this repo names as dominant (live-reproduced: dropping a real
+       tasks-finalized mission's trailing bootstrap event line whole
+       returned ``current_phase: "plan"`` with no error).
+
+       Defense: a structural drift check against ``status.json`` --
+       finalize-tasks's own ``bootstrap_canonical_state`` already
+       materializes it (``status/bootstrap.py``) as a persisted,
+       INDEPENDENT record of "these WP ids are known", written via
+       atomic tmp-then-rename (``status/reducer.py::materialize``), so it
+       cannot itself be torn. If the persisted ``work_packages`` set
+       names a WP id the FRESH event-log reduction no longer contains,
+       the event log lost information relative to the last durable
+       materialization -- the SAME ``SNAPSHOT_DRIFT`` concept
+       ``audit/classifiers/status_json.py`` already names for
+       ``doctor mission-state --fix`` (issue #1782), reused here for this
+       read path rather than inventing a parallel one. That drift is
+       surfaced as ``StoreError`` so it flows through the SAME
+       ``DESIGN_STATUS_EVENT_LOG_UNREADABLE`` handling as (1) -- one
+       failure code for "the log cannot be trusted", regardless of which
+       of the two shapes broke it.
+
+       This does not require modeling ``_rollback`` exactly: its own
+       truncate-then-restore-status.json sequence is two independently
+       ``try/except OSError``-guarded steps (transaction.py:922-971), not
+       one atomic operation, so a crash or I/O failure between them
+       leaves precisely this asymmetric state on disk -- truncated events,
+       stale-but-larger status.json -- on the real rollback path itself,
+       not only via the live reproduction's direct file edit.
+
+    Inode replacement (adjacent hazard, examined): CANNOT occur for
+    ``status.events.jsonl`` specifically, because every writer mutates the
+    file'S CONTENT in place through the SAME inode -- ``append_event``
+    opens in ``"a"`` mode, ``_rollback`` opens in ``"ab"`` mode and
+    truncates -- neither ever ``os.replace()``s a new inode over this
+    path (unlike ``status.json``/``decisions/index.json``, which DO use
+    tmp-then-rename, and are safe for the opposite reason: a reader who
+    already holds an fd open before a rename keeps reading the old
+    inode's complete content; a reader who opens after gets the fully-new
+    inode's complete content -- either way, no torn/mixed read is
+    possible via rename). No reader here can observe a page composed of
+    two different inodes' bytes, because only one inode ever exists for
+    this file.
+    """
+    from specify_cli.status import StoreError, read_events, reduce
+
+    snapshot = reduce(read_events(mission_dir))
+    _check_no_snapshot_drift(mission_dir, snapshot)
+    return bool(snapshot.work_packages)
+
+
+def _check_no_snapshot_drift(mission_dir: Path, snapshot: StatusSnapshot) -> None:
+    """Raise ``StoreError`` if persisted ``status.json`` knows about a WP the
+    freshly-reduced event log no longer contains (WP06-001 remediation).
+
+    ``status.json`` is written by ``status/reducer.py::materialize`` via
+    tmp-then-rename atomic replace, so a reader always sees either the
+    fully-old or fully-new file, never a partial one -- there is no
+    torn-read hazard on THIS side of the comparison. Its absence (no
+    finalize-tasks bootstrap has ever run for this mission) is not drift;
+    there is simply no persisted record yet to compare against.
+    """
+    from specify_cli.status import SNAPSHOT_FILENAME, StoreError
+
+    status_json_path = mission_dir / SNAPSHOT_FILENAME
+    if not status_json_path.exists():
+        return
+
+    try:
+        persisted = json.loads(status_json_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise StoreError(
+            f"status.json could not be read for snapshot-drift comparison: {exc}"
+        ) from exc
+
+    persisted_wp_ids = set(persisted.get("work_packages") or {})
+    fresh_wp_ids = set(snapshot.work_packages)
+    missing = persisted_wp_ids - fresh_wp_ids
+    if missing:
+        raise StoreError(
+            "snapshot drift: status.json's persisted work_packages set "
+            f"names {sorted(missing)!r}, which the freshly-reduced "
+            "status.events.jsonl no longer contains -- treating this as a "
+            "torn/truncated event-log read (SNAPSHOT_DRIFT, cf. "
+            "audit/classifiers/status_json.py, issue #1782) rather than "
+            "trusting a silently-shrunk reduction"
+        )
+
+
+def _open_decisions(mission_dir: Path) -> list[dict[str, str]]:
+    """Return ``{decision_id, origin}`` for every OPEN entry in the
+    decisions ledger, regardless of which design phase opened it (spec
+    Acceptance Scenario 2: an open decision from an earlier phase still
+    blocks phase advancement).
+
+    ``decisions/index.json`` is written via ``tmp-then-rename`` atomic
+    replace (``decisions/store.py::_atomic_write``), so -- unlike
+    ``status.events.jsonl`` -- there is no torn-read hazard here: a reader
+    always sees either the fully-old or fully-new file, never a partial one.
+    """
+    from specify_cli.decisions.store import load_index
+
+    index = load_index(mission_dir)
+    return [
+        {"decision_id": entry.decision_id, "origin": entry.origin_flow.value}
+        for entry in index.entries
+        if entry.status.value == "open"
+    ]
+
+
+def _reduce_design_status(planning_dir: Path, mission_dir: Path) -> dict[str, Any]:
+    """The core FR-010 reduction: ``current_phase``/``next_action`` from
+    on-disk artifact presence, ``open_decisions`` from the ledger.
+
+    ``planning_dir`` is the PRIMARY-surface mission dir (``spec.md``/
+    ``plan.md``/``tasks/``/``analysis-report.md`` -- all PRIMARY-partition
+    kinds per ``mission_runtime.artifacts._PRIMARY_ARTIFACT_KINDS``).
+    ``mission_dir`` is the COORD-aware status dir (``status.events.jsonl``/
+    ``decisions/index.json`` -- both STATUS_STATE-kind), the SAME
+    resolution ``list-ready`` already uses for its own event-log reduction.
+
+    Phase naming: ``current_phase`` names the phase whose artifact is
+    present but not yet superseded by the next phase's artifact (matching
+    spec Acceptance Scenario 1's literal "spec.md scaffolded ->
+    current_phase: specify" example); ``next_action`` always names the VERB
+    the host should call next. An open decision overrides ``next_action``
+    to ``resolve-decision`` regardless of phase (Acceptance Scenario 2).
+    """
+    spec_exists = (planning_dir / "spec.md").exists()
+    plan_exists = (planning_dir / "plan.md").exists()
+    tasks_finalized = _tasks_are_finalized(mission_dir)
+    analysis_exists = (planning_dir / "analysis-report.md").exists()
+
+    current_phase: str
+    next_action: str | None
+    if not spec_exists:
+        current_phase, next_action = "specify", "specify"
+    elif not plan_exists:
+        current_phase, next_action = "specify", "plan"
+    elif not tasks_finalized:
+        current_phase, next_action = "plan", "tasks"
+    elif not analysis_exists:
+        current_phase, next_action = "tasks", "check-prerequisites"
+    else:
+        current_phase, next_action = "analyze", None
+
+    open_decisions = _open_decisions(mission_dir)
+    if open_decisions:
+        next_action = "resolve-decision"
+
+    return {
+        "current_phase": current_phase,
+        "next_action": next_action,
+        "open_decisions": open_decisions,
+    }
+
+
+@app.command(name="design-status")
+def design_status(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+) -> None:
+    """Read-only design-phase status query (FR-010) -- mirrors ``list-ready``'s
+    no-state-transition, no-event-emission, no-``--policy`` contract for the
+    design pipeline instead of the WP loop.
+
+    Never delegates to ``resolve_next_workflow_action`` or
+    ``decide_next``/``query_current_state`` -- see the Clarification-6
+    module comment above ``_tasks_are_finalized``.
+    """
+    cmd = "design-status"
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    planning_dir = _planning_read_dir(main_repo_root, mission)
+
+    from pydantic import ValidationError
+
+    from specify_cli.status import StoreError
+
+    try:
+        reduction = _reduce_design_status(planning_dir, mission_dir)
+    except StoreError as exc:
+        _fail(
+            cmd,
+            "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
+            f"status.events.jsonl could not be read cleanly for mission {mission!r}: {exc}",
+            {"mission_slug": mission, "error": str(exc)},
+        )
+        return
+    except (json.JSONDecodeError, ValidationError) as exc:
+        # ``_open_decisions`` -> ``decisions.store.load_index`` reads
+        # ``decisions/index.json`` inside the SAME reduction this ``try``
+        # guards -- a hand-corrupted index raises malformed-JSON
+        # (``json.JSONDecodeError``) or schema-invalid
+        # (pydantic ``ValidationError``), neither of which is a
+        # ``StoreError``. Reuse the SAME typed STORE error envelope the
+        # torn-``status.events.jsonl`` shapes above already produce, rather
+        # than letting either exception escape un-enveloped.
+        _fail(
+            cmd,
+            "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
+            f"decisions/index.json could not be read cleanly for mission {mission!r}: {exc}",
+            {"mission_slug": mission, "error": str(exc)},
+        )
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        **reduction,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
     _emit(envelope)
 
 

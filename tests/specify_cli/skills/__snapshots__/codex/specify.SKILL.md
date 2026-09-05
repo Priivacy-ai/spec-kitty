@@ -596,6 +596,8 @@ Given that feature description, do this:
 
    If the user expects a pull request for this work, add `--pr-bound --branch-strategy already-confirmed`. When `current_is_primary` is true and they accept the recommended feature-branch path, also add `--start-branch <branch>` so no mission artifacts are written on the primary branch.
 
+   If this mission must preserve its lane branches and/or worktrees after `spec-kitty merge` (e.g. for post-merge inspection or a PR review window), declare that up front with `--retain-branches` and/or `--retain-worktrees` — this mints a machine-readable retention policy into `meta.json` so merge honors it automatically, rather than relying on a prose note nothing reads.
+
    The command returns JSON with:
    - `result`: "success" or error message
    - `mission_id`: Canonical ULID machine identity (e.g., `01J6XW9KQT7M0YB3N4R5CQZ2EX`). Immutable.

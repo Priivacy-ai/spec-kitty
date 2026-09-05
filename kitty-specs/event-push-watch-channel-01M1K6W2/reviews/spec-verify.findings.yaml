@@ -1,0 +1,153 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: SPEC-VERIFY-001
+    lens: resume-mechanism-testability
+    severity: 4
+    title: "FR-004's own hedge language (\"e.g.\", \"and/or\") makes the resume mechanism impossible to write one acceptance test against without inventing it"
+    evidence:
+      - artifact: "spec.md § FR-004 (Requirements > Functional Requirements table)"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1 (\"given O as its resume point\")"
+      - artifact: "spec.md § Key Entities > Tail cursor (\"owned by whichever side ... FR-004's design settles on\")"
+    claim: >
+      FR-004 reads: "I want the command to accept a resume point (e.g. `--from-offset <N>`)
+      and/or emit its current offset in each envelope so that I can persist and supply it on
+      restart." The "and/or" literally permits an implementation that satisfies FR-004 by ONLY
+      emitting the offset in each envelope, with no CLI/env input mechanism to actually supply a
+      resume point back in on restart. Under that reading, User Story 3 Acceptance Scenario 1
+      ("Given a tailer that stops after consuming through byte offset O, When it is restarted and
+      given O as its resume point, Then it does not re-emit...") becomes physically
+      unexecutable — there is no way to hand O back to the restarted process. The spec itself
+      concedes the mechanism is unresolved: Key Entities > Tail cursor says the resume state is
+      "owned by whichever side (consumer or command invocation) FR-004's design settles on" —
+      i.e. even the spec's own supporting section defers ownership to a decision FR-004 has not
+      actually made. A plan-phase author could build "emit-only" and a tasks-phase author could
+      independently build "flag-only," each technically satisfying FR-004's literal text, while
+      only one (or neither) makes US3's acceptance scenario runnable at all.
+    remediation: >
+      Rewrite FR-004 to name the actual mechanism unconditionally, e.g.: "The command MUST accept
+      a `--from-offset <N>` flag on `events tail` invocation AND MUST include the current byte
+      offset in every emitted envelope (including signal envelopes), so a consumer can always
+      persist the last-seen offset and pass it back via `--from-offset` on restart." Remove the
+      "e.g." and "and/or" hedges; if only one of the two mechanisms is truly required, say which
+      one explicitly and update US3 Scenario 1 to name the exact flag/parameter it exercises.
+
+  - id: SPEC-VERIFY-002
+    lens: core-truncation-shapes / falsifiability
+    severity: 4
+    title: "Shape (a) (mid-line JSON tear, FR-006) has no dedicated User Story or Given/When/Then Acceptance Scenario anywhere in the spec, unlike shape (b) which gets a full User Story with two Acceptance Scenarios"
+    evidence:
+      - artifact: "spec.md § User Story 2 (title, Acceptance Scenarios 1-2) — shape (b) only"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 2 (\"a separate writer atomically appends a new valid event\" — explicitly a COMPLETE, not torn, write)"
+      - artifact: "spec.md § Edge Cases > \"Mid-line JSON tear (shape a)\" (prose only, no Given/When/Then)"
+      - artifact: "spec.md § FR-006 (Requirements table row, prose only)"
+    claim: >
+      User Story 2 is a full, dedicated P1 user story ("Consumer survives a rollback truncation
+      without desyncing silently") with two formal Given/When/Then Acceptance Scenarios covering
+      shape (b) specifically. Shape (a) (the mid-line JSON tear) has no equivalent: it appears
+      only as a one-paragraph Edge Cases bullet and as prose inside the FR-006 table row — neither
+      is a testable Given/When/Then Acceptance Scenario, and no User Story's Independent Test or
+      Acceptance Scenarios exercise a torn/incomplete write. US1 Scenario 2 explicitly describes
+      "a separate writer atomically appends a new valid event" — atomic and valid, i.e. the
+      opposite of a torn write. FR-006 is marked High priority, but under this spec's own
+      structure (User Story → Independent Test → Acceptance Scenario, which is how spec-kitty
+      ATDD tests are typically derived per charter C-011), there is no scenario a tasks-phase
+      author can lift verbatim into a failing-first test for shape (a). This is the coverage-gap
+      pattern (an FR present in the requirements table but with no independently-testable
+      acceptance scenario) that the rubric's severity-4 tier names directly ("FR without
+      coverage"), and it is the mirror image of the exact defect class this mission exists to
+      prevent (the sibling `design-status` rejection) — here it is shape (a), not shape (b), that
+      risks being dropped at tasks-authoring time because it never got the User Story treatment.
+    remediation: >
+      Add a third (or expand User Story 2 with a second) dedicated Given/When/Then Acceptance
+      Scenario for the mid-line JSON tear: e.g. "Given a tailer polling a log while a writer's
+      write(2) for one line is mid-flight, When the tailer reads a trailing line that fails JSON
+      parse, Then it does not raise, does not drop the partial line permanently, and on the next
+      poll (once the write completes) emits the now-complete event exactly once." Give it its own
+      Independent Test description mirroring User Story 2's, so tasks-phase can derive a
+      failing-first ATDD test for FR-006 with the same rigor shape (b) already has.
+
+  - id: SPEC-VERIFY-003
+    lens: silent-success
+    severity: 3
+    title: "NFR-003's blanket \"every FR-005 through FR-009 condition MUST produce an explicit signal\" textually contradicts FR-006's own described behavior (silent retry, no signal, for a torn line)"
+    evidence:
+      - artifact: "spec.md § NFR-003 (\"Every non-nominal condition covered by FR-005 through FR-009 MUST produce an explicit signal ... rather than being absorbed into ordinary \\\"no new data\\\" output.\")"
+      - artifact: "spec.md § FR-006 (\"an incomplete/invalid trailing line to be treated as 'not yet flushed' and retried next poll — never raised as a fatal read error and never silently dropped\")"
+    claim: >
+      NFR-003 has two sentences with different scopes. Sentence 1 gates the "no silent success"
+      rule on "while a real event exists that was not surfaced" — under this narrower gate, a
+      torn/incomplete line arguably doesn't qualify, since the event is not yet durably written,
+      so silently retrying (no distinguishable envelope for that poll) is defensible. Sentence 2
+      drops that gate and states unconditionally that "every non-nominal condition covered by
+      FR-005 through FR-009" — which includes FR-006 by its own numeric range — "MUST produce an
+      explicit signal ... rather than being absorbed into ordinary 'no new data' output." Taken
+      literally, sentence 2 requires FR-006's torn-line case to also emit a distinguishable
+      signal envelope (e.g. a "line_not_flushed" type) on every poll where a partial line is
+      observed — which FR-006's own text never asks for and which, given SK-131 measured torn
+      lines in 33,389 of 4.5M concurrent samples, could mean frequent extra signal noise on a live
+      log if implemented literally. A plan/tasks author following NFR-003's sentence 2 verbatim
+      builds a different (and noisier) reader than one following FR-006's own plain-language
+      description of silent, poll-boundary-transparent retry.
+    remediation: >
+      Narrow NFR-003 sentence 2 to match sentence 1's gating condition explicitly, e.g.: "Every
+      non-nominal condition covered by FR-005, FR-007, FR-008, and FR-009 MUST produce an explicit
+      signal... FR-006's torn-line retry is exempt from the explicit-signal requirement precisely
+      because no complete event exists yet at that poll; it MUST NOT be reported as an error or a
+      truncation, and MUST NOT be silently dropped (it is retried, not signaled)." This makes the
+      FR-006 exemption a stated design decision instead of a text collision a plan-phase author
+      has to resolve on their own.
+
+  - id: SPEC-VERIFY-004
+    lens: falsifiability
+    severity: 2
+    title: "Edge Cases section cross-references the wrong FR IDs (off-by-one) for two of the four listed edge cases"
+    evidence:
+      - artifact: "spec.md § Edge Cases > \"Log file does not exist yet\" (\"...and start streaming once it does. See FR-007.\")"
+      - artifact: "spec.md § Requirements > FR-008 (\"Wait for a not-yet-created log file, then stream once it appears\")"
+      - artifact: "spec.md § Edge Cases > \"Mission slug does not resolve\" (\"...distinct from 'file not yet created.' See FR-008.\")"
+      - artifact: "spec.md § Requirements > FR-009 (\"Fail closed on an unresolvable mission slug\")"
+    claim: >
+      The "Log file does not exist yet" edge case describes waiting/polling for file creation and
+      cites "See FR-007" — but FR-007 is "Detect a clean record-boundary truncation as data loss,"
+      an unrelated requirement. The correct citation is FR-008 ("Wait for a not-yet-created log
+      file, then stream once it appears"). Likewise, the "Mission slug does not resolve" edge case
+      cites "See FR-008" but the matching requirement is FR-009 ("Fail closed on an unresolvable
+      mission slug"). Both edge cases are off by one FR ID. The prose behavior described in each
+      bullet is itself correct and matches the correctly-numbered FR elsewhere in the Requirements
+      table, so this would not by itself cause a wrong implementation — but it would misdirect a
+      plan/tasks author or reviewer building a traceability matrix (which this spec's own C-008
+      and SC-004 make load-bearing for CI-marker coverage) between edge case and FR.
+    remediation: >
+      Fix the two citations: "Log file does not exist yet" → "See FR-008."; "Mission slug does not
+      resolve" → "See FR-009."
+
+  - id: SPEC-VERIFY-005
+    lens: falsifiability / silent-success
+    severity: 3
+    title: "No FR or edge case specifies behavior for an invalid or out-of-range resume offset supplied via FR-004's resume mechanism"
+    evidence:
+      - artifact: "spec.md § FR-002 (\"Byte-offset resumable reads\")"
+      - artifact: "spec.md § FR-004 (\"Explicit resume mechanism exposed to the consumer\")"
+      - artifact: "spec.md § Edge Cases (no bullet for an invalid/stale resume offset)"
+    claim: >
+      FR-002 and FR-004 describe resuming from "a supplied byte offset," but nowhere does the spec
+      state what happens when that offset is invalid for the current file: greater than the
+      current file size (e.g. the consumer's persisted offset predates a rollback truncation the
+      consumer never saw, or is simply stale/corrupt), negative, or landing mid-line rather than on
+      a line boundary. This is a real non-nominal input path — exactly the class of thing NFR-003
+      is meant to police — but it is not named among "truncation, torn-line, missing-file, or
+      resolve-failure" in NFR-003, nor is it in the Edge Cases list. A plausible-but-wrong
+      implementation could silently clamp an out-of-range `--from-offset` to file size (or to 0)
+      and proceed as if nothing were wrong, exactly the "report success/no new events while data
+      was lost" failure mode NFR-003 otherwise targets — and no Acceptance Scenario in the spec
+      would catch it, because none exercises this input.
+    remediation: >
+      Add an edge case and an Acceptance Scenario (or extend FR-004/FR-005) for an out-of-range or
+      non-line-boundary resume offset: require the reader to treat it as data-loss/desync (an
+      explicit signal, analogous to FR-005's truncation signal) rather than silently clamping or
+      guessing, and to fail closed rather than starting from an unverifiable position.

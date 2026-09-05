@@ -107,6 +107,7 @@ from typing import Literal, Protocol, runtime_checkable
 from mission_runtime import ActionContextError, CommitTarget, MissionArtifactKind, placement_seam
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
 # The exact caught set mission_runtime.write_target_degrade.resolve_write_target_or_degrade
@@ -221,7 +222,7 @@ class WriteSeamResult:
 
 
 def _probe_write_target(
-    repo_root: Path, mission_slug: str, kind: MissionArtifactKind
+    repo_root: Path, mission_slug: str, kind: MissionArtifactKind, *, effective_root: Path | None = None,
 ) -> CommitTarget | Exception:
     """Probe routability via the seam; return the resolved target, or the
     caught exception on an unroutable target.
@@ -239,7 +240,9 @@ def _probe_write_target(
     a THIRD resolution call.
     """
     try:
-        return placement_seam(repo_root, mission_slug).write_target(kind)
+        return placement_seam(
+            repo_root, mission_slug, **effective_root_kwargs(effective_root),
+        ).write_target(kind)
     except _UNROUTABLE_EXCEPTIONS as exc:
         return exc
 
@@ -424,6 +427,7 @@ def write_artifact(
     stage: Callable[[], tuple[Path, ...]] | None = None,
     target_branch: str | None = None,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
+    effective_root: Path | None = None,
 ) -> WriteSeamResult:
     """Write mission artifact ``kind`` through the ONE write seam.
 
@@ -469,13 +473,15 @@ def write_artifact(
     if files is not None and stage is not None:
         raise WriteSeamUsageError(_MATERIALIZATION_USAGE_ERROR_BOTH)
 
-    probed = _probe_write_target(repo_root, mission_slug, kind)
+    probed = _probe_write_target(
+        repo_root, mission_slug, kind, **effective_root_kwargs(effective_root),
+    )
     if isinstance(probed, Exception):
         return _refused_result(mission_slug=mission_slug, kind=kind, entry_id=entry_id, cause=probed)
 
     materialized_files = _materialize_files(files, stage)
 
-    if is_post_consolidation_write_target(repo_root, mission_slug, kind, probed):
+    if effective_root is None and is_post_consolidation_write_target(repo_root, mission_slug, kind, probed):
         return _commit_post_consolidation_write(
             repo_root=repo_root,
             resolved=probed,
@@ -493,6 +499,7 @@ def write_artifact(
         kind=kind,
         primary_paths_created_this_invocation=primary_paths_created_this_invocation,
         target_branch=target_branch,
+        **effective_root_kwargs(effective_root),
     )
     return WriteSeamResult(
         status=result.status,

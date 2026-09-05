@@ -1510,6 +1510,36 @@
       "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5542842847",
       "id": "census-0904-catchup-port-v326-release",
       "summary": "09-04 catch-up: the v3.2.6 release cut, 3.2.7rc1 cycle-open, design-phase orchestrator-api mission (contract 1.4.0), SPDD/REASONS activation split-brain (#3838), roadmap 4.0.0 spine, landing/docs normalization"
+    },
+    {
+      "census_commit_count": 20,
+      "classification": "CLEAN+CONFLICT (19 verbatim or cleanly merged; commit-router authority/recovery guidance and changelog ordering adapted to preserve both lineages)",
+      "commits": [
+        "d1e67301db3efc96639b59f81ba686dd958bccd2",
+        "24b4dcc92c50a15c40b14ba28b3fb140b8cdcae7",
+        "58269885797b26b7a5c2b2c15b909a45798150fe",
+        "77f4d236c8d65dfe1ce190999f235f27561b538f",
+        "b186bddfa44cd2287684525cb0e2505d5f37e5ee",
+        "61fd102713a368e611becd4838ef31fc225fee5c",
+        "92237b6dc5ced2f567d7edeee168e223a689cc90",
+        "fa6fcbb2ecf22d40ce9e97440391d7fc5ca0e44a",
+        "28c652f94074b3ebda52fdede118506ee99dbadf",
+        "6fa98b340498c4ff70e6ded7a62d8b20b27dc119",
+        "94797152b95b7b9b86232060d89fe1c665acefb5",
+        "c1597204c727421b08de0c4a6acac4ae7f8d5778",
+        "9574c3db504820c76d36c6d3ec91e9286e11e4ab",
+        "2d5d96727490906a00ef6f82f5b7b4c2f16efb5c",
+        "8a9ebec00acf05bf73abeb6a0031694479651242",
+        "2abaf6d07533ce2948a766635738f84daa37c025",
+        "65705c80037003e8878b644012ac1b993f3c5512",
+        "f2500bda817df99361bf4c8dd64ab83b8e6a9871",
+        "c71112380ddb8ed37115a0e43ea7cc009f4f513a",
+        "614c52cb382d6bbd4ae8d4daab060320502fc14c"
+      ],
+      "disposition": "PORT",
+      "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1065",
+      "id": "census-0905-final-public-tail",
+      "summary": "09-05 final public tail: internal pack additions, charter activated-authority mirror, coordination commit-surface authority, and resumable events-tail CLI"
     }
   ],
   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",

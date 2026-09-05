@@ -1,0 +1,80 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 3
+mission: event-push-watch-channel-01M1K6W2
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      Verified against the RULING's bar, not the original finding's framing. (1) Hash
+      algorithm named: "SHA-256 hex digest" appears in Clarifications §5 (line 91),
+      FR-004 (line 327), FR-005 (line 328), Tail cursor (line 367), Tail envelope (line
+      388). (2) "or the raw bytes of" branch deleted from every live/binding location:
+      grepped `raw bytes` across spec.md — the only occurrences are (a) Clarifications
+      §5's heading and body explicitly stating the resolved decision ("a hash, not raw
+      bytes" / "never raw bytes") which negates rather than offers the branch, (b) the
+      quoted historical fragment at lines 89-90 ("An earlier draft left ... an unresolved
+      either/or: \"a hash of, or the raw bytes of,\"") which is bounded by quotation
+      marks and explicit "earlier draft" framing — genuinely historical context, not a
+      live requirement, confirming the fixer's claim — and (c) two negation clauses
+      ("never the raw bytes themselves" / "never the raw event bytes") at Tail cursor
+      and Tail envelope that state the invariant is NOT raw bytes. Zero live either/or
+      instances remain; grep for the literal "hash of, or" returns exactly one hit (the
+      quoted historical line). (3) Consumer behavior on resume-time mismatch: FR-013
+      (line 336) states REFUSE explicitly — "emit a structured error on stderr and exit
+      non-zero, with no Tail envelope emitted for that invocation" — and this reached
+      every implementer-binding section, not just the prose: FR-013 itself, the Tail
+      cursor Key Entity (lines 378-380, "REFUSES the resume ... on a mismatch"), User
+      Story 3 Independent Test (lines 206-208), Acceptance Scenarios 3 and 4 (lines
+      219-235, both say "refuses the resume — a structured error on stderr, a non-zero
+      exit, and no Tail envelope emitted"), the Edge Cases bullet (lines 296-305), and
+      SC-002's added second sentence (lines 415-419). FR-005 was checked separately and
+      confirmed to retain ONLY the live/running-process resync-from-0 behavior (lines
+      171-186, 328) — it was not touched to add refuse language, which is correct: FR-013
+      explicitly and correctly distinguishes itself as "deliberately NOT FR-005's live
+      resync-from-0" (line 336), so an implementer cannot conflate the two paths. The
+      Tail envelope entity's enumerated signal shapes (truncation-resync FR-005/FR-007,
+      resolve-failure FR-009) deliberately omit FR-013's refusal as a third envelope
+      shape, which is internally consistent with FR-013's "no Tail envelope emitted."
+      Decision reached the binding FRs/entities/scenarios, not only Clarifications §5.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >-
+      SC-002 (lines 411-419) now carries a dedicated second sentence naming FR-013 and
+      User Story 3 Acceptance Scenario 4 by ID, with its own measurable metric: "0% of
+      such offline content-invariant mismatches are silently resumed from — every one
+      produces FR-013's refusal ... rather than a stream that looks like an ordinary
+      successful resume." This is a concrete, testable clause distinct from the generic
+      NFR-003 blanket clause, satisfying the ruling's remediation exactly as specified
+      (dedicated clause, not merely a cross-reference).
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: >-
+      FR-004 (line 327, an implementer-binding FR table row, not just prose) now states:
+      "`--from-invariant` supplied without `--from-offset` MUST be rejected as a CLI
+      usage error — non-zero exit, structured stderr, no Tail envelope emitted — before
+      any read begins, consistent with FR-009's pattern for other malformed-input
+      rejections." FR-013 (line 336) carries a reciprocal cross-reference: "(See FR-004
+      for the inverse malformed combination — `--from-invariant` without `--from-offset`
+      — rejected as a CLI usage error before any read begins.)" Both directions of the
+      pairing constraint (offset-without-invariant in FR-013's last sentence,
+      invariant-without-offset in FR-004) are now stated where an implementer building
+      the CLI argument parser will find them.
+  - id: SPEC-VERIFY3-001
+    status: resolved
+    reason: >-
+      Not a finding — recorded per instructions to show the substantial-fix checks were
+      performed, not suppressed. Citation-discipline spot check: grepped the fix commit's
+      added lines (`git diff fc162ddf3^..fc162ddf3` filtered to `^+` lines) for any
+      `path/file.ext:NNN` pattern — zero matches. All of the fixer's edits are internal
+      cross-references ("see Clarifications §5", "per FR-005", "See FR-004 for..."),
+      confirming the "zero new file:line citations" claim rather than accepting it on
+      say-so. Weakening check: compared every changed clause against fc162ddf3^ — SC-002,
+      FR-004, FR-005, FR-013, the Tail cursor/envelope entities, and all four Acceptance
+      Scenarios in User Story 3 were all made MORE specific/concrete (naming SHA-256,
+      naming the exact refuse mechanics: structured stderr + non-zero exit + no envelope)
+      with nothing narrowed or dropped; NFR-003's pre-existing "explicit signal (...
+      envelope ..., or non-zero exit with structured stderr)" wording already
+      accommodated FR-013's refuse path without needing to change, so no inconsistency
+      was introduced there either. No new severity>=3 gap found.

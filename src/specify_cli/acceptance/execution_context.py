@@ -56,6 +56,7 @@ from mission_runtime import (
     declared_read_surface,
     resolve_artifact_surface,
 )
+from specify_cli.core.owned_mission import effective_root_kwargs
 
 
 class LifecyclePhase(enum.IntEnum):
@@ -233,6 +234,7 @@ def declared_home_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> TopologySurface:
     """The surface a ``kind`` authoritatively belongs to under the STORED topology.
 
@@ -261,7 +263,10 @@ def declared_home_surface(
     ``resolve_artifact_surface`` projection) is built from. One shared
     predicate, two consumers — never a second competing guard.
     """
-    return declared_read_surface(repo_root, mission_slug, kind, resolver=resolver)
+    return declared_read_surface(
+        repo_root, mission_slug, kind, resolver=resolver,
+        **effective_root_kwargs(effective_root),
+    )
 
 
 # Default HEAD resolver for GEC-2 ref agreement. Injected in tests so the seam is
@@ -310,6 +315,7 @@ def build_gate_execution_context(
     phase: LifecyclePhase,
     ref: str,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> GateExecutionContext:
     """The ONE construction door for a :class:`GateExecutionContext` (GEC-1).
 
@@ -328,7 +334,8 @@ def build_gate_execution_context(
             deleted from git (propagated from the resolver, C3 fail-loud).
     """
     resolved = resolve_artifact_surface(
-        repo_root, mission_slug, kind, resolver=resolver
+        repo_root, mission_slug, kind, resolver=resolver,
+        **effective_root_kwargs(effective_root),
     )
     return GateExecutionContext(
         surface=resolved.path,

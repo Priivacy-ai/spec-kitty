@@ -648,6 +648,85 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# FR-001: meta.json commit fails loudly (mission_creation.py:767, :792)
+# ---------------------------------------------------------------------------
+
+
+def test_meta_json_commit_noop_does_not_raise(tmp_path: Path) -> None:
+    """FR-001 Acceptance Scenario 3: the legitimate "nothing to commit" no-op
+    case is unaffected by removing the ``contextlib.suppress(Exception)``
+    wrapper. ``_commit_feature_file``'s own docstring documents it "silently
+    succeeds when there is nothing to commit" -- that no-op behavior lives
+    inside ``_commit_feature_file``/``safe_commit`` itself and is untouched by
+    this WP's fix, which only removes the code that discarded a *raised*
+    exception. This test proves the fix distinguishes "nothing to commit"
+    (still silent, unchanged) from "hard failure" (now raises, see the
+    sibling hard-failure tests in ``test_mission_create_checkout_restore.py``).
+
+    Not red-first by design (T003): a non-raising ``_commit_feature_file``
+    call is unaffected whether or not ``contextlib.suppress`` wraps it, so
+    this test passes identically before and after the fix -- it is a
+    regression guard against the fix ever broadening to reject the no-op
+    case, not a reproduction of the defect.
+    """
+    _init_git_repo(tmp_path)
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        # A plain no-op mock (no side_effect, returns None) stands in for the
+        # real no-op path (nothing new to commit), which never raises.
+        patch(f"{_CORE_MODULE}._commit_feature_file", return_value=None) as commit_mock,
+    ):
+        result = create_mission_core(tmp_path, "meta-noop-commit", **_mission_summary("meta-noop-commit"))
+
+    assert isinstance(result, MissionCreationResult)
+    assert commit_mock.called
+    meta_file = result.feature_dir / "meta.json"
+    assert meta_file.exists()
+
+
+def test_meta_json_commit_hard_failure_raises_for_documentation_mission(
+    tmp_path: Path,
+) -> None:
+    """FR-001 Acceptance Scenario 4: the hard-failure guard is not partial to
+    the primary mission-type branch -- a ``documentation`` mission-type creation
+    must raise identically on a hard git failure at the scaffold commit.
+
+    #2693 collapsed the create commit legs into ONE transactional scaffold
+    commit (``meta.json`` + ``status.events.jsonl`` + ``tasks/README.md`` +
+    ``tasks/.gitkeep``) that runs after the ``documentation``-only
+    ``set_documentation_state`` write, so ``meta.json`` carries the doc state.
+    There is now a single ``_commit_feature_file`` call site, so a single
+    always-raising mock exercises it directly.
+
+    Revert sensitivity: re-wrapping the scaffold ``_commit_feature_file`` call in
+    ``contextlib.suppress(Exception)`` swallows the ``RuntimeError`` silently,
+    ``create_mission_core`` returns normally, and ``pytest.raises`` below fails
+    with "DID NOT RAISE".
+    """
+    _init_git_repo(tmp_path)
+    boom = RuntimeError("documentation state commit rejected")
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}._commit_feature_file", side_effect=boom),
+        pytest.raises(RuntimeError, match="documentation state commit rejected"),
+    ):
+        create_mission_core(
+            tmp_path,
+            "docs-meta-commit-hard-failure",
+            mission="documentation",
+            **_mission_summary("docs-meta-commit-hard-failure"),
+        )
+
+
+# ---------------------------------------------------------------------------
 # Mission identity / slug formatting tests (post-083: ULID + mid8)
 # ---------------------------------------------------------------------------
 

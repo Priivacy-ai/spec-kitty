@@ -21,16 +21,32 @@ It is loaded as an **org-tier** pack (registered in `.kittify/config.yaml` under
 
 ```
 packs/internal/
-├── org-charter.yaml                              # pack name/description + required_* activation lists
-├── drg/fragment.yaml                             # SINGLE DRG fragment (org tier), not sharded *.graph.yaml;
-│                                                 #   declares the directive, glossary-pack, and procedure nodes below
+├── org-charter.yaml                                 # pack name + required_* activation lists
+├── drg/fragment.yaml                                # SINGLE DRG fragment (org tier), not sharded *.graph.yaml;
+│                                                    #   declares every node and edge below
 ├── directives/
-│   └── operator-signal-contract.directive.yaml   # OPERATOR_SIGNAL_CONTRACT node — a path that decides must also signal
+│   └── operator-signal-contract.directive.yaml      # OPERATOR_SIGNAL_CONTRACT — a path that decides must also signal
 ├── glossary_packs/
-│   └── spk-internal.glossary-pack.yaml           # spk-internal-glossary node — maintainer/engineering glossary
-└── procedures/
-    └── landing-contributor-prs.procedure.yaml    # landing-contributor-prs node — maintainer runbook
+│   └── spk-internal.glossary-pack.yaml              # spk-internal-glossary — maintainer/engineering glossary
+├── procedures/
+│   ├── landing-contributor-prs.procedure.yaml       # maintainer PR-landing runbook
+│   └── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
+├── styleguides/
+│   └── report-writing.styleguide.yaml               # audience-first, anti-AI-prose, Spec Kitty voice
+├── tactics/
+│   └── branded-deliverable.tactic.yaml              # when and how to produce a branded document
+├── toolguides/
+│   ├── branded-document-generation.toolguide.yaml   # the branded-PDF pipeline manifest
+│   └── BRANDED_DOCUMENT_GENERATION.md               # its how-to guide
+└── assets/
+    ├── spec-kitty-branded-pdf.py                    # the Markdown -> branded-PDF generator
+    └── spec-kitty-branded-pdf.py.asset.yaml         # its asset sidecar
 ```
+
+The `project-evolution-postmortem` procedure `suggests` the `report-writing`
+styleguide and the `branded-deliverable` tactic; the tactic `requires` the
+`branded-document-generation` toolguide, which `requires` the
+`spec-kitty-branded-pdf` asset — one authoring chain, wired in `drg/fragment.yaml`.
 
 ## Reference, don't duplicate
 

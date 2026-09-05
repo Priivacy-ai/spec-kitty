@@ -1,0 +1,41 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >-
+      The Decision paragraph now flags the Standing Order #2/Boy-Scout citation in the same
+      sentence as "cited here only as color/precedent — not as licensing authority, since the
+      walk-through below is explicit that Boy-Scout itself cannot license this addition," so the
+      motivating clause and the licensing clause no longer contradict each other; independently
+      re-read charter.md's "Reconciling change-scope tensions" section (Standing Order #2 =
+      Quality & Tech-Debt Standing Orders item 2, "Campsite cleaning & incremental debt paydown"
+      = DIRECTIVE_025, confirmed at charter.md line ~139's "Standing Order #2's tidy-first
+      sequencing" cross-reference) and confirmed step 2's "without adding files to the set chosen
+      in step 1" wording is quoted verbatim and accurately in plan.md.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >-
+      All three locations (IC-01's "Also required" bullet, plan.md:608-629; IC-02's two
+      fd-sharing sub-bullets, plan.md:664-678) now instruct patching `pathlib.Path.open`
+      specifically, explicitly state "do NOT patch os.open instead" / "not os.open, which does
+      not intercept Path.open() calls" with the empirical Python 3.14.6 zero-call-count evidence
+      inline; a whole-file grep for "Path.open" and "os.open" found no remaining ambiguous
+      "Path.open`/`os.open`" pairing anywhere in plan.md — the only three-way mention
+      (os.open/io.open/Path.open at line 624) is an explicit "spy on all three" fallback, not an
+      interchangeable-target ambiguity.
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: >-
+      The Write-Scope Disjointness section's "Two shared files" list now explicitly calls out
+      `docs/api/cli-commands.md` parallel to the `cli/commands/__init__.py` treatment, and both
+      PR bullets list it too; live verification against docs/api/cli-commands.md (5515 lines)
+      confirms the cited headings (`## spec-kitty charter list` at line 528, `## spec-kitty
+      dispatch` at line 1096, `## spec-kitty doctrine validate` at line 2138, `## spec-kitty
+      glossary` at line 2163) and `gh pr diff 3842/3845 --name-only` (both OPEN, mergedAt null)
+      both list `docs/api/cli-commands.md` with no `.contextive` path — matching the plan's
+      claims; the cited edit line ranges (540-548 for #3842, 1112-1115 for #3845) are close
+      approximations of the actual diff hunks (`@@ -540,6 +540,14 @@` and `@@ -1111,6 +1111,8
+      @@` respectively, insertion points at old lines 542/543 and 1113/1114) — accurate enough to
+      substantiate the "far from this mission's insertion point" claim, not fabricated.

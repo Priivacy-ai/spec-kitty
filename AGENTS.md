@@ -361,7 +361,9 @@ Merge progress saved in `.kittify/merge-state.json` for resumable operations.
 
 Properties: `remaining_wps`, `progress_percent`. Import from `specify_cli.merge`: `MergeState`, `save_state`, `load_state`, `clear_state`, `has_active_merge`.
 
-**Pre-flight validation** (`run_preflight()`): checks all WPs have worktrees, all are clean, target not behind origin. Returns `PreflightResult` with `.passed`, `.wp_statuses`, `.errors`, `.warnings`. `WPStatus` fields: `wp_id`, `worktree_path`, `branch_name`, `is_clean`, `error`.
+**Pre-flight validation (corrected, #3131/C-005):** there is no merge-domain `PreflightResult`/`run_preflight()`/`WPStatus` — that shape does not exist in `src/specify_cli/merge/`. It was removed in the #2057 merge-god-module decomposition; the only `PreflightResult` class in the codebase belongs to the unrelated sync daemon-ownership preflight. `src/specify_cli/merge/preflight.py` DOES exist, but exposes a different API: git-state, target-branch, and review-artifact preflights consumed by the merge executor and the dry-run forecast — not a WP-worktree-cleanliness checker. Retention conflicts (below) are surfaced through the merge-gates render path (operator-visible warnings/notices printed during a real merge) and the `--dry-run` forecast payload (which threads the raw tri-state flags into `resolve_merge_retention` and reports the resolved retain/delete decision + a `retention` provenance object), not through a `PreflightResult`.
+
+**Post-merge retention policy (#3131):** a mission's `meta.json` can carry `retain_branches: bool` / `retain_worktrees: bool` (flat fields, absent by default — non-retaining missions are never default-written). `spec-kitty merge` resolves effective cleanup via `resolve_merge_retention()` (`core/paths.py`), precedence **explicit CLI flag > meta.json retention > default (delete/remove)**, fail-closed toward retention on any ambiguity (corrupt `meta.json` aborts; a present-but-non-boolean value retains + warns, never truthiness-coerced). Resolution happens once, off the PRIMARY partition, in the unlocked `_run_lane_based_merge` (`merge/executor.py`) — both a fresh and a `--resume`d merge honor it identically. Mapping to the long-standing cleanup flags: `retain_branches` resolves to an effective `--keep-branch`; `retain_worktrees` resolves to an effective `--keep-worktree`. The coordination branch/worktree/marker are torn down (or retained) as ONE coupled decision — `teardown_coordination = delete_branch AND remove_worktree` — so partial lane-level retention can never half-tear the coord triple; `merge --abort`'s coordination teardown honors the same coupled decision. The internal merge scratch worktree (`cleanup_merge_workspace`, `.kittify/runtime/merge/<id>/workspace`) is NOT a retained resource and always cleans up unconditionally. Mint retention at creation with `spec-kitty agent mission create --retain-branches --retain-worktrees`.
 
 **Common commands:**
 ```bash
@@ -371,7 +373,7 @@ spec-kitty merge --dry-run         # conflict forecast
 spec-kitty merge --feature 017-my-feature
 ```
 
-**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/status_resolver.py`, `cli/commands/merge.py`
+**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/status_resolver.py`, `cli/commands/merge.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
 
 ---
 

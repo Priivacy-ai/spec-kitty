@@ -8,6 +8,18 @@ consume (D11, DIRECTIVE_044): a single status reduction per WP yielding lane
 ``has_operator_provenance`` authority — consumed here, never reimplemented
 (C-001).
 
+Wording note on "committed": everywhere this module says "committed" (the
+module name, ``committed_wp_lane``, the ``WpEnding``/verdict docstrings) it
+means the PRIMARY-surface (repo-root checkout) working tree — read via
+``placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)`` — as
+opposed to the (possibly stale) coordination checkout. It is deliberately
+NOT a git-ref-level read (no commit SHA, no ``git show``): the current
+on-disk state of the PRIMARY checkout is treated as authoritative because it
+is the surface merge writes to and coordination checkouts are torn down
+after (D9/D14). This is intentional and fail-safe (a missing/corrupt file on
+that surface degrades rather than reading a stale ref), but a later reader
+should not infer git-commit-level immutability from "committed" here.
+
 Fail-loud contract (D6/C-003): a genuinely-absent committed status event log
 raises :class:`~specify_cli.status.lane_reader.CanonicalStatusNotFoundError`
 — this module's ``_require_event_log`` mirrors
@@ -133,6 +145,10 @@ def mission_terminal_verdict(repo_root: Path, mission_slug: str) -> TerminalVerd
     ``mission_number`` (assigned at merge time, ``merge/ordering.py``); never
     ``merge-state.json`` / ``MERGE_HEAD`` (C-005). A genuinely-absent
     committed status log is ``"none"``, not a conflict (D9/C-003).
+
+    "Committed" here means the PRIMARY checkout's current working tree, not
+    a git ref (see the module docstring's wording note) -- both reads below
+    are plain filesystem reads of that checkout as it stands right now.
     """
     from specify_cli.missions._read_path_resolver import read_primary_meta
 
@@ -172,6 +188,10 @@ def committed_wp_lane(repo_root: Path, mission_slug: str, wp_id: str) -> str | N
     misreport an in-flight WP's lane (e.g. a genuine COORD ``in_progress`` as
     a stale PRIMARY ``blocked``). ``None`` is also returned when the
     committed log is genuinely absent on PRIMARY.
+
+    "Committed"/"PRIMARY surface" means the current working tree of the
+    PRIMARY checkout, not a git ref (see the module docstring's wording
+    note) — this reads whatever is on disk there right now.
     """
     from specify_cli.missions._read_path_resolver import read_primary_meta
     from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir

@@ -697,14 +697,15 @@ _Mission lifecycle commands for AI agents_
  --resume-probe --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
-│ --json                         Output JSON format                            │
-│ --paths-only                   Only output path variables                    │
-│ --resume-probe                 Return structured                             │
-│                                found/not_found/existing/ambiguous/malformed  │
-│                                state for safe specify resume                 │
-│ --include-tasks                Include tasks.md in validation                │
-│ --help           -h            Show this message and exit.                   │
+│ --mission                 TEXT  Mission slug (e.g., '020-my-mission')        │
+│ --json                          Output JSON format                           │
+│ --paths-only                    Only output path variables                   │
+│ --resume-probe                  Return structured                            │
+│                                 found/not_found/existing/ambiguous/malformed │
+│                                 state for safe specify resume                │
+│ --include-tasks                 Include tasks.md in validation               │
+│ --owned-checkout          PATH  Explicit single-branch checkout root.        │
+│ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -810,6 +811,16 @@ _Mission lifecycle commands for AI agents_
 │                                                            of the resolved   │
 │                                                            primary           │
 │                                                            repository.       │
+│ --retain-branches                                          Opt this          │
+│                                                            mission's         │
+│                                                            branches out of   │
+│                                                            post-merge        │
+│                                                            cleanup deletion. │
+│ --retain-worktre…                                          Opt this          │
+│                                                            mission's         │
+│                                                            worktrees out of  │
+│                                                            post-merge        │
+│                                                            cleanup deletion. │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -850,20 +861,23 @@ _Mission lifecycle commands for AI agents_
  --validate-only --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
-│ --json                         Output JSON format                            │
-│ --validate-only                Run all validations without committing.       │
-│                                Reports issues that would block finalization. │
-│ --target-branch          TEXT  Override the canonical planning target branch │
-│                                read from meta.json. Use this for legacy      │
-│                                missions created before WP07 persisted        │
-│                                target_branch in meta.json, or to correct a   │
-│                                mission whose target_branch is stale (FR-012  │
-│                                escape hatch). The override is persisted into │
-│                                the primary meta.json as part of this run, so │
-│                                every other target_branch consumer converges  │
-│                                on it too (#3466).                            │
-│ --help           -h            Show this message and exit.                   │
+│ --mission                 TEXT  Mission slug (e.g., '020-my-mission')        │
+│ --json                          Output JSON format                           │
+│ --validate-only                 Run all validations without committing.      │
+│                                 Reports issues that would block              │
+│                                 finalization.                                │
+│ --target-branch           TEXT  Override the canonical planning target       │
+│                                 branch read from meta.json. Use this for     │
+│                                 legacy missions created before WP07          │
+│                                 persisted target_branch in meta.json, or to  │
+│                                 correct a mission whose target_branch is     │
+│                                 stale (FR-012 escape hatch). The override is │
+│                                 persisted into the primary meta.json as part │
+│                                 of this run, so every other target_branch    │
+│                                 consumer converges on it too (#3466).        │
+│ --owned-checkout          PATH  Explicit owned checkout for a single-branch  │
+│                                 mission.                                     │
+│ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -903,29 +917,33 @@ _Mission lifecycle commands for AI agents_
  --keep-branch
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                               TEXT  Mission slug (required in      │
-│                                               multi-mission repos)           │
-│ --target                                TEXT  Target branch for the          │
-│                                               branch-integration step        │
-│                                               (required in multi-mission     │
-│                                               repos)                         │
-│ --strategy                              TEXT  Strategy for the               │
-│                                               branch-integration step:       │
-│                                               merge, squash, rebase          │
-│                                               [default: merge]               │
-│ --push                                        Publish to origin after the    │
-│                                               local merge (the operator      │
-│                                               publish step)                  │
-│ --dry-run                                     Show actions without executing │
-│ --keep-branch                                 Keep mission branch after      │
-│                                               merge (default: delete)        │
-│ --keep-worktree                               Keep worktree after merge      │
-│                                               (default: remove)              │
-│ --auto-retry         --no-auto-retry          Auto-navigate to a             │
-│                                               deterministic mission worktree │
-│                                               if in the wrong location       │
-│                                               [default: no-auto-retry]       │
-│ --help           -h                           Show this message and exit.    │
+│ --mission                                 TEXT  Mission slug (required in    │
+│                                                 multi-mission repos)         │
+│ --target                                  TEXT  Target branch for the        │
+│                                                 branch-integration step      │
+│                                                 (required in multi-mission   │
+│                                                 repos)                       │
+│ --strategy                                TEXT  Strategy for the             │
+│                                                 branch-integration step:     │
+│                                                 merge, squash, rebase        │
+│                                                 [default: merge]             │
+│ --push                                          Publish to origin after the  │
+│                                                 local merge (the operator    │
+│                                                 publish step)                │
+│ --dry-run                                       Show actions without         │
+│                                                 executing                    │
+│ --keep-branch        --delete-branch            Keep or delete mission       │
+│                                                 branch after merge (default: │
+│                                                 retain-gate choice)          │
+│ --keep-worktree      --remove-worktree          Keep or remove worktree      │
+│                                                 after merge (default:        │
+│                                                 retain-gate choice)          │
+│ --auto-retry         --no-auto-retry            Auto-navigate to a           │
+│                                                 deterministic mission        │
+│                                                 worktree if in the wrong     │
+│                                                 location                     │
+│                                                 [default: no-auto-retry]     │
+│ --help           -h                             Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1419,6 +1437,8 @@ _Task workflow commands for AI agents_
 │                      feature.                                                │
 │ list-dependents      Find all WPs that depend on a given WP (downstream      │
 │                      dependents).                                            │
+│ check-terminability  Advisory scan for work packages that can only be        │
+│                      terminated post-integration.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1443,6 +1463,29 @@ _Task workflow commands for AI agents_
 │    --shell-pid          TEXT  Shell PID                                      │
 │    --json                     Output JSON format                             │
 │    --help       -h            Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent tasks check-terminability
+
+```
+ Usage: spec-kitty agent tasks check-terminability [OPTIONS]
+
+ Advisory scan for work packages that can only be terminated post-integration.
+
+ Warns when a WP's acceptance criteria contain a post-integration trigger
+ phrase (the #3590 trap) — content that cannot be verified in the WP's own
+ diff. This is **advisory only**: it never refuses or fails authoring
+ (FR-008) — it exits 0 even when warnings fire. It does not touch the
+ finalize / lane-compute path (C-005).
+
+ Examples:
+     spec-kitty agent tasks check-terminability --mission my-mission --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission          TEXT  Mission slug                                        │
+│ --json                   Output JSON format                                  │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1515,29 +1558,6 @@ _Task workflow commands for AI agents_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty agent tasks check-terminability
-
-```
- Usage: spec-kitty agent tasks check-terminability [OPTIONS]
-
- Advisory scan for work packages that can only be terminated post-integration.
-
- Warns when a WP's acceptance criteria contain a post-integration trigger
- phrase (the #3590 trap) — content that cannot be verified in the WP's own
- diff. This is **advisory only**: it never refuses or fails authoring
- (FR-008) — it exits 0 even when warnings fire. It does not touch the
- finalize / lane-compute path (C-005).
-
- Examples:
-     spec-kitty agent tasks check-terminability --mission my-mission --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug                                        │
-│ --json                   Output JSON format                                  │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty agent tasks map-requirements
 
 ```
@@ -1598,15 +1618,18 @@ _Task workflow commands for AI agents_
 │                                 [required]                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --status                               TEXT  Status: done/pending         │
-│                                                 [required]                   │
-│    --mission                              TEXT  Mission slug                 │
-│    --auto-commit      --no-auto-commit          Automatically commit         │
-│                                                 tasks.md changes to target   │
-│                                                 branch (default: from        │
-│                                                 project config)              │
-│    --json                                       Output JSON format           │
-│    --help         -h                            Show this message and exit.  │
+│ *  --status                                  TEXT  Status: done/pending      │
+│                                                    [required]                │
+│    --mission                                 TEXT  Mission slug              │
+│    --owned-checkout                          PATH  Explicit single-branch    │
+│                                                    checkout root.            │
+│    --auto-commit         --no-auto-commit          Automatically commit      │
+│                                                    tasks.md changes to       │
+│                                                    target branch (default:   │
+│                                                    from project config)      │
+│    --json                                          Output JSON format        │
+│    --help            -h                            Show this message and     │
+│                                                    exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1727,6 +1750,14 @@ _Task workflow commands for AI agents_
 │                                                        env vars). The gate   │
 │                                                        still runs and        │
 │                                                        enforces by default.  │
+│    --owned-checkout                              PATH  Use an owned          │
+│                                                        single_branch         │
+│                                                        checkout for the      │
+│                                                        local review          │
+│                                                        lifecycle (active     │
+│                                                        sync, force/skip,     │
+│                                                        done, and arbiter     │
+│                                                        modes unsupported).   │
 │    --help                -h                            Show this message and │
 │                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯

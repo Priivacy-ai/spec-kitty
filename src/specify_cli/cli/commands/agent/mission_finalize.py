@@ -51,6 +51,7 @@ from specify_cli.core.paths import (
     get_status_read_root,
     load_meta_fail_closed,
 )
+from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index, resolve_owned_mission
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
 from specify_cli.lanes.models import LanesManifest
@@ -170,10 +171,26 @@ def _resolve_planning_branch_via_mission(repo_root: Path, primary_dir: Path, *, 
     return _mission._resolve_planning_branch(repo_root, primary_dir, target_branch_override=target_branch_override)
 
 
-def _bootstrap_canonical_state_via_mission(planning_dir: Path, mission_slug: str, *, dry_run: bool, capability: GuardCapability | None = None) -> BootstrapResult:
+def _bootstrap_canonical_state_via_mission(
+    planning_dir: Path,
+    mission_slug: str,
+    *,
+    dry_run: bool,
+    capability: GuardCapability | None = None,
+    owned: OwnedMission | None = None,
+) -> BootstrapResult:
     """Route ``bootstrap_canonical_state`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
+    if owned is not None:
+        return _mission.bootstrap_canonical_state(
+            planning_dir,
+            mission_slug,
+            dry_run=dry_run,
+            capability=capability or GuardCapability.STANDARD,
+            repo_root=owned.primary,
+            effective_root=owned.root,
+        )
     if capability is None:
         return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run)
     return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run, capability=capability)
@@ -854,6 +871,7 @@ def _scaffold_issue_matrix_if_present(
     target_branch: str | None,
     validate_only: bool,
     json_output: bool,
+    owned: OwnedMission | None = None,
 ) -> None:
     """Phase: B3 / T021 issue-matrix.json scaffold (idempotent), routed COORD.
 
@@ -873,12 +891,15 @@ def _scaffold_issue_matrix_if_present(
         issue_matrix_path = scaffold_issue_matrix(
             planning_dir,
             spec_md,
-            repo_root=repo_root,
+            repo_root=owned.primary if owned else repo_root,
             mission_slug=mission_slug,
-            policy=ProtectionPolicy.resolve(repo_root),
+            policy=ProtectionPolicy.resolve(owned.primary if owned else repo_root),
             target_branch=target_branch,
+            **({"effective_root": owned.root} if owned else {}),
         )
     except Exception as issue_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
+        if owned:
+            raise
         if not json_output:
             console.print(f"[yellow]Warning:[/yellow] could not scaffold issue-matrix.json: {issue_matrix_exc}")
         return
@@ -1747,12 +1768,18 @@ def _emit_validate_only_report(
     *,
     all_canceled: bool = False,
     json_output: bool,
+    owned: OwnedMission | None = None,
 ) -> None:
     """Phase: emit the --validate-only report (INV-6: zero mutation).
 
     Runs bootstrap + lane computation in dry-run mode only.
     """
-    bootstrap_result = _bootstrap_canonical_state_via_mission(planning_dir, mission_slug, dry_run=True)
+    bootstrap_result = _bootstrap_canonical_state_via_mission(
+        planning_dir,
+        mission_slug,
+        dry_run=True,
+        **({"owned": owned} if owned else {}),
+    )
     bootstrap_stats = {
         "total_wps": bootstrap_result.total_wps,
         "newly_seeded": bootstrap_result.newly_seeded,
@@ -1905,7 +1932,12 @@ def _capture_target_branch_tip(repo_root: Path, target_branch: str) -> str | Non
     return sha or None
 
 
-def _execution_has_begun(repo_root: Path, mission_slug: str) -> bool:
+def _execution_has_begun(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedMission | None = None,
+) -> bool:
     """#3311 T014: read-only "has execution begun" signal for the finalize gate.
 
     MANDATORY reader recipe: resolve the coord-aware status read dir via
@@ -1940,7 +1972,16 @@ def _execution_has_begun(repo_root: Path, mission_slug: str) -> bool:
     from specify_cli.status import Lane, StoreError, get_all_wp_lanes, has_event_log
 
     try:
-        read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
+        if owned is not None:
+            from mission_runtime import placement_seam
+
+            read_dir = placement_seam(
+                owned.primary,
+                mission_slug,
+                effective_root=owned.root,
+            ).read_dir(MissionArtifactKind.STATUS_STATE)
+        else:
+            read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
     except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted):
         # Surface resolution failed closed (no meta.json / malformed meta / an
         # unresolvable coord surface). No event log can be read from an
@@ -1965,6 +2006,7 @@ def _preserve_or_capture_planning_commit_sha(
     target_branch: str,
     *,
     json_output: bool,
+    owned: OwnedMission | None = None,
 ) -> str | None:
     """#3311 T015: gate the ``planning_commit_sha`` capture on execution-begun.
 
@@ -1986,7 +2028,7 @@ def _preserve_or_capture_planning_commit_sha(
     reach, since bootstrapping the event log itself requires a prior
     successful finalize run that already wrote ``lanes.json``.
     """
-    if not _execution_has_begun(repo_root, mission_slug):
+    if not _execution_has_begun(repo_root, mission_slug, owned=owned):
         return _capture_target_branch_tip(repo_root, target_branch)
 
     from specify_cli.lanes.persistence import read_lanes_json
@@ -2030,6 +2072,7 @@ def _compute_and_write_lanes(
     *,
     all_canceled: bool = False,
     json_output: bool,
+    owned: OwnedMission | None = None,
 ) -> tuple[Path | None, LanesManifest | None]:
     """Phase: compute execution lanes + write lanes.json + risk report."""
     _raise_lane_computation_empty_input_if_needed(
@@ -2072,7 +2115,14 @@ def _compute_and_write_lanes(
     # #3311 T015: once execution has begun, PRESERVE the previously-recorded
     # SHA instead of re-capturing the current branch tip (see
     # ``_preserve_or_capture_planning_commit_sha``).
-    lanes_manifest.planning_commit_sha = _preserve_or_capture_planning_commit_sha(planning_dir, repo_root, mission_slug, target_branch, json_output=json_output)
+    lanes_manifest.planning_commit_sha = _preserve_or_capture_planning_commit_sha(
+        planning_dir,
+        repo_root,
+        mission_slug,
+        target_branch,
+        json_output=json_output,
+        owned=owned,
+    )
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     if not json_output:
         console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
@@ -2115,7 +2165,7 @@ def _report_parallelization_risk(repo_root: Path, lanes_manifest: LanesManifest,
         raise typer.Exit(1)
 
 
-def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path) -> Path:
+def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path, *, owned: OwnedMission | None = None) -> Path:
     """Resolve the acceptance matrix's declared home dir (FR-010 / C8 single-home).
 
     Reuses the gate's canonical read-dir resolver so the scaffolder's single-home
@@ -2127,6 +2177,10 @@ def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path) -> Path
     from specify_cli.acceptance.gates_core import _acceptance_matrix_read_dir
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
+    if owned:
+        from mission_runtime import placement_seam
+
+        return placement_seam(owned.primary, owned.slug, effective_root=owned.root).read_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
     try:
         read_dir: Path = _acceptance_matrix_read_dir(repo_root, planning_dir)
     except CoordinationBranchDeleted:
@@ -2143,6 +2197,7 @@ def _scaffold_acceptance_matrix_if_lane_based(
     *,
     validate_only: bool,
     json_output: bool,
+    owned: OwnedMission | None = None,
 ) -> None:
     """Phase: Finding 6 — scaffold acceptance-matrix.json for lane-based missions."""
     if lanes_manifest is None or validate_only:
@@ -2156,7 +2211,7 @@ def _scaffold_acceptance_matrix_if_lane_based(
         # sees an existing coord-homed matrix and never authors a divergent second
         # primary copy (#2882). A deleted coord branch (fail-loud) falls back to the
         # primary planning dir — the scaffold is a convenience artifact, never a gate.
-        home_dir = _resolve_acceptance_matrix_home(repo_root, planning_dir)
+        home_dir = _resolve_acceptance_matrix_home(repo_root, planning_dir, **({"owned": owned} if owned else {}))
         # write-surface-coherence WP08 (#2804 / #2404 T040/T041): thread
         # ``repo_root`` so the WRITE (not just the idempotency check) routes
         # through the coord-aware write-seam — never a stray PRIMARY husk
@@ -2166,10 +2221,13 @@ def _scaffold_acceptance_matrix_if_lane_based(
             mission_slug,
             requirement_ids=sorted(functional_spec_requirement_ids),
             home_dir=home_dir,
-            repo_root=repo_root,
-            policy=ProtectionPolicy.resolve(repo_root),
+            repo_root=owned.primary if owned else repo_root,
+            policy=ProtectionPolicy.resolve(owned.primary if owned else repo_root),
+            **({"effective_root": owned.root} if owned else {}),
         )
     except Exception as acc_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
+        if owned:
+            raise
         if not json_output:
             console.print(f"[yellow]Warning:[/yellow] could not scaffold acceptance-matrix.json: {acc_matrix_exc}")
             console.print(f"[yellow]Hint:[/yellow] create it manually before acceptance:\n  spec-kitty agent mission finalize-tasks --mission {mission_slug}")
@@ -2213,6 +2271,7 @@ def _commit_finalize_artifacts(
     *,
     json_output: bool,
     updated_count: int,
+    owned: OwnedMission | None = None,
 ) -> _CommitOutcome:
     """Phase: commit finalize artifacts through commit_for_mission.
 
@@ -2267,10 +2326,12 @@ def _commit_finalize_artifacts(
         from specify_cli.coordination.commit_router import commit_for_mission
         from specify_cli.git.protection_policy import ProtectionPolicy
 
-        tasks_policy = ProtectionPolicy.resolve(repo_root)
+        tasks_policy = ProtectionPolicy.resolve(owned.primary if owned else repo_root)
+        if owned:
+            files_to_commit = owned.files(files_to_commit)
         primary_created = frozenset(path for path in files_to_commit if path not in preexisting_primary_files)
         router_result = commit_for_mission(
-            repo_root=repo_root,
+            repo_root=owned.primary if owned else repo_root,
             mission_slug=mission_slug,
             files=tuple(files_to_commit),
             message=f"Add tasks for feature {mission_slug}",
@@ -2278,6 +2339,7 @@ def _commit_finalize_artifacts(
             kind=MissionArtifactKind.TASKS_INDEX,
             primary_paths_created_this_invocation=primary_created,
             target_branch=target_branch,
+            **({"effective_root": owned.root} if owned else {}),
         )
 
         if router_result.status == "committed":
@@ -2447,6 +2509,7 @@ def _run_commit_pipeline(
     meta_commit_progress: _MetaBranchOverrideProgress | None = None,
     lane_wp_dependencies: dict[str, list[str]] | None = None,
     all_canceled: bool = False,
+    owned: OwnedMission | None = None,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -2487,7 +2550,13 @@ def _run_commit_pipeline(
     """
     _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output)
 
-    bootstrap_result = _bootstrap_canonical_state_via_mission(planning_dir, mission_slug, dry_run=False, capability=GuardCapability.STANDARD)
+    bootstrap_result = _bootstrap_canonical_state_via_mission(
+        planning_dir,
+        mission_slug,
+        dry_run=False,
+        capability=GuardCapability.STANDARD,
+        **({"owned": owned} if owned else {}),
+    )
     if not json_output and bootstrap_result.newly_seeded:
         console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
 
@@ -2503,6 +2572,7 @@ def _run_commit_pipeline(
         target_branch,
         all_canceled=all_canceled,
         json_output=json_output,
+        owned=owned,
     )
 
     _scaffold_acceptance_matrix_if_lane_based(
@@ -2513,6 +2583,7 @@ def _run_commit_pipeline(
         functional_spec_requirement_ids,
         validate_only=validate_only,
         json_output=json_output,
+        **({"owned": owned} if owned else {}),
     )
 
     commit_outcome = _commit_finalize_artifacts(
@@ -2525,6 +2596,7 @@ def _run_commit_pipeline(
         preexisting_primary_files,
         json_output=json_output,
         updated_count=state.updated_count,
+        **({"owned": owned} if owned else {}),
     )
     # SK3466-REV2-001/002: whether meta.json's own delta actually rode this
     # commit -- NOT "the phase returned without raising". Computed once here
@@ -2681,6 +2753,8 @@ def _emit_finalize_error_with_revert_note(error: Exception, revert_error: str | 
 
     if json_output:
         error_payload: dict[str, object] = {"error": str(error)}
+        if isinstance(error, ActionContextError):
+            error_payload["error_code"] = error.code
         if isinstance(error, LaneDependencyCycleError):
             error_payload.update(
                 {
@@ -2708,7 +2782,7 @@ def _emit_finalize_error_with_revert_note(error: Exception, revert_error: str | 
         console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
 
 
-def finalize_tasks(
+def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checkout routing
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[
@@ -2728,6 +2802,7 @@ def finalize_tasks(
             ),
         ),
     ] = None,
+    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")] = None,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
@@ -2765,7 +2840,18 @@ def finalize_tasks(
     meta_original_text: str | None = None
     try:
         repo_root = _resolve_repo_root(json_output)
-        mission_slug = _resolve_mission_slug(repo_root, feature, json_output=json_output)
+        owned = None
+        if owned_checkout is not None:
+            owned = resolve_owned_mission(
+                repo_root,
+                owned_checkout,
+                feature or "",
+                target_override=target_branch_override,
+            )
+            if not validate_only:
+                require_unstaged_index(owned)
+            repo_root = owned.root
+        mission_slug = owned.slug if owned else _resolve_mission_slug(repo_root, feature, json_output=json_output)
 
         from mission_runtime import placement_seam
 
@@ -2778,7 +2864,11 @@ def finalize_tasks(
         # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
         # directly — WORK_PACKAGE_TASK, since this finalize-tasks flow reads/writes
         # the ``tasks/`` WP files, ``wps.yaml``, and ``tasks.md`` under this dir.
-        primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        primary_dir = placement_seam(
+            owned.primary if owned else repo_root,
+            mission_slug,
+            **({"effective_root": owned.root} if owned else {}),
+        ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         planning_dir = primary_dir
 
         # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before
@@ -2939,6 +3029,7 @@ def finalize_tasks(
                 target_branch,
                 all_canceled=eligibility.all_canceled,
                 json_output=json_output,
+                **({"owned": owned} if owned else {}),
             )
             return
 
@@ -2966,6 +3057,7 @@ def finalize_tasks(
             target_branch_override=target_branch_override,
             target_branch_persist=target_branch_persist,
             meta_commit_progress=meta_commit_progress,
+            **({"owned": owned} if owned else {}),
         )
 
     except typer.Exit:

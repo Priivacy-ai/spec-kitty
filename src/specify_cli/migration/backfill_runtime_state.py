@@ -79,7 +79,10 @@ import logging
 from dataclasses import dataclass, field
 from kernel.clock import UTC, datetime, timedelta, parse_iso, from_epoch
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from specify_cli.core.owned_mission import OwnedMission
 
 from specify_cli.core.checkout_identity import (
     FailClosedRefusal,
@@ -1426,8 +1429,24 @@ def _plan_compatibility_repairs(
     return transition_repairs, annotation_repairs
 
 
+def _runtime_feature_dir(feature_dir: Path, owned: OwnedMission | None) -> Path:
+    """Keep explicit single-branch IO on a freshly validated exact mission root."""
+    if owned is None:
+        canonical: Path = canonicalize_feature_dir(feature_dir)
+        return canonical
+    from mission_runtime import ActionContextError
+    from specify_cli.core.owned_mission import resolve_owned_mission
+
+    current = resolve_owned_mission(owned.primary, owned.root, owned.slug)
+    if current != owned or feature_dir.resolve() != current.directory:
+        raise ActionContextError("OWNED_MISSION_PATH_REFUSED", "Runtime state must use the selected mission directory.")
+    directory: Path = current.directory
+    return directory
+
+
 def backfill_runtime_state(
-    feature_dir: Path, *, read_dir: Path | None = None, dry_run: bool = False
+    feature_dir: Path, *, read_dir: Path | None = None, dry_run: bool = False,
+    owned: OwnedMission | None = None,
 ) -> BackfillResult:
     """Idempotently seed one mission's frontmatter/checkbox runtime state as events.
 
@@ -1453,12 +1472,14 @@ def backfill_runtime_state(
             the COORD leg the event log canonically lives on (I-02) — NOT a
             leg swap, only the ``tasks/`` read moves.
         dry_run: When True, compute the would-seed count without writing.
+        owned: Explicit single-branch ownership. Both directories are revalidated
+            against this exact mission before writes; no legacy primary redirect.
 
     Returns:
         A :class:`BackfillResult` describing what happened.
     """
-    feature_dir = canonicalize_feature_dir(feature_dir)
-    read_dir = canonicalize_feature_dir(read_dir) if read_dir is not None else feature_dir
+    feature_dir = _runtime_feature_dir(feature_dir, owned)
+    read_dir = _runtime_feature_dir(read_dir, owned) if read_dir is not None else feature_dir
     slug = feature_dir.name
 
     if not (read_dir / "tasks").is_dir():
@@ -2037,7 +2058,7 @@ def _has_snapshot_runtime(wp: dict[str, Any]) -> bool:
 
 
 def _invocation_write_refusal(
-    feature_dir: Path, intent: Intent
+    feature_dir: Path, intent: Intent, *, owned: OwnedMission | None = None,
 ) -> FailClosedRefusal | None:
     """Return the fail-closed refusal when *feature_dir*'s invoking checkout does
     not own the redirected path a WRITE-guarding verify is about to read (#3049).
@@ -2073,7 +2094,7 @@ def _invocation_write_refusal(
     """
     if intent is not Intent.WRITE:
         return None
-    canonical = canonicalize_feature_dir(feature_dir)
+    canonical = _runtime_feature_dir(feature_dir, owned)
     if canonical == feature_dir:
         return None
     identity = resolve_checkout_identity(feature_dir, Intent.WRITE)
@@ -2085,6 +2106,7 @@ def verify_backfill(
     *,
     read_dir: Path | None = None,
     intent: Intent = Intent.PRIMARY_READ,
+    owned: OwnedMission | None = None,
 ) -> VerifyResult:
     """Fail-closed proof that OLD-reader values survive in deterministic seeds.
 
@@ -2113,6 +2135,7 @@ def verify_backfill(
             fail-closed, #3049 / WP05) or is a bare ``PRIMARY_READ`` (the
             default — a read-only verify such as the ``is_cut_over`` doctor,
             never refused). See :func:`_invocation_write_refusal`.
+        owned: Explicit ownership to revalidate instead of redirecting to primary.
 
     Returns:
         A :class:`VerifyResult`; call :meth:`VerifyResult.raise_if_failed` (or use
@@ -2123,11 +2146,12 @@ def verify_backfill(
     Raises:
         MigrationOrderingError: if verify is run after ``strip_mutable_fields``.
     """
-    refusal = _invocation_write_refusal(feature_dir, intent)
+    scope = {"owned": owned} if owned is not None else {}
+    refusal = _invocation_write_refusal(feature_dir, intent, **scope)
     if refusal is not None:
         return VerifyResult(ok=False, wp_count=0, mismatches=(refusal.message(),))
-    feature_dir = canonicalize_feature_dir(feature_dir)
-    read_dir = canonicalize_feature_dir(read_dir) if read_dir is not None else feature_dir
+    feature_dir = _runtime_feature_dir(feature_dir, owned)
+    read_dir = _runtime_feature_dir(read_dir, owned) if read_dir is not None else feature_dir
     try:
         legacy = read_legacy_runtime(read_dir)
     except LegacyRuntimeReadError as exc:

@@ -311,10 +311,17 @@ class StepContractExecutor:
         path, so its layout mismatch was inert; degrading here restores that
         "an optional tier being broken doesn't stop dispatch" behaviour
         without silencing the problem (D-005: WARNING, never silent --
-        matches ``resolve_org_dirs``'s per-dropped-root warning and
-        ``_resolve_expected_artifacts_slot``'s malformed-manifest warning,
-        the same treatment already applied elsewhere in this mission for the
-        same class of problem).
+        matches ``resolve_org_dirs``'s per-dropped-root warning; this is a
+        distinct treatment from ``_resolve_expected_artifacts_slot``'s
+        malformed-manifest handling, which now RAISES
+        ``MalformedManifestError``/``ManifestSchemaError`` rather than
+        warning-and-degrading -- see mission
+        ``expected-artifacts-loader-unification-01M1C9VQ`` (#3412): that
+        slot's manifest is gate-authoritative (blocks/required artifacts),
+        so a corrupt manifest fails loud, whereas this DRG-org-root degrade
+        is a best-effort optional-tier fallback where a WARNING is the
+        correct, deliberately weaker treatment for the same class of
+        problem).
 
         #3525 Fold B — per-root degrade: each root in *org_roots* is
         independently probed (via ``load_graph_or_dir``, the same loader

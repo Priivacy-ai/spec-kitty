@@ -34,8 +34,13 @@ from typing import Any
 
 import typer
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli.agent_tasks_ports import Render
+from specify_cli.coordination.surface_authority import (
+    Refuse,
+    RouteToCoord,
+    resolve_surface_authority,
+)
 from specify_cli.cli.commands.agent.tasks_outline import TaskIdResolutionOutcome, TaskIdResult
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _validate_ready_for_review as _seam_validate_ready_for_review,
@@ -339,18 +344,42 @@ def _output_error(
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, command: str) -> str | None:
+    """Refuse a planning-kind status commit onto a protected primary (#2300).
+
+    The map-requirements REFUSE arm (and the move-task no-coord-route fallback):
+    the verdict is DERIVED from the single ``resolve_surface_authority`` rule
+    (contract §2 rule 3), not hardcoded here. A planning/primary-kind commit onto
+    a protected primary with no coordination route is a :class:`Refuse` (exit 1);
+    an unprotected primary is committable (``None``). The kind is fixed to a
+    PRIMARY-partition kind because a primary-kind's verdict keys ONLY on
+    ``primary_protected`` (topology is verdict-irrelevant for a primary kind), so
+    the stored topology is not resolved on this refuse-only leg. The operator
+    hatch (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1``) folds through
+    ``ProtectionPolicy.resolve`` into ``is_protected`` exactly as before.
+
+    The remedy is UNIFIED to the shared ``REMEDY_PROTECTED_PRIMARY`` constant
+    (carried on the verdict's :class:`Refuse`) — no per-command remedy drift.
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch reads happen once; is_protected() is I/O-free.
-    if not _tasks.ProtectionPolicy.resolve(repo_root).is_protected(branch):
+    primary_protected = _tasks.ProtectionPolicy.resolve(repo_root).is_protected(branch)
+    verdict = resolve_surface_authority(
+        topology=MissionTopology.SINGLE_BRANCH,
+        primary_target=branch,
+        primary_protected=primary_protected,
+        current_branch=branch,
+        artifact_kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+    )
+    refusal = verdict.non_committable
+    if not isinstance(refusal, Refuse):
         return None
     return (
         f"Refusing to run `{command}` with auto-commit on protected branch "
         f"'{branch}' before mutating status files. Run status commit "
-        "operations from an allowed coordination/lane branch, or rerun with "
-        "--no-auto-commit when you intentionally want to handle the status "
-        "artifact commit manually."
+        f"operations from an allowed coordination/lane branch, or unblock with: "
+        f"{refusal.remedy}."
     )
 
 
@@ -385,16 +414,34 @@ def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch
     where committing directly to the protected ref is refused and the status
     transition committed to the coordination branch is authoritative. It selects
     no ref; it suppresses a commit that the protection policy would refuse anyway.
+
+    The skip/no-skip verdict is DERIVED from the single ``resolve_surface_authority``
+    rule (#2300 / contract §2 rule 1): a lifecycle/coordination kind under a
+    coordination-routing topology with a protected primary yields
+    :class:`RouteToCoord` (the redundant direct-to-protected-primary commit is
+    suppressed; the coord commit is authoritative) → skip. The coord-worktree
+    probe (``_coord_topology_active``) stands in for the coord-routing topology and
+    is evaluated FIRST so the short-circuit keeps its no-policy-I/O-on-flat-missions
+    contract (the ``ProtectionPolicy`` resolve is skipped entirely when no coord
+    worktree exists).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
+    # Short-circuit preserved: probe the coord worktree first; only a coord-routing
+    # mission ever reaches the protection resolve (no policy I/O on flat missions).
+    if not _tasks._coord_topology_active(repo_root, mission_slug):
+        return False
     # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch reads happen once; is_protected() is I/O-free.
-    skip: bool = (
-        _tasks._coord_topology_active(repo_root, mission_slug)
-        and _tasks.ProtectionPolicy.resolve(repo_root).is_protected(target_branch)
+    primary_protected = _tasks.ProtectionPolicy.resolve(repo_root).is_protected(target_branch)
+    verdict = resolve_surface_authority(
+        topology=MissionTopology.COORD,
+        primary_target=target_branch,
+        primary_protected=primary_protected,
+        current_branch=target_branch,
+        artifact_kind=MissionArtifactKind.STATUS_STATE,
     )
-    return skip
+    return isinstance(verdict.non_committable, RouteToCoord)
 
 
 def _mission_identity_payload(feature_dir: Path) -> dict[str, str | int | None]:
@@ -431,7 +478,14 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
     return common_dir
 
 
-def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _force: bool) -> list[str]:
+def _check_unchecked_subtasks(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    _force: bool,
+    *,
+    effective_root: Path | None = None,
+) -> list[str]:
     """Return *wp_id*'s incomplete subtask ids, read from the reduced snapshot.
 
     The subtask **roster** (which task ids belong to ``wp_id``) is the authored
@@ -472,7 +526,9 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # WP04 / FR-006: the authored WP roster is TASKS_INDEX and therefore lives
     # on the primary partition. Dynamic completion is STATUS_STATE and follows
     # the topology-routed status surface instead.
-    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+    feature_dir = placement_seam(
+        main_repo_root, mission_slug, effective_root=effective_root
+    ).read_dir(
         MissionArtifactKind.TASKS_INDEX
     )
     if not (feature_dir / "tasks").is_dir():
@@ -485,9 +541,14 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     roster = authored_subtask_roster(feature_dir, wp_id)
     if not roster:
         return []
-    from specify_cli.coordination import resolve_status_surface
+    if effective_root is not None:
+        status_dir = placement_seam(
+            main_repo_root, mission_slug, effective_root=effective_root
+        ).read_dir(MissionArtifactKind.STATUS_STATE)
+    else:
+        from specify_cli.coordination import resolve_status_surface
 
-    status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
+        status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
     return unchecked_subtask_ids_from_snapshot(status_dir, wp_id, roster)
 
 
@@ -497,6 +558,11 @@ def _validate_ready_for_review(
     wp_id: str,
     force: bool,
     target_lane: str = "for_review",
+    *,
+    effective_root: Path | None = None,
+    workspace_override: object | None = None,
+    review_base_ref: str | None = None,
+    check_kitty_specs: bool = True,
 ) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
@@ -518,6 +584,10 @@ def _validate_ready_for_review(
         wp_id,
         force,
         target_lane=target_lane,
+        effective_root=effective_root,
+        workspace_override=workspace_override,
+        review_base_ref=review_base_ref,
+        check_kitty_specs=check_kitty_specs,
         get_main_repo_root=_tasks.get_main_repo_root,
         get_mission_type=_tasks.get_mission_type,
         get_feature_target_branch=_tasks.get_feature_target_branch,

@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.6"
+version = "3.2.7rc1"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -271,7 +271,6 @@ exclude = [
     "scripts/docs/_typer_walker.py",
     "scripts/docs/adr_converter.py",
     "scripts/docs/audience_resolver.py",
-    "scripts/docs/build_cli_reference.py",
     "scripts/docs/bulk_ref_rewrite.py",
     "scripts/docs/capture_baseline_urls.py",
     "scripts/docs/check_cli_reference_freshness.py",
@@ -331,15 +330,11 @@ exclude = [
     "src/charter/activation/context_renderers/activation_block.py",
     "src/charter/activation/context_renderers/artifact_bodies.py",
     "src/charter/activation/context_renderers/authority_paths.py",
-    "src/charter/activation/context_renderers/bootstrap_text.py",
     "src/charter/activation/context_renderers/catalog_diagnosis.py",
     "src/charter/activation/context_renderers/delivery_table.py",
     "src/charter/activation/context_renderers/profile_sections.py",
     "src/charter/activation/context_renderers/reference_pointers.py",
     "src/charter/activation/context_renderers/section_bodies.py",
-    "src/charter/activation/context_renderers/selection_block.py",
-    "src/charter/activation/context_renderers/template_include.py",
-    "src/charter/activation/context_renderers/token_budget.py",
     "src/charter/activation/corpus/__init__.py",
     "src/charter/activation/doctrine_service_builder.py",
     "src/charter/activation/evidence/__init__.py",
@@ -728,7 +723,6 @@ exclude = [
     "src/specify_cli/doctrine_synthesizer/conflict.py",
     "src/specify_cli/dossier/__init__.py",
     "src/specify_cli/dossier/api.py",
-    "src/specify_cli/dossier/manifest.py",
     "src/specify_cli/dossier/models.py",
     "src/specify_cli/drg_writers/registry.py",
     "src/specify_cli/encoding.py",
@@ -873,7 +867,6 @@ exclude = [
     "src/specify_cli/status/doctor.py",
     "src/specify_cli/status/doctor_husks.py",
     "src/specify_cli/status/dup_key_repair.py",
-    "src/specify_cli/status/emit.py",
     "src/specify_cli/status/event_log_merge.py",
     "src/specify_cli/status/identity_audit.py",
     "src/specify_cli/status/lane_reader.py",
@@ -1346,7 +1339,6 @@ exclude = [
     "tests/charter/test_context_schema_version_ledger.py",
     "tests/charter/test_context_section_bodies.py",
     "tests/charter/test_context_selection_render.py",
-    "tests/charter/test_context_token_budget.py",
     "tests/charter/test_doctrine_service_builder_unification.py",
     "tests/charter/test_doctrine_service_lineage_accessor.py",
     "tests/charter/test_doctrine_service_unfiltered_mode.py",
@@ -1531,7 +1523,6 @@ exclude = [
     "tests/docs/test_artifact_placement_seam_page.py",
     "tests/docs/test_asset_howto.py",
     "tests/docs/test_asset_resolution_wheel.py",
-    "tests/docs/test_build_cli_reference.py",
     "tests/docs/test_bulk_ref_rewrite.py",
     "tests/docs/test_check_cli_reference_freshness.py",
     "tests/docs/test_check_docs_freshness.py",
@@ -1877,7 +1868,6 @@ exclude = [
     "tests/integration/test_review_handoff.py",
     "tests/integration/test_sc008_topology_resolution.py",
     "tests/integration/test_slice_f_cross_axis.py",
-    "tests/integration/test_spec_kitty_home_cli.py",
     "tests/integration/test_status_emit_on_alloc_failure.py",
     "tests/integration/test_surface_translation_seam.py",
     "tests/integration/test_three_layer_drg_end_to_end.py",
@@ -2041,7 +2031,6 @@ exclude = [
     "tests/next/test_prompt_file_invariant.py",
     "tests/next/test_prompt_step_schema_extensions.py",
     "tests/next/test_runtime_bridge_blocked_paths.py",
-    "tests/next/test_runtime_bridge_unit.py",
     "tests/next/test_runtime_pkg_notice_unit.py",
     "tests/packaging/test_windows_no_keyring.py",
     "tests/paths/test_render_runtime_path.py",
@@ -2152,7 +2141,6 @@ exclude = [
     "tests/runtime/test_package_exports.py",
     "tests/runtime/test_paths_unit.py",
     "tests/runtime/test_resolve_by_urn.py",
-    "tests/runtime/test_resolver_unit.py",
     "tests/runtime/test_runtime_bridge_identity.py",
     "tests/runtime/test_runtime_bridge_identity_git_repo.py",
     "tests/runtime/test_runtime_identity_resolution.py",

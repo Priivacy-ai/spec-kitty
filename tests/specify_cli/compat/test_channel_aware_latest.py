@@ -116,7 +116,9 @@ class TestCacheVersionKey:
         assert rc_key != stable_key
 
     def test_prerelease_channel_key_is_deterministic(self) -> None:
-        assert _cache_version_key("2.0.11", prerelease=True) == _cache_version_key("2.0.11", prerelease=True)
+        first = _cache_version_key("2.0.11", prerelease=True)
+        second = _cache_version_key("2.0.11", prerelease=True)
+        assert first == second
 
 
 # ---------------------------------------------------------------------------

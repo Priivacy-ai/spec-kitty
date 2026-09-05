@@ -111,6 +111,7 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/next/test_pertype_presence_gate.py",
+    "tests/runtime/next/test_composed_guard_launder.py",
     "tests/runtime/test_banner_visibility.py",
     "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/test_bridge_composition.py",
@@ -128,6 +129,8 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     # authority WP01 landed here without its conflicted WP02 sibling, so the
     # new test file registers now, mirroring upstream's own shard-3 row.
     "tests/runtime/next/test_committed_authority.py",
+    "tests/runtime/next/test_presence_filenames.py",
+    "tests/runtime/next/test_merged_mission_terminal.py",
     "tests/runtime/test_bootstrap_unit.py",
     "tests/runtime/test_bootstrap_version_fallback.py",
     "tests/runtime/test_bridge_engine.py",

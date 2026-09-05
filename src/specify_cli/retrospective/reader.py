@@ -94,6 +94,7 @@ _ACTOR_KINDS = frozenset({"human", "agent", "runtime"})
 _PROVENANCE_KINDS = frozenset({
     "runtime_post_completion",
     "runtime_strict_gate",
+    "runtime_abandoned",
     "explicit_create",
     "backfill",
     "synthesize_fabricate",

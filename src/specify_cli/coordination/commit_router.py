@@ -40,7 +40,30 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.coordination.surface_authority import Refuse, resolve_surface_authority
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.git import safe_commit
+
+
+class CoordWorktreeResolutionError(RuntimeError):
+    """A coordination-routed mission reached the commit seam in a corrupt state (INV-3 / DIR-043).
+
+    DD-3 / FR-002 (coord-commit-surface-authority WP04): the coord-staging helpers
+    (:func:`_materialise_coord_worktree`, :func:`_resolve_commit_worktree_for_kind`)
+    are reached ONLY after the caller has decided the mission routes through
+    coordination (``use_coord`` / ``routes_through_coordination`` of the STORED
+    topology). If, at that point, the mission's ``mission_id`` is unresolvable
+    (missing / short / corrupt ``meta.json``) or its coordination worktree fails to
+    resolve, the artifact CANNOT reach its authoritative coordination surface. The
+    former behavior silently returned the PRIMARY checkout — committing (or
+    no-op-ing) a coordination-kind artifact onto the primary tree, the exact
+    "silent misroute to primary" defect class INV-3 forbids. This is raised (a
+    :class:`RuntimeError` subclass, so the command boundary maps it to a non-zero
+    JSON-mode exit — see ``spec_commit_cmd.py``'s ``except RuntimeError`` arm)
+    instead of falling back, closing the defect class by construction (DIR-043)
+    rather than by comment. Flattened / ``SINGLE_BRANCH`` / ``LANES`` missions never
+    reach these helpers, so no legitimate caller relied on the fallback.
+    """
 
 
 class PrimaryKindReachedCoordStagingError(RuntimeError):
@@ -106,6 +129,16 @@ _PRE_TASKS_ARTIFACT_KINDS: Final[frozenset[MissionArtifactKind]] = frozenset(
     }
 )
 
+# #2739 B03: machine-readable ``reason`` strings for the two ``unchanged``
+# no-op flavours, so a caller can tell "nothing to do" from "silently wrong".
+# Named once (S1192) — every ``_STATUS_UNCHANGED`` construction site carries one.
+_REASON_ALREADY_COMMITTED: Final = "no_op_already_committed"
+_REASON_NO_CHANGES: Final = "no_op_no_changes"
+
+# #2739 B01: the operator hatch that permits a commit on a protected branch.
+# Named once and reused by the protected-refusal diagnostic below (S1192).
+_ENV_HATCH: Final = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
+
 
 @dataclass(frozen=True)
 class CommitRouterResult:
@@ -134,6 +167,11 @@ class CommitRouterResult:
     commit_hash: str | None = None
     commit_hashes: tuple[tuple[str, str], ...] = ()
     diagnostic: str | None = None
+    #: Machine-readable disambiguator for an ``unchanged`` no-op (#2739 B03):
+    #: ``no_op_already_committed`` (artifact present + already committed) vs
+    #: ``no_op_no_changes`` (nothing to commit / empty changeset). ``None`` for
+    #: every non-``unchanged`` status.
+    reason: str | None = None
 
 
 def mission_has_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
@@ -156,6 +194,7 @@ def commit_for_mission(
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> CommitRouterResult:
     """Commit a mission artifact to its kind-aware resolved placement.
 
@@ -200,7 +239,7 @@ def commit_for_mission(
     single-partition batch (the common case) still resolves placement exactly
     once and issues exactly one commit (INV: no fast-path regression).
     """
-    groups = _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
+    groups = [(kind, files)] if effective_root is not None else _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
 
     if len(groups) <= 1:
         effective_kind, effective_files = groups[0] if groups else (kind, files)
@@ -213,6 +252,7 @@ def commit_for_mission(
             kind=effective_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             target_branch=target_branch,
+            **effective_root_kwargs(effective_root),
         )
 
     # Split-and-commit (contract (a), pinned by T004): a mixed-partition batch
@@ -245,6 +285,7 @@ def _commit_partition_group(
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> CommitRouterResult:
     """Commit ONE single-partition file group to its resolved placement.
 
@@ -254,7 +295,10 @@ def _commit_partition_group(
     ``kind`` — :func:`_group_files_by_partition` guarantees this; this helper
     does not re-validate it (single responsibility: resolve + commit one group).
     """
-    placement: CommitTarget = resolve_placement_only(repo_root, mission_slug, kind=kind)
+    if effective_root is None:
+        placement = resolve_placement_only(repo_root, mission_slug, kind=kind)
+    else:
+        placement = resolve_placement_only(repo_root, mission_slug, kind=kind, effective_root=effective_root)
 
     # FR-003 / C-005 / NFR-004: derive coord-vs-primary routing from the ONE
     # kind-aware ``placement`` (the single authority), not a second predicate.
@@ -266,64 +310,68 @@ def _commit_partition_group(
     # branch — i.e. only coordination kinds materialise the coord worktree (C-001).
     # A primary kind therefore NEVER routes to coordination even under coord
     # topology — this removes the planning→coord arm (write-surface-coherence WP02).
-    primary_target = _resolve_mission_target_branch(repo_root, mission_slug)
+    topology = resolve_topology(repo_root, mission_slug)
+    primary_target = placement.ref if effective_root is not None else _resolve_mission_target_branch(repo_root, mission_slug)
     use_coord = (
-        routes_through_coordination(resolve_topology(repo_root, mission_slug))
+        effective_root is None
+        and routes_through_coordination(topology)
         and placement.ref != primary_target
     )
 
-    if not use_coord and policy.is_protected(placement.ref):
-        # Primary placement on a protected ref — refused (FR-008 / G-4). This
-        # mission already exists (mission_slug names it), so the remedy is
-        # NOT unconditionally "create a mission" -- `agent mission create`
-        # mints a fresh ULID per call and would leave a second, empty mission
-        # next to this one (test_mission_create_idempotent_second_run). For a
-        # mission that already has a ``tasks/`` directory, the fix is to
-        # persist a non-protected target_branch onto the existing mission via
-        # the FR-012 `finalize-tasks --target-branch` escape hatch, before the
-        # next commit attempt re-resolves the same protected ref
-        # (get_feature_target_branch, core/paths.py, reads THIS mission's
-        # persisted meta.json only).
-        #
-        # squad pass 2 (#255 fix-round-2): that escape hatch only persists
-        # durably once ``_commit_finalize_artifacts`` actually commits --
-        # every earlier `typer.Exit` (including the missing-``tasks/`` gate)
-        # calls `_revert_unpersisted_target_branch_override`, so recommending
-        # it for a PRE-TASKS kind writes the override, reports success, then
-        # reverts it, leaving the operator no better off. At that stage the
-        # only artifact at risk is a regenerable spec/plan document, so the
-        # working remedy is to abandon the stuck attempt and start a mission
-        # on the right branch, not retarget it.
-        #
-        # The planning→coord transit is GONE (FR-003 / C-005 /
-        # write-surface-coherence WP03 T015), so either remedy is a feature
-        # branch, NOT the coordination worktree: the deadlock is removed by
-        # the feature-branch invariant (research D-3), not by transiting coord.
-        if kind in _PRE_TASKS_ARTIFACT_KINDS:
-            remedy = (
-                f"No tasks have been generated for this mission yet, so the "
-                f"finalize-tasks --target-branch override has nothing durable "
-                f"to attach to and would silently revert. Start a mission on "
-                f"a feature branch instead: 'spec-kitty agent mission create "
-                f"{mission_slug} --start-branch <feature-branch>'."
-            )
-        else:
-            remedy = (
-                f"Check out or create a non-protected feature branch, then "
-                f"persist it onto this mission with: 'spec-kitty agent mission "
-                f"finalize-tasks --mission {mission_slug} --target-branch "
-                f"<feature-branch>'."
-            )
-        return CommitRouterResult(
-            status=_STATUS_NO_OP_WRONG_SURFACE,
-            placement_ref=placement.ref,
-            diagnostic=(
-                f"Refusing to commit planning artifacts to the protected branch "
-                f"'{placement.ref}'. This mission's target_branch is protected. "
-                f"{remedy} "
-                f"Planning artifacts must land on a feature branch."
-            ),
+    # T016 / INV-4 (shared-rule consultation): the protected-primary refusal now
+    # DERIVES from the single authority :func:`resolve_surface_authority` (contract
+    # rules 1–5) instead of a hardcoded ``not use_coord and is_protected`` predicate.
+    # A :class:`~specify_cli.coordination.surface_authority.Refuse` verdict maps to
+    # ``_STATUS_NO_OP_WRONG_SURFACE`` — the router's exit-1 refusal surface (the CLI
+    # maps ``no_op_wrong_surface`` → exit 1); the typed GENUINE no-ops below
+    # (``unchanged`` / ``no_op_already_committed`` / ``no_op_no_changes``) stay
+    # exit 0 (#2739 contract preserved). ``primary_protected`` already folds the
+    # operator hatch (rule 6) via ``policy.is_protected``. In the ``not use_coord``
+    # arm ``placement.ref == primary_target`` always holds (a coord-less topology
+    # resolves every kind to ``target_branch``; a coord kind that diverged would
+    # have set ``use_coord``), so keying protection on ``placement.ref`` matches the
+    # rule's ``primary_target`` exactly. ``current_branch`` is informational only
+    # (the rule keys on target protection, not the checkout).
+    if not use_coord:
+        verdict = resolve_surface_authority(
+            topology,
+            primary_target,
+            primary_protected=policy.is_protected(placement.ref),
+            current_branch="",
+            artifact_kind=kind,
+            coord_ref=placement.ref,
         )
+        if isinstance(verdict.non_committable, Refuse):
+            # Refuse (rule 3). This mission already exists, so the safe remedy
+            # depends on whether tasks exist: pre-tasks overrides are reverted,
+            # while later missions can durably retarget through finalize-tasks.
+            if kind in _PRE_TASKS_ARTIFACT_KINDS:
+                remedy = (
+                    f"No tasks have been generated for this mission yet, so the "
+                    f"finalize-tasks --target-branch override has nothing durable "
+                    f"to attach to and would silently revert. Start a mission on "
+                    f"a feature branch instead: 'spec-kitty agent mission create "
+                    f"{mission_slug} --start-branch <feature-branch>'."
+                )
+            else:
+                remedy = (
+                    f"Check out or create a non-protected feature branch, then "
+                    f"persist it onto this mission with: 'spec-kitty agent mission "
+                    f"finalize-tasks --mission {mission_slug} --target-branch "
+                    f"<feature-branch>'."
+                )
+            return CommitRouterResult(
+                status=_STATUS_NO_OP_WRONG_SURFACE,
+                placement_ref=placement.ref,
+                diagnostic=(
+                    f"Refusing to commit planning artifacts to the protected branch "
+                    f"'{placement.ref}'. This mission's target_branch is protected. "
+                    f"{remedy} "
+                    f"Planning artifacts must land on a feature branch. To commit on "
+                    f"the current protected branch anyway, set "
+                    f"{_ENV_HATCH}=1."
+                ),
+            )
 
     if use_coord:
         worktree_root, commit_paths = _materialise_coord_worktree(
@@ -336,11 +384,36 @@ def _commit_partition_group(
         )
     else:
         # Flattened or unprotected primary: commit directly.
-        worktree_root, commit_paths = repo_root, files
+        worktree_root, commit_paths = effective_root or repo_root, files
 
     if not commit_paths:
+        # #2739 B16 / #2694: distinguish a genuine no-op (artifact present +
+        # already committed) from a WRONG-SURFACE no-op. When the mission routes
+        # through coordination and coord staging skipped every artifact (e.g. a
+        # STATUS-partition file that ``_stage_artifacts_in_coord_worktree`` never
+        # copies), but the SOURCE artifact is still present-and-uncommitted in the
+        # primary checkout, the commit landed nowhere — the write would falsely
+        # report a benign no-op against the coord branch while the primary tree
+        # stays dirty. Mirror the ``_any_path_absent`` wrong-surface detection and
+        # refuse instead (T008 surfaces the actionable error).
+        if use_coord and _paths_uncommitted_in_primary(repo_root, files):
+            return CommitRouterResult(
+                status=_STATUS_NO_OP_WRONG_SURFACE,
+                placement_ref=placement.ref,
+                diagnostic=(
+                    f"Artifact(s) written to the primary checkout routed to the "
+                    f"coordination placement ({placement.ref}) where nothing was "
+                    f"staged; the commit would no-op against the wrong surface and "
+                    f"the artifact remains uncommitted in the primary tree. Commit "
+                    f"it to its own (primary) surface instead."
+                ),
+            )
         # All artifacts already committed (or none present) — genuine no-op.
-        return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref)
+        return CommitRouterResult(
+            status=_STATUS_UNCHANGED,
+            placement_ref=placement.ref,
+            reason=_REASON_ALREADY_COMMITTED,
+        )
 
     # FR-006 / D-5: detect no-op against the wrong surface.
     if _any_path_absent(commit_paths):
@@ -362,11 +435,16 @@ def _commit_partition_group(
             target=placement,
             message=message,
             paths=commit_paths,
+            **effective_root_kwargs(effective_root),
         )
     except subprocess.CalledProcessError as exc:
         stderr = getattr(exc, "stderr", "") or ""
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
-            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref)
+            return CommitRouterResult(
+                status=_STATUS_UNCHANGED,
+                placement_ref=placement.ref,
+                reason=_REASON_NO_CHANGES,
+            )
         return CommitRouterResult(
             status=_STATUS_ERROR,
             placement_ref=placement.ref,
@@ -374,7 +452,11 @@ def _commit_partition_group(
         )
     except RuntimeError as exc:
         if _is_empty_changeset_error(exc):
-            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref)
+            return CommitRouterResult(
+                status=_STATUS_UNCHANGED,
+                placement_ref=placement.ref,
+                reason=_REASON_NO_CHANGES,
+            )
         return CommitRouterResult(
             status=_STATUS_ERROR,
             placement_ref=placement.ref,
@@ -641,8 +723,16 @@ def _materialise_coord_worktree(
     """Resolve (materialise on demand) the coordination worktree and stage artifacts.
 
     Reuses the canonical ``CoordinationWorkspace.resolve()`` path (C-001).
-    Falls back to the primary checkout on any resolution error so the lifecycle
-    does not crash (C-004 strangler safety).
+    FAILS LOUD on any resolution failure (DD-3 / FR-002 / INV-3, coord-commit-
+    surface-authority WP04): this helper is reached ONLY for a coordination-routed
+    mission (``use_coord`` in :func:`_commit_partition_group`), so an unresolvable
+    ``mission_id`` or a coordination-worktree resolution error is a CORRUPT coord
+    state — silently returning the primary checkout would misroute a coordination-
+    kind artifact onto the primary tree (the exact INV-3 defect). Both failure sites
+    raise :class:`CoordWorktreeResolutionError` (a ``RuntimeError``, mapped to a
+    non-zero JSON-mode exit at the command boundary) instead of the former
+    C-004 strangler-safety fallback. Flattened / ``SINGLE_BRANCH`` / ``LANES``
+    missions never reach this helper, so no legitimate caller relied on the fallback.
 
     Args:
         repo_root:    Primary checkout root.
@@ -660,7 +750,14 @@ def _materialise_coord_worktree(
         primary_paths_created_this_invocation: Eligible residue paths (R6).
 
     Returns:
-        ``(coord_worktree, coord_paths)`` on success; ``(repo_root, files)`` on error.
+        ``(coord_worktree, coord_paths)`` on success.
+
+    Raises:
+        CoordWorktreeResolutionError: the coordination-routed mission has an
+            unresolvable ``mission_id`` or its coordination worktree failed to
+            resolve — fail loud rather than misroute to primary (DD-3 / INV-3).
+        PrimaryKindReachedCoordStagingError: a PRIMARY-partition kind reached coord
+            staging (DECISION 8 partition invariant).
     """
     # DECISION 8 / FR-005 / C-004: enforce the partition invariant at the coord
     # staging boundary. ``commit_for_mission`` only routes coordination kinds here
@@ -675,19 +772,28 @@ def _materialise_coord_worktree(
 
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
+    # DD-3 / INV-3 site 1 (fail loud, NOT silent primary fallback): a coordination-
+    # routed mission with no resolvable mission_id cannot reach its coord surface.
     mid8 = _resolve_mid8(repo_root, mission_slug)
     if mid8 is None:
-        return repo_root, files
+        raise CoordWorktreeResolutionError(
+            f"Coordination-routed mission {mission_slug!r} has no resolvable "
+            f"mission_id (missing / short / corrupt meta.json); its coordination "
+            f"worktree cannot be materialised. Refusing to fall back to the primary "
+            f"checkout, which would silently misroute a coordination-kind artifact "
+            f"(INV-3). Repair meta.json's mission_id and retry."
+        )
 
+    # DD-3 / INV-3 site 2 (fail loud): a coord-worktree resolution failure under a
+    # coordination-routed mission is a corrupt state, not a primary-fallback cue.
     try:
         coord_wt = CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
-    except Exception:
-        logger.debug(
-            "commit_router: CoordinationWorkspace.resolve failed for %s; "
-            "falling back to primary checkout",
-            mission_slug,
-        )
-        return repo_root, files
+    except Exception as exc:
+        raise CoordWorktreeResolutionError(
+            f"Coordination worktree resolution failed for mission {mission_slug!r} "
+            f"(mid8={mid8!r}): {exc}. Refusing to fall back to the primary checkout, "
+            f"which would silently misroute a coordination-kind artifact (INV-3)."
+        ) from exc
 
     coord_paths = _stage_artifacts_in_coord_worktree(
         list(files),
@@ -903,20 +1009,42 @@ def _resolve_commit_worktree_for_kind(
     single canonical staging helper.
 
     Returns ``(worktree_root, paths_to_commit)``.
+
+    Raises:
+        CoordWorktreeResolutionError: a coordination-routed (coord-partition-kind)
+            commit has an unresolvable ``mission_id`` or its coordination worktree
+            failed to resolve — fail loud rather than misroute to primary (DD-3 /
+            INV-3, coord-commit-surface-authority WP04).
     """
+    # DD-3 fail-loud ledger (coord-commit-surface-authority WP04) — the TWO
+    # early-returns below are INTENTIONAL primary-routing (a primary-kind commit,
+    # and a coord-less topology, both legitimately committing from the primary
+    # checkout), NOT silent misroutes: they are EXCLUDED from hardening on purpose.
+    # The two coord-staging fallbacks further down (unresolvable mid8; coord-worktree
+    # resolution failure) ARE misroutes and are hardened to fail loud (zero
+    # exclusions among the corrupt-state sites).
+    #
     # PRIMARY kinds never transit coordination — commit directly from the primary
     # checkout (write-surface-coherence WP03 / T014). The coord-staging body below
     # is reached only by coordination-partition kinds. (T019: the PRIMARY-kind
     # invariant guard — kept verbatim, never deleted, across the rename.)
     if is_primary_artifact_kind(kind):
-        return repo_root, paths
+        return repo_root, paths  # INTENTIONAL primary routing (excluded from DD-3 hardening)
 
     if not routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-        return repo_root, paths
+        return repo_root, paths  # INTENTIONAL primary routing (coord-less topology)
 
+    # DD-3 / INV-3 site 3 (fail loud): a coordination-routed, coord-partition kind
+    # with no resolvable mission_id is a corrupt state, not a primary-fallback cue.
     mid8 = _resolve_mid8(repo_root, mission_slug)
     if mid8 is None:
-        return repo_root, paths
+        raise CoordWorktreeResolutionError(
+            f"Coordination-routed mission {mission_slug!r} has no resolvable "
+            f"mission_id (missing / short / corrupt meta.json); its coordination "
+            f"worktree cannot be materialised. Refusing to fall back to the primary "
+            f"checkout, which would silently misroute a coordination-kind artifact "
+            f"(INV-3). Repair meta.json's mission_id and retry."
+        )
 
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
@@ -924,13 +1052,18 @@ def _resolve_commit_worktree_for_kind(
     # exists from ``mission create``). This is the catch-22 killer: the planning
     # commit ALWAYS reaches its resolved coordination placement instead of
     # falling back to the protected main checkout and tripping the guard.
+    #
+    # DD-3 / INV-3 site 4 (fail loud): a coord-worktree resolution failure under a
+    # coordination-routed mission is a corrupt state — the former C-004
+    # strangler-safety primary fallback silently misrouted the artifact (INV-3).
     try:
         coord_wt = CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
-    except Exception:
-        # Resolution failed (e.g. branch mismatch under a divergent worktree);
-        # fall back to the main checkout so the existing diagnostics surface
-        # rather than crashing the lifecycle (C-004 strangler safety).
-        return repo_root, paths
+    except Exception as exc:
+        raise CoordWorktreeResolutionError(
+            f"Coordination worktree resolution failed for mission {mission_slug!r} "
+            f"(mid8={mid8!r}): {exc}. Refusing to fall back to the primary checkout, "
+            f"which would silently misroute a coordination-kind artifact (INV-3)."
+        ) from exc
 
     coord_paths = _stage_artifacts_in_coord_worktree(
         list(paths),
@@ -963,6 +1096,37 @@ _stage_finalize_artifacts_in_coord_worktree = _stage_artifacts_in_coord_worktree
 def _any_path_absent(paths: tuple[Path, ...]) -> bool:
     """Return True iff any path in *paths* does not exist on disk."""
     return any(not path.exists() for path in paths)
+
+
+def _paths_uncommitted_in_primary(repo_root: Path, files: tuple[Path, ...]) -> bool:
+    """Return True iff any source path is present on disk under *repo_root* AND
+    carries uncommitted content (untracked or modified) in the primary checkout.
+
+    #2739 B16: the wrong-surface discriminator for an empty coord commit. A file
+    the operator wrote into the PRIMARY tree that then routed to the coordination
+    partition (where staging skipped it) leaves the primary tree dirty and lands
+    nowhere — ``git status --porcelain`` on the path is non-empty. A file that was
+    already committed (genuine no-op) reports clean, and a coord-authored artifact
+    living in a linked worktree is not tracked by the primary checkout, so both
+    correctly return ``False``.
+    """
+    for path in files:
+        if not path.exists():
+            continue
+        try:
+            rel = path.resolve().relative_to(repo_root.resolve())
+        except ValueError:
+            continue
+        proc = subprocess.run(
+            ["git", "status", "--porcelain", "--", str(rel)],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.stdout.strip():
+            return True
+    return False
 
 
 def _is_empty_changeset_error(exc: RuntimeError) -> bool:

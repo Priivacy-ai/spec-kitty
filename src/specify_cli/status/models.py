@@ -878,6 +878,7 @@ class TransitionRequest:
     # this transition. Emitters persist it in the same atomic/transactional
     # unit as the lane event, so a resolved binding can never lag its claim.
     annotation_delta: WPInnerStateDelta | None = None
+    effective_root: Path | None = None
 
 
 @dataclass

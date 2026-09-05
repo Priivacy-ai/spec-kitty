@@ -70,10 +70,58 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.paths import MissionMetaReadError
 
 __all__ = [
+    "AmbiguousPendingDecisionError",
+    "NoPendingDecisionError",
     "emit_mission_next_invoked",
     "pair_previous_lifecycle_record",
+    "resolve_pending_decision_id",
     "write_issuance_lifecycle_record",
 ]
+
+
+class NoPendingDecisionError(Exception):
+    """Raised by :func:`resolve_pending_decision_id` when no decision is pending."""
+
+
+class AmbiguousPendingDecisionError(Exception):
+    """Raised by :func:`resolve_pending_decision_id` when more than one decision
+    is pending -- ``pending_ids`` carries the sorted candidate ids so a
+    caller can surface them without re-reading the snapshot itself."""
+
+    def __init__(self, pending_ids: list[str]) -> None:
+        self.pending_ids = pending_ids
+        super().__init__(f"Multiple pending decisions ({', '.join(pending_ids)}). Use --decision-id to specify which one.")
+
+
+def resolve_pending_decision_id(run_dir: Path, decision_id: str | None) -> str:
+    """Resolve an ``--answer``-flow ``decision_id``, auto-resolving from the
+    run snapshot's pending decisions when omitted (PR-BOUNDARY-001).
+
+    Concentrates the zero/one/many pending-decision auto-resolve branch that
+    ``next_cmd.py``'s ``_handle_answer`` and orchestrator-api's
+    ``answer_decision`` each independently reimplemented verbatim before
+    this extraction -- exactly the "seam one WP invented and the next WP
+    ignored" class the operator ruling (SPEC-FRESH2-001) exists to close.
+    Reads via ``runtime_bridge_engine._read_snapshot`` (the FR-013
+    concentration seam), never ``_internal_runtime.engine`` directly, so
+    this is the ONLY place under either caller that touches the pending
+    snapshot for auto-resolve purposes.
+
+    Returns ``decision_id`` unchanged when it is already provided (a no-op
+    pass-through, so callers can call this unconditionally).
+    """
+    if decision_id is not None:
+        return decision_id
+
+    from runtime.next.runtime_bridge_engine import _read_snapshot
+
+    snapshot = _read_snapshot(run_dir)
+    pending = snapshot.pending_decisions
+    if len(pending) == 0:
+        raise NoPendingDecisionError("No pending decisions to answer")
+    if len(pending) == 1:
+        return next(iter(pending.keys()))
+    raise AmbiguousPendingDecisionError(sorted(pending.keys()))
 
 
 def pair_previous_lifecycle_record(

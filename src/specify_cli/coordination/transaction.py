@@ -191,6 +191,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # ``mypy --strict`` is satisfied because we do not annotate them
         # as ``Final`` and we never re-bind them after construction.
         self.repo_root = repo_root
+        self._primary_root: Path | None = None
         self.mission_id = mission_id
         self.mission_slug = mission_slug
         self.mid8 = mid8
@@ -244,6 +245,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         timeout: float = 30.0,
         capability: GuardCapability = GuardCapability.STANDARD,
         commit_to_primary_target: bool = False,
+        effective_root: Path | None = None,
     ) -> BookkeepingTransaction:
         """Construct, lock, and run the pre-flight policy gate.
 
@@ -286,7 +288,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # transaction object; on any setup failure below, release it before
         # propagating the domain error.
         lock_cm = feature_status_lock(
-            repo_root, mission_slug, timeout=timeout,
+            effective_root or repo_root, mission_slug, timeout=timeout,
         )
         try:
             lock_cm.__enter__()
@@ -295,7 +297,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
         try:
             return cls._acquire_locked(
-                repo_root=repo_root,
+                repo_root=effective_root or repo_root,
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 mid8=mid8,
@@ -305,6 +307,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 lock_cm=lock_cm,
                 capability=capability,
                 commit_to_primary_target=commit_to_primary_target,
+                primary_root=repo_root if effective_root is not None else None,
             )
         except Exception:
             lock_cm.__exit__(None, None, None)
@@ -324,6 +327,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         lock_cm: AbstractContextManager[Path],
         capability: GuardCapability = GuardCapability.STANDARD,
         commit_to_primary_target: bool = False,
+        primary_root: Path | None = None,
     ) -> BookkeepingTransaction:
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
@@ -487,7 +491,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # already held only to serialize first-time coord worktree setup.
         change_set = GitChangeSet(
             destination_ref=effective_destination_ref,
-            repo_root=repo_root,
+            repo_root=primary_root or repo_root,
             worktree_root=worktree_root,
             paths=(events_path, snapshot_path),
             message=f"<pending: {operation}>",
@@ -536,6 +540,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             lock_cm=lock_cm,
         )
         txn._capability = capability
+        txn._primary_root = primary_root
         txn._legacy_mode = legacy_mode
         return txn
 
@@ -818,12 +823,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
         try:
             result = safe_commit(
-                repo_root=self.repo_root,
+                repo_root=self._primary_root or self.repo_root,
                 worktree_root=self.worktree_root,
                 target=CommitTarget(ref=self.destination_ref),
                 message=message,
                 paths=tuple(self._staged_paths),
                 capability=self._capability,
+                effective_root=self.worktree_root if self._primary_root is not None else None,
             )
         except SafeCommitRecoveryFailed as exc:
             if exc.commit_sha is None:

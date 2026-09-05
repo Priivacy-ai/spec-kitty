@@ -326,7 +326,30 @@ def _patched_get_expected_artifacts(self: MissionTemplateRepository, mission: st
 
 
 class TestLoadBearingPathPatternPropagation:
-    """AC-9: patching the path_pattern source changes every converted call site."""
+    """AC-9: patching the path_pattern source changes every converted call site.
+
+    WP02 (#3770): ``resolve_configured_artifact_name`` now reaches its
+    manifest through ``charter.activation.manifest_loader.load_manifest``'s
+    process-global, cached authority (rather than the previously-uncached
+    resolver-local mirror) -- so a real ``software-dev`` load by an earlier
+    test class in this module (``TestResolveConfiguredArtifactNameBuiltins``)
+    would otherwise populate the ``("software-dev", ())`` cache entry BEFORE
+    this class's ``get_expected_artifacts`` monkeypatch ever runs, making
+    every test below silently observe the stale pre-patch content instead of
+    the patch. Clear the shared cache before AND after each test here,
+    mirroring ``tests/dossier/test_manifest.py``'s own
+    ``setup_method``/``teardown_method`` convention for the same cache.
+    """
+
+    def setup_method(self) -> None:
+        from charter.activation.manifest_loader import clear_cache
+
+        clear_cache()
+
+    def teardown_method(self) -> None:
+        from charter.activation.manifest_loader import clear_cache
+
+        clear_cache()
 
     def test_resolver_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
@@ -335,33 +358,46 @@ class TestLoadBearingPathPatternPropagation:
 
     def test_analysis_report_hash_inputs_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.analysis_report as analysis_report_module
+        from charter.activation.manifest_loader import clear_cache
 
+        # WP02 (#3770): this "before" read populates the shared authority
+        # cache with the REAL manifest under key ("software-dev", ()) --
+        # `clear_cache()` below (between the monkeypatch and the "after"
+        # read) forces a fresh, patched load rather than silently replaying
+        # this cached value (see the class docstring).
         original_hash_inputs = analysis_report_module._HASH_INPUTS
         monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
+        clear_cache()
         try:
             importlib.reload(analysis_report_module)
             assert analysis_report_module._HASH_INPUTS[0] == _SENTINEL_SPEC_FILENAME
             assert analysis_report_module._HASH_INPUTS[1:] == original_hash_inputs[1:]
         finally:
             monkeypatch.undo()
+            clear_cache()
             importlib.reload(analysis_report_module)
             assert original_hash_inputs == analysis_report_module._HASH_INPUTS
 
     def test_acceptance_spec_file_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.acceptance as acceptance_module
+        from charter.activation.manifest_loader import clear_cache
 
+        # Acceptance resolves these compatibility attributes lazily through
+        # module ``__getattr__``. Exercise that call-time seam directly: an
+        # in-process reload would replace public exception classes and strand
+        # already-imported CLI handlers with stale class identities.
         original_spec_file = acceptance_module.SPEC_FILE
         original_plan_file = acceptance_module.PLAN_FILE
         monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
+        clear_cache()
         try:
-            importlib.reload(acceptance_module)
             assert acceptance_module.SPEC_FILE == _SENTINEL_SPEC_FILENAME
             # PLAN_FILE is untouched by the patch -- proves the seam resolves
             # each artifact_key independently, not a single frozen tuple.
             assert original_plan_file == acceptance_module.PLAN_FILE
         finally:
             monkeypatch.undo()
-            importlib.reload(acceptance_module)
+            clear_cache()
             assert original_spec_file == acceptance_module.SPEC_FILE
 
     def test_retrospect_precondition_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -580,3 +616,28 @@ class TestManifestSchemaErrorPerTier:
         # by mistake in this branch).
         assert "org-tier" in exc.origin
         assert "software-dev" in exc.origin
+
+
+# ---------------------------------------------------------------------------
+# WP02 T009 (#3770): resolver.py's mirror now delegates to the authority --
+# proves the delegation is live, not an inert local copy that happens to
+# agree with the authority today.
+# ---------------------------------------------------------------------------
+
+
+class TestResolverRoutesThroughAuthority:
+    def test_delegates_to_manifest_loader_load_manifest(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import charter.activation.manifest_loader as manifest_loader_module
+
+        calls: list[tuple[str, Path | None]] = []
+        original_load_manifest = manifest_loader_module.load_manifest
+
+        def _tracking_load_manifest(mission_type: str, repo_root: Path | None = None) -> object:
+            calls.append((mission_type, repo_root))
+            return original_load_manifest(mission_type, repo_root=repo_root)
+
+        monkeypatch.setattr(manifest_loader_module, "load_manifest", _tracking_load_manifest)
+
+        resolve_configured_artifact_name("input.spec.main", "software-dev")
+
+        assert calls == [("software-dev", None)]

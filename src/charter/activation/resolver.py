@@ -47,6 +47,7 @@ from charter.activation.sync import (
     load_directives_config,
     load_governance_config,
 )
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.missions.repository import MissionTemplateRepository
 
 # FR-003: the ONLY import of ``charter.offering.resolver``'s tier functions in the
@@ -231,13 +232,32 @@ class DoctrineService:
 
     @property
     def directives(self) -> dict[str, Directive]:
-        """Return directives dict, filtered by ``activated_directives`` when set."""
+        """Return directives dict, filtered by ``activated_directives`` when set.
+
+        Directives are the sole gated kind whose two identity spaces diverge:
+        items are keyed by their canonical ``id`` (``DIRECTIVE_025``) while
+        ``activated_directives`` stores the file-stem **slug**
+        (``025-boy-scout-rule``), exactly as ``config.yaml`` and the ``--json``
+        surface speak it. Membership must therefore compare on one normalized
+        form — via the single canonical authority
+        (:func:`~charter.offering.drg.migration.id_normalizer.normalize_directive_id`) —
+        or every directive is silently dropped whenever activation is configured
+        (#3816 sibling; every other gated kind has ``id == slug`` so its
+        comparison already coincides).
+        """
         all_directives: dict[str, Directive] = {
             item.id: item for item in self._inner.directives.list_all()
         }
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_directives is not None:
-            return {k: v for k, v in all_directives.items() if k in pack_ctx.activated_directives}
+            # Compare both sides in canonical space: the activated set speaks
+            # slugs and the item keys speak ``DIRECTIVE_NNN``. ``normalize_directive_id``
+            # is idempotent on an already-canonical id, so this only adds the
+            # slug→canonical bridge and never disturbs a matching pair.
+            activated = {normalize_directive_id(slug) for slug in pack_ctx.activated_directives}
+            return {
+                k: v for k, v in all_directives.items() if normalize_directive_id(k) in activated
+            }
         return all_directives
 
     @property
@@ -631,6 +651,49 @@ def _validate_paradigm_selection(
         )
 
 
+def _resolve_paradigm_base(
+    doctrine_catalog: DoctrineCatalog,
+    repo_root: Path,
+    diagnostics: list[str],
+) -> tuple[list[str], str]:
+    """Resolve the *base* paradigm set and its provenance label (FR-013),
+    mirroring :func:`_resolve_directive_base`'s three-state guard for
+    ``PackContext.activated_paradigms``. There was NO ``activated_*`` read
+    for paradigms anywhere in this module before this fix.
+
+    Unlike directives, paradigm ids have no stem-vs-canonical distinction in
+    this repo's authoring convention — every built-in paradigm file's ``id:``
+    field IS the filename-stem slug — so no normalizer call is needed or
+    added here (Union/Exclusion Boundary Audit boundary 3; out of scope,
+    vacuously satisfied).
+
+    * ``activated_paradigms is None`` (key absent from config; e.g. a bare,
+      unconfigured project) → the built-in catalog default
+      (``sorted(doctrine_catalog.paradigms)``), source ``"catalog_fallback"``,
+      with a diagnostic naming the fallback and its size.
+    * ``activated_paradigms == frozenset()`` (explicit opt-out) → ``[]``,
+      source ``"activation"``.
+    * ``activated_paradigms == {ids}`` → ``sorted(ids)``, source
+      ``"activation"``.
+
+    The ``is None`` check is deliberate and MUST NOT be collapsed to a
+    truthiness check, mirroring :func:`_resolve_directive_base`'s identical
+    guard for directives — ``frozenset()`` is falsy, so a truthiness collapse
+    would silently re-route the explicit opt-out case back to the catalog
+    default it exists to suppress.
+    """
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
+
+    activated_paradigms = PackContext.from_config(repo_root).activated_paradigms
+    if activated_paradigms is None:
+        base = sorted(doctrine_catalog.paradigms)
+        diagnostics.append(
+            f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms)."
+        )
+        return base, "catalog_fallback"
+    return sorted(activated_paradigms), "activation"
+
+
 def _resolve_tools_selection(
     doctrine: DoctrineSelectionConfig,
     available_tools: set[str],
@@ -682,59 +745,91 @@ def _resolve_directive_base(
     """Resolve the *base* directive set and its provenance label, before the
     additive project-local layer (see :func:`_resolve_directives_selection`).
 
-    Base authority order:
-
-    1. ``charter.offering.selected_directives`` (explicit charter selection) → validated
-       against the local + built-in catalog, source ``"charter"``.
-    2. else ``PackContext.activated_directives`` when configured → source
-       ``"activation"`` (the ``frozenset()`` opt-out resolves to ``[]``, still
-       ``"activation"``).
-    3. else (bare, unconfigured project) → the built-in catalog default
-       (``sorted(doctrine_catalog.directives)``), source ``"catalog_fallback"``,
-       with a diagnostic naming the fallback and its size (previously silent).
+    Base authority order (INVERTED from the pre-FR-012 priority): the
+    ``activated_*``-derived value is ALWAYS computed first as the base, and
+    ``doctrine.selected_directives`` — the charter-authored selection — is
+    then UNIONED onto that base when non-empty. It never substitutes for the
+    base (mirrors :func:`_resolve_directives_selection`'s existing
+    base-plus-project-local union shape). Previously, a non-empty
+    ``doctrine.selected_directives`` short-circuited and returned verbatim,
+    silently overriding ``activated_directives`` any time a project had ever
+    made an explicit charter selection (FR-012).
 
     Three-state guard (``pack_context.py:144``), preserved verbatim:
 
     * ``activated_directives is None`` (key absent from config; e.g. a bare,
-      unconfigured project) → the catalog default.
+      unconfigured project) → the built-in catalog default
+      (``sorted(doctrine_catalog.directives)``), source ``"catalog_fallback"``,
+      with a diagnostic naming the fallback and its size.
     * ``activated_directives == frozenset()`` (explicit opt-out) → ``[]``,
       source ``"activation"``.
-    * ``activated_directives == {ids}`` → ``sorted(ids)``, source
-      ``"activation"``.
+    * ``activated_directives == {ids}`` → each id normalized via
+      :func:`~charter.activation.profile_resolution._normalize_directive_id`
+      (``PackContext.activated_directives`` legitimately stores STEM-form ids
+      — proven live by
+      ``test_answers_inert_and_org_union.py::TestOrgRequiredIdFormNormalizedBeforePromotion``
+      — and a stem-form id must never leak into the resolved base
+      un-normalized; Union/Exclusion Boundary Audit boundary 1), then sorted,
+      source ``"activation"``.
 
     The ``is None`` check is deliberate and MUST NOT be collapsed to a
     truthiness check (``activated_directives or frozenset()`` /
     ``if activated_directives:``): ``frozenset()`` is falsy, so a truthiness
     collapse would silently re-route the explicit opt-out case back to the
     catalog default it exists to suppress.
+
+    ``doctrine.selected_directives`` is validated against the local + built-in
+    catalog BEFORE the union runs — an entry not in ``valid_ids`` raises
+    ``GovernanceResolutionError`` rather than silently dropping (boundary 2,
+    unchanged, already "fails loud").
     """
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
+    from charter.activation.profile_resolution import _normalize_directive_id  # noqa: PLC0415 — lazy; avoids circular import
+
     local_ids = {d.id for d in directives_cfg.directives}
     valid_ids = set(local_ids)
     if doctrine_catalog.directives:
         valid_ids.update(doctrine_catalog.directives)
 
-    if doctrine.selected_directives:
-        missing = sorted(d for d in doctrine.selected_directives if d not in valid_ids)
-        if missing:
-            raise GovernanceResolutionError(
-                [
-                    "Charter selected unavailable directive(s): " + ", ".join(missing),
-                    "Declare these IDs in the charter.yaml 'directives:' section "
-                    "or add them to packs/built-in/directives/.",
-                ]
-            )
-        return list(doctrine.selected_directives), "charter"
-
-    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
-
     activated_directives = PackContext.from_config(repo_root).activated_directives
     if activated_directives is None:
-        base = sorted(doctrine_catalog.directives)
+        base = sorted({_normalize_directive_id(d) for d in doctrine_catalog.directives})
         diagnostics.append(
             f"No activated directive set configured; using built-in catalog default ({len(base)} directives)."
         )
-        return base, "catalog_fallback"
-    return sorted(activated_directives), "activation"
+        base_source = "catalog_fallback"
+    else:
+        base = sorted({_normalize_directive_id(d) for d in activated_directives})
+        base_source = "activation"
+
+    if not doctrine.selected_directives:
+        return base, base_source
+
+    missing = sorted(d for d in doctrine.selected_directives if d not in valid_ids)
+    if missing:
+        raise GovernanceResolutionError(
+            [
+                "Charter selected unavailable directive(s): " + ", ".join(missing),
+                "Declare these IDs in the charter.yaml 'directives:' section "
+                "or add them to packs/built-in/directives/.",
+            ]
+        )
+
+    base_set = set(base)
+    added = [d for d in doctrine.selected_directives if d not in base_set]
+    if added:
+        diagnostics.append(
+            f"Charter selected {len(added)} directive(s) beyond the {base_source} base: "
+            + ", ".join(added)
+            + "."
+        )
+    else:
+        diagnostics.append(
+            f"All {len(doctrine.selected_directives)} charter-selected directive(s) already present in "
+            f"the {base_source} base; none added: " + ", ".join(doctrine.selected_directives) + "."
+        )
+    unioned = list(dict.fromkeys([*base, *doctrine.selected_directives]))
+    return unioned, f"{base_source}+charter"
 
 
 def _resolve_directives_selection(
@@ -845,8 +940,30 @@ def resolve_project_governance(
     doctrine = governance.charter
     diagnostics: list[str] = []
 
-    selected_paradigms = list(doctrine.selected_paradigms)
-    _validate_paradigm_selection(selected_paradigms, doctrine_catalog)
+    # FR-013: activated_paradigms is the base; doctrine.selected_paradigms
+    # (validated exactly as before, unchanged — boundary 4, already "fails
+    # loud") unions onto it, never substitutes for it. Previously this was an
+    # unconditional passthrough with no activated_* read at all.
+    selected_paradigms_raw = list(doctrine.selected_paradigms)
+    _validate_paradigm_selection(selected_paradigms_raw, doctrine_catalog)
+    paradigm_base, paradigm_base_source = _resolve_paradigm_base(doctrine_catalog, repo_root, diagnostics)
+    if selected_paradigms_raw:
+        paradigm_base_set = set(paradigm_base)
+        added_paradigms = [p for p in selected_paradigms_raw if p not in paradigm_base_set]
+        if added_paradigms:
+            diagnostics.append(
+                f"Charter selected {len(added_paradigms)} paradigm(s) beyond the {paradigm_base_source} base: "
+                + ", ".join(added_paradigms)
+                + "."
+            )
+        else:
+            diagnostics.append(
+                f"All {len(selected_paradigms_raw)} charter-selected paradigm(s) already present in the "
+                f"{paradigm_base_source} base; none added: " + ", ".join(selected_paradigms_raw) + "."
+            )
+        selected_paradigms = list(dict.fromkeys([*paradigm_base, *selected_paradigms_raw]))
+    else:
+        selected_paradigms = paradigm_base
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)

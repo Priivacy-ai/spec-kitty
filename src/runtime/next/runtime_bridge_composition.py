@@ -312,47 +312,82 @@ def _composition_dispatch_inputs(
 ) -> tuple[str | None, Any | None]:
     """Return ``(profile_hint, contract)`` for a composition dispatch.
 
+    Resolves via ``_resolve_step_agent_profile`` / ``PromptStep.
+    agent_profile`` — the FR-008-mandated canonical resolution path
+    (``mission_step_contracts/executor.py:68-71``) — including when
+    ``action`` is a member of the mission type's own ``action_sequence``,
+    which is the common case for every canonical step of every mission
+    type. A ``resolve_mission_type_context`` probe still runs first so a
+    genuine resolution failure (e.g. a malformed org pack) is logged rather
+    than silently swallowed (FR-002); its result is otherwise unused here —
+    it no longer gates whether profile/contract resolution runs (FR-001/
+    FR-003).
+
+    **Built-ins-only exception (PR #797, FR-003, #3830 regression fix):**
+    when ``(mission, action)`` has an entry in ``StepContractExecutor``'s
+    ``_ACTION_PROFILE_DEFAULTS`` table — i.e. this is a canonical
+    ``software-dev`` / ``research`` / ``documentation`` action — the
+    template-side ``agent_profile`` is NOT consulted and ``profile_hint``
+    resolves to ``None`` unconditionally, so the executor's own
+    ``_resolve_profile_hint`` falls back to that built-ins-only table
+    exactly as it did before this mission (NFR-001). This preserves PR
+    #797's fast path: a frozen template that happens to carry a stray
+    ``agent_profile`` value on a built-in step (e.g. through gate-widening
+    test scaffolding, or an operator hand-edit) must never override the
+    documented built-in resolution. Custom mission types are never members
+    of that table, so this exception never narrows FR-001's guarantee that
+    a custom type's own action reaches ``PromptStep.agent_profile``.
+
     Not part of the WP02 compat guard's tracked symbol inventory (nothing
     patches it), so it is a plain internal helper re-exported into the
     residual (``decide_next_via_runtime`` still calls it bare) — no native
     delegate needed.
 
-    The short-circuit to ``(None, None)`` (letting
-    ``StepContractExecutor._resolve_profile_hint`` fall back to its own
-    ``_ACTION_PROFILE_DEFAULTS`` table) is gated on ``(mission, action)``
-    actually having an entry in that table — not merely on the action
-    appearing in the charter-resolved action sequence. A custom mission type
-    (e.g. an org-pack-registered ``qa`` mission) can resolve an action
-    sequence that includes an action with no built-in default; that table is
-    explicitly built-in-missions-only (see its own docstring), so such an
-    action must fall through to the frozen template's explicit
-    ``agent-profile``/``contract_ref`` binding instead of being silently
-    starved of a profile hint (#397 — the runtime discarded a frozen
-    ``agent-profile: researcher-robbie`` binding for a custom mission's
-    ``discovery`` action because this short-circuit fired unconditionally).
     """
+    try:
+        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
+            UnknownMissionTypeError,
+            resolve_mission_type_context,
+        )
+
+        resolve_mission_type_context(repo_root, mission_type=mission)
+    except UnknownMissionTypeError:
+        # Expected on the happy path: any non-charter-activated custom
+        # mission type raises this (the normal #3830 frozen-template path),
+        # so it is not a genuine resolution failure and must not be logged
+        # at ERROR (that would fire on every dispatch for a custom type).
+        # Debug-only so it is still diagnosable on demand.
+        logger.debug(
+            "mission type %r is not charter-activated; profile_hint "
+            "resolves via the frozen-template path",
+            mission,
+        )
+    except Exception:
+        # Genuine resolution failure (e.g. a malformed org pack) — logged so
+        # it is diagnosable, distinguished from the ordinary success case
+        # (which logs nothing, NFR-001) by log presence, not conflated with
+        # it. Resolution below still proceeds via the frozen-template
+        # fallback path; a mission-type-context failure here is not fatal to
+        # dispatch.
+        logger.exception(
+            "resolve_mission_type_context failed for mission=%r action=%r; "
+            "profile_hint resolution continues via the frozen-template path",
+            mission,
+            action,
+        )
+
+    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from specify_cli.mission_step_contracts.executor import (  # noqa: PLC0415
         _ACTION_PROFILE_DEFAULTS,
     )
 
-    if (mission, action) in _ACTION_PROFILE_DEFAULTS:
-        try:
-            from charter.activation.mission_type_profiles import (  # noqa: PLC0415
-                resolve_mission_type_context,
-            )
-
-            action_sequence = resolve_mission_type_context(
-                repo_root, mission_type=mission
-            ).action_sequence
-            if action in action_sequence:
-                return None, None
-        except Exception:
-            pass
-
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
+    profile_hint = (
+        None
+        if (mission, action) in _ACTION_PROFILE_DEFAULTS
+        else _rb._resolve_step_agent_profile(run_dir, step_id)
+    )
     return (
-        _rb._resolve_step_agent_profile(run_dir, step_id),
+        profile_hint,
         _rb._resolve_runtime_contract_for_step(
             repo_root=repo_root,
             run_dir=run_dir,
@@ -523,6 +558,7 @@ def _check_composed_action_guard(
         )
     try:
         return _cores.evaluate_guards_strict(snapshot)
+    # #3412 (FR-009/FR-010): NEVER widen this to also catch MalformedManifestError -- that would re-launder a malformed manifest into a tolerant empty result.
     except _cores.UnregisteredMissionFamilyError:
         logger.warning(
             "Unregistered mission_family %r reached the composed guard path; "
@@ -585,15 +621,24 @@ def _dispatch_via_composition(
         request_text=request_text,
         mode_of_work=mode_of_work,
     )
-    # For custom missions, prefer the durable contract resolved from the
-    # frozen template during ``next``. Fall back to the process-local registry
-    # for in-process tests and callers, and then to the executor's repository
-    # lookup for built-in software-dev dispatch.
+    # The in-process ``RuntimeContractRegistry`` is the canonical runtime
+    # source for custom step contracts (explicitly registered by ``mission
+    # run`` / test setup), so a hit there takes priority over ``contract``
+    # — a contract this bridge may have locally re-synthesized from the
+    # frozen template via ``_resolve_runtime_contract_for_step`` (#3830
+    # regression: that local synthesis produces its own object, distinct
+    # from the one an operator/test explicitly registered under the same
+    # id, and must never shadow it). The locally-resolved ``contract`` is
+    # still the fallback for the cross-process case (``mission run`` and
+    # ``next`` execute in separate CLI processes, so the registry is empty
+    # in the ``next`` process even though the frozen template carries the
+    # binding), and the executor's own repository lookup is the final
+    # fallback for built-in software-dev dispatch.
     from specify_cli.mission_loader.registry import get_runtime_contract_registry
 
-    selected_contract = contract or get_runtime_contract_registry().lookup(
+    selected_contract = get_runtime_contract_registry().lookup(
         f"custom:{mission}:{action}"
-    )
+    ) or contract
     try:
         result = StepContractExecutor(repo_root=repo_root).execute(
             context, contract=selected_contract

@@ -16,6 +16,27 @@ nodes:
     kind: directives
     title: "Operator-Signal Contract — a path that decides must also signal"
     body_path: directives/operator-signal-contract.directive.yaml
+  # Branded-document + project-evolution-postmortem doctrine (maintainer authoring).
+  - id: spec-kitty-branded-pdf
+    kind: assets
+    title: "Spec Kitty branded PDF generator (Markdown to WeasyPrint)"
+    body_path: assets/spec-kitty-branded-pdf.py
+  - id: branded-document-generation
+    kind: toolguides
+    title: "Branded Document Generation (Spec Kitty PDF pipeline)"
+    body_path: toolguides/branded-document-generation.toolguide.yaml
+  - id: branded-deliverable
+    kind: tactics
+    title: "Branded Deliverable — when and how to produce a branded document"
+    body_path: tactics/branded-deliverable.tactic.yaml
+  - id: report-writing
+    kind: styleguides
+    title: "Report Writing (audience-first, anti-AI-prose, Spec Kitty voice)"
+    body_path: styleguides/report-writing.styleguide.yaml
+  - id: project-evolution-postmortem
+    kind: procedures
+    title: "Project-Evolution Postmortem (research squads + branded report)"
+    body_path: procedures/project-evolution-postmortem.procedure.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -27,3 +48,19 @@ edges:
   - source: landing-contributor-prs
     target: "tactic:pr-agent-worktree-isolation"
     relation: refines
+  # Postmortem authoring chain (all targets are local nodes declared above).
+  # The procedure suggests the writing styleguide and the branded-deliverable
+  # tactic; the tactic requires the generation toolguide; the toolguide requires
+  # the generator asset.
+  - source: project-evolution-postmortem
+    target: "styleguide:report-writing"
+    relation: suggests
+  - source: project-evolution-postmortem
+    target: "tactic:branded-deliverable"
+    relation: suggests
+  - source: branded-deliverable
+    target: "toolguide:branded-document-generation"
+    relation: requires
+  - source: branded-document-generation
+    target: "asset:spec-kitty-branded-pdf"
+    relation: requires

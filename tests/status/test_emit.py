@@ -1484,6 +1484,9 @@ class TestBatchEmit:
     def test_empty_batch_returns_empty(self) -> None:
         assert emit_status_transition_batch([]) == []
 
+    def test_empty_batch_accepts_retired_326_dossier_keyword(self) -> None:
+        assert emit_status_transition_batch([], sync_dossier=False) == []
+
     def test_batch_requires_first_request_identity(self) -> None:
         with pytest.raises(TypeError, match="requires feature_dir"):
             emit_status_transition_batch([TransitionRequest()])

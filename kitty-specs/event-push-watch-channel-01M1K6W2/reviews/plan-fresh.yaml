@@ -1,0 +1,120 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: PLAN-FRESH-001
+    lens: charter-conformance
+    severity: 3
+    title: Glossary-registration rationale misattributes file-set-growth authority to Boy-Scout, which the charter's own reconciliation order explicitly forbids
+    evidence:
+      - artifact: "plan.md § Contracts (Glossary candidates), 'Decision' paragraph — \"the Boy-Scout Rule licenses this specific, narrow addition\""
+      - artifact: ".kittify/charter/charter.md § Reconciling change-scope tensions, step 2 — \"Boy Scout Rule then governs cleanup strictly inside that file set ... without adding files to the set chosen in step 1\""
+      - artifact: ".kittify/charter/charter.md § Reconciling change-scope tensions, step 3 — \"Locality of Change is the brake — it stops either rule from growing the file set. Any extension beyond the touched area must be directly connected to the goal, proportional, and carry a one-line rationale\""
+    claim: >
+      The fix round's corrected PLAN-GOV-001 rationale invokes RECONCILE_CHANGE_SCOPE_TENSIONS and
+      correctly establishes that smallest-viable-diff would NOT put docs/context/system-events.md in
+      IC-04's file set on its own, then says "the Boy-Scout Rule licenses this specific, narrow
+      addition" of that file. But the charter's own text for this exact mechanism (step 2, quoted
+      above) explicitly bars Boy-Scout from adding files to the file set chosen in step 1 — file-set
+      growth can only come from step 3 (Locality of Change's narrow "extension" allowance, which the
+      plan separately and correctly invokes one sentence later). The plan therefore misattributes the
+      licensing authority for adding this file to the one clause in the charter's own reconciliation
+      order that explicitly says it cannot do that. This is the same charter-paraphrase-vs-actual-text
+      drift class PLAN-GOV-001 was raised to fix, only partially corrected — the outcome (register the
+      terms in IC-04) may still be defensible under step 3 alone, but the stated reasoning is
+      internally inconsistent with the charter text it cites by name. Also qualitatively: Boy-Scout
+      per DIRECTIVE_025 licenses opportunistic cleanup of debt in an already-touched area, not
+      registration of brand-new terminology with no prior debt — reinforcing that Locality of Change
+      (not Boy-Scout) is the only clause that actually fits here.
+    remediation: >
+      Drop the Boy-Scout sentence from the Contracts § Glossary candidates rationale, or rewrite it to
+      match the charter's actual resolution order: state plainly that smallest-viable-diff excludes the
+      file, Boy-Scout cannot add it (per step 2's explicit text), and the addition is licensed solely by
+      step 3's Locality-of-Change extension clause (connected-to-goal + proportional + one-line
+      rationale, which the paragraph already supplies). Re-verify the same fix applies wherever else the
+      plan invokes this mechanism.
+
+  - id: PLAN-FRESH-002
+    lens: architectural-integrity
+    severity: 3
+    title: New fd-sharing invariant is scoped only to poll_once(); validate_resume_cursor() faces the same intra-call TOCTOU race against a live-writer file and gets no equivalent commitment
+    evidence:
+      - artifact: "plan.md § Architectural Seam, 'Fd-sharing invariant' paragraph (new) — scoped entirely to `poll_once()`"
+      - artifact: "plan.md § Truncation Detection Design, 'Why this is a distinct code path...' paragraph (unchanged) — describes `validate_resume_cursor()` doing its own stat + backward-scan + hash-compare against the live file"
+      - artifact: "spec.md FR-013 / User Story 3 Acceptance Scenario 4 — resume validation is a fail-closed, one-shot check against a file an active writer may concurrently be rolling back/regrowing"
+    claim: >
+      The fix round adds an explicit, well-justified fd-sharing invariant for `poll_once()`: one fd
+      opened per call, with the size check, hash check, and drain read all going through that same fd
+      so a writer's truncate/os.replace() landing mid-call can never be observed as two inconsistent
+      snapshots. `validate_resume_cursor()` performs an analogous sequence against the same
+      live-writer-mutable file — a structural (in-range) check plus a backward-scan-and-hash content
+      check — to make a fail-closed accept/refuse decision (FR-013), but the new paragraph never
+      extends (or even mentions) the same commitment to it, and no IC-02 test enforces it. A
+      "plausible-but-lazy" `validate_resume_cursor()` (e.g. `path.stat()` for the range check, then a
+      fresh `path.open()` for the backward scan) reproduces the exact TOCTOU pattern the new paragraph
+      spent a full paragraph proving is dangerous for `poll_once()`, just on the resume path instead of
+      the live-poll path — under-tested since NFR-004 explicitly scopes concurrent-writer safety as the
+      normal case, not an edge condition, and a resume request can legitimately race a concurrently
+      running writer, not just an offline rollback.
+    remediation: >
+      Extend the fd-sharing invariant paragraph (or add a sibling paragraph) to state the same
+      single-fd commitment for `validate_resume_cursor()`'s structural check + backward-scan + hash
+      read, and add an IC-02 ATDD test analogous to IC-01's (monkeypatch `Path.stat`/a second `Path.open`
+      to raise if called from within `validate_resume_cursor()`) so the guarantee is enforced, not just
+      asserted for the sibling function.
+
+  - id: PLAN-FRESH-003
+    lens: test-gate-completeness
+    severity: 4
+    title: IC-01's new fd-sharing-invariant test only guards the size query, not the hash-check read or drain read the invariant paragraph also requires to share the fd
+    evidence:
+      - artifact: "plan.md § Architectural Seam, 'Fd-sharing invariant' paragraph — \"the hash-check read and the new-bytes drain read both read through that same fd\" / \"Every read inside poll_once() — size, hash-check, and drain — must therefore share the one fd\""
+      - artifact: "plan.md § IC-01, 'Also required' bullet (new) — \"monkeypatch Path.stat ... to raise if called from within poll_once(), forcing every size query through the already-open fd's os.fstat()\""
+      - artifact: "plan.md § IC-02, ATDD list (three tests) — no fd-sharing assertion for the hash-check read"
+    claim: >
+      The invariant paragraph names three reads that must share one fd (size, hash-check, drain), and
+      states the new IC-01 test "turns the invariant into a failing test, not an implementation-
+      discipline reminder a reviewer has to re-derive" — i.e. it is presented as enforcing the whole
+      commitment. But the concrete test described only monkeypatches `Path.stat` to raise, which
+      catches a fresh path-based size query and nothing else. It does not catch a second `Path.open()`
+      call used only for the hash-check read (the plan's own counter-example: "path.stat().st_size for
+      the cheap size check, then a separate path.open('rb') for the hash-check read" — that exact
+      example would pass IC-01's test, because it never calls `Path.stat` a second time, it calls
+      `Path.open` a second time). No test anywhere in IC-01/IC-02/IC-03 asserts a single-open-call
+      count, or that the hash-check/drain reads reuse the already-open fd. The gate is non-vacuous for
+      1 of the 3 reads the invariant covers and silently vacuous for the other 2 — the exact bug class
+      (plausible-but-lazy split-open implementation) the paragraph was written to close can still pass
+      every named ATDD test.
+    remediation: >
+      Broaden the IC-01/IC-02 fd-sharing test to assert the full commitment, not just the size query —
+      e.g. monkeypatch/spy on `Path.open`/`os.open` to assert exactly one open() call happens per
+      `poll_once()` invocation (covering size + hash-check + drain), or monkeypatch `Path.stat` AND a
+      second `Path.open` to both raise if called from within `poll_once()` after the first open. Place
+      the hash-check-specific half of this assertion in IC-02 (where the hash check is actually
+      implemented), since IC-01 alone cannot exercise it.
+
+  - id: PLAN-FRESH-004
+    lens: cross-reference-integrity
+    severity: 2
+    title: The fix round's new generated-glossary-file obligation (.contextive/*.yml) is never added to the plan's own touched-file inventories
+    evidence:
+      - artifact: "plan.md § Contracts (Glossary candidates) and § IC-04 — new requirement to commit `src/specify_cli/.contextive/*.yml` (and possibly `src/specify_cli/status/.contextive.yml`) in the same commit as the `docs/context/system-events.md` edit"
+      - artifact: "plan.md § Project Structure (Source Code tree) — lists only `docs/context/system-events.md`, no `.contextive/*.yml` entry"
+      - artifact: "plan.md § Write-Scope Disjointness From Concurrently Open Work — enumerates \"This mission's new/touched files\" without any `.contextive` path, used specifically to prove no overlap with PR #3842/#3845/the unpushed orchestrator-api branch"
+    claim: >
+      The fix round correctly identifies that registering the glossary terms makes the generated
+      Contextive files stale and requires committing their regenerated diff — a real, load-bearing
+      addition to what this mission's commits touch. It updates the Contracts, Gate Set, and IC-04
+      narrative to say so, but never propagates the new file(s) into the plan's own bookkeeping
+      sections (Project Structure's Source Code tree, and — more materially — the Write-Scope
+      Disjointness section, whose entire purpose is to give a conflict-free guarantee against three
+      named concurrently-open efforts). Those efforts were never checked against
+      `src/specify_cli/.contextive/*.yml` or `src/specify_cli/status/.contextive.yml`, because the plan
+      doesn't know yet that this mission touches them.
+    remediation: >
+      Add `src/specify_cli/.contextive/*.yml` (and the affected scope `.contextive.yml`, if confirmed)
+      to both the Project Structure Source Code tree and the Write-Scope Disjointness file list, and
+      spot-check that none of PR #3842/#3845/the unpushed orchestrator-api branch touches those same
+      generated files.

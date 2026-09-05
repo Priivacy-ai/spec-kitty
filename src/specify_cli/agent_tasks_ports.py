@@ -45,6 +45,7 @@ from rich.console import Console
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import locate_project_root
 from specify_cli.coordination.commit_router import (
     CommitRouterResult,
@@ -66,7 +67,7 @@ from specify_cli.status import StatusEvent, TransitionRequest
 
 @dataclass(frozen=True)
 class MissionHandle:
-    """The two coordinates every real ``tasks.py`` seam consumes.
+    """Repository/mission identity plus an optional owned working checkout.
 
     The canonical resolvers take ``(repo_root, mission_slug)``; this frozen pair
     threads them through the ports as one value so the orchestrators pass a single
@@ -75,6 +76,7 @@ class MissionHandle:
 
     repo_root: Path
     mission_slug: str
+    effective_root: Path | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -245,13 +247,15 @@ class RealFsReader:
         # so the imported (typed ``-> Path``) resolver surfaces as ``Any`` here;
         # the annotation re-pins the known concrete type without a suppression.
         read_dir: Path = placement_seam(
-            mission.repo_root, mission.mission_slug
+            mission.repo_root, mission.mission_slug,
+            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
         ).read_dir(kind)
         return read_dir
 
     def wp_tasks_dir(self, mission: MissionHandle) -> Path:
         feature_dir: Path = placement_seam(
-            mission.repo_root, mission.mission_slug
+            mission.repo_root, mission.mission_slug,
+            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
         ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         return feature_dir / "tasks"
 
@@ -272,7 +276,8 @@ class RealFsReader:
         # equivalent (the fold's own no-op leg for an unresolvable handle
         # returns it unchanged either way).
         anchor: Path = placement_seam(
-            mission.repo_root, mission.mission_slug
+            mission.repo_root, mission.mission_slug,
+            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return anchor
 
@@ -330,7 +335,12 @@ class RealCoordCommitRouter:
         self._emit_fn = emit_fn or emit_status_transition_transactional
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
-        write_dir: Path = resolve_feature_dir_for_mission(
+        if mission.effective_root is not None:
+            write_dir: Path = placement_seam(
+                mission.repo_root, mission.mission_slug, effective_root=mission.effective_root,
+            ).read_dir(MissionArtifactKind.STATUS_STATE)
+            return write_dir
+        write_dir = resolve_feature_dir_for_mission(
             mission.repo_root, mission.mission_slug
         )
         return write_dir
@@ -365,6 +375,7 @@ class RealCoordCommitRouter:
                 policy,
                 kind=kind,
                 target_branch=self._target_branch,
+                **effective_root_kwargs(mission.effective_root),
             )
         else:
             result = self._commit_fn(
@@ -374,6 +385,7 @@ class RealCoordCommitRouter:
                 message,
                 policy,
                 kind=kind,
+                **effective_root_kwargs(mission.effective_root),
             )
         return CommitArtifactResult(
             status=result.status,

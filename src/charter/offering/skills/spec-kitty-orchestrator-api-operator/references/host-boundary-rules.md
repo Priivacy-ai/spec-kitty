@@ -36,6 +36,12 @@ Use `spec-kitty orchestrator-api` when:
 - A custom dashboard that visualizes mission progress and triggers reviews
 - A supervisor process that starts multiple agent containers in parallel
 - A Slack bot that lets humans approve work packages
+- A native driver (e.g. Kitty Desktop) that creates a mission, scaffolds its
+  plan, finalizes its work packages, and resolves decision-ledger entries --
+  the design-phase verbs (`specify`, `plan`, `tasks`, `check-prerequisites`,
+  `record-analysis`, `open-decision`, `resolve-decision`, `defer-decision`,
+  `cancel-decision`, `design-status`, `answer-decision`; contract >= 1.4.0)
+  give this the same compliant path the WP-implementation loop already has
 
 ---
 
@@ -162,6 +168,22 @@ and safety enforcement.
 | External tool reads WP state | Orchestrator API (`mission-state`) | External tool must use API |
 | User accepts a mission from CLI | Host CLI (`spec-kitty accept`) | User is at the terminal |
 | CI accepts a mission after all checks pass | Orchestrator API (`accept-mission`) | CI is external |
+| External host creates a new mission | Orchestrator API (`specify`) | Host is external (contract >= 1.4.0) |
+| External host scaffolds a mission's plan | Orchestrator API (`plan`) | Host is external (contract >= 1.4.0) |
+| External host finalizes work-package tasks | Orchestrator API (`tasks`) | Host is external (contract >= 1.4.0) |
+| External host reads analyze prerequisites | Orchestrator API (`check-prerequisites`) | Host is external, read-only (contract >= 1.4.0) |
+| External host records an analyze report | Orchestrator API (`record-analysis`) | Host is external (contract >= 1.4.0) |
+| External host opens/resolves/defers/cancels a decision-ledger entry | Orchestrator API (`open-decision` / `resolve-decision` / `defer-decision` / `cancel-decision`) | Host is external (contract >= 1.4.0) |
+| External host queries design-phase status | Orchestrator API (`design-status`) | Host is external, read-only (contract >= 1.4.0) |
+| External host resolves a `spec-kitty next` `decision_required` moment | Orchestrator API (`answer-decision`) | Host is external; full host-CLI event/lifecycle parity (contract >= 1.4.0) |
+| Agent resolves its own `decision_required` moment inline | Host CLI (`spec-kitty next --answer ...`) | Agent is inside the project |
+
+Before contract `1.4.0`, none of the design-phase rows above had a listed
+`Orchestrator API` interface -- an external host driving `specify`/`plan`/
+`tasks`/`analyze`/decision-resolution had no row of its own in this table,
+leaving the host CLI as the only interface actually documented for that
+work. That gap is closed: the design-phase rows above are the compliant
+path.
 
 ---
 

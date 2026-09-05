@@ -39,7 +39,7 @@ _MARKER_FILE = gc.REPO_ROOT / ".test-full-status"
 # $FAIL_ON_CALLS -- everything else exits 0, so no real pytest ever runs.
 _FAKE_UV_SCRIPT = """#!/bin/sh
 echo "$@" >> "$CALL_LOG"
-n=$(wc -l < "$CALL_LOG")
+n=$(wc -l < "$CALL_LOG" | tr -d '[:space:]')
 case ",$FAIL_ON_CALLS," in
   *",$n,"*) exit 1 ;;
   *) exit 0 ;;

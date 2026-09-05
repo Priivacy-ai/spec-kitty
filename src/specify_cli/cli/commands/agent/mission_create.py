@@ -377,25 +377,44 @@ def _resolve_default_topology_phase(
     current_branch: str | None,
     pr_bound: bool,
 ) -> MissionTopology:
-    """Derive the create-time topology default from branch/pr-bound context (#2581).
+    """Derive the create-time topology default from branch/pr-bound context (#2581, #2533).
 
-    An explicit ``--topology`` always wins. Otherwise: PR-bound missions and
-    missions created on the repository's primary branch keep the historical
-    ``coord`` default (a coordination branch is minted). A mission created on
-    a non-primary feature/fork branch without ``--pr-bound`` defaults to
-    ``single_branch`` instead — minting a coordination branch there just to
-    have the operator manually flatten it is the exact friction #2581 closes.
+    An explicit ``--topology`` always wins. Otherwise the default keys on
+    *topology honesty* (INV-2): a coordination topology is minted only when
+    coordination routing is actually reachable, never as pure overhead.
+
+    - ``--pr-bound`` missions consult :func:`coord_topology_reachable` — coord
+      is reachable iff ``primary_protected or current_is_primary``. A pr-bound
+      mission on an **unprotected** primary target (e.g. created with
+      ``--start-branch <feature-branch>``) therefore defaults to
+      ``single_branch``, eliminating the stranded coord branch behind the #2533
+      split-brain. Protection is keyed on the **primary TARGET branch**
+      (``ProtectionPolicy`` + ``resolve_primary_branch``), NOT the current
+      checkout (the tripwire in ``test_mission_create.py`` proves this).
+    - A non-pr-bound mission created on the repository's primary branch keeps the
+      historical ``coord`` default; one created on a non-primary feature/fork
+      branch defaults to ``single_branch`` — minting a coordination branch there
+      just to have the operator manually flatten it is the friction #2581 closes.
     """
     if explicit_topology is not None:
         return explicit_topology
-    if pr_bound:
-        return MissionTopology.COORD
+    # Fail-safe: without a resolvable repo/checkout we cannot key on target
+    # protection, so keep the historical ``coord`` default. Hoisted ahead of the
+    # pr-bound arm because that arm now needs a resolvable ``repo_root`` to read
+    # the primary target branch's protection.
     if repo_root is None or current_branch is None:
         return MissionTopology.COORD
 
     from specify_cli.core.git_ops import resolve_primary_branch
 
     primary_branch = resolve_primary_branch(repo_root)
+    if pr_bound:
+        from specify_cli.coordination.surface_authority import coord_topology_reachable
+        from specify_cli.git.protection_policy import ProtectionPolicy
+
+        primary_protected = ProtectionPolicy.resolve(repo_root).is_protected(primary_branch)
+        current_is_primary = current_branch == primary_branch
+        return MissionTopology.COORD if coord_topology_reachable(pr_bound, primary_protected, current_is_primary) else MissionTopology.SINGLE_BRANCH
     if current_branch == primary_branch:
         return MissionTopology.COORD
     return MissionTopology.SINGLE_BRANCH
@@ -437,6 +456,8 @@ def _run_create_core_phase(
     owned_checkout: Path | None,
     json_output: bool,
     topology: MissionTopology = MissionTopology.COORD,
+    retain_branches: bool = False,
+    retain_worktrees: bool = False,
 ) -> MissionCreationResult:
     """Invoke ``create_mission_core`` with the deterministic error funnel.
 
@@ -466,6 +487,8 @@ def _run_create_core_phase(
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             owned_checkout=owned_checkout.resolve() if owned_checkout is not None else None,
+            retain_branches=retain_branches,
+            retain_worktrees=retain_worktrees,
         )
     except CoordinationBranchDiverged as exc:
         # Structured error path (NFR-007): emit a stable error_code payload
@@ -543,7 +566,6 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
     feature_dir = result.feature_dir
     spec_file = feature_dir / "spec.md"
     meta_file = feature_dir / "meta.json"
-    tasks_readme = feature_dir / "tasks" / "README.md"
     payload: dict[str, object] = {
         "result": "success",
         "mission_slug": result.mission_slug,
@@ -560,7 +582,26 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         "spec_file": str(spec_file),
         "meta_file": str(meta_file),
         "created_at": str(result.meta.get("created_at", "")),
-        "created_files": [str(spec_file), str(meta_file), str(tasks_readme)],
+        "created_files": [str(path) for path in result.created_files],
+        # #2693: spec.md is scaffolded empty and left uncommitted on purpose
+        # (#846) — it is committed later by /spec-kitty.specify once it holds
+        # substantive content. Disclose it as a structured uncommitted artifact
+        # (with the command responsible for committing it) so a generated file
+        # is never both untracked in the working tree AND undisclosed to the
+        # caller. meta.json, status.events.jsonl, and the tasks/ scaffold are
+        # committed transactionally at create time, so they are NOT listed here.
+        "uncommitted_artifacts": [
+            {
+                "path": str(path),
+                "reason": (
+                    "Scaffolded empty at create time; populated and committed with substantive content later (#846)."
+                    if path == spec_file
+                    else "Generated scaffold could not be committed to the protected or unavailable target branch."
+                ),
+                "responsible_command": ("/spec-kitty.specify" if path == spec_file else "commit from a non-protected feature branch"),
+            }
+            for path in result.uncommitted_files
+        ],
         "write_mode": "update_existing_files",
         "scaffold_only": True,
         "requires_agent_authoring": True,
@@ -691,6 +732,20 @@ def create_mission(
             ),
         ),
     ] = None,
+    retain_branches: Annotated[
+        bool,
+        typer.Option(
+            "--retain-branches",
+            help="Opt this mission's branches out of post-merge cleanup deletion.",
+        ),
+    ] = False,
+    retain_worktrees: Annotated[
+        bool,
+        typer.Option(
+            "--retain-worktrees",
+            help="Opt this mission's worktrees out of post-merge cleanup deletion.",
+        ),
+    ] = False,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -761,6 +816,8 @@ def create_mission(
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             owned_checkout=owned_checkout,
             json_output=json_output,
+            retain_branches=retain_branches,
+            retain_worktrees=retain_worktrees,
         )
     _emit_create_result_phase(
         result,

@@ -576,3 +576,126 @@ class TestSeamFunctionsFailClosedBranches:
         # Must not raise -- degrades to an un-persisted (feature_dir=None)
         # emit_event call rather than propagating.
         emit_mission_next_invoked("agent", "success", "no-such-mission", tmp_path, decision)
+
+
+# ---------------------------------------------------------------------------
+# WP08 extension (design-phase-orchestrator-api-01M1HE6M): the orchestrator-
+# api ``answer-decision`` verb (FR-013) is the SECOND caller of this seam.
+# SC-008 requires ONE shared regression test that fails if EITHER caller --
+# the host CLI's ``next --answer`` above, or this verb -- stops writing the
+# mission-events log or the issuance-lifecycle-record store. Reuses
+# ``assert_lifecycle_seam_effects`` UNMODIFIED (WP02's own deliverable) and
+# the SAME fixture-mission builders above (three-step, input-requiring).
+#
+# Deliberately does NOT follow the CLI-path test's own [answer call, bare
+# follow-up call] shape: a follow-up ``next --result`` CLI call would run
+# ITS OWN (CLI-side, unaffected) ``pair_previous_lifecycle_record`` call and
+# silently compensate for a broken orchestrator-api-side pairing call --
+# defeating exactly the half of SC-008's dual-caller proof this test exists
+# to carry (disabling ``answer-decision``'s own seam call must fail THIS
+# test without any other caller's call masking it). Instead, mirrors spec
+# Acceptance Scenario 7 literally ("a PRIOR issuance's started lifecycle
+# record still open, not yet paired") by seeding one directly via
+# ``write_started`` (real on-disk I/O, not a mock) BEFORE the single
+# measured ``answer-decision`` call -- so that ONE call alone is
+# responsible for pairing it (step 2), advancing the DAG (step 3), emitting
+# the event (step 4), and writing the next issuance record (step 5), with
+# no other caller in the measured window to compensate for a broken step.
+# ---------------------------------------------------------------------------
+
+_WP08_POLICY = json.dumps(
+    {
+        "orchestrator_id": "test-orch",
+        "orchestrator_version": "0.0.1",
+        "agent_family": "claude",
+        "approval_mode": "full_auto",
+        "sandbox_mode": "workspace_write",
+        "network_mode": "none",
+        "dangerous_flags": [],
+    }
+)
+
+
+class TestAnswerDecisionLifecycleSeamEffects:
+    """Drives the real orchestrator-api ``answer-decision`` verb (WP08's own
+    T036 RED signal: this command does not exist on ``orchestrator_api.
+    commands.app`` until T037/T038 land it -- a genuine Typer "no such
+    command" RED, not a vacuous assertion).
+    """
+
+    def test_answer_decision_path_pairs_and_issues_through_the_shared_seam(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.invocation.lifecycle import write_started
+        from specify_cli.orchestrator_api.commands import app as orchestrator_app
+
+        mission_slug = "042-lifecycle-seam-feature-wp08"
+        repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=_MISSION_TYPE)
+        _write_three_step_input_mission(repo_root, mission_type=_MISSION_TYPE)
+        monkeypatch.chdir(repo_root)
+        feature_dir = repo_root / "kitty-specs" / mission_slug
+        agent = "wp08-seam-test"
+
+        # --- setup: reach a real pending `decision_required`, outside the
+        # measured window -- identical shape to the CLI-path test above.
+        issue_step_one = runner.invoke(
+            cli_app,
+            ["next", "--agent", agent, "--mission", mission_slug, "--result", "success", "--json"],
+        )
+        assert issue_step_one.exit_code == 0, issue_step_one.output
+        assert json.loads(issue_step_one.stdout)["kind"] == "step"
+
+        reveal_decision = runner.invoke(
+            cli_app,
+            ["next", "--agent", agent, "--mission", mission_slug, "--result", "success", "--json"],
+        )
+        assert reveal_decision.exit_code == 0, reveal_decision.output
+        decision_payload = json.loads(reveal_decision.stdout)
+        assert decision_payload["kind"] == "decision_required"
+        decision_id = decision_payload["decision_id"]
+        assert decision_id == "input:approval"
+
+        # --- Acceptance Scenario 7's literal precondition: a PRIOR issuance's
+        # `started` lifecycle record still open (not yet paired) at the
+        # moment `answer-decision` is called. `step_one`'s own started
+        # record was already paired by `reveal_decision` above (every
+        # `--result` call pairs unconditionally, real production behaviour),
+        # so seed a SECOND one directly (real on-disk I/O, not a mock) --
+        # this is what makes the single `answer-decision` call below solely
+        # responsible for pairing it.
+        write_started(
+            repo_root,
+            canonical_action_id="synthetic::prior-open-issuance",
+            agent=agent,
+            mission_id="01HSEAMTESTMISSIONULID0001",
+        )
+
+        # --- run_action: ONLY the orchestrator-api `answer-decision` call
+        # under test -- no other caller in the measured window, so a broken
+        # seam call on THIS verb cannot be masked by a compensating CLI call.
+        def run_action() -> None:
+            answer_result = runner.invoke(
+                orchestrator_app,
+                [
+                    "answer-decision",
+                    "--mission",
+                    mission_slug,
+                    "--agent",
+                    agent,
+                    "--result",
+                    "success",
+                    "--answer",
+                    "yes",
+                    "--decision-id",
+                    decision_id,
+                    "--policy",
+                    _WP08_POLICY,
+                ],
+            )
+            assert answer_result.exit_code == 0, answer_result.output
+            envelope = json.loads(answer_result.output.strip().split("\n")[0])
+            assert envelope["success"] is True, envelope
+            answered_data = envelope["data"]
+            assert answered_data["kind"] == "step"
+            assert answered_data["answered_decision_id"] == decision_id
+            assert "answer" not in answered_data
+
+        assert_lifecycle_seam_effects(feature_dir, repo_root, mission_slug, run_action)

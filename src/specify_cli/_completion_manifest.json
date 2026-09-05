@@ -795,6 +795,18 @@
     }
    }
   },
+  "events": {
+   "help": "Event log tailing commands",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "tail": {
+     "help": "Tail a mission's event log (``status.events.jsonl``) as JSON lines on stdout.\n\nOrdered dispatch (plan.md's CLI Surface section -- \"exactly four things, none of\nthem novel domain logic\"):\n\n1. FR-004 usage check: ``--from-invariant`` without ``--from-offset``.\n2. FR-009 mission resolve.\n3. FR-013 resume validation (only when ``--from-offset`` is given).\n4. Drive the core.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
   "glossary": {
    "help": "Glossary management commands",
    "hidden": false,
@@ -1200,6 +1212,46 @@
      "help": "Finalize WP task metadata -- an unenriched pass-through of ``finalize_tasks``.\n\nFR-003 / Clarification 1: same deliberate asymmetry as ``plan`` -- the\nhost CLI's own ``--json`` path returns ``agent_feature.finalize_tasks``'s\nraw dict verbatim, so this verb does the same.",
      "hidden": false,
      "deprecated": false
+    },
+    "check-prerequisites": {
+     "help": "Read-only mission-prerequisite context for ``/spec-kitty.analyze`` (FR-004).\n\nC-002: this verb supplies context ONLY -- it never performs `analyze`'s\ncross-artifact reasoning itself (mirrors ``start-review``'s \"cannot\nperform WP implementation itself\" pattern). No ``--policy`` is required\n(read-only, per spec Edge Cases: \"Read-only verbs (check-prerequisites,\ndesign-status) do not require --policy\").\n\nIn-process only (FR-001-style parity): calls the host CLI's OWN\n``check_prerequisites`` Typer command function\n(``mission_check_prerequisites.py:498``) directly -- the exact\nestablished pattern WP03's ``plan``/``tasks`` verbs already use for a\nregistered ``agent mission`` Typer command (``setup_plan``/\n``finalize_tasks`` are registered identically:\n``app.command(...)(func)`` in ``mission.py``), so field-parity with\n``agent mission check-prerequisites --json --include-tasks`` is\nguaranteed by construction rather than by re-deriving\n``validate_feature_structure``'s shaping logic a second time.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "record-analysis": {
+     "help": "Persist an ``/spec-kitty.analyze`` report, verified against disk (FR-005).\n\nNFR-004 / SK-93 (verified): a subprocess/call-level success signal\n(return code, \"did not raise\") is UNTRUSTWORTHY -- SK-93 documented\n``record-analysis`` reporting a false timeout FAILURE after a write had\nalready genuinely succeeded. This verb instead:\n\n1. Captures ``now_utc_iso()`` immediately before invoking the write path.\n2. Calls ``write_analysis_report``/``commit_for_mission`` directly\n   (bypassing ``record_analysis``'s own unbounded dossier-sync trigger\n   entirely -- option (a), plan.md § (j)), under an enforced\n   :func:`_run_write_with_timeout` bound as defense-in-depth.\n3. Re-reads ``analysis-report.md`` off disk unconditionally afterward.\n   ``success: true`` ONLY if BOTH (a) the re-read ``verdict`` matches\n   what THIS call submitted, AND (b) the re-read ``generated_at`` is\n   STRICTLY LATER than the call-start timestamp -- a verdict-string\n   match alone is never sufficient (distinguishes a genuine fresh write\n   from a stale, coincidentally-matching pre-existing artifact).\n\nSK-06 / #3133: an ``unknown`` verdict (no valid ``analysis-findings/v1``\ncarrier in the submitted body) is NEVER reported as ``success: true``,\neven when the write genuinely, freshly succeeds -- silently writing\n``verdict: unknown`` for an explicitly-intended report is this repo's\ndominant failure mode and this verb refuses to propagate it as success.\n\nA mutating verb: ``--policy`` is required (``POLICY_METADATA_REQUIRED``\npattern, matching ``specify``/``plan``/``tasks``).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "open-decision": {
+     "help": "Open a new Decision Moment ledger entry, or return idempotently if one\nalready exists (FR-006). Wraps ``decisions/service.py.open_decision`` 1:1.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "resolve-decision": {
+     "help": "Resolve a decision with a concrete final answer (FR-007). Wraps\n``decisions/service.py.resolve_decision`` 1:1.\n\nTerminal-transition rejection (Edge Cases, spec.md): resolving an\nalready-terminal decision with a DIFFERENT outcome/payload is NOT\npre-checked here -- it is the service layer's own\n``DecisionError(TERMINAL_CONFLICT)``, propagated verbatim, matching the\nhost-CLI ``decision_app resolve`` subcommand's own error code. A\nredundant pre-check here could drift from the service layer's own\nvalidation.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "defer-decision": {
+     "help": "Defer a decision for later resolution (FR-008). Wraps\n``decisions/service.py.defer_decision`` 1:1.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "cancel-decision": {
+     "help": "Cancel a decision (deemed no longer relevant) (FR-009). Wraps\n``decisions/service.py.cancel_decision`` 1:1.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "answer-decision": {
+     "help": "Resolve a ``spec-kitty next`` ``decision_required`` moment (FR-013,\nMechanism B) with full CLI event/lifecycle-log parity (FR-014, operator\nruling SPEC-FRESH2-001). See the module comment block above this\nfunction for the full five-step composite and the response-shape\ncontract.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "design-status": {
+     "help": "Read-only design-phase status query (FR-010) -- mirrors ``list-ready``'s\nno-state-transition, no-event-emission, no-``--policy`` contract for the\ndesign pipeline instead of the WP loop.\n\nNever delegates to ``resolve_next_workflow_action`` or\n``decide_next``/``query_current_state`` -- see the Clarification-6\nmodule comment above ``_tasks_are_finalized``.",
+     "hidden": false,
+     "deprecated": false
     }
    }
   },
@@ -1317,7 +1369,7 @@
    "deprecated": false
   },
   "spec-commit": {
-   "help": "Commit spec artifacts to the mission's resolved placement.\n\nOn a protected primary the commit is refused: the mission's target_branch\nmust be a non-protected feature branch before a retry can succeed. On an\nunprotected or flattened primary the commit is direct.",
+   "help": "Commit spec artifacts to the mission's resolved placement.\n\nSPEC is a primary/planning artifact: it lands on the mission's primary target\nbranch for every topology. On an unprotected or flattened primary the commit\nis direct. On a PROTECTED primary the commit is refused (there is no fallback\nsurface); recover by either creating/checking out a non-protected feature\nbranch ('spec-kitty agent mission create --start-branch <feature-branch>') or\nsetting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current\nbranch.\n\nPass individual FILES, not directories.",
    "hidden": false,
    "deprecated": false
   },

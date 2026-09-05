@@ -267,6 +267,14 @@ from .lifecycle_events import (
     read_lifecycle_events,
     repo_root_for_lifecycle_log,
 )
+from .tail_reader import (
+    EMPTY_DIGEST,
+    ResumeRefused,
+    TailCursor,
+    poll_once,
+    tail_events,
+    validate_resume_cursor,
+)
 
 # NOTE (WIRE-M2-03, 2026-08-22, rework cycle 2): ``migrate_lifecycle_envelope``
 # (the F2-T1 rewrite entry point) is deliberately NOT promoted onto this
@@ -444,6 +452,12 @@ __all__ = [
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",
+    "EMPTY_DIGEST",
+    "ResumeRefused",
+    "TailCursor",
+    "poll_once",
+    "tail_events",
+    "validate_resume_cursor",
     "run_doctor",
     "DuplicateKeyRepairError",
     "detect_duplicate_key_artifacts",
@@ -573,3 +587,14 @@ __all__ = [
     "scan_workspace_husks",
     "write_derived_views",
 ]
+
+
+def _retired_dossier_sync_noop(*_args: object, **_kwargs: object) -> None:
+    """Compatibility target for the retired dossier fan-out API."""
+
+
+def __getattr__(name: str) -> object:
+    """Preserve the 3.2.6 import seam without reviving its retired registry."""
+    if name in {"fire_dossier_sync", "register_dossier_sync_handler"}:
+        return _retired_dossier_sync_noop
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

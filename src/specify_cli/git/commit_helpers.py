@@ -907,6 +907,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     message: str,
     paths: tuple[Path, ...],
     capability: GuardCapability = GuardCapability.STANDARD,
+    effective_root: Path | None = None,
 ) -> CommitResult:
     """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
@@ -984,6 +985,8 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             safe_commit could not capture recovery state before mutating.
         RuntimeError: a low-level ``git add`` or ``git commit`` failed.
     """
+    # Compatibility-only routing hint after retirement of the ambient sync emitter.
+    del effective_root
     # 0. Compat shim: accept either ``target`` (preferred) or the legacy
     #    ``destination_ref`` string. The CommitTarget's ``ref`` is the single
     #    destination authority; ``destination_ref`` mirrors it below so callers
