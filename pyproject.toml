@@ -646,7 +646,6 @@ exclude = [
     "src/specify_cli/cli/commands/validate_tasks.py",
     "src/specify_cli/cli/commands/verify.py",
     "src/specify_cli/cli/commands/workflow.py",
-    "src/specify_cli/cli/commands/zeitgeist.py",
     "src/specify_cli/cli/helpers.py",
     "src/specify_cli/cli/logging_bootstrap.py",
     "src/specify_cli/compat/_adapters/uv_receipt.py",
@@ -1030,7 +1029,6 @@ exclude = [
     "src/specify_cli/zeitgeist_client/mcp_stdio.py",
     "src/specify_cli/zeitgeist_client/outbox_approval.py",
     "src/specify_cli/zeitgeist_client/sanitizer.py",
-    "src/specify_cli/zeitgeist_client/transport.py",
     "tests/_factories/__init__.py",
     "tests/_factories/test_make_mission_parity.py",
     "tests/_shard_registry.py",
@@ -2969,7 +2967,6 @@ exclude = [
     "tests/zeitgeist_client/test_outbox_approval_human_gesture.py",
     "tests/zeitgeist_client/test_repo_identity.py",
     "tests/zeitgeist_client/test_sanitizer.py",
-    "tests/zeitgeist_client/test_transport.py",
 ]
 
 [tool.ruff.lint]
