@@ -53,7 +53,7 @@ jobs:
               - 'src/**'
 
   windows-critical:
-    name: Windows critical (pipx, pytest -m windows_ci)
+    name: Windows critical (skips when unaffected; pipx, pytest -m windows_ci)
     needs: [changes]
     # `|| github.event_name == 'push'` keeps the 30 `windows_ci` tests
     # collectable on a push to main: no Linux job selects them (every Linux gate
