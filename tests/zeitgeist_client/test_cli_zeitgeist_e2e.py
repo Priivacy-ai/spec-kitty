@@ -133,6 +133,44 @@ def test_watch_connection_that_never_establishes_http_fails_within_timeout(
     assert time.monotonic() - started < 0.75
 
 
+@pytest.mark.parametrize(
+    ("status", "detail"),
+    [
+        (404, "unknown host"),
+        (401, "authentication required"),
+        (422, "unknown_op at op"),
+    ],
+)
+def test_operability_report_distinguishes_relay_rejections(state_root: Path, team_kitty_double, status: int, detail: str) -> None:
+    credentials.store(
+        repo="github.com/acme/spec-kitty",
+        relay_url=team_kitty_double.url,
+        token="team-a-cred",
+        token_kind="shared_team",
+    )
+    team_kitty_double.configure(status=status, body={"detail": detail})
+
+    result = runner.invoke(app, ["operability", "report", "github.com/acme/spec-kitty"])
+
+    assert result.exit_code == 0
+    assert f"outcome=rejected ({status}: {detail})" in result.stdout
+
+
+def test_operability_report_uses_a_supported_presence_canary(state_root: Path, team_kitty_double) -> None:
+    credentials.store(
+        repo="github.com/acme/spec-kitty",
+        relay_url=team_kitty_double.url,
+        token="team-a-cred",
+        token_kind="shared_team",
+    )
+
+    result = runner.invoke(app, ["operability", "report", "github.com/acme/spec-kitty"])
+
+    assert result.exit_code == 0
+    assert "outcome=sent (200" in result.stdout
+    assert team_kitty_double.requests[-1].body["op"] == "presence.publish"
+
+
 # --- spec-kitty#137: no repo argument derives the key from the checkout -----
 
 

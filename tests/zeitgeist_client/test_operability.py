@@ -276,9 +276,9 @@ def test_collect_report_with_a_live_client_probes_offer(state_root: Path, team_k
     assert report.offer.outcome == "sent"
     assert report.drop is not None
     assert report.drop.dropped is False
-    probes = [r for r in team_kitty_double.requests if r.body and r.body.get("op") == operability.PROBE_OP]
+    probes = [r for r in team_kitty_double.requests if r.body and r.body.get("op") == "presence.publish"]
     assert len(probes) == 1
-    assert probes[0].body["args"] == {}  # payload-free: no fields beyond the envelope itself
+    assert probes[0].body["args"]["kind"] == "command"
 
 
 def test_collect_report_reflects_stored_checkout(state_root: Path):

@@ -73,9 +73,7 @@ def test_n1_offer_with_forbidden_field_makes_zero_network_attempts(team_kitty_do
 
 def test_n2_offer_with_nested_forbidden_field_makes_zero_network_attempts(team_kitty_double):
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    result = client.offer(
-        "presence.publish", {"activity": "file_edit", "meta": {"team_id": "t-1"}}
-    )
+    result = client.offer("presence.publish", {"activity": "file_edit", "meta": {"team_id": "t-1"}})
     assert result.outcome == transport.OfferOutcome.REFUSED_LOCAL
     assert team_kitty_double.connection_count == 0
 
@@ -124,9 +122,7 @@ def test_n6_two_sequential_heartbeats_produce_two_distinct_requests(team_kitty_d
 
     assert r1.request_id != r2.request_id
     posts = [r for r in team_kitty_double.requests if r.method == "POST"]
-    heartbeat_ids = {
-        r.body["request_id"] for r in posts if r.body and r.body.get("op") == "focus.heartbeat"
-    }
+    heartbeat_ids = {r.body["request_id"] for r in posts if r.body and r.body.get("op") == "focus.heartbeat"}
     assert len(heartbeat_ids) == 2
 
 
@@ -162,9 +158,7 @@ def test_n15_second_focus_start_without_end_is_refused_local(team_kitty_double):
     second = client.focus_start("mission-y")
     assert second.outcome == transport.OfferOutcome.REFUSED_LOCAL
     # no second focus.start POST reached the double
-    starts = [
-        r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.start"
-    ]
+    starts = [r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.start"]
     assert len(starts) == 1
 
 
@@ -187,9 +181,7 @@ def test_n16_dnd_pause_does_not_block_presence(team_kitty_double):
 
     presence_result = client.presence(activity="file_edit", path="src/foo.py")
     assert presence_result.outcome != transport.OfferOutcome.REFUSED_LOCAL
-    presence_posts = [
-        r for r in team_kitty_double.requests if r.body and r.body.get("op") == "presence.publish"
-    ]
+    presence_posts = [r for r in team_kitty_double.requests if r.body and r.body.get("op") == "presence.publish"]
     assert len(presence_posts) == 1
 
 
@@ -222,18 +214,14 @@ def test_n17_focus_start_creates_no_background_timer_thread():
 def test_n18_focus_ref_with_wp_id(team_kitty_double):
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     client.focus_start("mission-x", wp_id="WP03")
-    starts = [
-        r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.start"
-    ]
+    starts = [r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.start"]
     assert starts[0].body["args"]["focus_ref"] == "mission-x.WP03"
 
 
 def test_n18_focus_ref_without_wp_id(team_kitty_double):
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     client.focus_start("mission-x")
-    starts = [
-        r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.start"
-    ]
+    starts = [r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.start"]
     assert starts[0].body["args"]["focus_ref"] == "mission-x"
 
 
@@ -292,9 +280,7 @@ def test_r1_concurrent_heartbeats_produce_independent_request_ids(team_kitty_dou
 
     assert len(results) == 2
     assert results[0].request_id != results[1].request_id
-    heartbeat_posts = [
-        r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.heartbeat"
-    ]
+    heartbeat_posts = [r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.heartbeat"]
     assert len(heartbeat_posts) == 2
     assert len({r.body["request_id"] for r in heartbeat_posts}) == 2
 
@@ -394,9 +380,7 @@ def test_offer_sends_two_distinct_configured_credentials(team_kitty_double):
     """FIX-M2-15: when ``capability_credential`` IS configured, it — not
     ``token`` — is what reaches ``X-Zeitgeist-Capability``; ``token`` alone
     still reaches ``Authorization``."""
-    client = transport.ZeitgeistClient(
-        _config(team_kitty_double.url, token="team-shared-token", capability_credential="actor-capability-jwt")
-    )
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url, token="team-shared-token", capability_credential="actor-capability-jwt"))
     client.presence("file_edit")
     headers = team_kitty_double.requests[0].headers
     assert headers["Authorization"] == "Bearer team-shared-token"
@@ -444,14 +428,25 @@ def _kinded_client(double, *, kind: str, session_id: str = "sess-1") -> transpor
     documents."""
     now = now_epoch()
     token = mint_capability_token(
-        double.capability_key, sub="probe", team="acme", deployment="d1", repo="spec-kitty",
-        kind=kind, iat=now, exp=now + 300,
+        double.capability_key,
+        sub="probe",
+        team="acme",
+        deployment="d1",
+        repo="spec-kitty",
+        kind=kind,
+        iat=now,
+        exp=now + 300,
     )
     double.set_shared_token(token)
     return transport.ZeitgeistClient(
         transport.ClientConfig(
-            relay_url=double.url, token=token, harness="claude-code",
-            session_id=session_id, agent_id="agent-1", repo="spec-kitty", branch="main",
+            relay_url=double.url,
+            token=token,
+            harness="claude-code",
+            session_id=session_id,
+            agent_id="agent-1",
+            repo="spec-kitty",
+            branch="main",
         )
     )
 
@@ -471,16 +466,25 @@ def test_offer_accepted_with_two_genuinely_independent_secrets(managed_control_d
     assert managed_control_double.shared_token != managed_control_double.capability_key
     now = now_epoch()
     capability_jwt = mint_capability_token(
-        managed_control_double.capability_key, sub="probe", team="acme", deployment="d1",
-        repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+        managed_control_double.capability_key,
+        sub="probe",
+        team="acme",
+        deployment="d1",
+        repo="spec-kitty",
+        kind="presence",
+        iat=now,
+        exp=now + 300,
     )
     client = transport.ZeitgeistClient(
         transport.ClientConfig(
             relay_url=managed_control_double.url,
             token=managed_control_double.shared_token,
             capability_credential=capability_jwt,
-            harness="claude-code", session_id="sess-1", agent_id="agent-1",
-            repo="spec-kitty", branch="main",
+            harness="claude-code",
+            session_id="sess-1",
+            agent_id="agent-1",
+            repo="spec-kitty",
+            branch="main",
         )
     )
     result = client.presence("file_edit")
@@ -585,15 +589,25 @@ def test_offer_rejected_when_authorization_bearer_is_wrong(managed_control_doubl
     otherwise valid."""
     now = now_epoch()
     valid_capability_token = mint_capability_token(
-        "cap-key", sub="probe", team="acme", deployment="d1", repo="spec-kitty",
-        kind="presence", iat=now, exp=now + 300,
+        "cap-key",
+        sub="probe",
+        team="acme",
+        deployment="d1",
+        repo="spec-kitty",
+        kind="presence",
+        iat=now,
+        exp=now + 300,
     )
     managed_control_double.set_shared_token("a-completely-different-shared-secret")
     client = transport.ZeitgeistClient(
         transport.ClientConfig(
-            relay_url=managed_control_double.url, token=valid_capability_token,
-            harness="claude-code", session_id="sess-1", agent_id="agent-1",
-            repo="spec-kitty", branch="main",
+            relay_url=managed_control_double.url,
+            token=valid_capability_token,
+            harness="claude-code",
+            session_id="sess-1",
+            agent_id="agent-1",
+            repo="spec-kitty",
+            branch="main",
         )
     )
     result = client.presence("file_edit")
@@ -632,6 +646,44 @@ def test_non_throttle_status_makes_no_second_attempt(team_kitty_double):
 
     assert result.outcome == transport.OfferOutcome.REJECTED
     assert len(team_kitty_double.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("status", "detail"),
+    [
+        (404, "unknown host"),
+        (401, "authentication required"),
+        (422, "unknown_op at op"),
+    ],
+)
+def test_rejected_offer_retains_distinguishable_bounded_diagnostic(team_kitty_double, status: int, detail: str):
+    team_kitty_double.configure(status=status, body={"detail": detail})
+    result = transport.ZeitgeistClient(_config(team_kitty_double.url)).offer("presence.publish", {"activity": "file_edit"})
+
+    assert result.outcome == transport.OfferOutcome.REJECTED
+    assert result.status_code == status
+    assert result.response_detail == detail
+
+
+def test_offer_response_diagnostic_redacts_both_credentials(team_kitty_double):
+    relay_token = "relay-secret-value"
+    capability = "capability-secret-value"
+    team_kitty_double.configure(
+        status=401,
+        body={"detail": (f'Authorization: Bearer {relay_token}; {{"credential":"{capability}"}}')},
+    )
+    result = transport.ZeitgeistClient(
+        _config(
+            team_kitty_double.url,
+            token=relay_token,
+            capability_credential=capability,
+        )
+    ).offer("presence.publish", {"activity": "file_edit"})
+
+    assert result.response_detail is not None
+    assert relay_token not in result.response_detail
+    assert capability not in result.response_detail
+    assert "[redacted]" in result.response_detail
 
 
 def test_throttled_notice_is_one_stderr_line(team_kitty_double, capsys):

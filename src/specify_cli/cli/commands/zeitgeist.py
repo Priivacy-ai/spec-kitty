@@ -402,8 +402,14 @@ def _print_operability_report(report: operability.OperabilityReport) -> None:
     if report.offer is None or report.drop is None:
         console.print("  offer/drop/latency: (no stored checkout — no live probe attempted)")
     else:
+        response = ""
+        if report.offer.status_code is not None:
+            response = f" ({report.offer.status_code}"
+            if report.offer.response_detail:
+                response += f": {report.offer.response_detail}"
+            response += ")"
         console.print(
-            f"  offer     outcome={report.offer.outcome}  elapsed_s={report.offer.elapsed_s:.3f}  "
+            f"  offer     outcome={report.offer.outcome}{response}  elapsed_s={report.offer.elapsed_s:.3f}  "
             f"budget_s={report.offer.budget_s}  within_budget={report.offer.within_budget}"
         )
         console.print(f"  drop      dropped={report.drop.dropped}  reason={report.drop.reason}")

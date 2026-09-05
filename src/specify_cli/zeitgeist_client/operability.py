@@ -98,12 +98,8 @@ from kernel.clock import datetime, now_utc, parse_iso
 from . import budget, credentials, outbox_approval, transport
 from .live_frame import TeamSnapshot
 
-# The one op name every operability probe/drill uses. Never carries a
-# payload beyond the empty envelope itself — "payload-free" per O1-C's own
-# criterion, and trivially sanitizer-clean (an empty dict has no keys to
-# reject).
-PROBE_OP = "operability.probe"
-
+# Operability uses the existing presence canary instead of inventing a relay
+# op. The report remains free of event/user-authored payloads.
 # Scheduling-jitter allowance for "did this land inside its hard budget"
 # readings — mirrors test_transport.py's own generous bound for the same
 # measurement-noise reason (see that file's test_n3 comment). Never widens
@@ -153,6 +149,8 @@ class OfferSignal:
     elapsed_s: float
     budget_s: float
     within_budget: bool
+    status_code: int | None
+    response_detail: str | None
 
     @classmethod
     def from_result(cls, result: transport.OfferResult) -> OfferSignal:
@@ -161,6 +159,8 @@ class OfferSignal:
             elapsed_s=result.elapsed_s,
             budget_s=budget.OFFER_BUDGET_S,
             within_budget=result.elapsed_s <= budget.OFFER_BUDGET_S + _BUDGET_TOLERANCE_S,
+            status_code=result.status_code,
+            response_detail=result.response_detail,
         )
 
 
@@ -296,7 +296,7 @@ def collect_report(
     stay ``None``, ``lease.active`` stays ``False``, ``repair.observed``
     stays ``False``) rather than this function fabricating a live value
     from nothing. Passing a live ``client`` runs exactly ONE
-    :data:`PROBE_OP` offer as the offer/drop/latency probe — never more
+    supported ``presence.publish`` canary as the offer/drop/latency probe — never more
     than one network attempt, matching ``offer()``'s own drop-no-retry
     contract. ``repo`` is the credential-store key the caller resolved (the
     CLI derives it from the checkout, #137); it is echoed in the report,
@@ -305,7 +305,7 @@ def collect_report(
     drop_sig: DropSignal | None = None
     lease = LeaseSignal(active=False, ttl_s=transport.FOCUS_TTL_S, remaining_s=None)
     if client is not None:
-        result = client.offer(PROBE_OP, {})
+        result = client.presence("command")
         offer_sig = OfferSignal.from_result(result)
         drop_sig = DropSignal.from_result(result)
         lease = lease_signal(client)
@@ -354,7 +354,7 @@ def timeout_drill(relay_url: str = DEFAULT_UNREACHABLE_URL) -> TimeoutDrillResul
     denominator — proving the drop-no-retry contract holds under an
     unreachable target, not merely that *some* result came back."""
     client = transport.ZeitgeistClient(_drill_config(relay_url))
-    result = client.offer(PROBE_OP, {})
+    result = client.presence("command")
     offer_sig = OfferSignal.from_result(result)
     drop_sig = DropSignal.from_result(result)
     passed = drop_sig.dropped and offer_sig.within_budget
