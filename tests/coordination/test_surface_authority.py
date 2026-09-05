@@ -24,9 +24,9 @@ from specify_cli.coordination.surface_authority import (
     Refuse,
     RouteToCoord,
     SurfaceVerdict,
-    classify_noncommit_outcome,
+    _classify_noncommit_outcome,
     coord_topology_reachable,
-    exit_code_for,
+    _exit_code_for,
     resolve_surface_authority,
 )
 
@@ -121,7 +121,7 @@ def test_resolve_surface_authority_full_matrix(
     assert verdict == expected, f"kind={artifact_kind.name} topology={topology.name} protected={primary_protected} current_is_primary={current_is_primary}"
     # Exit-code parity for the resolved verdict.
     expected_exit = 1 if isinstance(expected.non_committable, Refuse) else 0
-    assert exit_code_for(verdict.non_committable) == expected_exit
+    assert _exit_code_for(verdict.non_committable) == expected_exit
 
 
 def test_verdict_independent_of_checkout() -> None:
@@ -144,7 +144,7 @@ def test_route_to_coord_lifecycle_kind_coord_protected() -> None:
     assert verdict.surface == "coordination"
     assert verdict.ref == _COORD_REF
     assert isinstance(verdict.non_committable, RouteToCoord)
-    assert exit_code_for(verdict.non_committable) == 0
+    assert _exit_code_for(verdict.non_committable) == 0
 
 
 def test_coord_kind_unprotected_routes_to_primary() -> None:
@@ -161,7 +161,7 @@ def test_planning_kind_protected_primary_refuses() -> None:
     assert verdict.surface == "primary"
     assert isinstance(verdict.non_committable, Refuse)
     assert verdict.non_committable.remedy == REMEDY_PROTECTED_PRIMARY
-    assert exit_code_for(verdict.non_committable) == 1
+    assert _exit_code_for(verdict.non_committable) == 1
 
 
 def test_primary_kind_unprotected_commits_directly() -> None:
@@ -187,16 +187,16 @@ def test_coord_kind_under_non_coord_topology_on_protected_refuses() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Rule 5 — classify_noncommit_outcome (wrong-surface→Refuse, no-op→NoOp)
+# Rule 5 — _classify_noncommit_outcome (wrong-surface→Refuse, no-op→NoOp)
 # ---------------------------------------------------------------------------
 
 
 def test_classify_wrong_surface_is_refuse_never_noop() -> None:
     """The load-bearing rule: ``no_op_wrong_surface`` maps to Refuse, NOT a NoOp."""
-    outcome = classify_noncommit_outcome("no_op_wrong_surface")
+    outcome = _classify_noncommit_outcome("no_op_wrong_surface")
     assert isinstance(outcome, Refuse)
     assert outcome.remedy == REMEDY_WRONG_SURFACE
-    assert exit_code_for(outcome) == 1
+    assert _exit_code_for(outcome) == 1
 
 
 @pytest.mark.parametrize(
@@ -210,36 +210,36 @@ def test_classify_wrong_surface_is_refuse_never_noop() -> None:
     ],
 )
 def test_classify_genuine_noop_is_noop_exit_0(status: str, reason: str | None, expected_reason: str) -> None:
-    outcome = classify_noncommit_outcome(status, reason)
+    outcome = _classify_noncommit_outcome(status, reason)
     assert isinstance(outcome, NoOp)
     assert outcome.reason == expected_reason
-    assert exit_code_for(outcome) == 0
+    assert _exit_code_for(outcome) == 0
 
 
 def test_classify_committed_is_none() -> None:
-    assert classify_noncommit_outcome("committed") is None
+    assert _classify_noncommit_outcome("committed") is None
 
 
 def test_classify_error_is_none() -> None:
     """An error is a failure handled separately — not a surface verdict."""
-    assert classify_noncommit_outcome("error") is None
+    assert _classify_noncommit_outcome("error") is None
 
 
 def test_classify_unknown_status_fails_loud() -> None:
     with pytest.raises(ValueError, match="Unrecognized commit outcome status"):
-        classify_noncommit_outcome("mystery")
+        _classify_noncommit_outcome("mystery")
 
 
 # ---------------------------------------------------------------------------
-# exit_code_for mapping
+# _exit_code_for mapping
 # ---------------------------------------------------------------------------
 
 
 def test_exit_code_for_mapping() -> None:
-    assert exit_code_for(None) == 0
-    assert exit_code_for(RouteToCoord()) == 0
-    assert exit_code_for(NoOp("no_op")) == 0
-    assert exit_code_for(Refuse("remedy")) == 1
+    assert _exit_code_for(None) == 0
+    assert _exit_code_for(RouteToCoord()) == 0
+    assert _exit_code_for(NoOp("no_op")) == 0
+    assert _exit_code_for(Refuse("remedy")) == 1
 
 
 # ---------------------------------------------------------------------------

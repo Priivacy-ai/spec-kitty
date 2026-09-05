@@ -49,9 +49,7 @@ def _write_config(config_dir: Path, server_url: str) -> Path:
     return config_file
 
 
-def test_spec_kitty_home_isolates_sync_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_spec_kitty_home_isolates_sync_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Distinct HOME + SPEC_KITTY_HOME ⇒ config resolves ONLY under the latter.
 
     This is the literal issue #2171 reproduction, inverted into the assertion
@@ -65,6 +63,7 @@ def test_spec_kitty_home_isolates_sync_config(
 
     monkeypatch.setenv("HOME", str(default_home))
     monkeypatch.setenv("SPEC_KITTY_HOME", str(isolated_root))
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
 
     # The isolated runtime root carries the real target; the default home
     # carries a decoy that must never be consulted.
@@ -80,9 +79,7 @@ def test_spec_kitty_home_isolates_sync_config(
     assert resolved.configured_server_url != _DECOY_URL
 
 
-def test_unset_spec_kitty_home_preserves_posix_default(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unset_spec_kitty_home_preserves_posix_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """SC-003 / NFR-001: with the variable unset, config resolves at ``~/.spec-kitty``.
 
     Backward compatibility — the byte-identical POSIX layout is preserved when no
@@ -93,6 +90,7 @@ def test_unset_spec_kitty_home_preserves_posix_default(
 
     monkeypatch.setenv("HOME", str(default_home))
     monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     _write_config(default_home / ".spec-kitty", _ISOLATED_URL)
 
     resolved = resolve_server_target()
@@ -105,9 +103,7 @@ def test_unset_spec_kitty_home_preserves_posix_default(
     sys.platform.startswith("win"),
     reason="POSIX-only default-home fallback (~/.spec-kitty) assertions.",
 )
-def test_absent_config_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_absent_config_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No ``config.toml`` anywhere and no env value ⇒ resolution fails closed.
 
     Guards the SC-002 corollary (#179): an unconfigured machine neither reads

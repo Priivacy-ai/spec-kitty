@@ -48,11 +48,11 @@ import typer
 from specify_cli.cli.console import err_console as _err_console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root
-from specify_cli.status.lifecycle_events import mission_event_log_path
-from specify_cli.status.tail_reader import (
+from specify_cli.status import (
     EMPTY_DIGEST,
     ResumeRefused,
     TailCursor,
+    mission_event_log_path,
     poll_once,
     tail_events,
     validate_resume_cursor,

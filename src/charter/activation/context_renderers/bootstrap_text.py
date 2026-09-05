@@ -52,9 +52,7 @@ __all__ = [
 
 
 BOOTSTRAP_HEADER = "Charter Context (Bootstrap):"
-FIRST_LOAD_GUIDANCE = (
-    "  - This is the first load for this action. Use the summary and follow references as needed."
-)
+FIRST_LOAD_GUIDANCE = "  - This is the first load for this action. Use the summary and follow references as needed."
 POLICY_SUMMARY_HEADER = "Policy Summary:"
 NO_POLICY_SUMMARY_MESSAGE = "  - No explicit policy summary section found in charter.md."
 REFERENCE_DOCS_HEADER = "Reference Docs:"
@@ -137,20 +135,10 @@ def _render_action_doctrine_lines(
     even though swapping them never actually closed the budget gap.
     """
     service = doctrine_bundle.service
-    all_action_ids: list[str] = [
-        artifact_id
-        for row in _ACTION_RENDER_ROWS
-        for artifact_id in getattr(doctrine_bundle, row.ids_attr)
-    ]
-    org_source_map = (
-        _build_action_org_source_map(repo_root, all_action_ids)
-        if repo_root is not None and all_action_ids
-        else {}
-    )
+    all_action_ids: list[str] = [artifact_id for row in _ACTION_RENDER_ROWS for artifact_id in getattr(doctrine_bundle, row.ids_attr)]
+    org_source_map = _build_action_org_source_map(repo_root, all_action_ids) if repo_root is not None and all_action_ids else {}
     inline_urns: frozenset[str] = (
-        frozenset(_pd.requires_closure(doctrine_bundle.merged, doctrine_bundle.roots))
-        if doctrine_bundle.merged is not None
-        else frozenset()
+        frozenset(_pd.requires_closure(doctrine_bundle.merged, doctrine_bundle.roots)) if doctrine_bundle.merged is not None else frozenset()
     )
     for row in _ACTION_RENDER_ROWS:
         _extend_named_artifact_lines(
@@ -307,9 +295,7 @@ def _render_bootstrap_text(
 
     # WP04 (FR-005) — charter-level global selection rendering: the 5-kind block
     # surfaces every ``DoctrineSelectionConfig.selected_<kind>`` (with org provenance).
-    selection_block = _render_selection_block(
-        doctrine_selection, service, repo_root=repo_root
-    )
+    selection_block = _render_selection_block(doctrine_selection, service, repo_root=repo_root)
     _append_block(lines, selection_block)
 
     # WP04 T023 — activation-registry hook (FR-007); renderer body is WP05's
@@ -343,9 +329,7 @@ def _render_bootstrap_text(
     # Lazy import: avoids a load-time cycle (see module docstring).
     from charter.offering.pack_paths import built_in_root  # noqa: PLC0415
 
-    selected_references = _select_reference_pointers(
-        references, action, built_in_root()
-    )
+    selected_references = _select_reference_pointers(references, action, built_in_root())
     _append_reference_docs_lines(lines, selected_references)
     text = "\n".join(lines)
 
@@ -365,5 +349,6 @@ def _render_bootstrap_text(
         action=action,
         profile_block=profile_block,
         section_block=section_block,
+        selection_block=selection_block,
     )
     return budgeted

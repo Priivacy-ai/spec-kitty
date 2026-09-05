@@ -58,6 +58,7 @@ from charter.activation.manifest_loader import (
     clear_cache as _clear_charter_manifest_cache,
     load_manifest as load_manifest,  # explicit re-export (compat), see __all__ note
 )
+
 # `MalformedManifestError` is defined in `charter.offering.missions.repository`
 # (offering layer, owned by WP03), but runtime must reach doctrine/offering
 # content only through a charter facade -- never a direct
@@ -66,7 +67,6 @@ from charter.activation.manifest_loader import (
 # (object identity preserved; see
 # tests/architectural/test_charter_facades_reexport_doctrine.py).
 from charter.missions import MalformedManifestError as MalformedManifestError
-import logging
 
 if TYPE_CHECKING:
     from charter.offering.missions import ExpectedArtifactManifest, ExpectedArtifactSpec
@@ -92,8 +92,6 @@ __all__ = [
     "ManifestRegistry",
     "ManifestSchemaError",
 ]
-
-logger = logging.getLogger(__name__)
 
 #: Names relocated to :mod:`charter.offering.missions.expected_artifact_manifest`
 #: (C-001) that this module still lazily re-exports for backward
@@ -163,9 +161,7 @@ class ManifestRegistry:
     _cache = _charter_manifest_cache
 
     @staticmethod
-    def load_manifest(
-        mission_type: str, repo_root: Path | None = None
-    ) -> ExpectedArtifactManifest | None:
+    def load_manifest(mission_type: str, repo_root: Path | None = None) -> ExpectedArtifactManifest | None:
         """Load manifest for mission type from the canonical doctrine tree.
 
         **Thin delegate (WP01 / #3770):** all resolution, precedence, and
@@ -272,14 +268,9 @@ class ManifestRegistry:
         ]:
             for spec in specs_list:
                 if spec.path_pattern.startswith("/"):
-                    errors.append(
-                        f"Path pattern must be relative: '{spec.path_pattern}' (artifact_key={spec.artifact_key})"
-                    )
+                    errors.append(f"Path pattern must be relative: '{spec.path_pattern}' (artifact_key={spec.artifact_key})")
                 if ".." in spec.path_pattern:
-                    errors.append(
-                        f"Path pattern cannot reference parent directory: '{spec.path_pattern}' "
-                        f"(artifact_key={spec.artifact_key})"
-                    )
+                    errors.append(f"Path pattern cannot reference parent directory: '{spec.path_pattern}' (artifact_key={spec.artifact_key})")
 
         return len(errors) == 0, errors
 

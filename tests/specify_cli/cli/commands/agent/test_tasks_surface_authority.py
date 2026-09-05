@@ -15,7 +15,7 @@ per-command logic:
   the event log IS written and the command exits 0).
 
 The exit-code rows (genuine-no-op → 0, wrong-surface → 1 not collapsed) are
-asserted through the canonical ``exit_code_for`` / ``classify_noncommit_outcome``
+asserted through the canonical ``_exit_code_for`` / ``_classify_noncommit_outcome``
 mapping — the same single source the CLI and the WP01 golden harness use. The
 WP01 golden harness (``tests/coordination/test_surface_authority_goldens.py``) is
 re-run unchanged to prove no drift; this file adds the CLI-facing diffs that live
@@ -37,8 +37,8 @@ from specify_cli.coordination.surface_authority import (
     REMEDY_PROTECTED_PRIMARY,
     Refuse,
     RouteToCoord,
-    classify_noncommit_outcome,
-    exit_code_for,
+    _classify_noncommit_outcome,
+    _exit_code_for,
     resolve_surface_authority,
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -107,7 +107,7 @@ def test_skip_helper_derives_route_to_coord_via_shared_rule(tmp_path: Path, coor
     assert isinstance(verdict.non_committable, RouteToCoord) is expected_skip
     if expected_skip:
         # RouteToCoord is an exit-0 outcome (the coord commit is authoritative).
-        assert exit_code_for(verdict.non_committable) == 0
+        assert _exit_code_for(verdict.non_committable) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ def test_protected_error_derives_refuse_with_shared_remedy(tmp_path: Path) -> No
         artifact_kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     assert isinstance(verdict.non_committable, Refuse)
-    assert exit_code_for(verdict.non_committable) == 1
+    assert _exit_code_for(verdict.non_committable) == 1
 
 
 def test_protected_error_none_on_unprotected_primary(tmp_path: Path) -> None:
@@ -227,20 +227,20 @@ def test_same_inputs_same_rule_exit_codes_differ_by_kind() -> None:
         artifact_kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     assert isinstance(lifecycle.non_committable, RouteToCoord)
-    assert exit_code_for(lifecycle.non_committable) == 0
+    assert _exit_code_for(lifecycle.non_committable) == 0
     assert isinstance(planning.non_committable, Refuse)
-    assert exit_code_for(planning.non_committable) == 1
+    assert _exit_code_for(planning.non_committable) == 1
 
 
 def test_no_op_exit0_and_wrong_surface_exit1_not_collapsed() -> None:
     """Genuine no-op → exit 0 (typed reason); wrong-surface → Refuse/exit 1 (never collapsed)."""
-    no_op = classify_noncommit_outcome("unchanged", "no_op_no_changes")
-    assert exit_code_for(no_op) == 0
+    no_op = _classify_noncommit_outcome("unchanged", "no_op_no_changes")
+    assert _exit_code_for(no_op) == 0
     assert getattr(no_op, "reason", None) == "no_op_no_changes"
 
-    wrong_surface = classify_noncommit_outcome("no_op_wrong_surface")
+    wrong_surface = _classify_noncommit_outcome("no_op_wrong_surface")
     assert isinstance(wrong_surface, Refuse)
-    assert exit_code_for(wrong_surface) == 1, "wrong-surface must NOT collapse to exit 0"
+    assert _exit_code_for(wrong_surface) == 1, "wrong-surface must NOT collapse to exit 0"
 
 
 # ---------------------------------------------------------------------------

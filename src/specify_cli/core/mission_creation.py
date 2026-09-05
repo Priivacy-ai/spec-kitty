@@ -922,6 +922,7 @@ def _create_mission_core_impl(
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
             actor="spec-kitty mission create",
+            artifact_path=(str(spec_file.relative_to(effective_root)) if spec_file.is_relative_to(effective_root) else "spec.md"),
         )
     except Exception as _phase_evt_exc:  # noqa: BLE001
         logger.debug(
