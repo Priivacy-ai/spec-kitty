@@ -138,18 +138,27 @@ def test_ci_windows_filter_can_read_pull_request_files() -> None:
     }
 
 
-def test_ci_windows_configures_private_git_dependencies_before_install() -> None:
+@pytest.mark.parametrize("name", ["ci-quality.yml", "ci-windows.yml"])
+def test_public_ci_uses_released_dependencies_without_private_credentials(name: str) -> None:
+    text = workflow_text(name)
+
+    assert "SK_CI_TOKEN" not in text
+    assert "Configure private git dependencies" not in text
+
+
+def test_ci_windows_install_uses_runner_temp() -> None:
     workflow = load_workflow("ci-windows.yml")
     steps = workflow["jobs"]["windows-critical"]["steps"]
-    step_names = [step.get("name") for step in steps]
+    install_step = next(step for step in steps if step.get("name") == "Install spec-kitty-cli (editable) + test deps")
 
-    assert step_names.index("Configure private git dependencies") < step_names.index("Install spec-kitty-cli (editable) + test deps")
-    configure_step = steps[step_names.index("Configure private git dependencies")]
-    install_step = steps[step_names.index("Install spec-kitty-cli (editable) + test deps")]
-    assert configure_step["env"]["GH_TOKEN"] == "${{ secrets.SK_CI_TOKEN }}"
     assert install_step["env"]["TMP"] == "${{ runner.temp }}"
     assert install_step["env"]["TEMP"] == "${{ runner.temp }}"
-    assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
+
+
+def test_private_factory_ci_is_scoped_to_experimental_repo() -> None:
+    workflow = load_workflow("ci.yml")
+
+    assert "github.repository == 'spec-kitty/EXPERIMENTAL-spec-kitty'" in workflow["jobs"]["suite"]["if"]
 
 
 def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_errors() -> None:

@@ -26,11 +26,16 @@ env:
 
 jobs:
   suite:
-    # same gate as bin/ci-dispatch.sh's priority producer: only squad-passed/exhausted heads (and main) get a run
+    # This is the private EXPERIMENTAL factory producer. The public promotion
+    # repository carries the same tree but must use its public release gates.
+    # Within EXPERIMENTAL, only squad-passed/exhausted heads (and main) run.
     if: >-
-      github.event_name != 'pull_request' ||
-      contains(github.event.pull_request.labels.*.name, 'squad:passed') ||
-      contains(github.event.pull_request.labels.*.name, 'squad:exhausted')
+      github.repository == 'spec-kitty/EXPERIMENTAL-spec-kitty' &&
+      (
+        github.event_name != 'pull_request' ||
+        contains(github.event.pull_request.labels.*.name, 'squad:passed') ||
+        contains(github.event.pull_request.labels.*.name, 'squad:exhausted')
+      )
     runs-on: blacksmith-16vcpu-ubuntu-2404
     timeout-minutes: 90
     # planning#1876: the pre-suite workflow-integrity check (bin/ci-run.sh ->
@@ -55,12 +60,8 @@ jobs:
           if [ -z "$GH_TOKEN" ]; then
             echo "::error::org secret SK_CI_TOKEN is missing (fine-grained PAT: contents read on the EXPERIMENTAL-* repos, write on planning; issues+pull-requests write). See planning docs/BLACKSMITH-CI.md." ; exit 1
           fi
-          # System-wide, not --global: the suites' clean-venv install tests run subprocesses with an isolated
-          # HOME (pip pulling the private spec-kitty-events git dependency), so a per-user helper is invisible
-          # to them. exe VMs get the same effect from /etc/gitconfig's insteadOf rewrite onto the proxy.
-          # Token-bearing URL rewrite in /etc/gitconfig: reaches every subprocess, including the suites'
-          # clean-venv install tests that scrub env and HOME (a credential helper needs both). Same design as
-          # exe's /etc/gitconfig insteadOf onto the proxy; the runner is destroyed after the job.
+          # The private planning and EXPERIMENTAL sibling checkouts below need
+          # the org token. The runner is destroyed after the job.
           sudo git config --system "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
           sudo git config --system user.name sk-agent; sudo git config --system user.email sk-agent@spec-kitty.ai
           echo "GIT_TERMINAL_PROMPT=0" >> "$GITHUB_ENV"

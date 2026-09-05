@@ -120,10 +120,16 @@ def test_mission_create_does_not_leave_undisclosed_dirty_scaffold(tmp_path: Path
     """
     _init_git_repo(tmp_path)
 
+    # The suite's ambient cwd is not necessarily a plain checkout: CI run trees
+    # are detached git worktrees (bin/ci-run.sh), and create_mission_core
+    # guards on Path.cwd(). Opt the harness context in explicitly, as the
+    # sibling end-to-end create tests do, so the guard evaluates the real path
+    # instead of failing on the harness layout.
     result = create_mission_core(
         tmp_path,
         "issue-2693",
         topology=MissionTopology.SINGLE_BRANCH,
+        allow_worktree_context=True,
         **_mission_summary("issue-2693"),
     )
 

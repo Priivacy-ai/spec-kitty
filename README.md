@@ -204,12 +204,6 @@ spec-kitty init my-project --ai claude
 
 See the [Contributing guide](docs/development/contributing.md) for contribution guidelines.
 
-## Identity-Boundary CI Gate
-
-The `drift-detector` required check protects the shared identity-boundary
-contract across Spec Kitty repos. Contributor and admin details live in
-[Identity-Boundary CI Gate](docs/operations/identity-boundary-ci-gate.md).
-
 ## Support
 
 - Open a [GitHub issue](https://github.com/Priivacy-ai/spec-kitty/issues/new) for bugs, feature requests, or questions.
