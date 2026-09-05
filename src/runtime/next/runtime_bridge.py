@@ -802,8 +802,7 @@ def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> b
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
         return (
-            lane == Lane.CANCELED
-            or state.is_blocked
+            state.is_blocked
             or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
         )
     if step_id == "review":

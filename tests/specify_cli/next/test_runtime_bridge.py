@@ -244,15 +244,15 @@ def test_should_not_advance_implement_one_blocked(feature_dir: Path) -> None:
     assert _should_advance_wp_step("implement", feature_dir) is False
 
 
-def test_should_not_advance_implement_one_synthetic_canceled(feature_dir: Path) -> None:
-    """implement step does not advance when a WP is synthetically canceled."""
+def test_should_advance_implement_one_synthetic_canceled(feature_dir: Path) -> None:
+    """implement advances for canceled WPs; provenance gates review only."""
     tasks = feature_dir / "tasks"
     _write_wp_file(tasks, "WP01")
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.FOR_REVIEW, "WP02": Lane.CANCELED})
 
     from runtime.next.runtime_bridge import _should_advance_wp_step
-    assert _should_advance_wp_step("implement", feature_dir) is False
+    assert _should_advance_wp_step("implement", feature_dir) is True
 
 
 def test_parse_requirement_refs_handles_markdown_label_without_regex_backtracking() -> None:
