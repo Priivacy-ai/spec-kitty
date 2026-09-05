@@ -67,7 +67,9 @@ module's docstring).
 from __future__ import annotations
 
 import json
+import queue
 import threading
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterator
@@ -138,10 +140,9 @@ class FilteredStream:
         """Yield each accepted ``LiveFrame`` as it arrives.
 
         Returns (does not raise) when the relay closes the connection, or
-        when ``idle_timeout_s`` elapses with nothing received — both are
-        ordinary end-of-watch, not errors; ``idle_timeout_s=None`` (the
-        default) waits indefinitely, matching a long-running foreground
-        watch loop.
+        when ``idle_timeout_s`` elapses across the whole call — including
+        connect and non-data SSE heartbeat lines. ``idle_timeout_s=None``
+        (the default) waits indefinitely.
 
         Connection failure (refused, DNS, a non-2xx response — e.g. an
         expired credential, or 503 when the relay's stream slots are
@@ -162,22 +163,70 @@ class FilteredStream:
         }
         req = urllib.request.Request(url, headers=headers, method="GET")
         opener = budget.NoRedirects.build()
+        deadline = None if idle_timeout_s is None else time.monotonic() + idle_timeout_s
         with opener.open(req, timeout=idle_timeout_s) as resp:
-            while True:
+            if deadline is None:
+                yield from self._read_frames(resp)
+                return
+
+            items: queue.Queue[bytes | BaseException] = queue.Queue()
+            stop = threading.Event()
+
+            def _reader() -> None:
                 try:
-                    raw_line = resp.readline()
-                except TimeoutError:
-                    return  # idle timeout: an ordinary end of watch, not an error
-                if not raw_line:
-                    return  # relay closed the connection
-                live_frame_obj = self._accept_line(raw_line)
-                if live_frame_obj is None:
-                    continue
-                if self._frame_filter is not None and not self._frame_filter(live_frame_obj):
-                    continue  # #190: this subscription does not carry that frame — no delivery, no state change
-                with self._lock:
-                    self._state.apply(live_frame_obj)
+                    while not stop.is_set():
+                        raw_line = resp.readline()
+                        items.put(raw_line)
+                        if not raw_line:
+                            return
+                except BaseException as exc:  # noqa: BLE001 - forwarded to caller thread
+                    items.put(exc)
+
+            reader = threading.Thread(target=_reader, name="zeitgeist-sse-read", daemon=True)
+            reader.start()
+            try:
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return
+                    try:
+                        item = items.get(timeout=remaining)
+                    except queue.Empty:
+                        return
+                    if isinstance(item, BaseException):
+                        if isinstance(item, TimeoutError):
+                            return
+                        raise item
+                    if not item:
+                        return
+                    live_frame_obj = self._apply_line(item)
+                    if live_frame_obj is not None:
+                        yield live_frame_obj
+            finally:
+                stop.set()
+                resp.close()
+                reader.join(timeout=0.1)
+
+    def _read_frames(self, resp: object) -> Iterator[LiveFrame]:
+        """Unbounded read path used only when no deadline was requested."""
+        while True:
+            raw_line = resp.readline()  # type: ignore[attr-defined]
+            if not raw_line:
+                return
+            live_frame_obj = self._apply_line(raw_line)
+            if live_frame_obj is not None:
                 yield live_frame_obj
+
+    def _apply_line(self, raw_line: bytes) -> LiveFrame | None:
+        """Parse, filter, and apply one line; return an accepted frame."""
+        live_frame_obj = self._accept_line(raw_line)
+        if live_frame_obj is None:
+            return None
+        if self._frame_filter is not None and not self._frame_filter(live_frame_obj):
+            return None
+        with self._lock:
+            self._state.apply(live_frame_obj)
+        return live_frame_obj
 
     @staticmethod
     def _accept_line(raw_line: bytes) -> LiveFrame | None:

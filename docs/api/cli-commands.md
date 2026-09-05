@@ -5124,7 +5124,7 @@ _Read-only access to one team's live Zeitgeist presence/focus stream and status-
 │ status       One bounded snapshot of ``repo``'s live presence/focus state.   │
 │ watch        Print each live presence/focus frame for ``repo`` as it         │
 │              arrives,                                                        │
-│              bounded by ``--timeout`` idleness and ``--max-frames`` count.   │
+│              bounded by whole-call ``--timeout`` and ``--max-frames`` count. │
 │ outbox       Inspect/approve/reject/revoke locally queued Zeitgeist prose.   │
 │              Every decision requires a real human at a real terminal — there │
 │              is no --yes/--force option and no reachability from MCP or a    │

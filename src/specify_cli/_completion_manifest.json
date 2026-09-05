@@ -1465,7 +1465,7 @@
      "deprecated": false
     },
     "watch": {
-     "help": "Print each live presence/focus frame for ``repo`` as it arrives,\nbounded by ``--timeout`` idleness and ``--max-frames`` count.",
+     "help": "Print live frames plus a final summary, bounded by whole-call\n``--timeout`` and ``--max-frames`` count.",
      "hidden": false,
      "deprecated": false
     },

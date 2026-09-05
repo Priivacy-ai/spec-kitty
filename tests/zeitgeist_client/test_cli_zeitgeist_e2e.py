@@ -12,6 +12,9 @@ from __future__ import annotations
 from kernel.clock import now_epoch
 
 import json
+import socket
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -60,10 +63,74 @@ def test_watch_end_to_end_over_a_real_loopback_double(state_root: Path, managed_
     result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "2.0", "--json"])
     assert result.exit_code == 0
     lines = [line for line in result.stdout.splitlines() if line.strip()]
-    assert len(lines) == 1
+    assert len(lines) == 2
     frame = json.loads(lines[0])
     assert frame["frame_type"] == "presence"
     assert frame["payload"]["actor"]["session_ref"] == "b" * 12
+    assert json.loads(lines[1])["type"] == "watch_summary"
+
+
+def test_watch_quiet_repo_returns_one_json_summary_within_timeout(state_root: Path, managed_stream_double) -> None:
+    credentials.store(
+        repo="github.com/acme/spec-kitty",
+        relay_url=managed_stream_double.url,
+        token="team-a-cred",
+        token_kind="shared_team",
+    )
+    started = time.monotonic()
+    result = runner.invoke(
+        app,
+        ["watch", "github.com/acme/spec-kitty", "--timeout", "0.25", "--json"],
+    )
+    elapsed = time.monotonic() - started
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["type"] == "watch_summary"
+    assert payload["frames"] == 0
+    assert payload["reason"] == "timeout"
+    assert 0.20 <= elapsed < 0.75
+
+
+def test_watch_connection_that_never_establishes_http_fails_within_timeout(
+    state_root: Path,
+) -> None:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    stop = threading.Event()
+
+    def _accept_without_reply() -> None:
+        connection, _ = listener.accept()
+        try:
+            stop.wait(2)
+        finally:
+            connection.close()
+
+    server = threading.Thread(target=_accept_without_reply, daemon=True)
+    server.start()
+    port = listener.getsockname()[1]
+    credentials.store(
+        repo="github.com/acme/spec-kitty",
+        relay_url=f"http://127.0.0.1:{port}",
+        token="team-a-cred",
+        token_kind="shared_team",
+    )
+    started = time.monotonic()
+    try:
+        result = runner.invoke(
+            app,
+            ["watch", "github.com/acme/spec-kitty", "--timeout", "0.25", "--json"],
+        )
+    finally:
+        stop.set()
+        listener.close()
+        server.join(timeout=1)
+
+    assert result.exit_code == 1
+    assert "could not reach the relay" in result.stdout
+    assert "timed out" in result.stdout
+    assert time.monotonic() - started < 0.75
 
 
 # --- spec-kitty#137: no repo argument derives the key from the checkout -----
@@ -141,8 +208,9 @@ def test_watch_end_to_end_delivers_a_status_moment_event_frame(state_root: Path,
     result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "2.0", "--json"])
     assert result.exit_code == 0
     lines = [line for line in result.stdout.splitlines() if line.strip()]
-    assert len(lines) == 1  # golden-count: cardinality-is-contract (one pushed moment -> one delivered frame)
+    assert len(lines) == 2  # one pushed moment plus the terminal summary
     frame = json.loads(lines[0])
     assert frame["frame_type"] == "event"
     assert frame["payload"]["kind"] == "mission.status.changed"
     assert frame["payload"]["attrs"] == {"wp_id": "WP01", "to_lane": "for_review"}
+    assert json.loads(lines[1])["type"] == "watch_summary"

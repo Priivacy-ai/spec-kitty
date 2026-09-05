@@ -68,6 +68,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import getpass
+import time
 import urllib.error
 from pathlib import Path
 from typing import Any
@@ -121,14 +122,11 @@ def _resolve_store_key(repo: str | None) -> str:
 
 def _report_not_checked_out(exc: subscription.NotCheckedOut) -> None:
     console.print(f"[red]Error:[/red] {exc}")
-    console.print(
-        "[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo yet. "
-        "Run the checkout flow first, then retry."
-    )
+    console.print("[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo yet. Run the checkout flow first, then retry.")
     raise typer.Exit(1)
 
 
-def _report_connection_fault(exc: urllib.error.URLError) -> None:
+def _report_connection_fault(exc: BaseException) -> None:
     console.print(f"[red]Error:[/red] could not reach the relay: {exc}")
     raise typer.Exit(1)
 
@@ -164,7 +162,7 @@ def status(
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
         return
-    except urllib.error.URLError as exc:
+    except (urllib.error.URLError, TimeoutError) as exc:
         _report_connection_fault(exc)
         return
 
@@ -181,7 +179,7 @@ def watch(
         subscription.DEFAULT_WATCH_TIMEOUT_S,
         "--timeout",
         min=0.001,
-        help=f"Idle seconds before the watch ends (clamped to <= {subscription.MAX_TIMEOUT_S}s, the honest reported-live ceiling).",
+        help=f"Maximum seconds for the whole watch (clamped to <= {subscription.MAX_TIMEOUT_S}s, the honest reported-live ceiling).",
     ),
     max_frames: int = typer.Option(
         subscription.MAX_WATCH_FRAMES,
@@ -191,12 +189,15 @@ def watch(
     ),
     as_json: bool = _JSON_OPTION,
 ) -> None:
-    """Print each live presence/focus frame for ``repo`` as it arrives,
-    bounded by ``--timeout`` idleness and ``--max-frames`` count."""
+    """Print live frames plus a final summary, bounded by whole-call
+    ``--timeout`` and ``--max-frames`` count."""
     key = _resolve_store_key(repo)
+    started = time.monotonic()
+    count = 0
     try:
         frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames)
         for frame in frame_iter:
+            count += 1
             if as_json:
                 # One compact JSON object per line (JSON Lines), never the
                 # multi-line pretty form status() uses — a stream of frames
@@ -216,10 +217,30 @@ def watch(
                 console.print(f"[bold]{frame['frame_type']}[/bold]  seq={frame['seq']}  {frame['payload']}")
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
-    except urllib.error.URLError as exc:
+    except (urllib.error.URLError, TimeoutError) as exc:
         _report_connection_fault(exc)
     except KeyboardInterrupt:
         raise typer.Exit(130) from None
+    else:
+        elapsed_s = time.monotonic() - started
+        effective_timeout = min(timeout, float(subscription.MAX_TIMEOUT_S))
+        if count >= max_frames:
+            reason = "max_frames"
+        elif elapsed_s >= max(0.0, effective_timeout - 0.05):
+            reason = "timeout"
+        else:
+            reason = "stream_closed"
+        summary = {
+            "type": "watch_summary",
+            "repo": key,
+            "frames": count,
+            "reason": reason,
+            "elapsed_s": round(elapsed_s, 3),
+        }
+        if as_json:
+            console.emit_json(summary, indent=None)
+        else:
+            console.print(f"watch summary  frames={count}  reason={reason}  elapsed_s={elapsed_s:.3f}")
 
 
 @app.command(name="mcp-serve", hidden=True)
@@ -386,17 +407,10 @@ def _print_operability_report(report: operability.OperabilityReport) -> None:
             f"budget_s={report.offer.budget_s}  within_budget={report.offer.within_budget}"
         )
         console.print(f"  drop      dropped={report.drop.dropped}  reason={report.drop.reason}")
-    console.print(
-        f"  lease     active={report.lease.active}  ttl_s={report.lease.ttl_s}  remaining_s={report.lease.remaining_s}"
-    )
-    console.print(
-        f"  revoke    revocable_count={report.revoke.revocable_count}  model_reachable={report.revoke.model_reachable}"
-    )
+    console.print(f"  lease     active={report.lease.active}  ttl_s={report.lease.ttl_s}  remaining_s={report.lease.remaining_s}")
+    console.print(f"  revoke    revocable_count={report.revoke.revocable_count}  model_reachable={report.revoke.model_reachable}")
     console.print(f"  mcp       reachable={report.mcp.reachable}  tools={list(report.mcp.tool_names)}")
-    console.print(
-        f"  repair    observed={report.repair.observed}  reset_count={report.repair.reset_count}  "
-        f"last_reset_reason={report.repair.last_reset_reason}"
-    )
+    console.print(f"  repair    observed={report.repair.observed}  reset_count={report.repair.reset_count}  last_reset_reason={report.repair.last_reset_reason}")
 
 
 @operability_app.command("report")
@@ -423,10 +437,7 @@ def operability_drill_timeout(as_json: bool = _JSON_OPTION) -> None:
         console.emit_json(dataclasses.asdict(result))
         return
     color = "green" if result.outcome == "pass" else "red"
-    console.print(
-        f"[{color}]{result.outcome}[/{color}]  offer={result.offer.outcome}  "
-        f"elapsed_s={result.offer.elapsed_s:.3f}  budget_s={result.offer.budget_s}"
-    )
+    console.print(f"[{color}]{result.outcome}[/{color}]  offer={result.offer.outcome}  elapsed_s={result.offer.elapsed_s:.3f}  budget_s={result.offer.budget_s}")
 
 
 @operability_app.command("drill-rotation")
