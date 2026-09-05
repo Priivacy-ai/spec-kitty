@@ -87,6 +87,17 @@ def test_no_session_is_fail() -> None:
     assert v.remediation == "spec-kitty auth login"
 
 
+def test_decryption_failure_is_not_reported_as_absent_session() -> None:
+    v = evaluate_auth_verdict(
+        None,
+        now_utc(),
+        session_assessment_reason="storage_decryption_failed",
+    )
+    assert v.state == "fail"
+    assert "could not be decrypted" in v.evidence
+    assert "removed" in v.evidence
+
+
 def test_healthy_access_is_ok_and_names_both_windows() -> None:
     v = evaluate_auth_verdict(
         _session(access_delta=timedelta(minutes=15), refresh_delta=timedelta(days=30)),

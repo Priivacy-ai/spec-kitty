@@ -86,7 +86,12 @@ def status_impl() -> None:
     tm = get_token_manager()
     session = tm.get_current_session()
 
-    verdict = evaluate_auth_verdict(session, now_utc())
+    assessment = getattr(tm, "session_assessment", None)
+    verdict = evaluate_auth_verdict(
+        session,
+        now_utc(),
+        session_assessment_reason=getattr(assessment, "reason", None),
+    )
     _print_banner(verdict)
 
     if session is None:

@@ -31,6 +31,7 @@ from specify_cli.auth.errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
     SessionInvalidError,
+    StorageDecryptionError,
 )
 from specify_cli.auth.refresh_transaction import (
     RefreshLockTimeoutError,
@@ -51,6 +52,7 @@ from specify_cli.core.file_lock import LockAcquireTimeout
 
 
 pytestmark = [pytest.mark.integration]
+
 
 def _now() -> datetime:
     return now_utc()
@@ -175,9 +177,7 @@ def install_fake_refresh_flow(monkeypatch):
     refresh_module.TokenRefreshFlow = FakeRefreshFlow
 
     monkeypatch.setitem(sys.modules, "specify_cli.auth.flows", flows_pkg)
-    monkeypatch.setitem(
-        sys.modules, "specify_cli.auth.flows.refresh", refresh_module
-    )
+    monkeypatch.setitem(sys.modules, "specify_cli.auth.flows.refresh", refresh_module)
     yield FakeRefreshFlow
 
 
@@ -271,6 +271,23 @@ def test_load_from_storage_sync_handles_storage_errors():
     assert tm.is_authenticated is False
 
 
+def test_load_from_storage_sync_preserves_decryption_failure_reason(caplog):
+    class UndecryptableStorage(FakeStorage):
+        def read(self):
+            raise StorageDecryptionError("credential-shaped-secret-must-not-escape")
+
+    tm = TokenManager(UndecryptableStorage())
+    tm.load_from_storage_sync()
+
+    assert tm.session_assessment == SessionAssessment(
+        completed=False,
+        usable_session=None,
+        reason="storage_decryption_failed",
+    )
+    assert "could not be decrypted" in caplog.text
+    assert "credential-shaped-secret-must-not-escape" not in caplog.text
+
+
 def test_hot_summary_materialization_failure_preserves_failed_assessment(
     monkeypatch,
     caplog,
@@ -358,6 +375,7 @@ def test_clear_session_propagates_delete_errors():
     Callers (e.g. _auth_logout.py) are responsible for catching and surfacing
     storage errors to the user; TokenManager must not swallow them.
     """
+
     class DeleteFailsStorage(FakeStorage):
         def delete(self):
             raise RuntimeError("nope")
@@ -513,9 +531,7 @@ async def test_concurrent_get_access_token_is_single_flight(install_fake_refresh
     tasks = [asyncio.create_task(tm.get_access_token()) for _ in range(10)]
     results = await asyncio.gather(*tasks)
 
-    assert install_fake_refresh_flow.call_count == 1, (
-        f"Expected 1 refresh, got {install_fake_refresh_flow.call_count}"
-    )
+    assert install_fake_refresh_flow.call_count == 1, f"Expected 1 refresh, got {install_fake_refresh_flow.call_count}"
     assert len(set(results)) == 1  # all callers see the same fresh token
     assert all(r != "stale" for r in results)
 
@@ -790,9 +806,7 @@ async def test_current_grant_session_invalid_propagates_session_invalid(
 
 
 @pytest.mark.asyncio
-async def test_lock_timeout_adopts_when_persisted_is_fresh(
-    install_fake_refresh_flow, monkeypatch
-):
+async def test_lock_timeout_adopts_when_persisted_is_fresh(install_fake_refresh_flow, monkeypatch):
     """FR-017: lock contention with usable persisted material is non-fatal."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -828,9 +842,7 @@ async def test_lock_timeout_adopts_when_persisted_is_fresh(
 
 
 @pytest.mark.asyncio
-async def test_lock_timeout_error_when_persisted_is_unusable(
-    install_fake_refresh_flow, monkeypatch
-):
+async def test_lock_timeout_error_when_persisted_is_unusable(install_fake_refresh_flow, monkeypatch):
     """FR-016: lock contention with unusable persisted material raises retry hint."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -857,9 +869,7 @@ async def test_lock_timeout_error_when_persisted_is_unusable(
 
 
 @pytest.mark.asyncio
-async def test_lock_timeout_error_uses_transaction_message(
-    install_fake_refresh_flow, monkeypatch
-):
+async def test_lock_timeout_error_uses_transaction_message(install_fake_refresh_flow, monkeypatch):
     """TokenManager must preserve replay-specific messages from the transaction."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -872,10 +882,7 @@ async def test_lock_timeout_error_uses_transaction_message(
             outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
             session=in_memory,
             network_call_made=True,
-            lock_timeout_message=(
-                "Refresh token replay detected and no newer local token is available. "
-                "Run `spec-kitty auth login` if this persists."
-            ),
+            lock_timeout_message=("Refresh token replay detected and no newer local token is available. Run `spec-kitty auth login` if this persists."),
         )
 
     monkeypatch.setattr(tm_module, "run_refresh_transaction", _fake_transaction)
@@ -900,19 +907,14 @@ async def test_refresh_logs_outcome_at_info(install_fake_refresh_flow, caplog):
     with caplog.at_level(logging.INFO, logger="specify_cli.auth.token_manager"):
         await tm.refresh_if_needed()
 
-    matching = [
-        r for r in caplog.records
-        if r.levelno == logging.INFO and "refresh_transaction outcome=" in r.getMessage()
-    ]
+    matching = [r for r in caplog.records if r.levelno == logging.INFO and "refresh_transaction outcome=" in r.getMessage()]
     assert len(matching) == 1  # golden-count: cardinality-is-contract
     assert "outcome=refreshed" in matching[0].getMessage()
     assert "network_call=True" in matching[0].getMessage()
 
 
 @pytest.mark.asyncio
-async def test_storage_emptied_mid_transaction_returns_lock_timeout_error(
-    install_fake_refresh_flow, monkeypatch
-):
+async def test_storage_emptied_mid_transaction_returns_lock_timeout_error(install_fake_refresh_flow, monkeypatch):
     """T007 edge case: persisted is None mid-transaction → LOCK_TIMEOUT_ERROR."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -927,9 +929,7 @@ async def test_storage_emptied_mid_transaction_returns_lock_timeout_error(
 
 
 @pytest.mark.asyncio
-async def test_network_timeout_raises_lock_timeout_error(
-    install_fake_refresh_flow, monkeypatch
-):
+async def test_network_timeout_raises_lock_timeout_error(install_fake_refresh_flow, monkeypatch):
     """``asyncio.wait_for`` enforces NFR-002's 10 s ceiling on the network leg."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -1079,9 +1079,7 @@ def test_rehydrate_early_returns_when_session_already_has_private(
     token_manager_with_private_session: TokenManager,
 ) -> None:
     """Branch (a): existing Private Teamspace short-circuits — no HTTP issued."""
-    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
-        return_value=httpx.Response(200, json={})
-    )
+    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(return_value=httpx.Response(200, json={}))
 
     assert token_manager_with_private_session.rehydrate_membership_if_needed() is True
     assert route.call_count == 0
@@ -1164,9 +1162,7 @@ def test_rehydrate_negative_cache_skips_http(
     """Negative-cache fast path: no HTTP GET when cache is hot and ``force=False``."""
     tm = token_manager_with_shared_only_session
     tm._membership_negative_cache = True
-    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
-        return_value=httpx.Response(200, json={})
-    )
+    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(return_value=httpx.Response(200, json={}))
 
     assert tm.rehydrate_membership_if_needed() is False
     assert route.call_count == 0
@@ -1209,9 +1205,7 @@ def test_rehydrate_returns_false_on_http_error_without_setting_cache(
 ) -> None:
     """Transient errors (5xx) MUST NOT poison the cache — only authoritative
     empty-private responses do. Failure path logs at WARNING."""
-    respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
-        return_value=httpx.Response(500)
-    )
+    respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(return_value=httpx.Response(500))
     tm = token_manager_with_shared_only_session
 
     with caplog.at_level(logging.WARNING, logger="specify_cli.auth.token_manager"):
@@ -1269,9 +1263,7 @@ def test_rehydrate_concurrent_callers_serialize(
     tm = token_manager_with_shared_only_session
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        futures = [
-            pool.submit(tm.rehydrate_membership_if_needed) for _ in range(4)
-        ]
+        futures = [pool.submit(tm.rehydrate_membership_if_needed) for _ in range(4)]
         results = [f.result() for f in futures]
 
     assert all(results)  # all four observed the now-private session
