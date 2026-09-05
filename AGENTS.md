@@ -2,6 +2,8 @@
 
 **Spec Kitty** is a toolkit for Spec-Driven Development (SDD) — clear, actionable specifications ahead of implementation, inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). **Spec Kitty CLI** bootstraps projects with the framework: directory structures, templates, and AI agent integrations. Every command template leads with a discovery interview; the CLI refuses to create specs or plans until the question set is answered.
 
+Make code easy to follow. Make the job look easy.
+
 ---
 
 ## ⚠️ CRITICAL: Load the Project Charter First
