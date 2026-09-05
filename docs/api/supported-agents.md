@@ -156,6 +156,15 @@ sync as the CLI upgrades. `.llxprt/skills/` is a declared secondary root: LLxprt
 reads it and Spec Kitty skill upgrades keep copies found there in sync, but the
 installer does not seed it.
 
+**Asking process questions**: LLxprt Code auto-continues an active todo list
+whenever a turn ends without a tool call, so a question written as plain text at
+the end of a turn is consumed by the continuation loop instead of reaching the
+user. Whenever spec-kitty commands run under `llxprt` interactively, an agent
+that needs a user process decision (PR-based flow versus direct commit, mission
+scope, merge strategy) must call `todo_pause` with the question as the reason
+before asking it. Tactical implementation choices do not warrant a pause; the
+agent proceeds with its best judgment.
+
 **Usage**:
 ```bash
 spec-kitty init my-project --ai llxprt
