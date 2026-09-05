@@ -1,0 +1,173 @@
+# Behavioral trigger-routing manifest (FR-003, FR-004) -- muster@1.2.1
+# `skills run <this file> --json`.
+#
+# 14 cases: 13 real trigger-routing cases (one per WP01/WP02 query-set
+# file) plus exactly 1 rigged-impossible discrimination control
+# (isControl: true). Every `querySetPath` below names a real,
+# already-merged file under `trigger-queries/` -- confirmed to exist on
+# disk before this manifest was authored (data-model.md "Behavioral
+# Manifest Case").
+#
+# Model pin (D-2): `gpt-4o-mini` matches muster's own fallback when
+# `MUSTER_MODEL` is unset (src/cli/index.ts `resolveSkillsBehavioralEndpoint`,
+# muster commit 16f0d34c3126fab5df2ee0b6e1e304a4d9bcb8e3, tag v1.2.1) -- the
+# pin here is redundant-but-explicit, not a silent inheritance, so the
+# committed evidence artifact stays reproducible even if that default ever
+# changes upstream.
+#
+# `runsPerQuery`/`threshold` (3 / 0.5) are the mission's own defaults and
+# also each case's own explicit value -- the query-set YAML files each
+# carry their own `threshold` field too, but muster discards that field at
+# run time in favor of this manifest's per-case `threshold`
+# (research.md §1 point 2; `src/cli/index.ts:1455` at the same SHA).
+#
+# Unset `MUSTER_ENDPOINT`/`MUSTER_API_KEY` degrades every case below to
+# `{passed: true, skipped: true}` (FR-003's graceful-skip path) -- a green
+# run under those conditions verifies nothing about routing and must never
+# be the evidence committed for FR-005 (see quickstart.md §3's unset-
+# endpoint proof).
+
+defaults:
+  model: gpt-4o-mini
+  runsPerQuery: 3
+  threshold: 0.5
+
+cases:
+  # ─── Pair 1: ad-hoc-profile-load <-> spk-doctrine-profile-load ──────────
+  - id: ad-hoc-profile-load
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/ad-hoc-profile-load"
+    profile: base
+    querySetPath: "trigger-queries/ad-hoc-profile-load-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-doctrine-profile-load
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-doctrine-profile-load"
+    profile: base
+    querySetPath: "trigger-queries/spk-doctrine-profile-load-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  # ─── Pair 2: spec-kitty-runtime-next <-> spk-run-next (+ run-family) ────
+  - id: spec-kitty-runtime-next
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spec-kitty-runtime-next"
+    profile: base
+    querySetPath: "trigger-queries/spec-kitty-runtime-next-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-run-next
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-run-next"
+    profile: base
+    querySetPath: "trigger-queries/spk-run-next-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-run-next-run-family
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-run-next"
+    profile: base
+    querySetPath: "trigger-queries/spk-run-next-run-family-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  # ─── Pair 3: spec-kitty-runtime-review <-> spk-run-review-wp (+ run-family) ──
+  - id: spec-kitty-runtime-review
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spec-kitty-runtime-review"
+    profile: base
+    querySetPath: "trigger-queries/spec-kitty-runtime-review-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-run-review-wp
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-run-review-wp"
+    profile: base
+    querySetPath: "trigger-queries/spk-run-review-wp-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-run-review-wp-run-family
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-run-review-wp"
+    profile: base
+    querySetPath: "trigger-queries/spk-run-review-wp-run-family-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  # ─── Pair 4: spec-kitty-implement-review <-> spk-run-implement-review (+ run-family) ──
+  - id: spec-kitty-implement-review
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spec-kitty-implement-review"
+    profile: base
+    querySetPath: "trigger-queries/spec-kitty-implement-review-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-run-implement-review
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-run-implement-review"
+    profile: base
+    querySetPath: "trigger-queries/spk-run-implement-review-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-run-implement-review-run-family
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-run-implement-review"
+    profile: base
+    querySetPath: "trigger-queries/spk-run-implement-review-run-family-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  # ─── Pair 5: spec-kitty-git-workflow <-> spk-admin-git-workflow ─────────
+  - id: spec-kitty-git-workflow
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spec-kitty-git-workflow"
+    profile: base
+    querySetPath: "trigger-queries/spec-kitty-git-workflow-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  - id: spk-admin-git-workflow
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/spk-admin-git-workflow"
+    profile: base
+    querySetPath: "trigger-queries/spk-admin-git-workflow-duplicate-pair-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: false
+
+  # ─── Discrimination control (FR-004, User Story 3) ──────────────────────
+  # skillDir below is a placeholder: muster substitutes this case's tool
+  # name/description with "rigged-impossible-control" /
+  # RIGGED_IMPOSSIBLE_DESCRIPTION at run time because isControl: true
+  # (research.md §4; src/cli/index.ts:1430-1444, same SHA) -- any real,
+  # readable skillDir satisfies parseSkill() without being graded on its
+  # own frontmatter. This is the sole isControl: true case in this
+  # manifest.
+  - id: rigged-impossible-control
+    type: behavioral
+    skillDir: "../../src/doctrine/skills/ad-hoc-profile-load"
+    profile: base
+    querySetPath: "trigger-queries/rigged-impossible-control-queries.yaml"
+    runsPerQuery: 3
+    threshold: 0.5
+    isControl: true

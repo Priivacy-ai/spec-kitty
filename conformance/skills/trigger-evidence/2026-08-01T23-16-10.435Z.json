@@ -1,0 +1,231 @@
+{
+  "timestamp": "2026-08-01T23:16:10.435Z",
+  "model": "gpt-4o-mini",
+  "endpointHost": "api.openai.com",
+  "cases": [
+    {
+      "id": "ad-hoc-profile-load",
+      "isControl": false,
+      "passed": true,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.20833333333333334,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-doctrine-profile-load",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spec-kitty-runtime-next",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-run-next",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-run-next-run-family",
+      "isControl": false,
+      "passed": true,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.375,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spec-kitty-runtime-review",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.5416666666666666,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-run-review-wp",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.5,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-run-review-wp-run-family",
+      "isControl": false,
+      "passed": true,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.25,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spec-kitty-implement-review",
+      "isControl": false,
+      "passed": true,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.25,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-run-implement-review",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-run-implement-review-run-family",
+      "isControl": false,
+      "passed": true,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.25,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spec-kitty-git-workflow",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "spk-admin-git-workflow",
+      "isControl": false,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "nearMiss": {
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "runsErrored": 0
+    },
+    {
+      "id": "rigged-impossible-control",
+      "isControl": true,
+      "passed": false,
+      "shouldTrigger": {
+        "triggerRate": 0.08333333333333333,
+        "threshold": 0.5,
+        "passed": false
+      },
+      "nearMiss": {
+        "triggerRate": 0,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "runsErrored": 0
+    }
+  ]
+}

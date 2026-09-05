@@ -1,0 +1,41 @@
+# FR-006 discrimination control (mission crosslayer-composition-suite-01KYJA33, WP02).
+#
+# Isolated from manifest.yaml's cases on purpose — this is a rigged fixture,
+# never a normal PR-gate case. Shipped in its "flip" (rigged) state: persona
+# demands exhaustive/restating verbosity; skill explicitly forbids it; no
+# `precedence:` block resolves the two. Layer body text is spec.md's pinned
+# "FR-006 pinned fixture text" section, transcribed verbatim.
+#
+# REMEDIATION NOTE (post-review defect fix): the fixture text originally
+# pinned by spec.md used a bare "No restated context, no preamble." skill
+# clause, which contradiction-lint.ts's NEGATION_OPERATORS check does not
+# recognize (it matches "never"/"not"/etc., not bare "no") — the control
+# was vacuous (zero findings in both the flip and neutralize direction).
+# spec.md's pinned FR-006 fixture text was amended to use the real
+# recognized vocabulary ("Never restate context or include a preamble.",
+# same semantic meaning) and now genuinely discriminates:
+#   - flip (this file, as committed): findings = ["cross-layer-contradiction",
+#     "undefined-precedence"] (real contradiction detected)
+#   - neutralize (persona sentence replaced, see below): findings = []
+# `expected: {ok: false}` below is the case's own self-check against the
+# rigged content and now holds for real, not vacuously.
+#
+# To reproduce the neutralize direction (T012 step 3): copy this file plus
+# its three fixtures to a scratch location and replace
+# fixtures/control-persona.Soul.md's body sentence with spec.md's pinned
+# neutralized sentence — never edit the committed fixtures in place.
+cases:
+  - id: control-verbosity-flip
+    testClass: static
+    isDiscriminationControl: true
+    layers:
+      - layerType: persona
+        fixturePath: fixtures/control-persona.Soul.md
+      - layerType: sop
+        fixturePath: fixtures/control-sop.md
+      - layerType: skill
+        fixturePath: fixtures/control-skill.SKILL.md
+    expected:
+      ok: false
+      findingTypes:
+        - cross-layer-contradiction

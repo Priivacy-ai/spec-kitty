@@ -1,0 +1,51 @@
+{
+  "event_count": 20,
+  "last_event_id": "01KYJ7GEV6C7VK7SZZ5ZDHEKCC",
+  "materialized_at": "2026-07-27T16:46:10.791020+00:00",
+  "mission_number": "",
+  "mission_slug": "doctrine-rule-manifests-01KYH7AM",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYJ7G9TZHY922JEWJ2JRT6XH",
+      "last_transition_at": "2026-07-27T16:46:05.663434+00:00",
+      "shell_pid": 1094726,
+      "shell_pid_created_at": "1785166449.89"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYJ7GCDM5YXF34PGEGXN7MF9",
+      "last_transition_at": "2026-07-27T16:46:08.308483+00:00",
+      "shell_pid": 1094277,
+      "shell_pid_created_at": "1785166446.87"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYJ7GEV6C7VK7SZZ5ZDHEKCC",
+      "last_transition_at": "2026-07-27T16:46:10.791020+00:00",
+      "shell_pid": 1469814,
+      "shell_pid_created_at": "1785168412.63"
+    }
+  }
+}

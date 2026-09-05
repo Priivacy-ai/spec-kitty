@@ -1,0 +1,33 @@
+version: 1.0.0
+sopFile: ../../packs/built-in/directives/001-architectural-integrity-standard.directive.yaml
+rules:
+  - ruleId: 001-r1
+    ruleText: Components must not share mutable state across boundaries without an explicit, documented protocol.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/001-architectural-integrity-standard.directive.yaml
+  - ruleId: 001-r2
+    ruleText: Circular dependencies between components are not permitted unless the cycle is intentional, bounded, and justified in an ADR.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/001-architectural-integrity-standard.directive.yaml
+  - ruleId: 001-r3
+    ruleText: Boundary violations discovered during review must be resolved before merge, not deferred to a follow-up task.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/001-architectural-integrity-standard.directive.yaml

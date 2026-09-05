@@ -1,0 +1,65 @@
+work_packages:
+  - id: WP01
+    title: "Profile-axis behavioral manifests, generator, and README (lane-a)"
+    dependencies: []
+    owned_files:
+      - "conformance/behavioral/tools/**"
+      - "conformance/behavioral/projected/**"
+      - "conformance/behavioral/profiles/**"
+      - "conformance/behavioral/README.md"
+    create_intent:
+      - "conformance/behavioral/README.md"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-006
+      - FR-008
+      - FR-009
+      - C-003
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+      - IC-04
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-profile-axis-manifests-generator-readme.md"
+
+  - id: WP02
+    title: "Discrimination control, directive-attached probes, and cadence workflow (lane-b)"
+    dependencies: []
+    owned_files:
+      - "conformance/doctrine/010-specification-fidelity-requirement.yaml"
+      - "conformance/doctrine/039-lynn-cole-engineering-culture.yaml"
+      - "conformance/doctrine/044-canonical-sources-and-unification.yaml"
+      - "conformance/behavioral/control-manifest.yaml"
+      - "conformance/behavioral/scripts/**"
+      - "conformance/behavioral/evidence/**"
+      - ".github/workflows/behavioral.yml"
+    create_intent:
+      - "conformance/behavioral/control-manifest.yaml"
+      - ".github/workflows/behavioral.yml"
+    requirement_refs:
+      - FR-005
+      - FR-007
+      - C-001
+      - C-002
+    plan_concern_refs:
+      - IC-03
+      - IC-05
+      - IC-06
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+      - T011
+    prompt_file: "tasks/WP02-control-directive-probes-workflow.md"

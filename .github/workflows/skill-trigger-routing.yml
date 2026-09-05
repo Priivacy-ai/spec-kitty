@@ -1,0 +1,171 @@
+name: Skill Trigger-Routing Conformance
+
+# C-002: `workflow_dispatch` only -- no `pull_request`, no `schedule:` (cron
+# cadence wiring is explicitly deferred to M8, garrison-hq/muster-action#2;
+# do not add a `schedule:` trigger here even by copy-pasting from another
+# workflow in this repo). This workflow needs live-model credentials
+# (MUSTER_ENDPOINT/MUSTER_API_KEY as repository secrets), which is itself a
+# reason it must never run on `pull_request` from a fork.
+on:
+  workflow_dispatch: {}
+
+# MEDIUM-4-style guard (matches conformance.yml's own convention): pin to
+# the minimum token scope this job needs rather than inheriting the
+# repository default. `write` (not `read`) is required here -- unlike
+# conformance.yml, this workflow's last step commits and pushes the FR-005
+# evidence artifact back to the branch it ran on; `protect-main.yml` already
+# allowlists a `github-actions[bot]`-committed push (its "approved automated
+# process" branch), so this does not weaken main-branch protection.
+permissions:
+  contents: write
+
+jobs:
+  skill-trigger-routing:
+    name: Skill trigger-routing behavioral conformance (muster)
+    runs-on: ubuntu-latest
+    env:
+      MUSTER_ENDPOINT: ${{ secrets.MUSTER_ENDPOINT }}
+      MUSTER_API_KEY: ${{ secrets.MUSTER_API_KEY }}
+      MUSTER_MODEL: gpt-4o-mini
+    steps:
+      # Pinned to the same resolved commit SHA as conformance.yml's own
+      # Checkout step (house convention: consistency with what the repo
+      # already does, not a fresh independent pin).
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
+      # FR-001 -- query-set shape gate (>=8 entries/axis, all 5 required
+      # fields) over the 14 real files under trigger-queries/.
+      - name: Verify trigger query-set shape (FR-001)
+        run: node conformance/scripts/check-trigger-queryset-shape.mjs conformance/skills/trigger-queries/*.yaml
+
+      # FR-002 -- twin-phrasing cross-reference: each duplicate pair / the
+      # run-family triple borrows its twin's/siblings' should-trigger
+      # phrasing into its own near-miss set.
+      - name: Verify twin-phrasing cross-references (FR-002)
+        run: node conformance/scripts/check-twin-phrasing.mjs conformance/skills/trigger-queries/
+
+      # `npx --offline` (below) resolves from npm's local package cache --
+      # never the network -- and a `ubuntu-latest` runner's cache starts
+      # cold on every job (no `actions/cache`/`setup-node` `cache:` wiring
+      # populates it, and none should: caching an *installed* copy across
+      # runs would silently let a stale, unpinned muster version outlive a
+      # `package.json` bump). Verified against a genuinely empty
+      # `~/.npm/_cacache`: `npx --offline @garrison-hq/muster@1.2.1 --version`
+      # fails there with `npm error code ENOTCACHED ... cache mode is
+      # 'only-if-cached'`, exit 1 -- so this step must warm the cache first,
+      # online, every run. This mirrors this suite's own README quickstart
+      # (`npm install --no-save` before `npx --offline`), just wired into CI
+      # rather than only documented for local use.
+      - name: Warm npm cache for pinned muster CLI (C-003)
+        run: npm install --no-save @garrison-hq/muster@1.2.1
+
+      # C-003: muster pinned exactly 1.2.1, never a range. This step is the
+      # only one in this workflow that requires the live MUSTER_ENDPOINT/
+      # MUSTER_API_KEY secrets; it always runs against a real,
+      # intentionally-healthy endpoint -- the dead-endpoint half of FR-004's
+      # proof is a one-time, by-hand step (never a CI step), recorded in the
+      # mission work log.
+      #
+      # `npx --offline @garrison-hq/muster@1.2.1 skills run --help` documents
+      # muster's real exit-code contract for this command:
+      #   0  all non-skipped cases passed (or all cases were skipped)
+      #   1  at least one non-skipped case failed
+      #   2  manifest could not be read or was structurally invalid
+      # A HEALTHY run legitimately exits 1 here: the rigged-impossible
+      # discrimination control (FR-004) is designed to report `passed:
+      # false` even against a fully healthy endpoint (garrison-hq/muster#77
+      # -- see this file's own "Cadence workflow" paragraph in
+      # conformance/skills/README.md for the full explanation), which is
+      # exactly what documented exit code 1 means: "at least one non-skipped
+      # case failed." Actions' default shell is `bash -e {0}`, so a bare,
+      # unguarded `run:` line here would abort the job on that legitimate
+      # exit 1 before any of this workflow's own assertions (FR-003's
+      # skip-guard, FR-004's control check, FR-005's evidence build/shape
+      # check, the commit) ever executed -- this capture-and-classify form
+      # is what lets those steps run at all. Exit code 2 (manifest unreadable
+      # or structurally invalid) and anything else muster's own `--help`
+      # does not document are real failures this step must surface, not
+      # silently pass through -- a parse failure here means none of this
+      # workflow's later assertions verified anything.
+      - name: Run behavioral trigger-routing manifest (FR-003/FR-004)
+        run: |
+          set +e
+          npx --offline @garrison-hq/muster@1.2.1 skills run conformance/skills/behavioral-manifest.yaml --json > /tmp/report.json
+          rc=$?
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+            echo "muster skills run exited $rc (expected 0 or 1 here -- 2 means the manifest could not be read or was structurally invalid; see garrison-hq/muster#77 for why a healthy run legitimately exits 1)"
+            exit "$rc"
+          fi
+          echo "muster skills run exited $rc (0 or 1 both legitimate here, muster#77)"
+
+      # FR-003's skip-guard: a run with no credentials configured degrades
+      # every behavioral case to {passed:true, skipped:true} -- a green run
+      # under those conditions verifies nothing about routing and must never
+      # be treated as evidence. This step fails loudly instead.
+      - name: Assert at least one non-control case actually ran (FR-003 skip-guard)
+        run: |
+          node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/report.json','utf8')); \
+            const ran = r.results.some(c => c.type==='behavioral' && c.isControl !== true && c.skipped !== true); \
+            if (!ran) { console.error('every non-control behavioral case was skipped -- MUSTER_ENDPOINT/MUSTER_API_KEY not configured?'); process.exit(1); } \
+            console.log('skip-guard: OK, at least one non-control case actually ran');"
+
+      # FR-004 -- the rigged-impossible control observed failing for the
+      # right reason (runsErrored:0), never a dead-endpoint false positive.
+      - name: Verify discrimination control (FR-004, healthy mode)
+        run: node conformance/scripts/check-control-discrimination.mjs /tmp/report.json --mode healthy
+
+      # FR-005 -- summarize the raw report into this mission's committed
+      # evidence-artifact shape (data-model.md), then validate it against
+      # contracts/evidence-artifact.schema.json plus an independent
+      # credential-leak scan.
+      - name: Build evidence artifact (FR-005)
+        id: build-evidence
+        run: |
+          mkdir -p conformance/skills/trigger-evidence
+          node conformance/scripts/build-evidence-artifact.mjs /tmp/report.json /tmp/evidence.json
+          timestamp=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/evidence.json','utf8')).timestamp)")
+          safe_timestamp=$(node -e "console.log(process.argv[1].replaceAll(':','-'))" "$timestamp")
+          dest="conformance/skills/trigger-evidence/${safe_timestamp}.json"
+          cp /tmp/evidence.json "$dest"
+          echo "artifact_path=$dest" >> "$GITHUB_OUTPUT"
+
+      # FR-005/NFR-002: check-evidence-artifact-shape.mjs already runs its
+      # own independent credential-leak scan over the artifact text
+      # (contract, section 3) -- that is this workflow's live-secret-bearing
+      # output, and the one file this cadence run could plausibly leak a
+      # credential into. NFR-002's own credential-leak grep (spec.md:309) is
+      # scoped to exactly two files -- conformance/skills/behavioral-manifest.yaml
+      # and THIS file -- never repo-wide; it is deliberately NOT duplicated
+      # as a workflow step here because this file is one of those two scoped
+      # targets: writing the grep's own pattern out as a literal `run:` line
+      # (or describing it in a comment using the literal provider-key-prefix
+      # substring it searches for) would make NFR-002's own scoped check
+      # match against this workflow file itself -- a real self-match within
+      # its actual scope, not a hypothetical repo-wide one. (The identical
+      # literal pattern documented in conformance/skills/README.md's local
+      # pre-merge instructions does not have this problem: README.md is not
+      # one of NFR-002's two scoped files, so nothing there self-matches.)
+      # NFR-002 compliance for this workflow file itself is instead verified
+      # by hand at every commit (mission work log), never by a check whose
+      # own source text would recreate the leak pattern it is trying to
+      # detect.
+      - name: Verify evidence artifact shape (FR-005)
+        run: node conformance/scripts/check-evidence-artifact-shape.mjs "${{ steps.build-evidence.outputs.artifact_path }}"
+
+      - name: Commit evidence artifact
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ steps.build-evidence.outputs.artifact_path }}"
+          if git diff --cached --quiet; then
+            echo "no changes to commit"
+          else
+            git commit -m "chore(conformance): skill trigger-routing evidence artifact ${{ steps.build-evidence.outputs.artifact_path }}"
+            git push
+          fi

@@ -1,0 +1,20 @@
+{
+  "model": "gpt-4o-mini",
+  "endpointHost": "api.openai.com",
+  "musterVersion": "1.2.2",
+  "ranAt": "2026-08-02T09:15:00Z",
+  "controlManifest": {
+    "judgeControl": {
+      "passed": false,
+      "passCount": 0,
+      "totalRuns": 3,
+      "runsErrored": 0
+    },
+    "behavioralControl": {
+      "passed": false,
+      "passCount": 0,
+      "totalRuns": 3,
+      "runsErrored": 0
+    }
+  }
+}

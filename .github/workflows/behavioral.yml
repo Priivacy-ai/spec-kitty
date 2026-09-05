@@ -1,0 +1,741 @@
+name: Behavioral Conformance Cadence
+
+# C-002: workflow_dispatch only, never pull_request or schedule (schedule is
+# out of scope for this mission -- M8). This suite exercises a live,
+# credentialed, bring-your-own model endpoint on every run (C-001), so it
+# must never gate a pull request.
+on:
+  workflow_dispatch: {}
+
+env:
+  # Pin @garrison-hq/muster@1.2.2 everywhere -- @1.2.1 has a live pass-k/
+  # k-of-n judge-threshold defect (garrison-hq/muster#88, fixed by commit
+  # db80a4295 / #89) that makes every resolved-threshold->=2 judge rule
+  # permanently unpassable.
+  MUSTER_PIN: "@garrison-hq/muster@1.2.2"
+
+jobs:
+  main-suite:
+    runs-on: ubuntu-latest
+    # C-001: endpoint config comes from repository secrets only -- never a
+    # manifest value or an argv literal. Job-level so every step (including
+    # the evidence-writing step, which reports the model name) sees it.
+    env:
+      MUSTER_ENDPOINT: ${{ secrets.MUSTER_ENDPOINT }}
+      MUSTER_MODEL: ${{ secrets.MUSTER_MODEL }}
+      MUSTER_API_KEY: ${{ secrets.MUSTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # npx --offline fails on a cold runner cache (ENOTCACHED) -- warm the
+      # cache with one online resolution before every --offline invocation
+      # below. Also captures the resolved version as a step output: an
+      # artifact that cannot self-certify which muster version produced it
+      # cannot prove it wasn't produced by @1.2.1's live pass-k/k-of-n
+      # judge-threshold defect (the exact shape a resolved-threshold->=2
+      # judge control -- like this workflow's own control-manifest.yaml --
+      # would report as permanently failing regardless of endpoint health).
+      - name: Warm up muster npx cache
+        id: muster_version
+        run: |
+          set -euo pipefail
+          version="$(npx --yes "${MUSTER_PIN}" --version)"
+          echo "${version}"
+          # >>> muster-version pin assertion (extracted verbatim by control-discrimination-guard.test.sh)
+          # F4: the resolved version used to be captured, echoed, and written
+          # into the evidence artifact -- and never compared to anything. The
+          # comment above called that "self-certifying"; self-certifying is
+          # not asserting. Nothing went red if npx resolved 1.2.1, whose
+          # judge-threshold defect (garrison-hq/muster#88, fixed by
+          # db80a4295/#89) makes every resolved-threshold->=2 judge rule
+          # permanently unpassable -- a judge stuck at FAIL, which is exactly
+          # the condition control-manifest.yaml's two NEGATIVE controls cannot
+          # see (both of them fail under a stuck judge just as they do under a
+          # healthy one). Assert the pin, and assert it HERE, so the job dies
+          # before spending a credentialed run rather than after producing a
+          # report nobody can trust. This region is duplicated verbatim in the
+          # other job's warm-up step; control-discrimination-guard.test.sh
+          # extracts both copies and requires them byte-identical.
+          expected_version="${MUSTER_PIN##*@}"
+          if [[ ! "${expected_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::MUSTER_PIN '${MUSTER_PIN}' does not end in @<major.minor.patch> -- a range or an unversioned spec cannot be asserted, so it is not a pin"
+            exit 1
+          fi
+          if [ "${version:-}" != "${expected_version}" ]; then
+            echo "::error::npx resolved muster '${version:-<none>}' but MUSTER_PIN demands '${expected_version}' -- refusing to run: @1.2.1's judge-threshold defect (garrison-hq/muster#88) is a judge stuck at FAIL, and on every field the control-suite guard reads it is indistinguishable from a healthy endpoint"
+            exit 1
+          fi
+          # <<< muster-version pin assertion
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run main-suite manifests (profiles/*.yaml + FR-005 doctrine files)
+        id: main_suite
+        run: |
+          # GitHub Actions runs `run:` blocks as `bash -eo pipefail {0}` by
+          # default. `set -e` alone would abort this step the instant
+          # `muster sop run` exits 1 (which it does by design whenever any
+          # case fails, including every discrimination control) -- before
+          # `muster_exit=$?` below ever executes. Explicitly disable `-e`
+          # here; every exit code this script cares about is captured and
+          # checked by hand instead.
+          set +e
+          set -u -o pipefail
+          shopt -s nullglob
+
+          mkdir -p /tmp/behavioral-reports
+
+          # C-002: glob-driven for the profiles (WP01's output, unknown at
+          # authoring time), literal for the three FR-005-edited doctrine
+          # files T006-T008 actually touched -- never a hardcoded profile
+          # list.
+          profile_manifests=(conformance/behavioral/profiles/*.yaml)
+
+          # F6: `shopt -s nullglob` (above) means a glob that matches zero
+          # files silently expands to nothing rather than staying a literal
+          # unmatched pattern -- so a misconfigured checkout, a rename, or a
+          # WP01 regression that leaves this directory empty would make the
+          # loop below iterate over only the three doctrine manifests and
+          # exit 0, a fully green run having exercised none of FR-001..004.
+          # Assert the glob actually matched spec.md's five target profiles
+          # (architect-alphonso, reviewer-renata, implementer-ivan,
+          # planner-priti, debugger-debbie) before proceeding.
+          if [ "${#profile_manifests[@]}" -lt 5 ]; then
+            echo "::error::conformance/behavioral/profiles/*.yaml matched ${#profile_manifests[@]} file(s), expected >=5 -- refusing to report a green run having exercised zero or too few profile manifests (nullglob would otherwise make this pass silently)"
+            exit 1
+          fi
+
+          manifests=(
+            "${profile_manifests[@]}"
+            conformance/doctrine/010-specification-fidelity-requirement.yaml
+            conformance/doctrine/039-lynn-cole-engineering-culture.yaml
+            conformance/doctrine/044-canonical-sources-and-unification.yaml
+          )
+
+          overall_status=0
+          cases_json="[]"
+
+          for manifest in "${manifests[@]}"; do
+            name="$(basename "${manifest}" .yaml)"
+            report="/tmp/behavioral-reports/${name}.json"
+
+            # muster exits 1 whenever any case in the manifest fails, and a
+            # genuinely non-compliant model or a control is *expected* to
+            # fail -- do not let that abort this step (no `set -e` above).
+            npx --yes --offline "${MUSTER_PIN}" sop run "${manifest}" --json > "${report}"
+            muster_exit=$?
+
+            if [ "${muster_exit}" -ne 0 ] && [ "${muster_exit}" -ne 1 ]; then
+              echo "::error::muster sop run against ${manifest} exited ${muster_exit} (neither pass=0 nor fail=1) -- treating as an infrastructure failure"
+              overall_status=1
+              continue
+            fi
+
+            errored="$(conformance/behavioral/scripts/check-runs-errored.sh "${report}")"
+            passed="$(jq -r '.passed' "${report}")"
+
+            # F3: validate both values before using them anywhere below.
+            # With `set +e` (required above so a genuinely failing manifest
+            # doesn't abort this step), an unreadable/zero-byte report used
+            # to make check-runs-errored.sh print nothing (empty `errored`),
+            # which made `[ "${errored}" -gt 0 ]` throw a swallowed
+            # `integer expected` error, and made the `jq --argjson passed
+            # "${passed}"` call below fail on an empty/non-JSON literal --
+            # which empties its own stdout, so `cases_json="$(...)"`
+            # silently became "" and destroyed every case accumulated in
+            # earlier loop iterations, unrecoverable for the rest of the
+            # run. Reject early and skip this manifest instead.
+            if [[ ! "${errored}" =~ ^[0-9]+$ ]]; then
+              echo "::error::${manifest}: check-runs-errored.sh did not return a valid integer ('${errored}') -- report may be unreadable or malformed; treating as an infrastructure failure for this manifest"
+              overall_status=1
+              continue
+            fi
+
+            if [[ "${passed}" != "true" && "${passed}" != "false" ]]; then
+              echo "::error::${manifest}: report's .passed field is not a valid boolean ('${passed}') -- report may be unreadable or malformed; treating as an infrastructure failure for this manifest"
+              overall_status=1
+              continue
+            fi
+
+            # F4: spec.md requires runsErrored computed PER CASE (per rule,
+            # i.e. per axis -- AVOIDANCE-BOUNDARY-<profile>,
+            # HANDOFF-DISCIPLINE-<profile>, etc.) and written into that
+            # case's own field, not collapsed into one manifest-wide total.
+            # A manifest whose avoidance-boundary case errored while its
+            # other three ran clean previously collapsed to a single
+            # ${errored} count and a ::warning:: naming only the manifest,
+            # not the axis -- losing exactly the per-axis "endpoint failed
+            # vs model failed" disambiguation FR-007 exists to preserve.
+            # per_case_errored is an array of {ruleId, passCount, totalRuns,
+            # runsErrored} objects, one per verdict in this manifest's own
+            # report. `passCount`/`totalRuns` are read directly off each
+            # verdict (SOPCaseVerdict sets both unconditionally, per
+            # @garrison-hq/muster@1.2.2's report shape) -- the Acceptance
+            # Gate's item 2 requires each axis entry to show `totalRuns`
+            # matching FR-006's `runs >= 5`, and the Evidence Artifact shape
+            # requires `passCount`; neither was present here before.
+            per_case_errored="$(jq -c \
+              '[.verdicts[] | {ruleId: .ruleId, passCount: .passCount, totalRuns: .totalRuns, runsErrored: ([.runs[] | select(.error != null)] | length)}]' \
+              "${report}")"
+
+            if [ "${errored}" -gt 0 ]; then
+              failing_rule_ids="$(jq -r \
+                '[.[] | select(.runsErrored > 0) | .ruleId] | join(", ")' \
+                <<<"${per_case_errored}")"
+              echo "::warning::${manifest} had ${errored} errored run(s) across case(s) [${failing_rule_ids}] -- this axis's result is endpoint-inconclusive, not necessarily a model non-compliance signal (FR-007)"
+            fi
+
+            if [ "${passed}" != "true" ]; then
+              overall_status=1
+            fi
+
+            cases_json="$(jq -c \
+              --arg manifest "${manifest}" \
+              --argjson passed "${passed}" \
+              --argjson runsErrored "${errored}" \
+              --argjson perCase "${per_case_errored}" \
+              '. + [{"manifest": $manifest, "passed": $passed, "runsErrored": $runsErrored, "perCase": $perCase}]' \
+              <<<"${cases_json}")"
+          done
+
+          echo "${cases_json}" > /tmp/behavioral-reports/main-suite-cases.json
+          echo "cases_file=/tmp/behavioral-reports/main-suite-cases.json" >> "${GITHUB_OUTPUT}"
+          exit "${overall_status}"
+
+      # F4/F5 decision record (corrected): spec.md's Evidence Artifact
+      # section specifies ONE committed evidence/<ISO-date>-<mid8>.json with
+      # an `endpointHost` field and a `perProfile.<id>.{avoidanceBoundary,
+      # handoffDiscipline,canonicalVerbs,capabilityContainment}.{passCount,
+      # totalRuns,runsErrored}` shape, and describes the artifact as
+      # "committed" (git, not only a CI upload), plus raw `--json` reports
+      # attached to acceptance evidence (bullets 2 and 4 of that section).
+      # Actual, as of this fix: two separate files (this job's +
+      # control-suite's); `endpointHost` present; each case's `perCase`
+      # entry now carries `passCount`/`totalRuns` alongside `runsErrored`
+      # (was runsErrored-only); the raw per-manifest `--json` reports under
+      # /tmp/behavioral-reports/ are now uploaded (see the
+      # `behavioral-main-suite-raw-reports` artifact below), so a run's
+      # non-byte-identical transcripts across a case's runs survive the
+      # runner. `perProfile`/axis-keyed nesting is still absent -- cases
+      # remain a flat array keyed by manifest path rather than axis-named
+      # object keys -- and neither evidence file is committed by this
+      # workflow, only uploaded via actions/upload-artifact.
+      #
+      # Status after the follow-up commit that added the `merge-evidence`
+      # job below: the `perProfile.<id>.<axis>` reshape and the cross-job
+      # merge into one `<ISO-date>-<mid8>.json` are DONE, and the reshape was
+      # confirmed to be a pure transform -- every field spec.md's shape names
+      # is derivable from what the two jobs already write (see
+      # conformance/behavioral/scripts/build-evidence-artifact.sh's header
+      # for the field-by-field derivation). This file's two per-job evidence
+      # files are now intermediates consumed by that job, not the deliverable.
+      #
+      # An earlier version of this note claimed the reshape was already a
+      # pure transform when `perCase` did NOT yet carry
+      # `passCount`/`totalRuns`; that was wrong at the time and was corrected
+      # by adding those two fields above. It is true now, and executable
+      # rather than asserted.
+      #
+      # Still not verifiable outside a live GitHub Actions run: the
+      # git-commit-back's identity, push-conflict handling and branch
+      # protection interaction. The merge job attempts the push and fails
+      # LOUDLY if it cannot, and uploads the merged artifact BEFORE
+      # attempting it, so a gate reviewer has the file either way.
+      - name: Write evidence artifact (main-suite cases)
+        if: always() && steps.main_suite.outputs.cases_file != ''
+        # F11: pass the prior step's output through env:, never interpolated
+        # directly into the run: body. Workflow-internal (a step output this
+        # same job just wrote, not attacker-controlled input) so not
+        # exploitable here, but GitHub's own hardening guidance is to avoid
+        # `${{ }}` template expansion inside `run:` scripts regardless, since
+        # a future edit could otherwise reintroduce the pattern somewhere it
+        # is exploitable.
+        env:
+          CASES_FILE: ${{ steps.main_suite.outputs.cases_file }}
+          MUSTER_VERSION: ${{ steps.muster_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p conformance/behavioral/evidence
+          evidence_file="conformance/behavioral/evidence/$(date -u +%Y-%m-%d)-01KYW5XK-main-suite.json"
+          # Host-only extraction (F5's `endpointHost` field): strip scheme,
+          # any userinfo (credentials embedded in the URL), and everything
+          # from the first `/` or `:` onward -- never the full URL, path,
+          # or key.
+          endpoint_host="$(printf '%s\n' "${MUSTER_ENDPOINT:-}" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#^[^/@]*@##; s#[/:].*##')"
+          jq -n \
+            --arg model "${MUSTER_MODEL:-gpt-4o-mini}" \
+            --arg endpointHost "${endpoint_host}" \
+            --arg musterVersion "${MUSTER_VERSION:-}" \
+            --arg ranAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --slurpfile cases "${CASES_FILE}" \
+            '{model: $model, endpointHost: $endpointHost, musterVersion: $musterVersion, ranAt: $ranAt, mainSuiteCases: $cases[0]}' \
+            > "${evidence_file}"
+          echo "Wrote ${evidence_file}"
+
+      # Glob narrowed from `*.json` to this run's own file: the evidence
+      # directory also holds three previously committed control reports
+      # (2026-08-02-01KYW5XK-control-{healthy,dead-endpoint,stripped-env}.json),
+      # which `*.json` swept into the artifact -- leaving the merge job below
+      # unable to tell this run's main-suite evidence from committed history.
+      # `error` rather than `warn`: an empty evidence artifact is the exact
+      # silent-success shape the merge job would then fail on with an opaque
+      # message.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: behavioral-main-suite-evidence
+          path: conformance/behavioral/evidence/*-main-suite.json
+          if-no-files-found: error
+
+      # Evidence Artifact section bullets 2 and 4: the raw `muster sop run
+      # --json` reports (non-byte-identical transcripts across a case's
+      # runs; reports attached to acceptance evidence) previously died with
+      # the runner -- only the reshaped `mainSuiteCases` summary above was
+      # ever uploaded. Upload the raw per-manifest reports too.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: behavioral-main-suite-raw-reports
+          path: /tmp/behavioral-reports/*.json
+          if-no-files-found: warn
+
+  control-suite:
+    runs-on: ubuntu-latest
+    # C-001: same secrets-only sourcing as main-suite; job-level so the
+    # evidence-writing step also sees the model name.
+    env:
+      MUSTER_ENDPOINT: ${{ secrets.MUSTER_ENDPOINT }}
+      MUSTER_MODEL: ${{ secrets.MUSTER_MODEL }}
+      MUSTER_API_KEY: ${{ secrets.MUSTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Same warm-up, and the same F4 pin assertion, as main-suite: the marked
+      # region below is byte-identical to that job's copy by requirement, not
+      # by coincidence -- control-discrimination-guard.test.sh extracts both
+      # and fails if they have drifted apart, because a version guard present
+      # in one job and absent (or weaker) in the other leaves the unguarded
+      # job free to certify a run produced by a stuck-FAIL judge.
+      - name: Warm up muster npx cache
+        id: muster_version
+        run: |
+          set -euo pipefail
+          version="$(npx --yes "${MUSTER_PIN}" --version)"
+          echo "${version}"
+          # >>> muster-version pin assertion (extracted verbatim by control-discrimination-guard.test.sh)
+          # F4: the resolved version used to be captured, echoed, and written
+          # into the evidence artifact -- and never compared to anything. The
+          # comment above called that "self-certifying"; self-certifying is
+          # not asserting. Nothing went red if npx resolved 1.2.1, whose
+          # judge-threshold defect (garrison-hq/muster#88, fixed by
+          # db80a4295/#89) makes every resolved-threshold->=2 judge rule
+          # permanently unpassable -- a judge stuck at FAIL, which is exactly
+          # the condition control-manifest.yaml's two NEGATIVE controls cannot
+          # see (both of them fail under a stuck judge just as they do under a
+          # healthy one). Assert the pin, and assert it HERE, so the job dies
+          # before spending a credentialed run rather than after producing a
+          # report nobody can trust. This region is duplicated verbatim in the
+          # other job's warm-up step; control-discrimination-guard.test.sh
+          # extracts both copies and requires them byte-identical.
+          expected_version="${MUSTER_PIN##*@}"
+          if [[ ! "${expected_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::MUSTER_PIN '${MUSTER_PIN}' does not end in @<major.minor.patch> -- a range or an unversioned spec cannot be asserted, so it is not a pin"
+            exit 1
+          fi
+          if [ "${version:-}" != "${expected_version}" ]; then
+            echo "::error::npx resolved muster '${version:-<none>}' but MUSTER_PIN demands '${expected_version}' -- refusing to run: @1.2.1's judge-threshold defect (garrison-hq/muster#88) is a judge stuck at FAIL, and on every field the control-suite guard reads it is indistinguishable from a healthy endpoint"
+            exit 1
+          fi
+          # <<< muster-version pin assertion
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run control-manifest.yaml and assert genuine discrimination
+        id: control_suite
+        run: |
+          # Same `-e` hazard as main-suite: control-manifest.yaml is
+          # designed to exit 1, so `-e` must be off before that command
+          # runs, or this step would abort before its own assertions below.
+          set +e
+          set -u -o pipefail
+          mkdir -p /tmp/behavioral-reports
+          report="/tmp/behavioral-reports/control-manifest.json"
+
+          npx --yes --offline "${MUSTER_PIN}" sop run conformance/behavioral/control-manifest.yaml --json > "${report}"
+          muster_exit=$?
+
+          errored="$(conformance/behavioral/scripts/check-runs-errored.sh "${report}")"
+
+          # F3 (control-suite): the same integer/shape validation main-suite
+          # already applies per case (see main-suite's own F3 comment above)
+          # was missing here entirely -- this job is the ONE thing whose
+          # purpose is proving the endpoint was alive, so a report this job
+          # cannot actually read must never fall through to the success
+          # path below. Reproduced: a single-character corruption of
+          # control-manifest.yaml (an invalid YAML key) makes `muster sop
+          # run` exit 1 having written a lint-only, zero-verdict report;
+          # `check-runs-errored.sh` on that report still prints `0` (zero
+          # runs[].error, because there are zero runs at all), which used to
+          # sail through every check below and print "both controls failed
+          # as designed with zero errored runs -- genuine discrimination
+          # confirmed" on a manifest that graded nothing.
+          if [[ ! "${errored}" =~ ^[0-9]+$ ]]; then
+            echo "::error::check-runs-errored.sh did not return a valid integer ('${errored}') -- control report unreadable/malformed"
+            echo "report_file=${report}" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+
+          # F2 fix: write runs_errored immediately after computing it, before
+          # any exit path below. The original placement (only on the final
+          # success path) meant both the muster_exit!=1 branch and the
+          # errored>0 branch exited 1 without ever setting this output --
+          # GitHub Actions reads an unset step output as an empty string,
+          # and (at the time of the F2 defect) the evidence-writing step
+          # coalesced that empty output to 0 with an "or" fallback
+          # expression, so a dead-endpoint run (muster_exit==1, errored==6)
+          # fell through the errored>0 branch below, exited 1 with
+          # runs_errored never written, and the evidence artifact recorded
+          # the placeholder runsErrored: 0 -- indistinguishable from a
+          # genuinely clean control run, in exactly the case FR-007 exists
+          # to make distinguishable. (F5 later stopped the evidence step
+          # from consuming this output at all, computing runsErrored
+          # directly from the report instead -- this output remains written
+          # for its own diagnostic value in the job log above.)
+          #
+          # F1 hoisted it to HERE, above the verdict_count and lint branches
+          # it had still been sitting below. That the comment's own claim --
+          # "before any exit path below" -- was false of its own placement was
+          # not spotted by reading it; it was spotted by running the whole
+          # step body against a fixture that exits at the verdict_count branch
+          # and observing GITHUB_OUTPUT come back with no runs_errored line.
+          echo "runs_errored=${errored}" >> "${GITHUB_OUTPUT}"
+
+          # Three, not two, since F1 added the POSITIVE judge control
+          # CONTROL-JUDGE-TRIVIAL to control-manifest.yaml.
+          verdict_count="$(jq '.verdicts | length' "${report}" 2>/dev/null || echo "")"
+          if [ "${verdict_count}" != "3" ]; then
+            echo "::error::control-manifest.yaml produced ${verdict_count:-<none>} verdict(s), expected 3 -- the manifest did not load/lint; a zero-verdict report can never prove discrimination"
+            echo "report_file=${report}" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+
+          # A broken `sopFile:` path (or other lint-triggering manifest
+          # defect) can still produce exit 1 with the expected 3 verdicts --
+          # the verdict_count check alone does not catch that shape. An
+          # error-severity lint finding means the manifest itself is
+          # malformed, independent of how many verdicts happened to survive.
+          error_lint_count="$(jq '[.lintFindings[]? | select(.severity == "error")] | length' "${report}" 2>/dev/null || echo "")"
+          if [ "${error_lint_count}" != "0" ]; then
+            echo "::error::control-manifest.yaml produced ${error_lint_count:-<unreadable>} error-severity lint finding(s) -- manifest is malformed; see lintFindings in the report"
+            echo "report_file=${report}" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+
+          echo "control-suite: muster exit=${muster_exit} runsErrored=${errored}"
+
+          # FR-007: never treat the control suite's own exit 1 as a build
+          # failure -- exit 1 IS the expected, correct outcome. Two of the
+          # three controls are rigged to fail, so the manifest as a whole
+          # fails, so muster exits 1. (Confirmed live under @1.2.2 with the
+          # positive control passing 3/3: still exit 1.)
+          if [ "${muster_exit}" -ne 1 ]; then
+            echo "::error::control-manifest.yaml did not fail as designed (exit ${muster_exit}, expected 1) -- a discrimination control may be broken or accidentally satisfiable"
+            echo "report_file=${report}" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+
+          # --------------------------------------------------------------
+          # The verdict assertions. Tested by
+          # conformance/behavioral/scripts/control-discrimination-guard.test.sh,
+          # which extracts the marked lines below VERBATIM and runs them
+          # against committed real-endpoint report fixtures -- including a
+          # real @1.2.1 stuck-FAIL-judge report and a real dead-endpoint
+          # report, not synthesised ones.
+          #
+          # Guard on the VALUE everywhere below, never on jq's exit status:
+          # jq on a report with no `verdicts` key errors and coincidentally
+          # exits 1, which would satisfy a status-based check for entirely
+          # the wrong reason.
+          # --------------------------------------------------------------
+          # >>> control-verdict assertions (extracted verbatim by control-discrimination-guard.test.sh)
+          # The dead-endpoint check leads, and that ordering is load-bearing
+          # rather than stylistic. Under a dead endpoint every run errors, so
+          # ALL THREE controls read as "failed" -- including the positive one.
+          # If the positive-control assertion ran first it would report a
+          # judge outage, and "dead endpoint" versus "the grader is stuck" are
+          # precisely the two conditions FR-007 exists to keep apart.
+          if [ "${errored}" -gt 0 ]; then
+            echo "::error::control-manifest.yaml had ${errored} errored run(s) -- cannot prove genuine discrimination this cycle (endpoint may be unreachable); see runs[].error in the report"
+            echo "report_file=${report}" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+
+          # F3: nothing here used to inspect ruleId at all -- the guard
+          # counted verdicts and the evidence step selected them by
+          # `startswith(...)` prefix. Renaming a verdict (CONTROL-JUDGE-
+          # IMPOSSIBLE -> CTRL-JUDGE-IMPOSSIBLE) therefore produced: this
+          # guard printing "genuine discrimination confirmed" and exiting 0;
+          # the evidence step's jq matching nothing and writing ZERO BYTES,
+          # which `set -euo pipefail` cannot see because a jq no-match is not
+          # an error; the upload's `if-no-files-found: error` satisfied
+          # because the file exists; and finally death two steps later in
+          # merge-evidence as "not exactly one valid JSON document (got: 0)",
+          # a message pointing at file corruption rather than at a rename.
+          # Assert the exact expected set so drift fails at its origin.
+          expected_rule_ids="CONTROL-BEHAVIORAL-FORBIDDEN-ACTION CONTROL-JUDGE-IMPOSSIBLE CONTROL-JUDGE-TRIVIAL"
+          actual_rule_ids="$(jq -r '[.verdicts[].ruleId] | sort | join(" ")' "${report}" 2>/dev/null || echo "")"
+          [ "${actual_rule_ids}" = "${expected_rule_ids}" ] || { echo "::error::control-manifest.yaml produced ruleIds [${actual_rule_ids:-<none>}], expected [${expected_rule_ids}] -- a renamed or missing control silently empties the evidence step's per-ruleId selection"; echo "report_file=${report}" >> "${GITHUB_OUTPUT}"; exit 1; }
+
+          # The two NEGATIVE controls, selected BY NAME so the positive one
+          # can neither be counted here nor excluded from here by accident.
+          #
+          # `passCount == 0` (F2) is asserted alongside `passed == false`
+          # because both ruleTexts claim a healthy endpoint "must observe this
+          # rule failing EVERY run", and `passed` alone does not say that:
+          # CONTROL-JUDGE-IMPOSSIBLE is k-of-n with passThreshold 2, so 1 of 3
+          # spurious PASSes still aggregates to passed == false, and
+          # CONTROL-BEHAVIORAL-FORBIDDEN-ACTION is pass-k with k=3/threshold 3,
+          # satisfied by the forbidden string appearing in only 1 run of 3.
+          # Both live-measure 0/3, so this closes slack rather than tightening
+          # a real result, and passCount is already in the report.
+          #
+          # `totalRuns >= 3` is asserted because a control collapsed to a
+          # single run cannot support pass^k discrimination at all, and would
+          # otherwise satisfy the count.
+          negative_failed="$(jq '[.verdicts[] | select(.ruleId == "CONTROL-JUDGE-IMPOSSIBLE" or .ruleId == "CONTROL-BEHAVIORAL-FORBIDDEN-ACTION") | select(.passed == false and .passCount == 0 and .totalRuns >= 3)] | length' "${report}" 2>/dev/null || echo "")"
+          [ "${negative_failed}" = "2" ] || { echo "::error::expected 2 negative controls (CONTROL-JUDGE-IMPOSSIBLE, CONTROL-BEHAVIORAL-FORBIDDEN-ACTION) each failing with passCount 0 over >=3 runs, got ${negative_failed:-<unreadable>}"; echo "report_file=${report}" >> "${GITHUB_OUTPUT}"; exit 1; }
+
+          # F1: the POSITIVE control. This is the only assertion in the whole
+          # job that a judge stuck at FAIL cannot satisfy. The two negatives
+          # above fail under a healthy judge AND under a stuck one, so they
+          # certify nothing about the judge path; measured live, a real
+          # @1.2.1 run (judge-threshold defect garrison-hq/muster#88) produced
+          # a report identical to a healthy @1.2.2 run on every field the
+          # guard read before this line existed, and the guard passed it.
+          # passCount is deliberately NOT pinned to 3 here: the rubric is
+          # formal ("the reply contains at least one word") but the judge is
+          # still a model, and `passed` already encodes the declared k-of-n
+          # threshold of 2. Requiring 3/3 would make this control flaky in the
+          # one direction that matters -- a false red on a healthy endpoint
+          # teaches the next reader to ignore it.
+          positive_passed="$(jq '[.verdicts[] | select(.ruleId == "CONTROL-JUDGE-TRIVIAL") | select(.passed == true and .totalRuns >= 3)] | length' "${report}" 2>/dev/null || echo "")"
+          [ "${positive_passed}" = "1" ] || { echo "::error::positive control CONTROL-JUDGE-TRIVIAL did not pass over >=3 runs (matched ${positive_passed:-<unreadable>} verdict(s)) -- its rubric is satisfied by any non-empty reply, so a failure here means the JUDGE path is broken (unreachable, stuck at FAIL, or a bad muster pin), not that the model misbehaved; without this assertion a total judge outage certifies as 'genuine discrimination confirmed'"; echo "report_file=${report}" >> "${GITHUB_OUTPUT}"; exit 1; }
+          # <<< control-verdict assertions
+
+          echo "control-suite: both negative controls failed as designed (0/3 each), the positive control passed, zero errored runs -- genuine discrimination confirmed in both directions"
+          echo "report_file=${report}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      # F5: split controlManifest into judgeControl/behavioralControl, per
+      # spec.md's Evidence Artifact shape, keyed by this file's own stable
+      # ruleId naming convention -- control-manifest.yaml is this WP's own
+      # file, so matching on ruleId is not a guess about foreign content.
+      # Each branch computes its own passed/runsErrored directly from that
+      # verdict's own runs, independent of the step-level `runs_errored`
+      # output (which remains the whole-manifest total used for this job's
+      # own pass/fail gate above).
+      #
+      # F1/F3, two changes here:
+      #
+      #  * a third key, judgePositiveControl, carrying CONTROL-JUDGE-TRIVIAL.
+      #    Recording only the two negative controls would leave the gate
+      #    artifact unable to distinguish a healthy run from a stuck-FAIL
+      #    judge, which is the whole point of adding the positive control.
+      #
+      #  * selection by EXACT ruleId through a `one_verdict` helper that
+      #    error()s, replacing `startswith("CONTROL-JUDGE")`. The prefix match
+      #    would now match two verdicts, and `.verdicts[] | select(...)`
+      #    inside an object constructor emits one document PER match -- two
+      #    matches would write two concatenated JSON documents, which
+      #    build-evidence-artifact.sh rejects with an opaque "not exactly one
+      #    valid JSON document (got: 2)". Zero matches were worse: jq emits
+      #    NOTHING, `set -euo pipefail` cannot see a no-match, and the
+      #    zero-byte file survived the upload's `if-no-files-found: error`
+      #    (the file exists) to die two steps later in merge-evidence. Both
+      #    shapes now fail loudly, here, naming the ruleId.
+      - name: Write evidence artifact (control-suite)
+        if: always() && steps.control_suite.outputs.report_file != ''
+        # F11: same env: pass-through as main-suite's evidence step, never
+        # `${{ }}` interpolated directly into the run: body.
+        env:
+          REPORT_FILE: ${{ steps.control_suite.outputs.report_file }}
+          MUSTER_VERSION: ${{ steps.muster_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p conformance/behavioral/evidence
+          evidence_file="conformance/behavioral/evidence/$(date -u +%Y-%m-%d)-01KYW5XK-control-suite.json"
+          endpoint_host="$(printf '%s\n' "${MUSTER_ENDPOINT:-}" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#^[^/@]*@##; s#[/:].*##')"
+          # >>> control evidence reshape (extracted verbatim by control-discrimination-guard.test.sh)
+          jq \
+            --arg model "${MUSTER_MODEL:-gpt-4o-mini}" \
+            --arg endpointHost "${endpoint_host}" \
+            --arg musterVersion "${MUSTER_VERSION:-}" \
+            --arg ranAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            'def one_verdict($id):
+               [.verdicts[]? | select(.ruleId == $id)]
+               | if length == 1 then .[0]
+                 else error("control report has \(length) verdict(s) with ruleId \($id), expected exactly 1 -- refusing to write an evidence file that silently omits or duplicates a discrimination control")
+                 end;
+             def control_shape:
+               {passed, passCount, totalRuns, runsErrored: ([.runs[] | select(.error != null)] | length)};
+             {
+              model: $model,
+              endpointHost: $endpointHost,
+              musterVersion: $musterVersion,
+              ranAt: $ranAt,
+              controlManifest: {
+                judgeControl: (one_verdict("CONTROL-JUDGE-IMPOSSIBLE") | control_shape),
+                behavioralControl: (one_verdict("CONTROL-BEHAVIORAL-FORBIDDEN-ACTION") | control_shape),
+                judgePositiveControl: (one_verdict("CONTROL-JUDGE-TRIVIAL") | control_shape)
+              }
+            }' \
+            "${REPORT_FILE}" \
+            > "${evidence_file}"
+          # <<< control evidence reshape
+          echo "Wrote ${evidence_file}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: behavioral-control-suite-evidence
+          path: conformance/behavioral/evidence/*-control-suite.json
+          if-no-files-found: error
+
+      # Evidence Artifact section bullets 2 and 4 (control-suite half): the
+      # raw control-manifest.json report -- the one that FR-007's runsErrored
+      # walk and the C-002 acceptance evidence both cite -- previously died
+      # with the runner. Upload it alongside the reshaped evidence file.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: behavioral-control-suite-raw-reports
+          path: /tmp/behavioral-reports/*.json
+          if-no-files-found: warn
+
+  # Acceptance Gate item 2, first sub-bullet: ONE committed artifact at
+  # conformance/behavioral/evidence/<ISO-date>-<mid8>.json whose `perProfile`
+  # object is keyed by profile id then by axis. main-suite and control-suite
+  # run on two separate runners and can only write half of it each, so the
+  # merge has to be a third job that downloads both halves.
+  #
+  # `if: always()`: main-suite exits 1 whenever any behavioral case fails,
+  # which is a normal, expected cadence outcome -- gating the evidence on a
+  # green main-suite would mean the runs most worth recording are the ones
+  # that leave no evidence. control-suite likewise exits 1 on a broken
+  # control, and that run's evidence is exactly what diagnoses it.
+  merge-evidence:
+    runs-on: ubuntu-latest
+    needs: [main-suite, control-suite]
+    if: always()
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      # No `continue-on-error`: a missing half means the merged artifact
+      # cannot be built, and a merge job that quietly succeeds having built
+      # nothing is worse than a red one.
+      - uses: actions/download-artifact@v4
+        with:
+          name: behavioral-main-suite-evidence
+          path: /tmp/evidence-in/main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: behavioral-control-suite-evidence
+          path: /tmp/evidence-in/control
+
+      - name: Merge both jobs' evidence into the gate artifact
+        id: merge
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          # Resolve exactly one file per half. `nullglob` (as in main-suite)
+          # makes an unmatched glob expand to nothing rather than to the
+          # literal pattern, so the count check below is the only thing
+          # standing between a renamed upload and a merge against a path that
+          # does not exist.
+          main_files=(/tmp/evidence-in/main/*-main-suite.json)
+          control_files=(/tmp/evidence-in/control/*-control-suite.json)
+
+          if [ "${#main_files[@]}" -ne 1 ]; then
+            echo "::error::expected exactly 1 main-suite evidence file in the downloaded artifact, found ${#main_files[@]}"
+            exit 1
+          fi
+          if [ "${#control_files[@]}" -ne 1 ]; then
+            echo "::error::expected exactly 1 control-suite evidence file in the downloaded artifact, found ${#control_files[@]}"
+            exit 1
+          fi
+
+          mkdir -p conformance/behavioral/evidence
+
+          # --require-axes 4 lives at the call site, not in the script: four
+          # behavioral axes is spec.md's design (FR-001..004), so a profile
+          # that silently contributed three would otherwise produce a
+          # complete-looking artifact the gate reviewer reads as four.
+          artifact="$(conformance/behavioral/scripts/build-evidence-artifact.sh \
+            --main "${main_files[0]}" \
+            --control "${control_files[0]}" \
+            --mission 01KYW5XK \
+            --out-dir conformance/behavioral/evidence \
+            --require-axes 4)"
+
+          echo "Wrote ${artifact}"
+          echo "artifact=${artifact}" >> "${GITHUB_OUTPUT}"
+          jq '{model, endpointHost, ranAt, profiles: (.perProfile | keys)}' "${artifact}"
+
+      # Uploaded BEFORE the commit-back is attempted: branch protection or a
+      # push race must never be the reason a gate reviewer cannot find the
+      # artifact.
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.merge.outputs.artifact != ''
+        with:
+          name: behavioral-gate-evidence
+          path: ${{ steps.merge.outputs.artifact }}
+          if-no-files-found: error
+
+      # spec.md's Evidence Artifact section says each cadence run *commits*
+      # this file (git, not only a CI upload), and the Acceptance Gate reads
+      # it as "the committed evidence artifact". This step is the one part of
+      # this workflow that cannot be exercised outside a live GitHub Actions
+      # run -- so it is written to fail loudly rather than to look like it
+      # worked: an unpushable branch produces a red job with the artifact
+      # still uploaded above, never a green job with nothing committed.
+      - name: Commit the gate artifact back to the branch
+        if: steps.merge.outputs.artifact != ''
+        env:
+          ARTIFACT: ${{ steps.merge.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${ARTIFACT}"
+
+          if git diff --cached --quiet -- "${ARTIFACT}"; then
+            echo "${ARTIFACT} is byte-identical to the committed copy -- nothing to commit"
+            exit 0
+          fi
+
+          git commit -m "chore(behavioral): cadence evidence ${ARTIFACT##*/}"
+
+          # Rebase before pushing so a concurrent commit on the branch is a
+          # retry, not a lost artifact. A push that still fails (branch
+          # protection, permissions) is reported as an error, not swallowed.
+          if ! git pull --rebase --autostash origin "${GITHUB_REF_NAME}"; then
+            echo "::error::could not rebase onto origin/${GITHUB_REF_NAME}; the gate artifact is uploaded as the behavioral-gate-evidence artifact but was NOT committed"
+            exit 1
+          fi
+          if ! git push origin "HEAD:${GITHUB_REF_NAME}"; then
+            echo "::error::could not push the gate artifact to ${GITHUB_REF_NAME} (branch protection or missing contents:write?); it is uploaded as the behavioral-gate-evidence artifact but was NOT committed"
+            exit 1
+          fi
+          echo "Committed and pushed ${ARTIFACT} to ${GITHUB_REF_NAME}"

@@ -1,0 +1,23 @@
+version: "1.0.0"
+sopFile: "../../packs/built-in/directives/018-doctrine-versioning-requirement.directive.yaml"
+rules:
+  - ruleId: "018-r1"
+    ruleText: "Breaking doctrine changes require explicit upgrade guidance."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/018-doctrine-versioning-requirement.directive.yaml"
+  - ruleId: "018-r2"
+    ruleText: "Artifact version metadata must not drift from actual schema expectations."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/018-doctrine-versioning-requirement.directive.yaml"

@@ -1,0 +1,24 @@
+# FR-004 static composition case: reviewer-renata persona + SOP extract +
+# spk-run-next skill. fixturePath values agree with WP01's (lane-a) and
+# WP03's (lane-c) committed filenames by PATH ONLY — this lane does not
+# read their content (IC-00, plan.md). The persona and sop-extract paths do
+# not exist in this lane's own worktree until those lanes merge; see this
+# WP's T012 (1a/1b split) and Activity Log for the honest blocked-status
+# entry documenting that.
+id: reviewer-run-skill
+testClass: static
+layers:
+  - layerType: persona
+    fixturePath: personas/reviewer-renata.Soul.md
+  - layerType: sop
+    fixturePath: sop-extract.md
+  - layerType: skill
+    # SECURITY NOTE: fixtures/spk-run-next.SKILL.md is a git-tracked symlink
+    # to a real file outside this manifest's directory tree, which defeats
+    # muster's assertWithinManifestDir path-traversal guard (purely lexical
+    # — no realpath/lstat/readlink/isSymbolicLink check). Benign here; see
+    # the full note in cases/architect-run-skill.yaml and garrison-hq/muster#71.
+    fixturePath: fixtures/spk-run-next.SKILL.md
+expected:
+  ok: true
+  findingTypes: []

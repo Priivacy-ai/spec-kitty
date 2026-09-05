@@ -1,0 +1,41 @@
+id: rigged-impossible-control
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+# Decision D-3: this control follows muster's own examples/skills/
+# trigger-queries/rigged-impossible-queries.yaml pattern, not its
+# fixtures/ copy of the same fixture. The fixtures/ copy has a known, open
+# defect (github.com/garrison-hq/muster/issues/73): its near-miss axis
+# reuses the same literal placeholder token that the rigged tool's
+# substituted description also carries (RIGGED_IMPOSSIBLE_DESCRIPTION,
+# research.md §4) — so that near-miss axis self-matches the tool description
+# by literal text overlap rather than by a model reasoning about tool fit,
+# which over-determines passed: false and proves nothing about the grader.
+#
+# These shouldTrigger/nearMiss queries are ordinary, plausible, unrelated
+# requests. A well-functioning model should never route any of them to the
+# rigged-impossible-control tool. Neither axis below contains the
+# substituted-description placeholder token anywhere (verified by a
+# dedicated text search, T013/T014 — see the WP02 task file for the exact
+# token this file must never reproduce).
+shouldTrigger:
+  - "What's a good icebreaker question for a team meeting?"
+  - "Convert 5 kilograms to pounds"
+  - "Give me a two-sentence summary of the water cycle"
+  - "What's a synonym for 'meticulous'?"
+  - "Write a limerick about a rainy Tuesday"
+  - "What year did the first iPhone launch?"
+  - "Explain the difference between a stack and a queue"
+  - "What's the chemical symbol for tungsten?"
+# Near-miss queries: realistic, topically-adjacent variants of the
+# shouldTrigger queries above (paraphrases, not near-duplicates of the
+# rigged tool's substituted description) — still nothing a well-functioning
+# model would route to the rigged-impossible-control tool.
+nearMiss:
+  - "What's a fun icebreaker for a small team standup?"
+  - "How many pounds are in 5 kilograms, roughly?"
+  - "What drives the water cycle's evaporation stage?"
+  - "What's another word close in meaning to 'meticulous'?"
+  - "What makes a limerick's rhyme scheme distinct from a haiku's?"
+  - "What else launched the same year as the first iPhone?"
+  - "When would you choose a queue over a stack?"
+  - "Why is tungsten's chemical symbol 'W' instead of 'T'?"

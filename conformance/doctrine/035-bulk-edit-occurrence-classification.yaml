@@ -1,0 +1,33 @@
+version: "1.0.0"
+sopFile: "../../packs/built-in/directives/035-bulk-edit-occurrence-classification.directive.yaml"
+rules:
+  - ruleId: "035-r1"
+    ruleText: "Every occurrence category in the map must have an explicit action assignment."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/035-bulk-edit-occurrence-classification.directive.yaml"
+  - ruleId: "035-r2"
+    ruleText: "Categories marked do_not_change must not be modified without updating the map."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#2-tool-order"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/035-bulk-edit-occurrence-classification.directive.yaml"
+  - ruleId: "035-r3"
+    ruleText: "The occurrence map is the sole authority for what categories may change."
+    probeIds: []
+    gradingClass: "judge"
+    aggregation: "k-of-n"
+    k: 5
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/035-bulk-edit-occurrence-classification.directive.yaml"

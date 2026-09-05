@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "mission_slug": "skill-trigger-routing-suite-01KYVRB9",
+  "mission_id": "01KYVRB95WNBGE13NRHFMQV2X3",
+  "mission_branch": "kitty/mission-skill-trigger-routing-suite-01KYVRB9",
+  "target_branch": "kitty/mission-skill-trigger-routing-suite-01KYVRB9",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "conformance/skills/trigger-queries/ad-hoc-profile-load-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spec-kitty-git-workflow-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spec-kitty-implement-review-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spec-kitty-runtime-next-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spec-kitty-runtime-review-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spk-admin-git-workflow-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spk-doctrine-profile-load-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spk-run-implement-review-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spk-run-next-duplicate-pair-queries.yaml",
+        "conformance/skills/trigger-queries/spk-run-review-wp-duplicate-pair-queries.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "conformance/skills/trigger-queries/rigged-impossible-control-queries.yaml",
+        "conformance/skills/trigger-queries/spk-run-implement-review-run-family-queries.yaml",
+        "conformance/skills/trigger-queries/spk-run-next-run-family-queries.yaml",
+        "conformance/skills/trigger-queries/spk-run-review-wp-run-family-queries.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "conformance/scripts/check-control-discrimination.mjs",
+        "conformance/scripts/check-evidence-artifact-shape.mjs",
+        "conformance/scripts/check-trigger-queryset-shape.mjs",
+        "conformance/scripts/check-twin-phrasing.mjs",
+        "conformance/skills/behavioral-manifest.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/skill-trigger-routing.yml",
+        "conformance/skills/README.md",
+        "conformance/skills/trigger-evidence/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-31T13:50:25.240931+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "86611a4720ce225771ceafac8c4132e1943b254f"
+}

@@ -1,0 +1,116 @@
+work_packages:
+  - id: WP01
+    title: "Duplicate-pair trigger query sets"
+    dependencies: []
+    owned_files:
+      - "conformance/skills/trigger-queries/ad-hoc-profile-load-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spk-doctrine-profile-load-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spec-kitty-runtime-next-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spk-run-next-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spec-kitty-runtime-review-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spk-run-review-wp-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spec-kitty-implement-review-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spk-run-implement-review-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spec-kitty-git-workflow-duplicate-pair-queries.yaml"
+      - "conformance/skills/trigger-queries/spk-admin-git-workflow-duplicate-pair-queries.yaml"
+    requirement_refs:
+      - FR-001
+      - FR-002
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+      - T008
+    prompt_file: "tasks/WP01-duplicate-pair-query-sets.md"
+
+  - id: WP02
+    title: "Run-family and rigged-impossible-control query sets"
+    dependencies:
+      - WP01
+    owned_files:
+      - "conformance/skills/trigger-queries/spk-run-next-run-family-queries.yaml"
+      - "conformance/skills/trigger-queries/spk-run-review-wp-run-family-queries.yaml"
+      - "conformance/skills/trigger-queries/spk-run-implement-review-run-family-queries.yaml"
+      - "conformance/skills/trigger-queries/rigged-impossible-control-queries.yaml"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-004
+    plan_concern_refs:
+      - IC-02
+      - IC-03
+    subtasks:
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+    prompt_file: "tasks/WP02-run-family-and-control-query-sets.md"
+
+  - id: WP03
+    title: "Behavioral manifest and verification scripts"
+    dependencies:
+      - WP01
+      - WP02
+    owned_files:
+      - "conformance/skills/behavioral-manifest.yaml"
+      - "conformance/scripts/check-trigger-queryset-shape.mjs"
+      - "conformance/scripts/check-twin-phrasing.mjs"
+      - "conformance/scripts/check-control-discrimination.mjs"
+      - "conformance/scripts/check-evidence-artifact-shape.mjs"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - NFR-002
+      - NFR-003
+    plan_concern_refs:
+      - IC-04
+      - IC-05
+    subtasks:
+      - T015
+      - T016
+      - T017
+      - T018
+      - T019
+      - T020
+    prompt_file: "tasks/WP03-behavioral-manifest-and-scripts.md"
+
+  - id: WP04
+    title: "Cadence workflow, live control proof, evidence artifact, README"
+    dependencies:
+      - WP03
+    owned_files:
+      - ".github/workflows/skill-trigger-routing.yml"
+      - "conformance/skills/trigger-evidence/**"
+      - "conformance/skills/README.md"
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-002
+      - C-003
+    plan_concern_refs:
+      - IC-06
+      - IC-07
+    subtasks:
+      - T021
+      - T022
+      - T023
+      - T024
+      - T025
+    prompt_file: "tasks/WP04-cadence-workflow-live-proof-readme.md"

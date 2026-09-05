@@ -1,0 +1,113 @@
+name: Static Conformance
+
+# FR-003: gate every PR and every push to main on the muster skills static
+# conformance suite. No-secrets by construction (C-002): a
+# GitHub-hosted runner has normal network access to the npm registry, which
+# is what `garrison-hq/muster-action@v1` needs to fetch the pinned muster
+# CLI via `npx` — no repository secret is ever required, so this also
+# passes on pull requests opened from a fork.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# MEDIUM-4 (post-merge mission review): this job checks out and executes
+# branch-supplied code (including conformance/scripts/check-manifest-
+# completeness.mjs itself) -- pin to the minimum token scope it needs
+# (read-only checkout) rather than inheriting the repository default.
+permissions:
+  contents: read
+
+jobs:
+  skills-conformance:
+    name: Skills static conformance (muster)
+    runs-on: ubuntu-latest
+    steps:
+      # MEDIUM-3 (post-merge mission review): pinned to the resolved commit
+      # SHA, not the mutable `v6` tag -- a retag would change what runs at
+      # an unchanged workflow commit. Resolved via
+      # `gh api repos/actions/checkout/git/refs/tags/v6`.
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      # C-003 / NFR-002: version is an exact pin ('1.1.0'), never a range,
+      # so this step's result is deterministic given a pinned commit.
+      # muster-action@v1's own composite steps install Node via
+      # actions/setup-node before invoking `npx`, so `node` is left on
+      # PATH for the next step without this workflow adding its own
+      # setup-node step (plan.md IC-06's risk note).
+      #
+      # MEDIUM-3 (post-merge mission review): pinned to the resolved commit
+      # SHA, not the mutable `v1` tag -- muster-action is a composite action
+      # that executes scripts/run.sh in-job with GITHUB_TOKEN in scope, so
+      # retagging `v1` would change what runs at an unchanged workflow
+      # commit. muster-action already pins its own actions/setup-node to a
+      # SHA; this consuming workflow is no less careful.
+      #
+      # F-3 (independent verification, round 2): `garrison-hq/muster-action`'s
+      # `v1` is an ANNOTATED tag, so dereferencing it to a commit takes TWO
+      # calls, not one:
+      #   1. `gh api repos/garrison-hq/muster-action/git/refs/tags/v1` --
+      #      returns the ref, whose `object.sha` is the annotated TAG
+      #      object's own sha (9483fd34af4bd82cc88898c8d8ad458cd65f6bef),
+      #      NOT the commit.
+      #   2. `gh api repos/garrison-hq/muster-action/git/tags/9483fd34af4bd82cc88898c8d8ad458cd65f6bef`
+      #      -- dereferences that tag object; ITS `object.sha` is the actual
+      #      commit, which is the SHA pinned below.
+      # Stopping after call 1 and using its `object.sha` (as an earlier
+      # version of this comment said) produces the tag object's sha, not the
+      # commit -- wrong pin if followed literally. `actions/checkout`'s `v6`
+      # above is a LIGHTWEIGHT tag, so its ref's `object.sha` already IS the
+      # commit and one call suffices there; that shortcut does not apply to
+      # annotated tags like this one.
+      - name: Run muster skills conformance (FR-002)
+        uses: garrison-hq/muster-action@b40681a514f9500f5958b4f9f3efeacd30aae6ca # v1
+        with:
+          command: 'skills run'
+          args: 'conformance/skills/manifest.yaml'
+          version: '1.1.0'
+
+      # FR-007: manifest completeness — every src/doctrine/skills/* directory
+      # has exactly one manifest case (plus the one control case), and vice
+      # versa. Placed after the muster step so a static-gate failure and a
+      # completeness failure both surface in this job's log.
+      #
+      # F-4 (independent verification, round 2): placement alone does not
+      # make that claim true -- without `if: always()`, a failing muster
+      # step (exit != 0) short-circuits the job and this step is SKIPPED,
+      # so only the muster failure would appear in the log, not both.
+      # `if: always()` is added so this step still runs after a muster
+      # failure, which is what actually makes "both surface in this job's
+      # log" correct. (This does mean the step also attempts to run after a
+      # Checkout failure, in which case it will fail again for its own
+      # reason -- missing repository files -- which is an acceptable
+      # trade-off for a read-only, no-secrets static check.)
+      - name: Verify manifest completeness (FR-007)
+        if: always()
+        run: node conformance/scripts/check-manifest-completeness.mjs
+
+  sop-doctrine-conformance:
+    name: SOP doctrine conformance (muster)
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to the same resolved commit SHA as the skills-conformance
+      # job's Checkout step above (house convention: consistency with what
+      # the file already does, not a fresh independent pin).
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Run doctrine rule-manifest drift gate (FR-004/FR-005)
+        run: bash conformance/scripts/check-doctrine-drift-gate.sh
+
+      # F-4 (independent verification, round 2): same defect, same fix, as
+      # the skills-conformance job's "Verify manifest completeness (FR-007)"
+      # step above -- placement after the drift gate does not by itself make
+      # both a drift failure and a completeness failure visible in this
+      # job's log; without `if: always()`, a failing drift gate (exit != 0)
+      # short-circuits the job and this step is SKIPPED. Do not strip this
+      # off in a future "cleanup" -- see the sibling job's comment for the
+      # full rationale.
+      - name: Verify doctrine manifest rule-count completeness (absence guard)
+        if: always()
+        run: node conformance/scripts/check-doctrine-manifest-completeness.mjs

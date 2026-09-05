@@ -1,0 +1,23 @@
+id: spk-admin-git-workflow
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  - "Inspect the active mission's branch and worktree state"
+  - "Let spec-kitty-managed git operations run through the CLI"
+  - "Perform a manual git operation this workflow requires"
+  - "Preserve my changes during this git repair"
+  - "Recover from a stale repository state"
+  - "Check for merge blockers before merging this WP"
+  - "Operate the git workflow admin surface for this mission"
+  - "Return to spk-gate-merge after this repair"
+nearMiss:
+  - "What is the next runtime step for this mission?"
+  - "Review and approve this single work package"
+  - "Load the researcher profile for this interactive session"
+  - "Coordinate implementers and reviewers across WPs"
+  - "Explain the doctrine directive catalog"
+  - "Dispatch agents for the remaining work packages"
+  - "What is a profile's initialization declaration?"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spec-kitty-git-workflow-duplicate-pair-queries.yaml.
+  - "git workflow"

@@ -1,0 +1,11 @@
+# Tracer: tooling-friction
+
+One entry per finding: `YYYY-MM-DD · actor · <text>`.
+
+---
+
+2026-07-31 · mission-accept-gate (2026-07-31) · REVIEW PROVENANCE IS ABSENT FOR ALL FIVE WORK PACKAGES, AND NOTHING CHECKS IT. Recorded as a true gap, not routed around. Every WP01-WP05 review on this mission was conducted out-of-band (subagents reporting to the operator) and produced no canonical spec-kitty review artifact. Verified mechanically: (1) tasks/WP0*/ contains only baseline-tests.json for all five WPs -- zero review-cycle artifacts, so move_task's _get_latest_review_cycle_verdict returns (None, None) every time, review_artifact_name is None, and _guard_rejected_verdict (tasks_transition_core.py:364-388) short-circuits to a no-op; an approval with no review artifact at all is therefore never refused, only an approval with a REJECTED artifact is. (2) All five 'to_lane: approved' events in status.events.jsonl carry review_ref: null. Their reviewer strings are just whatever git user.name was at the time -- 'claude-opus' (WP01), 'Jeroen Nouws' (WP02/WP03/WP04), and 'Review Rig' (WP05). 'Review Rig <review@scratch.local>' is this checkout's own configured git identity, auto-detected by move-task's --reviewer default; it is not a reviewer and not a fabrication by the transition, but it reads like an attribution and should not be mistaken for one. (3) The WP05 approval event's reviewer/verdict block was produced by THIS accept-gate pass: Error: --mission <slug> is required was run to clear the issue-matrix blocker after the four incidental citations were disambiguated, and the CLI auto-filled reviewer='Review Rig', verdict='approved', reason=<that note>. The underlying WP05 review really did happen out-of-band and its verdict holds; the point is that this event is not evidence of it. (4) 
+Mission Acceptance
+├── ● Identify mission slug (--mission <slug> is required)
+└── ○ Run readiness checks
+Error: --mission <slug> is required does NOT report any of this -- it checks lane state and acceptance-matrix verdicts, never whether an approval is backed by a review artifact. The gap is invisible to the gate. Disposition is an operator decision: either land real review artifacts under tasks/WP0*/ for the five out-of-band reviews, or record explicitly that this mission's approvals rest on out-of-band review. Not decided here.

@@ -1,0 +1,30 @@
+id: spk-run-next-run-family
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+# shouldTrigger reused unchanged from spk-run-next-duplicate-pair-queries.yaml
+# (WP01) — same skill, same plausible invocations; only the near-miss
+# purpose differs between the two files (research.md §8).
+shouldTrigger:
+  - "Query the mission state with spec-kitty next"
+  - "Advance the mission using spec-kitty next --result success"
+  - "What decision is currently pending in this mission?"
+  - "Route this blocked result to the right recovery step"
+  - "Tell me the next control-loop step for this mission"
+  - "Resolve the pending decision_required in this mission"
+  - "Drive the mission forward with the next control loop"
+  - "What terminal result did the mission reach?"
+nearMiss:
+  - "What is the manifest schema version for this project?"
+  - "How do I initialize a new spec-kitty repository?"
+  - "Explain the difference between a mission and a work package"
+  - "What are DIR-0xx directives and where are they defined?"
+  - "How does the worktree lifecycle clean up after a merge?"
+  - "What is the acceptance-matrix.json file used for?"
+  # FR-002 run-family twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-run-review-wp-duplicate-pair-queries.yaml (WP01). This file is
+  # run-family only; near-miss borrows from the two run-family siblings, not
+  # the legacy twin (spec-kitty-runtime-next, WP01's separate territory).
+  - "Approve this work package now"
+  # FR-002 run-family twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-run-implement-review-duplicate-pair-queries.yaml (WP01).
+  - "Cycle back to implementation after a rejection"

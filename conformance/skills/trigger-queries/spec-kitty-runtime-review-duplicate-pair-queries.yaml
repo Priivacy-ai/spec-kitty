@@ -1,0 +1,26 @@
+id: spec-kitty-runtime-review
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  # First six verbatim from src/doctrine/skills/spec-kitty-runtime-review/SKILL.md
+  # description Triggers list; two more consistent with the same purpose.
+  - "review this work package"
+  - "check runtime output"
+  - "approve this step"
+  - "review WP"
+  - "is this WP ready to approve"
+  - "check this implementation"
+  - "reject this work package with feedback"
+  - "claim this WP for review"
+nearMiss:
+  - "Advance the mission to the next step"
+  - "Implement this work package's code changes"
+  - "Update the glossary entry for this term"
+  - "How does spec-kitty commit worktree changes?"
+  - "Orchestrate agent dispatch for all remaining WPs"
+  - "What profile should I load for this session?"
+  - "Fix the broken CLI installation"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-run-review-wp-duplicate-pair-queries.yaml. This file is
+  # duplicate-pair only; not the run-family purpose (WP02's territory).
+  - "Claim this work package from the runtime review queue"

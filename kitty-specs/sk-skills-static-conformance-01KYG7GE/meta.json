@@ -1,0 +1,34 @@
+{
+  "accept_commit": "0796763771a41d20aa7056331f415e8e587a75b1",
+  "acceptance_history": [
+    {
+      "accept_commit": "0796763771a41d20aa7056331f415e8e587a75b1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-27T07:12:51.820068+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "5183eda940ec0572752d0bc5b4db4417a11505d1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-27T07:12:51.820068+00:00",
+  "accepted_by": "jeroennouws",
+  "accepted_from_commit": "5183eda940ec0572752d0bc5b4db4417a11505d1",
+  "baseline_merge_commit": "6d084356bf7cd414425949a561d8660912883866",
+  "coordination_branch": "kitty/mission-sk-skills-static-conformance-01KYG7GE",
+  "created_at": "2026-07-26T22:07:41.575070+00:00",
+  "flattened": false,
+  "friendly_name": "Skills Static Conformance Suite",
+  "mission_id": "01KYG7GEG5F8HDJRGHGVFAX85B",
+  "mission_number": null,
+  "mission_slug": "sk-skills-static-conformance-01KYG7GE",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This is wave-1 mission M1 of the muster <-> spec-kitty agent-conformance programme. It bootstraps a conformance/ tree in the spec-kitty fork containing a muster skills manifest covering all 53 built-in skills, a rigged control case that proves the suite can fail, the programme's D1-D5 decision record, and a PR-gating GitHub Actions workflow that runs muster via muster-action@v1 fully offline. It makes zero changes to muster itself and proves the muster<->spec-kitty integration seam end to end, unblocking three later spec-kitty-side conformance missions (M3, M6, M7).",
+  "purpose_tldr": "Wire spec-kitty's 53 built-in SKILL.md files through muster's static skills adapter and gate every PR on the result.",
+  "slug": "sk-skills-static-conformance-01KYG7GE",
+  "status_phase": "1",
+  "target_branch": "kitty/mission-sk-skills-static-conformance",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-26T23:45:43.701776+00:00"
+}

@@ -1,0 +1,35 @@
+# FR-004 static composition case: architect-alphonso persona + SOP extract +
+# spk-run-next skill. fixturePath values agree with WP01's (lane-a) and
+# WP03's (lane-c) committed filenames by PATH ONLY — this lane does not
+# read their content (IC-00, plan.md). The persona and sop-extract paths do
+# not exist in this lane's own worktree until those lanes merge; see this
+# WP's T012 (1a/1b split) and Activity Log for the honest blocked-status
+# entry documenting that.
+id: architect-run-skill
+testClass: static
+layers:
+  - layerType: persona
+    fixturePath: personas/architect-alphonso.Soul.md
+  - layerType: sop
+    fixturePath: sop-extract.md
+  - layerType: skill
+    # SECURITY NOTE: fixtures/spk-run-next.SKILL.md is a git-tracked symlink
+    # (mode 120000) -> ../../../src/doctrine/skills/spk-run-next/SKILL.md,
+    # a real repo file living OUTSIDE this manifest's directory tree. This
+    # was necessary to reference that file without duplicating its content
+    # (a literal relative path there is correctly rejected by the guard
+    # below, verified). It also demonstrates a real gap: muster's
+    # assertWithinManifestDir (manifest-runner.ts:132) is a PURELY LEXICAL
+    # check (normalize()+startsWith() on the committed path string only —
+    # no realpath/lstat/readlink/isSymbolicLink anywhere in src/crosslayer/),
+    # so a symlink whose committed path stays inside conformance/crosslayer/
+    # defeats it at exit 0 even though the target resolves outside the
+    # manifest dir; fs.readFile(entry.fixturePath) (composition.ts:274) then
+    # transparently follows it. This particular symlink is benign (in-repo
+    # target, diff-visible via mode 120000, and CaseResult.findings never carries
+    # clause text — only type strings), but the technique is a genuine
+    # guard bypass. Filed upstream: garrison-hq/muster#71.
+    fixturePath: fixtures/spk-run-next.SKILL.md
+expected:
+  ok: true
+  findingTypes: []

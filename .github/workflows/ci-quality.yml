@@ -36,6 +36,7 @@ on:
       - '.github/workflows/review-verdict-durability.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
+      - '.github/workflows/crosslayer.yml'
       # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): the
       # wheel-shipped doctrine corpus and narrow mission-spec/charter leaves
       # that ~70 tests read but that no other glob above covers. Discrete
@@ -82,6 +83,7 @@ on:
       - '.github/workflows/review-verdict-durability.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
+      - '.github/workflows/crosslayer.yml'
       # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): mirrors
       # the pull_request corpus globs above so the push:main post-merge run
       # also fires on a corpus-only change. See that block's comment.
@@ -398,6 +400,18 @@ jobs:
               - '.github/workflows/ci-quality.yml'
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
+              # crosslayer.yml is a sibling suite-running workflow (mission
+              # crosslayer-composition-suite-01KYJA33 MEDIUM-2 fix): the outer
+              # on.pull_request.paths/on.push.paths entry admits the PR, but
+              # e2e-cross-cutting only runs when this `changes` job's e2e/
+              # core_misc/execution_context groups match. A workflow-only PR
+              # editing crosslayer.yml matched none of the three, so
+              # e2e-cross-cutting (and its 14 tests) was skipped on the
+              # merge-blocking PR path even though push was already covered by
+              # the job's `if` short-circuit on github.event_name == 'push'.
+              # Routing crosslayer.yml here (the FR-012 two-layer pattern —
+              # see core_misc's inline comment above) closes that PR-side gap.
+              - '.github/workflows/crosslayer.yml'
             # docs: docs-only changes run a dedicated CHEAP job (fast-tests-docs)
             # instead of the full core-misc code cone. Docs prose, the docs test
             # suite, and the docs tooling under scripts/docs all map here. This

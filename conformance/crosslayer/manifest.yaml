@@ -1,0 +1,20 @@
+# Cross-layer conformance manifest — mission crosslayer-composition-suite-01KYJA33 (WP02, FR-004).
+#
+# 2 static composition cases (architect+sop+skill, reviewer+sop+skill) —
+# FR-004's 2-case minimum. Static contradiction lint runs on every PR via
+# `muster crosslayer run conformance/crosslayer/manifest.yaml --static-only`.
+#
+# Paths in the $ref-included case files are relative to THIS file's
+# directory (conformance/crosslayer/), not to the case file's own location
+# (manifest-runner.ts's resolveLayerPaths resolves fixturePath against
+# manifestDir, always).
+#
+# NOTE: fixtures/spk-run-next.SKILL.md (used by both cases below) is a
+# git-tracked symlink pointing outside this directory tree — a real,
+# unfixed gap in muster's path-traversal guard, not a mistake. See the
+# SECURITY NOTE in cases/architect-run-skill.yaml and garrison-hq/muster#71.
+cases:
+  - $ref: cases/architect-run-skill.yaml
+  - $ref: cases/reviewer-run-skill.yaml
+  - $ref: cases/rule-survival-045.yaml
+  - $ref: cases/erosion-control-045.yaml

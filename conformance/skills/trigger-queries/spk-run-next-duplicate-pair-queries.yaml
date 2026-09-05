@@ -1,0 +1,26 @@
+id: spk-run-next
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  - "Query the mission state with spec-kitty next"
+  - "Advance the mission using spec-kitty next --result success"
+  - "What decision is currently pending in this mission?"
+  - "Route this blocked result to the right recovery step"
+  - "Tell me the next control-loop step for this mission"
+  - "Resolve the pending decision_required in this mission"
+  - "Drive the mission forward with the next control loop"
+  - "What terminal result did the mission reach?"
+nearMiss:
+  - "Approve or reject this work package"
+  - "Coordinate implementers and reviewers across WPs"
+  - "How do I repair a broken spec-kitty install?"
+  - "What is the worktree lifecycle for a WP?"
+  - "Explain the mission's git auto-commit behavior"
+  - "Dispatch agents for the remaining work packages"
+  - "Review the runtime output before approving"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spec-kitty-runtime-next-duplicate-pair-queries.yaml. This file is
+  # duplicate-pair only; it must not drift toward run-family phrasing
+  # (borrowing from spk-run-review-wp / spk-run-implement-review is WP02's
+  # separate spk-run-next-run-family-queries.yaml, not this file).
+  - "run the next step"

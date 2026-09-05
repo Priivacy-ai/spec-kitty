@@ -1,0 +1,23 @@
+version: "1.0.0"
+sopFile: "../../packs/built-in/directives/029-agent-commit-signing-policy.directive.yaml"
+rules:
+  - ruleId: "029-r1"
+    ruleText: "Automated commit flows must not depend on interactive key configuration."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#1-never-call-tool"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/029-agent-commit-signing-policy.directive.yaml"
+  - ruleId: "029-r2"
+    ruleText: "Agent-produced history should remain portable across environments with no signing setup."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#1-never-call-tool"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/029-agent-commit-signing-policy.directive.yaml"

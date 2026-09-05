@@ -1,0 +1,33 @@
+version: "1.0.0"
+sopFile: "../../packs/built-in/directives/034-test-first-development.directive.yaml"
+rules:
+  - ruleId: "034-r1"
+    ruleText: "Production code must not be written ahead of a failing test that motivates it."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#2-tool-order"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/661d0e1e2199e52c8b14e01cb1b1bd41a49675f7/src/doctrine/directives/built-in/034-test-first-development.directive.yaml"
+  - ruleId: "034-r2"
+    ruleText: "Skipping the test-first cycle requires explicit justification in the commit or PR."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/661d0e1e2199e52c8b14e01cb1b1bd41a49675f7/src/doctrine/directives/built-in/034-test-first-development.directive.yaml"
+  - ruleId: "034-r3"
+    ruleText: "A bug-reproduction test that can only run AFTER the fix exists (it imports the fix's new symbol or passes its new parameter) captures the fix's shape, not the bug — it is invalid; rewrite it to drive the stable entry point, and move any new-API import to lazy/in-test scope so the reproduction still collects and fails red on the unfixed code."
+    probeIds: []
+    gradingClass: "judge"
+    aggregation: "k-of-n"
+    k: 5
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/661d0e1e2199e52c8b14e01cb1b1bd41a49675f7/src/doctrine/directives/built-in/034-test-first-development.directive.yaml"

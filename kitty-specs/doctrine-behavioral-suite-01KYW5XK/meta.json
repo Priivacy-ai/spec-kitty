@@ -1,0 +1,38 @@
+{
+  "accept_commit": "c51cb129fc5427706a0256f73a99092f58efd4c3",
+  "acceptance_history": [
+    {
+      "accept_commit": "98e8ec7c1a2a16d1027d4125eda1d0cb3f14a917",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-02T03:16:49.697305+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "3d34bb35a9eee9bf4052e722b233dfb0a3294e45"
+    },
+    {
+      "accept_commit": "c51cb129fc5427706a0256f73a99092f58efd4c3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-02T04:11:16.423026+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "b76ac7cffde598fce7804adcaa8c26f1a7852be5"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-02T04:11:16.423026+00:00",
+  "accepted_by": "jeroennouws",
+  "accepted_from_commit": "b76ac7cffde598fce7804adcaa8c26f1a7852be5",
+  "coordination_branch": "kitty/mission-doctrine-behavioral-suite-01KYW5XK",
+  "created_at": "2026-07-31T13:30:49.134903+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine Behavioral Suite",
+  "mission_id": "01KYW5XKXEZ97MZAD6WWMHZC5H",
+  "mission_number": null,
+  "mission_slug": "doctrine-behavioral-suite-01KYW5XK",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "M3 shipped 13 directive-mapped SOP manifests that check an AGENTS.md document statically. This mission adds the behavioral layer: live-model scenarios that embed a profile's deployed system-prompt body and grade, via muster sop run against any OpenAI-compatible endpoint, whether the agent actually respects its avoidance boundary, hands off work at phase boundaries, uses its canonical verbs, stays within its declared tool capabilities, and follows the M3 directive rules under pressure -- with a rigged-impossible control proving each grader can fail, run on a manual cadence, never on pull requests.",
+  "purpose_tldr": "Behavioral compliance probes over a bring-your-own model endpoint, proving profiles and directives are followed in practice, not just declared.",
+  "slug": "doctrine-behavioral-suite-01KYW5XK",
+  "status_phase": "1",
+  "target_branch": "kitty/mission-doctrine-behavioral-suite",
+  "topology": "coord"
+}

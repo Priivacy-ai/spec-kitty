@@ -189,7 +189,21 @@ test_example_round_trip:
   # +1 (#2873): scopesource-gate-followup .../contracts/baseline-identity-contract.md
   # illustrative BaselineTestResult.source_identity field-add snippet — permanent
   # non-executable exemption; the executable round-trip lives in tests/review/test_baseline.py.
-  skip_marker_blocks: 13
+  # +5 (#3152, muster conformance programme): four GitHub Actions workflow-STEP
+  # fragments plus one manifest shape sketch, all permanent non-executable
+  # exemptions with no Pydantic payload to round-trip —
+  # doctrine-rule-manifests .../contracts/doctrine-drift-gate-contract.md and
+  # .../doctrine-manifest-completeness-contract.md (how each check is wired into
+  # conformance.yml), sk-skills-static-conformance .../contracts/
+  # completeness-check-cli-contract.md (the single step that workflow adds),
+  # skill-trigger-routing-suite .../contracts/verification-scripts-cli-contract.md
+  # (a step-ORDER sketch carrying <placeholder> run lines, deliberately not a valid
+  # instance), and doctrine-rule-manifests .../contracts/doctrine-rule-manifest-shape.md
+  # (a shape sketch whose values are <placeholder> tokens and a
+  # "binary" | "judge" enum alternation). The executable coverage for all five is
+  # the workflow file itself plus conformance/scripts/check-doctrine-manifest-
+  # completeness.mjs, not a round-trip.
+  skip_marker_blocks: 18
 
 # tests/architectural/test_no_inert_schema_slots.py — the zero-producer lint
 # (mission doctrine-silence-guards-01KYFV7Q, WP01).

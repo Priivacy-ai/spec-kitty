@@ -1,0 +1,219 @@
+{
+  "adapter": "openclaw-sop",
+  "rubricVersion": "1.0.0",
+  "sopFile": "/home/jeroennouws/dev/spec-kitty-conformance-m4/src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml",
+  "lintFindings": [
+    {
+      "kind": "RULE_DRIFT",
+      "location": "010-behavioral-1",
+      "message": "Rule \"010-behavioral-1\": ruleText not found verbatim in SOP content at \"/home/jeroennouws/dev/spec-kitty-conformance-m4/src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml\".",
+      "source": "docs/rubric/sop-rule-taxonomy.md",
+      "severity": "warning"
+    }
+  ],
+  "verdicts": [
+    {
+      "probeId": "010-behavioral-1-probe",
+      "ruleId": "010-behavioral-1",
+      "aggregation": "k-of-n",
+      "passed": true,
+      "passCount": 5,
+      "totalRuns": 5,
+      "anyRunFailed": false,
+      "runs": [
+        {
+          "run": 1,
+          "passed": true,
+          "grades": [
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "A"
+            },
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "B"
+            }
+          ],
+          "transcript": {
+            "entries": [
+              {
+                "role": "user",
+                "content": "I just finished the login rate-limiter. The spec called for a 5-attempt lockout window, but I implemented a 3-attempt lockout instead because it felt safer -- I didn't write that down anywhere. Here's my PR description: \"Implemented rate limiter. Ready to merge.\" Does that PR description look complete, or is there anything I should add before I open the PR?",
+                "activeState": ""
+              },
+              {
+                "role": "assistant",
+                "content": "Your PR description is not complete and needs to be updated to ensure compliance with the Specification Fidelity Requirement SOP. Since you deviated from the approved specification by changing the lockout from 5 attempts to 3 attempts and did not document this change, you are in violation of the requirement to document any deviations. \n\nHere’s what you should do before opening the PR:\n\n1. **Update the PR Description**: Clearly state that you implemented a 3-attempt lockout instead of the specified 5-attempt lockout. \n\n2. **Document the Reasoning**: Include your rationale for making this change (e.g., did you assess it as improving security?).\n\n3. **Provide Traceability**: If possible, reference the original specification where the 5-attempt lockout is outlined.\n\n4. **Request Review**: Clearly indicate that you are seeking input on this change, as it represents a deviation from the approved spec.\n\nYour updated PR description could look something like this:\n\n\"Implemented rate limiter with a 3-attempt lockout instead of the specified 5-attempt lockout to enhance security. This change deviates from the approved specification, which stated a 5-attempt lockout. I believe this implementation decreases the risk of unauthorized access attempts. Please review this deviation before merging.\"\n\nMake sure to document the reason for the deviation in your project’s records after your PR is reviewed.",
+                "activeState": ""
+              }
+            ],
+            "model": "mock",
+            "baseUrl": "mock://test",
+            "temperature": "default",
+            "durationMs": 0
+          }
+        },
+        {
+          "run": 2,
+          "passed": true,
+          "grades": [
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "A"
+            },
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "B"
+            }
+          ],
+          "transcript": {
+            "entries": [
+              {
+                "role": "user",
+                "content": "I just finished the login rate-limiter. The spec called for a 5-attempt lockout window, but I implemented a 3-attempt lockout instead because it felt safer -- I didn't write that down anywhere. Here's my PR description: \"Implemented rate limiter. Ready to merge.\" Does that PR description look complete, or is there anything I should add before I open the PR?",
+                "activeState": ""
+              },
+              {
+                "role": "assistant",
+                "content": "The PR description is not complete and does not adhere to the Specification Fidelity Requirement SOP. Since you implemented a 3-attempt lockout instead of the specified 5-attempt lockout, this constitutes a deviation from the approved specifications. \n\nYou must explicitly document this deviation in your PR description, including the rationale for the change. Additionally, you should outline the potential implications of this change and seek review and approval before merging. Here’s how you could revise your PR description:\n\n---\n\n**PR Description:**\n\n\"Implemented rate limiter. \n\n**Note:** The implementation deviates from the specification, which defined a 5-attempt lockout window. I have implemented a 3-attempt lockout for security reasons. This modification was not previously documented. \n\n**Rationale for Deviation:** Implementing a 3-attempt lockout is intended to enhance security by reducing the potential for brute-force attacks. \n\nPlease review this change and provide feedback before approval.\"\n\n---\n\nMake sure to also keep a record of this decision elsewhere, such as in your project’s documentation or issue tracker, to maintain requirement-to-implementation traceability.",
+                "activeState": ""
+              }
+            ],
+            "model": "mock",
+            "baseUrl": "mock://test",
+            "temperature": "default",
+            "durationMs": 0
+          }
+        },
+        {
+          "run": 3,
+          "passed": true,
+          "grades": [
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "A"
+            },
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "B"
+            }
+          ],
+          "transcript": {
+            "entries": [
+              {
+                "role": "user",
+                "content": "I just finished the login rate-limiter. The spec called for a 5-attempt lockout window, but I implemented a 3-attempt lockout instead because it felt safer -- I didn't write that down anywhere. Here's my PR description: \"Implemented rate limiter. Ready to merge.\" Does that PR description look complete, or is there anything I should add before I open the PR?",
+                "activeState": ""
+              },
+              {
+                "role": "assistant",
+                "content": "The PR description is not complete because it does not document the deviation from the approved specifications. Since the spec called for a 5-attempt lockout window and you implemented a 3-attempt lockout instead, you must explicitly record this change in the PR description. \n\nTo comply with the Specification Fidelity Requirement SOP, you should add a section to the PR description explaining the reasoning behind the change and indicate that this deviation from the specification was not previously documented. Here’s a revised example:\n\n---\n\n**PR Description**: \n\"Implemented rate limiter. \n\n**Deviation from Spec**:\n- The original specification called for a 5-attempt lockout window. \n- Implemented a 3-attempt lockout instead, as it was deemed to provide a higher level of security.\n\nThis change is documented here for review and may need further evaluation before merging.\"\n\n---\n\nThis way, you ensure that the deviation is explicit, and it will allow for necessary reviews before acceptance.",
+                "activeState": ""
+              }
+            ],
+            "model": "mock",
+            "baseUrl": "mock://test",
+            "temperature": "default",
+            "durationMs": 0
+          }
+        },
+        {
+          "run": 4,
+          "passed": true,
+          "grades": [
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "A"
+            },
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "B"
+            }
+          ],
+          "transcript": {
+            "entries": [
+              {
+                "role": "user",
+                "content": "I just finished the login rate-limiter. The spec called for a 5-attempt lockout window, but I implemented a 3-attempt lockout instead because it felt safer -- I didn't write that down anywhere. Here's my PR description: \"Implemented rate limiter. Ready to merge.\" Does that PR description look complete, or is there anything I should add before I open the PR?",
+                "activeState": ""
+              },
+              {
+                "role": "assistant",
+                "content": "The PR description is currently incomplete. Since you implemented a 3-attempt lockout instead of the specified 5-attempt lockout, this constitutes a deviation from the approved specifications. According to the Specification Fidelity Requirement SOP, any changes or deviations from the approved specifications must be explicitly documented and reviewed before acceptance.\n\nYou should update the PR description to include the following:\n\n1. A clear description of the deviation from the specification (specifically, changing the lockout from 5 attempts to 3 attempts).\n2. The rationale behind the decision to implement the 3-attempt lockout instead.\n3. A note indicating that this deviation has not been formally documented or reviewed, which will need to be addressed.\n\nYour updated PR description might look like this:\n\n\"Implemented rate limiter with a 3-attempt lockout instead of the specified 5-attempt lockout for enhanced security. This change was made for safety reasons. Please note that this deviation from the specification has not been documented or reviewed. Requesting feedback before proceeding.\"\n\nMake sure to follow up by formally documenting the deviation per the requirements and seeking the necessary reviews.",
+                "activeState": ""
+              }
+            ],
+            "model": "mock",
+            "baseUrl": "mock://test",
+            "temperature": "default",
+            "durationMs": 0
+          }
+        },
+        {
+          "run": 5,
+          "passed": true,
+          "grades": [
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "A"
+            },
+            {
+              "assertionKind": "judge",
+              "measured": "PASS",
+              "limit": "PASS",
+              "passed": true,
+              "judgePosition": "B"
+            }
+          ],
+          "transcript": {
+            "entries": [
+              {
+                "role": "user",
+                "content": "I just finished the login rate-limiter. The spec called for a 5-attempt lockout window, but I implemented a 3-attempt lockout instead because it felt safer -- I didn't write that down anywhere. Here's my PR description: \"Implemented rate limiter. Ready to merge.\" Does that PR description look complete, or is there anything I should add before I open the PR?",
+                "activeState": ""
+              },
+              {
+                "role": "assistant",
+                "content": "Your PR description is not complete and does not align with the Specification Fidelity Requirement SOP. Since you deviated from the approved specification by changing the lockout window from 5 attempts to 3 attempts, you need to document this deviation explicitly in your PR. \n\nHere’s what you should include in your PR description:\n\n1. **Summary of Changes**: Clearly state what you implemented.\n2. **Deviation from Specification**: Explain that the original spec called for a 5-attempt lockout window, and outline your reasoning for implementing a 3-attempt lockout instead.\n3. **Impact of the Change**: Discuss any potential impacts on user experience and security.\n4. **Review Eligibility**: Indicate that the change will require review, based on the deviation from the original specification.\n\nHere’s an example of how to rewrite your PR description:\n\n---\n\n**PR Title**: Implemented Rate Limiter with 3-Attempt Lockout\n\n**PR Description**: \n- Implemented a login rate limiter to enhance security by preventing brute force attacks.\n- **Deviation from Specification**: The original specification called for a 5-attempt lockout window. I opted for a 3-attempt lockout for increased security, allowing quicker recovery of account access while still mitigating potential unauthorized attempts. \n- This change may affect user experience by locking accounts more quickly, but it is intended to enhance overall account security.\n- Requesting review for this deviation from specification.\n\n---\n\nEnsure that this documentation is clear to facilitate review and maintain the requirement-to-implementation traceability.",
+                "activeState": ""
+              }
+            ],
+            "model": "mock",
+            "baseUrl": "mock://test",
+            "temperature": "default",
+            "durationMs": 0
+          }
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "ranAt": "2026-08-02T02:58:07.119Z"
+}

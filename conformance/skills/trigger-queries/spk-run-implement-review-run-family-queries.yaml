@@ -1,0 +1,31 @@
+id: spk-run-implement-review-run-family
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+# shouldTrigger reused unchanged from
+# spk-run-implement-review-duplicate-pair-queries.yaml (WP01) — same skill,
+# same plausible invocations; only the near-miss purpose differs between the
+# two files (research.md §8).
+shouldTrigger:
+  - "Use spk-run-next to identify the active WP and lane"
+  - "Coordinate implementers and reviewers until the mission is done"
+  - "Feed reviewer feedback back into the next implementation attempt"
+  - "Continue the implement-review loop until terminal or blocked"
+  - "Dispatch implementation only from runtime-provided prompt context"
+  - "Review each WP independently with spk-run-review-wp"
+  - "Keep looping through implementation and review for all packages"
+  - "Cycle back to implementation after a rejection"
+nearMiss:
+  - "What is the manifest schema version for this project?"
+  - "How do I initialize a new spec-kitty repository?"
+  - "Explain how git worktrees are created for a lane"
+  - "What are DIR-0xx directives and where are they defined?"
+  - "How does the merge preflight validate a target branch?"
+  - "What is the acceptance-matrix.json file used for?"
+  # FR-002 run-family twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-run-next-duplicate-pair-queries.yaml (WP01). This file is run-family
+  # only; near-miss borrows from the two run-family siblings, not the legacy
+  # twin (spec-kitty-implement-review, WP01's separate territory).
+  - "Resolve the pending decision_required in this mission"
+  # FR-002 run-family twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-run-review-wp-duplicate-pair-queries.yaml (WP01).
+  - "Operate the review workflow surface for this WP"
