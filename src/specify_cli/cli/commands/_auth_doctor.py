@@ -511,7 +511,13 @@ def assemble_report(
     """
     now = now_utc()
     session_summary, raw_session = _read_session_summary()
-    auth_verdict = evaluate_auth_verdict(raw_session, now, server_probe=server_probe)
+    assessment = getattr(get_token_manager(), "session_assessment", None)
+    auth_verdict = evaluate_auth_verdict(
+        raw_session,
+        now,
+        server_probe=server_probe,
+        session_assessment_reason=getattr(assessment, "reason", None),
+    )
     refresh_lock = _read_lock_summary(stuck_threshold_s)
 
     findings = _compute_findings(
@@ -581,10 +587,7 @@ def _render_storage_section(report: DoctorReport, console: Console) -> None:
     if report.session is None or report.session.storage_backend is None:
         console.print("  (no session)")
     else:
-        console.print(
-            f"  Backend:        "
-            f"{escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}"
-        )
+        console.print(f"  Backend:        {escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}")
         if report.session.in_memory_drift:
             console.print("  [dim]Note: persisted differs from in-memory (typical during in-flight refresh)[/dim]")
     console.print()
@@ -627,16 +630,9 @@ def _render_findings_section(report: DoctorReport, console: Console) -> None:
                 f"  [[{color}]{finding.severity}[/{color}]] {escape(sanitize_terminal_text(finding.id))}: {escape(sanitize_terminal_text(finding.summary))}"
             )
             if finding.remediation_command is not None:
-                description = (
-                    f" — {finding.remediation_description}"
-                    if finding.remediation_description
-                    else ""
-                )
+                description = f" — {finding.remediation_description}" if finding.remediation_description else ""
                 command = escape(sanitize_terminal_text(finding.remediation_command))
-                console.print(
-                    "      Run: "
-                    f"{command}{escape(sanitize_terminal_text(description))}"
-                )
+                console.print(f"      Run: {command}{escape(sanitize_terminal_text(description))}")
 
 
 def render_report_json(report: DoctorReport) -> str:

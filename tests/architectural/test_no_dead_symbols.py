@@ -426,10 +426,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
-        # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
-        # instead of datetime.now(UTC), per the clock single-door migration)
+        # #1060: report now carries the token manager's safe persisted-session
+        # decryption-failure assessment into the auth verdict)
         SymbolKey(
-            "assemble_report", "e132afb32edcad67772bbe2d608e87ce9f387a7b688291f9c919f63542eb5e45", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "0151dc1711c6c0c8abb84fe441e55357be72af0c8e238005c48390646c92f051", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),

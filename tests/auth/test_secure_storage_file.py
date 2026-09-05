@@ -2,11 +2,11 @@
 
 Critical coverage (per decision D-8 / constraint C-011):
 
-- Scrypt KDF with random 16-byte salt stored at 0600.
+- Stable random 32-byte key stored at 0600.
 - AES-256-GCM round-trip.
 - v1 plaintext format is rejected with a clear error.
 - Tampered ciphertext fails authentication → ``StorageDecryptionError``.
-- Wrong salt → decryption fails (simulates a machine/UID mismatch).
+- Legacy v2 hostname-bound sessions migrate to v3 on read.
 - Concurrent writes coordinated by the FileLock (no corruption).
 """
 
@@ -16,10 +16,12 @@ import concurrent.futures
 import json
 import os
 import stat
+import threading
 from kernel.clock import datetime, now_utc, timedelta
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from specify_cli.auth.errors import SecureStorageError, StorageDecryptionError
 from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage, _get_uid
@@ -27,6 +29,7 @@ from specify_cli.auth.session import StoredSession, Team
 
 
 pytestmark = [pytest.mark.integration]
+
 
 def _now() -> datetime:
     return now_utc()
@@ -91,20 +94,18 @@ def test_roundtrip_write_read(storage: FastFileFallback):
     assert loaded == s
 
 
-def test_write_creates_salt_file_with_0600(storage: FastFileFallback, tmp_path: Path):
+def test_write_creates_key_file_with_0600(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
-    salt_file = tmp_path / "session.salt"
-    assert salt_file.exists()
+    key_file = tmp_path / "session.key"
+    assert key_file.exists()
     # Check permissions (POSIX only). Windows skips this.
     if hasattr(os, "getuid"):
-        mode = stat.S_IMODE(salt_file.stat().st_mode)
+        mode = stat.S_IMODE(key_file.stat().st_mode)
         assert mode == 0o600
-    assert len(salt_file.read_bytes()) == 16  # golden-count: cardinality-is-contract
+    assert len(key_file.read_bytes()) == 32  # golden-count: cardinality-is-contract
 
 
-def test_write_creates_credentials_file_with_0600(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_write_creates_credentials_file_with_0600(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
     assert cred_file.exists()
@@ -123,20 +124,18 @@ def test_credentials_dir_created_with_0700(storage: FastFileFallback, tmp_path: 
         assert mode == 0o700
 
 
-def test_salt_is_random_across_instances(tmp_path: Path):
-    # Two fresh storages in different dirs should produce different salts.
+def test_key_is_random_across_instances(tmp_path: Path):
+    # Two fresh storages in different dirs should produce different keys.
     s1 = FastFileFallback(base_dir=tmp_path / "a")
     s2 = FastFileFallback(base_dir=tmp_path / "b")
     s1.write(_make_session())
     s2.write(_make_session())
-    salt1 = (tmp_path / "a" / "session.salt").read_bytes()
-    salt2 = (tmp_path / "b" / "session.salt").read_bytes()
-    assert salt1 != salt2
+    key1 = (tmp_path / "a" / "session.key").read_bytes()
+    key2 = (tmp_path / "b" / "session.key").read_bytes()
+    assert key1 != key2
 
 
-def test_encrypted_file_does_not_contain_plaintext(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_encrypted_file_does_not_contain_plaintext(storage: FastFileFallback, tmp_path: Path):
     s = _make_session(access_token="SUPER_SECRET_TOKEN_VALUE")
     storage.write(s)
     raw_bytes = (tmp_path / "session.json").read_bytes()
@@ -144,10 +143,10 @@ def test_encrypted_file_does_not_contain_plaintext(
     assert b"SUPER_SECRET_TOKEN_VALUE" not in raw_bytes
 
 
-def test_file_format_is_version_2(storage: FastFileFallback, tmp_path: Path):
+def test_file_format_is_version_3(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     blob = json.loads((tmp_path / "session.json").read_text())
-    assert blob["version"] == 2
+    assert blob["version"] == 3
     assert "nonce" in blob
     assert "ciphertext" in blob
 
@@ -155,27 +154,22 @@ def test_file_format_is_version_2(storage: FastFileFallback, tmp_path: Path):
 def test_v1_plaintext_is_rejected(storage: FastFileFallback, tmp_path: Path):
     # Simulate a stale v1 file.
     (tmp_path).mkdir(parents=True, exist_ok=True)
-    (tmp_path / "session.json").write_text(
-        json.dumps({"version": 1, "user_id": "old"})
-    )
+    (tmp_path / "session.json").write_text(json.dumps({"version": 1, "user_id": "old"}))
     os.chmod(tmp_path / "session.json", 0o600)
     with pytest.raises(StorageDecryptionError) as excinfo:
         storage.read()
     assert "v1" in str(excinfo.value) or "version" in str(excinfo.value).lower()
 
 
-def test_missing_salt_rejects_decryption(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_missing_key_rejects_decryption_and_self_heals(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
-    (tmp_path / "session.salt").unlink()
+    (tmp_path / "session.key").unlink()
     with pytest.raises(StorageDecryptionError):
         storage.read()
+    assert not (tmp_path / "session.json").exists()
 
 
-def test_tampered_ciphertext_fails_authentication(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_tampered_ciphertext_fails_authentication(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
     blob = json.loads(cred_file.read_text())
@@ -186,29 +180,46 @@ def test_tampered_ciphertext_fails_authentication(
     cred_file.write_text(json.dumps(blob))
     with pytest.raises(StorageDecryptionError):
         storage.read()
+    assert not cred_file.exists()
 
 
-def test_wrong_salt_fails_decryption(
-    storage: FastFileFallback, tmp_path: Path
-):
-    """Simulate the scenario where the salt file was replaced (e.g. user moved machine).
-
-    The ciphertext was encrypted with the original salt-derived key; rotating
-    the salt changes the derived key and AES-GCM authentication fails.
-    """
+def test_wrong_key_fails_decryption(storage: FastFileFallback, tmp_path: Path):
+    """Replacing the stable key fails closed and removes stale ciphertext."""
     storage.write(_make_session())
-    salt_file = tmp_path / "session.salt"
-    # Replace with a brand-new random 16-byte salt.
+    key_file = tmp_path / "session.key"
     import secrets
 
-    salt_file.write_bytes(secrets.token_bytes(16))
+    key_file.write_bytes(secrets.token_bytes(32))
     with pytest.raises(StorageDecryptionError):
         storage.read()
+    assert not (tmp_path / "session.json").exists()
 
 
-def test_malformed_json_raises_decryption_error(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_hostname_change_does_not_invalidate_v3_session(storage: FastFileFallback, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("specify_cli.auth.secure_storage.file_fallback.socket.gethostname", lambda: "host-a")
+    session = _make_session()
+    storage.write(session)
+    monkeypatch.setattr("specify_cli.auth.secure_storage.file_fallback.socket.gethostname", lambda: "host-b")
+    assert storage.read() == session
+
+
+def test_legacy_v2_session_is_read_and_migrated(storage: FastFileFallback, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("specify_cli.auth.secure_storage.file_fallback.socket.gethostname", lambda: "legacy-host")
+    session = _make_session()
+    salt = storage._load_or_create_salt()
+    key = storage._derive_legacy_key(salt)
+    nonce = os.urandom(12)
+    ciphertext = AESGCM(key).encrypt(nonce, session.to_json().encode(), None)
+    (tmp_path / "session.json").write_text(json.dumps({"version": 2, "nonce": nonce.hex(), "ciphertext": ciphertext.hex()}))
+    os.chmod(tmp_path / "session.json", 0o600)
+
+    assert storage.read() == session
+    assert json.loads((tmp_path / "session.json").read_text())["version"] == 3
+    assert (tmp_path / "session.key").exists()
+    assert not (tmp_path / "session.salt").exists()
+
+
+def test_malformed_json_raises_decryption_error(storage: FastFileFallback, tmp_path: Path):
     (tmp_path).mkdir(parents=True, exist_ok=True)
     (tmp_path / "session.json").write_text("{not-json")
     os.chmod(tmp_path / "session.json", 0o600)
@@ -216,15 +227,15 @@ def test_malformed_json_raises_decryption_error(
         storage.read()
 
 
-def test_delete_removes_cred_and_salt(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_delete_removes_cred_key_and_legacy_salt(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     assert (tmp_path / "session.json").exists()
-    assert (tmp_path / "session.salt").exists()
+    assert (tmp_path / "session.key").exists()
+    (tmp_path / "session.salt").write_bytes(os.urandom(16))
     storage.delete()
     assert not (tmp_path / "session.json").exists()
     assert not (tmp_path / "session.salt").exists()
+    assert not (tmp_path / "session.key").exists()
 
 
 def test_delete_is_idempotent(storage: FastFileFallback):
@@ -251,10 +262,46 @@ def test_concurrent_writes_do_not_corrupt(tmp_path: Path):
     assert loaded.access_token.startswith("token-")
 
 
+def test_read_holds_lock_across_decrypt_while_session_rotates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A logout/login cannot make a reader delete the replacement session."""
+    storage = FastFileFallback(base_dir=tmp_path)
+    old_session = _make_session("old-token")
+    new_session = _make_session("new-token")
+    storage.write(old_session)
+
+    decrypt_started = threading.Event()
+    allow_decrypt = threading.Event()
+    mutation_finished = threading.Event()
+    original_decrypt = storage._decrypt
+
+    def paused_decrypt(blob: dict[str, object]) -> bytes:
+        decrypt_started.set()
+        assert allow_decrypt.wait(timeout=2)
+        return original_decrypt(blob)
+
+    monkeypatch.setattr(storage, "_decrypt", paused_decrypt)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        read_future = pool.submit(storage.read)
+        assert decrypt_started.wait(timeout=2)
+
+        def rotate_session() -> None:
+            storage.delete()
+            storage.write(new_session)
+            mutation_finished.set()
+
+        mutation_future = pool.submit(rotate_session)
+        assert not mutation_finished.wait(timeout=0.1)
+        allow_decrypt.set()
+        assert read_future.result(timeout=2) == old_session
+        mutation_future.result(timeout=2)
+
+    monkeypatch.setattr(storage, "_decrypt", original_decrypt)
+    assert storage.read() == new_session
+
+
 @pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")
-def test_read_rejects_group_readable_credentials(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_read_rejects_group_readable_credentials(storage: FastFileFallback, tmp_path: Path):
     """NFR-013: read() must reject credentials files that are not owner-only."""
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
@@ -265,9 +312,7 @@ def test_read_rejects_group_readable_credentials(
 
 
 @pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")
-def test_read_rejects_world_readable_credentials(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_read_rejects_world_readable_credentials(storage: FastFileFallback, tmp_path: Path):
     """NFR-013: read() must reject world-readable credentials files."""
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
@@ -280,11 +325,9 @@ def test_backend_name_is_file(storage: FastFileFallback):
     assert storage.backend_name == "file"
 
 
-def test_rewrite_reuses_existing_salt(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_rewrite_reuses_existing_key(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
-    salt_before = (tmp_path / "session.salt").read_bytes()
+    key_before = (tmp_path / "session.key").read_bytes()
     storage.write(_make_session(access_token="different"))
-    salt_after = (tmp_path / "session.salt").read_bytes()
-    assert salt_before == salt_after
+    key_after = (tmp_path / "session.key").read_bytes()
+    assert key_before == key_after

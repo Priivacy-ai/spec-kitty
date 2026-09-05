@@ -160,7 +160,10 @@ def test_watch_json_emits_one_json_line_per_frame(monkeypatch: pytest.MonkeyPatc
     result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--json"])
     assert result.exit_code == 0
     lines = [line for line in result.stdout.splitlines() if line.strip()]
-    assert [json.loads(line) for line in lines] == frames
+    payloads = [json.loads(line) for line in lines]
+    assert payloads[:-1] == frames
+    assert payloads[-1]["type"] == "watch_summary"
+    assert payloads[-1]["frames"] == 2
 
 
 def test_watch_not_checked_out_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -228,6 +231,7 @@ def test_watch_json_keeps_the_raw_payload_for_event_frames(monkeypatch: pytest.M
     monkeypatch.setattr(subscription, "watch", _fake_watch)
     result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--json"])
     assert result.exit_code == 0
-    line = json_module.loads(result.stdout.strip())
-    assert line["frame_type"] == "event"
-    assert line["payload"]["attrs"] == {"to_lane": "for_review"}
+    lines = [json_module.loads(line) for line in result.stdout.splitlines() if line.strip()]
+    assert lines[0]["frame_type"] == "event"
+    assert lines[0]["payload"]["attrs"] == {"to_lane": "for_review"}
+    assert lines[1]["type"] == "watch_summary"

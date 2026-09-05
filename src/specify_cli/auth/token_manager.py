@@ -41,6 +41,7 @@ from .errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
     SessionInvalidError,
+    StorageDecryptionError,
 )
 from .refresh_transaction import (
     RefreshLockTimeoutError,
@@ -185,6 +186,15 @@ class TokenManager:
             self._hot_path_summary = None
             self._record_current_session_assessment()
             self._publish_hot_path_summary_if_possible()
+        except StorageDecryptionError:
+            log.warning("Stored session could not be decrypted and was removed; run `spec-kitty auth login` to create a new session.")
+            self._session = None
+            self._hot_path_summary = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_decryption_failed",
+            )
         except Exception:  # noqa: BLE001 — never crash on stale credentials
             log.warning("Could not evaluate session from storage")
             self._session = None
@@ -315,6 +325,14 @@ class TokenManager:
             self._session = self._storage.read()
             self._record_current_session_assessment()
             self._publish_hot_path_summary_if_possible()
+        except StorageDecryptionError:
+            log.warning("Stored session could not be decrypted and was removed; run `spec-kitty auth login` to create a new session.")
+            self._session = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_decryption_failed",
+            )
         except Exception:  # noqa: BLE001 — assessment failure is retained
             log.warning("Could not materialize session from storage")
             self._session = None
@@ -353,9 +371,7 @@ class TokenManager:
         if self._session is None:
             self._materialize_session_from_storage_sync()
         if self._session is None:
-            raise NotAuthenticatedError(
-                "No active session. Run `spec-kitty auth login` to authenticate."
-            )
+            raise NotAuthenticatedError("No active session. Run `spec-kitty auth login` to authenticate.")
         if self._session.is_access_token_expired(buffer_seconds=_REFRESH_BUFFER_SECONDS):
             await self.refresh_if_needed()
         # After refresh, _session is still non-None (refresh_if_needed raises on failure).
@@ -502,14 +518,10 @@ class TokenManager:
             # while we were waiting for our turn.
             if self._session is None:
                 raise NotAuthenticatedError("No session to refresh")
-            if not self._session.is_access_token_expired(
-                buffer_seconds=_REFRESH_BUFFER_SECONDS
-            ):
+            if not self._session.is_access_token_expired(buffer_seconds=_REFRESH_BUFFER_SECONDS):
                 return False  # already refreshed by a previous caller
             if self._session.is_refresh_token_expired():
-                raise RefreshTokenExpiredError(
-                    "Refresh token expired. Run `spec-kitty auth login` to log in again."
-                )
+                raise RefreshTokenExpiredError("Refresh token expired. Run `spec-kitty auth login` to log in again.")
 
             # Lazy import to avoid circular dependencies: auth.flows.refresh
             # imports from specify_cli.auth (session/errors/config).
@@ -571,13 +583,8 @@ class TokenManager:
                     reason="session_cleared",
                 )
                 if result.rejection_cause is RefreshRejectionCause.SESSION_INVALID:
-                    raise SessionInvalidError(
-                        "Session has been invalidated server-side. "
-                        "Run `spec-kitty auth login` to re-authenticate."
-                    )
-                raise RefreshTokenExpiredError(
-                    "Refresh token expired. Run `spec-kitty auth login` to log in again."
-                )
+                    raise SessionInvalidError("Session has been invalidated server-side. Run `spec-kitty auth login` to re-authenticate.")
+                raise RefreshTokenExpiredError("Refresh token expired. Run `spec-kitty auth login` to log in again.")
             # outcome is RefreshOutcome.LOCK_TIMEOUT_ERROR
             if result.lock_timeout_message is not None:
                 raise RefreshLockTimeoutError(result.lock_timeout_message)
