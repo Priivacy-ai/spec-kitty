@@ -245,9 +245,15 @@ def _record_analysis(
 # ---------------------------------------------------------------------------
 
 
-def test_check_prerequisites_field_parity_with_host_cli(tmp_path: Path) -> None:
+def test_check_prerequisites_field_parity_with_host_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, _feature_dir = _build_mission(repo, "wp04-scenario1")
+    monkeypatch.setattr(
+        "specify_cli.context.resolver.now_utc_iso",
+        lambda: "2026-09-03T00:00:00Z",
+    )
 
     import contextlib
     import io
