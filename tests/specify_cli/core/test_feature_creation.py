@@ -676,7 +676,6 @@ def test_meta_json_commit_noop_does_not_raise(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         # A plain no-op mock (no side_effect, returns None) stands in for the
         # real no-op path (nothing new to commit), which never raises.
         patch(f"{_CORE_MODULE}._commit_feature_file", return_value=None) as commit_mock,
@@ -716,7 +715,6 @@ def test_meta_json_commit_hard_failure_raises_for_documentation_mission(
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file", side_effect=boom),
         pytest.raises(RuntimeError, match="documentation state commit rejected"),
     ):

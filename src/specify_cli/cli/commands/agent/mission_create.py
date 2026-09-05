@@ -543,7 +543,6 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
     feature_dir = result.feature_dir
     spec_file = feature_dir / "spec.md"
     meta_file = feature_dir / "meta.json"
-    tasks_readme = feature_dir / "tasks" / "README.md"
     payload: dict[str, object] = {
         "result": "success",
         "mission_slug": result.mission_slug,
@@ -560,7 +559,7 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         "spec_file": str(spec_file),
         "meta_file": str(meta_file),
         "created_at": str(result.meta.get("created_at", "")),
-        "created_files": [str(spec_file), str(meta_file), str(tasks_readme)],
+        "created_files": [str(path) for path in result.created_files],
         # #2693: spec.md is scaffolded empty and left uncommitted on purpose
         # (#846) — it is committed later by /spec-kitty.specify once it holds
         # substantive content. Disclose it as a structured uncommitted artifact
@@ -570,10 +569,19 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         # committed transactionally at create time, so they are NOT listed here.
         "uncommitted_artifacts": [
             {
-                "path": str(spec_file),
-                "reason": ("Scaffolded empty at create time; populated and committed with substantive content later (#846)."),
-                "responsible_command": "/spec-kitty.specify",
+                "path": str(path),
+                "reason": (
+                    "Scaffolded empty at create time; populated and committed with substantive content later (#846)."
+                    if path == spec_file
+                    else "Generated scaffold could not be committed to the protected or unavailable target branch."
+                ),
+                "responsible_command": (
+                    "/spec-kitty.specify"
+                    if path == spec_file
+                    else "commit from a non-protected feature branch"
+                ),
             }
+            for path in result.uncommitted_files
         ],
         "write_mode": "update_existing_files",
         "scaffold_only": True,

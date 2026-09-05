@@ -329,10 +329,11 @@ FLOOR_MARGIN = 2
 # target branch for the discard commits — ``load_meta`` in
 # ``mission_type._commit_flattened_meta`` (commit-the-flatten leg) and
 # ``load_meta_or_empty`` in ``retrospective_terminus._primary_target_branch``
-# (the retrospective degrade-ref). Live rises 154 -> 156; floor raised 150 -> 152,
-# the lowest permitted value within the four-site margin (``152 <= 152 < 156``).
+# (the retrospective degrade-ref). On the EXP lineage the integrated census is
+# 152; floor 148 is the lowest permitted value within the four-site margin
+# (``148 <= 148 < 152``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 152
+ROUTED_LOAD_META_FLOOR = 148
 
 
 # --------------------------------------------------------------------------- #
