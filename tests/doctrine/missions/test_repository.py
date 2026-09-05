@@ -446,9 +446,7 @@ class TestGetExpectedArtifacts:
         assert "list" in str(excinfo.value)
 
     @pytest.mark.regression
-    def test_present_but_unreadable_manifest_fails_loud(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_present_but_unreadable_manifest_fails_loud(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """#3412 FR-012 [RED-first]: a manifest that EXISTS on disk but
         raises ``OSError``/``UnicodeDecodeError`` on read must fail loud via
         ``MalformedManifestError``, not degrade silently to ``None``.

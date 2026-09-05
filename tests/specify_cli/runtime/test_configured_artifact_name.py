@@ -366,9 +366,7 @@ class TestLoadBearingPathPatternPropagation:
         # read) forces a fresh, patched load rather than silently replaying
         # this cached value (see the class docstring).
         original_hash_inputs = analysis_report_module._HASH_INPUTS
-        monkeypatch.setattr(
-            MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts
-        )
+        monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
         clear_cache()
         try:
             importlib.reload(analysis_report_module)
@@ -390,9 +388,7 @@ class TestLoadBearingPathPatternPropagation:
         # post-monkeypatch read and the post-undo restoration read.
         original_spec_file = acceptance_module.SPEC_FILE
         original_plan_file = acceptance_module.PLAN_FILE
-        monkeypatch.setattr(
-            MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts
-        )
+        monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
         clear_cache()
         try:
             importlib.reload(acceptance_module)
@@ -632,9 +628,7 @@ class TestManifestSchemaErrorPerTier:
 
 
 class TestResolverRoutesThroughAuthority:
-    def test_delegates_to_manifest_loader_load_manifest(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_delegates_to_manifest_loader_load_manifest(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import charter.activation.manifest_loader as manifest_loader_module
 
         calls: list[tuple[str, Path | None]] = []

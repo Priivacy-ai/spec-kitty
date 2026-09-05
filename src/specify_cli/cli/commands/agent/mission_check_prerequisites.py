@@ -510,8 +510,13 @@ def _emit_check_prerequisites_result(
 
 
 def _run_resume_probe(
-    repo_root: Path, feature: str | None, *, paths_only: bool,
-    include_tasks: bool, require_tasks: bool, json_output: bool,
+    repo_root: Path,
+    feature: str | None,
+    *,
+    paths_only: bool,
+    include_tasks: bool,
+    require_tasks: bool,
+    json_output: bool,
 ) -> None:
     """Validate the resume-only options and report the existing resume contract."""
     if not feature or not feature.strip():
@@ -595,8 +600,12 @@ def check_prerequisites(
 
         if resume_probe:
             _run_resume_probe(
-                repo_root, feature, paths_only=paths_only, include_tasks=include_tasks,
-                require_tasks=require_tasks, json_output=json_output,
+                repo_root,
+                feature,
+                paths_only=paths_only,
+                include_tasks=include_tasks,
+                require_tasks=require_tasks,
+                json_output=json_output,
             )
             return
 

@@ -73,9 +73,7 @@ def _policy(*, protected: bool) -> ProtectionPolicy:
         (False, False, False),
     ],
 )
-def test_skip_helper_derives_route_to_coord_via_shared_rule(
-    tmp_path: Path, coord_active: bool, protected: bool, expected_skip: bool
-) -> None:
+def test_skip_helper_derives_route_to_coord_via_shared_rule(tmp_path: Path, coord_active: bool, protected: bool, expected_skip: bool) -> None:
     """``_skip_target_branch_commit`` mirrors the shared rule's RouteToCoord verdict.
 
     The lifecycle-kind (STATUS_STATE) under a coord-routing topology with a
@@ -125,9 +123,7 @@ def test_protected_error_derives_refuse_with_shared_remedy(tmp_path: Path) -> No
     )
 
     with patch.object(_tasks.ProtectionPolicy, "resolve", return_value=_policy(protected=True)):
-        message = _protected_branch_status_commit_error(
-            _PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements"
-        )
+        message = _protected_branch_status_commit_error(_PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements")
 
     assert message is not None
     assert "map-requirements" in message
@@ -155,9 +151,7 @@ def test_protected_error_none_on_unprotected_primary(tmp_path: Path) -> None:
     )
 
     with patch.object(_tasks.ProtectionPolicy, "resolve", return_value=_policy(protected=False)):
-        message = _protected_branch_status_commit_error(
-            _PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements"
-        )
+        message = _protected_branch_status_commit_error(_PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements")
     assert message is None
 
 
@@ -176,13 +170,9 @@ def test_map_requirements_cli_refuses_exit1_on_protected(
     slug = "001-surface-authority"
     mission_dir = repo.repo_root / "kitty-specs" / slug
     (mission_dir / "tasks").mkdir(parents=True)
-    (mission_dir / "meta.json").write_text(
-        json.dumps({"mission_id": "01SURFACEAUTHORITYMISSION0"}), encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_id": "01SURFACEAUTHORITYMISSION0"}), encoding="utf-8")
     (mission_dir / "spec.md").write_text("# Spec\n\n- FR-001: do a thing\n", encoding="utf-8")
-    (mission_dir / "tasks" / "WP01-thing.md").write_text(
-        "---\nwork_package_id: WP01\n---\n# WP01\n", encoding="utf-8"
-    )
+    (mission_dir / "tasks" / "WP01-thing.md").write_text("---\nwork_package_id: WP01\n---\n# WP01\n", encoding="utf-8")
 
     head_before = _head_sha(repo.repo_root)
     runner = CliRunner()
@@ -285,15 +275,9 @@ def test_mark_status_is_frozen_no_commit(
     slug = "001-frozen-no-commit"
     mission_dir = repo.repo_root / "kitty-specs" / slug
     (mission_dir / "tasks").mkdir(parents=True)
-    (mission_dir / "meta.json").write_text(
-        json.dumps({"mission_id": "01FROZENNOCOMMITMISSION000"}), encoding="utf-8"
-    )
-    (mission_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01\nSubtasks: T001\n", encoding="utf-8"
-    )
-    (mission_dir / "tasks" / "WP01-thing.md").write_text(
-        "---\nwork_package_id: WP01\nsubtasks:\n- T001\n---\n# WP01\n", encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_id": "01FROZENNOCOMMITMISSION000"}), encoding="utf-8")
+    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01\nSubtasks: T001\n", encoding="utf-8")
+    (mission_dir / "tasks" / "WP01-thing.md").write_text("---\nwork_package_id: WP01\nsubtasks:\n- T001\n---\n# WP01\n", encoding="utf-8")
 
     from specify_cli.cli.commands.agent.tasks import app
 
@@ -311,9 +295,7 @@ def test_mark_status_is_frozen_no_commit(
             return_value=(repo.repo_root, repo.target_branch),
         ),
         patch(f"{_TASKS}._emit_sparse_session_warning"),
-        patch(
-            "specify_cli.coordination.commit_router.commit_for_mission"
-        ) as router_commit_spy,
+        patch("specify_cli.coordination.commit_router.commit_for_mission") as router_commit_spy,
         patch(f"{_TASKS}.commit_for_mission") as seam_commit_spy,
     ):
         result = runner.invoke(
@@ -335,9 +317,7 @@ def test_mark_status_is_frozen_no_commit(
     router_commit_spy.assert_not_called()
     seam_commit_spy.assert_not_called()
     # (b) HEAD is byte-identical — no commit landed on the protected target.
-    assert _head_sha(repo.repo_root) == head_before, (
-        "event-only mark-status landed a commit on the protected target"
-    )
+    assert _head_sha(repo.repo_root) == head_before, "event-only mark-status landed a commit on the protected target"
     # (c) The event log WAS written — completion is event-sourced, not committed.
     assert events_file.exists(), "mark-status did not append the canonical status event"
     assert events_file.read_text(encoding="utf-8").strip(), "status event log is empty"

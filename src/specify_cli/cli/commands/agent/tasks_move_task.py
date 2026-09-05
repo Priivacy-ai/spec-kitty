@@ -412,15 +412,15 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout warning before any read/mutate.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks move-task")
-    st.resolved_auto_commit = (
-        _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
-    )
+    st.resolved_auto_commit = _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
     if st.owned is not None:
         if not st.resolved_auto_commit:
             raise ActionContextError("OWNED_OPTION_UNSUPPORTED", "Owned status changes require auto-commit.")
         try:
             WPInnerStateDelta(
-                agent=st.agent, assignee=st.assignee, note=st.note,
+                agent=st.agent,
+                assignee=st.assignee,
+                note=st.note,
                 shell_pid=int(st.shell_pid) if st.shell_pid else None,
                 tracker_refs=st.tracker_ref,
             )
@@ -429,12 +429,8 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         st.mission_slug = st.owned.slug
         st.main_repo_root, st.target_branch = st.owned.primary, st.owned.target
     else:
-        st.mission_slug = _tasks._find_mission_slug(
-            explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-        )
-        st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
-            repo_root, st.mission_slug, st.json_output
-        )
+        st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+        st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
     from specify_cli.cli.commands.agent.workflow import _resolve_dispatch_binding
 
     claim_mission_id: str | None = None
@@ -446,7 +442,8 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         # caller-side canonicalizer fold — redundant with the seam's own
         # internal fold for a PRIMARY-partition kind.
         primary_feature_dir = placement_seam(
-            st.main_repo_root, st.mission_slug,
+            st.main_repo_root,
+            st.mission_slug,
             **({"effective_root": st.owned.root} if st.owned else {}),
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
@@ -461,16 +458,10 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         # implementer ones -- resolving them with action="implement" (the
         # pre-WP04 brownfield gap) stamped the WRONG profile/model onto the
         # approval's policy_metadata (``_mt_approval_policy_metadata``).
-        action=(
-            "review"
-            if st.target_lane in (Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE)
-            else "implement"
-        ),
+        action=("review" if st.target_lane in (Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE) else "implement"),
     )
     st.skip_target_branch_commit = (
-        _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch)
-        if st.resolved_auto_commit and st.owned is None
-        else False
+        _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch) if st.resolved_auto_commit and st.owned is None else False
     )
     # Protected-branch status-commit refusal — a hard early exit that MUST fire
     # before the authoritative event-log read below (``_read_transactional_wp_lane``),
@@ -503,7 +494,8 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # would move the event-log read off the coord husk and reintroduce the split-brain
     # FR-010 closes.
     handle = MissionHandle(
-        repo_root=st.main_repo_root, mission_slug=st.mission_slug,
+        repo_root=st.main_repo_root,
+        mission_slug=st.mission_slug,
         effective_root=st.owned.root if st.owned else None,
     )
     st.mt_feature_dir = ports.coord.feature_write_dir(handle)
@@ -513,7 +505,9 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         _tasks._output_error(st.json_output, str(e))
         raise typer.Exit(1) from None
     st.wp = _tasks.locate_work_package(
-        repo_root, st.mission_slug, st.task_id,
+        repo_root,
+        st.mission_slug,
+        st.task_id,
         **({"effective_root": st.owned.root} if st.owned else {}),
     )
     # Lane is event-log-only; read from the canonical coord-husk event log.
@@ -705,9 +699,7 @@ def _mt_owned_workspace(st: _MoveTaskState) -> ResolvedWorkspace:
     )
 
 
-def _drop_lane_coord_residue(
-    worktree_path: Path, paths: tuple[Path, ...]
-) -> tuple[Path, ...]:
+def _drop_lane_coord_residue(worktree_path: Path, paths: tuple[Path, ...]) -> tuple[Path, ...]:
     """Seam-A guard for the raw lane-deliverable commit (#2549 / FR-003 / T012).
 
     ``_mt_commit_lane_deliverables`` commits lane deliverables through a RAW
@@ -749,11 +741,7 @@ def _mt_owned_file_patterns(st: _MoveTaskState) -> tuple[str, ...]:
     """Return normalized authored ownership patterns for the selected WP."""
     assert st.wp is not None
     metadata, _body = read_authored_wp_frontmatter(st.wp.path)
-    return tuple(
-        pattern.replace("\\", "/").removeprefix("./")
-        for pattern in metadata.owned_files
-        if pattern.strip()
-    )
+    return tuple(pattern.replace("\\", "/").removeprefix("./") for pattern in metadata.owned_files if pattern.strip())
 
 
 def _mt_matches_owned_file(path: str, patterns: tuple[str, ...]) -> bool:
@@ -803,9 +791,7 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
         workspace = _mt_owned_workspace(st)
     else:
         try:
-            workspace = _tasks.resolve_workspace_for_wp(
-                st.main_repo_root, st.mission_slug, st.task_id
-            )
+            workspace = _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
         except (ValueError, FileNotFoundError, MissingLanesError, CorruptLanesError):
             # No resolvable lane workspace (missions without lanes.json included) —
             # nothing to recover; the readiness guard stays authoritative.
@@ -843,17 +829,12 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     if st.owned is not None:
         patterns = _mt_owned_file_patterns(st)
         outside_scope = sorted(
-            path.relative_to(worktree_path).as_posix()
-            for path in paths
-            if not _mt_matches_owned_file(
-                path.relative_to(worktree_path).as_posix(), patterns
-            )
+            path.relative_to(worktree_path).as_posix() for path in paths if not _mt_matches_owned_file(path.relative_to(worktree_path).as_posix(), patterns)
         )
         if outside_scope:
             raise ActionContextError(
                 "OWNED_DELIVERABLE_SCOPE_REFUSED",
-                "Owned auto-commit includes files outside WP owned_files: "
-                + ", ".join(outside_scope),
+                "Owned auto-commit includes files outside WP owned_files: " + ", ".join(outside_scope),
             )
 
     try:
@@ -1650,9 +1631,7 @@ def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
         assert st.wp is not None
         wp_slug = st.wp.path.stem
         baseline_read_dir = st.feature_dir
-        return BaselineTestResult.load(
-            baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json"
-        )
+        return BaselineTestResult.load(baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json")
     wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
     # C-008 (coord-commit-integrity-01KY5JS8): baseline-tests.json is a
     # WORK_PACKAGE_TASK-kind (PRIMARY-partition) artifact authored by
@@ -1807,9 +1786,7 @@ def _mt_collect_transition_gate_verdicts(
     """
     wp = getattr(st, "wp", None)
     status_observer = None if st.json_output else _mt_human_gate_status_observer(_tasks)
-    override_targets = (
-        _mt_pre_review_scope_override(wp.frontmatter, st.repo_root) if wp is not None else None
-    )
+    override_targets = _mt_pre_review_scope_override(wp.frontmatter, st.repo_root) if wp is not None else None
     if override_targets is not None:
         if not st.json_output:
             _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
@@ -1847,11 +1824,7 @@ def _mt_resolve_transition_gate_inputs(
     """
     worktree_path = _mt_resolve_pre_review_workspace(st)
     dirty_before = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
-    changed_files = (
-        _mt_pre_review_changed_files(worktree_path, st.review_base_ref or st.target_branch)
-        if worktree_path is not None
-        else ()
-    )
+    changed_files = _mt_pre_review_changed_files(worktree_path, st.review_base_ref or st.target_branch) if worktree_path is not None else ()
     inputs = _TransitionGateInputs(
         worktree_path=worktree_path,
         changed_files=changed_files,
@@ -2533,16 +2506,8 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 policy_metadata=hop_policy_metadata,
                 review_ref=_mt_hop_review_ref(emit_review_ref, target, hop_review_result),
                 workspace_context=f"move-task:{st.repo_root}",
-                subtasks_complete=(
-                    True
-                    if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force
-                    else None
-                ),
-                implementation_evidence_present=(
-                    True
-                    if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force
-                    else None
-                ),
+                subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
+                implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                 repo_root=st.main_repo_root,
                 effective_root=st.owned.root if st.owned else None,
                 review_result=hop_review_result,
@@ -2609,12 +2574,8 @@ def _mt_build_rollback_summary(st: _MoveTaskState, ports: TasksPorts, reset: Map
             mission_slug=st.mission_slug,
             effective_root=owned.root if owned is not None else None,
         )
-        feature_dir = ports.fs.planning_read_dir(
-            handle, kind=MissionArtifactKind.TASKS_INDEX
-        )
-        not_done = set(
-            unchecked_subtask_ids_from_snapshot(feature_dir, st.task_id, roster)
-        )
+        feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+        not_done = set(unchecked_subtask_ids_from_snapshot(feature_dir, st.task_id, roster))
         previously_completed = tuple(tid for tid in roster if tid not in not_done)
         never_completed = tuple(tid for tid in roster if tid in not_done)
     return _RollbackResetSummary(
@@ -2650,9 +2611,7 @@ def _mt_rollback_subtasks_reset(st: _MoveTaskState, ports: TasksPorts) -> dict[s
         mission_slug=st.mission_slug,
         effective_root=owned.root if owned is not None else None,
     )
-    feature_dir = ports.fs.planning_read_dir(
-        handle, kind=MissionArtifactKind.TASKS_INDEX
-    )
+    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
     roster = authored_subtask_roster(feature_dir, st.task_id)
     return dict.fromkeys(roster, Lane.PLANNED)
 
@@ -2807,11 +2766,7 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     if delta.is_empty():
         return
     owned = getattr(st, "owned", None)
-    emitter = (
-        emit_inner_state_changed_transactional
-        if st.resolved_auto_commit
-        else emit_inner_state_changed
-    )
+    emitter = emit_inner_state_changed_transactional if st.resolved_auto_commit else emit_inner_state_changed
     if owned is not None:
         emitter(
             st.feature_dir,
@@ -2867,13 +2822,7 @@ def _mt_release_review_lock(st: _MoveTaskState) -> None:
     try:
         from specify_cli.review.lock import ReviewLock
 
-        lock_workspace = (
-            _mt_owned_workspace(st)
-            if st.owned is not None
-            else _tasks.resolve_workspace_for_wp(
-                st.main_repo_root, st.mission_slug, st.task_id
-            )
-        )
+        lock_workspace = _mt_owned_workspace(st) if st.owned is not None else _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
         ReviewLock.release(Path(lock_workspace.worktree_path))
     except Exception as _release_exc:  # pragma: no cover - defensive
         logging.getLogger(__name__).warning(
@@ -2887,6 +2836,7 @@ def _mt_release_review_lock(st: _MoveTaskState) -> None:
 def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Emit the transition(s) + persist the WP file under the status lock."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     status_lock_root = st.owned.root if st.owned is not None else st.main_repo_root
     with _tasks.feature_status_lock(status_lock_root, st.mission_slug):
         _mt_emit_transitions(st, ports)
@@ -2997,9 +2947,7 @@ def _mt_post_transition_diagnostic(
     return diagnostic
 
 
-def _mt_apply_rollback_signal(
-    result: dict[str, object], summary: _RollbackResetSummary
-) -> None:
+def _mt_apply_rollback_signal(result: dict[str, object], summary: _RollbackResetSummary) -> None:
     """Add the #3578 rollback operator signal to the ``--json`` envelope."""
     result["subtasks_reset_count"] = summary.reset_count
     result["subtasks_reset_ids"] = list(summary.reset_ids)

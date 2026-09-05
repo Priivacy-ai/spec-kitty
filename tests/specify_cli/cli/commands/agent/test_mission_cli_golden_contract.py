@@ -145,9 +145,7 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--no-auto-retry",
         }
     ),
-    "finalize-tasks": frozenset(
-        {"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout"}
-    ),
+    "finalize-tasks": frozenset({"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout"}),
     "repair": frozenset({"--mission"}),
     # 2026-08-04 landing fold (PR #3175, fold-golden-flag-surface): re-pinned
     # to add the six negative-invariant-mode flags (--negative-invariant,

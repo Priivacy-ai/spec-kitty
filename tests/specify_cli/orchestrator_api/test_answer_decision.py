@@ -117,21 +117,15 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _init_git_repo(path: Path) -> None:
-    subprocess.run(
-        ["git", "init", "--initial-branch=main"], cwd=path, capture_output=True, check=True
-    )
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"], cwd=path, capture_output=True, check=True
-    )
+    subprocess.run(["git", "init", "--initial-branch=main"], cwd=path, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=path, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=path, capture_output=True, check=True)
     (path / "README.md").write_text("# test", encoding="utf-8")
     subprocess.run(["git", "add", "README.md"], cwd=path, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "init"], cwd=path, capture_output=True, check=True)
 
 
-def _scaffold_project(
-    tmp_path: Path, *, mission_slug: str, mission_type: str, mission_id: str
-) -> Path:
+def _scaffold_project(tmp_path: Path, *, mission_slug: str, mission_type: str, mission_id: str) -> Path:
     """Scaffold a minimal spec-kitty project with a mission carrying a real
     ``mission_id`` -- the lifecycle seam's PRIMARY-anchoring reads
     (``resolve_mission_identity(...).mission_id``) are a fail-closed no-op
@@ -310,9 +304,7 @@ def _set_mission_owner_id(repo_root: Path, mission_slug: str, owner_id: str) -> 
 def test_answer_decision_auto_resolves_single_pending_audit_decision(tmp_path: Path) -> None:
     mission_slug = "wp08-audit-auto-resolve"
     mission_type = "wp08-audit-mission-1"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08AUDITULID000000001"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08AUDITULID000000001")
     _write_audit_gate_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -326,11 +318,16 @@ def test_answer_decision_auto_resolves_single_pending_audit_decision(tmp_path: P
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "success",
-            "--answer", "approve",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "success",
+            "--answer",
+            "approve",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -353,9 +350,7 @@ def test_answer_decision_auto_resolves_single_pending_audit_decision(tmp_path: P
 def test_answer_decision_explicit_decision_id_input_key(tmp_path: Path) -> None:
     mission_slug = "wp08-input-explicit"
     mission_type = "wp08-input-mission-1"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08INPUTULID0000000002"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08INPUTULID0000000002")
     _write_input_requiring_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -367,12 +362,18 @@ def test_answer_decision_explicit_decision_id_input_key(tmp_path: Path) -> None:
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "success",
-            "--answer", "yes",
-            "--decision-id", "input:approval",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "success",
+            "--answer",
+            "yes",
+            "--decision-id",
+            "input:approval",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -393,9 +394,7 @@ def test_answer_decision_explicit_decision_id_input_key(tmp_path: Path) -> None:
 def test_answer_decision_ambiguous_pending_decision_without_decision_id(tmp_path: Path) -> None:
     mission_slug = "wp08-ambiguous"
     mission_type = "wp08-input-mission-2"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08AMBIGULID000000003"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08AMBIGULID000000003")
     _write_input_requiring_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -423,11 +422,16 @@ def test_answer_decision_ambiguous_pending_decision_without_decision_id(tmp_path
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "success",
-            "--answer", "yes",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "success",
+            "--answer",
+            "yes",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -447,9 +451,7 @@ def test_answer_decision_ambiguous_pending_decision_without_decision_id(tmp_path
 def test_answer_decision_decision_id_not_pending(tmp_path: Path) -> None:
     mission_slug = "wp08-not-pending"
     mission_type = "wp08-input-mission-3"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08NOTPENDULID00000004"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08NOTPENDULID00000004")
     _write_input_requiring_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -460,12 +462,18 @@ def test_answer_decision_decision_id_not_pending(tmp_path: Path) -> None:
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "success",
-            "--answer", "yes",
-            "--decision-id", "input:does-not-exist",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "success",
+            "--answer",
+            "yes",
+            "--decision-id",
+            "input:does-not-exist",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -484,9 +492,7 @@ def test_answer_decision_decision_id_not_pending(tmp_path: Path) -> None:
 def test_answer_decision_no_pending_decision(tmp_path: Path) -> None:
     mission_slug = "wp08-no-pending"
     mission_type = "wp08-input-mission-4"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08NOPENDULID000000005"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08NOPENDULID000000005")
     _write_input_requiring_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -496,11 +502,16 @@ def test_answer_decision_no_pending_decision(tmp_path: Path) -> None:
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "success",
-            "--answer", "yes",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "success",
+            "--answer",
+            "yes",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -516,18 +527,20 @@ def test_answer_decision_no_pending_decision(tmp_path: Path) -> None:
 def test_answer_decision_result_required_without_result(tmp_path: Path) -> None:
     mission_slug = "wp08-result-required"
     mission_type = "wp08-input-mission-5"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08RESREQULID000000006"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08RESREQULID000000006")
     _write_input_requiring_mission(repo_root, mission_type)
 
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", "wp08-agent",
-            "--answer", "yes",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            "wp08-agent",
+            "--answer",
+            "yes",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -590,9 +603,7 @@ def test_answer_decision_field_parity_with_host_cli_next_answer(tmp_path: Path) 
     _set_mission_owner_id(cli_repo, mission_slug, agent)
     _set_mission_owner_id(orch_repo, mission_slug, agent)
 
-    cli_payload = _next(
-        cli_repo, agent, mission_slug, answer="approve", **{"decision-id": "audit:audit_gate"}
-    )
+    cli_payload = _next(cli_repo, agent, mission_slug, answer="approve", **{"decision-id": "audit:audit_gate"})
     assert cli_payload["kind"] == "step"
     assert cli_payload["answered"] == "audit:audit_gate"
     assert cli_payload["answer"] == "approve"
@@ -600,12 +611,18 @@ def test_answer_decision_field_parity_with_host_cli_next_answer(tmp_path: Path) 
     orch_result = _run_answer_decision(
         orch_repo,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "success",
-            "--answer", "approve",
-            "--decision-id", "audit:audit_gate",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "success",
+            "--answer",
+            "approve",
+            "--decision-id",
+            "audit:audit_gate",
+            "--policy",
+            _POLICY,
         ],
     )
     orch_envelope = _envelope(orch_result)
@@ -617,9 +634,7 @@ def test_answer_decision_field_parity_with_host_cli_next_answer(tmp_path: Path) 
     decision_keys = set(cli_payload) - {"answered", "answer"}
     assert decision_keys <= set(orch_data)
     for key in sorted(decision_keys - _excluded):
-        assert orch_data[key] == cli_payload[key], (
-            f"field {key!r} diverges: cli={cli_payload[key]!r} orch={orch_data[key]!r}"
-        )
+        assert orch_data[key] == cli_payload[key], f"field {key!r} diverges: cli={cli_payload[key]!r} orch={orch_data[key]!r}"
     assert orch_data.get("prompt_file"), "orchestrator-api response missing prompt_file"
     assert cli_payload.get("prompt_file"), "host-CLI response missing prompt_file"
 
@@ -668,9 +683,7 @@ def test_host_cli_rejects_invalid_result_before_no_pending_decision(tmp_path: Pa
     """
     mission_slug = "wp08-001-cli-ground-truth"
     mission_type = "wp08-input-mission-6"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001CLIULID00000009"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001CLIULID00000009")
     _write_input_requiring_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -692,9 +705,7 @@ def test_answer_decision_invalid_result_rejected(tmp_path: Path) -> None:
     """
     mission_slug = "wp08-001-invalid-result"
     mission_type = "wp08-input-mission-7"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001INVULID00000010"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001INVULID00000010")
     _write_input_requiring_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -704,11 +715,16 @@ def test_answer_decision_invalid_result_rejected(tmp_path: Path) -> None:
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "bogus",
-            "--answer", "yes",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "bogus",
+            "--answer",
+            "yes",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -730,9 +746,7 @@ def test_answer_decision_invalid_result_fires_before_no_pending_decision(tmp_pat
     """
     mission_slug = "wp08-001-ordering"
     mission_type = "wp08-input-mission-8"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001ORDULID00000011"
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001ORDULID00000011")
     _write_input_requiring_mission(repo_root, mission_type)
     agent = "wp08-agent"
 
@@ -742,11 +756,16 @@ def test_answer_decision_invalid_result_fires_before_no_pending_decision(tmp_pat
     result = _run_answer_decision(
         repo_root,
         [
-            "--mission", mission_slug,
-            "--agent", agent,
-            "--result", "bogus",
-            "--answer", "yes",
-            "--policy", _POLICY,
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "bogus",
+            "--answer",
+            "yes",
+            "--policy",
+            _POLICY,
         ],
     )
     envelope = _envelope(result)
@@ -782,9 +801,7 @@ def test_answer_decision_pins_lifecycle_seam_side_effects(tmp_path: Path) -> Non
     mission_slug = "wp08-lifecycle-seam-pin"
     mission_type = "wp08-lifecycle-seam-pin-mission"
     mission_id = "01HWP08SEAMPINULID0000012"
-    repo_root = _scaffold_project(
-        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id=mission_id
-    )
+    repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id=mission_id)
     _write_input_requiring_mission(repo_root, mission_type)
     feature_dir = repo_root / "kitty-specs" / mission_slug
     agent = "wp08-agent"
@@ -812,12 +829,18 @@ def test_answer_decision_pins_lifecycle_seam_side_effects(tmp_path: Path) -> Non
         result = _run_answer_decision(
             repo_root,
             [
-                "--mission", mission_slug,
-                "--agent", agent,
-                "--result", "success",
-                "--answer", "yes",
-                "--decision-id", decision_id,
-                "--policy", _POLICY,
+                "--mission",
+                mission_slug,
+                "--agent",
+                agent,
+                "--result",
+                "success",
+                "--answer",
+                "yes",
+                "--decision-id",
+                decision_id,
+                "--policy",
+                _POLICY,
             ],
         )
         envelope = _envelope(result)

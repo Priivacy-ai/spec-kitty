@@ -443,11 +443,7 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     ``Decision(...)`` construction that bypasses the builder."""
     source = inspect.getsource(rb)
     tree = ast.parse(source)
-    materialize_calls = [
-        call
-        for call in _iter_calls(tree)
-        if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"
-    ]
+    materialize_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"]
     assert len(materialize_calls) == 24
 
 

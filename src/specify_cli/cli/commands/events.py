@@ -140,10 +140,7 @@ def tail_command(
             json.dumps(
                 {
                     "error": "repo_root_not_found",
-                    "detail": (
-                        "Could not locate project root. Ensure you are inside a "
-                        "spec-kitty project (has .kittify/ or kitty-specs/)."
-                    ),
+                    "detail": ("Could not locate project root. Ensure you are inside a spec-kitty project (has .kittify/ or kitty-specs/)."),
                 }
             )
         )

@@ -30,13 +30,7 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-_COMMANDS_PY = (
-    pathlib.Path(__file__).resolve().parents[3]
-    / "src"
-    / "specify_cli"
-    / "orchestrator_api"
-    / "commands.py"
-)
+_COMMANDS_PY = pathlib.Path(__file__).resolve().parents[3] / "src" / "specify_cli" / "orchestrator_api" / "commands.py"
 
 _PREFLIGHT_CALL = "_enforce_analysis_report_write_preflight"
 _BODY_READ_CALL = "_read_record_analysis_body"
@@ -50,10 +44,7 @@ def _find_function(tree: ast.Module, name: str) -> ast.FunctionDef:
 
 
 def _statement_contains_call(stmt: ast.stmt, func_name: str) -> bool:
-    return any(
-        isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name) and sub.func.id == func_name
-        for sub in ast.walk(stmt)
-    )
+    return any(isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name) and sub.func.id == func_name for sub in ast.walk(stmt))
 
 
 def _first_top_level_statement_index_calling(body: list[ast.stmt], func_name: str) -> int:

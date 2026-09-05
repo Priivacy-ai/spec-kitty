@@ -100,9 +100,7 @@ def _fake_successful_execute_result() -> MagicMock:
 
 class TestMalformedOrgManifestPropagatesThroughComposedGuard:
     @pytest.mark.regression
-    def test_malformed_org_manifest_propagates_through_composed_guard(
-        self, tmp_path: Path
-    ) -> None:
+    def test_malformed_org_manifest_propagates_through_composed_guard(self, tmp_path: Path) -> None:
         """#3412: a custom mission family + a YAML-syntax-broken ORG
         ``expected-artifacts.yaml``, driven through the real composed-action
         guard entry point ``_dispatch_via_composition`` (``repo_root``
@@ -182,10 +180,7 @@ def test_504_handler_is_pinned_to_unregistered_only() -> None:
         "no longer holds, re-verify the seam by hand"
     )
     (guard_try,) = try_nodes
-    assert len(guard_try.handlers) == 1, (
-        "the guard's try must have exactly one except handler (never "
-        f"catch-all); found {len(guard_try.handlers)}"
-    )
+    assert len(guard_try.handlers) == 1, f"the guard's try must have exactly one except handler (never catch-all); found {len(guard_try.handlers)}"
     (handler,) = guard_try.handlers
 
     assert handler.type is not None, "the handler must name a type, never a bare `except:`"

@@ -63,17 +63,14 @@ __all__ = [
 #: ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`` is the operator hatch that folds
 #: ``primary_protected`` to ``False`` at the caller boundary (rule 6), degrading rule
 #: 3 to rule 4.
-REMEDY_PROTECTED_PRIMARY: Final[str] = (
-    "--start-branch <feature-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
-)
+REMEDY_PROTECTED_PRIMARY: Final[str] = "--start-branch <feature-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
 
 #: The remedy offered when a commit-bearing operation targets the WRONG surface
 #: (the artifact is absent at / never staged to the resolved placement). A
 #: wrong-surface situation is a :class:`Refuse`, never a :class:`NoOp` (contract
 #: §2 rule 5) — reporting exit 0 here would falsely claim a write landed.
 REMEDY_WRONG_SURFACE: Final[str] = (
-    "Commit the artifact to its own resolved surface; it was not present at the "
-    "resolved placement, so the commit would no-op against the wrong surface."
+    "Commit the artifact to its own resolved surface; it was not present at the resolved placement, so the commit would no-op against the wrong surface."
 )
 
 
@@ -143,9 +140,7 @@ class SurfaceVerdict:
 # ---------------------------------------------------------------------------
 
 
-def coord_topology_reachable(
-    pr_bound: bool, primary_protected: bool, current_is_primary: bool
-) -> bool:
+def coord_topology_reachable(pr_bound: bool, primary_protected: bool, current_is_primary: bool) -> bool:
     """Coordination routing is reachable iff ``pr_bound and (primary_protected or current_is_primary)``.
 
     The create-time predicate (contract §1): a mission mints a coordination

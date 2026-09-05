@@ -30,8 +30,12 @@ TARGET = "codex/owned"
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(
-        ["git", *args], cwd=root, check=True, capture_output=True,
-        text=True, encoding="utf-8",
+        ["git", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     ).stdout.strip()
 
 
@@ -67,11 +71,20 @@ def checkouts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Pa
     git(primary, "worktree", "add", "-qb", "codex/sibling", str(sibling))
     mission = owned / "kitty-specs" / SLUG
     (mission / "tasks").mkdir(parents=True)
-    (mission / "meta.json").write_text(json.dumps({
-        "mission_id": MID, "mission_slug": SLUG, "slug": SLUG,
-        "mission_type": "software-dev", "topology": "single_branch",
-        "target_branch": TARGET, "flattened": False,
-    }), encoding="utf-8")
+    (mission / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": MID,
+                "mission_slug": SLUG,
+                "slug": SLUG,
+                "mission_type": "software-dev",
+                "topology": "single_branch",
+                "target_branch": TARGET,
+                "flattened": False,
+            }
+        ),
+        encoding="utf-8",
+    )
     (mission / "spec.md").write_text(
         "# Spec\n\n## Functional Requirements\n"
         "| ID | Requirement | Acceptance Criteria | Status |\n"
@@ -528,7 +541,8 @@ def test_owned_accept_reports_unsuccessful_cutover(ready_accept_checkouts, monke
         if failure == "exception":
             raise OSError("synthetic stamp failure")
         return runtime_state_cutover.CutoverResult(
-            slug=slug, flipped=False,
+            slug=slug,
+            flipped=False,
             verify=VerifyResult(ok=False, wp_count=1, mismatches=("synthetic stamp failure",)),
         )
 

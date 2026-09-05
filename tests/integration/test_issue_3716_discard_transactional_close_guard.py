@@ -83,9 +83,7 @@ def coord_mission(tmp_path: Path) -> Path:
     # porcelain assertion below would spuriously trip on the offline queue's
     # ambient ``.kittify/sync-state.json`` local write, which is unrelated to
     # the #3716 defect under test.
-    (repo / ".gitignore").write_text(
-        ".worktrees/\n.kittify/sync-state.json\n", encoding="utf-8"
-    )
+    (repo / ".gitignore").write_text(".worktrees/\n.kittify/sync-state.json\n", encoding="utf-8")
 
     fdir = repo / "kitty-specs" / SLUG
     fdir.mkdir(parents=True)
@@ -166,9 +164,7 @@ def _porcelain_paths(repo: Path) -> list[str]:
     return [line[3:] for line in out.splitlines() if line.strip()]
 
 
-def test_close_discard_commits_meta_flatten(
-    coord_mission: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_close_discard_commits_meta_flatten(coord_mission: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Defect 1: after ``--discard`` reports success, its own ``meta.json``
     flatten is committed — the WHOLE working tree is clean, not just
     ``meta.json`` in isolation.
@@ -197,9 +193,7 @@ def test_close_discard_commits_meta_flatten(
     )
 
 
-def test_close_discard_retrospective_provenance_is_abandoned(
-    coord_mission: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_close_discard_retrospective_provenance_is_abandoned(coord_mission: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Defect 2: the retrospective persisted by ``--discard`` is stamped with
     abandonment provenance, never completion provenance.
     """
@@ -209,17 +203,10 @@ def test_close_discard_retrospective_provenance_is_abandoned(
     _run_discard(repo)
 
     retro_path = repo / "kitty-specs" / SLUG / "retrospective.yaml"
-    assert retro_path.exists(), (
-        "the discard path is expected to persist a retrospective "
-        "(pinned by test_teardown_seam_persist_before_destroy)"
-    )
+    assert retro_path.exists(), "the discard path is expected to persist a retrospective (pinned by test_teardown_seam_persist_before_destroy)"
     data = yaml.safe_load(retro_path.read_text(encoding="utf-8"))
     kind = (data.get("provenance") or {}).get("kind")
-    assert kind != _COMPLETION_PROVENANCE_KIND, (
-        "issue #3716 defect 2: a discarded/abandoned mission must NOT be stamped "
-        f"with completion provenance ({kind!r})."
-    )
+    assert kind != _COMPLETION_PROVENANCE_KIND, f"issue #3716 defect 2: a discarded/abandoned mission must NOT be stamped with completion provenance ({kind!r})."
     assert kind == _ABANDONED_PROVENANCE_KIND, (
-        "issue #3716 defect 2: the discard leg must stamp the abandonment "
-        f"provenance kind {_ABANDONED_PROVENANCE_KIND!r}; got {kind!r}."
+        f"issue #3716 defect 2: the discard leg must stamp the abandonment provenance kind {_ABANDONED_PROVENANCE_KIND!r}; got {kind!r}."
     )

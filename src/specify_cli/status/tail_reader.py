@@ -301,9 +301,7 @@ def poll_once(path: Path, cursor: TailCursor) -> PollResult:
             # non-object line (a scalar or array) is a corrupt event, not a tolerated
             # tear. Raise the canonical StoreError here rather than let the
             # reader-key injection below fail with an opaque TypeError.
-            raise StoreError(
-                "Invalid event structure in tail stream: expected JSON object"
-            )
+            raise StoreError("Invalid event structure in tail stream: expected JSON object")
         consumed_bytes += len(chunk) + 1  # +1 for the chunk's own trailing `\n`
         last_complete_line = chunk + b"\n"
         # plan.md's Tail Envelope & Cursor Schema: every PASS-THROUGH envelope gets

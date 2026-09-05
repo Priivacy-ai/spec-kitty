@@ -172,7 +172,11 @@ def _resolve_planning_branch_via_mission(repo_root: Path, primary_dir: Path, *, 
 
 
 def _bootstrap_canonical_state_via_mission(
-    planning_dir: Path, mission_slug: str, *, dry_run: bool, capability: GuardCapability | None = None,
+    planning_dir: Path,
+    mission_slug: str,
+    *,
+    dry_run: bool,
+    capability: GuardCapability | None = None,
     owned: OwnedMission | None = None,
 ) -> BootstrapResult:
     """Route ``bootstrap_canonical_state`` through ``mission`` (patch seam)."""
@@ -180,9 +184,12 @@ def _bootstrap_canonical_state_via_mission(
 
     if owned is not None:
         return _mission.bootstrap_canonical_state(
-            planning_dir, mission_slug, dry_run=dry_run,
+            planning_dir,
+            mission_slug,
+            dry_run=dry_run,
             capability=capability or GuardCapability.STANDARD,
-            repo_root=owned.primary, effective_root=owned.root,
+            repo_root=owned.primary,
+            effective_root=owned.root,
         )
     if capability is None:
         return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run)
@@ -1768,7 +1775,10 @@ def _emit_validate_only_report(
     Runs bootstrap + lane computation in dry-run mode only.
     """
     bootstrap_result = _bootstrap_canonical_state_via_mission(
-        planning_dir, mission_slug, dry_run=True, **({"owned": owned} if owned else {}),
+        planning_dir,
+        mission_slug,
+        dry_run=True,
+        **({"owned": owned} if owned else {}),
     )
     bootstrap_stats = {
         "total_wps": bootstrap_result.total_wps,
@@ -2170,9 +2180,7 @@ def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path, *, owne
     if owned:
         from mission_runtime import placement_seam
 
-        return placement_seam(owned.primary, owned.slug, effective_root=owned.root).read_dir(
-            MissionArtifactKind.ACCEPTANCE_MATRIX
-        )
+        return placement_seam(owned.primary, owned.slug, effective_root=owned.root).read_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
     try:
         read_dir: Path = _acceptance_matrix_read_dir(repo_root, planning_dir)
     except CoordinationBranchDeleted:
@@ -2543,7 +2551,10 @@ def _run_commit_pipeline(
     _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output)
 
     bootstrap_result = _bootstrap_canonical_state_via_mission(
-        planning_dir, mission_slug, dry_run=False, capability=GuardCapability.STANDARD,
+        planning_dir,
+        mission_slug,
+        dry_run=False,
+        capability=GuardCapability.STANDARD,
         **({"owned": owned} if owned else {}),
     )
     if not json_output and bootstrap_result.newly_seeded:
@@ -2791,9 +2802,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             ),
         ),
     ] = None,
-    owned_checkout: Annotated[
-        Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")
-    ] = None,
+    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")] = None,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
@@ -2834,7 +2843,10 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         owned = None
         if owned_checkout is not None:
             owned = resolve_owned_mission(
-                repo_root, owned_checkout, feature or "", target_override=target_branch_override,
+                repo_root,
+                owned_checkout,
+                feature or "",
+                target_override=target_branch_override,
             )
             if not validate_only:
                 require_unstaged_index(owned)
@@ -2853,11 +2865,10 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         # directly — WORK_PACKAGE_TASK, since this finalize-tasks flow reads/writes
         # the ``tasks/`` WP files, ``wps.yaml``, and ``tasks.md`` under this dir.
         primary_dir = placement_seam(
-            owned.primary if owned else repo_root, mission_slug,
+            owned.primary if owned else repo_root,
+            mission_slug,
             **({"effective_root": owned.root} if owned else {}),
-        ).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+        ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         planning_dir = primary_dir
 
         # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before

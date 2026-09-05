@@ -414,11 +414,7 @@ def _resolve_default_topology_phase(
 
         primary_protected = ProtectionPolicy.resolve(repo_root).is_protected(primary_branch)
         current_is_primary = current_branch == primary_branch
-        return (
-            MissionTopology.COORD
-            if coord_topology_reachable(pr_bound, primary_protected, current_is_primary)
-            else MissionTopology.SINGLE_BRANCH
-        )
+        return MissionTopology.COORD if coord_topology_reachable(pr_bound, primary_protected, current_is_primary) else MissionTopology.SINGLE_BRANCH
     if current_branch == primary_branch:
         return MissionTopology.COORD
     return MissionTopology.SINGLE_BRANCH
@@ -602,11 +598,7 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
                     if path == spec_file
                     else "Generated scaffold could not be committed to the protected or unavailable target branch."
                 ),
-                "responsible_command": (
-                    "/spec-kitty.specify"
-                    if path == spec_file
-                    else "commit from a non-protected feature branch"
-                ),
+                "responsible_command": ("/spec-kitty.specify" if path == spec_file else "commit from a non-protected feature branch"),
             }
             for path in result.uncommitted_files
         ],

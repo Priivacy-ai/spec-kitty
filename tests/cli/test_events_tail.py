@@ -167,9 +167,7 @@ def test_unresolvable_mission_slug_mocked_resolution_fails_closed() -> None:
     assert result.stdout == ""
 
 
-def test_unresolvable_mission_slug_real_repo_root_end_to_end(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unresolvable_mission_slug_real_repo_root_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """T024 (FR-009): a genuinely bad slug against a real (tmp-path) repo root,
     without mocking resolution -- asserts the same "mission_not_found" stderr
     shape end-to-end. SPECIFY_REPO_ROOT pins locate_project_root() to this
@@ -486,6 +484,7 @@ def test_no_write_syscall_reachable_on_any_code_path(tmp_path: Path) -> None:
             )
 
     assert opened_for_write == []
+
 
 # NOTE: the real-fixture end-to-end test (real git repo, real meta.json, no
 # mocking of the core or of resolve_mission_handle) lives in the sibling file

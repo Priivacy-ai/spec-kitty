@@ -29,8 +29,7 @@ def finalized_checkouts(checkouts: tuple[Path, Path, Path]) -> tuple[Path, Path,
     before = snapshot(primary), snapshot(sibling)
     mission = owned / "kitty-specs" / SLUG
     (mission / "tasks.md").write_text(
-        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n"
-        "- [ ] T001 Implement the local task\n",
+        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n- [ ] T001 Implement the local task\n",
         encoding="utf-8",
     )
     wp_file = mission / "tasks/WP01-test.md"
@@ -97,10 +96,7 @@ def test_mark_status_updates_only_selected_checkout(
     assert len(payload["event_ids"]) == 1
 
     mission = owned / "kitty-specs" / SLUG
-    events = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-    ]
+    events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     assert events[-1]["wp_id"] == "WP01"
     assert events[-1]["delta"]["subtasks"] == {"T001": "done"}
     state = json.loads((mission / "status.json").read_text(encoding="utf-8"))
@@ -206,6 +202,7 @@ def test_owned_materialization_failure_rolls_back_without_ambient_writes(
     from specify_cli.coordination import transaction
 
     before = tuple(snapshot(root) for root in finalized_checkouts)
+
     def fail_materialize(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("injected materialization failure")
 
@@ -242,9 +239,7 @@ def multi_wp_finalized_checkouts(
     mission = owned / "kitty-specs" / SLUG
     tasks_md = mission / "tasks.md"
     tasks_md.write_text(
-        tasks_md.read_text(encoding="utf-8")
-        + "\n## Work Package WP02\n\n**Dependencies**: WP01\n\n"
-        "- [ ] T002 Implement the second local task\n",
+        tasks_md.read_text(encoding="utf-8") + "\n## Work Package WP02\n\n**Dependencies**: WP01\n\n- [ ] T002 Implement the second local task\n",
         encoding="utf-8",
     )
     (mission / "tasks/WP02-test.md").write_text(
@@ -311,9 +306,7 @@ def test_multi_wp_failure_reports_committed_prefix(
     assert payload["state_applied"] is True
     assert payload["applied_wps"] == ["WP01"]
     assert len(payload["event_ids"]) == 1
-    state = json.loads(
-        (owned / "kitty-specs" / SLUG / "status.json").read_text(encoding="utf-8")
-    )["work_packages"]
+    state = json.loads((owned / "kitty-specs" / SLUG / "status.json").read_text(encoding="utf-8"))["work_packages"]
     assert state["WP01"]["subtasks"]["T001"] == "done"
     assert state["WP02"].get("subtasks", {}).get("T002") != "done"
     assert git(owned, "rev-parse", "HEAD") != head_before

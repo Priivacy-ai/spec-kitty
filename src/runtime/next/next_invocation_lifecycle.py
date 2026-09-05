@@ -90,10 +90,7 @@ class AmbiguousPendingDecisionError(Exception):
 
     def __init__(self, pending_ids: list[str]) -> None:
         self.pending_ids = pending_ids
-        super().__init__(
-            f"Multiple pending decisions ({', '.join(pending_ids)}). "
-            "Use --decision-id to specify which one."
-        )
+        super().__init__(f"Multiple pending decisions ({', '.join(pending_ids)}). Use --decision-id to specify which one.")
 
 
 def resolve_pending_decision_id(run_dir: Path, decision_id: str | None) -> str:

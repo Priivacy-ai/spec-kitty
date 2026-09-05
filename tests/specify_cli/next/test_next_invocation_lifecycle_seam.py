@@ -575,9 +575,7 @@ class TestSeamFunctionsFailClosedBranches:
 
         # Must not raise -- degrades to an un-persisted (feature_dir=None)
         # emit_event call rather than propagating.
-        emit_mission_next_invoked(
-            "agent", "success", "no-such-mission", tmp_path, decision
-        )
+        emit_mission_next_invoked("agent", "success", "no-such-mission", tmp_path, decision)
 
 
 # ---------------------------------------------------------------------------
@@ -625,16 +623,12 @@ class TestAnswerDecisionLifecycleSeamEffects:
     command" RED, not a vacuous assertion).
     """
 
-    def test_answer_decision_path_pairs_and_issues_through_the_shared_seam(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_answer_decision_path_pairs_and_issues_through_the_shared_seam(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.invocation.lifecycle import write_started
         from specify_cli.orchestrator_api.commands import app as orchestrator_app
 
         mission_slug = "042-lifecycle-seam-feature-wp08"
-        repo_root = _scaffold_project(
-            tmp_path, mission_slug=mission_slug, mission_type=_MISSION_TYPE
-        )
+        repo_root = _scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=_MISSION_TYPE)
         _write_three_step_input_mission(repo_root, mission_type=_MISSION_TYPE)
         monkeypatch.chdir(repo_root)
         feature_dir = repo_root / "kitty-specs" / mission_slug

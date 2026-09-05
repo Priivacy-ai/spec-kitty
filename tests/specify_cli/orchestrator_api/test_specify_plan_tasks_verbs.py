@@ -519,9 +519,7 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
 # ---------------------------------------------------------------------------
 
 
-def test_specify_delegate_typer_exit_with_no_json_falls_back_to_mission_create_failed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_specify_delegate_typer_exit_with_no_json_falls_back_to_mission_create_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """specify()'s generic (non-duplicate, no-payload) fallback branch --
     distinct from ``test_specify_twice_for_same_slug_fails_closed_with_
     structured_error`` above, which drives the DUPLICATE-marker branch of
@@ -543,9 +541,7 @@ def test_specify_delegate_typer_exit_with_no_json_falls_back_to_mission_create_f
     assert envelope["error_code"] == "MISSION_CREATE_FAILED"
 
 
-def test_plan_delegate_typer_exit_with_no_json_falls_back_to_plan_setup_failed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_plan_delegate_typer_exit_with_no_json_falls_back_to_plan_setup_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """plan()'s ``except typer.Exit`` fallback branch -- never previously
     driven by any test in this suite (grep confirms zero hits for
     ``PLAN_SETUP_FAILED`` anywhere under ``tests/``)."""
@@ -574,9 +570,7 @@ def test_plan_delegate_typer_exit_with_no_json_falls_back_to_plan_setup_failed(
     assert envelope["error_code"] == "PLAN_SETUP_FAILED"
 
 
-def test_tasks_delegate_typer_exit_with_no_json_falls_back_to_tasks_finalize_failed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_tasks_delegate_typer_exit_with_no_json_falls_back_to_tasks_finalize_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """tasks()'s ``except typer.Exit`` fallback branch -- never previously
     driven by any test in this suite (grep confirms zero hits for
     ``TASKS_FINALIZE_FAILED`` anywhere under ``tests/``)."""

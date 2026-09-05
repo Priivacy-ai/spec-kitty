@@ -89,10 +89,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -139,11 +136,7 @@ def test_mission_create_does_not_leave_undisclosed_dirty_scaffold(tmp_path: Path
     reported = {str(p.relative_to(tmp_path)) for p in result.created_files}
 
     # Untracked generated files that live under the mission's own directory.
-    untracked_in_mission = [
-        entry
-        for entry in _untracked_files(tmp_path)
-        if entry.startswith(f"{feature_rel}/")
-    ]
+    untracked_in_mission = [entry for entry in _untracked_files(tmp_path) if entry.startswith(f"{feature_rel}/")]
 
     # The core invariant (#2693): every generated file left untracked must be
     # disclosed to the caller. A file that is neither committed nor reported is

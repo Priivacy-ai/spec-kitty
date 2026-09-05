@@ -1667,7 +1667,9 @@ class PlacementSeam:
         (the forbidden-for-callers grammar, contracts/seam-api.md).
         """
         return resolve_placement_only(
-            self.repo_root, self.mission_slug, kind=kind,
+            self.repo_root,
+            self.mission_slug,
+            kind=kind,
             effective_root=self.effective_root,
         )
 
@@ -1720,7 +1722,9 @@ class PlacementSeam:
             return retrospective_dir
 
         return resolve_artifact_surface(
-            self.repo_root, self.mission_slug, kind,
+            self.repo_root,
+            self.mission_slug,
+            kind,
             effective_root=self.effective_root,
         ).path
 

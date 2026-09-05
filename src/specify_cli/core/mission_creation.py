@@ -1039,9 +1039,7 @@ def _create_mission_core_impl(
             tasks_readme,
             tasks_dir / ".gitkeep",
         ]
-        created_files.extend(
-            path for path in skipped_scaffold if path not in created_files
-        )
+        created_files.extend(path for path in skipped_scaffold if path not in created_files)
         uncommitted_files.extend(skipped_scaffold)
 
     return MissionCreationResult(

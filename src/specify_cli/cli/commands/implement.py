@@ -1473,9 +1473,7 @@ def _emit_blocked_on_alloc_failure(
         console.print(f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}")
 
 
-def _primary_surface_status_paths(
-    artifacts: Iterable[Path], *, routes_through_coord: bool
-) -> list[Path]:
+def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:
     """Filter collected status artifacts for a PRIMARY-root claim-commit bundle.
 
     #2155 / #3784 invariant: NO ``.worktrees/``-nested path may enter a
@@ -1494,11 +1492,7 @@ def _primary_surface_status_paths(
     resolved = [path.resolve() for path in artifacts]
     if not routes_through_coord:
         return resolved
-    return [
-        path
-        for path in resolved
-        if not (is_status_state_path(path) or is_under_worktrees_segment(path))
-    ]
+    return [path for path in resolved if not (is_status_state_path(path) or is_under_worktrees_segment(path))]
 
 
 def _commit_wp_claim_status(
@@ -1545,9 +1539,7 @@ def _commit_wp_claim_status(
     # artifacts ARE canonical on PRIMARY and stay in the bundle.
     status_paths = _primary_surface_status_paths(
         _collect_status_artifacts(feature_dir),
-        routes_through_coord=routes_through_coordination(
-            resolve_topology(repo_root, mission_slug)
-        ),
+        routes_through_coord=routes_through_coordination(resolve_topology(repo_root, mission_slug)),
     )
     files_to_commit = [wp_file.resolve(), *status_paths]
     if meta_file.exists():
