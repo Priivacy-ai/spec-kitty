@@ -1,9 +1,9 @@
 """Project identity management for spec-kitty.
 
 Canonical home for ProjectIdentity and all related helpers.
-Moved here from specify_cli.sync.project_identity (GitHub issue #862)
-so that specify_cli.dossier can import it without depending on
-specify_cli.sync.
+Moved here from the deleted specify_cli.sync.project_identity
+(GitHub issue #862) so that specify_cli.dossier can import it without
+depending on the sync package (itself deleted in issue #5).
 
 Provides:
 - ProjectIdentity dataclass with persistence
@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from rich.console import Console
+from specify_cli.cli.console import err_console, sanitize_terminal_text
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
@@ -182,6 +182,18 @@ def derive_project_slug(repo_root: Path) -> str:
     Attempts to extract repo name from git remote origin URL.
     Falls back to directory name if no remote is configured.
 
+    Uses the transport view (``git remote get-url``, which applies any
+    global ``url.<base>.insteadOf`` rewrite) rather than the raw configured
+    URL on purpose, triaged against spec-kitty#113: #111's raw-config
+    criterion is for sites that consume the URL's *host* (forge admission
+    in ``zeitgeist_client/repo_identity.py``). This function only ever
+    consumes the URL's trailing path segment (the repo name) via
+    ``url.split("/")[-1]``, and ``insteadOf`` is a pure prefix substitution
+    — it can rewrite the host but can never alter what comes after the
+    matched prefix. There is no rewrite shape that changes the slug this
+    derives, so the raw-config swap #111 needed here would be a no-op
+    dressed up as a fix.
+
     Args:
         repo_root: Path to repository root
 
@@ -285,10 +297,6 @@ class ConfigNotUnderstoodError(RuntimeError):
     inside :func:`ensure_identity`, so its own callers (``init``, ``tracker``,
     history-import) see the in-memory-identity degradation they already handle for an
     unwritable config rather than a new failure.
-
-    Mirrors ``sync/consent.py``'s ``ConfigReadFault(kind="unparseable", detail="…top-level
-    content is not a mapping")`` so the two modules do not grow separate notions of
-    the same broken file (#3030 FR-022 follow-up).
     """
 
 
@@ -321,11 +329,10 @@ def _text_value_or_fault(field: str, raw: object) -> tuple[str | None, str | Non
 
     ``(None, None)`` is **absence** — nothing was recorded there — and absence must
     keep minting: a config with no ``node_id`` has not recorded one, it is not
-    broken. ``""`` and whitespace-only strip to absence for the same reason, and
-    because ``sync/consent.py`` already reads this very section as
-    ``str(raw).strip() or None``. Disagreeing with it about which uuid a config
-    declares would put two notions of the same file one function apart, which is
-    the C-003 failure this mission keeps closing.
+    broken. ``""`` and whitespace-only strip to absence for the same reason:
+    recorded values are read as ``str(raw).strip() or None``, so every reader of
+    this section agrees on which uuid a config declares — two notions of the same
+    file one function apart is the C-003 failure this mission keeps closing.
 
     YAML's implicit typing is **undone, not rejected**. Someone who hand-writes
     ``node_id: 123456789012`` — about 1 in 281 generated node ids is all digits — or
@@ -699,5 +706,5 @@ def _warn_in_memory(reason: str = "Config not writable") -> None:
     sends them to ``chmod`` when the fix is a YAML error — the misdirected-cause
     class this mission has been closing elsewhere (#3030).
     """
-    console = Console(stderr=True)
-    console.print(f"[yellow]Warning: {reason}; using in-memory identity[/yellow]")
+    console = err_console
+    console.print(f"[yellow]Warning: {sanitize_terminal_text(reason)}; using in-memory identity[/yellow]")

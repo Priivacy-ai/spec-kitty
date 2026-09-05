@@ -47,9 +47,7 @@ def test_no_wall_clock_latency_ceiling_on_the_blocking_path() -> None:
     # whose quality-gate aggregator blocks merge.
     text = _workflow_text()
     assert "check_nfr_003_latency" not in text, (
-        "A wall-clock latency ceiling was re-introduced into the blocking "
-        "ci-quality.yml — the next-latency signal must live off-PR in "
-        "performance.yml (#3787)."
+        "A wall-clock latency ceiling was re-introduced into the blocking ci-quality.yml — the next-latency signal must live off-PR in performance.yml (#3787)."
     )
 
 
@@ -57,24 +55,15 @@ def test_clean_wheel_structural_smoke_is_retained() -> None:
     # C-001: the structural "does `next` run at all from a clean wheel" step
     # must remain — only the wall-clock *latency* assertion was removed.
     names = {step.get("name") for step in _clean_install_steps()}
-    assert _SMOKE_STEP_NAME in names, (
-        f"the {_SMOKE_STEP_NAME!r} structural smoke step must remain in "
-        f"{_CLEAN_INSTALL_JOB} (C-001)."
-    )
+    assert _SMOKE_STEP_NAME in names, f"the {_SMOKE_STEP_NAME!r} structural smoke step must remain in {_CLEAN_INSTALL_JOB} (C-001)."
 
 
 def test_no_clean_install_step_runs_the_retired_latency_script() -> None:
     for step in _clean_install_steps():
-        assert "check_nfr_003_latency" not in step.get("run", ""), (
-            f"clean-install step {step.get('name')!r} still runs the retired "
-            "latency script."
-        )
+        assert "check_nfr_003_latency" not in step.get("run", ""), f"clean-install step {step.get('name')!r} still runs the retired latency script."
 
 
 def test_the_sole_ceiling_reader_is_deleted() -> None:
     # FR-005: the only consumer of the absolute ceiling was the latency script;
     # deleting it removes the ceiling by construction.
-    assert not _RETIRED_SCRIPT.exists(), (
-        "scripts/check_nfr_003_latency.py must be deleted (#3787); its ceiling "
-        "read is what this mission retires."
-    )
+    assert not _RETIRED_SCRIPT.exists(), "scripts/check_nfr_003_latency.py must be deleted (#3787); its ceiling read is what this mission retires."

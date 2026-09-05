@@ -432,10 +432,10 @@ class OrgDRGFragment(BaseModel):
     One instance per configured ``organisation_packs:`` entry. The loader
     (:func:`load_org_pack`) produces a single fragment per pack root.
     ``layer_index`` (1..N) is assigned by the caller
-    (``charter.activation.drg_activation.load_org_drg``) once it knows the declaration order.
+    (``charter.drg.load_org_drg``) once it knows the declaration order.
     ``provenance_marker`` is the fixed string ``"org"`` — every node and
     edge from this fragment is tagged ``source: org:<pack_name>`` in the
-    resolved DRG (see ``charter.activation.drg_activation.merge_three_layers``).
+    resolved DRG (see ``charter.drg.merge_three_layers``).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -480,7 +480,7 @@ def load_org_pack(
         ``source_ref``, and ``layer_index`` fields are set from the
         caller-supplied arguments, overriding any values present in the
         YAML file (per the operator-authority rule in the original
-        ``charter.activation.drg_activation.load_org_drg`` implementation).
+        ``charter.drg.load_org_drg`` implementation).
 
     Raises
     ------
@@ -665,7 +665,7 @@ def _collect_governance_scope_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdg
     org-tier selection reaches the merged DRG rather than being silently unread
     (WP03 / T014). An unresolved selection is minted as a dangling scope edge,
     which :func:`charter.offering.drg.validator.validate_dangling_references` (via
-    ``assert_valid`` in :func:`charter.activation._drg_helpers.load_validated_graph`) then
+    ``assert_valid`` in :func:`charter._drg_helpers.load_validated_graph`) then
     raises on -- no dedicated governance-scope guard is required.
 
     The reader is imported lazily so importing this loader does not pull the

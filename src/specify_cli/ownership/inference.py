@@ -91,25 +91,6 @@ def score_execution_mode_signals(wp_content: str, wp_files: list[str]) -> tuple[
     return planning_score, code_score
 
 
-# --- #3590 INTERIM: post-integration acceptance-criteria detector --------------
-#
-# The "silent-drop / fake-green" discipline (epics #3410 / #3549) applied at
-# authoring time: a code-bearing WP whose acceptance criteria are observable only
-# AFTER the WP is integrated (an *action* against the merged/deployed system, not
-# a *diff* inspectable in isolation) cannot be honestly reviewed while the lane is
-# open — the reviewer has nothing to check yet. This is the INTERIM authoring-time
-# WARNING only (issue #3590); the deep terminal-state fix is Mission M6
-# (#3550 / #3432 / #3433 / #2745). It NEVER blocks finalize and touches NO
-# terminal state, gate, or lane exit (C-002 / NFR-002).
-
-# Markers that name an observation only possible once THIS work package lands — a
-# temporal "after this WP is merged/integrated/deployed" form, not a generic
-# location qualifier. Deliberately narrow (precision-sensitive, warn-only): a
-# noisy heuristic trains operators to ignore the signal, defeating the fail-loud
-# intent. Bare "in production" / "after release" are intentionally EXCLUDED — they
-# routinely qualify diff-inspectable criteria ("must not double-write in
-# production", "latency improves after release") and false-fire (adversarial
-# review finding 2a, M4 #3590); only the temporal "after <this lands>" forms stay.
 _POST_INTEGRATION_MARKERS: tuple[re.Pattern[str], ...] = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
@@ -123,31 +104,34 @@ _POST_INTEGRATION_MARKERS: tuple[re.Pattern[str], ...] = tuple(
         r"\bonce deployed\b",
     )
 )
-
-# Headings under which acceptance/success-criteria prose lives in a WP body. The
-# detector scopes to these sections (not the whole body) so an incidental mention
-# of "post-merge" in, say, a Notes section does not trip a false positive.
-# ``objectives`` is intentionally EXCLUDED — an Objectives section states goals
-# ("ship so latency improves after release"), not diff-inspectable termination
-# criteria, and widens the false-positive surface (review finding 2b, M4 #3590).
-_ACCEPTANCE_HEADING = re.compile(
-    r"(?i)(?:acceptance|success\s+crit|review\s+guidance)",
-)
+_ACCEPTANCE_HEADING = re.compile(r"(?i)(?:acceptance|success\s+crit|review\s+guidance)")
 _HEADING_LINE = re.compile(r"^#{1,6}\s")
 
 
-def _acceptance_criteria_scope(wp_body: str) -> str:
-    """Return the WP-body text under acceptance/success-criteria headings.
+def _heading_level(line: str) -> int:
+    """Return a Markdown heading line's depth (number of leading ``#``)."""
+    return len(line) - len(line.lstrip("#"))
 
-    Returns ``""`` when the WP body carries no acceptance-criteria section — the
-    conservative choice for a precision-sensitive, warn-only heuristic (an absent
-    section yields no warning rather than a whole-body scan).
+
+def _acceptance_criteria_scope(wp_body: str) -> str:
+    """Return text under acceptance/success-criteria headings.
+
+    Tracks heading depth: once an acceptance heading opens the scope, a
+    sub-heading nested deeper than it (e.g. ``### Notes`` under
+    ``## Acceptance Criteria``) stays inside scope. The scope only closes on
+    a heading at or above the opening heading's level.
     """
     scoped: list[str] = []
     capturing = False
+    scope_level = 0
     for line in wp_body.splitlines():
         if _HEADING_LINE.match(line):
+            level = _heading_level(line)
+            if capturing and level > scope_level:
+                continue
             capturing = bool(_ACCEPTANCE_HEADING.search(line))
+            if capturing:
+                scope_level = level
             continue
         if capturing:
             scoped.append(line)
@@ -155,41 +139,21 @@ def _acceptance_criteria_scope(wp_body: str) -> str:
 
 
 def detect_post_integration_acceptance(wp_content: str, wp_files: list[str]) -> list[str]:
-    """Warn (never block) when a code WP's acceptance criteria are post-integration only.
-
-    Consumes execution-mode inference (:func:`infer_execution_mode`): only a
-    ``code_change`` WP is flagged — a ``planning_artifact`` WP legitimately
-    describes downstream/integration outcomes and is exempt (this both matches the
-    intent and suppresses the most common false positive). Returns human-readable
-    warning strings (empty when nothing fires) for the finalize bootstrap to
-    surface through its existing warn-only channel; it emits no signal of its own
-    and reaches no terminal state (NFR-001 / C-002).
-
-    Args:
-        wp_content: Full text of the WP prompt file (frontmatter + body).
-        wp_files: File paths declared as the WP's deliverables (owned_files).
-    """
+    """Warn when a code WP's acceptance criteria are post-integration only."""
     if infer_execution_mode(wp_content, wp_files) is not WorkProductKind.CODE_CHANGE:
         return []
     scope = _acceptance_criteria_scope(wp_content)
     if not scope:
         return []
-    matched = sorted(
-        {
-            match.group(0).strip().lower()
-            for pattern in _POST_INTEGRATION_MARKERS
-            for match in pattern.finditer(scope)
-        }
-    )
+    matched = sorted({match.group(0).strip().lower() for pattern in _POST_INTEGRATION_MARKERS for match in pattern.finditer(scope)})
     if not matched:
         return []
     phrases = ", ".join(f"'{phrase}'" for phrase in matched)
     return [
         "acceptance criteria appear observable only post-integration "
-        f"({phrases}) — an action, not a diff. The work package cannot be "
+        f"({phrases}) -- an action, not a diff. The work package cannot be "
         "honestly reviewed while its lane is open; re-home this observation at "
-        "planning time (e.g. a mission-level acceptance check) so the WP can "
-        "terminate on a diff-inspectable criterion."
+        "planning time so the WP can terminate on a diff-inspectable criterion."
     ]
 
 

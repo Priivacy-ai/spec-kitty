@@ -51,9 +51,7 @@ directives:
     )
 
 
-def test_directives_source_surfaced_in_json_payload(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_directives_source_surfaced_in_json_payload(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The payload carries the resolution branch as a top-level string key."""
     _patch_catalog(monkeypatch)
     _seed_local_directive(tmp_path)
@@ -68,9 +66,7 @@ def test_directives_source_surfaced_in_json_payload(
     assert "directives_source" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
 
 
-def test_directives_source_is_distinct_from_per_entry_source(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_directives_source_is_distinct_from_per_entry_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Resolution-level provenance is a top-level sibling, never nested in the
     per-entry ``all_directives[].source`` artifact-origin field."""
     _patch_catalog(monkeypatch)
@@ -87,9 +83,7 @@ def test_directives_source_is_distinct_from_per_entry_source(
     assert "catalog_fallback+project_local" not in per_entry_sources
 
 
-def test_directives_source_comes_from_single_resolution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_directives_source_comes_from_single_resolution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The builder resolves governance exactly once per payload (no double
     resolve to obtain the provenance separately)."""
     _patch_catalog(monkeypatch)
@@ -108,6 +102,5 @@ def test_directives_source_comes_from_single_resolution(
 
     assert payload["directives_source"] == "catalog_fallback+project_local"
     assert calls["n"] == 1, (
-        f"resolve_project_governance called {calls['n']}x; the JSON payload must "
-        "obtain all_directives and directives_source from a single resolution."
+        f"resolve_project_governance called {calls['n']}x; the JSON payload must obtain all_directives and directives_source from a single resolution."
     )

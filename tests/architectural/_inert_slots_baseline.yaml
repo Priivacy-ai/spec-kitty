@@ -37,7 +37,7 @@
 #
 # KNOWN UNDER-COUNT (still true after the src/doctrine scope fix): the lint matches
 # slot names globally, with no namespacing, so a slot is still masked by an
-# unrelated same-named producer *inside* src/doctrine/. The error direction is
+# unrelated same-named producer *inside* src/charter/offering/. The error direction is
 # always false-NEGATIVE, so the true debt is >= 59.
 #
 # The scope fix is why this file grew 41 -> 59. `_code_producers` used to harvest
@@ -390,7 +390,7 @@ entries:
 #
 # A different record for a different problem. The `entries:` above are findings
 # the gate DOES report and someone owes work on. These are slots the gate does
-# NOT report, solely because code under src/doctrine/ names them -- the one
+# NOT report, solely because code under src/charter/offering/ names them -- the one
 # suppression route that had no accounting until review fabricated a suppression
 # with a single dead line and took the module from 1 failed to 26 passed.
 #

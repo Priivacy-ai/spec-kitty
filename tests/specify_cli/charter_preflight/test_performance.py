@@ -26,7 +26,7 @@ from specify_cli.charter_runtime.preflight import run_charter_preflight
 from ._fixtures import make_fresh_repo
 
 
-pytestmark = [pytest.mark.integration, pytest.mark.performance]
+pytestmark = [pytest.mark.integration, pytest.mark.timing]
 
 
 def test_runner_cold_import_under_500ms() -> None:

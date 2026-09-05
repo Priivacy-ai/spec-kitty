@@ -534,7 +534,6 @@ class TestPipelineSeedFileEdgeCases:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestPipelinePerformance:
     """Verify pipeline execution time meets the <200ms requirement."""
 

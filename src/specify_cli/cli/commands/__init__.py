@@ -159,20 +159,6 @@ def _is_next_fast_path(argv: list[str]) -> bool:
     return False
 
 
-def _is_doctor_restart_daemon_fast_path(argv: list[str]) -> bool:
-    """Return True for direct ``doctor restart-daemon`` invocations."""
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            continue
-        command_parts.append(arg)
-        if len(command_parts) == 2:
-            return command_parts == ["doctor", "restart-daemon"]
-    return False
-
-
 def register_commands(app: typer.Typer) -> None:
     """Attach all extracted commands to the root Typer application."""
     if _is_next_fast_path(sys.argv):
@@ -182,20 +168,13 @@ def register_commands(app: typer.Typer) -> None:
         _apply_short_help_options(app)
         return
 
-    if _is_doctor_restart_daemon_fast_path(sys.argv):
-        from . import doctor as doctor_module
-
-        app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
-        _enforce_top_level_empty_group_help(app)
-        _apply_short_help_options(app)
-        return
-
     from . import accept as accept_module
     from . import agent as agent_module
     from . import archive as archive_module
     from . import auth as auth_module
     from . import plugin as plugin_module
     from . import charter as charter_module
+    from . import commit_guard_hook_cmd as commit_guard_hook_cmd_module
     from . import config_cmd as config_cmd_module
     from . import context as context_module
     from . import cutover_guard as cutover_guard_module
@@ -218,6 +197,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import migrate_cmd as migrate_module
     from . import mission as mission_module
     from . import mission_type as mission_type_module
+    from . import moments as moments_module
     from . import next_cmd as next_cmd_module
     from . import ops as ops_module
     from . import profiles_cmd as profiles_cmd_module
@@ -225,24 +205,20 @@ def register_commands(app: typer.Typer) -> None:
     from . import reconcile as reconcile_module
     from . import regen as regen_module
     from . import research as research_module
+    from . import routes as routes_module
     from . import review as review_module
     from . import safe_commit_cmd as safe_commit_module
     from . import spec_commit_cmd as spec_commit_module
     from . import session_start as session_start_module
     from . import session_stop as session_stop_module
-    from . import sync as sync_module
     from . import upgrade as upgrade_module
     from . import validate_encoding as validate_encoding_module
     from . import validate_tasks as validate_tasks_module
     from . import verify as verify_module
     from . import workflow as workflow_module
+    from . import zeitgeist as zeitgeist_module
     from specify_cli import orchestrator_api as orchestrator_api_module
-    from specify_cli.saas.rollout import is_saas_sync_enabled
-
-    if is_saas_sync_enabled():
-        from . import tracker as tracker_module
-    else:  # pragma: no cover - deterministic environment gate
-        tracker_module = None
+    from . import tracker as tracker_module
 
     app.command()(accept_module.accept)
     app.add_typer(agent_module.app, name="agent")
@@ -291,6 +267,9 @@ def register_commands(app: typer.Typer) -> None:
         help="Regenerate the committed generated agent-command + skill fixtures from source (#3447).",
     )(regen_module.regen)
     app.command()(merge_module.merge)
+    app.command(name="commit-guard-hook", hidden=True)(
+        commit_guard_hook_cmd_module.commit_guard_hook_cli
+    )
     app.command(name="merge-driver-event-log", hidden=True)(merge_driver_module.merge_driver_event_log)
     app.command(name="merge-driver-meta", hidden=True)(merge_driver_module.merge_driver_meta)
     app.command(name="merge-driver-traces", hidden=True)(merge_driver_module.merge_driver_traces)
@@ -307,6 +286,11 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(mission_module.app, name="mission")
     app.command(name="next")(next_cmd_module.next_step)
     app.add_typer(mission_type_module.app, name="mission-type")
+    app.add_typer(
+        moments_module.moments_app,
+        name="moments",
+        help="Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
+    )
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(plugin_module.plugin_app, name="plugin", help="Plugin bundle commands")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
@@ -314,20 +298,22 @@ def register_commands(app: typer.Typer) -> None:
         reconcile_module.reconcile
     )
     app.command()(research_module.research)
+    app.command(
+        name="routes", help="Show which team admits this checkout and which relay carries its moments."
+    )(routes_module.routes)
     app.command(name="review")(review_module.review_mission)
     app.command(name="safe-commit")(safe_commit_module.safe_commit_command)
     app.command(name="spec-commit")(spec_commit_module.spec_commit_command)
     app.command(name="session-start", help="Emit spec-kitty orientation for the Claude Code SessionStart hook.")(session_start_module.session_start)
     app.command(name="session-stop", help="Emit the open-Ops reminder for the Claude Code Stop hook.")(session_stop_module.session_stop)
-    app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
-    if tracker_module is not None:
-        app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
-        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
+    app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
+    app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
     app.command()(upgrade_module.upgrade)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)
     app.add_typer(workflow_module.app, name="workflow", help="Manage mission workflow definitions")
+    app.add_typer(zeitgeist_module.app, name="zeitgeist", help="Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events.")
     app.add_typer(profiles_cmd_module.app, name="profiles")
     app.command(name="dispatch", help="Dispatch a request to a governed Op (canonical surface).")(dispatch_module.dispatch)
     app.add_typer(profile_invocation_module.profile_invocation_app, name="profile-invocation")

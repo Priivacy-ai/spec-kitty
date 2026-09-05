@@ -98,7 +98,7 @@ def landscape():
     ``src/charter/offering`` (S2a), so the offering/activation split is now
     an intra-``charter`` sub-package boundary, not a separate landscape
     layer/LayerRule. A single-file ``src/doctrine.py`` deprecation shim
-    (CR-06) still lets legacy ``import doctrine`` callers resolve, but it is
+    (CR-06) still lets legacy ``import charter.offering`` callers resolve, but it is
     compatibility surface, not an architectural layer — it is intentionally
     left unmapped here so it does not resurrect a phantom "doctrine" layer.
     """

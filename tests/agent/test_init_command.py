@@ -222,6 +222,79 @@ def test_init_writes_event_log_merge_attributes(
     assert ".kittify/migrations/** -diff" in attributes
 
 
+def test_init_gitattributes_merge_driver_keys_have_git_config_registrations(
+    cli_app,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    """FIX-M2-01 / Finding 1: every ``merge=<key>`` driver ``init`` declares in
+    ``.gitattributes`` must have a matching git-config *definition* -- the
+    ``specify_cli.lanes.merge._MERGE_DRIVERS`` registry that
+    ``_ensure_merge_driver_git_config`` (the self-heal every real merge path
+    now calls: ``lanes/worktree_allocator.py``, ``lanes/auto_rebase.py``,
+    ``lanes/merge.py::_merge_branch_into``) turns into real
+    ``git config --local merge.<key>.driver`` entries.
+
+    Before FIX-M2-01, ``init`` wrote the ``.gitattributes`` half but the two
+    lane-worktree merges ``spec-kitty implement`` actually runs
+    (``_merge_recorded_planning_commit`` / ``_merge_dependency_lane_tips``)
+    never called the self-heal, so a fresh project could reach ``implement``
+    with driver keys declared but never defined -- the merge silently fell
+    back to a plain 3-way merge and conflicted deterministically. This test
+    pins the two halves against drift in the OTHER direction (a key
+    ``.gitattributes`` declares with no registry entry at all, which no
+    self-heal call anywhere could ever satisfy) -- the runtime proof that a
+    registered key actually reconciles a real merge lives in
+    ``tests/lanes/test_worktree_allocator_merge_driver_selfheal.py`` (real
+    git, per this module's own no-real-git scope note).
+    """
+    from specify_cli.lanes.merge import _MERGE_DRIVERS
+
+    app, console, outputs = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path):
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "merge-driver-coverage-project",
+            "--ai",
+            "claude",
+            "--non-interactive",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    attributes = (
+        tmp_path / "merge-driver-coverage-project" / ".gitattributes"
+    ).read_text(encoding="utf-8")
+
+    declared_keys = set(re.findall(r"\bmerge=(\S+)", attributes))
+    assert declared_keys, "expected at least one merge=<key> attribute entry"
+
+    registered_keys = {spec.config_key for spec in _MERGE_DRIVERS}
+    missing = declared_keys - registered_keys
+    assert not missing, (
+        f".gitattributes declares merge driver key(s) {sorted(missing)} with no "
+        "matching specify_cli.lanes.merge._MERGE_DRIVERS entry -- the "
+        "git-config self-heal (_ensure_merge_driver_git_config) can never "
+        "register them, so any real merge routed through this attribute falls "
+        "back to a plain 3-way merge and conflicts (FIX-M2-01)."
+    )
+
+
 def test_ensure_event_log_merge_attributes_preserves_existing_file(tmp_path: Path) -> None:
     attributes_path = tmp_path / ".gitattributes"
     original_line = "*.png binary"

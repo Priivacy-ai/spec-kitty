@@ -1,3 +1,0 @@
-FAILED tests/status/test_transitions.py::test_reject_blocked_to_done_without_force - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/status/test_transitions.py::test_reject_blocked_to_done_without_force
-===================== 1 failed in 3.10s ======================

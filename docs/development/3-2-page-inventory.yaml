@@ -1016,31 +1016,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/3.x/2026-08-20-1-cascade-kind-complete-relation-set.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/adr/3.x/2026-08-22-1-canonical-mission-type-reader-legacy-retirement.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/adr/3.x/2026-08-22-1-performance-test-pipeline.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md
+- path: docs/adr/3.x/2026-08-27-1-precommit-hook-stable-entrypoint-and-repin-migration.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1203,6 +1179,12 @@
   current_target: true
   notes: null
 - path: docs/api/agent_profiles/reviewer-renata.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/api/auth-whoami-output.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1563,12 +1545,6 @@
   current_target: true
   notes: null
 - path: docs/architecture/doctrine-kinds.md
-  tag: current
-  divio_type: explanation
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/doctrine-projection-and-delivery.md
   tag: current
   divio_type: explanation
   owning_workstream: none
@@ -2156,6 +2132,30 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/convergence/charter-fetch.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/convergence/doctrine-drg.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/convergence/interim-ci-producer.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/convergence/landing.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/agent-memory-migration-manifest.md
   tag: current
   divio_type: reference
@@ -2165,12 +2165,6 @@
 - path: docs/development/agent-memory-workflow-migration-manifest.md
   tag: current
   divio_type: reference
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/development/ci-draft-ready.md
-  tag: current
-  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -3266,12 +3260,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/code-quality/sync-env-census.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/code-quality/targeted-cleanup-scoping.md
   tag: current
   divio_type: none
@@ -4286,24 +4274,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/initiatives/rc3-friction-burndown/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-approach.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-overview.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md
   tag: current
   divio_type: none
@@ -4382,12 +4352,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/investigations/friction-bugs-processing-charter-root-cause.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/investigations/index.md
   tag: current
   divio_type: none
@@ -4401,6 +4365,12 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/issue-1111-analysis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/issue-797-events-tracker-fork-census.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4725,6 +4695,12 @@
   current_target: true
   notes: null
 - path: docs/plans/user_journey/init-doctrine-flow.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/zeitgeist-client-wp01-remaining.md
   tag: current
   divio_type: none
   owning_workstream: none

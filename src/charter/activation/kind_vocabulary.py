@@ -224,7 +224,7 @@ def _org_scan_dirs(
 
     **Recursion is sourced from the shared authority (#3426 closed).** The
     flat entry's ``recursive`` flag comes from
-    :func:`charter.offering.discovery_recursion.overlay_scan_is_recursive` -- the same
+    :func:`doctrine.discovery_recursion.overlay_scan_is_recursive` -- the same
     single authority the live loader (``BaseDoctrineRepository._project_scan``
     and ``AgentProfileRepository._load``) consults -- so the resolver and the
     loader recurse identically for every kind (unconditional per C-001). This

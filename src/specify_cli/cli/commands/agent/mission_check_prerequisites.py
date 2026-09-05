@@ -399,7 +399,7 @@ def _read_meta_for_pr_bound(feature_dir: Path) -> dict[str, Any]:
     """
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    return load_meta_or_empty(feature_dir)
+    return cast(dict[str, Any], load_meta_or_empty(feature_dir))
 
 
 def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
@@ -412,7 +412,10 @@ def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
     """
     from specify_cli.mission_metadata import load_meta
 
-    return load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    return cast(
+        dict[str, Any] | None,
+        load_meta(feature_dir, allow_missing=True, on_malformed="none"),
+    )
 
 
 def _emit_check_prerequisites_detection_error(
@@ -507,8 +510,13 @@ def _emit_check_prerequisites_result(
 
 
 def _run_resume_probe(
-    repo_root: Path, feature: str | None, *, paths_only: bool,
-    include_tasks: bool, require_tasks: bool, json_output: bool,
+    repo_root: Path,
+    feature: str | None,
+    *,
+    paths_only: bool,
+    include_tasks: bool,
+    require_tasks: bool,
+    json_output: bool,
 ) -> None:
     """Validate the resume-only options and report the existing resume contract."""
     if not feature or not feature.strip():
@@ -592,8 +600,12 @@ def check_prerequisites(
 
         if resume_probe:
             _run_resume_probe(
-                repo_root, feature, paths_only=paths_only, include_tasks=include_tasks,
-                require_tasks=require_tasks, json_output=json_output,
+                repo_root,
+                feature,
+                paths_only=paths_only,
+                include_tasks=include_tasks,
+                require_tasks=require_tasks,
+                json_output=json_output,
             )
             return
 

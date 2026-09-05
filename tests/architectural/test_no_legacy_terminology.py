@@ -57,7 +57,7 @@ _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
     # active prose using it -- the same historical-artifact rationale as the
     # docs/adr/ exemption above, applied to glossary pack data instead of
     # decision records. (The pack moved here from the retired
-    # `src/doctrine/glossary_packs/built-in/` location; `packs/` is not in
+    # `src/charter/offering/glossary_packs/built-in/` location; `packs/` is not in
     # `_SCAN_ROOTS` today, so this exemption is kept forward-correct at the
     # pack's canonical home for when the pack tree enters the scan scope.)
     "packs/built-in/glossary_packs/",

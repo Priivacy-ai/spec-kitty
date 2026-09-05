@@ -167,12 +167,10 @@ def test_unresolvable_mission_slug_mocked_resolution_fails_closed() -> None:
     assert result.stdout == ""
 
 
-def test_unresolvable_mission_slug_real_repo_root_end_to_end(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unresolvable_mission_slug_real_repo_root_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """T024 (FR-009): a genuinely bad slug against a real (tmp-path) repo root,
-    without mocking resolution -- asserts the same "mission_not_found" stderr
-    shape end-to-end. SPECIFY_REPO_ROOT pins locate_project_root() to this
+    without mocking resolution -- asserts the canonical typed JSON envelope
+    on stdout end-to-end. SPECIFY_REPO_ROOT pins locate_project_root() to this
     tmp_path deterministically (Tier 1 of its resolution order), avoiding a
     chdir.
     """
@@ -183,10 +181,11 @@ def test_unresolvable_mission_slug_real_repo_root_end_to_end(
     result = _invoke("tail", "--mission", "no-such-mission-slug", "--json", "--once")
 
     assert result.exit_code != 0
-    assert result.stdout == ""
-    stderr_body = json.loads(result.stderr)
-    assert stderr_body["error"] == "mission_not_found"
-    assert stderr_body["handle"] == "no-such-mission-slug"
+    assert result.stderr == ""
+    body = json.loads(result.stdout)
+    assert body["success"] is False
+    assert body["error_code"] == "MISSION_NOT_FOUND"
+    assert body["handle"] == "no-such-mission-slug"
 
 
 def test_resume_structurally_invalid_offset_is_refused(tmp_path: Path) -> None:
@@ -486,6 +485,7 @@ def test_no_write_syscall_reachable_on_any_code_path(tmp_path: Path) -> None:
             )
 
     assert opened_for_write == []
+
 
 # NOTE: the real-fixture end-to-end test (real git repo, real meta.json, no
 # mocking of the core or of resolve_mission_handle) lives in the sibling file

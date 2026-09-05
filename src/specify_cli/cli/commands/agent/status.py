@@ -20,6 +20,7 @@ from rich.table import Table
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.missions._read_path_resolver import (
+    MissionSelectorAmbiguous,
     resolve_bare_modern_mission_dir_name,
 )
 from specify_cli.status import feature_status_lock
@@ -70,9 +71,29 @@ def _find_mission_slug(
 
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
-        legacy_dir = placement_seam(get_main_repo_root(repo_root), raw_handle).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        try:
+            legacy_dir = placement_seam(get_main_repo_root(repo_root), raw_handle).read_dir(
+                MissionArtifactKind.PRIMARY_METADATA
+            )
+        except MissionSelectorAmbiguous as exc:
+            # Same shape as tasks_shared._find_mission_slug (#241): this
+            # read-path resolver family raises BEFORE resolve_mission_handle
+            # runs, so the ambiguous case must map onto the SAME shared
+            # {"success": False, "error_code": ..., "error": ..., "handle":
+            # ..., "candidates": [...]} envelope resolve_mission_handle emits
+            # below, not a bare {"error": str(exc)}.
+            envelope = {
+                "success": False,
+                "error_code": exc.error_code,
+                "error": str(exc),
+                "handle": exc.handle,
+                "candidates": exc.candidates,
+            }
+            if json_output:
+                print(json.dumps(envelope))
+                raise typer.Exit(1) from None
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from None
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator

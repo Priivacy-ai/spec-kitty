@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.cascade import (
-    REFERENCE_RELATIONS,
+    _REFERENCE_RELATIONS,
     CascadeScope,
     DeactivationPlan,
     NoCascadeReport,
@@ -184,7 +184,7 @@ def test_reference_relations_include_scope_and_instantiates() -> None:
             Relation.INSTANTIATES,
         }
     )
-    assert expected == REFERENCE_RELATIONS
+    assert expected == _REFERENCE_RELATIONS
 
 
 def test_tension_vocabulary_excluded_from_reference_relations() -> None:
@@ -203,7 +203,7 @@ def test_tension_vocabulary_excluded_from_reference_relations() -> None:
         frozenset(
             {Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS}
         )
-        & REFERENCE_RELATIONS
+        & _REFERENCE_RELATIONS
         == frozenset()
     )
 
@@ -282,14 +282,7 @@ def test_cascade_activation_no_references_is_empty() -> None:
 
 
 def _mixed_kind_graph() -> DRGGraph:
-    """A source with one activatable-kind edge and one kind-filtered edge.
-
-    Mirrors issue #3705's own repro fixture shape (spec.md User Story 1's
-    Independent Test): ``toolguide:qa-carrier-lint`` --suggests--> ``tactic:qa``
-    and --suggests--> ``asset:qa-traceability-lint``. The asset edge is reached
-    by the forward closure but its kind is not in ``CHARTER_ACTIVATABLE_KINDS``
-    (C-001, unchanged) — it must be reported, not silently dropped.
-    """
+    """A source with one activatable-kind edge and one kind-filtered edge."""
     return _graph(
         nodes=[
             _node("toolguide:qa-carrier-lint", NodeKind.TOOLGUIDE),
@@ -308,8 +301,6 @@ def _mixed_kind_graph() -> DRGGraph:
 
 
 def test_cascade_activation_collects_kind_filtered_nodes() -> None:
-    # FR-001/FR-002: the dropped asset edge is now collected into a real field
-    # on CascadeActivationResult instead of vanishing at the bare `continue`.
     graph = _mixed_kind_graph()
     result = cascade_activation_targets(graph, "toolguide:qa-carrier-lint", CascadeScope.all())
     assert result.activated == {"tactic": ["qa"]}
@@ -317,9 +308,6 @@ def test_cascade_activation_collects_kind_filtered_nodes() -> None:
 
 
 def test_cascade_activation_kind_filtered_node_stays_out_of_activated_and_skipped() -> None:
-    # C-006 activation-side half: under CascadeScope.all() (kind-agnostic,
-    # is_all=True selects ANY kind), the kind-filtered asset must never leak
-    # into `activated` or `skipped_by_scope` -- only into the new field.
     graph = _mixed_kind_graph()
     result = cascade_activation_targets(graph, "toolguide:qa-carrier-lint", CascadeScope.all())
     assert "asset" not in result.activated
@@ -445,37 +433,6 @@ def test_deactivation_transitive_shared_reference_is_skipped() -> None:
     assert plan.deactivate == ["tactic:a"]
     assert [s.urn for s in plan.skipped_shared] == ["tactic:deep"]
     assert plan.skipped_shared[0].referencing_active_urn == "agent_profile:renata"
-
-
-# ---------------------------------------------------------------------------
-# WP04 (#3705) — deactivation-side C-006 half: a kind-filtered node reached
-# by `deactivation_plan`'s own candidate collection must be reported on
-# `DeactivationPlan.not_cascaded_kind_filtered` and must never leak into
-# `.deactivate` or into any `SharedSkip` in `.skipped_shared` (C-001, C-006).
-# WP01 landed the activation-side half of C-006
-# (`test_cascade_activation_kind_filtered_node_stays_out_of_activated_and_skipped`
-# above); this is the deactivation-side half.
-# ---------------------------------------------------------------------------
-
-
-def test_deactivation_plan_collects_kind_filtered_node_and_it_never_leaks() -> None:
-    # Reuses WP01's own `_mixed_kind_graph` fixture (issue #3705's repro shape):
-    # toolguide:qa-carrier-lint --suggests--> tactic:qa (activatable) and
-    # --suggests--> asset:qa-traceability-lint (kind-filtered, C-001).
-    graph = _mixed_kind_graph()
-    plan = deactivation_plan(
-        graph,
-        "toolguide:qa-carrier-lint",
-        CascadeScope.all(),
-        active_urns={"toolguide:qa-carrier-lint"},
-    )
-    assert isinstance(plan, DeactivationPlan)
-    assert plan.not_cascaded_kind_filtered == ["asset:qa-traceability-lint"]
-    assert "asset:qa-traceability-lint" not in plan.deactivate
-    assert all(skip.urn != "asset:qa-traceability-lint" for skip in plan.skipped_shared)
-    # The activatable tactic is unaffected by this WP's change: it is still
-    # exclusive to the target and lands in `.deactivate` as before.
-    assert plan.deactivate == ["tactic:qa"]
 
 
 # ---------------------------------------------------------------------------
@@ -860,7 +817,7 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(
     below).
 
     Loads each profile through the canonical
-    :class:`~charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`
+    :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
     (shipped-only, no project overlay) rather than re-parsing the YAML by
     hand -- the same authority :func:`extract_governance_profile_scope_edges`
     itself is grounded against.
@@ -944,3 +901,23 @@ def test_mission_type_cascade_total_ratchet(
         f"({ {k: len(v) for k, v in result.activated.items()} }) -- update "
         "_EXPECTED_CASCADE_TOTALS if this is an expected doctrine-growth move."
     )
+
+
+# WP04 (#3705) — deactivation-side C-006 half: a kind-filtered node reached
+# by `deactivation_plan` must be reported and never leak into removal results.
+# ---------------------------------------------------------------------------
+
+
+def test_deactivation_plan_collects_kind_filtered_node_and_it_never_leaks() -> None:
+    graph = _mixed_kind_graph()
+    plan = deactivation_plan(
+        graph,
+        "toolguide:qa-carrier-lint",
+        CascadeScope.all(),
+        active_urns={"toolguide:qa-carrier-lint"},
+    )
+    assert isinstance(plan, DeactivationPlan)
+    assert plan.not_cascaded_kind_filtered == ["asset:qa-traceability-lint"]
+    assert "asset:qa-traceability-lint" not in plan.deactivate
+    assert all(skip.urn != "asset:qa-traceability-lint" for skip in plan.skipped_shared)
+    assert plan.deactivate == ["tactic:qa"]

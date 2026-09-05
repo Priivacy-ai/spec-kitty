@@ -1,8 +1,0 @@
-# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
-schema: review-findings/v1
-complete: true
-phase: spec
-lens_group: fresh
-mission: mission-scaffold-tasks-lanes-defects-01M0NERD
-round: 2
-findings: []

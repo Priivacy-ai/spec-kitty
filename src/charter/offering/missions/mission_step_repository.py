@@ -53,20 +53,10 @@ class _PackContextLike(Protocol):
     keys on ``pack_context`` directly. The real ``charter.activation.pack_context.PackContext``
     (and every test double used against this module) is a frozen
     ``@dataclass``, which synthesizes ``__hash__`` automatically.
-
-    ``pack_roots`` and ``repo_root`` are declared via read-only ``@property``
-    rather than plain attribute annotations: under ``mypy --strict``, a plain
-    Protocol attribute is treated as a *settable* member, which the real
-    ``charter.activation.pack_context.PackContext`` (a frozen dataclass, thus read-only)
-    structurally fails to satisfy. Declaring them as properties narrows the
-    protocol to the read-only access this module actually performs.
     """
 
-    @property
-    def pack_roots(self) -> tuple[Path, ...]: ...
-
-    @property
-    def repo_root(self) -> Path: ...
+    pack_roots: tuple[Path, ...]
+    repo_root: Path
 
     def __hash__(self) -> int: ...
 
@@ -229,7 +219,7 @@ class MissionStepRepository:
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
         (FR-005) relocated ``mission-steps/`` from
-        ``src/doctrine/missions/mission-steps`` to
+        ``src/charter/offering/missions/mission-steps`` to
         ``packs/built-in/missions/mission-steps``. Delegates to the one
         promoted missions-root authority
         (:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,

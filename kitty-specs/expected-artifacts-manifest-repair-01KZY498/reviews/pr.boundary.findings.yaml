@@ -1,7 +1,0 @@
-# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
-schema: review-findings/v1
-complete: true
-phase: pr
-lens_group: boundary
-mission: expected-artifacts-manifest-repair-01KZY498
-findings: []

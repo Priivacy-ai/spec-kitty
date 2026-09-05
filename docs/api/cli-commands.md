@@ -2,10 +2,11 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-08-29'
+updated: '2026-06-26'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
+- docs/api/auth-whoami-output.md
 ---
 # CLI Command Reference
 
@@ -34,6 +35,7 @@ Terminology note:
 For non-obvious runtime behaviour an operator may encounter:
 
 - [`finalize-tasks` internals](finalize-tasks-internals.md) — explicit empty `owned_files` semantics and lane-depth cycle safety.
+- [`auth whoami` output](auth-whoami-output.md) — the full stdout shape, including the SaaS diagnostic lines the generated `--help` section below doesn't mention.
 
 ## Schema references
 
@@ -165,8 +167,7 @@ _Authentication commands_
 │ status  Show current authentication status.                                  │
 │ whoami  Print the authenticated user's email and exit 0, or exit 1 if not    │
 │         authenticated.                                                       │
-│ doctor  Diagnose CLI auth and sync-daemon state. Default invocation is       │
-│         read-only.                                                           │
+│ doctor  Diagnose CLI auth state. Default invocation is read-only.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -175,13 +176,10 @@ _Authentication commands_
 ```
  Usage: spec-kitty auth doctor [OPTIONS]
 
- Diagnose CLI auth and sync-daemon state. Default invocation is read-only.
+ Diagnose CLI auth state. Default invocation is read-only.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json                            Emit findings as JSON.                     │
-│ --reset                           Sweep orphan sync daemons.                 │
-│ --force                           With --reset, also clean operator_required │
-│                                   daemons. No-op without --reset.            │
 │ --unstick-lock                    Force-release a stuck refresh lock.        │
 │ --stuck-threshold          FLOAT  Age (seconds) above which the refresh lock │
 │                                   is considered stuck.                       │
@@ -840,7 +838,7 @@ _Charter pack management commands._
  **minimal artifact set** the runtime requires:
 
  1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
-    project-root resolver (``src/charter/_doctrine_paths.py``) is a
+    project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
     presence-only check; an empty directory is a valid project layer.
  2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
@@ -1210,10 +1208,6 @@ _Project health diagnostics_
 │ invocation-pairing      List orphan profile-invocation lifecycle records.    │
 │ ops                     List orphan Op records; --close-stale sweeps stale   │
 │                         ones closed as abandoned.                            │
-│ orphan-daemons          List orphan daemon owner records and emit retirement │
-│                         hints.                                               │
-│ restart-daemon          Stop the registered sync daemon and respawn it at    │
-│                         the foreground.                                      │
 │ mission-state           Audit, repair, or TeamSpace-validate mission-state   │
 │                         shapes.                                              │
 │ doctrine                Check org doctrine snapshot status and list          │
@@ -1575,34 +1569,6 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty doctor orphan-daemons
-
-```
- Usage: spec-kitty doctor orphan-daemons [OPTIONS]
-
- List orphan daemon owner records and emit retirement hints.
-
- Implements FR-010 of the identity-boundary mission: an orphan
- daemon owner record is one whose recorded PID is dead OR whose
- recorded executable path no longer exists on disk. Each orphan
- is printed with a copy-pasteable retirement command that removes
- the on-disk ``owner.json`` so the next ``sync status --check``
- returns clean.
-
- Exit codes:
-   0  No orphan records.
-   1  At least one orphan record found.
-
- Examples:
-     spec-kitty doctor orphan-daemons
-     spec-kitty doctor orphan-daemons --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty doctor provenance
 
 ```
@@ -1621,34 +1587,6 @@ _Project health diagnostics_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctor restart-daemon
-
-```
- Usage: spec-kitty doctor restart-daemon [OPTIONS]
-
- Stop the registered sync daemon and respawn it at the foreground.
-
- Composes the existing daemon stop + launch primitives so the operator
- has a one-shot remedy when the foreground process and the registered
- daemon disagree on any of the six canonical D-3 fields (version,
- executable, source, server URL, team/user, or queue DB path).
-
- Exit codes:
-   0  Daemon restarted (or stale owner record cleaned and respawned).
-   1  No registered daemon — run ``spec-kitty sync now`` to launch one.
-   2  Daemon stop succeeded but respawn failed; system is stopped.
-   3  Daemon stop failed (unresponsive); owner record left intact.
-
- Examples:
-     spec-kitty doctor restart-daemon
-     spec-kitty doctor restart-daemon --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit a single JSON object instead of human-readable text.  │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2122,7 +2060,7 @@ _Validate or assemble doctrine packs._
 
  Composes the DRG extractor + calibrator into per-populated-node-kind
  ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
- relocated from ``src/doctrine/`` by the pack flatten),
+ relocated from ``src/charter/offering/`` by the pack flatten),
  retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
  on unchanged inputs yields byte-identical fragments. With ``--check`` the
  command never writes: it regenerates into a temp directory and compares the
@@ -2796,6 +2734,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            fail-closed, and flip status_phase.               │
 │ rebaseline-dossier-hashes  One-time re-baseline of recorded dossier snapshot │
 │                            hashes (FR-009, WP05).                            │
+│ repin-hooks                Re-pin this repository's pre-commit hook to the   │
+│                            current interpreter (#254).                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3138,6 +3078,43 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --dry-run            Preview which recorded snapshot hashes would be         │
 │                      re-baselined, without writing                           │
 │ --help     -h        Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate repin-hooks
+
+```
+ Usage: spec-kitty migrate repin-hooks [OPTIONS]
+
+ Re-pin this repository's pre-commit hook to the current interpreter (#254).
+
+ ``policy/hook_installer.py`` pins the absolute Python interpreter path
+ into the pre-commit hook at install time. An install-method migration
+ (e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing
+ at a path that no longer exists. This command re-runs the same install
+ the ``implement`` lane calls internally, but without requiring a mission
+ or workspace — the repair does not depend on the very thing it is
+ repairing (the ability to commit).
+
+ Idempotent: safe to re-run; a hook already pinned to the current
+ interpreter is re-written to the same effective hook (only the
+ ``# Installed:`` timestamp comment differs).
+
+ Exit codes:
+
+ - ``0`` — the hook was (re-)installed
+ - ``1`` — project root could not be located, or the current
+   ``sys.executable`` does not refer to an existing file
+
+ Examples:
+
+     spec-kitty migrate repin-hooks
+
+     spec-kitty migrate repin-hooks --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit a JSON-stable summary report on stdout.               │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3725,6 +3702,72 @@ _Inspect mission types for this project._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --force            (ignored)                                                 │
 │ --help   -h        Show this message and exit.                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments
+
+_Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo._
+
+```
+ Usage: spec-kitty moments [OPTIONS] COMMAND [ARGS]...
+
+ Control which Zeitgeist status moments reach agent context (off / mine /
+ team), per developer and per repo.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ off     Switch moments to agents OFF: nothing surfaces, and                  │
+│         `spec-kitty zeitgeist mcp-serve` exits 0 with one line.              │
+│ on      Switch moments back ON at the documented default (`mine`: only       │
+│         missions this checkout is on).                                       │
+│ status  Show the effective mode, which file decided it, and the active       │
+│         filters.                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments off
+
+```
+ Usage: spec-kitty moments off [OPTIONS]
+
+ Switch moments to agents OFF: nothing surfaces, and `spec-kitty zeitgeist
+ mcp-serve` exits 0 with one line.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
+│                   instead of the global home .kittify config.                │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments on
+
+```
+ Usage: spec-kitty moments on [OPTIONS]
+
+ Switch moments back ON at the documented default (`mine`: only missions this
+ checkout is on).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
+│                   instead of the global home .kittify config.                │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments status
+
+```
+ Usage: spec-kitty moments status [OPTIONS]
+
+ Show the effective mode, which file decided it, and the active filters.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4729,18 +4772,27 @@ _Cross-mission retrospective summary._
  dead-code scan step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Mission handle (id, mid8, or slug).          │
-│ --mode                    TEXT  Review mode: 'lightweight' (consistency      │
-│                                 check only) or 'post-merge' (full            │
-│                                 release-gate contract). Auto-detected from   │
-│                                 meta.json.baseline_merge_commit when         │
-│                                 omitted.                                     │
-│ --check-residual                Run the CI residual (unit or contract)       │
-│                                 marker selection locally over tests/, then   │
-│                                 exit -- skips the mission-scoped review      │
-│                                 gates. The -m expression is read live from   │
-│                                 the CI workflow, never hand-copied.          │
-│ --help            -h            Show this message and exit.                  │
+│ --mission          TEXT  Mission handle (id, mid8, or slug).                 │
+│ --mode             TEXT  Review mode: 'lightweight' (consistency check only) │
+│                          or 'post-merge' (full release-gate contract).       │
+│                          Auto-detected from meta.json.baseline_merge_commit  │
+│                          when omitted.                                       │
+│ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty routes
+
+_Show which team admits this checkout and which relay carries its moments._
+
+```
+ Usage: spec-kitty routes [OPTIONS]
+
+ Show which team admits this checkout and which relay carries its moments.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4871,541 +4923,6 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 │ --json                                            Emit JSON result           │
 │ --help          -h                                Show this message and      │
 │                                                   exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync
-
-_Synchronization commands_
-
-```
- Usage: spec-kitty sync [OPTIONS] COMMAND [ARGS]...
-
- Synchronization commands
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ routes                    Show where the current checkout sends data and     │
-│                           which teams it is shared with.                     │
-│ share                     Share the current repository from Private          │
-│                           Teamspace into a team.                             │
-│ unshare                   Stop sharing the current repository from this      │
-│                           developer to one team.                             │
-│ opt-out                   Disable SaaS sync for this checkout and purge its  │
-│                           pending uploads.                                   │
-│ opt-in                    Enable SaaS sync for this checkout.                │
-│ import-history            Materialize existing local mission/WP history into │
-│                           the SaaS projection (#2262).                       │
-│ workspace                 Synchronize workspace with upstream changes.       │
-│ server                    Show or set sync server URL.                       │
-│ now                       Trigger immediate sync of all queued events.       │
-│ gc                        Purge event payloads delivered to all known        │
-│                           targets (explicit, destructive).                   │
-│ archive                   Archive retained event payloads (explicit,         │
-│                           non-destructive).                                  │
-│ purge                     Remove a project's retained event data from every  │
-│                           store that holds it (FR-016/FR-017).               │
-│ project-store-preview     Inventory immutable legacy sources, including      │
-│                           committed WAL content.                             │
-│ project-store-migrate     Copy, verify, atomically cut over, and resume one  │
-│                           migration.                                         │
-│ project-store-status      Show durable migration phase without opening       │
-│                           legacy sources.                                    │
-│ project-store-quarantine  Inspect permanently non-deliverable migration      │
-│                           quarantine records.                                │
-│ project-store-history     Preview, explicitly confirm, or disclose migrated  │
-│                           sealed history.                                    │
-│ migrate                   Refuse the retired shared-store migration and      │
-│                           point to copy-only cutover.                        │
-│ mode                      Show or set the event-sync retention x delivery    │
-│                           mode.                                              │
-│ status                    Show sync queue status, connection state, and auth │
-│                           info.                                              │
-│ diagnose                  Validate queued events locally against the event   │
-│                           schema.                                            │
-│ doctor                    Diagnose sync health: queue, auth, and server      │
-│                           connectivity.                                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync archive
-
-```
- Usage: spec-kitty sync archive [OPTIONS]
-
- Archive retained event payloads (explicit, non-destructive).
-
- Stamps the journal's archive marker so events move off the live retained
- surface without deleting bytes. Idempotent and never touches the delivery
- ledger (FR-010). Runs only on this explicit invocation.
-
- Examples:
-     spec-kitty sync archive
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync diagnose
-
-```
- Usage: spec-kitty sync diagnose [OPTIONS]
-
- Validate queued events locally against the event schema.
-
- Reads all pending events from the offline queue and validates each one
- against the Pydantic Event model and per-event-type payload rules.
-
- Valid events are reported as passing; malformed events show specific
- field errors grouped by error category.
-
- Examples:
-     spec-kitty sync diagnose
-     spec-kitty sync diagnose --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output results as JSON instead of Rich table               │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync doctor
-
-```
- Usage: spec-kitty sync doctor [OPTIONS]
-
- Diagnose sync health: queue, auth, and server connectivity.
-
- Runs a comprehensive check of offline queue state, authentication
- validity, and server reachability, printing actionable remediation
- steps for any issues found.
-
- Examples:
-     spec-kitty sync doctor
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync gc
-
-```
- Usage: spec-kitty sync gc [OPTIONS]
-
- Purge event payloads delivered to all known targets (explicit, destructive).
-
- Deletes journal payload rows only for events with a terminal-success
- delivery to **every** registered target; payloads still owed to any known
- target are kept so the durable, re-drainable copy is never lost (FR-005).
- The delivery ledger is never touched, so delivery history survives (FR-010).
- Runs only on this explicit invocation — never from ``sync now``.
-
- Examples:
-     spec-kitty sync gc
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync import-history
-
-```
- Usage: spec-kitty sync import-history [OPTIONS]
-
- Materialize existing local mission/WP history into the SaaS projection
- (#2262).
-
- A first sync registers a remote project/build but leaves it with zero
- materialized missions — the SaaS materializer deliberately refuses to
- fabricate a WorkPackage from a status event with no prior create. This
- command emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``
- stream (INV-3) so historical work populates the projection.
-
- This is an explicit three-step flow using the same ``--mission`` selector:
- (1) ``--dry-run`` previews the synthesized cohort with zero staging/egress;
- (2) ``--confirm-history`` stages and confirms those exact local bytes, prints
- a history action ID, and performs zero egress; (3) ``--apply
- --history-action-id <ID>`` preflights and uploads only that confirmed cohort.
- Skipping Step 2 or changing the cohort/authority fails closed.
-
- Import is once-and-frozen: each event carries a deterministic id, so
- re-running after the on-disk facts change (e.g. after fixing a malformed WP
- the dry-run flagged as skipped) re-sends the same id and the server drops the
- updated payload as a duplicate rather than overwriting. Resolve any skipped
- or incomplete missions the dry-run reports before the first ``--apply``.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --apply                            Step 3: upload the exact Step-2 cohort;   │
-│                                    requires --history-action-id from         │
-│                                    --confirm-history.                        │
-│ --dry-run                          Step 1: preview the synthesized cohort    │
-│                                    without staging or uploading (the         │
-│                                    default).                                 │
-│ --mission                    TEXT  Import only this mission (slug / mid8 /   │
-│                                    ULID); default imports all eligible       │
-│                                    missions.                                 │
-│ --history-action-id          TEXT  Step-2 action ID consumed by --apply;     │
-│                                    reuse the same --mission selector.        │
-│ --confirm-history                  Step 2: stage and confirm the exact       │
-│                                    Step-1 cohort locally; performs zero      │
-│                                    upload.                                   │
-│ --help               -h            Show this message and exit.               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync migrate
-
-```
- Usage: spec-kitty sync migrate [OPTIONS]
-
- Refuse the retired shared-store migration and point to copy-only cutover.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --no-cleanup                            Import into the journal but do NOT   │
-│                                         delete the migrated rows from the    │
-│                                         source queues. Use to inspect the    │
-│                                         migration before the legacy-row      │
-│                                         boundary is converged; re-run `sync  │
-│                                         migrate` (without the flag) to clean │
-│                                         up.                                  │
-│ --resolve-conflicts               TEXT  Resolve divergent-duplicate          │
-│                                         conflicts so the boundary can        │
-│                                         converge. Only `keep-journal` is     │
-│                                         supported: the journal payload is    │
-│                                         canonical, so each conflicting       │
-│                                         source row is archived (quarantined) │
-│                                         then removed. Explicit operator      │
-│                                         recovery; never overwrites the       │
-│                                         journal.                             │
-│ --backfill-consent-index                Also map path-keyed consent records  │
-│                                         onto the uuid-keyed index the drain  │
-│                                         reads. WRITES machine-global consent │
-│                                         records, and the uuid index outranks │
-│                                         a repo default — so this can change  │
-│                                         a project's effective answer. Opt-in │
-│                                         for that reason; every change is     │
-│                                         listed.                              │
-│ --help                    -h            Show this message and exit.          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync mode
-
-```
- Usage: spec-kitty sync mode [OPTIONS] [NAME]
-
- Show or set the event-sync retention x delivery mode.
-
- With no argument, prints the current mode. Mode semantics (which receiver,
- whether the journal retains) are owned by the policy layer; the CLI only
- routes the operator token through it (FR-006).
-
- Examples:
-     spec-kitty sync mode
-     spec-kitty sync mode LOCAL_RETENTION
-     spec-kitty sync mode EXTERNAL_RECEIVER --endpoint
- https://receiver.example/events
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   name      [NAME]  Mode to set: TEAMSPACE | EXTERNAL_RECEIVER |             │
-│                     LOCAL_RETENTION | OPT_OUT                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --endpoint          TEXT  External receiver endpoint URL (required for       │
-│                           EXTERNAL_RECEIVER)                                 │
-│ --help      -h            Show this message and exit.                        │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync now
-
-```
- Usage: spec-kitty sync now [OPTIONS]
-
- Trigger immediate sync of all queued events.
-
- Drains the offline queue completely, uploading events to the server
- in batches of 1000 until the queue is empty or all remaining events
- have exceeded their retry limit.
-
- Examples:
-     spec-kitty sync now
-     spec-kitty sync now --report failures.json
-     spec-kitty sync now --no-strict
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --report                     PATH  Export per-event failure details to a     │
-│                                    JSON file                                 │
-│ --strict      --no-strict          Exit non-zero on sync errors (default:    │
-│                                    strict)                                   │
-│                                    [default: strict]                         │
-│ --help    -h                       Show this message and exit.               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync opt-in
-
-```
- Usage: spec-kitty sync opt-in [OPTIONS]
-
- Enable SaaS sync for this checkout.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --checkout-only            Enable only this checkout; do not update the      │
-│                            remembered default for future checkouts.          │
-│ --help           -h        Show this message and exit.                       │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync opt-out
-
-```
- Usage: spec-kitty sync opt-out [OPTIONS]
-
- Disable SaaS sync for this checkout and purge its pending uploads.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --checkout-only                  Disable only this checkout; do not remember │
-│                                  the repo default for future checkouts.      │
-│ --delete-private-data            After disabling sync, offer to delete       │
-│                                  already-synced private-only SaaS data for   │
-│                                  this checkout.                              │
-│ --yes                            Skip the confirmation prompt when used with │
-│                                  --delete-private-data.                      │
-│ --help                 -h        Show this message and exit.                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync project_store_history
-
-```
-
-```
-
-## spec-kitty sync project_store_migrate
-
-```
-
-```
-
-## spec-kitty sync project_store_preview
-
-```
-
-```
-
-## spec-kitty sync project_store_quarantine
-
-```
-
-```
-
-## spec-kitty sync project_store_status
-
-```
-
-```
-
-## spec-kitty sync purge
-
-```
- Usage: spec-kitty sync purge [OPTIONS]
-
- Remove a project's retained event data from every store that holds it
- (FR-016/FR-017).
-
- **Dry-run by default.** Reports per-store, per-delivery-state counts and
- changes
- nothing; what it predicts is exactly what ``--apply`` then deletes. Deletion
- is
- only ever the operator's explicit act (C-002) — nothing here runs unattended.
-
- Four stores hold a project's data and all four are covered: the event journal,
- the delivery ledger (removed, not retained — an orphan ledger row can quote
- the
- project it belonged to), the body-upload queue (verbatim ``spec.md`` /
- ``plan.md`` text, not envelopes), and this checkout's queued local-commit
- frames
- (whose ``changed_files`` are mission slugs).
-
- Every count in the differential is measured by re-reading the stores rather
- than
- by adding up what the purge reports deleting, and the report names the
- populations a targeted purge cannot reach instead of quietly leaving them out.
-
- ``--all`` is bounded to the active project's routed store and this checkout's
- local-commit frames. Another project store or checkout is neither listed nor
- touched.
-
- Examples:
-     spec-kitty sync purge --project acme-migration
-     spec-kitty sync purge --project acme-migration --apply --report purge.json
-     spec-kitty sync purge --all
-     spec-kitty sync purge --all --apply --confirm "purge all events"
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --project                TEXT  Purge one project's rows, by project uuid,    │
-│                                project slug or repo slug — any name `sync    │
-│                                doctor` / `sync status` prints for the        │
-│                                project. Dry-run unless --apply is given.     │
-│ --identity-less                Purge journal/ledger rows whose project       │
-│                                identity is NULL — permanently undeliverable  │
-│                                rows that no project selector can match.      │
-│ --all                          Purge every row in the active project's       │
-│                                journal, delivery ledger and body-upload      │
-│                                queue, plus THIS checkout's queued            │
-│                                local-commit frames. Requires --confirm with  │
-│                                the confirmation phrase.                      │
-│ --apply                        Actually delete. Without it this command only │
-│                                reports.                                      │
-│ --dry-run                      Report only, deleting nothing (this is the    │
-│                                default).                                     │
-│ --confirm                TEXT  Confirmation phrase authorising a destructive │
-│                                --all run. Run without it once; the refusal   │
-│                                names the exact phrase and deletes nothing.   │
-│ --report                 PATH  Write the purge report as JSON. Worth doing:  │
-│                                the ledger rows this purge deletes are the    │
-│                                only durable record of what happened to those │
-│                                events.                                       │
-│ --help           -h            Show this message and exit.                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync routes
-
-```
- Usage: spec-kitty sync routes [OPTIONS]
-
- Show where the current checkout sends data and which teams it is shared with.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync server
-
-```
- Usage: spec-kitty sync server [OPTIONS] [URL]
-
- Show or set sync server URL.
-
- Examples:
- spec-kitty sync server
- spec-kitty sync server https://spec-kitty-dev.fly.dev
- spec-kitty sync server http://localhost:8000
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   url      [URL]  Sync server URL to set (HTTPS, or loopback HTTP for local  │
-│                   development)                                               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync share
-
-```
- Usage: spec-kitty sync share [OPTIONS] TEAM_SLUG
-
- Share the current repository from Private Teamspace into a team.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    team_slug      TEXT  Team name or slug to share this repository into    │
-│                           (see `spec-kitty auth status`).                    │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync status
-
-```
- Usage: spec-kitty sync status [OPTIONS]
-
- Show sync queue status, connection state, and auth info.
-
- Displays:
- - Offline queue size
- - Connection / emitter status
- - Last sync timestamp
- - Auth status
- - Server URL configuration
-
- Use --check to test actual connectivity (adds 3s timeout if server
- unreachable).
-
- Examples:
-     # Show status (fast)
-     spec-kitty sync status
-
-     # Test connection to server
-     spec-kitty sync status --check
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --check  -c        Test connection to server AND enforce the                 │
-│                    identity-boundary coherence gate (FR-009). Exits non-zero │
-│                    when foreground/daemon disagree, when legacy rows remain  │
-│                    in the active scope, or when any orphan daemon record is  │
-│                    present.                                                  │
-│ --json             When combined with --check, emit a single JSON object on  │
-│                    stdout matching contracts/sync-status-output.md and       │
-│                    suppress the human-readable block. Exit code 0 if         │
-│                    coherent, 2 otherwise.                                    │
-│ --help   -h        Show this message and exit.                               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync unshare
-
-```
- Usage: spec-kitty sync unshare [OPTIONS] TEAM_SLUG
-
- Stop sharing the current repository from this developer to one team.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    team_slug      TEXT  Team slug to stop sharing this repository into.    │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync workspace
-
-```
- Usage: spec-kitty sync workspace [OPTIONS]
-
- Synchronize workspace with upstream changes.
-
- Updates the current workspace with changes from its base branch or parent.
- This is equivalent to `git rebase <base-branch>`.
-
- Sync may FAIL on conflicts (must resolve before continuing).
-
- Examples:
-     # Sync current workspace
-     spec-kitty sync workspace
-
-     # Sync with verbose output
-     spec-kitty sync workspace --verbose
-
-     # Attempt recovery from broken state
-     spec-kitty sync workspace --repair
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --repair   -r        Attempt workspace recovery (may lose uncommitted work)  │
-│ --verbose  -v        Show detailed sync output                               │
-│ --help     -h        Show this message and exit.                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5596,10 +5113,9 @@ _Work-package mapping commands_
  Local providers use direct connectors with locally stored credentials.
 
  This command is purely informational and prints the hard-coded provider
- categories.  It does **not** consult hosted readiness — the rollout gate
- itself is enforced by ``tracker_callback`` (and by the conditional
- registration in ``cli/commands/__init__.py``), which is all the gating
- this static output needs.
+ categories.  It does **not** consult hosted readiness — ``tracker_callback``
+ is the sole rollout gate for the tracker Typer app, which is all the
+ gating this static output needs.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Render provider list as JSON                               │
@@ -5855,10 +5371,22 @@ _Tracker synchronization commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty verify_setup
+## spec-kitty verify-setup
 
 ```
+ Usage: spec-kitty verify-setup [OPTIONS]
 
+ Verify that the current environment matches Spec Kitty expectations.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission              TEXT  Mission slug to verify                          │
+│ --json                       Output in JSON format for AI agents             │
+│ --check-files                Check mission file integrity [default: True]    │
+│ --check-tools                Check for installed development tools           │
+│                              [default: True]                                 │
+│ --diagnostics                Show detailed diagnostics with dashboard health │
+│ --help         -h            Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty workflow
@@ -5931,6 +5459,655 @@ _Manage mission workflow definitions_
 │                               discovery.                                     │
 │                               [default: .]                                   │
 │ --help          -h            Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist
+
+_Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events._
+
+```
+ Usage: spec-kitty zeitgeist [OPTIONS] COMMAND [ARGS]...
+
+ Read-only access to one team's live Zeitgeist presence/focus stream and
+ status-moment events.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ status       One bounded snapshot of ``repo``'s live presence/focus state.   │
+│ watch        Print live frames plus a final summary, bounded by whole-call   │
+│              ``--timeout`` and ``--max-frames`` count.                       │
+│ outbox       Inspect/approve/reject/revoke locally queued Zeitgeist prose.   │
+│              Every decision requires a real human at a real terminal — there │
+│              is no --yes/--force option and no reachability from MCP or a    │
+│              script.                                                         │
+│ operability  Payload-free self-report of this client's                       │
+│              liveness/connection/subscription/outbox status, plus local      │
+│              failure drills (relay unreachable, auth expiry, revoke          │
+│              fail-closed). Every subcommand here reuses                      │
+│              zeitgeist_client.operability's signals/drills — no second       │
+│              implementation, no relay-url/token option, no network beyond    │
+│              the one optional canary offer `report` makes when repo already  │
+│              has a stored checkout.                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability
+
+_Payload-free self-report of this client's liveness/connection/subscription/outbox status, plus local failure drills (relay unreachable, auth expiry, revoke fail-closed). Every subcommand here reuses zeitgeist_client.operability's signals/drills — no second implementation, no relay-url/token option, no network beyond the one optional canary offer `report` makes when repo already has a stored checkout._
+
+```
+ Usage: spec-kitty zeitgeist operability [OPTIONS] COMMAND [ARGS]...
+
+ Payload-free self-report of this client's
+ liveness/connection/subscription/outbox status, plus local failure drills
+ (relay unreachable, auth expiry, revoke fail-closed). Every subcommand here
+ reuses zeitgeist_client.operability's signals/drills — no second
+ implementation, no relay-url/token option, no network beyond the one optional
+ canary offer `report` makes when repo already has a stored checkout.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ report          One payload-free snapshot of ``repo``'s operability signals. │
+│                 Runs a                                                       │
+│                 single canary offer probe only if ``repo`` already has a     │
+│                 stored                                                       │
+│                 checkout — otherwise reports honestly stale/inactive rather  │
+│                 than                                                         │
+│                 fabricating a live reading.                                  │
+│ drill-timeout   Local "relay unreachable" drill — one offer() against a      │
+│                 loopback                                                     │
+│                 address nothing listens on. Network-free (loopback only) and │
+│                 needs no                                                     │
+│                 repo/checkout.                                               │
+│ drill-rotation  Local "auth expiry" drill for ``repo``'s stored checkout —   │
+│                 reads only                                                   │
+│                 the stored ``token_issued_at`` timestamp, never the token    │
+│                 value.                                                       │
+│ drill-rollback  Local "rollback" drill: proves ``outbox_approval.revoke()``  │
+│                 fails                                                        │
+│                 closed on a never-approved item — never touches the          │
+│                 controlling                                                  │
+│                 terminal, never requires a human.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability drill-rollback
+
+```
+ Usage: spec-kitty zeitgeist operability drill-rollback [OPTIONS] [REPO]
+
+ Local "rollback" drill: proves ``outbox_approval.revoke()`` fails closed on a
+ never-approved item — never touches the controlling terminal, never requires a
+ human.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability drill-rotation
+
+```
+ Usage: spec-kitty zeitgeist operability drill-rotation [OPTIONS] [REPO]
+
+ Local "auth expiry" drill for ``repo``'s stored checkout — reads only the
+ stored ``token_issued_at`` timestamp, never the token value.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability drill-timeout
+
+```
+ Usage: spec-kitty zeitgeist operability drill-timeout [OPTIONS]
+
+ Local "relay unreachable" drill — one offer() against a loopback address
+ nothing listens on. Network-free (loopback only) and needs no repo/checkout.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability report
+
+```
+ Usage: spec-kitty zeitgeist operability report [OPTIONS] [REPO]
+
+ One payload-free snapshot of ``repo``'s operability signals. Runs a single
+ canary offer probe only if ``repo`` already has a stored checkout — otherwise
+ reports honestly stale/inactive rather than fabricating a live reading.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox
+
+_Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision requires a real human at a real terminal — there is no --yes/--force option and no reachability from MCP or a script._
+
+```
+ Usage: spec-kitty zeitgeist outbox [OPTIONS] COMMAND [ARGS]...
+
+ Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision
+ requires a real human at a real terminal — there is no --yes/--force option
+ and no reachability from MCP or a script.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list     Every item still awaiting a human disposition. Content is shown     │
+│          only                                                                │
+│          as a bounded, redacted preview — never the exact prose (use         │
+│          ``show`` for                                                        │
+│          that, by exact id).                                                 │
+│ show     The exact full record for ``item_id`` — the one explicit, per-id    │
+│          disclosure action (see ``outbox_approval.py``'s module docstring).  │
+│ approve  Approve ``item_id``. Requires typing back the item's own challenge  │
+│          at                                                                  │
+│          the controlling terminal when prompted — there is no flag to skip   │
+│          this.                                                               │
+│ reject   Reject ``item_id``. Same human-gesture requirement as ``approve``.  │
+│ revoke   Pull back an already-approved ``item_id``. Same human-gesture       │
+│          requirement as ``approve``; only valid from ``approved``.           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox approve
+
+```
+ Usage: spec-kitty zeitgeist outbox approve [OPTIONS] ITEM_ID
+
+ Approve ``item_id``. Requires typing back the item's own challenge at the
+ controlling terminal when prompted — there is no flag to skip this.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --actor          TEXT  Attribution recorded on the receipt. Defaults to the  │
+│                        local OS user.                                        │
+│ --help   -h            Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox list
+
+```
+ Usage: spec-kitty zeitgeist outbox list [OPTIONS]
+
+ Every item still awaiting a human disposition. Content is shown only as a
+ bounded, redacted preview — never the exact prose (use ``show`` for that, by
+ exact id).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo          TEXT  Only items queued for this repo.                       │
+│ --json                Emit plain JSON instead of a human-readable summary.   │
+│ --help  -h            Show this message and exit.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox reject
+
+```
+ Usage: spec-kitty zeitgeist outbox reject [OPTIONS] ITEM_ID
+
+ Reject ``item_id``. Same human-gesture requirement as ``approve``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --actor          TEXT  Attribution recorded on the receipt. Defaults to the  │
+│                        local OS user.                                        │
+│ --help   -h            Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox revoke
+
+```
+ Usage: spec-kitty zeitgeist outbox revoke [OPTIONS] ITEM_ID
+
+ Pull back an already-approved ``item_id``. Same human-gesture requirement as
+ ``approve``; only valid from ``approved``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --actor          TEXT  Attribution recorded on the receipt. Defaults to the  │
+│                        local OS user.                                        │
+│ --help   -h            Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox show
+
+```
+ Usage: spec-kitty zeitgeist outbox show [OPTIONS] ITEM_ID
+
+ The exact full record for ``item_id`` — the one explicit, per-id disclosure
+ action (see ``outbox_approval.py``'s module docstring).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist status
+
+```
+ Usage: spec-kitty zeitgeist status [OPTIONS] [REPO]
+
+ One bounded snapshot of ``repo``'s live presence/focus state.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --timeout          FLOAT RANGE [x>=0.001]  Seconds to listen before          │
+│                                            reporting (clamped to <= 90s, the │
+│                                            honest reported-live ceiling).    │
+│                                            [default: 2.0]                    │
+│ --json                                     Emit plain JSON instead of a      │
+│                                            human-readable summary.           │
+│ --help     -h                              Show this message and exit.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist watch
+
+```
+ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
+
+ Print live frames plus a final summary, bounded by whole-call ``--timeout``
+ and ``--max-frames`` count.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --timeout             FLOAT RANGE [x>=0.001]  Maximum seconds for the whole  │
+│                                               watch (clamped to <= 90s, the  │
+│                                               honest reported-live ceiling). │
+│                                               [default: 5.0]                 │
+│ --max-frames          INTEGER RANGE [x>=1]    Stop after this many frames    │
+│                                               even if the window has not     │
+│                                               elapsed.                       │
+│                                               [default: 500]                 │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help        -h                              Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## Internal / hidden commands
+
+> The following commands are hidden from the default `--help` output but documented here for internal reference.
+
+
+## spec-kitty __force_multi_command_mode__
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty __force_multi_command_mode__ [OPTIONS]
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent check-prerequisites
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent check-prerequisites [OPTIONS]
+
+ Deprecated compatibility alias forwarding to agent mission
+ check-prerequisites.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission                TEXT  Mission slug                                  │
+│ --json                         Output JSON format                            │
+│ --paths-only                   Only output path variables                    │
+│ --include-tasks                Include tasks.md in validation                │
+│ --help           -h            Show this message and exit.                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent decision widen
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent decision widen [OPTIONS] DECISION_ID
+
+  Call the widen endpoint for a decision. Not for end users.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    decision_id      TEXT  ULID of the DecisionPoint to widen [required]    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --invited               TEXT  Comma-separated Teamspace user IDs to       │
+│                                  invite                                      │
+│                                  [required]                                  │
+│    --mission-slug          TEXT  Mission slug                                │
+│    --dry-run                     Print what would be called without calling  │
+│                                  it                                          │
+│    --help          -h            Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent profile
+
+> **Internal**: hidden from the default `--help` output.
+
+_Compatibility alias for listing agent profiles_
+
+```
+ Usage: spec-kitty agent profile [OPTIONS] COMMAND [ARGS]...
+
+ Compatibility alias for listing agent profiles
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List agent profiles (activated-only by default; --all for the full     │
+│       catalog).                                                              │
+│ show  Show the full resolved definition of an agent profile                  │
+│       (FR-013/014/015).                                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent profile get
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent profile get [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output JSON object.                                        │
+│ --all             Bypass the activation gate for inspection (show            │
+│                   non-activated profiles).                                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty commit-guard-hook
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty commit-guard-hook [OPTIONS] [_ARGS]...
+
+ Run the commit guard and exit with its result code.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine
+
+> **Internal**: hidden from the default `--help` output.
+
+> **Deprecated**: [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
+
+```
+ Usage: spec-kitty doctrine [OPTIONS] COMMAND [ARGS]...
+
+ (deprecated)
+ [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ fetch             Fetch org doctrine pack(s) from their configured remote    │
+│                   sources.                                                   │
+│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
+│                   (FR-009).                                                  │
+│ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
+│ validate          Validate project-layer doctrine artifacts against their    │
+│                   schemas (FR-017).                                          │
+│ pack              Validate or assemble doctrine packs.                       │
+│ org               Manage org-layer doctrine pack authoring (init, validate). │
+│ mission-type      Mission type commands.                                     │
+│ asset             Resolve shipped and overlay doctrine assets (no install —  │
+│                   C-002).                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-acceptance-matrix
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-acceptance-matrix [OPTIONS] BASE OURS THEIRS
+
+ Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours``
+ (FR-008).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-event-log
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-event-log [OPTIONS] BASE OURS THEIRS
+
+ Merge ``status.events.jsonl`` conflict inputs using event-log semantics.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-issue-matrix
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-issue-matrix [OPTIONS] BASE OURS THEIRS
+
+ Row-aware, 3-way merge of ``issue-matrix.json``; write result to ``ours``
+ (FR-008).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-meta
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-meta [OPTIONS] BASE OURS THEIRS
+
+ Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-review-cycle
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-review-cycle [OPTIONS] BASE OURS THEIRS
+
+ Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.
+
+ Two distinct verdict documents colliding under the same filename are
+ NEVER unioned/field-merged/interleaved into one document -- see the
+ module-level design-decision comment immediately above this function for
+ the full reasoning (embed both verbatim, never fabricate a blended
+ verdict). Unlike WP18's original T077 driver, a divergent collision no
+ longer aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is
+ non-authoritative, unread prose now that ``status.events.jsonl``'s
+ ``review_result`` event slot is the sole verdict authority, so refusing
+ the merge over it is no longer justified.
+
+ Identical content on both sides (byte-for-byte) is the trivial fast path:
+ resolves cleanly, exit 0, never reported as a conflict. Otherwise, both
+ raw documents are embedded verbatim inside standard git-style conflict
+ markers (never blended field-by-field -- a review verdict has no safely
+ mergeable sub-fields the way a JSON matrix row does) and the driver
+ exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
+ and the squash proceeds.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-traces
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-traces [OPTIONS] BASE OURS THEIRS
+
+ Union conflicting ``traces/*.md`` documents; write result to ``ours``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty profiles get
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty profiles get [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output JSON object.                                        │
+│ --all             Bypass the activation gate for inspection (show            │
+│                   non-activated profiles).                                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist mcp-serve
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty zeitgeist mcp-serve [OPTIONS]
+
+ Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the client
+ disconnects. Process entry point for an MCP client's launcher — not meant for
+ direct interactive use, hence hidden.
+
+ #190: switched off (`spec-kitty moments off`), this prints one line to
+ stderr and exits 0 — stdout stays clean for the MCP framing protocol —
+ rather than starting a server that would only ever look broken.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

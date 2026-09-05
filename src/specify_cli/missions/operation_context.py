@@ -92,11 +92,7 @@ def resolve_mission_operation_context(
         )
 
     caller_probe = _probe(caller_root, selector)
-    if (
-        isinstance(primary_probe, ResolvedMission)
-        and isinstance(caller_probe, ResolvedMission)
-        and primary_probe.mission_id != caller_probe.mission_id
-    ):
+    if isinstance(primary_probe, ResolvedMission) and isinstance(caller_probe, ResolvedMission) and primary_probe.mission_id != caller_probe.mission_id:
         raise MissionSurfaceConflictError(primary_probe, caller_probe)
 
     selected = caller_probe if caller_probe is not None else primary_probe

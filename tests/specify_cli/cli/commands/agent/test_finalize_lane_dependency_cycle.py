@@ -55,10 +55,7 @@ def _write_cyclic_mission(
     (repo_root / "src" / "b.py").write_bytes(b"# b\n")
 
     wp_count = 6 if three_lane_cycle else 4
-    requirements = "\n".join(
-        f"- FR-{index:03d}: Requirement {index}"
-        for index in range(1, wp_count + 1)
-    )
+    requirements = "\n".join(f"- FR-{index:03d}: Requirement {index}" for index in range(1, wp_count + 1))
     (mission_dir / "spec.md").write_text(
         f"---\ntitle: Cyclic finalize\n---\n\n## Requirements\n\n{requirements}\n",
         encoding="utf-8",
@@ -82,15 +79,9 @@ def _write_cyclic_mission(
     )
     tasks_sections = ["# Tasks"]
     for wp_id, dependencies in authored_dependencies.items():
-        dependency_text = (
-            "Depends on " + ", ".join(dependencies) + "."
-            if dependencies
-            else "No dependencies."
-        )
+        dependency_text = "Depends on " + ", ".join(dependencies) + "." if dependencies else "No dependencies."
         tasks_sections.append(f"## {wp_id}\n\n{dependency_text}")
-    (mission_dir / "tasks.md").write_text(
-        "\n\n".join(tasks_sections) + "\n", encoding="utf-8"
-    )
+    (mission_dir / "tasks.md").write_text("\n\n".join(tasks_sections) + "\n", encoding="utf-8")
     (mission_dir / "meta.json").write_text(
         json.dumps({"mission_slug": _MISSION_SLUG, "target_branch": "main"}),
         encoding="utf-8",
@@ -125,24 +116,10 @@ def _write_cyclic_mission(
     )
     if three_lane_cycle:
         (repo_root / "src" / "c.py").write_bytes(b"# c\n")
-    for index, (wp_id, owned_file, dependencies, execution_mode) in enumerate(
-        definitions, start=1
-    ):
-        dependency_yaml = (
-            "dependencies:\n" + "".join(f"  - {dep}\n" for dep in dependencies)
-            if dependencies
-            else "dependencies: []\n"
-        )
-        authoritative_surface = (
-            f"kitty-specs/{_MISSION_SLUG}/"
-            if execution_mode == "planning_artifact"
-            else "src/"
-        )
-        owned = (
-            f"kitty-specs/{_MISSION_SLUG}/tasks/WP04-test.md"
-            if execution_mode == "planning_artifact"
-            else owned_file
-        )
+    for index, (wp_id, owned_file, dependencies, execution_mode) in enumerate(definitions, start=1):
+        dependency_yaml = "dependencies:\n" + "".join(f"  - {dep}\n" for dep in dependencies) if dependencies else "dependencies: []\n"
+        authoritative_surface = f"kitty-specs/{_MISSION_SLUG}/" if execution_mode == "planning_artifact" else "src/"
+        owned = f"kitty-specs/{_MISSION_SLUG}/tasks/WP04-test.md" if execution_mode == "planning_artifact" else owned_file
         (tasks_dir / f"{wp_id}-test.md").write_text(
             "---\n"
             f'work_package_id: "{wp_id}"\n'
@@ -158,19 +135,12 @@ def _write_cyclic_mission(
         )
     if with_wps_manifest:
         manifest_lines = ["work_packages:"]
-        for index, (wp_id, owned_file, dependencies, _) in enumerate(
-            definitions, start=1
-        ):
+        for index, (wp_id, owned_file, dependencies, _) in enumerate(definitions, start=1):
             manifest_lines.extend(
                 [
                     f"  - id: {wp_id}",
                     f"    title: Test {wp_id}",
-                    *(
-                        ["    dependencies:"]
-                        + [f"      - {dependency}" for dependency in dependencies]
-                        if dependencies
-                        else ["    dependencies: []"]
-                    ),
+                    *(["    dependencies:"] + [f"      - {dependency}" for dependency in dependencies] if dependencies else ["    dependencies: []"]),
                     "    owned_files:",
                     f"      - {owned_file}",
                     "    requirement_refs:",
@@ -179,9 +149,7 @@ def _write_cyclic_mission(
                     f"    prompt_file: tasks/{wp_id}-test.md",
                 ]
             )
-        (mission_dir / "wps.yaml").write_text(
-            "\n".join(manifest_lines) + "\n", encoding="utf-8"
-        )
+        (mission_dir / "wps.yaml").write_text("\n".join(manifest_lines) + "\n", encoding="utf-8")
     return mission_dir
 
 
@@ -206,9 +174,7 @@ def _run_finalize(
     """Run the canonical mission finalize callable with unrelated seams isolated."""
     patches = _common_patches(repo_root, _MISSION_SLUG)
     wp_count = len(list((repo_root / "kitty-specs" / _MISSION_SLUG / "tasks").glob("WP*.md")))
-    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-        return_value=_make_bootstrap_result(total=wp_count, seeded=wp_count)
-    )
+    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result(total=wp_count, seeded=wp_count))
     started = [patch(target, value) for target, value in patches.items()]
     for active_patch in started:
         active_patch.start()
@@ -238,21 +204,17 @@ def test_cycle_json_contract_and_manifest_absence(
     """Both modes expose one structured terminal envelope and write no manifest."""
     mission_dir = _write_cyclic_mission(tmp_path)
 
-    exit_code, _ = _run_finalize(
-        tmp_path, validate_only=validate_only, json_output=True
-    )
+    exit_code, _ = _run_finalize(tmp_path, validate_only=validate_only, json_output=True)
     output = capsys.readouterr()
     payloads = [json.loads(line) for line in output.out.splitlines() if line.strip()]
 
     assert exit_code != 0
     assert output.err == ""
-    assert len(payloads) == 1
+    assert len(payloads) == 1  # golden-count: cardinality-is-contract
     expected_path = _EXPECTED_PATH
     expected_lanes = _EXPECTED_LANES
     assert payloads[0]["error_code"] == "LANE_DEPENDENCY_CYCLE"
-    assert payloads[0]["error"] == (
-        "Execution-lane dependency cycle detected: lane-a -> lane-b -> lane-a"
-    )
+    assert payloads[0]["error"] == ("Execution-lane dependency cycle detected: lane-a -> lane-b -> lane-a")
     assert payloads[0]["cycle_path"] == expected_path
     assert payloads[0]["cycle_lanes"] == expected_lanes
     assert not (mission_dir / "lanes.json").exists()
@@ -349,9 +311,7 @@ def test_three_lane_cycle_cli_reports_complete_path_and_membership(
     """Both presentation modes expose every member of a three-lane cycle."""
     _write_cyclic_mission(tmp_path, three_lane_cycle=True)
 
-    exit_code, _ = _run_finalize(
-        tmp_path, validate_only=True, json_output=json_output
-    )
+    exit_code, _ = _run_finalize(tmp_path, validate_only=True, json_output=json_output)
     output = capsys.readouterr().out
 
     assert exit_code != 0
@@ -380,13 +340,7 @@ def test_json_cycle_payload_satisfies_checked_in_contract_schema(
     _write_cyclic_mission(tmp_path)
     exit_code, _ = _run_finalize(tmp_path, validate_only=True, json_output=True)
     payload = json.loads(capsys.readouterr().out)
-    schema_path = (
-        Path(__file__).resolve().parents[5]
-        / "kitty-specs"
-        / "reject-cyclic-lane-graphs-01M0QCK4"
-        / "contracts"
-        / "lane-dependency-cycle.schema.json"
-    )
+    schema_path = Path(__file__).resolve().parents[5] / "kitty-specs" / "reject-cyclic-lane-graphs-01M0QCK4" / "contracts" / "lane-dependency-cycle.schema.json"
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
     assert exit_code != 0
@@ -403,9 +357,7 @@ def test_human_cycle_diagnostic_contains_complete_actionable_facts(
     """Human output names the closed path and every lane membership fact."""
     _write_cyclic_mission(tmp_path)
 
-    exit_code, _ = _run_finalize(
-        tmp_path, validate_only=validate_only, json_output=False
-    )
+    exit_code, _ = _run_finalize(tmp_path, validate_only=validate_only, json_output=False)
     output = capsys.readouterr().out
 
     assert exit_code != 0
@@ -429,9 +381,7 @@ def test_planning_lane_cycle_is_rendered_with_sorted_membership(
     payload = json.loads(output.strip())
     assert payload["error_code"] == "LANE_DEPENDENCY_CYCLE"
     assert "lane-planning" in payload["cycle_path"]
-    planning = next(
-        lane for lane in payload["cycle_lanes"] if lane["lane_id"] == "lane-planning"
-    )
+    planning = next(lane for lane in payload["cycle_lanes"] if lane["lane_id"] == "lane-planning")
     assert planning["wp_ids"] == sorted(planning["wp_ids"])
 
 
@@ -444,8 +394,6 @@ def test_generic_finalize_error_payload_is_unchanged(
     emitted: list[dict[str, object]] = []
     monkeypatch.setattr(mission_finalize, "_emit_json", emitted.append)
 
-    mission_finalize._emit_finalize_error_with_revert_note(
-        ValueError("ordinary failure"), None, json_output=True
-    )
+    mission_finalize._emit_finalize_error_with_revert_note(ValueError("ordinary failure"), None, json_output=True)
 
     assert emitted == [{"error": "ordinary failure"}]

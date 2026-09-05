@@ -64,7 +64,6 @@ def warm_bundle(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return repo
 
 
-@pytest.mark.performance
 def test_warm_overhead_p95_under_10ms(warm_bundle: Path) -> None:
     """100 warm invocations: p95 latency < 10 ms (NFR-002)."""
     # Prime the resolver cache + filesystem caches with one warm-up call.

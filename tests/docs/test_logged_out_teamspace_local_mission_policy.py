@@ -48,9 +48,5 @@ def test_policy_parser_keeps_command_rows_independent() -> None:
 """
 
     rows = _policy_rows(contradictory)
-    assert rows["spec-kitty agent mission create"] == _EXPECTED_POLICY[
-        "spec-kitty agent mission create"
-    ]
-    assert rows["spec-kitty agent mission setup-plan"] != _EXPECTED_POLICY[
-        "spec-kitty agent mission setup-plan"
-    ]
+    assert rows["spec-kitty agent mission create"] == _EXPECTED_POLICY["spec-kitty agent mission create"]
+    assert rows["spec-kitty agent mission setup-plan"] != _EXPECTED_POLICY["spec-kitty agent mission setup-plan"]

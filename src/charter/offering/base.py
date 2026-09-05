@@ -156,7 +156,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         """Return the org/project overlay YAML files to load.
 
         Recursion is sourced from the single doctrine recursion authority
-        (:func:`charter.offering.discovery_recursion.overlay_scan_is_recursive`),
+        (:func:`doctrine.discovery_recursion.overlay_scan_is_recursive`),
         unconditional per C-001, so org/project overlays discover nested
         artifacts with the same completeness as the built-in tier's ``rglob``
         (:meth:`_load_built_in_items`). The kind-specific ``self._glob`` (C-002)

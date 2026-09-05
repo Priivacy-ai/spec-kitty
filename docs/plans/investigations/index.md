@@ -2,7 +2,7 @@
 title: Investigations
 description: Scope and compatibility investigations — issue analyses, schema-generation research, and mission review reports.
 doc_status: draft
-updated: '2026-08-01'
+updated: '2026-08-30'
 related:
 - docs/plans/index.md
 ---
@@ -16,10 +16,9 @@ reports.
 
 Open designs and unshipped scope still worth consulting:
 
-- [Processing & charter friction bugs: shared root causes and mission scope](friction-bugs-processing-charter-root-cause.md) —
-  five-lens-squad root-cause analysis of a 7-issue friction defect class (#3605, #3604, #3598,
-  #3596, #3590, #3578, #3571), code-verified against `main`; a scoped mission seed with the
-  open decisions specify must resolve.
+- [Issue #797: Events and Tracker Fork Census](issue-797-events-tracker-fork-census.md) —
+  read-only ancestry, PyPI-source, and publication-workflow evidence for D6; recommends
+  events 8.2.0 and tracker 0.5.2, and records the missing public tracker repository.
 - [Write-path topology: ambient-location root cause and remediation options](write-path-topology-root-cause.md) —
   dialectic-squad-corroborated root cause for the #3129 defect class (14 issues); scoped
   remediation options for a future mission; rejects the batch-reparent/new-P0-epic action.

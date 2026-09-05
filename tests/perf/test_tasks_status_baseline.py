@@ -52,7 +52,7 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.mocked_env import setup_mocked_env
 
-pytestmark = [pytest.mark.slow]
+pytestmark = [pytest.mark.slow, pytest.mark.timing]
 
 runner = CliRunner()
 
@@ -156,7 +156,6 @@ def _large_mission_project(tmp_path: Path) -> tuple[Path, str]:
     return tmp_path, mission_slug
 
 
-@pytest.mark.performance
 def test_tasks_status_p95_within_nfr005_budget(
     _large_mission_project: tuple[Path, str],
 ) -> None:

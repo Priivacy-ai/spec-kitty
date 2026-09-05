@@ -102,7 +102,7 @@ def _real_graph_node_urns(pack_context: PackContext) -> frozenset[str]:
 # regression can't silently deactivate an explicitly-activated pack.
 # ---------------------------------------------------------------------------
 
-#: src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml -> id spec-kitty-core
+#: src/charter/offering/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml -> id spec-kitty-core
 _REAL_GLOSSARY_PACK_STEM = "spec-kitty-core"
 
 

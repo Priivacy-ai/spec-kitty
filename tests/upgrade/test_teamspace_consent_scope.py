@@ -78,9 +78,7 @@ def _spy_repair_repo(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 # ---------------------------------------------------------------------------
 
 
-def test_interactive_default_deny_reaches_consent_and_declines(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_interactive_default_deny_reaches_consent_and_declines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Interactive session, no explicit opt-in, user declines the prompt:
     the consent decision at the gate's core IS reached (proven by
     ``declined is True``, not merely ``pending``), and ``repair_repo`` is
@@ -129,9 +127,7 @@ def test_interactive_prompt_defaults_to_no(tmp_path: Path, monkeypatch: pytest.M
     assert captured["default"] is False
 
 
-def test_non_interactive_no_opt_in_denies_without_abort(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_non_interactive_no_opt_in_denies_without_abort(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-006/SC-003(b): a non-interactive session (no TTY) with no explicit
     opt-in denies WITHOUT aborting the run — guards against ``typer.confirm``
     raising ``Abort`` when there is no TTY."""
@@ -156,18 +152,14 @@ def test_non_interactive_no_opt_in_denies_without_abort(
     assert outcome.pending is False
 
 
-def test_explicit_repair_opt_in_bypasses_the_prompt_and_runs_repair(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_explicit_repair_opt_in_bypasses_the_prompt_and_runs_repair(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An explicit opt-in short-circuits the prompt entirely and runs the
     repair (positive control for the spy — proves the spy would fire if the
     decision allowed it)."""
     _patch_readiness(monkeypatch, tmp_path)
     spy = _spy_repair_repo(monkeypatch)
     fake_report = MagicMock()
-    fake_report.to_dict.return_value = {
-        "summary": {"missions_updated": 1, "missions_unchanged": 0, "missions_error": 0}
-    }
+    fake_report.to_dict.return_value = {"summary": {"missions_updated": 1, "missions_unchanged": 0, "missions_error": 0}}
     fake_report.manifest_path = tmp_path / "manifest.json"
     spy.return_value = fake_report
 
@@ -214,9 +206,7 @@ def test_not_blocked_is_pending_not_declined(tmp_path: Path, monkeypatch: pytest
     )
     spy = _spy_repair_repo(monkeypatch)
 
-    outcome = offer_teamspace_mission_state_migration(
-        tmp_path, console=Console(), dry_run=False, repair_opt_in=False
-    )
+    outcome = offer_teamspace_mission_state_migration(tmp_path, console=Console(), dry_run=False, repair_opt_in=False)
 
     spy.assert_not_called()
     assert outcome.pending is True
@@ -231,9 +221,7 @@ def test_audit_error_is_pending_not_declined(tmp_path: Path, monkeypatch: pytest
     )
     spy = _spy_repair_repo(monkeypatch)
 
-    outcome = offer_teamspace_mission_state_migration(
-        tmp_path, console=Console(), dry_run=False, repair_opt_in=False
-    )
+    outcome = offer_teamspace_mission_state_migration(tmp_path, console=Console(), dry_run=False, repair_opt_in=False)
 
     spy.assert_not_called()
     assert outcome.pending is True
@@ -244,9 +232,7 @@ def test_dry_run_is_pending_not_declined(tmp_path: Path, monkeypatch: pytest.Mon
     _patch_readiness(monkeypatch, tmp_path)
     spy = _spy_repair_repo(monkeypatch)
 
-    outcome = offer_teamspace_mission_state_migration(
-        tmp_path, console=Console(), dry_run=True, repair_opt_in=False
-    )
+    outcome = offer_teamspace_mission_state_migration(tmp_path, console=Console(), dry_run=True, repair_opt_in=False)
 
     spy.assert_not_called()
     assert outcome.pending is True
@@ -280,9 +266,7 @@ def test_offer_signature_has_own_repair_opt_in_parameter() -> None:
     assert "repair_opt_in" in params
 
 
-def test_assume_yes_true_does_not_bypass_repair_consent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_assume_yes_true_does_not_bypass_repair_consent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Behavioral proof of NFR-003: even when the caller holds full
     migration-apply consent (``assume_yes=True``), a non-interactive session
     with no explicit ``repair_opt_in`` still declines the repair — ``assume_yes``
@@ -311,8 +295,6 @@ def test_offer_never_raises_typer_exit(tmp_path: Path, monkeypatch: pytest.Monke
     monkeypatch.setattr(typer, "confirm", lambda *_a, **_kw: False)
 
     try:
-        offer_teamspace_mission_state_migration(
-            tmp_path, console=Console(), dry_run=False, repair_opt_in=False
-        )
+        offer_teamspace_mission_state_migration(tmp_path, console=Console(), dry_run=False, repair_opt_in=False)
     except typer.Exit:
         pytest.fail("offer_teamspace_mission_state_migration must never raise typer.Exit")

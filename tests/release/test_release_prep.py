@@ -461,7 +461,6 @@ def test_close_comment_scope_cut_documented(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 def test_runs_within_5s_for_16_wps(tmp_path: Path) -> None:
     """NFR-004: build_release_prep_payload returns within 5 seconds on 16 WPs."""
     _write_pyproject(tmp_path, "3.1.0a7")

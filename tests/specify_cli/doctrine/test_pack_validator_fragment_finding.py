@@ -73,9 +73,7 @@ class TestFragmentPackNoLongerFlagged:
 
         assert "drg_root_graph_missing" not in _findings(tmp_path)
 
-    def test_fragment_plus_drg_graph_yaml_still_flags_the_graph_shape(
-        self, tmp_path: Path
-    ) -> None:
+    def test_fragment_plus_drg_graph_yaml_still_flags_the_graph_shape(self, tmp_path: Path) -> None:
         """A pack shipping ``drg/fragment.yaml`` AND ``drg/*.graph.yaml`` STILL
         fires ``drg_root_graph_missing``: the fragment's edges cascade, but the
         ``drg/*.graph.yaml`` graph document is a distinct shape no runtime path
@@ -106,9 +104,7 @@ class TestDeadContentStillFlagged:
         assert not (drg / "fragment.yaml").exists()
 
         result = validate_pack(tmp_path)
-        root_missing = [
-            i for i in result.errors if i.category == "drg_root_graph_missing"
-        ]
+        root_missing = [i for i in result.errors if i.category == "drg_root_graph_missing"]
         assert root_missing, result.errors
         message = root_missing[0].message
         # The message must state the real read-set and drop the false blanket.

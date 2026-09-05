@@ -44,9 +44,6 @@ def parse_me_teams(me: dict[str, Any]) -> list[Team]:
                     is_private_teamspace=bool(
                         raw_team.get("is_private_teamspace", False)
                     ),
-                    # ``slug`` is server-published (saas#986); ``id`` is the
-                    # long-standing compatibility alias for the same value.
-                    slug=str(raw_team.get("slug") or raw_team["id"]),
                 )
             )
         except KeyError as exc:

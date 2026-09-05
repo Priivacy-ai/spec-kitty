@@ -10,7 +10,7 @@ helpers. That file is now split by *actual scan scope*:
 ``src/``-wide (CLI-wide, not doctrine-scoped).
 
 ``tests/architectural/test_no_dead_doctrine_paths.py`` -- Gate C alone, the
-only ``src/doctrine/``-scoped gate; the file keeps its original name because
+only ``src/charter/offering/``-scoped gate; the file keeps its original name because
 that name now means what it says.
 
 ``tests/architectural/test_dead_builtin_doc_paths.py`` -- Gate D alone, the
@@ -42,7 +42,7 @@ _DOCTRINE_ROOT = _SRC_ROOT / "charter" / "offering"
 #: Relocated built-in pack root (mission ``relocate-builtin-doctrine-packs-01KYT87F``).
 #: The shipped built-in doctrine content that names paths -- agent profiles,
 #: glossary packs, toolguide markdown, and the per-kind ``*.graph.yaml`` fragments
-#: -- moved out of ``src/doctrine/`` into this top-level pack root. The dead-path
+#: -- moved out of ``src/charter/offering/`` into this top-level pack root. The dead-path
 #: defect class now spans BOTH trees (consuming code under ``src/``; authored pack
 #: content under ``packs/built-in/``), so every shipped gate scans the pair and
 #: merges the result. ``_rel`` addresses each site repo-relatively, so a merged
@@ -76,7 +76,19 @@ def _read_lines(path: Path) -> list[str]:
 
 @lru_cache(maxsize=8)
 def _text_files(root: Path) -> tuple[tuple[Path, tuple[str, ...]], ...]:
-    """Read every scannable text file under *root* once per root."""
+    """Read every scannable text file under *root* once per root.
+
+    **Caveat for future consumers: the cache is keyed on the root PATH, not on its contents**
+    (same boundary as ``tests/architectural/_home_pin_scan.py::_corpus``, which documents the
+    live incident this sweep addressed, planning#88). A caller that materialises a synthetic
+    tree, scans it, then rewrites files under the **same** root within one process gets the
+    first read back. This bites hardest under ``tmp_path_retention_policy = failed``:
+    ``_pytest.tmpdir._mk_tmp`` truncates node names at ``MAXVAL = 30`` chars, so parametrizations
+    of one long test name can share an identical truncated prefix and, once each dir is
+    rmtree'd at its own teardown, ``make_numbered_dir``'s sibling scan can hand two
+    parametrizations the SAME physical directory. Give a parametrized caller a distinct subroot
+    per parametrization (``tmp_path / param``), never a bare ``tmp_path``.
+    """
     found: list[tuple[Path, tuple[str, ...]]] = []
     for candidate in sorted(root.rglob("*")):
         if candidate.is_file() and candidate.suffix in _TEXT_SUFFIXES:

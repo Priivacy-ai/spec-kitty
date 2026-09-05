@@ -19,14 +19,7 @@ from specify_cli.status import adapters
 
 # Pure-module threading behaviour (no subprocess/git/network); not `fast`
 # because the orphan-thread teardown joins push some cases past sub-second.
-from specify_cli.core.saas_sync_config import sync_active
-pytestmark = [
-    pytest.mark.unit,
-    pytest.mark.skipif(
-        not sync_active(),
-        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
-    ),
-]
+pytestmark = [pytest.mark.unit]
 
 
 @pytest.fixture(autouse=True)

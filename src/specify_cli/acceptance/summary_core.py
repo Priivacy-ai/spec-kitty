@@ -24,7 +24,7 @@ from specify_cli.config.path_conventions import load_project_path_conventions
 from specify_cli.mission import get_deliverables_path
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
-from specify_cli.validators.paths import _normalize_path_token, artifact_tokens_for_mission, validate_mission_paths
+from specify_cli.validators.paths import artifact_tokens_for_mission, normalize_path_token, validate_mission_paths
 
 from .gates_core import AcceptanceCheckDiagnostic
 
@@ -112,9 +112,7 @@ def build_work_package_state(
     return state, metadata_issues
 
 
-def build_canceled_wp_report(
-    wp_id: str, wp_snapshot: Mapping[str, Any] | None
-) -> dict[str, str] | None:
+def build_canceled_wp_report(wp_id: str, wp_snapshot: Mapping[str, Any] | None) -> dict[str, str] | None:
     """Return the ``canceled_wps`` report entry for an operator-canceled WP, else ``None``.
 
     Pure builder for the NFR-003 ``accept --json`` ``canceled_wps`` array: an
@@ -151,7 +149,7 @@ def evaluate_path_conventions(
     *,
     strict_metadata: bool,
 ) -> tuple[list[str], str | None, frozenset[str]]:
-    """Evaluate mission path conventions; returns (path_violations, warning, dedup_tokens).
+    """Evaluate mission path conventions; returns violations, warning, and dedup tokens.
 
     Mission path conventions block acceptance by default, but under
     ``--lenient`` (``strict_metadata=False``) they are advisory: surfaced as a
@@ -162,21 +160,6 @@ def evaluate_path_conventions(
     invoked non-strict here so the caller owns the blocking decision rather
     than catching a raise. When ``mission`` has no path conventions this is a
     no-op: ``([], None, frozenset())``.
-
-    ``dedup_tokens`` is a pure query result, not a side effect: it is the
-    FR-002 dedup token set — normalized tokens that are BOTH a resolved
-    artifact-tagged missing path AND a declared mission artifact (via WP01's
-    ``artifact_tokens_for_mission`` membership check, rather than relying on
-    the placeholder-value branch happening not to collide with a real artifact
-    token). It is only ever non-empty inside the ``strict_metadata=True``
-    branch. This function never mutates a caller-owned list; the caller
-    (``acceptance.collect_feature_summary``) is responsible for applying
-    ``dedup_tokens`` to its own ``missing_optional`` list explicitly, e.g.::
-
-        missing_optional = [
-            entry for entry in missing_optional
-            if _normalize_path_token(entry) not in dedup_tokens
-        ]
     """
     if not (mission and mission.config.paths):
         return [], None, frozenset()
@@ -196,20 +179,8 @@ def evaluate_path_conventions(
     if not path_result.missing_paths:
         return [], None, frozenset()
     if strict_metadata:
-        # FR-002: ``contracts/`` (and any other token declared under BOTH
-        # ``artifacts.optional`` and ``paths.deliverables``) must not be
-        # reported through both a non-blocking ``optional_missing`` warning
-        # AND a blocking ``path_violations`` entry — the blocking side wins.
-        # Structurally exclude non-artifact (placeholder) entries first via
-        # WP01's ``artifact_tokens_for_mission`` membership check, rather than
-        # relying on the placeholder values happening not to collide with a
-        # real artifact token.
         artifact_tokens = artifact_tokens_for_mission(mission)
-        dedup_tokens = frozenset(
-            _normalize_path_token(token)
-            for token in path_result.missing_artifact_tokens
-            if _normalize_path_token(token) in artifact_tokens
-        )
+        dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
         return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None, dedup_tokens
     return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, frozenset()
 
@@ -247,11 +218,7 @@ def _has_non_terminal_lane(lanes: dict[str, list[str]]) -> bool:
     provenance-aware acceptability decision lives on
     ``AcceptanceSummary.all_done`` / ``.canceled_wps``.
     """
-    return any(
-        wp_ids
-        for lane, wp_ids in lanes.items()
-        if not is_acceptable_ending(lane, has_provenance=False)
-    )
+    return any(wp_ids for lane, wp_ids in lanes.items() if not is_acceptable_ending(lane, has_provenance=False))
 
 
 def _has_issue_containing(issues: list[str], needle: str) -> bool:

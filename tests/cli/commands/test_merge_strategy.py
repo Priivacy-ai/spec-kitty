@@ -34,7 +34,7 @@ from specify_cli.cli.commands.merge import (
 )
 from specify_cli.merge.config import ConfigError, MergeStrategy, load_merge_config
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
@@ -205,9 +205,7 @@ def _patched_lane_based_merge_dependencies(
         stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
         stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
         stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
-        stack.enter_context(patch("specify_cli.merge.executor.emit_mission_closed"))
         stack.enter_context(patch("specify_cli.merge.state.MergeState"))
-        stack.enter_context(patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"))
 
         stale_report = MagicMock()
         stale_report.findings = []

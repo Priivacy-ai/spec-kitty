@@ -1,19 +1,4 @@
 {
-  "accept_commit": "3a04c09f3b37b1d301c54152c916cc1a316a8cbd",
-  "acceptance_history": [
-    {
-      "accept_commit": "3a04c09f3b37b1d301c54152c916cc1a316a8cbd",
-      "acceptance_mode": "pr",
-      "accepted_at": "2026-08-19T15:17:02.206790+00:00",
-      "accepted_by": "stijn",
-      "accepted_from_commit": "7462d843fdf5d0d95b45e55267be40cf4dbdd8dd"
-    }
-  ],
-  "acceptance_mode": "pr",
-  "accepted_at": "2026-08-19T15:17:02.206790+00:00",
-  "accepted_by": "stijn",
-  "accepted_from_commit": "7462d843fdf5d0d95b45e55267be40cf4dbdd8dd",
-  "baseline_merge_commit": "c50e9a15cc63763e059ff8b41d4686b7a5b78761",
   "created_at": "2026-08-19T08:23:11.325955+00:00",
   "flattened": false,
   "friendly_name": "DRG Read-Path Bridge",
@@ -24,9 +9,6 @@
   "purpose_context": "An org pack authored in the canonical drg/fragment.yaml shape can declare that activating one artifact should cascade to its dependencies. Today those edges are parsed only by a separate diagnostic path and never reach charter cascade, so activating the artifact silently cascades nothing for org-authored dependencies. This mission bridges the org fragment edges into the graph charter cascade actually walks, re-scopes the graphless-pack warning to fire only when a pack ships no dependency graph at all, and flips the validator and the pinning regression test together so the tool's story stays consistent.",
   "purpose_tldr": "Dependency edges an org pack declares in its canonical fragment now actually drive charter cascade, instead of being read only by diagnostics.",
   "slug": "drg-read-path-bridge-01M0CHVZ",
-  "status_phase": "1",
-  "target_branch": "mission/drg-read-path-bridge-01M0CHVZ",
-  "topology": "single_branch",
-  "vcs": "git",
-  "vcs_locked_at": "2026-08-19T14:22:21.010401+00:00"
+  "target_branch": "spec/charter-resolution-parity",
+  "topology": "single_branch"
 }

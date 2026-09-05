@@ -13,7 +13,7 @@ Covers the non-fatal envelope required by the spec:
 
 Also asserts the package-data resolution contract shared with WP05: the
 loader's default path resolves to exactly
-``src/doctrine/model_task_routing/catalog/model-to-task_type.yaml`` via
+``src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml`` via
 ``importlib.resources`` -- no "activation convention", no registry
 lookup.
 """

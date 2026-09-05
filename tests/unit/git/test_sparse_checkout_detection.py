@@ -410,7 +410,6 @@ class TestWarnOnce:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestPerformance:
     def test_scan_path_under_20ms_with_negligible_subprocess_overhead(
         self, tmp_path: Path

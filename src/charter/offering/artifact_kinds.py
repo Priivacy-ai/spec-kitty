@@ -324,7 +324,8 @@ PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
 #: exclusion rather than reusing ``_NON_AUGMENTATION_ELIGIBLE_KINDS``.
 #:
 #: This is the single authority the charter activation-kind vocabulary
-#: (``charter.activation.activations`` plural↔singular maps, ``charter.activation._activation_render``
+#: (``charter.activation.activations`` plural↔singular maps,
+#: ``charter.activation._activation_render``
 #: render/inference maps) is derived from — no charter module re-declares a
 #: plural↔singular kind dict (FR-004).
 CHARTER_ACTIVATABLE_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind) - {
@@ -347,7 +348,6 @@ CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR: dict[str, str] = {
     plural: singular
     for singular, plural in CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.items()
 }
-
 
 __all__ = [
     "ArtifactKind",

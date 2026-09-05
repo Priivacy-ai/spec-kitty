@@ -174,11 +174,6 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     # above); deleted coord → graceful PRIMARY fallback. The seam's fail-loud
     # NFR-002 behavior stays scoped to coord-partition WRITE/lifecycle paths, not
     # read-only handoff rendering.
-    # WP04 (#3462): route the deleted-coord degrade through the shared read-side companion.
-    # DEGRADE_TO_FEATURE_DIR returns the resolved STATUS_STATE surface when reachable, or the primary
-    # ``feature_dir`` when the declared coord branch is gone (byte-identical outcome to the prior
-    # ``except CoordinationBranchDeleted: status_feature_dir = feature_dir``; the helper additionally
-    # logs the degrade at WARNING per the contract's DEGRADE_TO_* spec).
     status_decision: ReadDirDecision = resolve_read_dir_or_degrade(
         main_repo_root,
         mission_slug,

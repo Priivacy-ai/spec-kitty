@@ -699,7 +699,8 @@ def evaluate_guards_strict(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]
     :class:`UnregisteredMissionFamilyError` instead of silently falling
     through to the software-dev chain for an unregistered
     ``mission_family``. Direct callers: ``_check_cli_guards``
-    (``runtime_bridge.py``, T006 — raises loudly, never caught) and
+    (``runtime_bridge.py``, T006 — caught by the WP-iteration runtime path,
+    logged at WARNING, degrades to ``[]``) and
     ``_check_composed_action_guard`` (``runtime_bridge_composition.py``,
     T005 — caught, logged at WARNING, degrades to ``[]``).
 

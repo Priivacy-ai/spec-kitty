@@ -265,7 +265,7 @@ register(
 # named properties, which is what made `--check` report this schema stale: the
 # committed schema instead pins the *specific* structural contract the
 # common-docs styleguide's block must satisfy
-# (`src/doctrine/styleguides/built-in/common-docs.styleguide.yaml`), because the
+# (`src/charter/offering/styleguides/built-in/common-docs.styleguide.yaml`), because the
 # `docs_structural_lint.py` asset that reads it (`_require_markers`,
 # `assets/built-in/docs_structural_lint.py`) parses `point_in_time_markers` as a
 # list of `{frontmatter_field, frontmatter_value}` objects and raises

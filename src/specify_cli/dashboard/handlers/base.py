@@ -9,6 +9,8 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from typing import Any, Dict, Optional
 
+from ..csp import send_csp_header
+
 __all__ = ["DashboardHandler"]
 
 
@@ -25,6 +27,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def _send_json(self, status_code: int, payload: dict[str, Any]) -> None:
         """Write a JSON response with common headers."""
         self.send_response(status_code)
+        send_csp_header(self)
         self.send_header('Content-type', 'application/json')
         self.send_header('Cache-Control', 'no-cache')
         self.end_headers()

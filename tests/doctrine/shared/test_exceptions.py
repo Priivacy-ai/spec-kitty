@@ -31,7 +31,7 @@ class TestInlineReferenceRejectedError:
             "file_path": "/path/to/file.yaml",
             "forbidden_field": "tactic_refs",
             "artifact_kind": "directive",
-            "migration_hint": "Remove tactic_refs from YAML; add edge {source: x, target: y, relation: requires} to src/doctrine/directive.graph.yaml",
+            "migration_hint": "Remove tactic_refs from YAML; add edge {source: x, target: y, relation: requires} to src/charter/offering/directive.graph.yaml",
         }
         kwargs.update(overrides)
         return InlineReferenceRejectedError(**kwargs)
@@ -49,7 +49,7 @@ class TestInlineReferenceRejectedError:
         assert err.artifact_kind == "tactic"
 
     def test_migration_hint_attribute(self):
-        hint = "Remove applies_to from YAML; add edge {source: s:id, target: t:id, relation: requires} to src/doctrine/styleguide.graph.yaml"
+        hint = "Remove applies_to from YAML; add edge {source: s:id, target: t:id, relation: requires} to src/charter/offering/styleguide.graph.yaml"
         err = self._make_err(migration_hint=hint)
         assert err.migration_hint == hint
 

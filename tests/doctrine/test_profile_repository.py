@@ -482,7 +482,7 @@ class TestAgentProfileRepositoryExceptions:
         bookkeeping "mirrors AgentProfileRepository" — the pre-planning ledger
         flagged this as a second instance of the same premature-bookkeeping
         ordering bug T025 fixed via ``_post_validate``. Reading ``_load_layer``
-        (``src/doctrine/agent_profiles/repository.py:370-496``) shows the
+        (``src/charter/offering/agent_profiles/repository.py:370-496``) shows the
         ``self._source_paths[profile.profile_id] = yaml_file`` write (line 493)
         sits *after* the ``try/except ValidationError`` block (lines 463-479,
         which ``continue``s past line 493 on a validation failure) and after

@@ -87,7 +87,7 @@ def test_collect_finalize_artifacts_includes_issue_matrix_json(tmp_path: Path) -
     _write(feature_dir / "issue-matrix.json", '{"schema_version": 1, "rows": {}}\n')
     _write(tasks_dir / "WP01.md", "# WP01\n")
 
-    artifacts = _collect_finalize_artifacts(feature_dir, tasks_dir, "060-test")
+    artifacts = _collect_finalize_artifacts(feature_dir, tasks_dir)
 
     assert feature_dir / "issue-matrix.json" in artifacts
     assert feature_dir / "issue-matrix.md" not in artifacts

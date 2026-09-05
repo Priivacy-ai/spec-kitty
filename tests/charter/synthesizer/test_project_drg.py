@@ -1,4 +1,4 @@
-"""Tests for src/charter/synthesizer/project_drg.py (T021 + T023).
+"""Tests for src/charter/activation/synthesizer/project_drg.py (T021 + T023).
 
 Covers:
 - Overlay composition: one node + edges per target.

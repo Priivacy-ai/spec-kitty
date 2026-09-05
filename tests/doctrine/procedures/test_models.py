@@ -35,7 +35,7 @@ class TestProcedureModel:
         assert p.id == "mission-merge-workflow"
         assert p.steps[0].on_failure is not None
         # Post-WP02: step-level `tactic_refs` has been excised from
-        # ProcedureStep; relationships live in src/doctrine/graph.yaml.
+        # ProcedureStep; relationships live in src/charter/offering/graph.yaml.
         assert not hasattr(p.steps[0], "tactic_refs")
         assert [r.type for r in p.references] == [
             ProcedureReferenceType.DIRECTIVE,

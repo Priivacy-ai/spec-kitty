@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import subprocess
 import sys
@@ -107,56 +106,6 @@ _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     ".kittify/migrations/** linguist-generated=true",
     ".kittify/migrations/** -diff",
 )
-
-
-def _emit_project_init_event(project_path: Path) -> None:
-    """Append a project-init lifecycle event to the durable outbox.
-
-    Issue #1073: ``spec-kitty init`` must register a Teamspace-visible
-    project through the durable outbox after identity exists, regardless
-    of authentication or sync state. We accomplish this by materializing
-    the project identity (which mints ``build_id``, ``project_uuid``,
-    ``project_slug``, ``node_id`` in ``.kittify/config.yaml``) and then
-    asking the emitter to publish ``BuildRegistered`` — which now queues
-    locally even when offline or unauthenticated (issue #1072).
-
-    The function is intentionally best-effort: any failure (filesystem,
-    emitter, etc.) becomes a single ``[dim]Note: ...[/dim]`` line and
-    init does not fail. The local-first contract means a future
-    ``spec-kitty next`` / ``spec-kitty agent`` invocation will emit
-    its own events into the same outbox, so a missed init signal is
-    recoverable.
-    """
-    try:
-        from specify_cli.identity.project import ensure_identity
-
-        # WRITE-AUTHORIZED BOUNDARY (#2263, FR-003): project init may persist identity
-        # to .kittify/config.yaml. Do NOT swap to resolve_identity (read-path only).
-        ensure_identity(project_path)
-    except Exception as exc:
-        _logger.debug("Could not ensure project identity for init event: %s", exc)
-        return
-
-    # Reset the emitter singleton so it re-resolves project identity for
-    # the freshly initialized checkout. Without this, an emitter cached
-    # from an earlier invocation in the same process would still point
-    # at the previous repo root.
-    try:
-        from specify_cli.sync.events import get_emitter, reset_emitter
-
-        reset_emitter()
-        previous_cwd = Path.cwd()
-        try:
-            os.chdir(project_path)
-            emitter = get_emitter()
-            event = emitter.emit_build_registered()
-            if event is None:
-                _logger.debug("emit_build_registered returned None during init")
-        finally:
-            os.chdir(previous_cwd)
-            reset_emitter()
-    except Exception as exc:
-        _logger.debug("Could not emit project-init event: %s", exc)
 
 
 def _has_global_runtime() -> bool:
@@ -332,7 +281,7 @@ def _stamp_schema_metadata(kittify_dir: Path) -> bool:
 def _get_package_templates_root() -> Path | None:
     """Return the package-bundled templates directory (read-only).
 
-    This is the ``src/doctrine/templates/`` directory which contains
+    This is the ``src/charter/offering/templates/`` directory which contains
     ``command-templates/``, ``AGENTS.md``, etc.
 
     Returns None if the templates directory cannot be located.
@@ -345,12 +294,12 @@ def _get_package_templates_root() -> Path | None:
     * ``SPEC_KITTY_TEMPLATE_ROOT``-driven test/dev overrides still hand
       ``get_package_asset_root()`` a synthetic root where ``missions/`` and
       ``templates/`` are siblings (mirroring the pre-relocation
-      ``src/doctrine/{missions,templates}`` shape) -- ``.parent / "templates"``
+      ``src/charter/offering/{missions,templates}`` shape) -- ``.parent / "templates"``
       is still correct there, and is tried first.
     * The real, non-override production resolution now routes through the
       kernel sibling-path primitive to ``packs/built-in/missions``, whose
       *actual* parent (``packs/built-in``) does **not** carry ``templates/``
-      (that stays under ``src/doctrine/templates``, untouched by this
+      (that stays under ``src/charter/offering/templates``, untouched by this
       mission). Falls back to :func:`charter.activation.catalog.resolve_doctrine_root`
       for this shape.
     """
@@ -1240,14 +1189,6 @@ def init(  # noqa: C901
     except Exception as e:
         # Never fail init due to session presence errors
         _console.print(f"[dim]Note: Could not write session presence: {e}[/dim]")
-
-    # Emit the project-init lifecycle event into the durable outbox so
-    # the SaaS side can materialize the project even when init runs
-    # offline / unauthenticated / without a git remote (issue #1073).
-    try:
-        _emit_project_init_event(project_path)
-    except Exception as e:
-        _console.print(f"[dim]Note: Could not emit project-init event: {e}[/dim]")
 
     # Run tool-surface repair after all agent config has been flushed to disk.
     # NFR-007: --yes (non_interactive) does NOT imply --repair-drift; drifted

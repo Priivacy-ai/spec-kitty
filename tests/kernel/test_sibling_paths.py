@@ -117,7 +117,7 @@ def build_post_relocation_wheel_shaped_site_packages(tmp_path: Path) -> tuple[Pa
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005) moved the missions DATA subdirectories from
-    ``src/doctrine/missions`` to ``packs/built-in/missions``. This fixture
+    ``src/charter/offering/missions`` to ``packs/built-in/missions``. This fixture
     contains BOTH:
 
     * the now data-less ``site-packages/doctrine/missions`` directory (the
@@ -236,13 +236,13 @@ class TestEditableCheckoutShapedAnchor:
         repo = tmp_path / "repo"
         anchor = repo / "src" / "kernel" / "paths.py"
         anchor.parent.mkdir(parents=True)
-        sibling = repo / "src" / "doctrine" / "missions"
+        sibling = repo / "src" / "charter" / "offering" / "missions"
         sibling.mkdir(parents=True)
 
         result = resolve_installed_sibling(
             anchor_file=anchor,
             env_override=None,
-            sibling_relative_path=PurePosixPath("*") / "missions",
+            sibling_relative_path=PurePosixPath("*") / "*" / "missions",
         )
 
         assert result == sibling
@@ -260,7 +260,7 @@ class TestEditableCheckoutShapedAnchor:
         real_repo = tmp_path / "real-repo"
         real_pkg = real_repo / "src" / "kernel"
         real_pkg.mkdir(parents=True)
-        sibling = real_repo / "src" / "doctrine" / "missions"
+        sibling = real_repo / "src" / "charter" / "offering" / "missions"
         sibling.mkdir(parents=True)
 
         # Symlinked "site" view onto the real package dir; the symlink's own
@@ -274,7 +274,7 @@ class TestEditableCheckoutShapedAnchor:
         result = resolve_installed_sibling(
             anchor_file=anchor,
             env_override=None,
-            sibling_relative_path=PurePosixPath("*") / "missions",
+            sibling_relative_path=PurePosixPath("*") / "*" / "missions",
         )
 
         assert result == sibling
@@ -537,7 +537,7 @@ class TestDefaultMissionsRootWheelLayout:
         """The caller-level wheel test for mission #3091's own thesis (WP05).
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
-        (FR-005) relocated the missions data from ``src/doctrine/missions``
+        (FR-005) relocated the missions data from ``src/charter/offering/missions``
         to ``packs/built-in/missions``, falsifying this test's own pre-move
         fixture (a lone data-less ``doctrine/missions`` directory with
         nothing else to find). Uses

@@ -21,7 +21,8 @@ from __future__ import annotations
 import asyncio
 
 import typer
-from specify_cli.cli.console import console
+from rich.markup import escape
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 app = typer.Typer(name="auth", help="Authenticate with spec-kitty SaaS.")
 
@@ -101,17 +102,6 @@ def doctor(
     json_output: bool = typer.Option(
         False, "--json", help="Emit findings as JSON."
     ),
-    reset: bool = typer.Option(
-        False, "--reset", help="Sweep orphan sync daemons."
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        help=(
-            "With --reset, also clean operator_required daemons. "
-            "No-op without --reset."
-        ),
-    ),
     unstick_lock: bool = typer.Option(
         False,
         "--unstick-lock",
@@ -130,20 +120,19 @@ def doctor(
         help="Check live server session status (makes outbound call).",
     ),
 ) -> None:
-    """Diagnose CLI auth and sync-daemon state. Default invocation is read-only."""
+    """Diagnose CLI auth state. Default invocation is read-only."""
     from specify_cli.cli.commands._auth_doctor import doctor_impl
 
     try:
         exit_code = doctor_impl(
             json_output=json_output,
-            reset=reset,
-            force=force,
             unstick_lock=unstick_lock,
             stuck_threshold=stuck_threshold,
             server=server,
         )
     except Exception as exc:  # noqa: BLE001 - doctor converts unexpected failures to exit code 2
-        console.print(f"[red]Internal error during doctor: {exc}[/red]")
+        message = escape(sanitize_terminal_text(str(exc)))
+        console.print(f"[red]Internal error during doctor: {message}[/red]")
         raise typer.Exit(2) from exc
     raise typer.Exit(exit_code)
 

@@ -50,9 +50,7 @@ def test_inject_branch_contract_current_differs_from_target() -> None:
 
 
 def test_inject_branch_contract_on_primary_recommends_feature_branch() -> None:
-    out = seam._inject_branch_contract(
-        {}, target_branch="main", current_branch="main", primary_branch="main"
-    )
+    out = seam._inject_branch_contract({}, target_branch="main", current_branch="main", primary_branch="main")
     assert out["current_is_primary"] is True
     assert out["recommended_strategy"] == "feature-branch"
     assert "dedicated feature branch" in str(out["branch_recommendation_reason"])
@@ -60,9 +58,7 @@ def test_inject_branch_contract_on_primary_recommends_feature_branch() -> None:
 
 
 def test_inject_branch_contract_off_primary_recommends_stay() -> None:
-    out = seam._inject_branch_contract(
-        {}, target_branch="feat-x", current_branch="feat-x", primary_branch="main"
-    )
+    out = seam._inject_branch_contract({}, target_branch="feat-x", current_branch="feat-x", primary_branch="main")
     assert out["current_is_primary"] is False
     assert out["recommended_strategy"] == "stay"
     assert "staying on it is fine" in str(out["branch_recommendation_reason"])
@@ -228,15 +224,11 @@ def test_get_current_branch_returns_rev_parse_output(monkeypatch: pytest.MonkeyP
 
 def test_get_current_branch_falls_back_to_primary(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(seam.subprocess, "run", lambda *a, **k: _Result(1))
-    monkeypatch.setattr(
-        "specify_cli.core.git_ops.resolve_primary_branch", lambda _root: "main"
-    )
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _root: "main")
     assert seam._get_current_branch(tmp_path) == "main"
 
 
-def test_branch_context_reports_invoking_linked_worktree_branch(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_branch_context_reports_invoking_linked_worktree_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """#2938/#3124: branch context belongs to the invoking checkout."""
     primary = tmp_path / "primary"
     primary.mkdir()
@@ -274,9 +266,7 @@ def test_branch_context_reports_invoking_linked_worktree_branch(
     result = CliRunner().invoke(mission_mod.app, ["branch-context", "--json"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(
-        result.output[result.output.find("{") : result.output.rfind("}") + 1]
-    )
+    payload = json.loads(result.output[result.output.find("{") : result.output.rfind("}") + 1])
     assert payload["repo_root"] == str(primary.resolve())
     assert payload["current_branch"] == "op/invoking"
     assert payload["target_branch"] == "op/invoking"

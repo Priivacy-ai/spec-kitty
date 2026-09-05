@@ -316,6 +316,7 @@ _STRING_KEYED_MUST_BE_TOTAL: frozenset[str] = frozenset(
     }
 )
 
+
 @dataclass(frozen=True)
 class _StringKindKeyedDict:
     """A discovered module-level dict literal keyed by kind-token string constants."""
@@ -337,9 +338,7 @@ def _string_constant_keys(value: ast.Dict) -> list[str] | None:
     return keys
 
 
-def _string_kind_keyed_dicts_in_module(
-    tree: ast.Module, module_name: str
-) -> list[_StringKindKeyedDict]:
+def _string_kind_keyed_dicts_in_module(tree: ast.Module, module_name: str) -> list[_StringKindKeyedDict]:
     """Find module-level dict literals keyed entirely by kind-token strings.
 
     A candidate is a dict all of whose keys are string constants and where at
@@ -405,10 +404,7 @@ def test_string_keyed_authority_maps_are_total() -> None:
     by_name = {e.qualified_name: e for e in _discover_string_kind_keyed_dicts()}
     violations: list[str] = []
     for authority in _STRING_KEYED_MUST_BE_TOTAL:
-        assert authority in by_name, (
-            f"authority {authority!r} was not discovered by the string-keyed scan "
-            "(renamed/relocated? update _STRING_KEYED_MUST_BE_TOTAL)"
-        )
+        assert authority in by_name, f"authority {authority!r} was not discovered by the string-keyed scan (renamed/relocated? update _STRING_KEYED_MUST_BE_TOTAL)"
         missing = _string_missing_members(by_name[authority])
         if missing:
             violations.append(f"{authority} is missing {sorted(missing)}")
@@ -416,29 +412,13 @@ def test_string_keyed_authority_maps_are_total() -> None:
 
 
 #: Pre-existing charter ``plural↔singular`` kind-map literals that predate M1 and
-#: sit outside its named scope. ``charter.activation.drg_activation::_SINGULAR_TO_PLURAL``
-#: (relocated from ``charter.drg`` by mission charter-activation-split-01M16ZSE,
-#: DEC-1) is a fifth hand copy (identical 10 kinds to the derived authority)
-#: surfaced by the M1 review squad; it lives on the golden-adjacent DRG
-#: activation-filter path and imports ``ArtifactKind`` via ``charter.offering.api``
-#: (a public-wheel boundary), so it is left un-collapsed under C-004 discipline.
-#: Follow-up: collapse onto
+#: sit outside its named scope. ``charter.drg::_SINGULAR_TO_PLURAL`` is a fifth
+#: hand copy (identical 10 kinds to the derived authority) surfaced by the M1
+#: review squad; it lives on the golden-adjacent DRG activation-filter path and
+#: imports ``ArtifactKind`` via ``doctrine.api`` (a public-wheel boundary), so it
+#: is left un-collapsed under C-004 discipline. Follow-up: collapse onto
 #: :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
-#:
-#: ``charter.offering.artifact_kinds::_PLURALS`` is NOT a re-declaration: mission
-#: ``charter-code-topology-01M152G1`` relocated the top-level ``doctrine``
-#: package to ``src/charter/offering``, so the scan below (which walks
-#: everything under ``src/charter``) now also walks the doctrine offering
-#: layer -- and finds the CANONICAL authority dict that
-#: ``CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`` is itself derived from, not a
-#: hand copy of it. Exempted for the same reason a module can never be flagged
-#: for failing to import its own symbol from itself.
-_CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset(
-    {
-        "charter.activation.drg_activation::_SINGULAR_TO_PLURAL",
-        "charter.offering.artifact_kinds::_PLURALS",
-    }
-)
+_CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset({"charter.offering.artifact_kinds::_PLURALS"})
 
 #: The full charter-activatable singular→plural vocabulary (10 kinds). A literal
 #: containing EVERY one of these pairs is a complete hand copy of the vocabulary
@@ -446,14 +426,10 @@ _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset(
 #: (a directory/array map that merely uses some plurals as values, e.g.
 #: ``_REFERENCE_KIND_DIRS``) is a legitimate consumer, not a vocabulary copy, and
 #: is not flagged.
-_FULL_ACTIVATABLE_SINGULAR_PLURAL_PAIRS: frozenset[tuple[str, str]] = frozenset(
-    (kind.value, kind.plural) for kind in CHARTER_ACTIVATABLE_KINDS
-)
+_FULL_ACTIVATABLE_SINGULAR_PLURAL_PAIRS: frozenset[tuple[str, str]] = frozenset((kind.value, kind.plural) for kind in CHARTER_ACTIVATABLE_KINDS)
 
 
-def _plural_singular_kind_literals_in_module(
-    tree: ast.Module, module_name: str
-) -> list[str]:
+def _plural_singular_kind_literals_in_module(tree: ast.Module, module_name: str) -> list[str]:
     """Return qualified names of dict literals that are a COMPLETE plural↔singular
     kind-vocabulary copy (contain every charter-activatable singular→plural pair).
 
@@ -472,10 +448,7 @@ def _plural_singular_kind_literals_in_module(
         pairs = {
             (key.value, val.value)
             for key, val in zip(value.keys, value.values, strict=True)
-            if isinstance(key, ast.Constant)
-            and isinstance(key.value, str)
-            and isinstance(val, ast.Constant)
-            and isinstance(val.value, str)
+            if isinstance(key, ast.Constant) and isinstance(key.value, str) and isinstance(val, ast.Constant) and isinstance(val.value, str)
         }
         if pairs >= _FULL_ACTIVATABLE_SINGULAR_PLURAL_PAIRS:
             found.append(f"{module_name}::{target.id}")
@@ -496,11 +469,7 @@ def test_no_charter_module_redeclares_a_plural_singular_kind_literal() -> None:
     for path in sorted(charter_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         offenders.extend(
-            name
-            for name in _plural_singular_kind_literals_in_module(
-                tree, _dotted_module_name(path)
-            )
-            if name not in _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT
+            name for name in _plural_singular_kind_literals_in_module(tree, _dotted_module_name(path)) if name not in _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT
         )
     assert not offenders, (
         "these charter modules re-declare a plural↔singular kind-map literal "
@@ -515,30 +484,15 @@ def test_charter_plural_singular_literal_exemptions_are_real() -> None:
     discovered: set[str] = set()
     for path in sorted(charter_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        discovered.update(
-            _plural_singular_kind_literals_in_module(tree, _dotted_module_name(path))
-        )
+        discovered.update(_plural_singular_kind_literals_in_module(tree, _dotted_module_name(path)))
     for exempt in _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT:
-        assert exempt in discovered, (
-            f"exempt {exempt!r} not found -- collapsed already? drop the exemption"
-        )
+        assert exempt in discovered, f"exempt {exempt!r} not found -- collapsed already? drop the exemption"
 
 
 def test_string_keyed_scan_flags_a_dropped_kind() -> None:
     """A synthetic singular-keyed map missing a kind is reported by name."""
-    source = (
-        "_TABLE: dict[str, str] = {\n"
-        + "".join(
-            f"    {member.value!r}: 'x',\n"
-            for member in ArtifactKind
-            if member is not ArtifactKind.ASSET
-        )
-        + "}\n"
-    )
+    source = "_TABLE: dict[str, str] = {\n" + "".join(f"    {member.value!r}: 'x',\n" for member in ArtifactKind if member is not ArtifactKind.ASSET) + "}\n"
     tree = ast.parse(source, filename="<synthetic-string-map>")
-    found = {
-        e.qualified_name: e
-        for e in _string_kind_keyed_dicts_in_module(tree, "synthetic")
-    }
+    found = {e.qualified_name: e for e in _string_kind_keyed_dicts_in_module(tree, "synthetic")}
     entry = found["synthetic::_TABLE"]
     assert _string_missing_members(entry) == {ArtifactKind.ASSET.value}

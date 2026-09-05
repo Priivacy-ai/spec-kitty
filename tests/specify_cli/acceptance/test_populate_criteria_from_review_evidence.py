@@ -137,9 +137,7 @@ def test_ignores_non_code_review_proof_types(tmp_path: Path, proof_type: str) ->
     feature_dir.mkdir(parents=True)
     append_event(feature_dir, _approve_event("demo", "WP01"))
 
-    updated = populate_criteria_from_review_evidence(
-        feature_dir, [_criterion(proof_type=proof_type)]
-    )
+    updated = populate_criteria_from_review_evidence(feature_dir, [_criterion(proof_type=proof_type)])
 
     assert updated[0].pass_fail == "pending"
 
@@ -152,9 +150,7 @@ def test_skips_empty_scaffold_placeholder(tmp_path: Path) -> None:
     feature_dir.mkdir(parents=True)
     append_event(feature_dir, _approve_event("demo", "WP01"))
 
-    updated = populate_criteria_from_review_evidence(
-        feature_dir, [_criterion(description=SCAFFOLD_TODO_MARKER)]
-    )
+    updated = populate_criteria_from_review_evidence(feature_dir, [_criterion(description=SCAFFOLD_TODO_MARKER)])
 
     assert updated[0].pass_fail == "pending"
 

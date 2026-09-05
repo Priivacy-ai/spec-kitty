@@ -338,7 +338,6 @@ def test_query_performs_no_filesystem_access_after_load(
     assert open_calls == []
 
 
-@pytest.mark.performance
 def test_live_tree_query_is_fast(indexed_repo: Path) -> None:
     """Soft smoke ceiling -- not the primary NFR-002 assertion above."""
     import time

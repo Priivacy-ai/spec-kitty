@@ -72,11 +72,7 @@ def _append_transition_chain(feature_dir: Path, wp_id: str, target: Lane) -> Non
     if target == Lane.DONE:
         chain.append((Lane.APPROVED, Lane.DONE))
     for index, (from_lane, to_lane) in enumerate(chain):
-        policy_metadata = (
-            {"agent": "test-agent"}
-            if from_lane == Lane.PLANNED and to_lane == Lane.CLAIMED
-            else None
-        )
+        policy_metadata = {"agent": "test-agent"} if from_lane == Lane.PLANNED and to_lane == Lane.CLAIMED else None
         append_event(
             feature_dir,
             StatusEvent(
@@ -138,14 +134,7 @@ def _append_cancellation(feature_dir: Path, wp_id: str, *, operator: bool) -> No
 def _write_wp_file(tasks_dir: Path, wp_id: str) -> None:
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / f"{wp_id}-fixture.md").write_text(
-        "---\n"
-        f'work_package_id: "{wp_id}"\n'
-        f'title: "{wp_id}"\n'
-        'assignee: "test-agent"\n'
-        'agent: "test-agent"\n'
-        "subtasks: []\n"
-        "---\n"
-        f"# {wp_id}\nDone.\n",
+        f'---\nwork_package_id: "{wp_id}"\ntitle: "{wp_id}"\nassignee: "test-agent"\nagent: "test-agent"\nsubtasks: []\n---\n# {wp_id}\nDone.\n',
         encoding="utf-8",
     )
 
@@ -269,9 +258,7 @@ def test_operator_canceled_wp_does_not_short_circuit_failing_matrix(tmp_path: Pa
 
     # ...yet the sibling matrix gate still ran and still failed acceptance.
     assert summary.ok is False
-    assert any(
-        "Acceptance matrix verdict is 'fail'" in issue for issue in summary.activity_issues
-    )
+    assert any("Acceptance matrix verdict is 'fail'" in issue for issue in summary.activity_issues)
     assert any(item.check == "activity" and "verdict is 'fail'" in item.detail for item in summary.failed_checks())
 
 
@@ -293,9 +280,7 @@ def test_operator_canceled_wp_accepts_only_when_matrix_passes(tmp_path: Path) ->
 
     assert summary.all_done is True
     assert [entry["wp_id"] for entry in summary.canceled_wps] == ["WP02"]
-    assert not any(
-        "Acceptance matrix verdict" in issue for issue in summary.activity_issues
-    )
+    assert not any("Acceptance matrix verdict" in issue for issue in summary.activity_issues)
     assert summary.ok is True, f"expected acceptance, outstanding={summary.outstanding()}"
 
 
@@ -319,11 +304,7 @@ def test_synthetic_cancellation_is_a_blocker_independent_of_matrix(tmp_path: Pat
     assert summary.all_done is False
     assert summary.canceled_wps == []
     lane_blockers = summary.outstanding().get("lane_blockers", [])
-    assert any(
-        "WP02" in blocker
-        and "operator-authored cancellation provenance required" in blocker
-        for blocker in lane_blockers
-    )
+    assert any("WP02" in blocker and "operator-authored cancellation provenance required" in blocker for blocker in lane_blockers)
     assert summary.ok is False
 
 
@@ -353,9 +334,7 @@ def test_all_operator_canceled_mission_is_not_complete(tmp_path: Path) -> None:
     assert summary.all_done is False
     outstanding = summary.outstanding()
     assert outstanding.get("delivered_nothing"), outstanding
-    assert any(
-        "delivered nothing" in message for message in outstanding["delivered_nothing"]
-    )
+    assert any("delivered nothing" in message for message in outstanding["delivered_nothing"])
     # The acceptable cancellations are not re-reported as lane blockers — the
     # refusal is the dedicated "delivered nothing" guard, not lane classification.
     assert "lane_blockers" not in outstanding

@@ -69,7 +69,7 @@ Imported from Gate 1: ``src/charter/activation/resolver.py`` (the sole door),
 ``src/charter/activation/doctrine_service_builder.py`` (the ONE unified builder — its
 ``_build_doctrine_service`` is documented by ``org_layer.py`` as "the ONE
 function in this codebase permitted to construct a raw
-``charter.offering.service.DoctrineService``"), and the ``src/doctrine/`` layer that
+``charter.offering.service.DoctrineService``"), and the ``src/charter/offering/`` layer that
 owns the class.
 
 The six named locality exclusions, and their provenance
@@ -489,8 +489,7 @@ def check_locality_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
         if raw.key in excluded and raw.verdict.wrapped:
             continue
         suffix = (
-            " (its named locality exclusion no longer applies: the immediate "
-            "charter.activation.resolver.DoctrineService wrap is gone)"
+            " (its named locality exclusion no longer applies: the immediate charter.activation.resolver.DoctrineService wrap is gone)"
             if raw.key in excluded
             else ""
         )

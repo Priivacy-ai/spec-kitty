@@ -3,7 +3,7 @@ post-merge mission review of ``review-merge-gate-hardening-3-2-x-01KRC57C``,
 plus ATDD for Pattern C activation filtering in ``charter.activation.resolver.DoctrineService``
 (WP09, T042).
 
-The chokepoint at ``src/charter/_io.py`` correctly raises ``CharterEncodingError``
+The chokepoint at ``src/charter/activation/_io.py`` correctly raises ``CharterEncodingError``
 (a subclass of ``KittyInternalConsistencyError``) when encoding detection
 cannot resolve unambiguously. The audit surfaced that the two CALL SITES
 inside the charter subsystem wrap the call in ``except Exception`` and return

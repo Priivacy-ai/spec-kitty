@@ -72,7 +72,6 @@ def _make_run(tmp_path: Path, *, done_marked_before_target: bool = False) -> ex.
 def test_shim_re_exports_executor_entrypoints() -> None:
     assert shim._run_lane_based_merge is ex._run_lane_based_merge
     assert shim._run_lane_based_merge_locked is ex._run_lane_based_merge_locked
-    assert shim._emit_merge_diff_summary is ex._emit_merge_diff_summary
 
 
 def test_executor_does_not_import_command_shim() -> None:

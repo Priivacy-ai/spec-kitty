@@ -15,11 +15,7 @@ import yaml
 
 pytestmark = [pytest.mark.unit]
 
-_ALLOWLIST = (
-    Path(__file__).resolve().parents[1]
-    / "architectural"
-    / "mission_type_reader_allowlist.yaml"
-)
+_ALLOWLIST = Path(__file__).resolve().parents[1] / "architectural" / "mission_type_reader_allowlist.yaml"
 
 
 class TestAuditToolStaysFieldAware:

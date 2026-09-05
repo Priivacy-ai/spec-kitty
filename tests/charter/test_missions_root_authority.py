@@ -1,7 +1,7 @@
 """Equality regression proving the missions-root hardcode consolidation (FR-004).
 
 Mission ``charter-sole-door-bypass-closure-01KZ3WAA`` / WP06. Before this WP,
-3 sites independently constructed the shipped ``src/doctrine/missions`` root:
+3 sites independently constructed the shipped ``src/charter/offering/missions`` root:
 
 1. ``charter.activation.mission_type_profile_repository.builtin_missions_root()`` — a
    ``Path(__file__).resolve().parents[1] / "doctrine" / "missions"`` literal.
@@ -16,11 +16,11 @@ plan.md's Project Structure notes. ``builtin_missions_root()`` becomes a thin
 delegate (not a second co-equal authority); ``home.py``'s ``dev_roots``
 fallback calls the same authority.
 
-Full convergence onto ``charter.offering.pack_paths.built_in_missions_root`` was
+Full convergence onto ``doctrine.pack_paths.built_in_missions_root`` was
 completed by issue #3575: ``builtin_missions_root()`` now delegates straight
-to :func:`~charter.offering.pack_paths.built_in_missions_root` (the single canonical
+to :func:`~doctrine.pack_paths.built_in_missions_root` (the single canonical
 source), rather than hopping through
-:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`.
+:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`.
 The equivalence assertions below still hold because
 ``default_missions_root()`` is itself a thin wrapper over the same
 ``pack_paths`` call (plus an existence check that ``builtin_missions_root()``
@@ -55,10 +55,7 @@ def test_builtin_missions_root_delegates_directly_to_pack_paths() -> None:
     root = builtin_missions_root()
 
     assert root == pack_paths_built_in_missions_root()
-    assert root.is_dir(), (
-        "sanity: the canonical authority must resolve to the real built-in "
-        "missions directory in this editable-install test environment"
-    )
+    assert root.is_dir(), "sanity: the canonical authority must resolve to the real built-in missions directory in this editable-install test environment"
 
 
 def test_home_dev_roots_fallback_matches_promoted_authority(
@@ -85,9 +82,7 @@ def test_home_dev_roots_fallback_matches_promoted_authority(
 
     promoted_root = MissionTemplateRepository.default_missions_root()
     assert promoted_root.is_dir(), (
-        "sanity: the promoted authority must resolve to a real directory in "
-        "this editable-install test environment for the fallback comparison "
-        "to be meaningful"
+        "sanity: the promoted authority must resolve to a real directory in this editable-install test environment for the fallback comparison to be meaningful"
     )
 
     assert home_module.get_package_asset_root() == promoted_root

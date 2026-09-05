@@ -1,7 +1,7 @@
 """Fail-closed contract for the built-in DRG loader (DIR-005).
 
 After the relocation mission flattened the built-in DRG fragments out of
-``src/doctrine/`` into ``packs/built-in/``, :func:`built_in_graph_source`
+``src/charter/offering/`` into ``packs/built-in/``, :func:`built_in_graph_source`
 resolves through the shared :func:`charter.offering.pack_paths.built_in_root` seam
 (mission ``doctrine-built-in-seam-consolidation-01KYW3TX``, WP01, routed the
 loader's bare ``resolve_pack_root("built-in")`` call through this authority).
@@ -10,7 +10,7 @@ located it raises :class:`~charter.offering.pack_paths.PackRootNotFound`.
 
 These tests pin that the loader *propagates* the failure rather than
 re-swallowing it into an empty/partial graph (the old ``except -> Path(__file__)``
-fallback that would now silently point at the emptied ``src/doctrine/`` tree and
+fallback that would now silently point at the emptied ``src/charter/offering/`` tree and
 yield ``0`` nodes / ``0`` edges build-green).
 """
 

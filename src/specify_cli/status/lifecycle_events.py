@@ -35,10 +35,9 @@ with the typed contracts.
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
-import os
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
@@ -46,7 +45,9 @@ from collections.abc import Iterable, Mapping
 from kernel.clock import datetime, now_utc, now_utc_iso, parse_iso
 from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
+from .locking import feature_status_lock, project_event_log_lock
 from .models import Lane as _Lane
+from .store import append_raw_rows_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -200,13 +201,58 @@ def _read_lifecycle_lines(path: Path) -> list[dict[str, Any]]:
 
 
 def _atomic_append(path: Path, line: str) -> None:
-    """Append a single JSON line to *path*, creating parents as needed."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
-        fh.flush()
-        with contextlib.suppress(OSError):
-            os.fsync(fh.fileno())
+    """Append a single serialized JSON line to *path*, crash-safely.
+
+    F2-T1 (F2.md section 2.2/3.3): this used to be a plain ``O_APPEND``
+    write with no locking and no temp-file+rename, structurally different
+    from -- and racing against -- ``status/store.py``'s crash-safe primitive
+    that also writes this same file. It now delegates to the shared
+    write-ahead-then-atomic-rename primitive
+    (:func:`specify_cli.status.store.append_raw_rows_atomic`) instead, so
+    both writers of ``status.events.jsonl`` / ``.kittify/canonical-events.jsonl``
+    use the identical durability mechanism. Locking is the caller's
+    responsibility (:func:`append_lifecycle_event` acquires the lock that
+    owns *path* before calling this). Kept as a named, single-line-oriented
+    seam (rather than inlining) so existing write-failure tests can keep
+    monkeypatching this exact name (compatibility, F2.md section 3.4).
+
+    Behavior change, explicitly named (F2.md section 3.4 review follow-up):
+    because this now delegates to ``append_raw_rows_atomic``, every lifecycle
+    row is run through ``store.sanitize_event_for_log`` before it hits disk,
+    same as ``StatusEvent`` rows. Previously lifecycle rows were never
+    sanitized. No lifecycle payload field currently collides with the PII
+    field set that helper strips (``machine_name``, ``hostname``,
+    ``workspace_path``, ``developer_name``, ``developer_email``) or its
+    ``session_started_at``/``session_ended_at`` rewrite, so there is no
+    observed behavior change today -- but a future lifecycle payload field
+    that happens to share one of those names will now be silently stripped,
+    and that is intentional, not an oversight.
+    """
+    append_raw_rows_atomic(path, [json.loads(line)])
+
+
+def _lifecycle_write_lock(
+    repo_root: Path | None, mission_slug: str | None
+) -> AbstractContextManager[Path | None]:
+    """Return the lock context that guards a lifecycle log writer.
+
+    Mission-scoped writes (``mission_slug`` provided, i.e. every appender
+    except ``ProjectInitialized``) use the SAME mission-keyed
+    :func:`feature_status_lock` that ``status/emit.py``'s
+    ``emit_status_transition`` uses for ``status.events.jsonl`` -- this is
+    what closes the F2-T1 lost-write race, since both writers now serialize
+    on one lock file. Project-scoped writes (``ProjectInitialized``) use the
+    sibling :func:`project_event_log_lock`. When *repo_root* cannot be
+    resolved (the log path is not inside any git repo -- an edge case for
+    ad-hoc/non-repo callers) locking is skipped, matching this module's
+    pre-existing best-effort, never-raise contract; the write itself still
+    goes through the crash-safe primitive either way.
+    """
+    if repo_root is None:
+        return nullcontext()
+    if mission_slug is not None:
+        return feature_status_lock(repo_root, mission_slug)
+    return project_event_log_lock(repo_root)
 
 
 # canonical-producer-exempt: #1198 -- local lifecycle JSONL envelope.
@@ -445,6 +491,7 @@ def persist_lifecycle_event_local(
     project_uuid: str | None = None,
     project_slug: str | None = None,
     dedup_keys: Mapping[str, Any] | None = None,
+    mission_slug: str | None = None,
 ) -> dict[str, Any] | None:
     """Persist a lifecycle event locally without invoking hosted adapters.
 
@@ -453,6 +500,16 @@ def persist_lifecycle_event_local(
     tuple is already on disk. Failures fall back to a debug log; the
     function never raises so callers can chain it safely behind a
     fire-and-forget ``contextlib.suppress`` if they choose.
+
+    ``mission_slug`` (F2-T1, F2.md section 3.3): pass the mission's slug for
+    every mission-scoped appender (all of them except
+    :func:`emit_project_initialized`) so the write is serialized under the
+    SAME lock ``status/emit.py``'s ``emit_status_transition`` uses for that
+    mission's ``status.events.jsonl`` -- closing the lost-write race between
+    the two writers of that file. Leave it ``None`` for project-scoped
+    writes (``.kittify/canonical-events.jsonl``), which lock on the sibling
+    :func:`specify_cli.status.locking.project_event_log_lock` instead. The
+    external return-value/never-raises contract is unchanged either way.
     """
     if event_type not in LIFECYCLE_EVENT_TYPES:
         logger.debug("Refusing to append unknown lifecycle event type %r", event_type)
@@ -476,8 +533,10 @@ def persist_lifecycle_event_local(
         project_uuid=project_uuid,
         project_slug=project_slug,
     )
+    repo_root = _repo_root_for_lifecycle_log(log_path)
     try:
-        _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
+        with _lifecycle_write_lock(repo_root, mission_slug):
+            _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)
         return None
@@ -494,6 +553,7 @@ def append_lifecycle_event(
     project_uuid: str | None = None,
     project_slug: str | None = None,
     dedup_keys: Mapping[str, Any] | None = None,
+    mission_slug: str | None = None,
 ) -> dict[str, Any] | None:
     """Persist locally, then offer the same envelope to hosted fan-out.
 
@@ -510,6 +570,7 @@ def append_lifecycle_event(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys=dedup_keys,
+        mission_slug=mission_slug,
     )
     if envelope is not None:
         fanout_lifecycle_event_hosted(envelope, log_path=log_path)
@@ -562,6 +623,43 @@ def emit_project_initialized(
     )
 
 
+def _resolve_local_actor() -> str:
+    """Resolve the opaque actor identifier for locally emitted mission moments.
+
+    Same convention as the interview/charter ``_resolve_actor`` helpers and the
+    sync emitter's ``_resolve_runtime_actor`` (git ``user.email``, else
+    ``"cli"``): an identifier, never free text. The zeitgeist attrs codec
+    projects it verbatim as the moment's ``actor`` key, so this — not the relay
+    credential — is the WHO a mission-level moment renders with once set.
+    Never raises: an unresolvable identity degrades to ``"cli"``, matching the
+    emit path's never-raises contract.
+
+    A resolved email that would not fit the codec's per-value byte bound
+    (:data:`spec_kitty_events.zeitgeist_attrs.ZEITGEIST_ATTRS_MAX_BYTES`) also
+    degrades to ``"cli"``: ``MissionCreatedPayload.actor`` has no
+    ``max_length``, so an oversized value would otherwise pass producer-time
+    validation and only fail downstream at broadcast, silently dropping the
+    whole moment instead of just its WHO (#74).
+    """
+    import subprocess
+
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
+
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        email = result.stdout.strip()
+        if email and len(email.encode("utf-8")) <= ZEITGEIST_ATTRS_MAX_BYTES:
+            return email
+    except Exception:  # noqa: BLE001 — git may be absent or misconfigured; fall back to "cli" identity
+        pass
+    return "cli"
+
+
 def emit_mission_created_local(
     feature_dir: Path,
     *,
@@ -577,6 +675,7 @@ def emit_mission_created_local(
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
     created_at: str | None = None,
+    actor: str | None = None,
 ) -> dict[str, Any] | None:
     """Record a local ``MissionCreated`` event for *feature_dir*.
 
@@ -584,14 +683,17 @@ def emit_mission_created_local(
     ``status.events.jsonl`` is created on first call.
 
     ``mission_type`` and ``wp_count`` are required by the canonical
-    ``mission_created_payload`` schema (events 5.1.0). This helper does not
-    take an actor because the payload schema declares ``additionalProperties:
-    false`` with no ``actor`` property.
+    ``mission_created_payload`` schema (events 5.1.0). The payload schema also
+    declares an optional opaque ``actor`` (events 8.0.0): when *actor* is left
+    ``None`` it is resolved at emit time (git ``user.email``, else ``"cli"``,
+    via :func:`_resolve_local_actor`), so mission-level moments carry WHO from
+    the only emit path that remains after the sync transport was deleted
+    (issue #5). Pass an explicit *actor* to pin the identity instead.
     See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
 
     The payload is constructed via the canonical
     :func:`specify_cli.core.mission_payload.build_mission_created_payload`
-    (#2270), shared with the sync emitter so the local + wire paths cannot
+    (#2270), shared with the wire emitter so the local + wire paths cannot
     drift. Producer-time validation still rejects extras / missing required
     fields (issues Priivacy-ai/spec-kitty#1198 / #1200).
     """
@@ -610,6 +712,7 @@ def emit_mission_created_local(
         purpose_tldr=purpose_tldr,
         purpose_context=purpose_context,
         created_at=created_at,
+        actor=actor if actor else _resolve_local_actor(),
     )
 
     return append_lifecycle_event(
@@ -621,6 +724,7 @@ def emit_mission_created_local(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys={"mission_slug": mission_slug},
+        mission_slug=mission_slug,
     )
 
 
@@ -713,6 +817,7 @@ def emit_artifact_phase_local(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys=dedup,
+        mission_slug=mission_slug,
     )
 
 
@@ -805,6 +910,7 @@ def emit_wp_created_local(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys={"mission_slug": mission_slug, "wp_id": wp_id},
+        mission_slug=mission_slug,
     )
 
 
@@ -847,6 +953,7 @@ def emit_reviewer_self_approval(
             "intended_reviewer": intended_reviewer,
             "failure_reason": failure_reason,
         },
+        mission_slug=mission_slug,
     )
 
 
@@ -916,6 +1023,7 @@ def emit_mission_reopened(
         project_uuid=project_uuid,
         project_slug=project_slug,
         # No dedup_keys: append-each.
+        mission_slug=mission_slug,
     )
 
 
@@ -987,6 +1095,7 @@ def emit_follow_up_recorded(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys=dedup_keys,
+        mission_slug=mission_slug,
     )
 
 

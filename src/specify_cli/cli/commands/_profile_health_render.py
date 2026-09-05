@@ -247,7 +247,7 @@ def _emit_doctrine_no_packs(
         return
     console.print("[yellow]No org doctrine configured.[/yellow]")
     console.print(
-        "Add a 'doctrine.org' block to .kittify/config.yaml to register a pack."
+        "Add a 'charter.offering.org' block to .kittify/config.yaml to register a pack."
     )
     console.print()
     for line in _render_selection_block_lines(selection_block):

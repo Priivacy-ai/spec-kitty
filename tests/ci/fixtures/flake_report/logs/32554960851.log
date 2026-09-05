@@ -1,3 +1,0 @@
-FAILED tests/charter/test_activation_engine.py::test_commit_activation_requires_prior_plan - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/charter/test_activation_engine.py::test_commit_activation_requires_prior_plan
-===================== 1 failed in 3.10s ======================

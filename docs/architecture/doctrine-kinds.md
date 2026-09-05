@@ -10,7 +10,6 @@ related:
 - docs/context/charter.md
 - docs/architecture/org-doctrine-layer.md
 - docs/guides/how-to/governance/setup-governance.md
-- docs/architecture/doctrine-projection-and-delivery.md
 ---
 # Doctrine artifact kinds
 
@@ -190,11 +189,6 @@ reachable artifact points at it through a `requires`/`suggests` edge. That is ho
 `common-docs-structural-lint` reaches a mission without anyone activating it. (`template` shares
 the `ALL` gate but has no bundle slot — its selection is mission-scoped file resolution, a stated
 exclusion rather than asset's untreated twin.)
-
-This table describes **mission-action bundle** delivery. A *loaded agent profile* is a separate
-delivery vector with its own contract (inline body vs. pointer-only per channel, plus a build-time
-resolution check for `operating-procedures` entries) — see
-[Profile-channel projection and delivery](doctrine-projection-and-delivery.md).
 
 ## The doctrine artifact kinds
 

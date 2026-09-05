@@ -77,13 +77,8 @@ def create_lane_workspace(
         lanes_manifest: The computed lanes manifest for code_change WPs.
         declared_deps: Declared dependencies for this WP.
         vcs_backend_value: VCS backend value string (e.g., "git").
-        base: #3571 (C-001) — explicit ``--base`` ref, threaded (never
-            smuggled through ``lanes_manifest.mission_branch``) into
-            :func:`~specify_cli.lanes.worktree_allocator.allocate_lane_worktree`
-            AND into the recorded ``base_branch``/``base_commit`` provenance
-            below, so both the allocation decision and what gets reported as
-            "the base this lane was parented on" agree. ``None`` reproduces
-            prior behaviour exactly (NFR-005).
+        base: Explicit ``--base`` ref, threaded into allocation and recorded
+            as the honored base for fresh lane provenance.
 
     Returns:
         LaneWorkspaceResult with workspace info.
@@ -307,7 +302,9 @@ def reenter_lane_self_heal(
     workspace_path, _branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
     if not workspace_path.exists():
         return None
-    _merge_recorded_planning_commit(workspace_path, lane.lane_id, manifest.planning_commit_sha)
+    _merge_recorded_planning_commit(
+        main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha
+    )
     _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
     return workspace_path
 

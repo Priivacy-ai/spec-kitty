@@ -3,7 +3,7 @@
 Mission ``charter-authority-flip-01M14RB3`` WP03 (T012). ``charter.yaml``'s
 ``governance:`` section used to nest its selection block under the retired
 governing-term key ``doctrine:``. The canonical key is now ``charter:``
-(``GovernanceConfig.charter``, ``src/charter/schemas.py``). An existing
+(``GovernanceConfig.charter``, ``src/charter/activation/schemas.py``). An existing
 project's ``charter.yaml`` may still carry the legacy key on disk, so
 :func:`charter.activation.sync.load_governance_config` maps it forward with a
 deprecation warning (CR-01, ``kitty-specs/retire-doctrine-term-01M0JMK9/
@@ -66,12 +66,7 @@ def test_governance_doctrine_key_warns_and_maps(tmp_path: Path) -> None:
     """The legacy ``doctrine:`` key is read, warned once, and mapped to ``charter``."""
     _write_governance_section(
         tmp_path,
-        "doctrine:\n"
-        "  selected_paradigms: []\n"
-        "  selected_directives:\n"
-        "    - DIRECTIVE_001\n"
-        "  selected_tactics: []\n"
-        "  template_set: software-dev-default\n",
+        "doctrine:\n  selected_paradigms: []\n  selected_directives:\n    - DIRECTIVE_001\n  selected_tactics: []\n  template_set: software-dev-default\n",
     )
 
     with pytest.warns(LegacyGovernanceKeyWarning):
@@ -85,9 +80,7 @@ def test_governance_doctrine_key_warns_and_maps(tmp_path: Path) -> None:
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always")
         load_governance_config(tmp_path)
-    legacy_warnings = [
-        w for w in recorded if issubclass(w.category, LegacyGovernanceKeyWarning)
-    ]
+    legacy_warnings = [w for w in recorded if issubclass(w.category, LegacyGovernanceKeyWarning)]
     assert legacy_warnings == []
 
 
@@ -95,21 +88,14 @@ def test_governance_charter_key_canonical(tmp_path: Path) -> None:
     """The canonical ``charter:`` key reads with no deprecation warning."""
     _write_governance_section(
         tmp_path,
-        "charter:\n"
-        "  selected_paradigms: []\n"
-        "  selected_directives:\n"
-        "    - DIRECTIVE_001\n"
-        "  selected_tactics: []\n"
-        "  template_set: software-dev-default\n",
+        "charter:\n  selected_paradigms: []\n  selected_directives:\n    - DIRECTIVE_001\n  selected_tactics: []\n  template_set: software-dev-default\n",
     )
 
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always")
         governance = load_governance_config(tmp_path)
 
-    legacy_warnings = [
-        w for w in recorded if issubclass(w.category, LegacyGovernanceKeyWarning)
-    ]
+    legacy_warnings = [w for w in recorded if issubclass(w.category, LegacyGovernanceKeyWarning)]
     assert legacy_warnings == []
     assert governance.charter.selected_directives == ["DIRECTIVE_001"]
     assert governance.charter.template_set == "software-dev-default"
@@ -121,18 +107,13 @@ def test_governance_both_keys_present_prefers_canonical_silently(tmp_path: Path)
     legacy data they no longer read)."""
     _write_governance_section(
         tmp_path,
-        "doctrine:\n"
-        "  template_set: legacy-set\n"
-        "charter:\n"
-        "  template_set: canonical-set\n",
+        "doctrine:\n  template_set: legacy-set\ncharter:\n  template_set: canonical-set\n",
     )
 
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always")
         governance = load_governance_config(tmp_path)
 
-    legacy_warnings = [
-        w for w in recorded if issubclass(w.category, LegacyGovernanceKeyWarning)
-    ]
+    legacy_warnings = [w for w in recorded if issubclass(w.category, LegacyGovernanceKeyWarning)]
     assert legacy_warnings == []
     assert governance.charter.template_set == "canonical-set"

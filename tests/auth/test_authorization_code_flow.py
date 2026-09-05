@@ -262,6 +262,8 @@ class TestBuildSession:
         assert session.auth_method == "authorization_code"
         # Refresh expiry comes from the server verbatim (no clock math):
         assert session.refresh_token_expires_at == datetime(2099, 1, 1, tzinfo=UTC)
+        # #176: the session records which endpoint minted it.
+        assert session.issuer_url == "https://saas.test"
 
     @pytest.mark.asyncio
     async def test_prefers_private_teamspace_for_default_team_id(self):

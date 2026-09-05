@@ -8,7 +8,7 @@ ships a worse bug than leaving both open:
 **Read end.** ``DRGNode``, ``DRGEdge`` and ``AgentProfile`` declared no
 ``extra`` policy, so Pydantic v2's ``extra="ignore"`` default applied: an
 authored key the model does not declare was dropped on load with no warning.
-Every sibling model under ``src/doctrine/**/models.py`` already declares
+Every sibling model under ``src/charter/offering/**/models.py`` already declares
 ``extra="forbid"`` (``tactics``, ``directives``, ``procedures``, ``paradigms``,
 ``missions``, ``styleguides``, ``toolguides``, ``assets``, ``glossary_packs``,
 ``model_task_routing``, ``import_candidates``) —
@@ -651,7 +651,7 @@ def test_every_action_scope_field_kind_resolves_to_a_node_kind() -> None:
 
 
 def test_the_retired_relationship_error_does_not_point_at_a_dead_path() -> None:
-    """``src/doctrine/graph.yaml`` was retired for per-kind fragments (DD-7/DD-8).
+    """``src/charter/offering/graph.yaml`` was retired for per-kind fragments (DD-7/DD-8).
 
     An error message whose "do this instead" names a file that does not exist
     sends the reader looking for it. Pinned against the filesystem rather than
@@ -665,7 +665,7 @@ def test_the_retired_relationship_error_does_not_point_at_a_dead_path() -> None:
         AgentProfile.model_validate({**_VALID_PROFILE, "specializes-from": "other"})
 
     message = str(excinfo.value)
-    assert "src/doctrine/graph.yaml" not in message
+    assert "src/charter/offering/graph.yaml" not in message
     assert ".graph.yaml" in message
 
 

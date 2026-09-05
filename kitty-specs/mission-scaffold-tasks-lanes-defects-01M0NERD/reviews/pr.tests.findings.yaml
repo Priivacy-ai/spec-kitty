@@ -1,6 +1,0 @@
-schema: review-findings/v1
-complete: true
-phase: pr
-lens_group: tests
-mission: mission-scaffold-tasks-lanes-defects-01M0NERD
-findings: []

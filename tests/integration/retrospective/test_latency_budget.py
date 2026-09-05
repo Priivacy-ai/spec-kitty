@@ -106,7 +106,6 @@ def _scaffold_four_wp_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, 
 
 
 @pytest.mark.integration
-@pytest.mark.performance
 def test_latency_budget_default_flow_under_2s(tmp_path: Path) -> None:
     """Default flow on a 4-WP / 30-event mission completes in < 2.0s.
 

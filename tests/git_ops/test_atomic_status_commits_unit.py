@@ -240,7 +240,10 @@ class TestFeatureStatusLock:
             "specify_cli.status.locking.FileLock.acquire",
             side_effect=Timeout("test.lock"),
         ):
-            with pytest.raises(FeatureStatusLockTimeoutError, match="Timed out acquiring feature status lock"):
+            # M2 canonical integration: F2-T1 unified the lock family and reworded the
+            # message to "Timed out acquiring status lock: <path>"; the intent here is
+            # only that filelock Timeout surfaces as FeatureStatusLockTimeoutError.
+            with pytest.raises(FeatureStatusLockTimeoutError, match=r"Timed out acquiring (feature )?status lock"):
                 with feature_status_lock(repo, "017-test-feature", timeout=0):
                     pass
 

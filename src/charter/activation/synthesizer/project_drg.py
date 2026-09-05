@@ -1,7 +1,7 @@
 """Project-level DRG overlay writer.
 
-Thin composer over ``src/doctrine/drg`` primitives (KD-1 rule: no reusable
-graph logic here — push any generic graph logic to ``src/doctrine/drg/``
+Thin composer over ``src/charter/offering/drg`` primitives (KD-1 rule: no reusable
+graph logic here — push any generic graph logic to ``src/charter/offering/drg/``
 instead).
 
 Public API:

@@ -852,11 +852,22 @@ def _find_mission_slug(
 
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
-        legacy_dir = _resolve_workflow_read_dir(
-            repo_root=get_main_repo_root(repo_root),
-            mission_slug=raw_handle,
-            kind=MissionArtifactKind.PRIMARY_METADATA,
-        )
+        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+        try:
+            legacy_dir = _resolve_workflow_read_dir(
+                repo_root=get_main_repo_root(repo_root),
+                mission_slug=raw_handle,
+                kind=MissionArtifactKind.PRIMARY_METADATA,
+            )
+        except MissionSelectorAmbiguous as exc:
+            # #450: this short-circuit call runs BEFORE resolve_mission_handle
+            # below, so an ambiguous handle must not propagate uncaught — these
+            # commands have no --json mode, so a plain "Error: ..." + exit 1
+            # (matching this function's other --mission-required error case
+            # above) is the whole fix, mirroring #241's try/except shape.
+            print(f"Error: {exc}")
+            raise typer.Exit(1) from exc
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator

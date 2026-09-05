@@ -39,12 +39,7 @@ _SLUG = "committed-board-01KZCD"
 
 def _write_wp_file(tasks_dir: Path, wp_id: str) -> None:
     (tasks_dir / f"{wp_id}-test.md").write_text(
-        "---\n"
-        f"work_package_id: {wp_id}\n"
-        f"title: Test {wp_id}\n"
-        "execution_mode: code_change\n"
-        "---\n"
-        f"# {wp_id}\n",
+        f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nexecution_mode: code_change\n---\n# {wp_id}\n",
         encoding="utf-8",
     )
 
@@ -97,9 +92,7 @@ def _build_two_surface_fixture(tmp_path: Path) -> tuple[Path, Path]:
 
 
 @pytest.mark.regression
-def test_status_board_reports_committed_lanes_for_merged_mission(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_status_board_reports_committed_lanes_for_merged_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#2947: a merged mission's board must show committed (accepted) lanes,
     never the stale coordination checkout's pre-merge ``planned`` lanes."""
     primary, coord = _build_two_surface_fixture(tmp_path)
@@ -180,9 +173,7 @@ def _build_corrupt_primary_fixture(tmp_path: Path) -> tuple[Path, Path]:
 
 
 @pytest.mark.regression
-def test_status_board_degrades_on_corrupt_primary_event_log(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """PR-introduced regression: a corrupt PRIMARY ``status.events.jsonl``
     must not crash the board (``agent tasks status``).
 

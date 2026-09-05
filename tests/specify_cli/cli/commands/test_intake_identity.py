@@ -85,9 +85,7 @@ def _make_plan(tmp_path: Path) -> Path:
     return plan
 
 
-def test_intake_from_lane_refuses_and_does_not_write_primary_slot(
-    intake_app: typer.Typer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_intake_from_lane_refuses_and_does_not_write_primary_slot(intake_app: typer.Typer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A lane-worktree intake must refuse rather than clobber the primary slot.
 
     RED on base: ``find_repo_root`` re-anchors to the primary, so ``intake``
@@ -110,9 +108,7 @@ def test_intake_from_lane_refuses_and_does_not_write_primary_slot(
 
     monkeypatch.chdir(lane)
     with pytest.raises(IntakeCheckoutRefusedError) as excinfo:
-        runner.invoke(
-            intake_app, [str(plan)], catch_exceptions=False
-        )
+        runner.invoke(intake_app, [str(plan)], catch_exceptions=False)
 
     # (a) a FailClosedRefusal is raised (wrapped in the CLI refusal error).
     assert isinstance(excinfo.value.refusal, FailClosedRefusal)
@@ -124,9 +120,7 @@ def test_intake_from_lane_refuses_and_does_not_write_primary_slot(
     assert not _brief_slot(lane).exists()
 
 
-def test_intake_force_from_lane_refuses_and_preserves_primary_slot(
-    intake_app: typer.Typer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_intake_force_from_lane_refuses_and_preserves_primary_slot(intake_app: typer.Typer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``--force`` must not bypass the identity check (T009).
 
     A foreign-owned slot is refused even with ``--force``; the primary's
@@ -141,9 +135,7 @@ def test_intake_force_from_lane_refuses_and_preserves_primary_slot(
 
     monkeypatch.chdir(lane)
     with pytest.raises(IntakeCheckoutRefusedError) as excinfo:
-        runner.invoke(
-            intake_app, [str(plan), "--force"], catch_exceptions=False
-        )
+        runner.invoke(intake_app, [str(plan), "--force"], catch_exceptions=False)
 
     assert isinstance(excinfo.value.refusal, FailClosedRefusal)
     assert str(primary.resolve()) in str(excinfo.value)
@@ -153,9 +145,7 @@ def test_intake_force_from_lane_refuses_and_preserves_primary_slot(
     assert not _brief_slot(lane).exists()
 
 
-def test_intake_from_owner_checkout_writes_normally(
-    intake_app: typer.Typer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_intake_from_owner_checkout_writes_normally(intake_app: typer.Typer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The owner checkout is unaffected: intake writes its own slot as before."""
     primary = tmp_path / "primary"
     _init_primary(primary)

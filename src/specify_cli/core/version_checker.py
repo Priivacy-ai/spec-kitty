@@ -52,9 +52,7 @@ def get_cli_version() -> str:
         )
 
         profile = resolve_distribution_profile()
-        resolved = resolve_installed_distribution_version(
-            profile.package_name, profile.package_aliases, default=""
-        )
+        resolved = resolve_installed_distribution_version(profile.package_name, profile.package_aliases, default="")
         if resolved:
             return resolved
     except Exception:

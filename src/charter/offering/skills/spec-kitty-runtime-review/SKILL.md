@@ -29,7 +29,7 @@ spec-kitty charter context --action review --json
 
 The returned `text` contains governance context. The review prompt (generated
 in Step 2) includes project-specific acceptance criteria and review guidance
-from doctrine — do not restate those rules here.
+from charter.offering — do not restate those rules here.
 
 ---
 
@@ -60,7 +60,7 @@ The review prompt contains:
 - Completion instructions (approve/reject commands)
 
 Follow the review prompt. It is the source of truth for what to check and how
-to check it. The review criteria come from doctrine and the WP definition, not
+to check it. The review criteria come from charter.offering and the WP definition, not
 from this skill.
 
 ---

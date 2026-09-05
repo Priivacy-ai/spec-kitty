@@ -452,9 +452,13 @@ def test_kind_distribution_over_the_real_tree_mechanises_c004() -> None:
     assert keyed["fixture"] == innermost["fixture"]
     # Everything that moves, moves `test-body` (keyed) -> `helper` (innermost), one for one.
     assert keyed["test-body"] - innermost["test-body"] == innermost["helper"] - keyed["helper"]
-    # NON-VACUITY, and it is directional: an implementation that attributes to the INNERMOST makes
-    # the two readings identical and reds here; one that swaps them reds on the inequality.
-    assert keyed["test-body"] > innermost["test-body"]
+
+    # NON-VACUITY used to be directional over the real tree (`keyed["test-body"] >
+    # innermost["test-body"]`). Issue-5-delete-sync-transport removed every member that the two
+    # readings could disagree about -- the surviving population is exactly E, all fixtures -- so
+    # the real tree can no longer exercise the transfer and this arm lives entirely in
+    # test_kind_distribution_mechanises_c004_at_the_keyed_def above, whose synthetic M5-shaped
+    # tree still forces `keyed != innermost`.
 
     print(
         "[reported, not asserted] keyed-vs-innermost transfer: "
@@ -737,8 +741,16 @@ def test_the_home_enumeration_limb_is_not_registered_as_inert() -> None:
         f"[reported, not asserted] unfiltered HOME write sites: {len(sites)} "
         f"in {len({relpath for relpath, _ in sites})} files"
     )
+    # The B1/B2 "repinner" members used to be asserted non-empty over the real tree. Every such
+    # member's file was deleted with the sync transport (issue #5), so the real-tree set measures
+    # EMPTY and the surviving members are exactly E, partition A. The classifier's non-A arms stay
+    # exercised on the synthetic trees in this package (`_MEMBER_TREE`, `_PARTITION_TREE`); a
+    # future real B1/B2 member reds t023's discovered-class equality until the artefacts catch up.
     repinners = {m.key for m in scan.discover(TESTS_ROOT) if m.home_partition != "A"}
-    assert len(repinners) > 0
+    assert repinners == set(), (
+        "a non-A member appeared without its census/tombstone paperwork -- regenerate the home-pin "
+        f"artefacts: {sorted(repinners)}"
+    )
 
 
 def test_fr010_runtime_home_alias_is_measured_inert_and_refused_on_both_limbs() -> None:
@@ -800,8 +812,16 @@ def test_every_inert_sub_form_ships_a_positive_control(tmp_path: Path, limb_id: 
 
     **Any control returning `set()` fails the module** — an over-narrow matcher greens forever
     and still greens the day someone writes the shape for real.
+
+    ``limb_id`` is folded into the root, not just ``tmp_path``: every parametrization of
+    this test shares one 30-char-truncated node-name prefix (`_pytest.tmpdir._mk_tmp`'s
+    ``MAXVAL``), so under ``tmp_path_retention_policy = failed`` pytest's numbered-dir
+    allocator can hand two different ``limb_id``s the *same* physical directory once an
+    earlier one is rmtree'd at its own teardown. `_home_pin_scan.py::_corpus` caches by
+    root path alone, so a bare ``tmp_path`` here would let one limb's parse poison the
+    next's cache entry.
     """
-    root = tmp_path / "control_root"
+    root = tmp_path / "control_root" / limb_id
     control = _materialise(root, "test_control_module.py", _CONTROLS[limb_id])
     expected = {(control.relative_to(root).as_posix(), _lineno_of(control, SHAPE_MARKER))}
     hits = scan.inert_hits(limb_id, root)
@@ -1151,11 +1171,18 @@ def test_fragility_register_names_only_members_held_by_an_unused_silhouette_para
     assert {member.key for member in scan.discover(root)} > {row.key for row in register}
 
 
-def test_fragility_register_over_the_real_tree_is_a_non_empty_subset_of_the_class() -> None:
-    """Every arm is a set relation, so it survives `E` growing the discovered population."""
+def test_fragility_register_over_the_real_tree_is_a_subset_of_the_class() -> None:
+    """Every arm is a set relation, so it survives `E` growing the discovered population.
+
+    The real-tree register measured exactly one row (the `:1165` shape) until
+    issue-5-delete-sync-transport deleted that file with the sync transport; it measures EMPTY
+    now, so the non-empty arm was dropped and the matcher's bite lives in
+    test_fragility_register_names_only_members_held_by_an_unused_silhouette_parameter above. An
+    empty register here is therefore a measured fact, not a blind matcher -- but if one appears,
+    t025's equality reds until the artefacts are regenerated.
+    """
     register = scan.fragility_register(TESTS_ROOT)
     keys = {row.key for row in register}
-    assert keys, "an empty register means the matcher stopped seeing, not that fragility ended"
     assert keys <= {member.key for member in scan.discover(TESTS_ROOT)}
     for row in register:
         assert scan.normalise_params(row.unused_silhouette_params) & scan.SILHOUETTE

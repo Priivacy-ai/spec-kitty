@@ -349,7 +349,7 @@ def resynthesize(
     except ImportError as exc:
         raise NotImplementedError(
             "resynthesize() is not yet implemented — WP05 will deliver "
-            "src/charter/synthesizer/resynthesize_pipeline.py."
+            "src/charter/activation/synthesizer/resynthesize_pipeline.py."
         ) from exc
 
     # The pipeline call is deliberately outside the import-guard above: any

@@ -381,17 +381,6 @@ def record_analysis(
                 target_branch=get_feature_target_branch(repo_root, _analysis_mission_slug),
             )
 
-        with contextlib.suppress(Exception):
-            from specify_cli.sync.dossier_pipeline import (
-                trigger_feature_dossier_sync_if_enabled,
-            )
-
-            trigger_feature_dossier_sync_if_enabled(
-                write_feature_dir,
-                result.mission_slug,
-                repo_root,
-            )
-
         payload = {_PAYLOAD_KEY_SUCCESS: True, "result": "success", **result.to_dict()}
         if json_output:
             _emit_json(payload)

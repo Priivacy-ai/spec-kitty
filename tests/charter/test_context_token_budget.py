@@ -31,6 +31,7 @@ from charter.activation.context_renderers.fetch_stanza import (
 
 pytestmark = [pytest.mark.unit]
 
+
 def _make_section(
     section_id: str,
     body: str,
@@ -158,9 +159,7 @@ class TestWarningLine:
 
         assert notes  # at least one swap
         # The warning line is appended at the tail.
-        assert joined.rstrip().endswith(
-            warning_line(len(notes), 5_000)
-        )
+        assert joined.rstrip().endswith(warning_line(len(notes), 5_000))
 
     def test_warning_line_absent_when_no_substitution(self) -> None:
         sections = [
@@ -501,7 +500,7 @@ class TestAggregateUnderBudget:
             action="implement",
             mark_loaded=False,
         )
-        assert len(result.text) <= BUDGET_DEFAULT, (
-            f"Bootstrap render produced {len(result.text)} chars, "
-            f"exceeding NFR-001 budget of {BUDGET_DEFAULT}."
-        )
+        assert len(result.text) <= BUDGET_DEFAULT, f"Bootstrap render produced {len(result.text)} chars, exceeding NFR-001 budget of {BUDGET_DEFAULT}."
+        assert "Selected directives:" in result.text
+        assert "directive:SELECTED_ID" in result.text
+        assert "DIRECTIVE_025" in result.text or "025-boy-scout-rule" in result.text

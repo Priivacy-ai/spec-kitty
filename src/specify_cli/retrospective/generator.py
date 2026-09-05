@@ -269,11 +269,6 @@ def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
-    # WP04 (#3462): route the deleted-coord degrade through the shared read-side companion.
-    # ``caught`` carries BOTH the coord-deleted subclass and its ``StatusReadPathNotFound`` base
-    # to preserve this site's exact pre-migration except tuple (byte-identical degrade). ZERO_EVIDENCE
-    # returns the sentinel ``feature_dir`` with ``degraded=True``; we surface that as the empty trace
-    # list the best-effort FR-007 contract has always returned. The helper logs the degrade at WARNING.
     decision = resolve_read_dir_or_degrade(
         repo_root,
         feature_dir.name,

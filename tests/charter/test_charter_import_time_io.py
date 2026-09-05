@@ -54,7 +54,7 @@ from pathlib import Path
 
 import pytest
 
-import doctrine
+import charter.offering
 from charter.activation.pack_context import PackContext
 from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
@@ -264,10 +264,10 @@ def _subprocess_env_with_src_root() -> dict[str, str]:
 
     ``doctrine`` is now the CR-06 compatibility shim (``src/doctrine.py``, a
     single module, not a package) re-exporting ``charter.offering`` -- so
-    ``doctrine.__file__`` resolves directly to ``src/doctrine.py`` and its
+    ``charter.offering.__file__`` resolves directly to ``src/doctrine.py`` and its
     immediate ``.parent`` (not ``.parents[1]``) is the ``src`` root.
     """
-    src_root = str(Path(doctrine.__file__).resolve().parents[0])
+    src_root = str(Path(charter.offering.__file__).resolve().parents[0])
     env = dict(os.environ)
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (

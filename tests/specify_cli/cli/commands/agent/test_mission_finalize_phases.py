@@ -26,9 +26,8 @@ import pytest
 import typer
 
 from specify_cli.cli.commands.agent import mission_finalize as seam
-from specify_cli.ownership import validation as ownership_validation
-from specify_cli.ownership.models import OwnershipManifest, WorkProductKind
-from specify_cli.status import WPMetadata
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
+from specify_cli.status import Lane, WPMetadata
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -71,7 +70,7 @@ def test_collect_finalize_artifacts_dedupes_and_filters_missing(tmp_path: Path) 
     lanes = feature / "lanes.json"
     lanes.write_text("{}", encoding="utf-8")
 
-    artifacts = seam._collect_finalize_artifacts(feature, tasks, "001-m", lanes_path=lanes)
+    artifacts = seam._collect_finalize_artifacts(feature, tasks, lanes_path=lanes)
 
     # Only existing files; no duplicates; missing candidates (events log, matrices) skipped.
     assert (feature / "tasks.md") in artifacts
@@ -80,38 +79,6 @@ def test_collect_finalize_artifacts_dedupes_and_filters_missing(tmp_path: Path) 
     assert lanes in artifacts
     assert len(artifacts) == len(set(artifacts))
     assert all(p.exists() for p in artifacts)
-
-
-def test_collect_finalize_artifacts_omits_dossiers_candidate_for_unsafe_slug(
-    tmp_path: Path,
-) -> None:
-    """#2037: an unsafe ``--mission`` slug must not escape the dossiers join.
-
-    The dossiers-snapshot candidate is the only entry keyed on ``mission_slug``
-    directly; every other candidate is keyed on the already-resolved
-    ``feature_dir``/``tasks_dir``. A hostile slug must be dropped (fail-closed
-    by omission, not by raising) while the rest of the candidate list is
-    collected as usual.
-    """
-    feature = tmp_path / "kitty-specs" / "001-m"
-    tasks = feature / "tasks"
-    tasks.mkdir(parents=True)
-    (feature / "tasks.md").write_text("x", encoding="utf-8")
-    # A file that a traversal payload could plausibly resolve to, so the
-    # assertion is "never collected", not just "path string never equal".
-    # ``feature/.kittify/dossiers/../evil/snapshot-latest.json`` resolves to
-    # ``feature/.kittify/evil/snapshot-latest.json``; the ``dossiers/`` dir must
-    # exist for the unguarded join to traverse there, otherwise the test is vacuous.
-    (feature / ".kittify" / "dossiers").mkdir(parents=True)
-    escape_target = feature / ".kittify" / "evil" / "snapshot-latest.json"
-    escape_target.parent.mkdir(parents=True)
-    escape_target.write_text("x", encoding="utf-8")
-
-    artifacts = seam._collect_finalize_artifacts(feature, tasks, "../evil")
-
-    assert (feature / "tasks.md") in artifacts
-    assert escape_target not in artifacts
-    assert not any(".kittify" in p.parts and "dossiers" in p.parts for p in artifacts)
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +90,168 @@ def test_branch_strategy_text_embeds_target_branch() -> None:
     text = seam._branch_strategy_text("prog/x")
     assert "generated on prog/x" in text
     assert "merge back into prog/x" in text
+
+
+def test_apply_ownership_inference_rejects_code_change_empty_owned_files() -> None:
+    meta = WPMetadata(
+        work_package_id="WP01",
+        title="Code",
+        execution_mode="code_change",
+        owned_files=[],
+    )
+
+    changed, warnings, contradiction = seam._apply_ownership_inference(
+        meta.builder(),
+        meta,
+        "---\nowned_files: []\n---\n# WP01\n",
+        "001-mission",
+        {},
+    )
+
+    assert changed is False
+    assert warnings == []
+    assert contradiction is not None
+    assert "WP01" in contradiction
+
+
+def test_raise_ownership_contradictions_reports_all_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    state = seam._BootstrapState(
+        ownership_contradictions=[
+            "WP01: code_change WP declares no owned files",
+            "WP03: code_change WP declares no owned files",
+        ]
+    )
+
+    with pytest.raises(typer.Exit):
+        seam._raise_ownership_contradictions_if_any(state, ["WP01", "WP03"], json_output=True)
+
+    assert emitted[0]["error_code"] == seam.OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES
+    assert emitted[0]["ownership_contradiction_wp_ids"] == ["WP01", "WP03"]
+
+
+def test_project_lane_inputs_excludes_canceled_wps() -> None:
+    manifests = {
+        "WP01": OwnershipManifest(WorkProductKind.CODE_CHANGE, ("src/a.py",), "src/"),
+        "WP02": OwnershipManifest(WorkProductKind.CODE_CHANGE, ("src/b.py",), "src/"),
+        "WP03": OwnershipManifest(WorkProductKind.CODE_CHANGE, ("src/c.py",), "src/"),
+    }
+    frontmatters = {
+        "WP01": WPMetadata(work_package_id="WP01", title="A", lane=Lane.PLANNED),
+        "WP02": WPMetadata(work_package_id="WP02", title="B", lane=Lane.CANCELED),
+        "WP03": WPMetadata(work_package_id="WP03", title="C", lane=Lane.PLANNED),
+    }
+
+    eligibility, lane_manifests, lane_dependencies, lane_bodies = seam._project_lane_inputs(
+        manifests,
+        {"WP01": [], "WP02": [], "WP03": ["WP01"]},
+        frontmatters,
+        {"WP01": "a", "WP02": "b", "WP03": "c"},
+    )
+
+    assert eligibility.canceled_wp_ids == ("WP02",)
+    assert set(lane_manifests) == {"WP01", "WP03"}
+    assert lane_dependencies == {"WP01": [], "WP03": ["WP01"]}
+    assert lane_bodies == {"WP01": "a", "WP03": "c"}
+
+
+def test_stale_canceled_dependencies_fail_loud_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    frontmatters = {
+        "WP01": WPMetadata(work_package_id="WP01", title="A", lane=Lane.CANCELED),
+        "WP02": WPMetadata(work_package_id="WP02", title="B", lane=Lane.PLANNED),
+    }
+    eligibility, *_ = seam._project_lane_inputs({}, {"WP01": [], "WP02": ["WP01"]}, frontmatters, {})
+
+    with pytest.raises(typer.Exit):
+        seam._raise_stale_canceled_dependencies_if_any(eligibility, json_output=True)
+
+    assert emitted[0]["error_code"] == "STALE_CANCELED_DEPENDENCIES"
+    assert emitted[0]["stale_canceled_dependencies"] == [
+        {
+            "dependent_wp_id": "WP02",
+            "canceled_dependency_wp_id": "WP01",
+            "recovery": "Remove the dependency or repoint WP02 to a non-canceled prerequisite.",
+        }
+    ]
+
+
+def test_compute_and_write_lanes_empty_code_change_inputs_fail_loud(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+
+    with pytest.raises(typer.Exit):
+        seam._compute_and_write_lanes(
+            tmp_path,
+            tmp_path,
+            "001-mission",
+            {},
+            {},
+            {"WP01": WPMetadata(work_package_id="WP01", title="A", execution_mode="code_change")},
+            {},
+            None,
+            "main",
+            json_output=True,
+        )
+
+    assert emitted[0]["error_code"] == seam.LANE_COMPUTATION_ABORTED_EMPTY_INPUTS
+
+
+def test_compute_and_write_lanes_empty_planning_artifact_inputs_are_laneless(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(seam, "_preserve_or_capture_planning_commit_sha", lambda *args, **kwargs: None)
+    monkeypatch.setattr(seam, "_report_parallelization_risk", lambda *args, **kwargs: None)
+
+    lanes_path, lanes_manifest = seam._compute_and_write_lanes(
+        tmp_path,
+        tmp_path,
+        "001-mission",
+        {},
+        {},
+        {
+            "WP01": WPMetadata(
+                work_package_id="WP01",
+                title="A",
+                execution_mode="planning_artifact",
+                owned_files=[],
+            )
+        },
+        {},
+        None,
+        "main",
+        json_output=True,
+    )
+
+    assert lanes_path == tmp_path / "lanes.json"
+    assert lanes_manifest is not None
+    assert lanes_manifest.lanes == []
+
+
+def test_validate_only_previews_empty_code_change_input_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    monkeypatch.setattr(
+        seam,
+        "_bootstrap_canonical_state_via_mission",
+        lambda *args, **kwargs: seam.BootstrapResult(0, 0, 0),
+    )
+    state = seam._BootstrapState(inmemory_frontmatter={"WP01": WPMetadata(work_package_id="WP01", title="A", execution_mode="code_change")})
+
+    with pytest.raises(typer.Exit):
+        seam._emit_validate_only_report(
+            tmp_path,
+            "001-mission",
+            None,
+            state,
+            {},
+            {},
+            {},
+            "main",
+            json_output=True,
+        )
+
+    assert emitted[0]["error_code"] == seam.LANE_COMPUTATION_ABORTED_EMPTY_INPUTS
 
 
 # ---------------------------------------------------------------------------
@@ -367,9 +496,7 @@ def test_requirement_mapping_passes_when_spec_content_defaults_empty() -> None:
     )
 
 
-def test_requirement_mapping_bare_prose_detection_is_fail_loud(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_requirement_mapping_bare_prose_detection_is_fail_loud(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """WP06 (#3396) IC-04 fault injection: a detector exception becomes an
     explicit, non-empty failure (NFR-002) -- never a swallowed "0 uncounted"
     result -- even though every WP mapping bucket is otherwise clean."""
@@ -402,9 +529,7 @@ def test_requirement_mapping_bare_prose_detection_is_fail_loud(
 def test_read_spec_requirement_ids_also_returns_raw_spec_content(tmp_path: Path) -> None:
     planning_dir = tmp_path
     (planning_dir / "spec.md").write_text(_BARE_PROSE_REPRO_SPEC, encoding="utf-8")
-    all_ids, functional_ids, _warnings, spec_content = seam._read_spec_requirement_ids(
-        planning_dir, json_output=True
-    )
+    all_ids, functional_ids, _warnings, spec_content = seam._read_spec_requirement_ids(planning_dir, json_output=True)
     assert all_ids == {"NFR-001"}
     assert functional_ids == set()
     assert spec_content == _BARE_PROSE_REPRO_SPEC
@@ -526,411 +651,41 @@ def test_apply_ownership_inference_skips_when_present() -> None:
     assert contradiction is None
 
 
-# ---------------------------------------------------------------------------
-# T009: FR-002 direct-seam contradiction descriptor shape
-# ---------------------------------------------------------------------------
+def test_post_integration_acceptance_warning_is_code_wp_only() -> None:
+    code_wp = """---
+work_package_id: WP01
+title: t
+---
+# WP01
+## Acceptance Criteria
+- Check the dashboard once merged.
+"""
+    planning_wp = code_wp + "\nUpdate kitty-specs/001-m/plan.md only.\n"
+
+    warnings = seam.detect_post_integration_acceptance(code_wp, ["src/x.py"])
+
+    assert warnings
+    assert "once merged" in warnings[0]
+    assert seam.detect_post_integration_acceptance(planning_wp, ["kitty-specs/001-m/plan.md"]) == []
 
 
-def test_apply_ownership_inference_flags_code_change_with_explicit_empty_owned_files() -> None:
-    """FR-002 (Acceptance Scenario 1): ``execution_mode: code_change`` combined
-    with an explicit ``owned_files: []`` is an authoring contradiction, not
-    intent -- the seam must detect it and return a non-``None`` descriptor
-    naming the WP ID, WITHOUT raising itself (the aggregated raise lives in
-    ``_run_bootstrap_loop``, T010)."""
-    raw = "---\nwork_package_id: WP03\nexecution_mode: code_change\nowned_files: []\n---\nbody\n"
-    meta = WPMetadata(work_package_id="WP03", title="t", execution_mode="code_change")
-    bld = meta.builder()
-    changed, warnings, contradiction = seam._apply_ownership_inference(bld, meta, raw, "001-m", {})
-    assert changed is False
-    assert warnings == []
-    assert contradiction is not None
-    assert "WP03" in contradiction
-
-
-def test_apply_ownership_inference_accepts_planning_artifact_with_explicit_empty_owned_files() -> None:
-    """FR-002 (Acceptance Scenario 3): ``execution_mode: planning_artifact``
-    with the SAME explicit ``owned_files: []`` remains the existing,
-    legitimate escape hatch -- the fix must not touch this path.
-    ``descriptor`` must be exactly ``None`` (the "absent" case), not an empty
-    string or empty-list slot."""
-    raw = "---\nwork_package_id: WP04\nexecution_mode: planning_artifact\nowned_files: []\n---\nbody\n"
-    meta = WPMetadata(work_package_id="WP04", title="t", execution_mode="planning_artifact")
-    bld = meta.builder()
-    changed, warnings, contradiction = seam._apply_ownership_inference(bld, meta, raw, "001-m", {})
-    assert contradiction is None
-
-
-def _ownership_wp_file(tmp_path: Path, name: str, wp_id: str, *, execution_mode: str, owned_files_yaml: str) -> Path:
-    """Write a WP file exercising the FR-002 ownership-contradiction seam.
-
-    ``owned_files_yaml`` is the raw YAML value line(s) (including a trailing
-    newline), e.g. ``"owned_files: []\\n"`` or ``"owned_files:\\n  - src/x.py\\n"``.
-    """
-    f = tmp_path / name
-    f.write_text(
-        f"---\nwork_package_id: {wp_id}\ntitle: t\nexecution_mode: {execution_mode}\n{owned_files_yaml}---\nbody\n",
+def test_discarded_sc_refs_warning_names_dropped_token(tmp_path: Path) -> None:
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: t\nrequirement_refs: [FR-001, SC-008]\n---\nbody\n",
         encoding="utf-8",
     )
-    return f
 
+    warnings = seam.find_discarded_sc_refs(tasks_dir)
 
-def test_run_bootstrap_loop_accepts_planning_artifact_explicit_empty_owned_files(tmp_path: Path) -> None:
-    """FR-002 (Acceptance Scenario 3), full pipeline via ``_run_bootstrap_loop``
-    ONLY (this file's own module docstring reserves end-to-end
-    ``finalize_tasks`` coverage for other files; zero ``CliRunner`` usage here).
-
-    Revert-sensitivity: reverting the FR-002 production fix (which currently
-    only ADDS a contradiction branch that ``continue``s away offending WPs --
-    a planning_artifact WP is never routed into that branch either way) does
-    NOT flip this test red by itself, because a planning_artifact WP was
-    already accepted before this mission. What DOES discriminate is asserting
-    on ``state.inmemory_frontmatter`` / ``state.ownership_contradictions``
-    (populated only AFTER the contradiction check runs) rather than
-    ``state.work_packages`` (appended unconditionally at line ~1351, BEFORE
-    ``_apply_ownership_inference`` is even called at ~1365 -- a WP that
-    ``continue``s on a contradiction has already been appended there, so it
-    cannot discriminate accepted-vs-rejected). This test exists to prove the
-    legitimate escape hatch keeps working end-to-end through the loop, not
-    merely at the direct-seam level (test above).
-    """
-    wp_id = "WP01"
-    wp_file = _ownership_wp_file(
-        tmp_path, "WP01.md", wp_id, execution_mode="planning_artifact", owned_files_yaml="owned_files: []\n"
-    )
-    state = seam._run_bootstrap_loop(
-        [wp_file],
-        seam._DependencyResolution(),
-        None,
-        "001-m",
-        tmp_path,
-        "main",
-        [],
-        [],
-        validate_only=True,
-        json_output=True,
-    )
-    assert wp_id in state.inmemory_frontmatter
-    assert state.inmemory_frontmatter[wp_id].owned_files == []
-    assert state.inmemory_frontmatter[wp_id].execution_mode == "planning_artifact"
-    assert wp_id not in state.ownership_contradictions
-    assert all(wp_id not in msg for msg in state.ownership_contradictions)
-
-
-# ---------------------------------------------------------------------------
-# T010: FR-002 aggregated raise via _run_bootstrap_loop
-# ---------------------------------------------------------------------------
-
-
-def test_run_bootstrap_loop_raises_for_single_ownership_contradiction(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """FR-002 (Acceptance Scenarios 1+2): a single ``code_change`` WP with an
-    explicit ``owned_files: []`` makes ``_run_bootstrap_loop`` raise once the
-    loop completes, naming the offending WP ID and the specific contradiction
-    in a stable, machine-readable JSON field.
-
-    Revert: reverting T015's production fix removes the ``ownership_contradiction
-    is not None`` branch (and the post-loop aggregated raise) from
-    ``_run_bootstrap_loop``, and reverts ``_apply_ownership_inference`` back to
-    its old 2-tuple return that never detects this case -- ``_run_bootstrap_loop``
-    would then return normally instead of raising, so ``pytest.raises(typer.Exit)``
-    fails with "DID NOT RAISE".
-    """
-    wp_file = _ownership_wp_file(
-        tmp_path, "WP01.md", "WP01", execution_mode="code_change", owned_files_yaml="owned_files: []\n"
-    )
-    with pytest.raises(typer.Exit):
-        seam._run_bootstrap_loop(
-            [wp_file],
-            seam._DependencyResolution(),
-            None,
-            "001-m",
-            tmp_path,
-            "main",
-            [],
-            [],
-            validate_only=True,
-            json_output=True,
-        )
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["error_code"] == seam.OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES
-    assert payload["ownership_contradiction_wp_ids"] == ["WP01"]
-    assert "WP01" in payload["error"]
-    assert "code_change WP declares no owned files" in payload["error"]
-
-
-def test_run_bootstrap_loop_raises_naming_every_offender_in_a_batch(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """FR-002 (Acceptance Scenario 4): a mission with a MIX of WPs -- two
-    contradicting, one validly authored -- fails the run and names EVERY
-    offending WP in the single aggregated error, rather than silently
-    dropping only the bad WPs and proceeding to compute lanes for the rest.
-
-    Revert-sensitivity: pre-fix, ``_apply_ownership_inference`` never detects
-    the contradiction at all (2-tuple return, no descriptor), so every WP --
-    including the two ``owned_files: []`` ones -- is silently accepted and
-    the loop returns normally; ``pytest.raises(typer.Exit)`` fails with "DID
-    NOT RAISE". Post-fix, only WP01/WP02 are named -- WP03 (validly authored)
-    must NOT appear in the offender list, proving the aggregation is precise.
-    """
-    wp1 = _ownership_wp_file(
-        tmp_path, "WP01.md", "WP01", execution_mode="code_change", owned_files_yaml="owned_files: []\n"
-    )
-    wp2 = _ownership_wp_file(
-        tmp_path, "WP02.md", "WP02", execution_mode="code_change", owned_files_yaml="owned_files: []\n"
-    )
-    wp3 = _ownership_wp_file(
-        tmp_path,
-        "WP03.md",
-        "WP03",
-        execution_mode="code_change",
-        owned_files_yaml="owned_files:\n  - src/x.py\n",
-    )
-    with pytest.raises(typer.Exit):
-        seam._run_bootstrap_loop(
-            [wp1, wp2, wp3],
-            seam._DependencyResolution(),
-            None,
-            "001-m",
-            tmp_path,
-            "main",
-            [],
-            [],
-            validate_only=True,
-            json_output=True,
-        )
-    payload = json.loads(capsys.readouterr().out)
-    assert set(payload["ownership_contradiction_wp_ids"]) == {"WP01", "WP02"}
-    assert "WP03" not in payload["ownership_contradiction_wp_ids"]
-
-
-# ---------------------------------------------------------------------------
-# T012/T013: FR-003 -- _compute_and_write_lanes raises on both halves of the
-# compound guard, instead of silently returning (None, None)
-# ---------------------------------------------------------------------------
-
-
-def test_compute_and_write_lanes_raises_when_wp_manifests_empty(tmp_path: Path) -> None:
-    """FR-003 (Acceptance Scenario 1) + T013 step 2's residual-gap coverage
-    (Acceptance Scenario 6): an empty ``wp_manifests`` makes
-    ``_compute_and_write_lanes`` raise instead of returning ``(None, None)``.
-
-    Revert-sensitivity: pre-fix, the function returns ``(None, None)``
-    without ever calling ``write_lanes_json`` -- ``lanes.json`` is already
-    absent both before AND after the fix, so an absence-only assertion would
-    be VACUOUS (pre-fix == post-fix). The actual revert-sensitive assertion
-    is the ``pytest.raises(typer.Exit)`` block itself: reverting FR-003's
-    raise back to ``return None, None`` makes this fail with "DID NOT RAISE".
-    The absence check below is only a secondary, defense-in-depth assertion.
-
-    Residual-gap note (NFR-004's narrowed scope, ledger SK-71): this test
-    does NOT assert WP-frontmatter or event-log absence -- for an FR-003
-    reject, the current (frozen) pipeline order in ``finalize_tasks`` already
-    ran ``_flush_frontmatter_writes`` and ``_emit_local_canonical_events``
-    before this function is ever reached, so those side effects are NOT
-    guaranteed absent. Only ``lanes.json`` absence is guaranteed by this fix.
-    Asserting the broader guarantee here would be a false claim a future
-    reader might "fix" the test into making -- do not add it.
-    """
-    planning_dir = tmp_path / "kitty-specs" / "001-test"
-    planning_dir.mkdir(parents=True)
-    with pytest.raises(typer.Exit):
-        seam._compute_and_write_lanes(
-            planning_dir,
-            tmp_path,
-            "001-test",
-            {},
-            {"WP01": []},
-            {},
-            {},
-            None,
-            "main",
-            json_output=True,
-        )
-    assert not (planning_dir / "lanes.json").exists()
-
-
-def test_compute_and_write_lanes_raises_when_wp_dependencies_empty(tmp_path: Path) -> None:
-    """FR-003 (Acceptance Scenario 5): ``wp_manifests`` non-empty but
-    ``wp_dependencies`` empty ALSO raises -- proves the fix covers the WHOLE
-    compound guard (``not (wp_manifests and wp_dependencies)``), not only the
-    ``wp_manifests``-empty half exercised above.
-
-    Revert: reverting FR-003's fix restores ``return None, None`` for this
-    half of the guard too, so ``pytest.raises(typer.Exit)`` fails with "DID
-    NOT RAISE".
-    """
-    planning_dir = tmp_path / "kitty-specs" / "001-test"
-    planning_dir.mkdir(parents=True)
-    manifest = OwnershipManifest(
-        execution_mode=WorkProductKind.CODE_CHANGE,
-        owned_files=("src/x.py",),
-        authoritative_surface="src/",
-    )
-    with pytest.raises(typer.Exit):
-        seam._compute_and_write_lanes(
-            planning_dir,
-            tmp_path,
-            "001-test",
-            {"WP01": manifest},
-            {},
-            {},
-            {},
-            None,
-            "main",
-            json_output=True,
-        )
-    assert not (planning_dir / "lanes.json").exists()
-
-
-# ---------------------------------------------------------------------------
-# T014: FR-004 -- authoritative_surface validation runs unconditionally, not
-# gated on wp_manifests being non-empty
-# ---------------------------------------------------------------------------
-
-
-def test_validate_ownership_manifests_catches_malformed_authoritative_surface_when_wp_manifests_empty(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """FR-004 (Acceptance Scenario 3): a ``code_change`` WP with a malformed
-    (empty-string) ``authoritative_surface`` is rejected even though the
-    CALLER's ``wp_manifests`` view is empty -- ``build_wp_manifests`` would
-    have included this exact WP (``execution_mode`` + ``owned_files`` both
-    truthy) had it been derived directly from ``wp_frontmatters``; passing an
-    empty ``wp_manifests`` here proves ``_validate_ownership_manifests`` no
-    longer trusts that emptiness as "nothing to check" -- the old
-    ``if not wp_manifests: return`` short-circuit silently skipped this.
-
-    Revert-sensitivity: reverting the FR-004 fix restores the short-circuit,
-    so the call returns silently instead of raising -- ``pytest.raises``
-    fails with "DID NOT RAISE".
-    """
-    wp_frontmatters = {
-        "WP01": WPMetadata(
-            work_package_id="WP01",
-            title="t",
-            execution_mode="code_change",
-            owned_files=["src/x.py"],
-            authoritative_surface="",
-        )
-    }
-    state = seam._BootstrapState()
-    with pytest.raises(typer.Exit):
-        seam._validate_ownership_manifests({}, wp_frontmatters, tmp_path, state, json_output=True)
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["error"] == "Ownership validation failed"
-    assert any("WP01" in e and "authoritative_surface" in e for e in payload["ownership_errors"])
-
-
-def test_validate_ownership_manifests_accepts_valid_authoritative_surface_when_wp_manifests_empty(
-    tmp_path: Path,
-) -> None:
-    """FR-004 (Acceptance Scenario 4): the sibling acceptance direction --
-    ``wp_manifests`` empty but every ``authoritative_surface`` value is a
-    genuinely valid prefix. The mission must pass exactly as it would with a
-    non-empty manifest map -- this proves the fix does not turn a
-    legitimately-empty, legitimately-valid mission into a spurious failure.
-    """
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "x.py").write_text("x", encoding="utf-8")
-    wp_frontmatters = {
-        "WP01": WPMetadata(
-            work_package_id="WP01",
-            title="t",
-            execution_mode="code_change",
-            owned_files=["src/x.py"],
-            authoritative_surface="src/",
-        )
-    }
-    state = seam._BootstrapState()
-    # Must NOT raise.
-    seam._validate_ownership_manifests({}, wp_frontmatters, tmp_path, state, json_output=True)
-
-
-# ---------------------------------------------------------------------------
-# WP02-001 drift guard: _resolve_wp_manifests_for_validation must REUSE
-# build_wp_manifests's inclusion predicate, never restate it inline.
-# ---------------------------------------------------------------------------
-
-
-def test_resolve_wp_manifests_for_validation_delegates_to_build_wp_manifests(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Mechanical proof of delegation, not restatement.
-
-    Replace ``build_wp_manifests`` (imported into this module's namespace)
-    with a canary that ignores the real predicate and returns a fixed
-    sentinel manifest. If ``_resolve_wp_manifests_for_validation`` calls
-    ``build_wp_manifests`` -- as it must -- the canary's output flows
-    straight through. If a future edit reverts to an inline copy of the
-    ``execution_mode and owned_files`` predicate instead (the exact drift
-    WP02-001 flagged), the monkeypatch has no effect: the function derives
-    its own answer for "WP01" and the canary's "CANARY" entry never appears,
-    so the assertion below fails.
-    """
-    wp_frontmatters = {
-        "WP01": WPMetadata(
-            work_package_id="WP01",
-            execution_mode="code_change",
-            owned_files=["src/x.py"],
-            authoritative_surface="src/",
-        )
-    }
-    canary = OwnershipManifest(
-        execution_mode=WorkProductKind.CODE_CHANGE,
-        owned_files=("canary/only.py",),
-        authoritative_surface="canary/",
-    )
-
-    def fake_build_wp_manifests(frontmatters: dict) -> dict:
-        assert frontmatters is wp_frontmatters
-        return {"CANARY": canary}
-
-    monkeypatch.setattr(seam, "build_wp_manifests", fake_build_wp_manifests)
-
-    result = seam._resolve_wp_manifests_for_validation({}, wp_frontmatters)
-
-    assert result == {"CANARY": canary}
-
-
-def test_resolve_wp_manifests_for_validation_matches_build_wp_manifests_selection(
-    tmp_path: Path,
-) -> None:
-    """Behaviour-preservation: WP selection is identical to calling
-    ``build_wp_manifests`` directly on the same frontmatter, for both the
-    normal (code_change) case and the SK-24 ``planning_artifact`` /
-    ``owned_files: []`` escape hatch. Exercised against the REAL (unpatched)
-    predicate, unlike the delegation test above.
-    """
-    wp_frontmatters = {
-        "WP01": WPMetadata(
-            work_package_id="WP01",
-            execution_mode="code_change",
-            owned_files=["src/x.py"],
-            authoritative_surface="src/",
-        ),
-        "WP02": WPMetadata(
-            work_package_id="WP02",
-            title="planning wp",
-            execution_mode="planning_artifact",
-            owned_files=[],
-            authoritative_surface="",
-        ),
-        "WP03": WPMetadata(work_package_id="WP03", title="undeclared"),
-    }
-    expected = ownership_validation.build_wp_manifests(wp_frontmatters)
-
-    resolved_from_empty = seam._resolve_wp_manifests_for_validation({}, wp_frontmatters)
-    assert resolved_from_empty == expected
-    assert set(resolved_from_empty) == {"WP01"}  # WP02 (escape hatch) and WP03 stay excluded
-
-    # A non-empty wp_manifests view wins the merge for keys it already has,
-    # and re-derived entries still land for everything else -- same set as
-    # calling build_wp_manifests directly would produce.
-    preexisting = {"WP01": OwnershipManifest.from_frontmatter(wp_frontmatters["WP01"])}
-    resolved_from_nonempty = seam._resolve_wp_manifests_for_validation(preexisting, wp_frontmatters)
-    assert set(resolved_from_nonempty) == set(expected)
+    assert warnings == [
+        "WP01 declares Success-Criteria token(s) (SC-008) in requirement_refs "
+        "that the FR/NFR/C ref graph does not admit -- they are DROPPED, not traced. "
+        "Success-Criteria ids are not first-class requirement refs; move the coverage "
+        "claim to the WP's success-criteria surface, or restate it as an FR/NFR/C "
+        "requirement if it must be traced."
+    ]
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ that lacks the ``test`` extra this fails with ``No module named pytest`` and
 the gate silently degrades to a false ``GateOutcome.NO_COVERAGE`` warn — the
 exact failure #2570.3 removes.
 
-``uv run --project <repo_root> ...`` re-resolves the project's own
+``uv run --frozen --project <repo_root> ...`` re-resolves the project's own
 ``uv``-managed environment (which DOES carry the test extras), so it is
 preferred whenever both ``uv`` is on ``PATH`` and the target looks like a
 ``uv``-managed project (a ``pyproject.toml`` at its root). There is no other
@@ -18,13 +18,16 @@ shared ``uv run`` executor in ``src/`` today — ``compat/`` only carries
 itself via uv, not invoking pytest) — so this module is the single new
 canonical seam a later consumer should import rather than re-deriving.
 
-**Consumer relocation (mission ``doctrine-controlled-transition-gates-01KY51Z7``
-WP02, T007).** The sole production consumer is now
+**Consumer history (mission ``doctrine-controlled-transition-gates-01KY51Z7``
+WP02/WP03, T007).** WP02 moved the then-sole production consumer to
 ``specify_cli.review.scope_source.GateCoverageScopeSource.test_command()``,
 which injects ``--junitxml``/``-q`` and calls this resolver instead of the
-old direct call from ``review.pre_review_gate.run_scoped_tests_at_head``
-(``pre_review_gate.py`` itself is untouched here — WP03 repoints its call
-site). This resolver's own behaviour is unchanged; only its consumer moved.
+prior direct call from ``review.pre_review_gate.run_scoped_tests_at_head``.
+WP03 then repointed that same ``run_scoped_tests_at_head`` back onto this
+resolver (see its own docstring's ``#2570.3`` reference), so today both call
+sites call this resolver directly — there is no single "sole" consumer, and
+neither supersedes the other. This resolver's own behaviour is unchanged;
+only who calls it has changed over time.
 """
 
 from __future__ import annotations
@@ -43,7 +46,7 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
     Resolution order:
 
     1. ``uv`` is on ``PATH`` **and** ``<repo_root>/pyproject.toml`` exists ->
-       ``["uv", "run", "--project", str(repo_root), "python", "-m", "pytest", *pytest_args]``.
+       ``["uv", "run", "--frozen", "--project", str(repo_root), "python", "-m", "pytest", *pytest_args]``.
        ``uv run`` resolves the project's own managed virtualenv, which is
        where the ``test`` extra (and therefore ``pytest`` itself) actually
        lives.
@@ -53,5 +56,15 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
        at its root — a named edge case: the AND's second leg).
     """
     if shutil.which("uv") is not None and (repo_root / "pyproject.toml").is_file():
-        return ["uv", "run", "--project", str(repo_root), "python", "-m", "pytest", *pytest_args]
+        return [
+            "uv",
+            "run",
+            "--frozen",
+            "--project",
+            str(repo_root),
+            "python",
+            "-m",
+            "pytest",
+            *pytest_args,
+        ]
     return [sys.executable, "-m", "pytest", *pytest_args]

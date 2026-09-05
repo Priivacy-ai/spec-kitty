@@ -28,6 +28,11 @@ approve-over-rejection when nothing could record a genuine approval; now that
 reject-fix-approve path is allowed to proceed instead of dead-ending at the
 mission's one documented escape hatch.
 
+EXCEPTION (FIX-M2-03): :func:`_guard_agent_ownership`'s
+``GENERIC_IMPLEMENTATION_ACTORS`` early-return is a second INTENTIONAL,
+one-off behaviour change, not a pure-parity reproduction. See that function's
+docstring for the full rationale.
+
 Design (functional core / imperative shell):
 
 * The orchestrator (``move_task``) performs all filesystem / git / clock reads
@@ -72,6 +77,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _self_review_fallback_option_error,
 )
 from specify_cli.status import (
+    GENERIC_IMPLEMENTATION_ACTORS,
     GuardContext,
     Lane,
     resolve_lane_alias,
@@ -416,6 +422,22 @@ def _guard_protected_branch(req: MoveTaskRequest) -> RefuseExit1 | None:
 
 
 def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
+    # FIX-M2-03: a WP's assignee is a GENERIC_IMPLEMENTATION_ACTORS placeholder
+    # (``implement-command``) whenever it was claimed through the internal
+    # ``spec-kitty implement`` compat surface without ``--actor`` -- a
+    # documented, supported call shape (see implement.py's own docstring:
+    # "This command remains available as a compatibility surface for direct
+    # callers"), not a real owner. status/work_package_lifecycle.py's own
+    # claim/in_progress ownership check already treats this placeholder as
+    # unclaimed-in-practice (``_actors_compatible(..., allow_generic_existing=
+    # True)``); this guard previously compared ``current_agent`` by raw
+    # equality only, so any real ``--agent`` value permanently tripped the
+    # ownership-mismatch refusal against a WP no real agent ever claimed,
+    # forcing every caller to pass ``--force`` for a conflict that was never
+    # real. Matching the SAME allowance here keeps the two ownership checks
+    # consistent instead of one silently stricter than the other.
+    if req.current_agent in GENERIC_IMPLEMENTATION_ACTORS:
+        return None
     if not (
         req.current_agent
         and req.agent

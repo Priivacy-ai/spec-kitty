@@ -386,13 +386,7 @@ def example_custom_project_dir(tmp_path_factory: pytest.TempPathFactory) -> Path
     declaration_dir = project_dir / ".kittify" / "overrides" / "missions" / "example-custom" / "templates"
     declaration_dir.mkdir(parents=True)
     (declaration_dir / "plan-field-declaration.yaml").write_text(
-        "primary:\n"
-        "  kind: bold_field\n"
-        "  heading: Test Items\n"
-        "  label: Primary Item\n"
-        "peers:\n"
-        "  - kind: any_bold_field\n"
-        "    heading: Environments\n",
+        "primary:\n  kind: bold_field\n  heading: Test Items\n  label: Primary Item\npeers:\n  - kind: any_bold_field\n    heading: Environments\n",
         encoding="utf-8",
     )
     return project_dir
@@ -416,20 +410,12 @@ def test_plan_real_all_peers_is_substantive() -> None:
 def test_example_custom_real_is_substantive(example_custom_project_dir: Path) -> None:
     """#3830 FIX-1: a pack-provided declaration (no core dict entry) resolves
     a genuinely custom mission type through the real ``resolve_template`` seam."""
-    assert (
-        _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "example-custom", project_dir=example_custom_project_dir)
-        is True
-    )
+    assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "example-custom", project_dir=example_custom_project_dir) is True
 
 
 def test_example_custom_placeholder_scaffold_is_not_substantive(example_custom_project_dir: Path) -> None:
     """example-custom's own unfilled scaffold fails through the normal shape path."""
-    assert (
-        _is_plan_substantive_for_type(
-            _EXAMPLE_CUSTOM_PLACEHOLDERS, "example-custom", project_dir=example_custom_project_dir
-        )
-        is False
-    )
+    assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_PLACEHOLDERS, "example-custom", project_dir=example_custom_project_dir) is False
 
 
 def test_qa_has_no_core_declaration() -> None:
@@ -499,21 +485,11 @@ class TestNonVacuityFixtureMatrix:
 
     def test_example_custom_positive(self, example_custom_project_dir: Path) -> None:
         """#3830 FIX-1: PASS branch for a pack-declared (not core-declared) type."""
-        assert (
-            _is_plan_substantive_for_type(
-                _EXAMPLE_CUSTOM_REAL, "example-custom", project_dir=example_custom_project_dir
-            )
-            is True
-        )
+        assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "example-custom", project_dir=example_custom_project_dir) is True
 
     def test_example_custom_negative_unfilled_scaffold(self, example_custom_project_dir: Path) -> None:
         """#3830 FIX-1: FAIL branch for the same pack-declared type."""
-        assert (
-            _is_plan_substantive_for_type(
-                _EXAMPLE_CUSTOM_PLACEHOLDERS, "example-custom", project_dir=example_custom_project_dir
-            )
-            is False
-        )
+        assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_PLACEHOLDERS, "example-custom", project_dir=example_custom_project_dir) is False
 
 
 class TestFailClosedEdgeCases:
@@ -561,11 +537,7 @@ def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path)
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
-        "doctrine:\n"
-        "  org:\n"
-        "    packs:\n"
-        f"      - name: {pack_name}\n"
-        f"        local_path: {local_path}\n",
+        f"doctrine:\n  org:\n    packs:\n      - name: {pack_name}\n        local_path: {local_path}\n",
         encoding="utf-8",
     )
 
@@ -581,13 +553,7 @@ class TestPackProvidedDeclarationOrgTier:
         declaration_dir = org_root / "missions" / "acme-custom" / "templates"
         declaration_dir.mkdir(parents=True)
         (declaration_dir / "plan-field-declaration.yaml").write_text(
-            "primary:\n"
-            "  kind: bold_field\n"
-            "  heading: Test Items\n"
-            "  label: Primary Item\n"
-            "peers:\n"
-            "  - kind: any_bold_field\n"
-            "    heading: Environments\n",
+            "primary:\n  kind: bold_field\n  heading: Test Items\n  label: Primary Item\npeers:\n  - kind: any_bold_field\n    heading: Environments\n",
             encoding="utf-8",
         )
         _write_org_pack_config(project, pack_name="acme", local_path=org_root)
@@ -602,13 +568,8 @@ class TestPackProvidedDeclarationOrgTier:
             assert resolution.tier == ResolutionTier.ORG
             assert resolution.path == declaration_dir / "plan-field-declaration.yaml"
 
-            assert (
-                _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "acme-custom", project_dir=project) is True
-            )
-            assert (
-                _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_PLACEHOLDERS, "acme-custom", project_dir=project)
-                is False
-            )
+            assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "acme-custom", project_dir=project) is True
+            assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_PLACEHOLDERS, "acme-custom", project_dir=project) is False
 
     def test_no_org_pack_and_no_builtin_still_fails_closed(self, tmp_path: Path) -> None:
         """A genuinely unregistered type with an org root configured but no
@@ -625,9 +586,7 @@ class TestPackProvidedDeclarationOrgTier:
             "specify_cli.runtime.resolver.get_kittify_home",
             return_value=tmp_path / "no_home",
         ):
-            assert (
-                _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project) is False
-            )
+            assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project) is False
 
     def test_mission_agnostic_legacy_tier_declaration_is_ignored(self, tmp_path: Path) -> None:
         """#3832 fold: ``resolve_template`` tiers 1b/2/5 (override, legacy,
@@ -643,22 +602,14 @@ class TestPackProvidedDeclarationOrgTier:
         legacy_templates = project / ".kittify" / "templates"
         legacy_templates.mkdir(parents=True)
         (legacy_templates / "plan-field-declaration.yaml").write_text(
-            "primary:\n"
-            "  kind: bold_field\n"
-            "  heading: Test Items\n"
-            "  label: Primary Item\n"
-            "peers:\n"
-            "  - kind: any_bold_field\n"
-            "    heading: Environments\n",
+            "primary:\n  kind: bold_field\n  heading: Test Items\n  label: Primary Item\npeers:\n  - kind: any_bold_field\n    heading: Environments\n",
             encoding="utf-8",
         )
 
         from specify_cli.missions._substantive import _pack_provided_declaration
 
         assert _pack_provided_declaration("never-declared", project) is None
-        assert (
-            _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project) is False
-        )
+        assert _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project) is False
         reason = describe_technical_context_gap(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project)
         assert reason is not None
         assert "no field declaration is registered" in reason.lower()
@@ -708,13 +659,7 @@ class TestPackDeclarationFailsLoud:
 
         path = tmp_path / "plan-field-declaration.yaml"
         path.write_text(
-            "primary:\n"
-            "  kind: table_field\n"
-            "  heading: Test Items\n"
-            "peers:\n"
-            "  - kind: any_bold_field\n"
-            "    heading: Environments\n"
-            "extra_top_level_key: oops\n",
+            "primary:\n  kind: table_field\n  heading: Test Items\npeers:\n  - kind: any_bold_field\n    heading: Environments\nextra_top_level_key: oops\n",
             encoding="utf-8",
         )
 

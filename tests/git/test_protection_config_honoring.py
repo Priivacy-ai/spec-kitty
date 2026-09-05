@@ -20,12 +20,7 @@ repo equals ``{main, master}`` ∪ {remote-default} — **exact set equality**, 
 "behaviour unchanged".
 
 NFR-002: coord-worktree materialisation completes in < 2 s warm (0 network).
-``test_coord_worktree_materialises_within_two_seconds`` carries ``@pytest.mark.performance``
-and is measured via ``pytest-benchmark`` (ADR 2026-08-22-1) — env-gated off every PR/blocking
-run, statistically compared against a committed per-domain baseline in the off-PR
-``performance.yml`` pipeline. ``test_protection_policy_resolve_is_zero_network`` is a
-non-hang/zero-network correctness guard (ADR 2026-08-22-1's "stays on the PR path" carve-out),
-not a performance test, and keeps its plain wall-clock assertion.
+Asserted via ``@pytest.mark.timing`` (do not wall-clock in the parallel shard).
 
 All fixtures use ``tmp_path`` — no mocks for filesystem reads, no network.
 ``ProtectedTargetRepo.build`` asserts its own preconditions so silently-vacuous
@@ -42,7 +37,6 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
@@ -513,31 +507,23 @@ class TestNFR004ByteIdenticalDefault:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.timing
 class TestNFR002MaterialisationTimingBound:
     """T026 (NFR-002): coord-worktree materialisation < 2 s warm, 0 network.
 
-    ``test_coord_worktree_materialises_within_two_seconds`` carries
-    ``@pytest.mark.performance`` and is measured via ``pytest-benchmark``
-    (ADR 2026-08-22-1): env-gated off every PR/blocking run, statistically
-    compared against a committed per-domain baseline in the off-PR
-    ``performance.yml`` pipeline — never a single-shot ceiling on a shared
-    runner. 0-network is structural: the fixture repo has no remote and
-    ``_remote_default_branch`` returns None (no git-remote call).
+    The @pytest.mark.timing marker is used per the test-data contract (WP07 spec):
+    do NOT wall-clock in the parallel shard; instead assert the observed elapsed
+    or defer to a timing fixture.
+
+    Here we assert the observed elapsed directly, using a generous wall-clock bound
+    (2 s) that accommodates slow CI.  0-network is structural: the fixture repo has
+    no remote and ``_remote_default_branch`` returns None (no git-remote call).
     """
 
-    @pytest.mark.performance
-    @pytest.mark.benchmark(group="git")
     def test_coord_worktree_materialises_within_two_seconds(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, benchmark: BenchmarkFixture
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """NFR-002: CoordinationWorkspace.resolve (materialise-on-demand), measured statistically.
-
-        ``benchmark.pedantic`` with ``rounds=2, warmup_rounds=0`` mirrors the original
-        shape exactly: two explicit, individually-timed calls — the first creates the
-        worktree (cold path), the second is the idempotent re-resolve (warm path) — with
-        no discarded warmup round, matching the original's "assert both individually"
-        intent.
-        """
+        """NFR-002: CoordinationWorkspace.resolve (materialise-on-demand) < 2 s warm."""
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
         repo = build_protected_target_repo(tmp_path)
@@ -553,21 +539,25 @@ class TestNFR002MaterialisationTimingBound:
 
         from specify_cli.coordination.workspace import CoordinationWorkspace
 
-        resolved_paths: list[Path] = []
+        # Warm run: measure resolution time (first create, then idempotent re-resolve).
+        # First call creates the worktree (cold path).
+        _t0 = time.perf_counter()
+        wt_path = CoordinationWorkspace.resolve(repo.repo_root, slug, mid8)
+        cold_elapsed = time.perf_counter() - _t0
 
-        def _resolve() -> None:
-            resolved_paths.append(CoordinationWorkspace.resolve(repo.repo_root, slug, mid8))
+        # Second call (warm / idempotent): must be even faster.
+        _t1 = time.perf_counter()
+        wt_path_2 = CoordinationWorkspace.resolve(repo.repo_root, slug, mid8)
+        warm_elapsed = time.perf_counter() - _t1
 
-        # Round 1 = cold (creates the worktree), round 2 = warm (idempotent re-resolve).
-        benchmark.pedantic(_resolve, rounds=2, iterations=1, warmup_rounds=0)
-        wt_path, wt_path_2 = resolved_paths[0], resolved_paths[1]
-
-        # Very loose sanity ceiling — the statistical baseline compare (off the PR
-        # path) is the primary regression signal, not this assert.
-        assert benchmark.stats.stats.max < 10.0, (
-            f"NFR-002: coord-worktree materialisation had a slowest round of "
-            f"{benchmark.stats.stats.max:.3f}s (nominal budget: 2s each), wildly beyond "
-            "the generous sanity ceiling."
+        # NFR-002: both must complete within 2 s.
+        assert cold_elapsed < 2.0, (
+            f"NFR-002: cold coord-worktree materialisation took {cold_elapsed:.3f}s "
+            f"(must be < 2 s). This indicates unexpected I/O or network access."
+        )
+        assert warm_elapsed < 2.0, (
+            f"NFR-002: warm (idempotent) materialisation took {warm_elapsed:.3f}s "
+            f"(must be < 2 s)."
         )
 
         # The worktree must have been created (materialisation actually ran).

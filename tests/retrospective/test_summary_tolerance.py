@@ -694,7 +694,6 @@ def large_corpus(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path
 
 
-@pytest.mark.performance
 def test_200_missions_under_5s(large_corpus: Path) -> None:
     """200-mission corpus completes within the NFR-003 wall-clock budget.
 

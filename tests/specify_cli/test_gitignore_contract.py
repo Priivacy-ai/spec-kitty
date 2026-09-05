@@ -78,6 +78,73 @@ def test_contract_runtime_entries_complete():
     assert ".kittify/events/" in entries
     assert ".kittify/dossiers/" in entries
     assert ".worktrees/" in entries  # execution-worktrees root (#3689)
+    # FIX-M2-05: the FEATURE-rooted leg -- the dossier SNAPSHOT is nested
+    # inside each mission's own kitty-specs/<feature>/ tree (save_snapshot()
+    # writes feature_dir/.kittify/dossiers/<slug>/…), a DIFFERENT physical
+    # location than dossier_parity_baseline's genuinely project-rooted
+    # sibling (which is what keeps ".kittify/dossiers/" above alive).
+    assert "kitty-specs/*/.kittify/dossiers/" in entries
+
+
+def test_dossier_snapshot_is_feature_rooted_not_project_rooted():
+    """FIX-M2-05 regression lock: dossier_snapshot must stay FEATURE-rooted.
+
+    Root cause of the reported ``spec-kitty merge`` failure (git/ref_advance.py's
+    dirty-checked-out-worktree resync, #1826): ``dossier_snapshot`` was declared
+    ``root=StateRoot.PROJECT`` with a path_pattern missing the mandatory
+    ``kitty-specs/<feature>/`` prefix that ``save_snapshot()``
+    (``dossier/snapshot.py``) actually writes under. That made
+    ``get_runtime_gitignore_entries()`` emit a root-anchored ``.kittify/dossiers/``
+    pattern that never matched the real write location, so a fresh
+    ``spec-kitty init`` never protected it. Pin both the root and the exact
+    physical path so a regression here fails LOUD instead of silently drifting
+    the gitignore generator away from reality again.
+    """
+    from specify_cli.state.contract import STATE_SURFACES, GitClass, StateRoot
+
+    surface = next(s for s in STATE_SURFACES if s.name == "dossier_snapshot")
+    assert surface.root == StateRoot.FEATURE
+    assert surface.git_class == GitClass.IGNORED
+    assert surface.path_pattern == "kitty-specs/<feature>/.kittify/dossiers/<feature>/snapshot-latest.json"
+
+    # dossier_parity_baseline is a DIFFERENT artifact at a genuinely
+    # project-rooted physical location (drift_detector.py (deleted, #274) wrote
+    # repo_root/.kittify/dossiers/<slug>/parity-baseline.json) -- confirm this
+    # fix did not accidentally move it too.
+    baseline = next(s for s in STATE_SURFACES if s.name == "dossier_parity_baseline")
+    assert baseline.root == StateRoot.PROJECT
+    assert baseline.path_pattern == ".kittify/dossiers/<feature>/parity-baseline.json"
+
+
+def test_gitignore_manager_protects_dossier_snapshot(tmp_path: Path) -> None:
+    """FIX-M2-05: fresh init protection hides the mission-nested dossier snapshot.
+
+    Regression test for the reported golden-path failure: a fresh
+    ``spec-kitty init`` project's ``.gitignore`` must actually cover the real
+    physical write location of ``save_snapshot()``
+    (``<feature_dir>/.kittify/dossiers/<slug>/snapshot-latest.json``, i.e.
+    NESTED inside ``kitty-specs/<mission>/``) -- not just the project-root
+    ``.kittify/dossiers/`` pattern that never matched it. A sibling per-mission
+    ``.kittify/config.yaml`` (a real, TRACKED file) must stay un-ignored so this
+    fix does not over-broadly blanket-ignore the mission's whole ``.kittify/``.
+    """
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    result = GitignoreManager(tmp_path).protect_all_agents()
+
+    assert result.success
+    assert _is_ignored(
+        tmp_path,
+        "kitty-specs/some-mission/.kittify/dossiers/some-mission/snapshot-latest.json",
+    )
+    # A second mission's snapshot is covered by the same glob (not a
+    # per-mission literal that only happens to match one slug).
+    assert _is_ignored(
+        tmp_path,
+        "kitty-specs/other-mission-01ABC/.kittify/dossiers/other-mission-01ABC/snapshot-latest.json",
+    )
+    assert not _is_ignored(tmp_path, "kitty-specs/some-mission/.kittify/config.yaml")
 
 
 def test_gitignore_manager_protects_encoding_provenance(tmp_path: Path) -> None:

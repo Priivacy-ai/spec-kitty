@@ -13,6 +13,7 @@ def test_find_repo_root_normal_repo(tmp_path):
     # Create a normal repo structure
     git_dir = tmp_path / ".git"
     git_dir.mkdir()
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n")
 
     # Should find the repo root
     result = find_repo_root(tmp_path)
@@ -42,6 +43,7 @@ def test_find_repo_root_worktree(tmp_path):
     main_repo.mkdir()
     git_dir = main_repo / ".git"
     git_dir.mkdir()
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n")
     worktrees_dir = git_dir / "worktrees"
     worktrees_dir.mkdir()
 
@@ -76,6 +78,7 @@ def test_find_repo_root_worktree_with_subdirs(tmp_path):
     main_repo.mkdir()
     git_dir = main_repo / ".git"
     git_dir.mkdir()
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n")
     worktrees_dir = git_dir / "worktrees"
     worktrees_dir.mkdir()
 
@@ -131,6 +134,7 @@ def test_find_repo_root_walks_upward(tmp_path):
     # Create repo at root
     git_dir = tmp_path / ".git"
     git_dir.mkdir()
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n")
 
     # Create deep subdirectory
     deep_dir = tmp_path / "a" / "b" / "c" / "d"

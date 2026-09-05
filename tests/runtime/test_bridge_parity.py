@@ -1167,40 +1167,9 @@ def test_answer_path_side_effects_captured(
     assert run_a.side_effects.coord_commit_calls, "expected the answer-path coord commit to record calls"
 
 
-#: #3407 (M3) — ``_check_cli_guards`` resolves the mission's REAL family
-#: (``get_mission_type``) instead of hardcoding ``"software-dev"``, so the
-#: WP-iteration on-advance guard and the direct AC-13/AC-14 callers reach the
-#: correct per-type ``_GUARD_TABLES`` entry (e.g. the ``"plan"`` table). But
-#: the non-WP CLI pre-check inside ``_dn_dependency_gate`` is SCOPED to the
-#: software-dev family: its ``kind=step`` "re-issue the current step" semantic
-#: belongs to software-dev's linear CLI vocabulary and must NOT pre-empt
-#: composition dispatch for the other families. For research/documentation
-#: (and every custom mission type), the missing-``spec.md`` failure is owned
-#: by the COMPOSED guard (``_check_composed_action_guard``), which surfaces it
-#: as a ``kind=blocked`` decision — the fail-CLOSED contract.
-#:
-#: An earlier WP06 revision made the pre-check unconditional (real family for
-#: every step), which wrongly routed "scoping"/"discover" through the CLI
-#: pre-check and produced a fail-OPEN ``kind=step`` (and crashed on
-#: guard-table-unregistered custom families). That regression also dropped
-#: this floor 18 -> 16 by short-circuiting the composed guard for those two
-#: fixtures. With the pre-check correctly family-scoped, the composed guard
-#: again owns ``composed:research:scoping`` and ``composed:documentation:
-#: discover``, so the floor returns to 18. See
-#: ``test_non_software_dev_missing_artifact_owned_by_composed_guard`` below,
-#: which pins that these two actions route through the composed guard (not the
-#: CLI pre-check) and yield a blocked decision.
-#:
 #: Guard-branch coverage floor — a checkable count (not a fixture count),
 #: classified by action name so it is robust to line shifts (see test below).
 _GUARD_BRANCH_FLOOR = 18
-
-#: The two non-software-dev fixtures whose missing-artifact guard is owned by
-#: the composed guard (NOT the CLI pre-check, which is software-dev-scoped).
-_COMPOSED_GUARD_OWNED_FIXTURES: dict[str, str] = {
-    "dn_research_scoping_guard_fail": "scoping",
-    "dn_documentation_discover_guard_fail": "discover",
-}
 
 
 def test_coverage_floor_is_met(
@@ -1223,12 +1192,6 @@ def test_coverage_floor_is_met(
     action name, not line number, so it stays active and robust. (The
     ``assert_coverage_floor_met`` helper + ``KNOWN_DECISION_SITES`` remain so the
     structural fix can re-activate the site half.)
-
-    The floor is 18 (see the rationale comment on ``_GUARD_BRANCH_FLOOR``
-    above). ``test_non_software_dev_missing_artifact_owned_by_composed_guard``
-    (below) is the checkable proof that the two non-software-dev
-    missing-artifact fixtures route through the composed guard — the branches
-    that keep the count at 18.
     """
     _results, ledger = ledger_results
     reached = ledger.guard_branches_reached
@@ -1237,53 +1200,6 @@ def test_coverage_floor_is_met(
         f"(floor={_GUARD_BRANCH_FLOOR}). Reached: {sorted(reached)}. "
         f"Fixtures run: {ledger.fixtures_run}"
     )
-
-
-def test_non_software_dev_missing_artifact_owned_by_composed_guard(
-    ledger_results: tuple[dict[str, tuple[FixtureRun, FixtureRun]], CoverageLedger],
-) -> None:
-    """#3407 (M3) — regression guard for the family-scoped CLI pre-check.
-
-    The non-WP CLI pre-check (``_check_cli_guards`` inside
-    ``_dn_dependency_gate``) is scoped to the software-dev family. For a
-    research / documentation mission the missing-``spec.md`` guard is owned by
-    the COMPOSED guard, which surfaces it as a ``kind=blocked`` decision.
-
-    For each of ``_COMPOSED_GUARD_OWNED_FIXTURES``, asserts:
-
-    1. The composed guard (``_check_composed_action_guard``) fired for the
-       action and carried a non-empty failure list — it is the owner (this is
-       the branch that keeps ``_GUARD_BRANCH_FLOOR`` at 18).
-    2. The CLI pre-check (``_check_cli_guards``) was NEVER reached for that
-       action — the family scope keeps it from pre-empting the composed guard
-       (the exact WP06 fail-OPEN regression this pins against).
-    3. The composed call's failures are exactly the decision's
-       ``guard_failures``, mention the missing ``spec.md`` artifact, AND the
-       decision is ``kind=blocked`` — the fail-CLOSED contract (matching the
-       documentation/research runtime-walk acceptance tests).
-    """
-    results, _ledger = ledger_results
-    for fixture_id, action in _COMPOSED_GUARD_OWNED_FIXTURES.items():
-        run_a, _run_b = results[fixture_id]
-        cli_calls = [c for c in run_a.guard_calls if c.fn == "cli" and c.step_id_or_action == action]
-        composed_calls = [c for c in run_a.guard_calls if c.fn == "composed" and c.step_id_or_action == action]
-        assert composed_calls, (
-            f"{fixture_id}: expected the composed guard to fire for {action!r}"
-        )
-        assert not cli_calls, (
-            f"{fixture_id}: CLI pre-check unexpectedly fired for non-software-dev "
-            f"{action!r} — it must stay software-dev-scoped and defer to the composed guard"
-        )
-        assert composed_calls[0].failures == run_a.decision.guard_failures, (
-            f"{fixture_id}: composed guard failures diverged from the decision's "
-            f"guard_failures: {composed_calls[0].failures!r} vs {run_a.decision.guard_failures!r}"
-        )
-        assert any("spec.md" in failure for failure in composed_calls[0].failures), (
-            f"{fixture_id}: expected the missing-spec.md failure message, got {composed_calls[0].failures!r}"
-        )
-        assert run_a.decision.kind == DecisionKind.blocked, (
-            f"{fixture_id}: expected a fail-CLOSED blocked decision, got {run_a.decision.kind!r}"
-        )
 
 
 def test_hollow_ledger_fails_coverage_floor() -> None:

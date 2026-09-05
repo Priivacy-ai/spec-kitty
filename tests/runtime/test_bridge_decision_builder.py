@@ -386,14 +386,18 @@ def test_guard_failures_default_matches_decision_default_factory() -> None:
     envelope_b = _minimal_envelope(kind=DecisionKind.blocked, reason="x")
     decision_a = cores.step_or_blocked(envelope_a, None, prompt_exists=_RaisingPromptExists())
     decision_b = cores.step_or_blocked(envelope_b, [], prompt_exists=_RaisingPromptExists())
-    assert decision_a.guard_failures == decision_b.guard_failures == Decision(
-        kind=DecisionKind.blocked,
-        agent=None,
-        mission_slug="x",
-        mission="x",
-        mission_state="x",
-        timestamp="x",
-    ).guard_failures
+    assert (
+        decision_a.guard_failures
+        == decision_b.guard_failures
+        == Decision(
+            kind=DecisionKind.blocked,
+            agent=None,
+            mission_slug="x",
+            mission="x",
+            mission_state="x",
+            timestamp="x",
+        ).guard_failures
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -412,15 +416,8 @@ def test_runtime_bridge_has_zero_raw_decision_constructions() -> None:
     ``runtime_bridge_cores.step_or_blocked`` via ``_materialize_decision``."""
     source = inspect.getsource(rb)
     tree = ast.parse(source)
-    bare_decision_calls = [
-        call
-        for call in _iter_calls(tree)
-        if isinstance(call.func, ast.Name) and call.func.id == "Decision"
-    ]
-    assert bare_decision_calls == [], (
-        "runtime_bridge.py must not construct Decision(...) directly; "
-        "route through _materialize_decision/DecisionEnvelope instead"
-    )
+    bare_decision_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "Decision"]
+    assert bare_decision_calls == [], "runtime_bridge.py must not construct Decision(...) directly; route through _materialize_decision/DecisionEnvelope instead"
 
 
 def test_runtime_bridge_materializes_every_former_decision_site() -> None:
@@ -428,22 +425,26 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     triad (12 sites -> 4 calls) into 21 ``_materialize_decision(...)`` call
     sites (29 - 8 = 21; each triad saves 2 calls by folding its
     prompt-file-None / step / InvalidStepDecision-except trio into one
-    ``kind=step`` envelope call). #2947 then added the merged-mission
+    ``kind=step`` envelope call). A regression on this exact count catches a
+    silent re-introduction of an open-coded ``Decision(...)`` construction
+    that bypasses the builder.
+
+    22nd site (#801, PR #845): the ``_dn_bootstrap`` merged-mission
+    short-circuit materializes its terminal decision through the builder —
+    a legitimate site routed through ``_materialize_decision``. #2947 then
+    added the committed-authority merged-mission
     short-circuit, whose two verdicts (``kind=terminal`` and the
-    ``kind=blocked`` conflict/stale-workspace case) are emitted from
-    ``_merged_mission_short_circuit`` — two new builder-routed sites, so the
-    count is now 23 (21 + 2). Both go through ``_materialize_decision``; the
+    conflict/stale-workspace case) are emitted from
+    ``_merged_mission_short_circuit``. Later EXP routing contributes one more
+    legitimate site, making the live count 24. All go through
+    ``_materialize_decision``; the
     zero-open-coded-``Decision`` invariant is unchanged. A regression on this
     exact count catches a silent re-introduction of an open-coded
     ``Decision(...)`` construction that bypasses the builder."""
     source = inspect.getsource(rb)
     tree = ast.parse(source)
-    materialize_calls = [
-        call
-        for call in _iter_calls(tree)
-        if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"
-    ]
-    assert len(materialize_calls) == 23
+    materialize_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"]
+    assert len(materialize_calls) == 24
 
 
 def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:
@@ -453,10 +454,6 @@ def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:
     envelope``)."""
     source = inspect.getsource(cores)
     tree = ast.parse(source)
-    bare_decision_calls = [
-        call
-        for call in _iter_calls(tree)
-        if isinstance(call.func, ast.Name) and call.func.id == "Decision"
-    ]
+    bare_decision_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "Decision"]
     # Exactly 3: one in each of the three construction helpers.
     assert len(bare_decision_calls) == 3

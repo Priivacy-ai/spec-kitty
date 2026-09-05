@@ -225,7 +225,7 @@ class TestEvaluatePathConventions:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
-            lambda *_a, **_k: SimpleNamespace(missing_paths=[]),
+            lambda *_a, **_k: SimpleNamespace(missing_paths=[], missing_artifact_tokens=[]),
         )
 
         result = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=True)
@@ -233,11 +233,19 @@ class TestEvaluatePathConventions:
         assert result == ([], None, frozenset())
 
     def test_strict_metadata_true_blocks_with_violation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
+        mission = SimpleNamespace(
+            config=SimpleNamespace(
+                paths=["src/"],
+                artifacts=SimpleNamespace(optional=("contracts/",), required=()),
+            ),
+            domain="software-dev",
+        )
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
             lambda *_a, **_k: SimpleNamespace(
-                missing_paths=["src/"], missing_artifact_tokens=[], format_errors=lambda: "missing src/"
+                missing_paths=["src/"],
+                missing_artifact_tokens=["contracts", "src"],
+                format_errors=lambda: "missing src/",
             ),
         )
 
@@ -247,13 +255,17 @@ class TestEvaluatePathConventions:
 
         assert violations == ["missing src/"]
         assert warning is None
-        assert dedup_tokens == frozenset()
+        assert dedup_tokens == frozenset({"contracts"})
 
     def test_strict_metadata_false_downgrades_to_warning(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
-            lambda *_a, **_k: SimpleNamespace(missing_paths=["src/"], format_warnings=lambda: "missing src/ (advisory)"),
+            lambda *_a, **_k: SimpleNamespace(
+                missing_paths=["src/"],
+                missing_artifact_tokens=[],
+                format_warnings=lambda: "missing src/ (advisory)",
+            ),
         )
 
         violations, warning, dedup_tokens = evaluate_path_conventions(
@@ -268,14 +280,19 @@ class TestEvaluatePathConventions:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
-            lambda *_a, **_k: SimpleNamespace(missing_paths=["src/"], missing_artifact_tokens=[], format_errors=lambda: ""),
+            lambda *_a, **_k: SimpleNamespace(
+                missing_paths=["src/"],
+                missing_artifact_tokens=[],
+                format_errors=lambda: "",
+            ),
         )
 
-        violations, _warning, _dedup_tokens = evaluate_path_conventions(
+        violations, _warning, dedup_tokens = evaluate_path_conventions(
             mission, tmp_path, tmp_path, tmp_path, strict_metadata=True
         )
 
         assert violations == ["Path conventions not satisfied."]
+        assert dedup_tokens == frozenset()
 
 
 class TestBuildWarnings:

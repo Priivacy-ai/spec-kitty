@@ -27,6 +27,7 @@ from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
+    SafeCommitHeadMismatch,
     SafeCommitPathPolicyError,
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -224,6 +225,8 @@ def _json_safe_output(func: Callable[..., Any]) -> Callable[..., Any]:
 def detect_feature_context(
     mission_flag: str | None = None,
     repo_root: Path | None = None,
+    *,
+    json_mode: bool = False,
 ) -> tuple[str | None, str]:
     """Require an explicit mission slug and return ``(mission_number, slug)``.
 
@@ -240,7 +243,7 @@ def detect_feature_context(
 
     if repo_root is not None:
         # Use canonical resolver — handles ambiguity, mid8, full ULID, etc.
-        resolved = resolve_mission_handle(raw_handle, repo_root)
+        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_mode)
         slug = resolved.mission_slug
     else:
         # Bare-slug fallback for callers without a repo_root (e.g., unit tests).
@@ -388,9 +391,7 @@ def _print_planning_artifact_commit_instructions(
     raise typer.Exit(1)
 
 
-def _load_primary_anchored_mission_meta(
-    repo_root: Path | None, mission_slug: str
-) -> dict[str, Any] | None:
+def _load_primary_anchored_mission_meta(repo_root: Path | None, mission_slug: str) -> dict[str, Any] | None:
     """FR-003 cascade layer 1: read the PRIMARY-checkout ``meta.json``.
 
     ``coordination_branch`` / ``mission_id`` / ``mid8`` live ONLY in the
@@ -446,9 +447,7 @@ def _load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
         return None
 
 
-def _extract_mission_identifiers_from_meta(
-    mission_meta: dict[str, Any] | None, mission_slug: str
-) -> tuple[str | None, str | None, str | None]:
+def _extract_mission_identifiers_from_meta(mission_meta: dict[str, Any] | None, mission_slug: str) -> tuple[str | None, str | None, str | None]:
     """Pull ``(coord_branch, mission_id, mid8)`` out of a resolved meta dict.
 
     mid8 precedence: the stored ``meta["mid8"]`` value wins; otherwise the
@@ -536,15 +535,9 @@ def _resolve_bookkeeping_transaction_identifiers(
     if mission_meta is None:
         mission_meta = _load_fallback_mission_meta(feature_dir)
 
-    coord_branch, mission_id, mid8 = _extract_mission_identifiers_from_meta(
-        mission_meta, mission_slug
-    )
-    effective_mission_id, effective_mid8 = _compute_effective_bookkeeping_ids(
-        mission_slug, mission_id, mid8, coord_branch
-    )
-    return _BookkeepingTransactionIdentifiers(
-        coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
-    )
+    coord_branch, mission_id, mid8 = _extract_mission_identifiers_from_meta(mission_meta, mission_slug)
+    effective_mission_id, effective_mid8 = _compute_effective_bookkeeping_ids(mission_slug, mission_id, mid8, coord_branch)
+    return _BookkeepingTransactionIdentifiers(coord_branch, mission_id, mid8, effective_mission_id, effective_mid8)
 
 
 def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
@@ -670,20 +663,37 @@ def _ensure_planning_artifacts_committed_git(
     # an empty ``plan.files_to_commit`` into a silent no-op return, then does
     # the actual BookkeepingTransaction I/O.
     extra_file_paths = _feature_dir_file_paths(repo_root, artifact_source_dir) if coord_branch_for_filter else []
-    # PR #2662 squad fix: on the healthy ``placement_ref is not None`` path the
-    # whole batch commits VERBATIM to ``placement_ref.ref`` (the un-partitioned
-    # C-004/#2160 deferral). Compare every file against that same write target so
-    # a PRIMARY artifact already-identical on the (coord) ref is not re-committed
-    # into an empty commit that hard-fails the claim (read=HEAD / write=coord
-    # divergence; #2653). ``None`` keeps the PRIMARY-vs-HEAD / COORD-vs-coord split.
-    verbatim_ref = placement_ref.ref if placement_ref is not None else None
+    # FIX-M2-08: no longer thread ``placement_ref.ref`` in as ``verbatim_ref``.
+    # The "PR #2662 squad fix" this parameter implemented compared EVERY
+    # candidate (PRIMARY and COORD-residue alike) against the coordination
+    # ref -- but ``_commit_planning_artifacts_transaction`` below was later
+    # made partition-aware (write-path-integrity WP02/T008/FR-001, closing
+    # #3371: PRIMARY files commit to ``planning_branch``, only COORD-residue
+    # files commit to the coordination ref). Leaving ``verbatim_ref`` wired
+    # here left the STAGING check comparing PRIMARY planning artifacts
+    # (spec.md/plan.md/tasks.md/lanes.json/the D1-excluded dossier snapshot)
+    # against the coordination branch even though the COMMIT never lands them
+    # there -- exactly the read=HEAD/write=coord divergence #2653 already
+    # named, just reintroduced on the read side. A coordination branch that
+    # has not yet received a mission's planning-artifact history (the normal
+    # case: coord is materialised early, planning artifacts land on primary)
+    # then makes every already-committed primary file look "changed",
+    # inflating ``files_to_commit`` with files that need no commit at all —
+    # confirmed via ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence``
+    # (spec.md/plan.md/tasks.md/lanes.json all reported "not committed" while
+    # ``git status`` on the primary checkout showed them clean). Passing no
+    # ``verbatim_ref`` restores the partition-aware comparison
+    # (:func:`resolve_precondition_ref`: PRIMARY vs ``HEAD``, COORD-residue vs
+    # the coordination ref) the pinned staging-core tests already assert as
+    # canonical (``test_meta_json_on_coord_mission_resolves_to_head``,
+    # ``test_dirty_spec_md_still_staged_against_head_on_coord_mission``,
+    # INV-5 / #2533 / BLOCKER-2).
     plan = resolve_planning_artifact_staging(
         repo_root,
         artifact_source_dir,
         coord_branch_for_filter,
         extra_file_paths,
         auto_commit=auto_commit,
-        verbatim_ref=verbatim_ref,
     )
 
     files_to_commit = plan.files_to_commit
@@ -827,9 +837,7 @@ def _run_planning_artifact_commit(
     from specify_cli.coordination.transaction import BookkeepingTransaction
 
     if enforce_partition:
-        _guard_planning_commit_partition(
-            files, destination_is_coord=not commit_to_primary_target
-        )
+        _guard_planning_commit_partition(files, destination_is_coord=not commit_to_primary_target)
 
     with BookkeepingTransaction.acquire(
         repo_root=repo_root,
@@ -1252,7 +1260,14 @@ def _run_recover_mode(
 # ---------------------------------------------------------------------------
 
 
-def _detect_wp_context(mission: str, wp_id: str, repo_root: Path, auto_commit: bool | None) -> tuple[bool | None, str, Path, Path, Any]:
+def _detect_wp_context(
+    mission: str,
+    wp_id: str,
+    repo_root: Path,
+    auto_commit: bool | None,
+    *,
+    json_mode: bool = False,
+) -> tuple[bool | None, str, Path, Path, Any]:
     """Resolve ``(auto_commit, mission_slug, feature_dir, wp_file,
     declared_deps)`` for the ``detect`` step. Exceptions propagate to the
     caller's tracker-aware ``except`` clause unchanged."""
@@ -1261,7 +1276,7 @@ def _detect_wp_context(mission: str, wp_id: str, repo_root: Path, auto_commit: b
 
     if auto_commit is None:
         auto_commit = get_auto_commit_default(repo_root)
-    _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
+    _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root, json_mode=json_mode)
     # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: route through the
     # kind-aware placement seam instead of the kind-blind
     # ``resolve_feature_dir_for_mission`` (which could return the
@@ -1458,9 +1473,7 @@ def _emit_blocked_on_alloc_failure(
         console.print(f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}")
 
 
-def _primary_surface_status_paths(
-    artifacts: Iterable[Path], *, routes_through_coord: bool
-) -> list[Path]:
+def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:
     """Filter collected status artifacts for a PRIMARY-root claim-commit bundle.
 
     #2155 / #3784 invariant: NO ``.worktrees/``-nested path may enter a
@@ -1479,11 +1492,7 @@ def _primary_surface_status_paths(
     resolved = [path.resolve() for path in artifacts]
     if not routes_through_coord:
         return resolved
-    return [
-        path
-        for path in resolved
-        if not (is_status_state_path(path) or is_under_worktrees_segment(path))
-    ]
+    return [path for path in resolved if not (is_status_state_path(path) or is_under_worktrees_segment(path))]
 
 
 def _commit_wp_claim_status(
@@ -1494,7 +1503,6 @@ def _commit_wp_claim_status(
     wp_id: str,
     wp_file: Path,
     auto_commit: bool | None,
-    placement_ref: CommitTarget | None,
     status_result: Any,
 ) -> None:
     """Auto-commit (or staged-only) side effect for a WP's claimed->'doing'
@@ -1531,9 +1539,7 @@ def _commit_wp_claim_status(
     # artifacts ARE canonical on PRIMARY and stay in the bundle.
     status_paths = _primary_surface_status_paths(
         _collect_status_artifacts(feature_dir),
-        routes_through_coord=routes_through_coordination(
-            resolve_topology(repo_root, mission_slug)
-        ),
+        routes_through_coord=routes_through_coordination(resolve_topology(repo_root, mission_slug)),
     )
     files_to_commit = [wp_file.resolve(), *status_paths]
     if meta_file.exists():
@@ -1541,14 +1547,23 @@ def _commit_wp_claim_status(
     if config_file.exists():
         files_to_commit.append(config_file.resolve())
 
-    # WP03 / T011 / T012 / D11: the status claim commit routes through
-    # the SAME seam-resolved ``placement_ref`` planning artifacts
-    # resolve to (C-PLACE-1) instead of the forbidden
-    # ``_get_current_branch(repo_root) or planning_branch``
-    # checkout-derived grammar. A resolution failure now FAILS CLOSED
-    # (see ``_resolve_claim_commit_target``) rather than silently
-    # committing to whatever branch is checked out.
-    claim_commit_target = _resolve_claim_commit_target(placement_ref)
+    # #610: every file gathered above is, by construction, primary-surface
+    # (the coord-owned status pair is filtered out above under coord
+    # topology; nothing coord-residue is ever collected here). The claim
+    # commit therefore always targets the PRIMARY write home -- resolved
+    # through the canonical seam (``placement_seam(...).write_target(kind)``,
+    # never a hand-built ``CommitTarget``, per contracts/seam-api.md) --
+    # never the seam-resolved ``placement_ref`` this function used to route
+    # through (which names the COORDINATION branch under coord topology).
+    # Targeting ``placement_ref`` here was the latent bug behind this call
+    # site's ``SafeCommitHeadMismatch``: ``repo_root`` (the primary checkout)
+    # is on the mission's target branch, not the coordination branch, so
+    # asserting HEAD against the coord ref always mismatched -- previously
+    # masked by the very swallow this issue removes. ``WORK_PACKAGE_TASK`` is
+    # a ``_PRIMARY_ARTIFACT_KINDS`` member (like every other kind bundled
+    # above), so its write target is the primary target branch under every
+    # topology.
+    claim_commit_target = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.WORK_PACKAGE_TASK)
     try:
         safe_commit(
             repo_root=repo_root,
@@ -1565,6 +1580,15 @@ def _commit_wp_claim_status(
         # partition above prevents this on a correct bundle; reaching here
         # means a coord-owned path leaked into the primary commit and the
         # C-006 guard MUST stay authoritative (never swallowed).
+        raise
+    except SafeCommitHeadMismatch:
+        # #610: a genuine branch-name mismatch is a real defect, not an
+        # "Auto-commit skipped" warning either. The status/lane files above
+        # were already written to disk by the caller before this commit was
+        # attempted, so swallowing this here left the worktree dirty with no
+        # commit to cover it -- exactly what later trips ref_advance.py's
+        # dirty-worktree gate at merge time. Re-raise so the mismatch
+        # surfaces immediately instead of being discovered downstream.
         raise
     except Exception as _commit_exc:  # noqa: BLE001 — non-policy git failures stay soft
         console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}")
@@ -1804,7 +1828,7 @@ def implement(
         from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
 
         run_preflight_or_abort(repo_root, consumer="implement")
-        auto_commit, mission_slug, feature_dir, wp_file, declared_deps = _detect_wp_context(mission, wp_id, repo_root, auto_commit)
+        auto_commit, mission_slug, feature_dir, wp_file, declared_deps = _detect_wp_context(mission, wp_id, repo_root, auto_commit, json_mode=json_output)
         tracker.complete("detect", f"Feature: {mission_slug}")
     except (TaskCliError, FileNotFoundError, FrontmatterError, ValidationError, typer.Exit) as exc:
         tracker.error("detect", str(exc))
@@ -1979,13 +2003,18 @@ def implement(
             wp_id=wp_id,
             wp_file=wp_file,
             auto_commit=auto_commit,
-            placement_ref=_placement_ref,
             status_result=status_result,
         )
     except SafeCommitPathPolicyError:
         # #2155 (FR-002 / T011): a wrong-surface guard refusal must NOT be folded
         # into the soft "Could not update WP status" warning — let it propagate so
         # the defect surfaces (the inner handler already re-raised it on purpose).
+        raise
+    except SafeCommitHeadMismatch:
+        # #610: mirrors the SafeCommitPathPolicyError clause above — a genuine
+        # branch-name mismatch must NOT be folded into the soft "Could not
+        # update WP status" warning either (the inner handler already
+        # re-raised it on purpose).
         raise
     except PlacementResolutionRequired:
         # WP03 / D11: a fail-closed placement-resolution refusal must NOT be
@@ -2004,4 +2033,4 @@ def implement(
     _print_workspace_ready_banner(result, workspace_path)
 
 
-__all__ = ["_ensure_vcs_in_meta", "detect_feature_context", "find_wp_file", "implement"]
+__all__ = ["_ensure_vcs_in_meta", "find_wp_file", "implement"]

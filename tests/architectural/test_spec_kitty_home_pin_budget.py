@@ -1,28 +1,17 @@
 """SC-007: NFR-001's budget, the enumerated-set criterion, and both parallel modes (T021).
 
-**The whole module carries ``pytestmark = pytest.mark.architectural`` so the arch-adversarial
-pole (``ci-quality.yml::arch-adversarial``, selecting on ``arch_shard_N and (git_repo or
-integration or architectural)``) picks up the three correctness tests below — otherwise they
-collect with an ``arch_shard_N`` marker (applied unconditionally by path via
-``tests/_arch_shard_map.py``'s ``default_fallback=True``) but no gate marker, and orphan
-(``test_ci_collection_completeness.py`` / ``test_same_tier_uniqueness.py``).**
-Per ADR 2026-08-22-1 the single-shot on-PR ``timing`` gate (``-m timing -n0``,
-``timing-nfr-serial``) is retired for the wall-clock budget test:
-``test_the_guard_completes_inside_the_budget_on_three_warm_runs`` now measures via the
-``pytest-benchmark`` ``benchmark.pedantic`` fixture and carries
-``@pytest.mark.performance`` in ADDITION to the module's ``architectural`` mark — it is
-env-gated off every PR/blocking run per ``tests/conftest.py`` regardless of ``architectural``,
-statistically compared against a committed per-domain baseline in the off-PR
-``performance.yml`` pipeline instead — never a single-shot ceiling on a shared runner. The
-other three tests in this module are correctness checks, not budget tests (ADR 2026-08-22-1's
-"stays on the PR path" carve-out), and carry no timing/performance marker.
+**This is the only module of WP04 that is not ``architectural``.**
+``pytestmark = pytest.mark.timing`` and **nothing else**, so it routes to ``timing-nfr-serial``
+(``-m timing -n0``, always-on, wired into ``quality-gate.needs``, merge-blocking) and is correctly
+excluded from the ``arch-adversarial`` pole by that pole's ``and not timing``. A wall-clock
+assertion belongs here and nowhere else: the pole runs under ``-n auto`` on 4 vCPUs, where a timed
+assertion is the #2032 anti-pattern.
 
 ``time.perf_counter()``, never ``time.time()``
 ------------------------------------------------
 ``time.time()`` is in ``_BANNED_CALLS`` (``tests/_support/wall_clock_assertions.py:10-20``) and
 ``tests/conftest.py:245-250`` raises a ``pytest.UsageError`` **AT COLLECTION** — so the wrong clock
-here does not fail this module, it takes the **whole suite** down. ``pytest-benchmark`` uses its
-own internal timer (not a raw ``time.time()`` call inside an assert), so this scan is unaffected.
+here does not fail this module, it takes the **whole suite** down.
 
 Why the enumerated set is compared against an INLINE ``rglob``
 ----------------------------------------------------------------
@@ -41,73 +30,59 @@ narrowed.**
 
 What this cannot see
 --------------------
-The guard under contention. The off-PR ``performance.yml`` pipeline measures it
-**uncontended** while ``arch-adversarial`` runs the rest of this module's tests under ``-n
-auto``, so the benchmark figure is a **FLOOR, not the worst case**.
+The guard under contention. ``timing-nfr-serial`` measures it **uncontended** while
+``arch-adversarial`` runs it under ``-n auto``, so the serial figure is a **FLOOR, not the worst
+case**.
 """
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture
 
 from tests.architectural import _home_pin_scan as scan
 from tests.architectural._home_pin_verdict import hash_of_key_set
 
-#: Routes every test in this module into the arch-adversarial pole
-#: (``ci-quality.yml::arch-adversarial`` selects on
-#: ``arch_shard_N and (git_repo or integration or architectural)``). The three
-#: correctness tests below need this to avoid orphaning (ADR 2026-08-22-1:
-#: they stay on the PR path). The wall-clock budget test also picks this up —
-#: harmless, since it is independently env-gated off every PR run by its own
-#: ``performance`` marker (see ``tests/conftest.py``'s
-#: ``apply_performance_skip``), and the ``arch_shard_N`` marker it needs for
-#: shard-marker completeness is applied unconditionally by path via
-#: ``tests/_arch_shard_map.py``'s ``default_fallback=True`` regardless of this
-#: mark.
-pytestmark = pytest.mark.architectural
+pytestmark = pytest.mark.timing
 
 #: The real walk root, exactly as the shipped guard roots it.
 TESTS_ROOT = Path("tests")
 
-#: NFR-001's budget, in seconds, for one full pass of the guard's scan (nominal reference).
+#: NFR-001's budget, in seconds, for one full pass of the guard's scan.
 BUDGET_SECONDS = 6.0
 
 #: Warm runs required inside the budget (SC-007).
 WARM_RUNS = 3
 
 
-@pytest.mark.performance
-@pytest.mark.benchmark(group="core")
-def test_the_guard_completes_inside_the_budget_on_three_warm_runs(
-    benchmark: BenchmarkFixture,
-) -> None:
-    """SC-007 / NFR-001: warm runs measured statistically (ADR 2026-08-22-1).
+def test_the_guard_completes_inside_the_budget_on_three_warm_runs() -> None:
+    """SC-007 / NFR-001: three warm runs, **every one** inside 6 s, timed with ``perf_counter``.
 
-    ``benchmark.pedantic`` mirrors the original shape: ``warmup_rounds=1`` discards the
-    cold run (it pays the filesystem's cache miss, which is not what the budget is about),
-    then ``WARM_RUNS`` rounds are measured individually. The regression signal is now the
-    per-domain baseline compare in the off-PR ``performance.yml`` pipeline, not a
-    single-shot ceiling — this test carries ``performance`` and is env-gated off every
-    PR/blocking run per ``tests/conftest.py``.
+    The first pass is discarded as the cold one — it pays the filesystem's cache miss, which is not
+    what the budget is about. Each warm run is asserted individually rather than averaged: an
+    average hides one run over budget behind two under it.
     """
-    benchmark.pedantic(
-        lambda: scan.discover(TESTS_ROOT),
-        rounds=WARM_RUNS,
-        iterations=1,
-        warmup_rounds=1,
-    )
+    scan.discover(TESTS_ROOT)  # cold run, discarded
 
-    # Very loose sanity ceiling — the statistical baseline compare (off the PR path) is the
-    # primary regression signal, not this assert. Per OD-003 the budget may be RAISED
-    # against a recorded runner figure with the contention headroom stated — the walk may
-    # NEVER be narrowed, and the enumerated-set assertion below makes that impossible anyway.
-    assert benchmark.stats.stats.max < BUDGET_SECONDS * 5, (
-        f"the slowest warm run took {benchmark.stats.stats.max:.3f}s against a "
-        f"{BUDGET_SECONDS}s nominal budget, wildly beyond the generous sanity ceiling."
+    durations: list[float] = []
+    for _ in range(WARM_RUNS):
+        started = time.perf_counter()
+        scan.discover(TESTS_ROOT)
+        durations.append(time.perf_counter() - started)
+
+    over = [round(seconds, 3) for seconds in durations if seconds >= BUDGET_SECONDS]
+    assert over == [], (
+        f"warm run(s) {over} met or exceeded NFR-001's {BUDGET_SECONDS} s budget "
+        f"(all runs: {[round(s, 3) for s in durations]}). Per OD-003 the budget may be RAISED with "
+        f"the recorded runner figure and the contention headroom STATED — the walk may NEVER be "
+        f"narrowed, and the enumerated-set assertion below makes that impossible anyway."
+    )
+    print(
+        f"[reported, not asserted] warm runs {[round(s, 3) for s in durations]} s "
+        f"against a {BUDGET_SECONDS} s budget"
     )
 
 

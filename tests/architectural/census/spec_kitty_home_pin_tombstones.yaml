@@ -122,3 +122,210 @@ tombstones:
       but SPEC_KITTY_ENABLE_SAAS_SYNC=1 and SPEC_KITTY_SAAS_URL are RETAINED — no autouse restores the
       URL and these daemon-publish tests need it. Ablation-certified provable member (arm-2 RED / in P).
     evidence: "kitty/fix-home-pin-census-owner-adoption-3121 R1b op6"
+  - key:
+      - cli/commands/test_sync_commands.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_doctor_consent_health_3030.py
+      - checkout
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_doctor_per_project_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_doctor_tracker_egress_3108.py
+      - doctor_environment
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_migrate_backfills_h4.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_now_empty_selection_t005.py
+      - _now_machinery
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_purge_3030.py
+      - checkout
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
+      - checkout
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - cli/commands/test_sync_status_per_project_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - delivery/test_dispatch_window_consent_3030.py
+      - _consent_records
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - delivery/test_liveness_predicate_before_limit_3030.py
+      - _consent
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - delivery/test_nfr002_loop_permanence_3030.py
+      - _consent_records
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - delivery/test_purge_all_body_uploads_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - delivery/test_purge_all_events_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - specify_cli/identity/test_identity_value_faults_3030.py
+      - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - specify_cli/sync/test_local_commit_consent_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - specify_cli/sync/test_local_commit_purge_3030.py
+      - test_the_flush_does_not_delete_the_frames_it_withholds
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/test_capture_gate_project_identity_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/test_consent_fault_vocabulary_3030.py
+      - home
+      - monkeypatch . setenv ( , str ( root ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/test_consent_field_fault_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/test_consent_read_fault_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/test_consent_resolver_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/test_consent_write_refusal_3030.py
+      - home
+      - monkeypatch . setenv ( , str ( root ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/test_ws_publish_consent_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/tracker/test_tracker_egress_refusal_3108.py
+      - _isolated_home_and_arming
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"
+
+  - key:
+      - sync/tracker/test_tracker_egress_refusal_3108.py
+      - test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once
+      - mp . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      File deleted with the sync transport (issue #5): the member's whole test module was removed from tests/ by the transport deletion, so its SPEC_KITTY_HOME pin is gone from the tree by real removal -- exactly what a tombstone records. No convergence adjudication is claimed; the pin did not move anywhere.
+    evidence: "issue-5-delete-sync-transport (branch issue-5-delete-sync-transport), 2026-08-25"

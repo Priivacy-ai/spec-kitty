@@ -44,15 +44,10 @@ def _run_create_feature(
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value=current_branch),
         patch(f"{_CORE_MODULE}.safe_commit", return_value=True),
-        # Keep the create path hermetic (no network) by patching the SaaS/dossier
-        # fan-out only. We deliberately do NOT mock emit_mission_created_local:
-        # since #3660 the create flow persists the canonical MissionCreated event
-        # to the mission's local status.events.jsonl and reads it back to verify
-        # exactly one was written. That persistence is purely local (an on-disk
-        # append, no network — the SaaS outbox is a separate best-effort step), so
-        # letting it run keeps the test hermetic while exercising the real
-        # local-persistence contract instead of defeating it with a mock.
-        patch("specify_cli.status.fire_dossier_sync"),
+        # Keep the canonical local MissionCreated event while disabling the
+        # transport fan-out, so the failure-atomic persistence contract is
+        # exercised without touching the network.
+        patch("specify_cli.status.adapters.fire_lifecycle_saas_fanout"),
     ):
         result = runner.invoke(app, args)
 

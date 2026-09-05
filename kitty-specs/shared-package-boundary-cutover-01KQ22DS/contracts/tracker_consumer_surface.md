@@ -69,6 +69,27 @@ SemVer policy, this CLI mission's compatibility range is bumped to follow it
 
 ---
 
+## Forward-looking pins (TRK-M1-04, version-gated)
+
+`specify_cli/tracker/gateway.py` (the local Beads program gateway,
+`TRK-M1-04`) additionally consumes `spec_kitty_tracker.context.LocalExecutionContext`
+and the `context=`/`runner=` kwargs of `BeadsConnectorConfig`/`BeadsConnector` —
+landed by the upstream TRK-M1-02/03 kernel (`0.5.x`) but not yet published to
+PyPI as of this document. Every use of these symbols in `gateway.py` is
+deferred into function bodies and gated by a local capability check
+(`_try_import_gateway_beads_types`), so `gateway.py` imports cleanly and its
+token/scope/deny-list logic works regardless of the installed tracker
+version; only `build_gateway_beads_connector` needs the real symbols, and it
+raises a typed `TrackerGatewayUnavailableError` rather than an unguarded
+`ImportError` when they are absent.
+
+The consumer test's `test_local_execution_context_class_exists` and
+`test_beads_connector_config_accepts_context_and_beads_connector_accepts_runner`
+assert this surface, skipping (not failing) when it isn't present yet. The
+CLI version range stays `>=0.4,<0.5` (unchanged) until a published
+`spec-kitty-tracker` release actually satisfies it; bumping the pin is a
+separate, later change.
+
 ## Out of scope
 
 - This contract does not enumerate the full tracker SDK surface.

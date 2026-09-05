@@ -3,9 +3,10 @@
 Stability contract: ``contracts/saas_rollout.md``.
 
 This CORE module is the single source of truth for the
-``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check.  The INTEGRATION-set
-``saas.rollout`` module is a thin re-export shim that delegates here, as are the
-``tracker.feature_flags`` and ``sync.feature_flags`` shims.
+``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check. The former
+re-export shims (``saas.rollout``, ``sync.feature_flags``) died with their
+packages when the sync transport was deleted (issue #5);
+``tracker.feature_flags`` re-exports from here.
 
 Imports are stdlib-only (``os``) so this module introduces no import cycle and
 is safe for CORE-set consumers (C-001).
@@ -24,13 +25,10 @@ _DISABLED_MESSAGE = (
     "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
 )
 
-_OPT_IN_RECORDED_BASE = "Local sync preference recorded for this checkout"
-
 __all__ = [
     "SAAS_SYNC_ENV_VAR",
     "is_saas_sync_enabled",
     "saas_sync_disabled_message",
-    "saas_sync_opt_in_recorded_message",
     "sync_active",
 ]
 
@@ -46,8 +44,7 @@ def is_saas_sync_enabled() -> bool:
 
 
 def sync_active() -> bool:
-    """True iff the legacy sync surface is armed. Machine-level arming only —
-    NOT per-project egress consent (see sync/egress.py). Disable/minimal-import wins."""
+    """Return whether hosted sync is armed after the global disable override."""
     return is_saas_sync_enabled() and first_set_sync_disable_env() is None
 
 
@@ -58,17 +55,3 @@ def saas_sync_disabled_message() -> str:
     ``contracts/saas_rollout.md`` and bumping the contract version.
     """
     return _DISABLED_MESSAGE
-
-
-def saas_sync_opt_in_recorded_message(scope_label: str | None = None) -> str:
-    """Return the honest confirmation for ``spec-kitty sync opt-in`` (#2264).
-
-    ``opt-in`` writes LOCAL routing flags only — no auth, no remote round-trip,
-    no history import. This message must therefore NOT imply remote
-    materialization or history: it states only that a local preference was
-    recorded. The prior wording ("Enabled SaaS sync for this checkout") was the
-    false-green that escalated #2264 to P1. Wording is asserted by tests.
-    """
-    if scope_label:
-        return f"{_OPT_IN_RECORDED_BASE} ({scope_label})."
-    return f"{_OPT_IN_RECORDED_BASE}."

@@ -11,7 +11,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.saas.readiness import ReadinessResult, ReadinessState
+from specify_cli.tracker.saas_readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.config import TrackerProjectConfig
 from specify_cli.tracker.discovery import BindCandidate, BindResult, ResolutionResult
 from specify_cli.tracker.service import TrackerServiceError
@@ -43,7 +43,7 @@ def _stub_check_readiness(request, monkeypatch):
     # recorded consent, so the real gate would refuse. Stub it to permit for
     # *every* test in this file — including `no_readiness_stub` ones, which
     # drive `_check_sync_readiness` directly — because egress consent is out of
-    # scope here (it has its own suite under `tests/sync/tracker/`); this file
+    # scope here (it has its own suite under `tests/tracker/`); this file
     # asserts command dispatch/rendering only.
     monkeypatch.setattr(
         "specify_cli.cli.commands.tracker.tracker_egress_verdict",
@@ -74,14 +74,6 @@ def _build_root_app(*, enabled: bool, monkeypatch) -> typer.Typer:
 # ---------------------------------------------------------------------------
 # Feature flag gating tests (pre-existing)
 # ---------------------------------------------------------------------------
-
-
-def test_tracker_not_registered_when_flag_disabled(monkeypatch) -> None:
-    """Tracker sub-command absent from help when SAAS_SYNC flag is off."""
-    app = _build_root_app(enabled=False, monkeypatch=monkeypatch)
-    result = runner.invoke(app, ["--help"])
-    assert result.exit_code == 0
-    assert "tracker" not in result.output
 
 
 def test_tracker_registered_when_flag_enabled(monkeypatch) -> None:
@@ -186,9 +178,7 @@ def test_bind_no_project_slug_flag(monkeypatch) -> None:
     """--project-slug is not accepted by bind command."""
     app = _make_app(monkeypatch)
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--project-slug", "my-proj"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--project-slug", "my-proj"])
     # typer rejects unknown options with exit code 2
     assert result.exit_code == 2
     assert "project-slug" in result.output.lower() or "no such option" in result.output.lower()
@@ -228,9 +218,7 @@ def test_bind_azure_devops_hard_fail(monkeypatch) -> None:
     """Azure DevOps bind must hard-fail with 'no longer supported' message."""
     app = _make_app(monkeypatch)
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "azure_devops", "--workspace", "w"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "azure_devops", "--workspace", "w"])
     assert result.exit_code == 1
     assert "no longer supported" in result.output
 
@@ -244,7 +232,10 @@ def test_bind_azure_devops_hard_fail(monkeypatch) -> None:
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_auto_bind(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """SaaS bind with exact match auto-binds and shows success."""
     app = _make_app(monkeypatch)
@@ -271,7 +262,11 @@ def test_bind_auto_bind(
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("builtins.input")
 def test_bind_candidates_interactive(
-    mock_input, mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_input,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """SaaS bind with candidates prompts user and binds selection."""
     app = _make_app(monkeypatch)
@@ -308,16 +303,17 @@ def test_bind_candidates_interactive(
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_no_candidates(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """SaaS bind with no match raises error with exit 1."""
     app = _make_app(monkeypatch)
     mock_ensure_id.return_value = _mock_identity()
     mock_load_cfg.return_value = TrackerProjectConfig()
     mock_svc = MagicMock()
-    mock_svc.bind.side_effect = TrackerServiceError(
-        "No bindable resources found for provider 'linear'."
-    )
+    mock_svc.bind.side_effect = TrackerServiceError("No bindable resources found for provider 'linear'.")
     mock_service_fn.return_value = mock_svc
 
     result = runner.invoke(app, ["bind", "--provider", "linear"])
@@ -340,9 +336,7 @@ def test_bind_ref_valid(mock_ensure_id, mock_service_fn, monkeypatch) -> None:
     mock_svc.bind.return_value = _make_tracker_config(binding_ref="br_known_ref")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--bind-ref", "br_known_ref"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--bind-ref", "br_known_ref"])
     assert result.exit_code == 0, result.output
     assert "Tracker binding saved" in result.output
     assert "br_known_ref" in result.output
@@ -364,14 +358,10 @@ def test_bind_ref_invalid(mock_ensure_id, mock_service_fn, monkeypatch) -> None:
     app = _make_app(monkeypatch)
     mock_ensure_id.return_value = _mock_identity()
     mock_svc = MagicMock()
-    mock_svc.bind.side_effect = TrackerServiceError(
-        "Binding ref 'br_bad' is not valid: deleted on host."
-    )
+    mock_svc.bind.side_effect = TrackerServiceError("Binding ref 'br_bad' is not valid: deleted on host.")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--bind-ref", "br_bad"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--bind-ref", "br_bad"])
     assert result.exit_code == 1
     assert "not valid" in result.output
 
@@ -385,7 +375,10 @@ def test_bind_ref_invalid(mock_ensure_id, mock_service_fn, monkeypatch) -> None:
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_select_n(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """--select 1 auto-selects candidate without prompts."""
     app = _make_app(monkeypatch)
@@ -395,9 +388,7 @@ def test_bind_select_n(
     mock_svc.bind.return_value = _make_bind_result(display_label="Team Alpha")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--select", "1"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--select", "1"])
     assert result.exit_code == 0, result.output
     assert "Tracker binding saved" in result.output
     assert "Team Alpha" in result.output
@@ -416,21 +407,20 @@ def test_bind_select_n(
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_select_out_of_range(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """--select 99 with out-of-range selection shows error and exits 1."""
     app = _make_app(monkeypatch)
     mock_ensure_id.return_value = _mock_identity()
     mock_load_cfg.return_value = TrackerProjectConfig()
     mock_svc = MagicMock()
-    mock_svc.bind.side_effect = TrackerServiceError(
-        "Selection 99 is out of range. Valid range: 1-2."
-    )
+    mock_svc.bind.side_effect = TrackerServiceError("Selection 99 is out of range. Valid range: 1-2.")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--select", "99"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--select", "99"])
     assert result.exit_code == 1
     assert "out of range" in result.output
 
@@ -445,7 +435,11 @@ def test_bind_select_out_of_range(
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("builtins.input")
 def test_bind_rebind_confirmed(
-    mock_input, mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_input,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """Re-bind with existing binding: user confirms 'y' -> proceeds."""
     app = _make_app(monkeypatch)
@@ -476,7 +470,11 @@ def test_bind_rebind_confirmed(
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("builtins.input")
 def test_bind_rebind_cancelled(
-    mock_input, mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_input,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """Re-bind with existing binding: user declines -> exit 0, no bind."""
     app = _make_app(monkeypatch)
@@ -1045,15 +1043,6 @@ def test_list_tickets_dispatches(mock_service_fn, monkeypatch) -> None:
 
 
 @pytest.mark.no_readiness_stub
-def test_tracker_hidden_when_rollout_disabled_root_app(monkeypatch) -> None:
-    """Tracker sub-command absent from root app help when rollout is off."""
-    app = _build_root_app(enabled=False, monkeypatch=monkeypatch)
-    result = runner.invoke(app, ["--help"])
-    assert result.exit_code == 0
-    assert "tracker" not in result.output
-
-
-@pytest.mark.no_readiness_stub
 def test_tracker_visible_when_rollout_enabled_root_app(monkeypatch) -> None:
     """Tracker sub-command appears in root app help when rollout is on."""
     app = _build_root_app(enabled=True, monkeypatch=monkeypatch)
@@ -1068,10 +1057,8 @@ def test_providers_ignores_hosted_readiness(monkeypatch) -> None:
 
     It must run successfully even when hosted readiness would otherwise
     fail (e.g. no auth token, no SaaS host config).  The rollout gate is
-    still enforced by the conditional registration in
-    ``cli/commands/__init__.py`` and by the defense-in-depth check in
-    ``tracker_callback()``, but the per-command readiness chain is
-    deliberately NOT consulted for this command.
+    enforced solely by ``tracker_callback()``, while the per-command readiness
+    chain is deliberately NOT consulted for this command.
     """
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     from specify_cli.cli.commands import tracker as tracker_module
@@ -1102,12 +1089,11 @@ def test_providers_ignores_hosted_readiness(monkeypatch) -> None:
 def test_providers_still_blocked_when_rollout_disabled(monkeypatch) -> None:
     """When the rollout gate is off, `tracker providers` is unreachable.
 
-    The command group is hidden at registration time in
-    ``cli/commands/__init__.py``; this test exercises the defense-in-depth
-    guard in ``tracker_callback`` by invoking the tracker app object
-    directly with the env var unset.  This verifies that removing the
-    per-command readiness call did not accidentally open a hole in the
-    rollout gate itself.
+    Registration in ``cli/commands/__init__.py`` is unconditional.  This test
+    invokes the tracker app object directly with the env var unset to exercise
+    the sole rollout gate in ``tracker_callback``.  It verifies that removing
+    the per-command readiness call did not accidentally open a hole in that
+    gate.
     """
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     from specify_cli.cli.commands import tracker as tracker_module
@@ -1122,7 +1108,7 @@ def test_status_readiness_missing_auth_message(monkeypatch, tmp_path) -> None:
     """status command exits 1 with MISSING_AUTH wording when auth probe fails."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     from specify_cli.cli.commands import tracker as tracker_module
-    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+    from specify_cli.tracker.saas_readiness import _WORDING  # noqa: PLC2701
 
     msg, action = _WORDING[ReadinessState.MISSING_AUTH]
     failing_result = ReadinessResult(
@@ -1199,132 +1185,6 @@ def test_status_readiness_ready_passes_through(monkeypatch, tmp_path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.no_readiness_stub
-def test_sync_pull_manual_mode_exits_zero(monkeypatch, tmp_path) -> None:
-    """sync pull exits 0 and prints manual-mode message when policy=manual."""
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    # Stub readiness to READY
-    ready_result = ReadinessResult(
-        state=ReadinessState.READY,
-        message="",
-        next_action=None,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: ready_result,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
-        lambda _repo_root: None,
-    )
-    # Stub daemon policy to MANUAL by patching SyncConfig in its home module
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-
-    result = runner.invoke(tracker_module.app, ["sync", "pull"])
-    assert result.exit_code == 0, result.output
-    assert "manual mode" in result.output
-    assert "spec-kitty sync run" in result.output
-
-
-@pytest.mark.no_readiness_stub
-def test_sync_run_manual_mode_proceeds(monkeypatch, tmp_path) -> None:
-    """sync run prints the one-shot message and proceeds (does not exit 0)."""
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-    from specify_cli.cli.commands.tracker import _MANUAL_MODE_SYNC_RUN_MESSAGE
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    # Stub readiness to READY
-    ready_result = ReadinessResult(
-        state=ReadinessState.READY,
-        message="",
-        next_action=None,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: ready_result,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
-        lambda _repo_root: None,
-    )
-    # Stub daemon policy to MANUAL by patching SyncConfig in its home module
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-    # sync run MUST proceed to the service (not exit 0)
-    mock_svc = MagicMock()
-    mock_svc.sync_run.return_value = {
-        "status": "complete",
-        "summary": {"total": 0, "succeeded": 0, "failed": 0, "skipped": 0},
-    }
-
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
-        result = runner.invoke(tracker_module.app, ["sync", "run"])
-    assert result.exit_code == 0, result.output
-    assert _MANUAL_MODE_SYNC_RUN_MESSAGE in result.output
-    # Verify sync_run was actually called (did not exit early)
-    mock_svc.sync_run.assert_called_once()
-
-
-@pytest.mark.no_readiness_stub
-def test_sync_push_manual_mode_exits_zero(monkeypatch, tmp_path) -> None:
-    """sync push exits 0 with manual-mode message when policy=manual."""
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    ready_result = ReadinessResult(
-        state=ReadinessState.READY,
-        message="",
-        next_action=None,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: ready_result,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
-        lambda _repo_root: None,
-    )
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-
-    result = runner.invoke(tracker_module.app, ["sync", "push"])
-    assert result.exit_code == 0, result.output
-    assert "manual mode" in result.output
-
-
 # ---------------------------------------------------------------------------
 # Provider-aware sync readiness (local-provider bypass)
 # ---------------------------------------------------------------------------
@@ -1348,204 +1208,6 @@ def _local_binding_config():
     )
 
 
-@pytest.mark.no_readiness_stub
-def test_sync_pull_local_provider_ignores_manual_daemon_policy(monkeypatch, tmp_path) -> None:
-    """Local-provider sync pull proceeds even when daemon policy is MANUAL.
-
-    Regression guard against the P2 bug where the manual-mode check
-    suppressed local sync commands that have no relationship to the SaaS
-    background daemon.
-    """
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    # Trip-wire: if readiness is ever called, the command would fail with
-    # this message.  A passing test proves that the local-binding
-    # short-circuit fired before readiness was consulted.
-    trip_wire = ReadinessResult(
-        state=ReadinessState.MISSING_AUTH,
-        message="tripwire: local bindings must skip readiness",
-        next_action="Do not run readiness for local providers.",
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: trip_wire,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.load_tracker_config",
-        lambda _repo_root: _local_binding_config(),
-    )
-    # Daemon policy is MANUAL — would normally suppress sync pull with
-    # the SaaS manual-mode message and exit 0 before the service call.
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-
-    mock_svc = MagicMock()
-    mock_svc.sync_pull.return_value = {
-        "provider": "beads",
-        "stats": {"pulled_created": 1, "pulled_updated": 0, "skipped": 0},
-    }
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
-        result = runner.invoke(tracker_module.app, ["sync", "pull"])
-
-    assert result.exit_code == 0, result.output
-    assert "tripwire" not in result.output
-    assert "manual mode" not in result.output.lower()
-    # The service call must have actually run — not exited early.
-    mock_svc.sync_pull.assert_called_once()
-    assert "beads" in result.output
-
-
-@pytest.mark.no_readiness_stub
-def test_sync_push_local_provider_ignores_manual_daemon_policy(monkeypatch, tmp_path) -> None:
-    """Local-provider sync push proceeds even when daemon policy is MANUAL."""
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    trip_wire = ReadinessResult(
-        state=ReadinessState.MISSING_HOST_CONFIG,
-        message="tripwire: local bindings must skip readiness",
-        next_action="Do not run readiness for local providers.",
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: trip_wire,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.load_tracker_config",
-        lambda _repo_root: _local_binding_config(),
-    )
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-
-    mock_svc = MagicMock()
-    mock_svc.sync_push.return_value = {
-        "provider": "beads",
-        "stats": {"pushed_created": 0, "pushed_updated": 1, "skipped": 0},
-    }
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
-        result = runner.invoke(tracker_module.app, ["sync", "push"])
-
-    assert result.exit_code == 0, result.output
-    assert "tripwire" not in result.output
-    assert "manual mode" not in result.output.lower()
-    mock_svc.sync_push.assert_called_once()
-
-
-@pytest.mark.no_readiness_stub
-def test_sync_run_local_provider_ignores_manual_daemon_policy(monkeypatch, tmp_path) -> None:
-    """Local-provider sync run proceeds to the service call under MANUAL policy."""
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    trip_wire = ReadinessResult(
-        state=ReadinessState.MISSING_MISSION_BINDING,
-        message="tripwire: local bindings must skip readiness",
-        next_action="Do not run readiness for local providers.",
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: trip_wire,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.load_tracker_config",
-        lambda _repo_root: _local_binding_config(),
-    )
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-
-    mock_svc = MagicMock()
-    mock_svc.sync_run.return_value = {
-        "provider": "beads",
-        "stats": {"pulled_created": 1, "pushed_created": 1, "skipped": 0},
-    }
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
-        result = runner.invoke(tracker_module.app, ["sync", "run"])
-
-    assert result.exit_code == 0, result.output
-    assert "tripwire" not in result.output
-    # sync_run's manual-mode message is informational (not an early exit);
-    # for local bindings the message must not appear at all.
-    assert "manual mode" not in result.output.lower()
-    mock_svc.sync_run.assert_called_once()
-
-
-@pytest.mark.no_readiness_stub
-def test_sync_publish_local_provider_ignores_manual_daemon_policy(monkeypatch, tmp_path) -> None:
-    """Local-provider sync publish proceeds under MANUAL policy."""
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    trip_wire = ReadinessResult(
-        state=ReadinessState.HOST_UNREACHABLE,
-        message="tripwire: local bindings must skip readiness",
-        next_action="Do not run readiness for local providers.",
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: trip_wire,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.load_tracker_config",
-        lambda _repo_root: _local_binding_config(),
-    )
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-
-    mock_svc = MagicMock()
-    mock_svc.sync_publish.return_value = {
-        "provider": "beads",
-        "status": "complete",
-    }
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
-        result = runner.invoke(tracker_module.app, ["sync", "publish"])
-
-    assert result.exit_code == 0, result.output
-    assert "tripwire" not in result.output
-    assert "manual mode" not in result.output.lower()
-    mock_svc.sync_publish.assert_called_once()
-
-
 # ---------------------------------------------------------------------------
 # Module-level import structural guardrail (RISK-2 from mission review)
 # ---------------------------------------------------------------------------
@@ -1564,26 +1226,10 @@ def test_tracker_keeps_readiness_imports_at_module_level() -> None:
     regress into false passes.  This guardrail fails loudly instead.
     """
     from specify_cli.cli.commands import tracker as tracker_module
-    from specify_cli.saas import readiness as readiness_module
-    from specify_cli.sync import config as config_module
+    from specify_cli.tracker import saas_readiness as readiness_module
 
-    assert hasattr(tracker_module, "evaluate_readiness"), (
-        "tracker.py must import evaluate_readiness at module level so tests "
-        "can monkeypatch the consumer binding."
-    )
+    assert hasattr(tracker_module, "evaluate_readiness"), "tracker.py must import evaluate_readiness at module level so tests can monkeypatch the consumer binding."
     assert tracker_module.evaluate_readiness is readiness_module.evaluate_readiness
-
-    assert hasattr(tracker_module, "SyncConfig"), (
-        "tracker.py must import SyncConfig at module level so tests can "
-        "monkeypatch the consumer binding."
-    )
-    assert tracker_module.SyncConfig is config_module.SyncConfig
-
-    assert hasattr(tracker_module, "BackgroundDaemonPolicy"), (
-        "tracker.py must import BackgroundDaemonPolicy at module level so "
-        "tests can inspect the daemon policy decision."
-    )
-    assert tracker_module.BackgroundDaemonPolicy is config_module.BackgroundDaemonPolicy
 
 
 # ---------------------------------------------------------------------------
@@ -1595,7 +1241,7 @@ def test_tracker_keeps_readiness_imports_at_module_level() -> None:
 
 def _ws5_failing_missing_auth_result():
     """Return a synthetic MISSING_AUTH ReadinessResult using the canonical wording."""
-    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+    from specify_cli.tracker.saas_readiness import _WORDING  # noqa: PLC2701
 
     msg, action = _WORDING[ReadinessState.MISSING_AUTH]
     return ReadinessResult(
@@ -1632,7 +1278,7 @@ def test_ws5_hosted_no_auth_interactive_two_line_human_format(monkeypatch, tmp_p
     )
 
     from specify_cli.cli.commands import tracker as tracker_module
-    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+    from specify_cli.tracker.saas_readiness import _WORDING  # noqa: PLC2701
 
     msg, action = _WORDING[ReadinessState.MISSING_AUTH]
     result = runner.invoke(tracker_module.app, ["status"])
@@ -1657,7 +1303,7 @@ def test_ws5_hosted_no_auth_machine_output_single_line_stderr(monkeypatch, tmp_p
     )
 
     from specify_cli.cli.commands import tracker as tracker_module
-    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+    from specify_cli.tracker.saas_readiness import _WORDING  # noqa: PLC2701
 
     msg, action = _WORDING[ReadinessState.MISSING_AUTH]
     result = runner.invoke(tracker_module.app, ["status"])
@@ -1731,7 +1377,7 @@ def test_ws5_remediation_string_matches_saas_readiness_source(monkeypatch) -> No
     in every test that asserts the rendered output. Asserts the exact byte
     sequence expected by the WS2 auth-recovery probe.
     """
-    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+    from specify_cli.tracker.saas_readiness import _WORDING  # noqa: PLC2701
 
     _msg, action = _WORDING[ReadinessState.MISSING_AUTH]
     assert action == "Run `spec-kitty auth login`."
@@ -1771,20 +1417,13 @@ def test_sync_pull_pre_flight_gate_and_transport_share_one_resolved_root(monkeyp
         "specify_cli.cli.commands.tracker._check_readiness",
         lambda *, require_mission_binding, probe_reachability: None,
     )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker._check_daemon_policy",
-        lambda *, is_sync_run=False: None,
-    )
-
     seen: dict[str, object] = {}
 
     def _record_verdict(root, *, destination, identifiers):
         seen["gate_root"] = root
         return SimpleNamespace(refused=False)
 
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.tracker_egress_verdict", _record_verdict
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.tracker.tracker_egress_verdict", _record_verdict)
 
     def _fake_service(*, allow_unbound: bool = False, root=None):
         # Mirror the real _service resolution so an unthreaded call (root=None)
@@ -1800,7 +1439,5 @@ def test_sync_pull_pre_flight_gate_and_transport_share_one_resolved_root(monkeyp
     result = runner.invoke(tracker_module.app, ["sync", "pull"])
     assert result.exit_code == 0, result.output
     assert seen["gate_root"] == seen["transport_root"], (
-        f"pre-flight gate judged {seen['gate_root']} but the transport used "
-        f"{seen['transport_root']} — the two hosted gates answered for different projects"
+        f"pre-flight gate judged {seen['gate_root']} but the transport used {seen['transport_root']} — the two hosted gates answered for different projects"
     )
-

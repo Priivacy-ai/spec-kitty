@@ -103,11 +103,7 @@ def _deserialize_result(data: dict[str, Any]) -> UpgradeProbeResult | None:
     try:
         return UpgradeProbeResult(
             installed_version=str(data["installed_version"]),
-            latest_pypi_version=(
-                str(data["latest_pypi_version"])
-                if data.get("latest_pypi_version") is not None
-                else None
-            ),
+            latest_pypi_version=(str(data["latest_pypi_version"]) if data.get("latest_pypi_version") is not None else None),
             channel=UpgradeChannel(data["channel"]),
             probed_at=parse_iso(data["probed_at"]),
             error=(str(data["error"]) if data.get("error") is not None else None),
@@ -185,17 +181,9 @@ def _is_fresh(
 
 
 _NOTICE_TEMPLATES: dict[UpgradeChannel, str] = {
-    UpgradeChannel.ALREADY_CURRENT: (
-        "[dim]spec-kitty-cli {version} — you are on the latest supported version.[/dim]"
-    ),
-    UpgradeChannel.AHEAD_OF_PYPI: (
-        "[dim]spec-kitty-cli {version} — build is ahead of the latest PyPI release "
-        "({latest}). No upgrade required.[/dim]"
-    ),
-    UpgradeChannel.NO_UPGRADE_PATH: (
-        "[dim]spec-kitty-cli {version} — installed from a non-PyPI build/channel. "
-        "No PyPI upgrade path is available.[/dim]"
-    ),
+    UpgradeChannel.ALREADY_CURRENT: ("[dim]spec-kitty-cli {version} — you are on the latest supported version.[/dim]"),
+    UpgradeChannel.AHEAD_OF_PYPI: ("[dim]spec-kitty-cli {version} — build is ahead of the latest PyPI release ({latest}). No upgrade required.[/dim]"),
+    UpgradeChannel.NO_UPGRADE_PATH: ("[dim]spec-kitty-cli {version} — installed from a non-PyPI build/channel. No PyPI upgrade path is available.[/dim]"),
     # UPGRADE_AVAILABLE intentionally emits no no-upgrade notice; the existing
     # upgrade nag owns that user-facing path.
     # UNKNOWN intentionally emits no notice (contract: "do not block on inability to probe").
@@ -320,11 +308,7 @@ def maybe_emit_upgrade_notice(
             emitted = _render_notice(result, console)
 
         # Persist the result (best-effort) regardless of whether we emitted.
-        ttl = (
-            TTL_UNKNOWN_SECONDS
-            if result.channel == UpgradeChannel.UNKNOWN
-            else TTL_SUCCESS_SECONDS
-        )
+        ttl = TTL_UNKNOWN_SECONDS if result.channel == UpgradeChannel.UNKNOWN else TTL_SUCCESS_SECONDS
         _save_cache(cache_path, result, ttl)
 
         return emitted

@@ -373,7 +373,6 @@ class TestT014DurabilityStructuralGuarantees:
 # ── T015 -- NFR-005 responsiveness ───────────────────────────────────────
 
 
-@pytest.mark.performance
 class TestT015Responsiveness:
     """NFR-005: verdict recording, including durable persistence, completes
     under the existing 2-second budget."""

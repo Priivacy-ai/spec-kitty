@@ -9,7 +9,7 @@ Three complementary checks:
    lives, so a static check is sufficient there.
 
 2. **Behavioral test of resolver nudges**: the ``_emit_migrate_nudge`` helpers
-   in ``src/specify_cli/runtime/resolver.py`` and ``src/doctrine/resolver.py``
+   in ``src/specify_cli/runtime/resolver.py`` and ``src/charter/offering/resolver.py``
    print a one-time stderr message.  DRIFT-6 from the mission review showed
    the nudge was hardcoded to ``~/.kittify/`` regardless of platform.  These
    behavioral tests invoke the helpers under a mocked ``SPEC_KITTY_HOME`` that

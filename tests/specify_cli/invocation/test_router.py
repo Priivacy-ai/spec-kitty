@@ -7,11 +7,16 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specify_cli.invocation.errors import RouterAmbiguityError
+
+if TYPE_CHECKING:  # EXP-side typing adaptation (PR #1066): annotation-only import
+    from specify_cli.invocation.registry import ProfileRegistry
+
 from specify_cli.invocation.router import (
     CANONICAL_VERB_MAP,
     STOP_WORDS,
@@ -30,7 +35,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 
-def _make_registry(tmp_path: Path, profiles: list[str] | None = None):
+def _make_registry(tmp_path: Path, profiles: list[str] | None = None) -> ProfileRegistry:
     """Build a ProfileRegistry from the fixture profiles directory.
 
     Args:
@@ -55,7 +60,7 @@ def _make_registry(tmp_path: Path, profiles: list[str] | None = None):
     return ProfileRegistry(tmp_path)
 
 
-def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
+def _make_mock_registry(profile_specs: list[dict[str, Any]]) -> MagicMock:
     """Build a lightweight mock ProfileRegistry returning synthetic profiles.
 
     Each dict in *profile_specs* should have:
@@ -502,7 +507,7 @@ def test_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path: Path) -> None
     decision = router.route("implement and gizmo the module")
     assert decision.profile_id == "implementer-fixture"
     assert decision.confidence == "canonical_verb"
-    assert len(decision.alternatives) == 1
+    assert len(decision.alternatives) == 1  # golden-count: cardinality-is-contract — the tiebreak must surface exactly one alternative
     alt = decision.alternatives[0]
     assert alt["profile_id"] == "reviewer-fixture"
     assert alt["confidence"] == "domain_keyword"
@@ -518,7 +523,7 @@ def test_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path: Path) -> None
         dry_payload = executor.dry_run("implement and gizmo the module")
 
     assert dry_payload.profile_id == "implementer-fixture"
-    assert len(dry_payload.alternatives) == 1
+    assert len(dry_payload.alternatives) == 1  # golden-count: cardinality-is-contract — the dry-run payload mirrors the one-alternative tiebreak
     assert dry_payload.alternatives[0]["profile_id"] == "reviewer-fixture"
 
 
@@ -567,7 +572,7 @@ def test_router_ambiguous_candidates_carry_confidence_key() -> None:
     alternatives = dry_run_payload["alternatives"]
     assert isinstance(alternatives, list)
     # Same vacuity guard for the dry-run-payload mirror of err.candidates.
-    assert len(alternatives) == 2
+    assert len(alternatives) == 2  # golden-count: cardinality-is-contract — both ambiguous candidates must be listed
     for alt in alternatives:
         assert "confidence" in alt
 

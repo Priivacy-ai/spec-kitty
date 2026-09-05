@@ -6,7 +6,7 @@ Asserts the M1 owner actions M1 itself performs:
     pinned in detail by ``test_glossary_authority_parity.py``);
   - the ``### charter`` Terminology-Canon entry landed in
     ``docs/context/charter.md`` (T004);
-  - ``docs/context/doctrine.md`` -> ``docs/context/charter.md`` (OC-40).
+  - ``docs/context/charter.offering.md`` -> ``docs/context/charter.md`` (OC-40).
 
 H4 (squad finding): ``.kittify/charter/graph.yml`` and
 ``.kittify/charter/synthesis-manifest.yaml`` are **verify-no-op**, not
@@ -45,38 +45,31 @@ def _repo_root() -> Path:
 
 
 _REPO_ROOT = _repo_root()
-_DOCTRINE_MD_PATH = _REPO_ROOT / "docs" / "context" / "doctrine.md"
+_DOCTRINE_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
 _CHARTER_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.md"
+# The reachable EXP integration commit directly before the #854 port's WP01
+# changes. It is the same pre-port authority used by WP02's referrer guard.
+_WP01_BASE_COMMIT = "73609a064a444fbec6d1bd45d350574151017e1d"
+
 
 @functools.lru_cache(maxsize=1)
 def _resolve_wp01_base_commit() -> str | None:
-    """The point M1 branched from, resolved dynamically as the mission's true
-    base on its lane (``git merge-base upstream/main HEAD``).
+    """Return WP01's reachable pre-port EXP integration base.
 
-    Originally pinned to WP01's recorded literal base SHA
-    (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``,
-    tasks/WP01-glossary-quartet-parity.md frontmatter `base_commit`). But a
-    squash-merge onto a landing PR rewrites history and orphans any commit
-    pinned before the squash, so that SHA is unreachable post-squash --
-    ``git cat-file -e`` fails and the H4 diff below silently skips in EVERY
-    landed checkout, leaving the verify-no-op guard toothless. Resolving the
-    merge-base restores real teeth (same convention as
-    ``tests/glossary/test_canonical_promotion.py``'s
-    ``_resolve_wp02_base_commit`` and ``_home_pin_gate.py``'s ``HISTORY_REF``).
-
-    Returns ``None`` if ``upstream/main`` cannot be resolved locally (e.g. a
-    shallow clone with no ``upstream`` remote) -- callers skip rather than
-    false-red, consistent with ``_git_diff_is_empty``'s shallow-clone guard.
+    The old recorded upstream SHA was orphaned by the landing squash, while
+    ``upstream/main`` is not configured in EXP clones. This stable EXP commit
+    preserves the H4 comparison and still permits shallow-checkout skips.
     """
     result = subprocess.run(
-        ["git", "merge-base", "upstream/main", "HEAD"],
+        ["git", "cat-file", "-e", f"{_WP01_BASE_COMMIT}^{{commit}}"],
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         return None
-    return result.stdout.strip()
+    return _WP01_BASE_COMMIT
+
 
 #: ``context-state.json`` is deliberately excluded here (see module
 #: docstring): it is gitignored runtime state, never tracked at any commit,
@@ -106,6 +99,11 @@ def _git_diff_is_empty(repo_root: Path, base_commit: str, path: Path) -> bool | 
     return result.returncode == 0
 
 
+def test_wp01_base_is_resolvable_from_exp_history() -> None:
+    """H4 must retain teeth in an ordinary EXP checkout without ``upstream``."""
+    assert _resolve_wp01_base_commit() is not None
+
+
 # ---------------------------------------------------------------------------
 # Owner actions M1 actually performs
 # ---------------------------------------------------------------------------
@@ -128,13 +126,11 @@ def test_glossary_authority_flip_ran() -> None:
 def test_charter_canon_entry_landed() -> None:
     assert _CHARTER_MD_PATH.exists(), "docs/context/charter.md does not exist -- OC-40 move did not run"
     text = _CHARTER_MD_PATH.read_text(encoding="utf-8")
-    assert "### charter" in text, (
-        "Terminology-Canon owner action did not run: no '### charter' entry in docs/context/charter.md"
-    )
+    assert "### charter" in text, "Terminology-Canon owner action did not run: no '### charter' entry in docs/context/charter.md"
 
 
 def test_doctrine_md_moved_to_charter_md() -> None:
-    assert not _DOCTRINE_MD_PATH.exists(), "OC-40 move owner action did not run: docs/context/doctrine.md still present"
+    assert not _DOCTRINE_MD_PATH.exists(), "OC-40 move owner action did not run: docs/context/charter.offering.md still present"
     assert _CHARTER_MD_PATH.exists(), "OC-40 move owner action did not run: docs/context/charter.md missing"
 
 
@@ -150,16 +146,11 @@ def test_h4_verify_no_op_files_unchanged_by_m1(target: Path) -> None:
     base_commit = _resolve_wp01_base_commit()
     if base_commit is None:
         pytest.skip(
-            "WP01 base commit (merge-base upstream/main HEAD) not resolvable in "
-            "this checkout (likely a shallow clone / no upstream remote) -- "
-            "cannot verify H4 no-op via git diff"
+            "WP01 EXP integration base not resolvable in this checkout (likely a shallow clone / no upstream remote) -- cannot verify H4 no-op via git diff"
         )
     is_empty = _git_diff_is_empty(_REPO_ROOT, base_commit, target)
     if is_empty is None:
-        pytest.skip(
-            f"WP01 base commit {base_commit} not resolvable in this checkout "
-            "(likely a shallow clone) -- cannot verify H4 no-op via git diff"
-        )
+        pytest.skip(f"WP01 base commit {base_commit} not resolvable in this checkout (likely a shallow clone) -- cannot verify H4 no-op via git diff")
     assert is_empty, (
         f"{target.relative_to(_REPO_ROOT)} differs from its content at WP01 base commit "
         f"{base_commit} -- H4 requires M1 to raise NO owner action on this file "

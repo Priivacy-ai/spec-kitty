@@ -418,7 +418,7 @@ def compile_charter(
 
     # Validate and normalize local support file declarations.
     # FR-008 (#3596, WP02): repo_root feeds the declared-node acceptance
-    # source (charter.activation.interview._declared_action_labels) alongside the
+    # source (charter.interview._declared_action_labels) alongside the
     # fast-path BOOTSTRAP_ACTIONS constant, so a declared non-fast-path
     # action (e.g. "tasks") is retained rather than warn-dropped.
     valid_local, local_errors = validate_local_support_declarations(
@@ -547,7 +547,7 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
     ``activated_<kind>`` keys.
 
     Additive and idempotent (charter contract C-A2): the built-in mission-type
-    set authored in ``src/charter/packs/default.yaml`` is written ONLY when the
+    set authored in ``src/charter/activation/packs/default.yaml`` is written ONLY when the
     key is entirely absent from the activation authority. An already-present
     list — a custom set or an explicit ``[]`` fail-closed opt-out — is left
     untouched.
@@ -890,7 +890,7 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
 
     The project-root candidate list (in priority order):
     1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T024).
-    2. ``src/doctrine/``       — code-local built-in-layer path.
+    2. ``src/charter/offering/``       — code-local built-in-layer path.
     3. ``doctrine/``           — flat fallback.
 
     Discovery is conditional on directory presence: legacy projects (pre-
@@ -1354,7 +1354,7 @@ def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, obj
     *directory* is always a flat content dir (the ``built_in_dir(kind)``
     authority, or a caller-supplied flat directory in tests); the
     pre-relocation nested ``built-in/`` subdirectory dual-read for the emptied
-    ``src/doctrine/<kind>/`` pre-move shape was removed in mission
+    ``src/charter/offering/<kind>/`` pre-move shape was removed in mission
     doctrine-built-in-seam-consolidation-01KYW3TX (WP02).
     """
     index: dict[str, dict[str, object]] = {}
@@ -1704,7 +1704,7 @@ def _dump_yaml(data: dict[str, object]) -> str:
 def _trim_source_path(source_path: str) -> str:
     if not source_path:
         return ""
-    marker = "src/doctrine/"
+    marker = "src/charter/offering/"
     if marker in source_path:
         return source_path[source_path.index(marker) :]
     return source_path

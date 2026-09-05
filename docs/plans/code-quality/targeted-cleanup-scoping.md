@@ -76,7 +76,7 @@ Behavior-preserving; drops the file 26 -> 11 smells.
 Note the 6 `S7632` findings are malformed suppression comments — worth fixing on sight,
 and a reminder that the file already leans on suppressions (see Tier 2).
 
-### Tier 2 — cognitive complexity, ride Wave 4 (~3h, 11x S3776)
+### Tier 2 — cognitive complexity, ride Wave 4 (~3h, 10x S3776)
 
 The real debt. Two functions dominate and **already carry `# noqa: C901`** — explicit
 complexity suppressions that the campsite/charter policy says to retire, not add to:
@@ -85,7 +85,6 @@ complexity suppressions that the campsite/charter policy says to retire, not add
 |---|---|---|---|---|
 | `status()` | 5299 | **90** | 1h20m | `# noqa: C901`; build-and-emit table + `--check` coherence gate |
 | `doctor()` | 5925 | **73** | 1h3m | `# noqa: C901`; diagnostic build-and-emit + gate |
-| `sync_workspace()` | 2932 | 30 | 20m | `# noqa: C901` |
 | `routes()` | 2126 | 27 | 17m | |
 | `purge()` | 4424 | 26 | 16m | |
 | `_enforce_sync_now_exit_from_dispatch()` | 304 | 22 | 12m | |
@@ -114,9 +113,12 @@ the Wave 4 sync-adapter degod slice, where that harness is built, and where the
 |---|---|---|---|
 | `walker.py` | 14 | ~2h (all) | — |
 | `sync.py` Tier 1 | 15 | ~1h | — |
-| `sync.py` Tier 2 | 11 | — | ~3h (Wave 4, with characterization tests) |
+| `sync.py` Tier 2 | 10 | — | ~3h (Wave 4, with characterization tests) |
 
 Immediate safe cleanup: **~3h clears 29 findings** (`walker.py` + `sync.py` Tier 1).
-The 11 `sync.py` complexity findings ride **Wave 4**. The 3 `S2083` BLOCKER
+The 10 `sync.py` complexity findings ride **Wave 4**. (A prior 11th target,
+`sync_workspace()`, was resolved by deletion — issue #424 / PR #500, "Delete dead
+GitVCS/VCSProtocol.sync_workspace" — and dropped from this inventory so future
+cleanup planning does not chase a non-existent function.) The 3 `S2083` BLOCKER
 vulnerabilities in `merge/bookkeeping_projection.py` and `skills/verifier.py` are a
 separate ~90-min targeted fix (not on a wave) and should land before the final 3.2.6 tag.

@@ -16,12 +16,15 @@ Covers:
 from __future__ import annotations
 
 import json
+from functools import partial
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.charter_runtime.preflight import cli as charter_preflight_cli_module
 from specify_cli.cli.commands.charter import app as charter_app
+from specify_cli.task_utils import find_repo_root
 
 from ._fixtures import (
     build_f1_no_charter,
@@ -86,9 +89,22 @@ def test_strict_blocked_exits_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 
 def test_hard_error_exits_two(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No repo root found → exit 2 (no JSON payload)."""
+    """No repo root found → exit 2 (no JSON payload).
+
+    ``find_repo_root()`` walks unboundedly in production. Bound the walk to
+    this test's own tmp tree (issue #128): nothing above ``tmp_path`` is under
+    test control, and under a full parallel run a sibling test's shared
+    ancestor can transiently gain a ``.git``/``.kittify``, which would flip
+    this "nothing found" verdict non-deterministically (same class of bug as
+    #130/#139's ``_find_project_root``).
+    """
     # tmp_path is not a git repo and has no .kittify ancestor -> find_repo_root raises.
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        charter_preflight_cli_module,
+        "find_repo_root",
+        partial(find_repo_root, stop=tmp_path),
+    )
     result = _runner.invoke(charter_app, ["preflight", "--json"])
     assert result.exit_code == 2, result.stdout
 
@@ -117,9 +133,7 @@ def _charter_source_check(payload: dict[str, object]) -> dict[str, object]:
     return check
 
 
-def test_f1_no_charter_reads_as_no_charter_at_all(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f1_no_charter_reads_as_no_charter_at_all(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """F1 — a project that never had a charter — must say so plainly."""
     build_f1_no_charter(tmp_path)
     monkeypatch.chdir(tmp_path)
@@ -130,9 +144,7 @@ def test_f1_no_charter_reads_as_no_charter_at_all(
     assert "no charter at all" in check["detail"]
 
 
-def test_f4_invalid_charter_yaml_distinguishable_from_f1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f4_invalid_charter_yaml_distinguishable_from_f1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """F4 (``charter.yaml`` present, unparseable) must never read like F1
     ("no charter at all") — different state, different detail text."""
     build_f4_invalid_charter_yaml(tmp_path)
@@ -145,9 +157,7 @@ def test_f4_invalid_charter_yaml_distinguishable_from_f1(
     assert "cannot be parsed" in check["detail"]
 
 
-def test_f2_legacy_bundle_does_not_read_as_no_charter_at_all(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f2_legacy_bundle_does_not_read_as_no_charter_at_all(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """F2 (legacy bundle present, no ``charter.yaml``) is the mission's
     trigger state: an operator who has a charter, just not in the required
     form, must not be told they have no charter at all. Before WP05, F1 and
@@ -163,9 +173,7 @@ def test_f2_legacy_bundle_does_not_read_as_no_charter_at_all(
     assert "legacy charter bundle" in check["detail"]
 
 
-def test_f1_and_f2_share_state_but_not_detail(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f1_and_f2_share_state_but_not_detail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The real FR-005 gap: F1 and F2 both report ``state="missing"`` —
     identical on that axis — so an operator can only tell them apart via
     ``detail``. Regression-pin that the two texts differ."""
@@ -173,25 +181,19 @@ def test_f1_and_f2_share_state_but_not_detail(
 
     build_f1_no_charter(tmp_path)
     result_f1 = _runner.invoke(charter_app, ["preflight", "--json"])
-    detail_f1 = _charter_source_check(
-        json.loads(result_f1.stdout.strip().splitlines()[-1])
-    )["detail"]
+    detail_f1 = _charter_source_check(json.loads(result_f1.stdout.strip().splitlines()[-1]))["detail"]
 
     f2_repo = tmp_path / "f2-sibling"
     f2_repo.mkdir()
     build_f2_legacy_bundle_no_charter_yaml(f2_repo)
     monkeypatch.chdir(f2_repo)
     result_f2 = _runner.invoke(charter_app, ["preflight", "--json"])
-    detail_f2 = _charter_source_check(
-        json.loads(result_f2.stdout.strip().splitlines()[-1])
-    )["detail"]
+    detail_f2 = _charter_source_check(json.loads(result_f2.stdout.strip().splitlines()[-1]))["detail"]
 
     assert detail_f1 != detail_f2
 
 
-def test_f1_still_non_blocking_without_strict(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f1_still_non_blocking_without_strict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-006 regression guard: making F1 distinguishable from F2/F4 must
     not make it blocking. A genuinely fresh/never-initialized project
     (true F1, not the legacy-bundle F2 shape ``test_non_strict_blocked_
@@ -202,9 +204,7 @@ def test_f1_still_non_blocking_without_strict(
     assert result.exit_code == 0, result.stdout
 
 
-def test_f1_and_f4_distinguishable_in_human_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f1_and_f4_distinguishable_in_human_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Same proof as the JSON tests above, but against the human-readable
     render path (``_render_human`` in ``cli.py`` — the file this WP owns)."""
     monkeypatch.chdir(tmp_path)

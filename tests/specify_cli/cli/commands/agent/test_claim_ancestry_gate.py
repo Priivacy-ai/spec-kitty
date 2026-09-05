@@ -235,12 +235,8 @@ def test_approved_dependency_does_not_deadlock_self_heal_establishes_ancestry(
 
     # The self-heal-coupled gate re-enters allocate_lane_worktree's reuse-path
     # self-heal (merges lane-a's approved tip into lane-b) and rechecks.
-    healed = resolve_claim_ancestry_gate(
-        repo, _MISSION_SLUG, status_dir, _WP_SELF, lane_b_worktree
-    )
-    assert healed.ok is True, (
-        f"approved dependency lane-a must not deadlock the claim: {healed.missing_refs}"
-    )
+    healed = resolve_claim_ancestry_gate(repo, _MISSION_SLUG, status_dir, _WP_SELF, lane_b_worktree)
+    assert healed.ok is True, f"approved dependency lane-a must not deadlock the claim: {healed.missing_refs}"
 
     # Observable: lane-a's tip really did land in lane-b's worktree.
     assert (lane_b_worktree / "lane_a_output.txt").exists()
@@ -266,9 +262,7 @@ def test_non_approved_dependency_is_omitted_not_required(tmp_path: Path) -> None
     status_dir = _feature_dir(repo)
     result = check_claim_ancestry(repo, _MISSION_SLUG, status_dir, _WP_SELF, lane_b_worktree)
 
-    assert result.ok is True, (
-        f"a non-approved dependency lane must be omitted, not required: {result.missing_refs}"
-    )
+    assert result.ok is True, f"a non-approved dependency lane must be omitted, not required: {result.missing_refs}"
 
 
 def test_legacy_non_lane_wp_is_a_no_op(tmp_path: Path) -> None:

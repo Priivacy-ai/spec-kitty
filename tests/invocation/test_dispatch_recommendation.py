@@ -161,7 +161,7 @@ def _write_catalog(
 # ``doctrine-public-api-surface-01KZPDSR`` WP06, ``_compute_recommendation``
 # imports ``load``/``evaluate`` FUNCTION-LOCALLY *from the charter facade*
 # ``charter.model_routing`` (symbol-level; the runtime -> charter -> doctrine
-# boundary forbids a module-level `from doctrine.*` import from specify_cli/,
+# boundary forbids a module-level `from charter.offering.*` import from specify_cli/,
 # see tests/architectural/test_runtime_charter_doctrine_boundary.py). Each call
 # re-resolves ``charter.model_routing.load`` afresh, so patching that attribute
 # is what actually takes effect -- patching the doctrine origin
@@ -325,7 +325,7 @@ def test_recommendation_absent_when_action_has_no_task_type_mapping(tmp_path: Pa
 
 def test_invoke_produces_recommendation_from_real_shipped_catalog_default_path(tmp_path: Path) -> None:
     """No fixture override: WP01's default loader path must agree with WP05's
-    shipped ``src/doctrine/model_task_routing/catalog/model-to-task_type.yaml``.
+    shipped ``src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml``.
     """
     _setup_project(tmp_path)
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):

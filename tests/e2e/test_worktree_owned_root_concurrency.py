@@ -23,12 +23,21 @@ from pathlib import Path
 
 import pytest
 
+from tests._support.shared_build_artifacts import (
+    ensure_run_stable_source_snapshot,
+    run_scoped_shared_root,
+)
+from tests.e2e.conftest import format_subprocess_failure
 
 pytestmark = [
     pytest.mark.distribution,
     pytest.mark.e2e,
     pytest.mark.git_repo,
     pytest.mark.slow,
+    # Builds/installs one immutable wheel and mutates multiple linked worktrees.
+    # Parallel collection let unrelated repo-mutating tests contend on the shared
+    # source snapshot and hang this worker; test-full's stress pass is serial.
+    pytest.mark.stress,
 ]
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[2]
@@ -65,13 +74,17 @@ class _WorktreeProject:
 
 
 def _git(cwd: Path, *args: str) -> str:
-    return subprocess.run(
+    completed = subprocess.run(
         ["git", *args],
         cwd=cwd,
-        check=True,
         capture_output=True,
         text=True,
-    ).stdout.strip()
+    )
+    if completed.returncode != 0:
+        # A bare CalledProcessError hides the one thing a red run needs: what
+        # git itself said (#80's 14 identical tracebacks carried no stderr).
+        raise RuntimeError(format_subprocess_failure(command=["git", *args], cwd=cwd, completed=completed))
+    return completed.stdout.strip()
 
 
 def _venv_script(venv_dir: Path, name: str) -> Path:
@@ -82,8 +95,24 @@ def _venv_script(venv_dir: Path, name: str) -> Path:
 
 
 @pytest.fixture(scope="session")
-def immutable_spec_kitty(installed_wheel_venv: dict[str, Path]) -> _InstalledCLI:
-    """Return provenance-pinned wheel installation, never an editable install."""
+def immutable_spec_kitty(
+    installed_wheel_venv: dict[str, Path],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> _InstalledCLI:
+    """Return provenance-pinned wheel installation, never an editable install.
+
+    Git provenance and every later project clone read a **run-stable snapshot**
+    of this checkout rather than the checkout itself. On CI runners the
+    checkout is a linked worktree over a shared canonical clone whose
+    maintenance mutates the run tree's HEAD mid-session (#80): for a sustained
+    window ``git rev-parse HEAD`` there fails with exit 128 while discovery and
+    ``branch --show-current`` keep working, so every iteration entering the
+    window failed at the same line regardless of diff. The snapshot is built
+    once per run from that same commit into the run's temp root — fetched by
+    resolved SHA, never reading the volatile live HEAD — and is untouched
+    afterwards, which decouples the whole file from the shared store's churn.
+    """
+    global _SOURCE_ROOT
     wheel = installed_wheel_venv["wheel"].resolve()
     venv_dir = installed_wheel_venv["venv_dir"].resolve()
     script = _venv_script(venv_dir, "spec-kitty").resolve()
@@ -101,6 +130,7 @@ def immutable_spec_kitty(installed_wheel_venv: dict[str, Path]) -> _InstalledCLI
         ).returncode
         == 0
     )
+    _SOURCE_ROOT = ensure_run_stable_source_snapshot(run_scoped_shared_root(tmp_path_factory))
     source_commit = _git(_SOURCE_ROOT, "rev-parse", "HEAD")
     # Artifact-integrity provenance, not charter-content identity.
     wheel_sha256 = hashlib.sha256(wheel.read_bytes()).hexdigest()  # noqa: TID251
@@ -284,11 +314,41 @@ def _mission_refs(primary: Path, mission_slug: str) -> set[str]:
 
 
 def _common_lock_files(primary: Path) -> list[Path]:
+    """Return unexpected entries under the shared coordination lock root.
+
+    Filelock persistence semantics (HIC-M2-DISPOSITIONS-2026-08-22 item 1,
+    F2-T2): ``feature_status_lock`` / ``project_event_log_lock``
+    (``specify_cli.status.locking``) are backed by the third-party
+    ``filelock`` package. Each acquisition creates its ``*.status.lock``
+    marker via ``open(..., O_CREAT)`` -- filelock never writes any bytes into
+    that file, so the marker is always zero-length -- and flocks it; release
+    only drops the OS-level advisory lock. python-filelock does not
+    guarantee the marker is unlinked afterward (on Unix its fast path tries
+    to, but two processes genuinely contending for the *same* lock file --
+    exactly what this test drives, concurrent ``next`` on one mission from
+    the primary checkout and its owned worktree -- can race that unlink, and
+    the loser's still-open marker survives). A zero-byte ``*.status.lock``
+    file left behind under ``<git-common-dir>/spec-kitty-locks/`` after the
+    test is therefore expected residue of the lock mechanism itself, not a
+    defect, and asserting it never happens is not an assertable invariant.
+    A real defect -- mission content or runtime state (which belongs under
+    ``kitty-specs/`` or ``.kittify/runtime/``) leaking into the shared lock
+    directory instead -- would show up here as a non-empty file, or one
+    outside the ``*.status.lock`` naming convention. This helper filters out
+    only the inert empty markers and returns anything else, so the caller can
+    assert that real invariant instead.
+    """
     common = Path(_git(primary, "rev-parse", "--git-common-dir"))
     if not common.is_absolute():
         common = (primary / common).resolve()
     lock_root = common / "spec-kitty-locks"
-    return sorted(lock_root.rglob("*.lock")) if lock_root.is_dir() else []
+    if not lock_root.is_dir():
+        return []
+    return sorted(
+        path
+        for path in lock_root.rglob("*")
+        if path.is_file() and not (path.suffix == ".lock" and path.stat().st_size == 0)
+    )
 
 
 def _assert_tree_clean(root: Path) -> None:
@@ -494,6 +554,10 @@ def test_installed_cli_keeps_two_owned_worktrees_isolated(
             _payload(run)
 
     _assert_runtime_isolated(project, slug_a, slug_b)
+    # Zero-byte *.status.lock markers are expected filelock-unlink-race
+    # residue (see _common_lock_files docstring), not a defect; the assertion
+    # is that nothing else -- mission content or runtime state -- ever ends
+    # up under the shared lock root.
     assert _common_lock_files(project.primary) == []
     for root in (project.primary, project.agent_a, project.agent_b):
         _assert_tree_clean(root)

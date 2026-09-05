@@ -31,7 +31,7 @@ pytestmark = pytest.mark.fast
 
 runner = CliRunner()
 
-# A real shipped built-in directive URN (src/doctrine/graph.yaml). Using a real
+# A real shipped built-in directive URN (src/charter/offering/graph.yaml). Using a real
 # built-in URN (not a handcrafted placeholder) is what makes the merge record a
 # same-kind ``org_override`` the gate can adjudicate (C-007).
 _BUILT_IN_DIRECTIVE_URN = "directive:DIRECTIVE_001"

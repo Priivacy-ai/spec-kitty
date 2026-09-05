@@ -57,6 +57,20 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     Op-record orphans (#2251) are spec-kitty's own bookkeeping, not mission planning
     artifacts, and their churn must not block a dirty-state gate.
 
+    FIX-M2-05: also recognizes the dossier snapshot
+    (``<feature_dir>/.kittify/dossiers/<mission_slug>/snapshot-latest.json``,
+    :func:`specify_cli.status.preflight.is_dossier_snapshot`) as self-bookkeeping
+    churn. ``contracts/dossier-snapshot-ownership.md`` (D1/D2, mission
+    ``charter-e2e-827-followups-01KQAJA0`` / #845) already ratifies this exact
+    "excluded from version control, belt-and-suspenders filtered from every dirty-
+    state computation" policy for ``agent tasks move-task``'s preflight; this
+    predicate is the missing belt-and-suspenders leg for the OTHER gates that
+    consult :func:`is_toolchain_generated_churn` (``git/ref_advance.py``,
+    ``bulk_edit/diff_check.py``, ``review/dirty_classifier.py``, …) — the same
+    class of "invisible to one gate, fatal at another" split this function's own
+    C7 precedent (see :func:`is_toolchain_generated_churn`) already exists to
+    close.
+
     Exposed as its own predicate (not folded silently into
     :func:`is_toolchain_generated_churn`'s body) because three consumers
     (``merge/git_probes.py``, ``cli/commands/agent/mission_record_analysis.py``,
@@ -77,11 +91,21 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     as a NEW per-gate filename exemption requiring its own registry row (C9): this is
     the owner absorbing the retired mechanism, not a ninth list.
     """
+    # Function-local import: mirrors this module's established pattern for
+    # cross-package pulls (see ``repair_coord_strand``'s ``lanes.merge`` /
+    # ``coord_incoherent_done_wps``'s ``coordination.status_service`` imports) —
+    # imported through the ``specify_cli.status`` facade (single-door invariant,
+    # tests/architectural/test_status_module_boundary.py); kept function-local for
+    # consistency with the rest of the file rather than as a defensive necessity.
+    from specify_cli.status import is_dossier_snapshot
+
     kitty_ops_op_record = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
     normalized = to_posix(path).rstrip("/")
     if PurePosixPath(normalized).name == "meta.json":
         return True
     if normalized.endswith(".kittify/encoding-provenance/global.jsonl"):
+        return True
+    if is_dossier_snapshot(normalized):
         return True
     return bool(kitty_ops_op_record.search(normalized))
 

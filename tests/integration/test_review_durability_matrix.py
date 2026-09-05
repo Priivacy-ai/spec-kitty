@@ -1804,11 +1804,10 @@ def _sc004_worker(  # noqa: C901 - one child-local fault-injection boundary
                         mission_slug=mission,
                         target_branch="main",
                         auto_commit_default=True,
-                        extra_patches={**_REVIEW_GATE_BYPASS, "emit_error_logged": None},
+                        extra_patches=dict(_REVIEW_GATE_BYPASS),
                     )
                 )
             stack.enter_context(patch("specify_cli.status.emit._saas_fan_out"))
-            stack.enter_context(patch("specify_cli.status.emit.fire_dossier_sync"))
 
             if mode == "commit_mutant":
                 def fake_commit(

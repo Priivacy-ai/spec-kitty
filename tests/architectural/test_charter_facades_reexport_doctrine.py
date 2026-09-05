@@ -3,7 +3,7 @@
 Each facade module under ``src/charter/`` that exists to proxy a doctrine
 surface MUST re-export the exact doctrine object (object identity), not a
 custom wrapper. This prevents a future PR from silently replacing a
-re-export with a sneaky shim that drifts from doctrine.
+re-export with a sneaky shim that drifts from charter.offering.
 
 Mission: ``charter-mediated-doctrine-selection-01KRTZCA``.
 Contract: ``kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/charter-facade-modules.md``.
@@ -11,7 +11,7 @@ Contract: ``kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/c
 The table below mirrors the contract's "Symbol tables" section. When a
 facade gains a new re-export, add the (symbol, doctrine-module) tuple here.
 The parametrised test then asserts (a) the symbol exists on both modules
-and (b) ``facade.SYMBOL is doctrine.SYMBOL`` (object identity).
+and (b) ``facade.SYMBOL is charter.offering.SYMBOL`` (object identity).
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         #
         # MissionStepRepository retired from this facade's contract 2026-08-14:
         # WP02 of mission ``up-mission-type-seam-01KZY1JB`` deleted
-        # ``resolve_mission_steps`` (src/charter/resolver.py), which was the
+        # ``resolve_mission_steps`` (src/charter/activation/resolver.py), which was the
         # only src/ importer reached through *this* facade; the symbol remains
         # an explicit PEP 484 re-export for direct importers and is still
         # identity-checked (with a live src/ importer) via the
@@ -111,9 +111,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("OrgPackEnvVarUnsetError", "charter.offering.drg.org_pack_config"),
         ("OrgPackMissingError", "charter.offering.drg.org_pack_loader"),
         # Added by mission ``doctrine-drg-silent-drop-boundary`` (#3530 landing):
-        # the executor's org-pack error handling + loader now reach doctrine
-        # only through ``charter.drg``, so these three doctrine re-exports join
-        # the identity contract. All FACADE-ONLY; identity verified live.
+        # the executor's org-pack error handling and loader reach the offering
+        # layer only through ``charter.drg``, so these re-exports join the
+        # identity contract. All FACADE-ONLY; identity verified live.
         ("OrgPackParseError", "charter.offering.drg.org_pack_loader"),
         ("OrgPackSchemaError", "charter.offering.drg.org_pack_loader"),
         ("load_org_pack", "charter.offering.drg.org_pack_loader"),
@@ -328,7 +328,7 @@ def test_facade_all_lists_every_reexport(facade_module: str) -> None:
 def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
     """Reverse of :func:`test_facade_all_lists_every_reexport`, enforced repo-wide:
     every symbol a charter module advertises in ``__all__`` whose object ORIGINATES
-    from doctrine (or an external shared-contract package) MUST carry an identity
+    from charter.offering (or an external shared-contract package) MUST carry an identity
     contract — an entry in ``_FACADE_TABLE``.
 
     Without this the identity gate is one-directional: a re-export placed in

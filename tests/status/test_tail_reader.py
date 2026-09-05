@@ -64,9 +64,7 @@ def test_torn_trailing_line_retried_then_emitted_once(tmp_path: Path) -> None:
     assert result_after_completion.cursor.offset == log_path.stat().st_size
 
 
-def test_poll_once_fd_sharing_invariant(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_poll_once_fd_sharing_invariant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """T007: ``poll_once()`` opens the file exactly once and never calls ``Path.stat()``.
 
     Gives ``Path.stat`` and ``Path.open`` DIFFERENT tolerance semantics -- this is
@@ -131,15 +129,11 @@ def test_offset_resume_across_two_polls(tmp_path: Path) -> None:
     """
     log_path = tmp_path / "status.events.jsonl"
     initial_events = [{"event": f"first-{i}"} for i in range(3)]
-    log_path.write_text(
-        "".join(json.dumps(event) + "\n" for event in initial_events), encoding="utf-8"
-    )
+    log_path.write_text("".join(json.dumps(event) + "\n" for event in initial_events), encoding="utf-8")
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
     first = poll_once(log_path, cursor)
-    assert [event["event"] for event in first.events] == [
-        event["event"] for event in initial_events
-    ]
+    assert [event["event"] for event in first.events] == [event["event"] for event in initial_events]
 
     more_events = [{"event": f"second-{i}"} for i in range(2)]
     with log_path.open("a", encoding="utf-8") as fh:
@@ -147,9 +141,7 @@ def test_offset_resume_across_two_polls(tmp_path: Path) -> None:
             fh.write(json.dumps(event) + "\n")
 
     second = poll_once(log_path, first.cursor)
-    assert [event["event"] for event in second.events] == [
-        event["event"] for event in more_events
-    ]
+    assert [event["event"] for event in second.events] == [event["event"] for event in more_events]
 
 
 def test_poll_once_observes_new_inode_after_os_replace(tmp_path: Path) -> None:
@@ -169,9 +161,7 @@ def test_poll_once_observes_new_inode_after_os_replace(tmp_path: Path) -> None:
     assert [event["event"] for event in first.events] == ["one"]
 
     replacement = tmp_path / "status.events.jsonl.tmp"
-    replaced_content = (
-        json.dumps({"event": "one"}) + "\n" + json.dumps({"event": "two-after-replace"}) + "\n"
-    )
+    replaced_content = json.dumps({"event": "one"}) + "\n" + json.dumps({"event": "two-after-replace"}) + "\n"
     replacement.write_text(replaced_content, encoding="utf-8")
     os.replace(replacement, log_path)
 
@@ -220,9 +210,7 @@ def test_interior_corrupt_line_raises_distinct_from_tear(tmp_path: Path) -> None
 
 
 @pytest.mark.parametrize("bad_line", [b"[1, 2]", b"42", b'"x"', b"true", b"null"])
-def test_interior_non_object_line_raises_store_error(
-    tmp_path: Path, bad_line: bytes
-) -> None:
+def test_interior_non_object_line_raises_store_error(tmp_path: Path, bad_line: bytes) -> None:
     """A valid-JSON but non-object interior line is corruption, not a tear.
 
     Landing-squad finding: ``poll_once`` parsed the line then wrote reader keys
@@ -304,21 +292,15 @@ def test_tail_events_bounded_termination_zero_real_sleep(tmp_path: Path) -> None
     """
     log_path = tmp_path / "status.events.jsonl"
     events_to_write = [{"event": f"line-{i}"} for i in range(3)]
-    log_path.write_text(
-        "".join(json.dumps(event) + "\n" for event in events_to_write), encoding="utf-8"
-    )
+    log_path.write_text("".join(json.dumps(event) + "\n" for event in events_to_write), encoding="utf-8")
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
 
     start = time.monotonic()
-    yielded = list(
-        tail_reader.tail_events(log_path, cursor, max_events=3, sleep_fn=lambda _: None)
-    )
+    yielded = list(tail_reader.tail_events(log_path, cursor, max_events=3, sleep_fn=lambda _: None))
     elapsed = time.monotonic() - start
 
-    assert [event["event"] for event in yielded] == [
-        event["event"] for event in events_to_write
-    ]
+    assert [event["event"] for event in yielded] == [event["event"] for event in events_to_write]
     # Generous CI-safe bound: far below even one real DEFAULT_POLL_INTERVAL_SECONDS
     # (0.25s) sleep -- proves the injected no-op sleep_fn was actually honored, not
     # silently bypassed in favor of the real time.sleep.
@@ -341,9 +323,7 @@ def test_tail_events_sleep_fn_never_called_when_poll_produces_output(
     """
     log_path = tmp_path / "status.events.jsonl"
     events_to_write = [{"event": f"line-{i}"} for i in range(4)]
-    log_path.write_text(
-        "".join(json.dumps(event) + "\n" for event in events_to_write), encoding="utf-8"
-    )
+    log_path.write_text("".join(json.dumps(event) + "\n" for event in events_to_write), encoding="utf-8")
 
     call_count = 0
 
@@ -352,13 +332,9 @@ def test_tail_events_sleep_fn_never_called_when_poll_produces_output(
         call_count += 1
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
-    yielded = list(
-        tail_reader.tail_events(log_path, cursor, max_events=4, sleep_fn=_counting_sleep)
-    )
+    yielded = list(tail_reader.tail_events(log_path, cursor, max_events=4, sleep_fn=_counting_sleep))
 
-    assert [event["event"] for event in yielded] == [
-        event["event"] for event in events_to_write
-    ]
+    assert [event["event"] for event in yielded] == [event["event"] for event in events_to_write]
     assert call_count == 0
 
 
@@ -386,9 +362,7 @@ def test_tail_events_islice_bound_mid_consumption_append_via_sleep_fn_stub(
     log_path = tmp_path / "status.events.jsonl"
     n = 3
     up_front_events = [{"event": f"line-{i}"} for i in range(n - 1)]
-    log_path.write_text(
-        "".join(json.dumps(event) + "\n" for event in up_front_events), encoding="utf-8"
-    )
+    log_path.write_text("".join(json.dumps(event) + "\n" for event in up_front_events), encoding="utf-8")
     appended_event = {"event": "appended-mid-consumption"}
 
     call_count = 0
@@ -404,15 +378,11 @@ def test_tail_events_islice_bound_mid_consumption_append_via_sleep_fn_stub(
                 fh.write(json.dumps(appended_event) + "\n")
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
-    bounded = itertools.islice(
-        tail_reader.tail_events(log_path, cursor, sleep_fn=_appending_sleep_stub), n
-    )
+    bounded = itertools.islice(tail_reader.tail_events(log_path, cursor, sleep_fn=_appending_sleep_stub), n)
     yielded = list(bounded)
 
     expected_events = [*up_front_events, appended_event]
-    assert [event["event"] for event in yielded] == [
-        event["event"] for event in expected_events
-    ]
+    assert [event["event"] for event in yielded] == [event["event"] for event in expected_events]
     # Exactly one "nothing new" poll triggered the append -- proves sleep_fn (not
     # time.sleep) drives the no-new-data path, not merely that the test finished.
     assert call_count == 1

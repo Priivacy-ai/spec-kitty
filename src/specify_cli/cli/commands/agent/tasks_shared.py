@@ -46,9 +46,11 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _validate_ready_for_review as _seam_validate_ready_for_review,
 )
 from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 
 logger = logging.getLogger(__name__)
@@ -250,9 +252,31 @@ def _find_mission_slug(
         # Note: repo_root from locate_project_root() already resolves to the main
         # checkout; get_main_repo_root() here guards against caller passing a
         # worktree path directly.
-        legacy_dir = placement_seam(
-            _tasks.get_main_repo_root(repo_root), raw_handle
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        try:
+            legacy_dir = placement_seam(
+                _tasks.get_main_repo_root(repo_root), raw_handle
+            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        except MissionSelectorAmbiguous as exc:
+            # This read-path resolver family raises BEFORE resolve_mission_handle
+            # ever runs (#241), so an ambiguous handle must map onto the SAME
+            # shared {"success": False, "error_code": ..., "error": ...,
+            # "handle": ..., "candidates": [...]} envelope resolve_mission_handle
+            # emits below for AmbiguousHandleError/MissionNotFoundError — not the
+            # bare {"error": str(exc)} the generic command-level exception
+            # handler would otherwise produce.
+            envelope = {
+                "success": False,
+                "error_code": exc.error_code,
+                "error": str(exc),
+                "handle": exc.handle,
+                "candidates": exc.candidates,
+            }
+            if json_output:
+                render = render or _tasks.RealRender()
+                print(render.json_envelope(envelope))
+                raise typer.Exit(1) from None
+            _tasks.console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from None
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -689,6 +713,25 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
         # pre-commit guard applies, expressed once in is_occurrence_map_path, so
         # the two kitty-specs guards agree instead of warn-here / block-there.
         if is_occurrence_map_path(path):
+            continue
+        # FIX-M2-04: a coord-topology lane branch is PARENTED on the
+        # coordination branch (worktree_allocator.py module docstring, #1348
+        # WP04) and then FR-009-merges the recorded planning commit on top
+        # (PlanningCommitMergeConflictError's docstring, #2993) — so the
+        # lane branch's own history legitimately contains the coordination
+        # branch's COORD-partition commits (status.events.jsonl / status.json
+        # / acceptance-matrix.json / issue-matrix.md / decisions.events.jsonl
+        # / tracer files / review-cycle artifacts). Those files can never be
+        # byte-identical to the planning branch's tip — the coordination
+        # branch writes them from its own independent history, never mirrors
+        # the planning branch — so ``_filter_by_planning_tip_content`` cannot
+        # exempt them and every coord-topology mission tripped this guard
+        # structurally (not from anything an implementer committed). Classify
+        # by declared MissionArtifactKind, the same coord-residue authority
+        # ``implement.py``/``implement_cores.py`` already use to drop these
+        # SAME kinds from the sibling primary-root claim commit, so both
+        # guards agree on what "lane contamination" means.
+        if is_coord_residue_churn(path):
             continue
         seen.add(path)
         candidates.append(path)

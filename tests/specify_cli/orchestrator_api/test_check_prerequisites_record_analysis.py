@@ -110,9 +110,7 @@ def _init_repo(tmp_path: Path) -> Path:
     """A real, non-protected-branch git repo with an activated mission type."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(
-        ["git", "init", "-b", "wp04-work"], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "init", "-b", "wp04-work"], cwd=repo, check=True, capture_output=True)
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test User")
     (repo / ".kittify").mkdir()
@@ -218,9 +216,7 @@ def _build_mission(repo: Path, slug: str) -> tuple[str, Path]:
     return mission_slug, feature_dir
 
 
-def _record_analysis(
-    repo: Path, mission_slug: str, body: str, *, tmp_path: Path, agent: str = "test-agent"
-) -> dict[str, Any]:
+def _record_analysis(repo: Path, mission_slug: str, body: str, *, tmp_path: Path, agent: str = "test-agent") -> dict[str, Any]:
     input_file = tmp_path / "report-body.md"
     input_file.write_text(body, encoding="utf-8")
     result = _run(
@@ -245,9 +241,13 @@ def _record_analysis(
 # ---------------------------------------------------------------------------
 
 
-def test_check_prerequisites_field_parity_with_host_cli(tmp_path: Path) -> None:
+def test_check_prerequisites_field_parity_with_host_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, _feature_dir = _build_mission(repo, "wp04-scenario1")
+    monkeypatch.setattr(
+        "specify_cli.context.resolver.now_utc_iso",
+        lambda: "2026-09-03T00:00:00Z",
+    )
 
     import contextlib
     import io
@@ -363,9 +363,7 @@ def test_check_prerequisites_missing_mission_fails_closed(tmp_path: Path) -> Non
     assert envelope["error_code"] == "MISSION_NOT_FOUND"
 
 
-def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """PR-TESTS-002 (severity 4, R3-confirmed LIVE defect, not merely
     untested): ``_classify_check_prerequisites_error`` translates the
     delegate's forbidden ``error_code: "FEATURE_CONTEXT_UNRESOLVED"`` to the
@@ -384,9 +382,7 @@ def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(
 
     import specify_cli.cli.commands.agent.mission_check_prerequisites as host_module
 
-    def _raises_feature_context_unresolved(
-        *, feature: str | None, json_output: bool, include_tasks: bool = False
-    ) -> None:
+    def _raises_feature_context_unresolved(*, feature: str | None, json_output: bool, include_tasks: bool = False) -> None:
         payload = {
             "error_code": "FEATURE_CONTEXT_UNRESOLVED",
             "mission_flag": feature,
@@ -468,9 +464,7 @@ def test_sanitize_forbidden_error_code_scrubs_dict_keys_and_substrings() -> None
 # ---------------------------------------------------------------------------
 
 
-def _host_record_analysis_error_code(
-    repo: Path, mission_slug: str, body: str, *, tmp_path: Path, agent: str = "test-agent"
-) -> str:
+def _host_record_analysis_error_code(repo: Path, mission_slug: str, body: str, *, tmp_path: Path, agent: str = "test-agent") -> str:
     """Invoke the host CLI's OWN ``record_analysis`` (``mission_record_analysis.py``)
     directly against *repo* and return its ``error_code`` -- ground truth for
     ordering-parity assertions, mirroring ``test_check_prerequisites_field_
@@ -530,9 +524,7 @@ def test_record_analysis_dirty_worktree_wins_over_empty_body_matching_host_cli(
     assert orch_envelope["success"] is False, orch_envelope
     assert orch_envelope["error_code"] == "DIRTY_WORKTREE", orch_envelope
 
-    host_error_code = _host_record_analysis_error_code(
-        repo, mission_slug, "", tmp_path=tmp_path
-    )
+    host_error_code = _host_record_analysis_error_code(repo, mission_slug, "", tmp_path=tmp_path)
     assert host_error_code == "DIRTY_WORKTREE"
 
     # The parity assertion itself: both surfaces agree on the SAME first
@@ -599,9 +591,7 @@ def test_record_analysis_never_reports_unknown_verdict_as_success(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
-def test_record_analysis_sc005a_swallowed_exception_but_written_reports_success(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_analysis_sc005a_swallowed_exception_but_written_reports_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, "wp04-scenario-sc005a")
 
@@ -630,9 +620,7 @@ def test_record_analysis_sc005a_swallowed_exception_but_written_reports_success(
 # ---------------------------------------------------------------------------
 
 
-def test_record_analysis_sc005b_hang_returns_within_enforced_timeout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_analysis_sc005b_hang_returns_within_enforced_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, "wp04-scenario-sc005b")
 
@@ -669,9 +657,7 @@ def test_record_analysis_sc005b_hang_returns_within_enforced_timeout(
 # ---------------------------------------------------------------------------
 
 
-def test_record_analysis_sc005c_stale_matching_verdict_reports_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_analysis_sc005c_stale_matching_verdict_reports_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, "wp04-scenario-sc005c")
 
@@ -741,9 +727,7 @@ def test_record_analysis_malformed_carrier_fails_closed(tmp_path: Path) -> None:
     assert not (feature_dir / "analysis-report.md").exists()
 
 
-def test_record_analysis_placement_resolution_required_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_analysis_placement_resolution_required_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An unresolvable write placement (``PlacementResolutionRequired``) must
     surface ``PLACEMENT_RESOLUTION_REQUIRED`` -- a typed-exception pass-
     through, never a bare crash or a silent fall-through to the write."""
@@ -754,13 +738,9 @@ def test_record_analysis_placement_resolution_required_fails_closed(
     from specify_cli.core.errors import PlacementResolutionRequired
 
     def _raises_placement_required(placement_ref: object, *, mission_slug: str) -> object:
-        raise PlacementResolutionRequired(
-            f"simulated unresolvable placement for mission {mission_slug!r}"
-        )
+        raise PlacementResolutionRequired(f"simulated unresolvable placement for mission {mission_slug!r}")
 
-    monkeypatch.setattr(
-        host_ra_module, "_require_record_analysis_placement", _raises_placement_required
-    )
+    monkeypatch.setattr(host_ra_module, "_require_record_analysis_placement", _raises_placement_required)
 
     envelope = _record_analysis(repo, mission_slug, _CARRIER_READY, tmp_path=tmp_path)
 

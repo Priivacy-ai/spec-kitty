@@ -5,7 +5,7 @@
 and ``spec-kitty charter generate``
 (:func:`charter.activation.compiler.provision_mission_type_activations`) both seed
 ``mission_type_activations`` from the same shipped
-``src/charter/packs/default.yaml``, but previously read it through two
+``src/charter/activation/packs/default.yaml``, but previously read it through two
 independent, near-identical stacks with divergent fail-closed behaviour:
 one (``specify_cli``) silently accepted an authored-empty list, the other
 (``charter.activation.compiler``) already raised.

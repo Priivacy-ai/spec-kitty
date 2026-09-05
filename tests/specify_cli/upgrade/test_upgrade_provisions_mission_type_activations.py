@@ -233,16 +233,6 @@ def test_upgrade_heals_stranded_project_and_unblocks_mission_creation(
 
     assert existing_mission_types(project) != []
 
-    # create_mission_core's safe_commit refuses a protected destination
-    # (FR-001 removed the swallowed-exception fallback); the project is still
-    # on the protected "main" branch _init_git_repo left it on, so check out
-    # a non-protected feature branch first -- exactly as the product's own
-    # ProtectedBranchRefused message instructs.
-    subprocess.run(
-        ["git", "checkout", "-q", "-b", "feature/healed-mission"],
-        cwd=project,
-        check=True,
-    )
     created = create_mission_core(project, "healed-mission", allow_worktree_context=True)
     assert created.mission_slug.startswith("healed-mission-")
 

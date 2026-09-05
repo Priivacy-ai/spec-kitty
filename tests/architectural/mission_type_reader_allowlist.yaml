@@ -68,7 +68,7 @@ domain_exempt_notes:
       The census/audit tool reads BOTH `mission_type` and legacy `mission` BY
       DESIGN — its whole job is to classify legacy-only missions as a distinct
       `legacy-key-only` bucket for the backfill. Field-awareness is the feature.
-  - path: src/charter/activation/interview.py
+  - path: src/charter/interview.py
     issue: "#3598"
     rationale: >-
       Reads `data.get("mission")` from the INTERVIEW form payload (self.mission),

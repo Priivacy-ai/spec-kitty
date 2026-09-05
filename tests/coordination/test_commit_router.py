@@ -152,6 +152,107 @@ def test_unprotected_direct_commit(tmp_path: Path) -> None:
     assert len(materialise_calls) == 0
 
 
+def test_protected_primary_refusal_names_mission_create_for_pre_tasks_kind(tmp_path: Path) -> None:
+    """Protected primary placement, PRE-TASKS kind → ``agent mission create`` remedy.
+
+    ``SPEC`` is a pre-tasks kind (write-surface-coherence): no ``tasks/``
+    directory exists yet for this mission, so the FR-012
+    ``finalize-tasks --target-branch`` escape hatch cannot persist durably
+    (mission_finalize.py reverts an override written before the missing-
+    ``tasks/`` gate). At this stage nothing but a regenerable spec.md is at
+    risk, so the working remedy is starting a mission on a feature branch,
+    not retargeting the stuck one (#255 fix-round-2, squad pass 2 MAJOR).
+    """
+    policy = _make_policy(protected=True)
+    primary_target = _make_primary_target()
+    mission_slug = "001-my-mission"
+    artifact = tmp_path / "spec.md"
+    artifact.write_text("# Spec\n", encoding="utf-8")
+
+    with (
+        _patch_topology(coord=True),
+        _patch_primary_target(),
+        patch(
+            "specify_cli.coordination.commit_router.resolve_placement_only",
+            return_value=primary_target,
+        ),
+        patch(
+            "specify_cli.coordination.commit_router.safe_commit",
+            return_value=_FakeCommitResult(),
+        ) as safe_commit,
+    ):
+        from specify_cli.coordination.commit_router import commit_for_mission
+
+        result = commit_for_mission(
+            repo_root=tmp_path,
+            mission_slug=mission_slug,
+            files=(artifact,),
+            message="Add spec",
+            policy=policy,
+            kind=MissionArtifactKind.SPEC,
+        )
+
+    assert result.status == "no_op_wrong_surface"
+    assert result.placement_ref == _PRIMARY_BRANCH
+    assert result.diagnostic is not None
+    assert (
+        f"spec-kitty agent mission create {mission_slug} --start-branch <feature-branch>" in result.diagnostic
+    )
+    assert "spec-kitty mission create --start-branch" not in result.diagnostic
+    assert "finalize-tasks --mission" not in result.diagnostic
+    safe_commit.assert_not_called()
+
+
+def test_protected_primary_refusal_names_real_finalize_tasks_command(tmp_path: Path) -> None:
+    """Protected primary placement, TASKS-STAGE kind → ``finalize-tasks`` remedy.
+
+    The mission named by ``mission_slug`` already has a ``tasks/`` directory
+    at this kind (``WORK_PACKAGE_TASK``), so the remedy is the FR-012
+    ``finalize-tasks --target-branch`` escape hatch that persists onto the
+    EXISTING mission's meta.json -- not ``agent mission create``, which mints
+    a fresh ULID per call and would leave a second, empty mission behind.
+    """
+    policy = _make_policy(protected=True)
+    primary_target = _make_primary_target()
+    mission_slug = "001-my-mission"
+    artifact = tmp_path / "WP01.md"
+    artifact.write_text("# WP01\n", encoding="utf-8")
+
+    with (
+        _patch_topology(coord=True),
+        _patch_primary_target(),
+        patch(
+            "specify_cli.coordination.commit_router.resolve_placement_only",
+            return_value=primary_target,
+        ),
+        patch(
+            "specify_cli.coordination.commit_router.safe_commit",
+            return_value=_FakeCommitResult(),
+        ) as safe_commit,
+    ):
+        from specify_cli.coordination.commit_router import commit_for_mission
+
+        result = commit_for_mission(
+            repo_root=tmp_path,
+            mission_slug=mission_slug,
+            files=(artifact,),
+            message="Add WP01",
+            policy=policy,
+            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        )
+
+    assert result.status == "no_op_wrong_surface"
+    assert result.placement_ref == _PRIMARY_BRANCH
+    assert result.diagnostic is not None
+    assert (
+        f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --target-branch <feature-branch>"
+        in result.diagnostic
+    )
+    assert "spec-kitty mission create --start-branch" not in result.diagnostic
+    assert "agent mission create" not in result.diagnostic
+    safe_commit.assert_not_called()
+
+
 def test_protected_coord_placement_materialises(tmp_path: Path) -> None:
     """Coordination kind under coord topology → materialiser called; artifact on coord branch.
 

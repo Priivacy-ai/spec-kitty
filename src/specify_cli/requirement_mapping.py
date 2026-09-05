@@ -14,19 +14,6 @@ from typing import Any, NamedTuple, TypedDict
 
 _REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
 _REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
-
-# --- #2991: Success-Criteria (SC-###) silent-drop detection ----------------
-#
-# ``SC-###`` tokens are OUTSIDE the ref graph by construction: ``_REF_PATTERN``
-# / ``_REF_FIND_PATTERN`` admit only ``FR``/``NFR``/``C``, and ``\bC-`` does
-# NOT match ``SC-`` (``S`` is a word char), so an author who writes
-# ``requirement_refs: [FR-001, SC-008]`` has ``SC-008`` matched by nothing and
-# dropped by :func:`normalize_requirement_refs_value` with NO signal -- the
-# fail-loud / silent-drop gap of epics #3410/#3549. Operator decision (c): SC
-# is NOT admitted as a first-class ref (the graph is deliberately not widened);
-# the discard is instead SIGNALLED through the existing non-blocking advisory
-# surface (FR-008/SC-005). The tail mirrors the FR/C ``-\d+`` shape (so the
-# single-digit ``SC-1`` form is covered too), case-insensitive.
 _SC_REF_FIND_PATTERN = re.compile(r"\bSC-\d+\b", re.IGNORECASE)
 
 # --- #3394: declared-requirement scoping -----------------------------------
@@ -216,27 +203,7 @@ def _discarded_sc_warning(wp_id: str, sc_tokens: list[str]) -> str:
 
 
 def find_discarded_sc_refs(tasks_dir: Path) -> list[str]:
-    """#2991: signal ``SC-###`` refs silently dropped from the ref graph.
-
-    ``normalize_requirement_refs_value`` scans with ``_REF_FIND_PATTERN``
-    (``FR``/``NFR``/``C`` only), so a ``SC-008`` token written into a WP's
-    ``requirement_refs`` matches nothing and vanishes with no diagnostic -- an
-    author then believes traceability exists when the ref was discarded. Per
-    operator decision (c) the graph is NOT widened to admit SC; instead this
-    detector reuses the RAW token reader
-    (:func:`read_all_wp_raw_requirement_refs` /
-    :func:`_extract_raw_tokens`), which preserves the original tokens BEFORE
-    normalization drops them, to see the SC tokens and name them.
-
-    The returned messages are surfaced through the same non-blocking advisory
-    channel as :func:`find_undeclared_requirement_citations` (NFR-001):
-    console + a JSON field, never a gate failure.
-
-    Returns:
-        One human-readable warning per WP that cites at least one ``SC-###``
-        token, naming the WP and its discarded SC tokens (sorted, de-duped,
-        uppercased). Empty when no WP cites an SC token.
-    """
+    """Signal ``SC-###`` refs that are silently dropped from the ref graph."""
     warnings: list[str] = []
     for wp_id, raw_tokens in read_all_wp_raw_requirement_refs(tasks_dir).items():
         sc_tokens = sorted(

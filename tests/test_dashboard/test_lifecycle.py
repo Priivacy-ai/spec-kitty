@@ -224,7 +224,10 @@ def test_stop_dashboard_sends_shutdown(monkeypatch, tmp_path):
     assert calls["shutdown"] >= 1
 
 
-def test_get_dashboard_status_reads_sync_metadata(monkeypatch, tmp_path):
+def test_get_dashboard_status_reads_health_metadata(monkeypatch, tmp_path):
+    """get_dashboard_status reports identity/health only — no sync fields remain."""
+    import dataclasses
+
     project_dir = tmp_path
     dashboard_file = project_dir / ".kittify" / ".dashboard"
     dashboard_file.parent.mkdir(parents=True)
@@ -245,12 +248,6 @@ def test_get_dashboard_status_reads_sync_metadata(monkeypatch, tmp_path):
                     "status": "ok",
                     "project_path": str(project_dir.resolve()),
                     "token": "secret",
-                    "websocket_status": "Connected",
-                    "sync": {
-                        "running": True,
-                        "last_sync": "2026-04-04T12:00:00+00:00",
-                        "consecutive_failures": 2,
-                    },
                 }
                 return json.dumps(payload).encode("utf-8")
 
@@ -261,10 +258,53 @@ def test_get_dashboard_status_reads_sync_metadata(monkeypatch, tmp_path):
     status = lifecycle.get_dashboard_status(project_dir)
 
     assert status.healthy is True
-    assert status.sync_running is True
-    assert status.last_sync == "2026-04-04T12:00:00+00:00"
-    assert status.consecutive_failures == 2
-    assert status.websocket_status == "Connected"
+    assert status.url == "http://127.0.0.1:12345"
+    assert status.port == 12345
+    assert status.token == "secret"
+    assert status.pid == 99999
+    field_names = {f.name for f in dataclasses.fields(lifecycle.DashboardStatus)}
+    assert field_names == {"healthy", "url", "port", "token", "pid"}, (
+        "DashboardStatus carries no sync-daemon metadata (E4 re-homing)"
+    )
+
+
+def test_get_dashboard_status_ignores_stale_sync_keys_in_payload(monkeypatch, tmp_path):
+    """A pre-re-homing dashboard still answering with a sync block stays healthy.
+
+    Mixed-version tolerance: get_dashboard_status keys on project identity and
+    never on the removed sync/websocket fields.
+    """
+    project_dir = tmp_path
+    dashboard_file = project_dir / ".kittify" / ".dashboard"
+    dashboard_file.parent.mkdir(parents=True)
+    lifecycle._write_dashboard_file(dashboard_file, "http://127.0.0.1:12345", 12345, "secret", pid=99999)
+
+    def fake_urlopen(_request, timeout=0.5):  # noqa: ARG001
+        class Response:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                payload = {
+                    "status": "ok",
+                    "project_path": str(project_dir.resolve()),
+                    "token": "secret",
+                    "sync": {"running": True, "last_sync": "2026-04-04T12:00:00+00:00"},
+                    "websocket_status": "Connected",
+                }
+                return json.dumps(payload).encode("utf-8")
+
+        return Response()
+
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", fake_urlopen)
+
+    status = lifecycle.get_dashboard_status(project_dir)
+    assert status.healthy is True
 
 
 def test_ensure_dashboard_running_restarts_stale_reused_daemon(monkeypatch, tmp_path):

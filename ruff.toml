@@ -1,5 +1,14 @@
 extend = "pyproject.toml"
 
+# Governed immutable research artifacts: per-mission scratch/evidence scripts
+# checked in under kitty-specs/<mission>/research/ for audit-trail purposes
+# (e.g. kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/
+# spec_kitty_home_pin_evidence/{clf.py,step3.py}). They are not runtime or
+# test code, are not meant to be edited after the fact, and were never held
+# to repo lint conventions. Exclude the whole research/ subtree rather than
+# per-file-ignores so future mission research directories don't reopen this.
+extend-exclude = ["kitty-specs/*/research/**"]
+
 # Generated Ruff baseline for the legacy lint debt present on origin/main as of 2026-05-01.
 # Keep new files under the existing Ruff rule set while allowing cleanup to happen file-by-file.
 [lint.extend-per-file-ignores]
@@ -86,20 +95,12 @@ extend = "pyproject.toml"
 "src/specify_cli/review/baseline.py" = ["ARG001", "S314"]
 "src/specify_cli/review/dirty_classifier.py" = ["ARG001", "SIM103"]
 "src/specify_cli/review/lock.py" = ["F401"]
-"src/specify_cli/saas/readiness.py" = ["UP035", "UP042"]
 "src/specify_cli/scripts/tasks/acceptance_support.py" = ["F822", "SIM102"]
 "src/specify_cli/scripts/tasks/tasks_cli.py" = ["C901", "F401", "SIM102", "SIM105", "SIM108", "UP035"]
 "src/specify_cli/skills/installer.py" = ["F401"]
 "src/specify_cli/skills/manifest.py" = ["F401"]
 "src/specify_cli/status/models.py" = ["F401"]
 "src/specify_cli/status/validate.py" = ["ARG001"]
-"src/specify_cli/sync/clock.py" = ["F401"]
-"src/specify_cli/sync/daemon.py" = ["F401", "SIM102", "SIM103", "SIM105", "SIM108", "UP035", "UP042"]
-"src/specify_cli/sync/dossier_pipeline.py" = ["C901"]
-"src/specify_cli/sync/namespace.py" = ["UP042"]
-"src/specify_cli/sync/replay.py" = ["UP035"]
-"src/specify_cli/sync/runtime_event_emitter.py" = ["UP037"]
-"src/specify_cli/sync/tracker_client_glue.py" = ["F401", "S311", "UP035"]
 "src/specify_cli/tracker/ticket_context.py" = ["E741"]
 "src/specify_cli/upgrade/feature_meta.py" = ["F401", "SIM108"]
 "src/specify_cli/upgrade/migrations/m_0_10_12_charter_cleanup.py" = ["ARG002"]
@@ -181,7 +182,6 @@ extend = "pyproject.toml"
 "tests/doctrine_synthesizer/test_conflict_failclosed.py" = ["F401"]
 "tests/dossier/test_api.py" = ["F401"]
 "tests/dossier/test_determinism.py" = ["B007", "E731", "F401", "F841", "UP035", "UP045"]
-"tests/dossier/test_drift_detector.py" = ["F401"]
 "tests/dossier/test_hasher.py" = ["B007", "F401"]
 "tests/dossier/test_http_runtime.py" = ["F401"]
 "tests/dossier/test_indexer.py" = ["F401", "SIM117"]
@@ -234,7 +234,6 @@ extend = "pyproject.toml"
 "tests/review/test_lock.py" = ["F841"]
 "tests/runtime/test_doctor_command_file_health.py" = ["F401"]
 "tests/runtime/test_package_exports.py" = ["B009"]
-"tests/saas/conftest.py" = ["UP035"]
 "tests/specify_cli/bulk_edit/test_gate.py" = ["E501", "F401"]
 "tests/specify_cli/bulk_edit/test_occurrence_map.py" = ["F401"]
 "tests/specify_cli/charter_lint/checks/test_contradiction.py" = ["F401"]
@@ -298,13 +297,6 @@ extend = "pyproject.toml"
 "tests/specify_cli/test_runtime_hard_fail.py" = ["F401"]
 "tests/specify_cli/test_template_lane_guard.py" = ["SIM102"]
 "tests/status/test_validate.py" = ["F401"]
-"tests/sync/test_daemon.py" = ["F401", "F841"]
-"tests/sync/test_daemon_intent_gate.py" = ["B017", "UP035"]
-"tests/sync/test_issue_598_hang_fixes.py" = ["SIM117"]
-"tests/sync/test_queue_resilience.py" = ["F401"]
-"tests/sync/tracker/conftest.py" = ["SIM105"]
-"tests/sync/tracker/test_local_service.py" = ["F841", "SIM117"]
-"tests/sync/tracker/test_saas_client.py" = ["B017"]
 "tests/tasks/test_finalize_tasks_json_output_unit.py" = ["E741"]
 "tests/test_dashboard/conftest.py" = ["SIM105"]
 "tests/test_dashboard/test_api_handler.py" = ["F401", "SIM109"]

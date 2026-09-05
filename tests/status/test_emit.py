@@ -17,6 +17,7 @@ import pytest
 
 import specify_cli.status.emit as emit_module
 from specify_cli.frontmatter import FrontmatterError
+from specify_cli.status import adapters
 from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.emit import (
     TransitionError,
@@ -42,14 +43,7 @@ from specify_cli.status.store import EVENTS_FILENAME, append_event, read_events
 
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
-from specify_cli.core.saas_sync_config import sync_active
-pytestmark = [
-    pytest.mark.fast,
-    pytest.mark.skipif(
-        not sync_active(),
-        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
-    ),
-]
+pytestmark = pytest.mark.fast
 # ── Fixtures ──────────────────────────────────────────────────
 
 
@@ -452,7 +446,6 @@ class TestEmitStatusTransition:
                 repo_root=lock_root,
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
 
         assert event.to_lane == Lane.CLAIMED
@@ -1117,7 +1110,12 @@ class TestPhase1CompatibilityBridge:
 
 
 class TestSaasFanOut:
-    """Tests for _saas_fan_out."""
+    """Tests for _saas_fan_out.
+
+    The fan-out seam is the status/adapters handler registry: production
+    registrants died with the sync transport (issue #5), so these tests
+    register a capturing handler exactly the way a future E3 emitter would.
+    """
 
     def _make_event(
         self,
@@ -1137,45 +1135,39 @@ class TestSaasFanOut:
             execution_mode="worktree",
         )
 
-    def test_import_error_silently_skipped(self):
-        """ImportError from sync module is silently skipped."""
-        event = self._make_event()
-        import sys
-
-        # Temporarily remove the sync module to simulate ImportError
-        saved = sys.modules.get("specify_cli.sync.events")
-        sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
-        try:
-            # Should not raise
-            _saas_fan_out(event, "034-test-feature", None)
-        finally:
-            if saved is not None:
-                sys.modules["specify_cli.sync.events"] = saved
-            else:
-                sys.modules.pop("specify_cli.sync.events", None)
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self):
+        adapters.reset_handlers()
+        yield
+        adapters.reset_handlers()
 
     def test_saas_called_when_available(self):
-        """emit_wp_status_changed is called when sync module is available."""
-        from specify_cli.sync.events import WPStatusChangeMetadata
+        """A registered fan-out handler receives the full canonical call shape."""
+        from specify_cli.status.wp_status_metadata import WPStatusChangeMetadata
 
         event = self._make_event(
             from_lane=Lane.CLAIMED,
             to_lane=Lane.IN_PROGRESS,
         )
-        mock_emit = MagicMock()
-        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
-            _saas_fan_out(event, "034-test-feature", None)
+        captured: list[dict] = []
 
+        def _handler(**kwargs):
+            captured.append(dict(kwargs))
+
+        adapters.register_saas_fanout_handler(_handler)
+        _saas_fan_out(event, "034-test-feature", None)
+
+        assert len(captured) == 1, "fan-out handler must be invoked exactly once"
         # ``occurred_at`` is the canonical local lane-transition time threaded
         # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
-        mock_emit.assert_called_once_with(
-            wp_id="WP01",
-            from_lane="claimed",
-            to_lane="in_progress",
-            actor="test-actor",
-            mission_slug="034-test-feature",
-            mission_id=None,
-            metadata=WPStatusChangeMetadata(
+        assert captured[0] == {
+            "wp_id": "WP01",
+            "from_lane": "claimed",
+            "to_lane": "in_progress",
+            "actor": "test-actor",
+            "mission_slug": "034-test-feature",
+            "mission_id": None,
+            "metadata": WPStatusChangeMetadata(
                 causation_id="01HXYZ0000000000000000SAAS",
                 policy_metadata=None,
                 force=False,
@@ -1185,8 +1177,9 @@ class TestSaasFanOut:
                 evidence=None,
                 occurred_at=event.at,
             ),
-            ensure_daemon=True,
-        )
+            "ensure_daemon": True,
+            "repo_root": None,
+        }
 
     def test_planned_to_claimed_now_emits(self):
         """planned->claimed now emits (no longer collapsed to no-op)."""
@@ -1194,10 +1187,10 @@ class TestSaasFanOut:
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
         )
-        mock_emit = MagicMock()
-        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
-            _saas_fan_out(event, "034-test-feature", None)
-        mock_emit.assert_called_once()
+        captured: list[dict] = []
+        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        _saas_fan_out(event, "034-test-feature", None)
+        assert len(captured) == 1
 
     def test_saas_exception_does_not_propagate(self):
         """Exception from SaaS emit is caught and logged."""
@@ -1205,37 +1198,37 @@ class TestSaasFanOut:
             from_lane=Lane.CLAIMED,
             to_lane=Lane.IN_PROGRESS,
         )
-        with (
-            patch(
-                "specify_cli.sync.events.emit_wp_status_changed",
-                side_effect=RuntimeError("network error"),
-            ),
-            patch("specify_cli.status.adapters.logger") as mock_logger,
-        ):
+
+        def _boom(**kwargs):
+            raise RuntimeError("network error")
+
+        with patch("specify_cli.status.adapters.logger") as mock_logger:
             # Should not raise. After P1.3 the warning is logged by the
             # adapter (specify_cli.status.adapters) rather than by
             # status.emit, since the try/except moved into fire_saas_fanout.
+            adapters.register_saas_fanout_handler(_boom)
             _saas_fan_out(event, "034-test-feature", None)
             mock_logger.warning.assert_called_once()
 
     def test_saas_failure_does_not_block_emit(self, feature_dir: Path):
         """Full emit succeeds even when SaaS fan-out fails."""
+
+        def _boom(**kwargs):
+            raise RuntimeError("network down")
+
+        adapters.register_saas_fanout_handler(_boom)
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed",
-            side_effect=RuntimeError("network down"),
-        ):
-            event = emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            ))
-            assert event.to_lane == Lane.CLAIMED
-            # Event was still persisted (genesis->planned seed + planned->claimed)
-            events = read_events(feature_dir)
-            assert len(events) == 2
+        event = emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
+        assert event.to_lane == Lane.CLAIMED
+        # Event was still persisted (genesis->planned seed + planned->claimed)
+        events = read_events(feature_dir)
+        assert len(events) == 2
 
 
 # ── Pipeline Order Tests ─────────────────────────────────────
@@ -1466,15 +1459,12 @@ class TestReasonGuard:
 
 
 class TestMergeLightweightEmit:
-    def test_emit_status_transition_can_skip_dossier_sync_and_daemon_start(
+    def test_emit_status_transition_can_skip_daemon_start(
         self,
         feature_dir: Path,
     ) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with (
-            patch.object(emit_module, "_saas_fan_out") as mock_fanout,
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled") as mock_dossier,
-        ):
+        with patch.object(emit_module, "_saas_fan_out") as mock_fanout:
             event = emit_status_transition(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
@@ -1483,18 +1473,19 @@ class TestMergeLightweightEmit:
                 actor="merge",
                 repo_root=feature_dir.parent.parent,
                 ensure_sync_daemon=False,
-                sync_dossier=False,
             )
 
         assert event.to_lane == Lane.CLAIMED
         mock_fanout.assert_called_once()
         assert mock_fanout.call_args.kwargs["ensure_sync_daemon"] is False
-        mock_dossier.assert_not_called()
 
 
 class TestBatchEmit:
     def test_empty_batch_returns_empty(self) -> None:
         assert emit_status_transition_batch([]) == []
+
+    def test_empty_batch_accepts_retired_326_dossier_keyword(self) -> None:
+        assert emit_status_transition_batch([], sync_dossier=False) == []
 
     def test_batch_requires_first_request_identity(self) -> None:
         with pytest.raises(TypeError, match="requires feature_dir"):
@@ -1623,7 +1614,6 @@ class TestBatchEmit:
                         reason="ready for review",
                     ),
                 ],
-                sync_dossier=False,
             )
 
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW]
@@ -1685,7 +1675,6 @@ class TestBatchEmit:
                         evidence=valid_evidence_dict,
                     ),
                 ],
-                sync_dossier=False,
             )
 
         assert done[-1].evidence is not None
@@ -1707,7 +1696,6 @@ class TestBatchEmit:
                         actor="agent",
                     )
                 ],
-                sync_dossier=False,
             )
 
         assert len(events) == 1

@@ -18,7 +18,7 @@ Design (FR-013..016, data model §6, contracts C3.2/C3.3/C3.4)
   never collapsed to a bool.
 
 * :func:`cascade_activation_targets` walks the DRG **forward** along the doctrine
-  reference relations (:data:`REFERENCE_RELATIONS`) from the activation source,
+  reference relations (:data:`_REFERENCE_RELATIONS`) from the activation source,
   bucketing reachable artifacts by kind, then keeps only the kinds the scope
   selects (FR-014). Kinds referenced but *outside* the scope are reported as
   skipped-by-scope.
@@ -29,7 +29,7 @@ Design (FR-013..016, data model §6, contracts C3.2/C3.3/C3.4)
 
 * :func:`deactivation_plan` is the shared-reference-safe removal path
   (FR-015/016, C-005, I-AC2). A cascade candidate is **exclusive** iff it is
-  unreachable (forward closure over :data:`REFERENCE_RELATIONS`) from **every**
+  unreachable (forward closure over :data:`_REFERENCE_RELATIONS`) from **every**
   other still-activated source once ``target_urn`` is removed. Exclusive
   candidates are deactivated; **shared** candidates are skipped and the still-
   referencing active source is named. No shared artifact is ever removed
@@ -64,7 +64,6 @@ from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactK
 from charter.offering.drg.models import DRGEdge, DRGGraph, Relation
 
 __all__ = [
-    "REFERENCE_RELATIONS",
     "CascadeScope",
     "DeactivationPlan",
     "ReferencedArtifact",
@@ -100,7 +99,7 @@ __all__ = [
 #: relation — traversal reach and candidacy are separate concerns. The remaining
 #: relations stay excluded (lineage, overlay, runtime handoff, tension,
 #: anti-pattern) so the cascade never over-reaches; the ADR tabulates why.
-REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
+_REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
     {
         Relation.REQUIRES,
         Relation.SUGGESTS,
@@ -241,7 +240,7 @@ def _forward_reference_closure(
     BFS from *sources* following *adj*; returns every reachable URN **excluding**
     the seed sources themselves (the cascade targets are the artifacts a source
     *references*, not the source). ``adj`` is the forward adjacency restricted to
-    :data:`REFERENCE_RELATIONS`.
+    :data:`_REFERENCE_RELATIONS`.
     """
     visited: set[str] = set(sources)
     queue: deque[str] = deque(sources)
@@ -255,10 +254,10 @@ def _forward_reference_closure(
 
 
 def _reference_adjacency(edges: list[DRGEdge]) -> dict[str, list[str]]:
-    """Build forward adjacency (source → [target]) over :data:`REFERENCE_RELATIONS`."""
+    """Build forward adjacency (source → [target]) over :data:`_REFERENCE_RELATIONS`."""
     adj: dict[str, list[str]] = {}
     for edge in edges:
-        if edge.relation in REFERENCE_RELATIONS:
+        if edge.relation in _REFERENCE_RELATIONS:
             adj.setdefault(edge.source, []).append(edge.target)
     return adj
 
@@ -266,19 +265,16 @@ def _reference_adjacency(edges: list[DRGEdge]) -> dict[str, list[str]]:
 def _referenced_artifacts(
     graph: DRGGraph, source_urn: str
 ) -> tuple[list[ReferencedArtifact], list[ReferencedArtifact]]:
-    """Return the two partitions of nodes referenced (transitively) from *source_urn*.
+    """Return activatable and kind-filtered nodes referenced from *source_urn*.
 
-    Pure forward closure over :data:`REFERENCE_RELATIONS` (which now follows the
-    action hop via ``scope``/``instantiates``), filtered twice: non-artifact nodes
-    (actions, glossary) are dropped because :func:`_kind_of` returns ``None``, and
-    artifact-kind nodes are then partitioned by the canonical
-    :data:`~charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` set (ADR
-    2026-08-20-1) into ``activatable`` and ``kind_filtered``. The closure still
-    *reaches* the kind-filtered nodes — traversal reach and candidacy are separate
-    concerns — but this is the single shared seam (C-002) that collects them
-    instead of silently dropping them (issue #3705), so every caller can report
-    what it saw. Each list is sorted by ``(kind, artifact_id)`` for deterministic
-    rendering.
+    Pure forward closure over :data:`_REFERENCE_RELATIONS`, filtered twice:
+    non-artifact nodes are dropped because :func:`_kind_of` returns ``None``,
+    and artifact-kind nodes are partitioned by the canonical
+    :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_KINDS`
+    membership into ``activatable`` and ``kind_filtered``. The closure still
+    reaches kind-filtered nodes, but this shared seam collects them so every
+    caller can report what it saw. Each list is sorted by
+    ``(kind, artifact_id)`` for deterministic rendering.
 
     Returns
     -------
@@ -295,11 +291,6 @@ def _referenced_artifacts(
         if kind is None:
             continue
         ref = ReferencedArtifact(kind=kind, artifact_id=_bare_id(urn), urn=urn)
-        # ADR 2026-08-20-1 (#2829): traversal follows ``instantiates`` (and
-        # ``scope``) so the closure passes *through* action nodes to the governance
-        # and templates they reach; candidacy then partitions on the single
-        # canonical ``CHARTER_ACTIVATABLE_KINDS`` authority (C-001, unchanged) —
-        # one membership test, no per-specific-kind branch.
         if kind not in CHARTER_ACTIVATABLE_KINDS:
             kind_filtered.append(ref)
             continue
@@ -365,7 +356,7 @@ def cascade_activation_targets(
 ) -> CascadeActivationResult:
     """Compute scoped cascade activation targets for *source_urn* (FR-014).
 
-    Walks the DRG forward along :data:`REFERENCE_RELATIONS` from *source_urn*,
+    Walks the DRG forward along :data:`_REFERENCE_RELATIONS` from *source_urn*,
     buckets the referenced artifact-kind nodes by kind, and partitions them by
     *scope*: kinds the scope selects go to ``activated``; kinds it does not go to
     ``skipped_by_scope``. ``--cascade all`` selects every referenced kind. Pure
@@ -470,7 +461,7 @@ def referenced_but_not_cascaded(
     direct activation still completes, but the operator should be warned about the
     referenced artifacts that were *not* activated. This returns those artifacts
     bucketed by kind plus a recovery hint (Contract C3.2). Pure forward closure
-    over :data:`REFERENCE_RELATIONS`; no per-kind logic.
+    over :data:`_REFERENCE_RELATIONS`; no per-kind logic.
 
     Parameters
     ----------
@@ -572,7 +563,7 @@ def deactivation_plan(
     """Compute a shared-reference-safe cascade deactivation plan (FR-015/016, C-005).
 
     The candidate set is the in-scope artifacts referenced (forward closure over
-    :data:`REFERENCE_RELATIONS`) by *target_urn*. A candidate is **exclusive** —
+    :data:`_REFERENCE_RELATIONS`) by *target_urn*. A candidate is **exclusive** —
     and therefore safe to deactivate — iff it is unreachable from **every** other
     still-activated source once *target_urn* is removed from the active set.
     Exclusivity is determined by reverse reachability over the merged DRG: the

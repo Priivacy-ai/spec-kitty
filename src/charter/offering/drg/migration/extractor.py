@@ -30,7 +30,10 @@ from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Re
 from charter.offering.drg.validator import assert_valid
 from charter.offering.missions.mission_step_repository import MissionStepRepository
 from charter.offering.missions.repository import MissionTemplateRepository
-from charter.offering.missions.step_projection import iter_template_refs, project_action_sequence
+from charter.offering.missions.step_projection import (
+    iter_template_refs,
+    project_action_sequence,
+)
 from charter.offering.pack_paths import built_in_root, doctrine_package_dir
 from charter.offering.template_catalog import template_id_for, template_urn
 
@@ -148,12 +151,12 @@ def _missions_root(doctrine_root: Path) -> Path:
 #: subdirectory (``<kind>/testing/foo.tactic.yaml``) resolve to the same stem.
 #:
 #: **Two path shapes are matched (relocate-builtin-doctrine-packs).** The flatten
-#: (WP03) moved artifact *files* from ``src/doctrine/<kind>/built-in/`` to the
+#: (WP03) moved artifact *files* from ``src/charter/offering/<kind>/built-in/`` to the
 #: flattened ``packs/built-in/<kind>/``, but the ``references:`` path strings
 #: authored *inside* the styleguide/toolguide YAML were deliberately **not**
 #: rewritten (that move was a pure ``git mv`` — no in-file edits). Those strings
 #: are the actual input :func:`_resolve_path_ref` reads, so the legacy
-#: ``src/doctrine/<kind>/built-in/`` branch is load-bearing: dropping it would
+#: ``src/charter/offering/<kind>/built-in/`` branch is load-bearing: dropping it would
 #: silently lose every reference-derived ``suggests`` edge and shrink the shipped
 #: graph. The flattened ``packs/built-in/<kind>/`` branch (inner ``built-in``
 #: dropped) resolves any reference authored in the new home. A path string
@@ -168,12 +171,12 @@ def _missions_root(doctrine_root: Path) -> Path:
 def _kind_path_pattern(kind_dir: str, extension: str) -> re.Pattern[str]:
     """Compile a dual-home path-ref pattern for one artifact *kind_dir*.
 
-    Matches both the legacy ``src/doctrine/<kind_dir>/built-in/…`` home (the
+    Matches both the legacy ``src/charter/offering/<kind_dir>/built-in/…`` home (the
     format the shipped ``references:`` strings still carry) and the flattened
     ``packs/built-in/<kind_dir>/…`` home (inner ``built-in`` dropped), capturing
     the subdir-stripped filename stem (``*extension*`` = e.g. ``tactic``).
     """
-    home = rf"(?:src/doctrine/{kind_dir}/built-in|packs/built-in/{kind_dir})"
+    home = rf"(?:src/charter/offering/{kind_dir}/built-in|packs/built-in/{kind_dir})"
     return re.compile(rf"{home}/(?:.+/)?([^/]+)\.{extension}\.yaml$")
 
 
@@ -192,7 +195,7 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
     """Return ``(kind, raw_id)`` for a raw path-string reference, or ``None``.
 
     Styleguide and toolguide ``references`` fields carry plain file paths such as
-    ``src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml`` (legacy
+    ``src/charter/offering/tactics/built-in/tdd-red-green-refactor.tactic.yaml`` (legacy
     home, still authored in the shipped YAML) or
     ``packs/built-in/tactics/tdd-red-green-refactor.tactic.yaml`` (flattened
     home).  This helper maps such a path to the canonical ``(kind, raw_id)`` pair
@@ -1219,7 +1222,7 @@ def _iter_mission_type_data(
 ) -> Iterator[tuple[str, dict[str, Any], Path]]:
     """Yield ``(id, data, path)`` for each shipped mission-type YAML.
 
-    Canonical discovery source for the ``src/doctrine/missions/mission_types/``
+    Canonical discovery source for the ``src/charter/offering/missions/mission_types/``
     surface: both :func:`_discover_mission_type_nodes` (nodes) and
     :func:`extract_mission_type_edges` (edges) consume it so the glob is defined
     once. Files without an ``id`` or that fail to parse are skipped.
@@ -1244,7 +1247,7 @@ def _discover_mission_type_nodes(
     """Register a ``mission_type`` node for each shipped mission-type YAML.
 
     Mirrors :func:`_discover_built_in_artifact_nodes`: one node per
-    ``src/doctrine/missions/mission_types/*.yaml`` file, ``urn=mission_type:<id>``,
+    ``src/charter/offering/missions/mission_types/*.yaml`` file, ``urn=mission_type:<id>``,
     labelled with the file's ``display_name``. Edges from each mission_type to
     its ``action_sequence`` steps are emitted by
     :func:`extract_mission_type_edges`, so ``_KIND_MAP`` now carries a
@@ -1383,7 +1386,7 @@ def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
 #: :func:`extract_governance_profile_scope_edges` (#3604). Mirrors
 #: ``_ACTION_SCOPE_FIELDS`` (action-index scope fields) but keyed on the
 #: ``selected_*`` field names declared by
-#: :class:`charter.activation.mission_type_profiles.MissionTypeProfile` -- the two field
+#: :class:`charter.mission_type_profiles.MissionTypeProfile` -- the two field
 #: sets are named differently (one is action-grain, the other type-grain) so a
 #: single shared table would obscure which grain a field belongs to.
 _GOVERNANCE_PROFILE_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
@@ -1581,7 +1584,7 @@ def generate_graph(
     """Compose extraction + calibration into a validated ``graph.yaml``.
 
     Args:
-        doctrine_root: Path to ``src/doctrine/``.
+        doctrine_root: Path to ``src/charter/offering/``.
         output_path: Locates the output *directory* (``output_path.parent``).
             The graph is written there as per-kind ``<kind>.graph.yaml``
             fragments and any ``graph.yaml`` monolith in that directory is
@@ -1877,7 +1880,7 @@ def model_to_graph_dict(model: BaseModel) -> dict[str, Any]:
     list, so a field added to the model is written without anyone remembering
     to update this function. This is the **public, canonical** DRG mapping
     writer (T001, mission ``doctrine-delivery-reachability``): every sibling
-    write path — ``charter.activation.synthesizer.project_drg`` and
+    write path — ``charter.synthesizer.project_drg`` and
     ``specify_cli.migration.rewrite_opposed_by`` — routes through it so no writer
     restates the field list by hand. It is registered as a ``MappingWriter`` in
     ``specify_cli.drg_writers.registry``; the registry's completeness gate

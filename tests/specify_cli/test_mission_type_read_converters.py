@@ -54,17 +54,13 @@ class TestMissionMetadataReadPath:
     def test_legacy_only_does_not_resolve(self, tmp_path: Path) -> None:
         from specify_cli.mission_metadata import resolve_mission_identity
 
-        identity = resolve_mission_identity(
-            _write_meta(tmp_path / "m", {"mission_slug": "m", "mission": "software-dev"})
-        )
+        identity = resolve_mission_identity(_write_meta(tmp_path / "m", {"mission_slug": "m", "mission": "software-dev"}))
         assert identity.mission_type == ""
 
     def test_canonical_resolves(self, tmp_path: Path) -> None:
         from specify_cli.mission_metadata import resolve_mission_identity
 
-        identity = resolve_mission_identity(
-            _write_meta(tmp_path / "m", {"mission_slug": "m", "mission_type": "research"})
-        )
+        identity = resolve_mission_identity(_write_meta(tmp_path / "m", {"mission_slug": "m", "mission_type": "research"}))
         assert identity.mission_type == "research"
 
 

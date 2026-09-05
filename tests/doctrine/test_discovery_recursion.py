@@ -1,6 +1,6 @@
 """Unit tests for the shared org/project recursion authority (WP01 / T003).
 
-The authority (:mod:`charter.offering.discovery_recursion`) is the single seam both the
+The authority (:mod:`doctrine.discovery_recursion`) is the single seam both the
 loader and the charter-activation resolver read so recursion cannot diverge per
 kind (C-001, FR-002). Recursion is unconditional — every kind recurses — and the
 authority never lists a non-recursive exclusion.

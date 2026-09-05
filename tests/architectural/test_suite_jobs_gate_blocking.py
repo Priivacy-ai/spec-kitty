@@ -31,6 +31,11 @@ explicit state:
 Anti-goals (contract): do NOT hard-code the current job list (derive
 ``pytest_jobs`` from the parsed workflow model so a FUTURE job is covered
 automatically); do NOT match ``pytest`` inside a comment or a string literal.
+
+The reduced interim ``ci-quality.yml`` contains no pytest jobs. The live
+checks below prove that absence and bind ``quality-gate.needs`` to the four
+producer jobs it blocks; the fault-injection substrate keeps the general
+containment relation ready when suite jobs return.
 """
 
 from __future__ import annotations
@@ -80,36 +85,7 @@ NON_BLOCKING_ALLOWLIST: dict[str, str] = {
         "incidental blind spot. Re-enabling it MUST be paired with either a "
         "`quality-gate.needs` edge or an updated rationale here."
     ),
-    "draft-fail-fast-cancel": (
-        "Non-blocking BY DESIGN (mission ci-flake-report-workflow WP04, "
-        "FR-009). It invokes no pytest — its single step calls the GitHub "
-        "Actions REST API to cancel the in-flight run when `lint` or "
-        "`kernel-tests` fails on a draft PR — so it is never itself a suite "
-        "whose result the gate should evaluate. It exists to shorten a "
-        "doomed draft run, not to report test outcomes; quality-gate stays "
-        "the sole blocking authority regardless of whether this job fires."
-    ),
 }
-
-# Jobs T082 requires an EXPLICIT state for (gate-blocking OR allowlisted),
-# independent of whether the anchored pytest-command parser actually detects
-# them as pytest-invoking (mutation-testing's `if: false` echo does not).
-_EXPLICITLY_RESOLVED_JOBS: tuple[str, ...] = ("slow-tests", "mutation-testing")
-
-
-def pytest_jobs_of(workflow_name: str) -> frozenset[str]:
-    """FR-012: jobs in ``workflow_name`` with >=1 real pytest-invoking step.
-
-    Reuses ``_gate_coverage``'s existing anchored run-command parser
-    (:func:`_gate_coverage.parse_workflow` / ``parse_pytest_invocation``) — a
-    :class:`_gate_coverage.Gate` is only emitted for a job whose *real
-    command* (after stripping env-assignments and runner prefixes, and never
-    matching inside a comment or a quoted string) begins with the literal
-    ``pytest`` token. Do NOT hard-code the job list here (contract anti-goal).
-    """
-    return frozenset(
-        gate.job for gate in gc.load_gates() if gate.workflow == workflow_name
-    )
 
 
 def blocking_violations(
@@ -121,34 +97,25 @@ def blocking_violations(
     return pytest_jobs - frozenset(allowlist) - quality_gate_needs
 
 
+def pytest_jobs_of(workflow_name: str) -> frozenset[str]:
+    """Jobs in ``workflow_name`` with at least one real pytest invocation."""
+    return frozenset(gate.job for gate in gc.load_gates() if gate.workflow == workflow_name)
+
+
 def _ci_quality_needs() -> frozenset[str]:
     model = gc.load_workflow_model(gc.WORKFLOWS_DIR / _CI_QUALITY_NAME)
     return frozenset(model.job_needs[_QUALITY_GATE_JOB])
 
 
-# ---------------------------------------------------------------------------
-# Live assertions (ci-quality.yml).
-# ---------------------------------------------------------------------------
+def test_reduced_ci_quality_has_no_pytest_jobs_live() -> None:
+    """The interim producer is lint/build/install only, not a second suite runner."""
+    assert pytest_jobs_of(_CI_QUALITY_NAME) == frozenset()
 
 
-def test_pytest_jobs_is_non_vacuous_live() -> None:
-    """Guard against a vacuous relation: real pytest jobs are actually parsed."""
-    assert pytest_jobs_of(_CI_QUALITY_NAME), (
-        "no pytest-invoking job was parsed from ci-quality.yml — the relation "
-        "would pass vacuously"
-    )
-
-
-def test_pytest_jobs_minus_allowlist_are_gate_blocking_live() -> None:
-    """FR-012: every pytest job, minus the reasoned allowlist, blocks the gate."""
-    violations = blocking_violations(
-        pytest_jobs_of(_CI_QUALITY_NAME),
-        _ci_quality_needs(),
-        NON_BLOCKING_ALLOWLIST,
-    )
-    assert not violations, (
-        f"pytest-invoking job(s) absent from both `quality-gate.needs` and "
-        f"`NON_BLOCKING_ALLOWLIST` (un-gated suite job(s)): {sorted(violations)}"
+def test_reduced_quality_gate_needs_exact_blocking_set_live() -> None:
+    """Every non-gate producer job blocks the reduced quality gate."""
+    assert _ci_quality_needs() == frozenset(
+        {"lint", "build-wheel", "clean-install-verification", "uv-lock-check"}
     )
 
 
@@ -156,33 +123,6 @@ def test_allowlist_entries_carry_rationale() -> None:
     """Contract: every ``NON_BLOCKING_ALLOWLIST`` entry has a non-empty reason."""
     empty = [job for job, reason in NON_BLOCKING_ALLOWLIST.items() if not reason.strip()]
     assert not empty, f"NON_BLOCKING_ALLOWLIST entries with an empty rationale: {empty}"
-
-
-def test_slow_tests_and_mutation_testing_are_explicitly_resolved_live() -> None:
-    """T082: both jobs are EITHER gate-blocking OR allowlisted-with-rationale.
-
-    Asserted directly (not merely relying on ``pytest_jobs`` incidentally
-    catching them) because ``mutation-testing`` is ``if: false``-disabled and
-    invokes no pytest command today — it would never be flagged by the
-    anchored derivation above, yet FR-012 still requires it resolved to an
-    explicit, non-silent state.
-    """
-    needs = _ci_quality_needs()
-    unresolved = [
-        job
-        for job in _EXPLICITLY_RESOLVED_JOBS
-        if job not in needs and job not in NON_BLOCKING_ALLOWLIST
-    ]
-    assert not unresolved, (
-        f"job(s) left in the silently-absent state (neither gate-blocking nor "
-        f"allowlisted-with-rationale): {unresolved}"
-    )
-
-
-def test_quarantine_visibility_stays_allowlisted_not_gated_live() -> None:
-    """C-005 corollary: quarantine-visibility is allowlisted, never in needs."""
-    assert "quarantine-visibility" in NON_BLOCKING_ALLOWLIST
-    assert "quarantine-visibility" not in _ci_quality_needs()
 
 
 # ---------------------------------------------------------------------------
@@ -218,9 +158,9 @@ def test_faultinjection_new_pytest_job_without_gate_edge_reds(tmp_path: Path) ->
     catches exactly it.
     """
     wf = write_workflow(tmp_path, _FIXTURE_WORKFLOW, name="wf.yml")
-    # `pytest_jobs_of` filters via `gc.load_gates()`, which only ever parses
-    # the 5 real `WORKFLOW_FILES` under `WORKFLOWS_DIR` — the fixture lives
-    # outside that dir, so parse it directly with the same underlying parser.
+    # `gc.load_gates()` only ever parses the 5 real `WORKFLOW_FILES` under
+    # `WORKFLOWS_DIR` — the fixture lives outside that dir, so parse it
+    # directly with the same underlying parser.
     gates = gc.parse_workflow(wf)
     pytest_jobs = frozenset(gate.job for gate in gates)
     assert pytest_jobs == frozenset({"existing-suite", "sneaky-new-suite"})

@@ -38,7 +38,7 @@ from mission_runtime import (
 # repo's dead-symbol gate (FR-303, ``tests/architectural/test_no_dead_symbols.py``)
 # requires every exported name to have a src consumer. The module's fuller public
 # vocabulary (``SurfaceVerdict``/``NoOp``/``NonCommittable``/``Surface``, the
-# ``REMEDY_*`` constants, ``classify_noncommit_outcome``, ``exit_code_for``) stays
+# ``REMEDY_*`` constants, ``_classify_noncommit_outcome``, ``_exit_code_for``) stays
 # defined at module scope and is imported directly by the tests; it rejoins
 # ``__all__`` as the remaining commit-surface loci are wired onto this authority
 # (epic #2160).
@@ -63,17 +63,14 @@ __all__ = [
 #: ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`` is the operator hatch that folds
 #: ``primary_protected`` to ``False`` at the caller boundary (rule 6), degrading rule
 #: 3 to rule 4.
-REMEDY_PROTECTED_PRIMARY: Final[str] = (
-    "--start-branch <feature-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
-)
+REMEDY_PROTECTED_PRIMARY: Final[str] = "--start-branch <feature-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
 
 #: The remedy offered when a commit-bearing operation targets the WRONG surface
 #: (the artifact is absent at / never staged to the resolved placement). A
 #: wrong-surface situation is a :class:`Refuse`, never a :class:`NoOp` (contract
 #: §2 rule 5) — reporting exit 0 here would falsely claim a write landed.
 REMEDY_WRONG_SURFACE: Final[str] = (
-    "Commit the artifact to its own resolved surface; it was not present at the "
-    "resolved placement, so the commit would no-op against the wrong surface."
+    "Commit the artifact to its own resolved surface; it was not present at the resolved placement, so the commit would no-op against the wrong surface."
 )
 
 
@@ -143,9 +140,7 @@ class SurfaceVerdict:
 # ---------------------------------------------------------------------------
 
 
-def coord_topology_reachable(
-    pr_bound: bool, primary_protected: bool, current_is_primary: bool
-) -> bool:
+def coord_topology_reachable(pr_bound: bool, primary_protected: bool, current_is_primary: bool) -> bool:
     """Coordination routing is reachable iff ``pr_bound and (primary_protected or current_is_primary)``.
 
     The create-time predicate (contract §1): a mission mints a coordination
@@ -209,7 +204,7 @@ def resolve_surface_authority(
 
     ``NoOp`` and wrong-surface :class:`Refuse` outcomes are runtime facts (staging
     state), NOT derivable from these static inputs — map a router outcome label to
-    them via :func:`classify_noncommit_outcome`.
+    them via :func:`_classify_noncommit_outcome`.
 
     Rule 6: ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`` folds into
     ``primary_protected=False`` at the CALLER boundary (this function takes the
@@ -273,7 +268,7 @@ _REASON_NO_CHANGES: Final = "no_op_no_changes"
 _DEFAULT_NO_OP_REASON: Final = "no_op"
 
 
-def classify_noncommit_outcome(status: str, reason: str | None = None) -> NonCommittable:
+def _classify_noncommit_outcome(status: str, reason: str | None = None) -> NonCommittable:
     """Map a runtime commit-router outcome label to its :class:`NonCommittable` verdict (rule 5).
 
     The load-bearing case (contract §2 rule 5): the router labels a wrong-surface
@@ -316,7 +311,7 @@ def classify_noncommit_outcome(status: str, reason: str | None = None) -> NonCom
 # ---------------------------------------------------------------------------
 
 
-def exit_code_for(verdict: NonCommittable) -> int:
+def _exit_code_for(verdict: NonCommittable) -> int:
     """The canonical process exit code for a :class:`NonCommittable` outcome.
 
     ONE mapping shared by every consumer and the golden harness (DIR-044): a

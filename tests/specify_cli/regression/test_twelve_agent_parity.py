@@ -26,7 +26,7 @@ Commit the updated baseline files alongside the template change.
 TODO (reconsider this test's design if it keeps causing friction):
     This guard pins *byte-identical* rendered output for 12 agents, so ANY
     legitimate one-line prose edit to a doctrine source prompt
-    (``src/doctrine/missions/mission-steps/**``) forces regenerating ~12
+    (``src/charter/offering/missions/mission-steps/**``) forces regenerating ~12
     baseline files, none of which the reviewer reads. The baseline asserts
     byte-identity, not semantic correctness — it catches accidental drift but
     also fires loudly on every intended change, and the large mechanical diff
@@ -58,7 +58,7 @@ from specify_cli.template.asset_generator import render_command_template
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# relocated mission-steps/ from src/charter/offering/missions/mission-steps to
 # packs/built-in/missions/mission-steps.
 TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
 

@@ -1,7 +1,8 @@
-"""Release workflow ownership regression tests."""
+"""Ownership guards for the interim restored CI producers."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -12,329 +13,225 @@ pytestmark = [pytest.mark.fast]
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
+CONVERGENCE_MAP = ROOT / "docs" / "convergence" / "interim-ci-producer.md"
+RELEASE_CHECKLIST = ROOT / "RELEASE_CHECKLIST.md"
+DOCS_REFERENCE_INDEX = ROOT / "docs" / "development" / "reference" / "index.md"
 
-RELEASE_OWNER_PATHS = {
-    "pyproject.toml",
-    ".kittify/metadata.yaml",
-    "uv.lock",
-    ".kittify/release/shared-package-compatibility.json",
-    "CHANGELOG.md",
-    "RELEASE_CHECKLIST.md",
-    "scripts/release/**",
-    ".github/workflows/scripts/**",
-    ".github/workflows/release-readiness.yml",
-    ".github/workflows/check-spec-kitty-events-alignment.yml",
+RESTORED_WORKFLOWS = {
+    "ci-quality.yml",
+    "protect-main.yml",
+    "ci-windows.yml",
+    "docs-pages.yml",
+    "check-spec-kitty-events-alignment.yml",
+    "release-readiness.yml",
+    "release.yml",
 }
 
-RELEASE_VERSION_SOURCE_PATHS = {
-    "pyproject.toml",
-    ".kittify/metadata.yaml",
-    "CHANGELOG.md",
-    "uv.lock",
+UPSTREAM_WORKFLOW_PATHS = {
+    "all-contributors-normalize.yml",
+    "all-contributors-sync.yml",
+    "canonical-producer-lint.yml",
+    "check-spec-kitty-events-alignment.yml",
+    "ci-flake-report.yml",
+    "ci-quality.yml",
+    "ci-windows.yml",
+    "docs-build-pr.yml",
+    "docs-freshness.yml",
+    "docs-pages.yml",
+    "doctrine-charter-tests.yml",
+    "drift-detector.yml",
+    "module-doctrine-fast.yml",
+    "module-doctrine-integration.yml",
+    "module-kernel.yml",
+    "module-packs.yml",
+    "mutation-remediation.md",
+    "orchestrator-boundary.yml",
+    "performance.yml",
+    "plantuml-egress-spike.yml",
+    "plugin-validate.yml",
+    "project-sync-consent-evidence.yml",
+    "protect-main.yml",
+    "regen-assets.yml",
+    "release-readiness.yml",
+    "release.yml",
+    "review-verdict-durability.yml",
+    "teamspace-mission-state-readiness.yml",
+    "ui-e2e.yml",
 }
 
-RELEASE_VALIDATOR_SURFACE_PATHS = {
-    "scripts/release/**",
-    ".github/workflows/release-readiness.yml",
+UPSTREAM_SCRIPT_PATHS = {
+    "scripts/check-release-exists.sh",
+    "scripts/create-github-release.sh",
+    "scripts/create-release-packages.sh",
+    "scripts/generate-release-notes.sh",
+    "scripts/get-next-version.sh",
+    "scripts/update-version.sh",
 }
-
-DOCS_CONTRACT_CI_PATHS = {"docs/**"}
 
 
 def load_workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
 
 
-def on_section(workflow: dict[str, Any]) -> dict[str, Any]:
-    # PyYAML still treats the YAML 1.1 key "on" as boolean True.
-    return workflow.get("on") or workflow[True]
+def workflow_text(name: str) -> str:
+    return (WORKFLOWS / name).read_text(encoding="utf-8")
 
 
-def event_paths(workflow: dict[str, Any], event: str) -> set[str]:
-    return set(on_section(workflow)[event]["paths"])
+def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisite() -> None:
+    checklist = RELEASE_CHECKLIST.read_text(encoding="utf-8")
+    assert "P3.4b prerequisite" in checklist
+    assert "release.yml" in checklist
+    assert "release-readiness.yml" in checklist
 
 
-def path_filter_text(workflow: dict[str, Any]) -> str:
-    changes_steps = workflow["jobs"]["changes"]["steps"]
-    filter_step = next(step for step in changes_steps if step.get("id") == "filter")
-    return filter_step["with"]["filters"]
-
-
-def release_readiness_filter_text(workflow: dict[str, Any]) -> str:
-    steps = workflow["jobs"]["check-readiness"]["steps"]
-    filter_step = next(step for step in steps if step.get("id") == "metadata_changes")
-    return filter_step["with"]["filters"]
-
-
-def release_readiness_step(workflow: dict[str, Any], name: str) -> dict[str, Any]:
-    steps = workflow["jobs"]["check-readiness"]["steps"]
-    return next(step for step in steps if step.get("name") == name)
-
-
-def workflow_script_text(name: str) -> str:
-    return (WORKFLOWS / "scripts" / name).read_text(encoding="utf-8")
-
-
-def test_ci_quality_runs_for_release_owned_paths() -> None:
+def test_reduced_ci_quality_has_exact_jobs() -> None:
     workflow = load_workflow("ci-quality.yml")
 
-    for event in ("pull_request", "push"):
-        missing = RELEASE_OWNER_PATHS - event_paths(workflow, event)
-        assert not missing, f"CI Quality {event} trigger misses release paths: {sorted(missing)}"
-
-
-def test_ci_quality_release_slice_covers_release_owned_paths() -> None:
-    filters = path_filter_text(load_workflow("ci-quality.yml"))
-
-    for path in RELEASE_OWNER_PATHS:
-        assert f"- '{path}'" in filters, f"release path filter misses {path}"
-
-
-def test_ci_quality_docs_contract_gate_runs_for_docs_changes() -> None:
-    workflow = load_workflow("ci-quality.yml")
-    filters = path_filter_text(workflow)
-
-    for event in ("pull_request", "push"):
-        missing = DOCS_CONTRACT_CI_PATHS - event_paths(workflow, event)
-        assert not missing, (
-            f"CI Quality {event} trigger misses docs-contract paths: "
-            f"{sorted(missing)}"
-        )
-    for path in DOCS_CONTRACT_CI_PATHS:
-        assert f"- '{path}'" in filters, f"core_misc path filter misses {path}"
-
-
-def test_release_packaging_does_not_ship_removed_roo_harness() -> None:
-    package_script = workflow_script_text("create-release-packages.sh")
-    release_script = workflow_script_text("create-github-release.sh")
-
-    assert "roo)" not in package_script
-    assert ".roo/" not in package_script
-    assert " roo " not in f" {package_script} "
-    assert "spec-kitty-template-roo-" not in release_script
-
-
-def test_release_readiness_runs_for_all_version_sources() -> None:
-    workflow = load_workflow("release-readiness.yml")
-    paths = event_paths(workflow, "pull_request")
-    filters = release_readiness_filter_text(workflow)
-    validate_step = next(
-        step
-        for step in workflow["jobs"]["check-readiness"]["steps"]
-        if step.get("id") == "validate"
-    )
-
-    missing_paths = RELEASE_VERSION_SOURCE_PATHS - paths
-    assert not missing_paths, (
-        "Release Readiness pull_request trigger misses version source paths: "
-        f"{sorted(missing_paths)}"
-    )
-
-    for path in RELEASE_VERSION_SOURCE_PATHS:
-        assert f"- '{path}'" in filters, (
-            f"Release Readiness metadata filter misses {path}"
-        )
-    for path in RELEASE_VALIDATOR_SURFACE_PATHS:
-        assert f"- '{path}'" in filters, (
-            f"Release Readiness validator filter misses {path}"
-        )
-
-    assert "version_sources" in filters
-    assert "version_bump" in filters
-    assert "validator_surface" in filters
-    assert "outputs.version_sources" in validate_step["if"]
-    assert "outputs.validator_surface" in validate_step["if"]
-    assert "outputs.version_bump" in validate_step["run"]
-    assert "--consistency-only" in validate_step["run"]
-    assert "scope=full" in validate_step["run"]
-    assert "scope=consistency" in validate_step["run"]
-
-
-def test_release_readiness_consistency_summary_does_not_claim_release_ready() -> None:
-    workflow = load_workflow("release-readiness.yml")
-    summary_script = release_readiness_step(workflow, "Generate readiness summary")["run"]
-
-    consistency_start = summary_script.index(
-        '"${{ steps.validate.outputs.scope }}" == "consistency"'
-    )
-    full_start = summary_script.index(
-        'elif [[ "${{ steps.validate.outcome }}" == "success" ]]',
-        consistency_start,
-    )
-    consistency_block = summary_script[consistency_start:full_start]
-
-    assert "Version-source consistency checks passed" in consistency_block
-    assert "consistency-only validation" in consistency_block
-    assert "This branch is ready for release" not in consistency_block
-    assert "Version is properly bumped" not in consistency_block
-    assert "Version progression is monotonic" not in consistency_block
-
-
-def test_shared_drift_has_scheduled_and_manual_monitoring() -> None:
-    workflow_on = on_section(load_workflow("check-spec-kitty-events-alignment.yml"))
-
-    assert "schedule" in workflow_on
-    assert "workflow_dispatch" in workflow_on
-
-
-def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
-    workflow = load_workflow("check-spec-kitty-events-alignment.yml")
-    jobs = workflow["jobs"]
-
-    prepare_dump = repr(jobs["prepare-candidate-metadata"])
-    assert "SPEC_KITTY_SAAS_READ_TOKEN" not in prepare_dump
-    assert "python -m build" not in prepare_dump
-
-    verify = jobs["verify-drift"]
-    verify_dump = repr(verify)
-    assert "github.event.pull_request.base.sha" in verify_dump
-    assert "CROSS_REPO_TOKEN" not in repr(verify.get("env", {}))
-    assert "check_candidate_consumer_compat.py" not in verify_dump
-    assert "candidate/.kittify/release/shared-package-compatibility.json" in verify_dump
-    assert "check_shared_package_drift.py --help" in verify_dump
-    assert "MANIFEST_ARGS" in verify_dump
-
-    fetch_step = next(step for step in verify["steps"] if step.get("id") == "fetch_refs")
-    assert "CROSS_REPO_TOKEN" in fetch_step["env"]
-
-
-def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts() -> None:
-    workflow = load_workflow("ci-quality.yml")
-    job = workflow["jobs"]["consumer-compatibility"]
-    job_dump = repr(job)
-
-    assert job["needs"] == ["changes", "build-wheel"]
-    assert "needs.changes.outputs.release == 'true'" in job["if"]
-    assert "github.event.pull_request.base.sha" in job_dump
-    assert "spec-kitty-cli-wheel" in job_dump
-    assert "release-compatibility-manifest" in job_dump
-    assert "candidate/.kittify/release/shared-package-compatibility.json" in job_dump
-    assert "CROSS_REPO_TOKEN" not in repr(job.get("env", {}))
-    assert "IS_FORK_PR" in job["env"]
-    assert job["env"]["IS_CANONICAL_REPO"] == "${{ github.repository == 'Priivacy-ai/spec-kitty' }}"
-    assert "check_candidate_consumer_compat.py" in job_dump
-    assert "check_candidate_consumer_compat.py --help" in job_dump
-    assert "MANIFEST_ARGS" in job_dump
-
-    fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
-    assert "CROSS_REPO_TOKEN" in fetch_step["env"]
-    assert "saas_fetched=false" in fetch_step["run"]
-    assert '[ "${IS_FORK_PR}" = "true" ] || [ "${IS_CANONICAL_REPO}" != "true" ]' in fetch_step["run"]
-    assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in fetch_step["run"]
-
-    validate_step = next(
-        step for step in job["steps"] if step["name"] == "Validate candidate against SaaS consumer contract"
-    )
-    assert validate_step["if"] == "steps.fetch_contract.outputs.saas_fetched == 'true'"
-
-
-def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
-    workflow = load_workflow("ci-quality.yml")
-    quality_gate = workflow["jobs"]["quality-gate"]
-    needs = set(quality_gate["needs"])
-
-    release_required = {
-        "changes",
+    assert set(workflow["jobs"]) == {
+        "lint",
         "build-wheel",
         "clean-install-verification",
-        "consumer-compatibility",
-        "fast-tests-release",
-        "integration-tests-release",
+        "uv-lock-check",
+        "quality-gate",
+    }
+    assert workflow["jobs"]["clean-install-verification"]["needs"] == ["build-wheel"]
+
+
+def test_clean_install_check_name_is_branch_protection_ready() -> None:
+    workflow = load_workflow("ci-quality.yml")
+    job = workflow["jobs"]["clean-install-verification"]
+
+    assert job["name"] == "Clean install verification"
+    assert "spec-kitty-runtime" in workflow_text("ci-quality.yml")
+    assert "tests/fixtures/clean_install_fixture_mission" in workflow_text("ci-quality.yml")
+
+
+def test_quality_gate_blocks_every_reduced_producer_job() -> None:
+    workflow = load_workflow("ci-quality.yml")
+    gate = workflow["jobs"]["quality-gate"]
+
+    assert set(gate["needs"]) == {
+        "lint",
+        "build-wheel",
+        "clean-install-verification",
         "uv-lock-check",
     }
-    assert not release_required - needs
-
-    # Post-FR-011 (mission ci-suite-map-bind WP03): the verdict is computed
-    # by scripts/ci/quality_gate_decision.py over the full ``toJSON(needs)``
-    # context. The release-required set is passed to the script as DATA
-    # (RELEASE_REQUIRED_JOBS in the payload assembly); the script exits 2 if
-    # any entry is absent from ``needs`` and FAILS any release-touching PR
-    # where one did not succeed (skipped is not enough) — semantics pinned by
-    # tests/scripts/test_quality_gate_decision.py.
-    decision_step = next(
-        step
-        for step in quality_gate["steps"]
-        if step.get("name") == "Evaluate quality-gate decision"
-    )
-    assert decision_step["env"]["NEEDS_JSON"] == "${{ toJSON(needs) }}"
-    # The step pipes the script into ``tee -a "$GITHUB_STEP_SUMMARY"``. Without
-    # ``shell: bash`` GitHub runs it under ``bash -e {0}`` (no pipefail), so the
-    # pipe returns tee's always-zero exit and the script's exit 2 on an absent
-    # release-required job (or exit 1 blocking verdict) is swallowed — the gate
-    # never fails. ``shell: bash`` turns pipefail on. Pin it here too.
-    assert decision_step.get("shell") == "bash", (
-        "quality-gate decision step must set ``shell: bash`` so pipefail "
-        "propagates the script's non-zero exit through ``| tee``"
-    )
-    script = decision_step["run"]
-    assert "scripts/ci/quality_gate_decision.py" in script
-    release_block = script.split("RELEASE_REQUIRED_JOBS = [", 1)[1].split("]", 1)[0]
-    for job_name in release_required - {"changes"}:
-        assert f'"{job_name}"' in release_block, (
-            f"release-required job {job_name!r} missing from the "
-            "RELEASE_REQUIRED_JOBS payload data"
-        )
+    assert "NEEDS_JSON: ${{ toJSON(needs) }}" in workflow_text("ci-quality.yml")
 
 
-def test_release_publish_requires_downstream_consumer_evidence_before_pypi() -> None:
+def test_ci_windows_has_no_sync_path_filters() -> None:
+    workflow = load_workflow("ci-windows.yml")
+    changes = workflow["jobs"]["changes"]["steps"]
+    filter_step = next(step for step in changes if step.get("id") == "filter")
+    filters = filter_step["with"]["filters"]
+
+    assert "tests/sync/" not in filters
+    assert workflow["jobs"]["windows-critical"]["runs-on"] == "windows-latest"
+
+
+def test_ci_windows_filter_can_read_pull_request_files() -> None:
+    workflow = load_workflow("ci-windows.yml")
+
+    assert workflow["permissions"] == {
+        "contents": "read",
+        "pull-requests": "read",
+    }
+
+
+def test_ci_windows_configures_private_git_dependencies_before_install() -> None:
+    workflow = load_workflow("ci-windows.yml")
+    steps = workflow["jobs"]["windows-critical"]["steps"]
+    step_names = [step.get("name") for step in steps]
+
+    assert step_names.index("Configure private git dependencies") < step_names.index("Install spec-kitty-cli (editable) + test deps")
+    configure_step = steps[step_names.index("Configure private git dependencies")]
+    install_step = steps[step_names.index("Install spec-kitty-cli (editable) + test deps")]
+    assert configure_step["env"]["GH_TOKEN"] == "${{ secrets.SK_CI_TOKEN }}"
+    assert install_step["env"]["TMP"] == "${{ runner.temp }}"
+    assert install_step["env"]["TEMP"] == "${{ runner.temp }}"
+    assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
+
+
+def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_errors() -> None:
+    workflow = load_workflow("docs-pages.yml")
+    pages_job = workflow["jobs"]["pages"]
+    probe_step, setup_step = pages_job["steps"]
+    build_job = workflow["jobs"]["build"]
+    deploy_job = workflow["jobs"]["deploy"]
+
+    assert pages_job["outputs"] == {"configured": "${{ steps.probe-pages.outputs.available }}"}
+    assert probe_step["id"] == "probe-pages"
+    assert probe_step["env"]["GITHUB_TOKEN"] == "${{ github.token }}"
+    assert 'status="$(curl' in probe_step["run"]
+    assert "200)" in probe_step["run"]
+    assert 'echo "available=true" >> "$GITHUB_OUTPUT"' in probe_step["run"]
+    assert "404)" in probe_step["run"]
+    assert 'echo "available=false" >> "$GITHUB_OUTPUT"' in probe_step["run"]
+    assert "::error::GitHub Pages configuration probe failed with HTTP $status." in probe_step["run"]
+    assert setup_step["id"] == "setup-pages"
+    assert setup_step["if"] == "steps.probe-pages.outputs.available == 'true'"
+    assert setup_step["uses"] == "actions/configure-pages@v6"
+    assert "continue-on-error" not in setup_step
+    assert build_job["needs"] == ["pages"]
+    assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
+    assert deploy_job["if"] == "github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
+
+    publication_policy = DOCS_REFERENCE_INDEX.read_text(encoding="utf-8")
+    assert "intentionally deployed from the promotion-only" in publication_policy
+    assert "does not claim the custom domain" in publication_policy
+    assert "controller's promotion loop" in publication_policy
+
+
+@pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))
+def test_restored_workflows_use_stock_runners(name: str) -> None:
+    text = workflow_text(name)
+
+    assert "blacksmith" not in text.lower()
+    assert "runner-group" not in text.lower()
+
+
+def test_release_wheel_gate_counts_charter_offering_and_skills() -> None:
     workflow = load_workflow("release.yml")
-    jobs = workflow["jobs"]
-    publish_job = jobs["publish-pypi"]
+    step = next(step for step in workflow["jobs"]["build-release"]["steps"] if step.get("name") == "Verify wheel contents")
+    run = step["run"]
 
-    assert "downstream-consumer-verify" in jobs
-    assert set(publish_job["needs"]) == {"build-release", "downstream-consumer-verify"}
-
-
-def test_release_manual_dispatch_can_skip_downstream_with_explicit_waiver() -> None:
-    workflow = load_workflow("release.yml")
-    workflow_on = on_section(workflow)
-    inputs = workflow_on["workflow_dispatch"]["inputs"]
-    jobs = workflow["jobs"]
-
-    assert inputs["tag"]["required"] is True
-    assert inputs["skip_downstream"]["required"] is True
-    assert (
-        jobs["downstream-consumer-verify"]["if"]
-        == "${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}"
-    )
-
-    publish_if = jobs["publish-pypi"]["if"]
-    assert "always()" in publish_if
-    assert "needs.build-release.result == 'success'" in publish_if
-    assert "needs.downstream-consumer-verify.result == 'success'" in publish_if
-    assert "github.event_name == 'workflow_dispatch'" in publish_if
-    assert "inputs.skip_downstream == true" in publish_if
+    assert "git ls-files src/charter/offering" in run
+    assert "find " in run
+    assert "wheel_check/charter/offering" in run
+    assert "git ls-files src/charter/offering/skills" in run
+    assert "wheel_check/charter/offering/skills" in run
+    assert "git ls-files src/doctrine" not in run
 
 
-def test_release_verifies_pypi_exact_install_after_publish() -> None:
-    workflow = load_workflow("release.yml")
-    job = workflow["jobs"]["verify-pypi-installability"]
+def test_release_readiness_cutover_guard_uses_public_lock_dependencies() -> None:
+    workflow = load_workflow("release-readiness.yml")
+    job = workflow["jobs"]["cutover-guard"]
     job_dump = repr(job)
 
-    assert job["needs"] == "publish-pypi"
-    assert job["if"] == "${{ always() && needs.publish-pypi.result == 'success' }}"
-    assert "--from-index" in job_dump
-    assert "spec-kitty-cli" in job_dump
+    assert "pip install -e ." not in job_dump
+    assert "git+https" not in job_dump
+    assert ".cutover-deps" not in job_dump
+    assert "grep -vE" not in job_dump
+
+    install = next(step for step in job["steps"] if step.get("name") == "Install the source-only guard environment")
+    assert "uv export --frozen --no-dev" in install["run"]
+    assert "python -m pip install -r .cutover-requirements.lock.txt" in install["run"]
+
+    guard = next(step for step in job["steps"] if step.get("name") == "Run cutover guard (fail-closed on any un-cut-over mission)")
+    assert "PYTHONPATH=src" in guard["run"]
+    assert "from specify_cli.cli.commands.cutover_guard import cutover_guard" in guard["run"]
 
 
-def test_publish_release_does_not_require_canary_verification_artifact() -> None:
-    workflow = load_workflow("release.yml")
-    jobs = workflow["jobs"]
+def test_convergence_map_dispositions_every_upstream_workflow_and_script() -> None:
+    rows = {
+        match.group(1): match.group(2)
+        for match in re.finditer(r"^\| `([^`]+)` \| (restore|never-restore|defer) \|", CONVERGENCE_MAP.read_text(encoding="utf-8"), re.MULTILINE)
+    }
+    expected = {f".github/workflows/{name}" for name in UPSTREAM_WORKFLOW_PATHS} | {f".github/workflows/{name}" for name in UPSTREAM_SCRIPT_PATHS}
 
-    assert "canary-verify" not in jobs
-    publish = jobs["publish-pypi"]
-    assert set(publish["needs"]) == {"build-release", "downstream-consumer-verify"}
-
-    publish_dump = repr(publish)
-    assert "actions/checkout" in publish_dump
-    assert publish["permissions"]["contents"] == "write"
-    assert "canary" not in publish_dump.lower()
-    assert "Create GitHub Release" in publish_dump
-    assert "Create GitHub Release" not in repr(jobs["build-release"])
-    assert "sbom.cdx.json" in repr(jobs["build-release"])
-    assert "Classify release channel" in publish_dump
-
-    step_names = [step.get("name", "") for step in publish["steps"]]
-    assert step_names.index("Classify release channel") < step_names.index(
-        "Create GitHub Release"
-    )
+    assert set(rows) == expected, f"convergence map path mismatch: missing={sorted(expected - set(rows))}, extra={sorted(set(rows) - expected)}"
+    assert {rows[path] for path in expected if path.endswith(".yml")} <= {
+        "restore",
+        "never-restore",
+        "defer",
+    }

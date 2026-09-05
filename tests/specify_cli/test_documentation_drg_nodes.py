@@ -8,7 +8,7 @@ action bundles produced by WP03:
    FR-005).
 2. Each documentation action's bundle ``index.yaml`` (slug-form
    directives/tactics) maps 1-to-1 to the URN-form ``relation: scope`` edges
-   in ``src/doctrine/graph.yaml`` (FR-006).
+   in ``src/charter/offering/graph.yaml`` (FR-006).
 3. ``resolve_context`` median latency for documentation actions is at most
    2x the median latency for research actions (NFR-007).
 
@@ -102,7 +102,7 @@ def _type_grain_urns(repo_root: Path) -> set[str]:
     bundle to redundantly re-declare the whole type grain.
     """
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
     profile_path = (
         repo_root
         / "packs"
@@ -121,7 +121,7 @@ def _type_grain_urns(repo_root: Path) -> set[str]:
 def _repo_root() -> Path:
     """Locate the repository root via a delete-stable ``pyproject.toml`` marker.
 
-    Keyed on ``pyproject.toml`` rather than ``src/doctrine/graph.yaml`` so the
+    Keyed on ``pyproject.toml`` rather than ``src/charter/offering/graph.yaml`` so the
     finder survives the WP05 monolith->fragment migration: the shipped
     ``graph.yaml`` is deleted, but ``pyproject.toml`` is not.
     """

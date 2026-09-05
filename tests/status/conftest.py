@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+from specify_cli.status import adapters
 from specify_cli.status.models import (
     DoneEvidence,
     Lane,
@@ -20,6 +23,60 @@ from specify_cli.status.store import append_event
 from specify_cli.status.wp_state import wp_state_for
 
 _THIS_DIR = Path(__file__).parent
+
+
+# ---------------------------------------------------------------------------
+# Hermetic canonical-root resolution (#142)
+# ---------------------------------------------------------------------------
+
+
+def pin_canonical_root_inside_sandbox(root: Path) -> bool:
+    """Make *root* itself the git root so root resolution stops inside it.
+
+    Lifecycle and status writers resolve their lock root by walking up from a
+    log path to the nearest ``.git`` (``resolve_canonical_root``) and then
+    ``mkdir`` ``<root>/.git/spec-kitty-locks/``. Mission fixtures in this
+    package build feature directories under plain ``tmp_path`` without a
+    repo, so when an ancestor of basetemp is itself a git checkout, the lock
+    lands in *that* checkout -- and if it is read-only,
+    :func:`append_lifecycle_event` swallows the resulting ``PermissionError``
+    as a best-effort ``OSError`` and persists nothing, silently failing every
+    event-recording assertion (130 nodes red in the #142 repro).
+
+    Returns ``True`` when pinning happened: *root* had no ``.git`` of its own
+    and resolution escaped above it. Hosts without an ambient ancestor repo
+    (the common case -- basetemp lives under ``/tmp``) are untouched.
+    """
+    try:
+        resolved = resolve_canonical_root(root)
+    except WorkspaceRootNotFound:
+        return False
+    if resolved == root or (root / ".git").exists():
+        return False
+    completed = subprocess.run(
+        ["git", "init", "-q", "-b", "main"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        # No usable git binary: a bare marker directory is still enough for
+        # resolve_canonical_root's rule 1 (a .git directory ends the walk).
+        (root / ".git").mkdir(exist_ok=True)
+    return True
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_canonical_root(tmp_path: Path) -> None:
+    """Keep canonical-root resolution inside this test's sandbox (#142).
+
+    Runs before the mission fixtures so every feature directory built under
+    ``tmp_path`` resolves to a lock root inside the sandbox instead of into
+    whatever git checkout happens to sit above basetemp. See
+    :func:`pin_canonical_root_inside_sandbox` for the failure mode.
+    """
+    pin_canonical_root_inside_sandbox(tmp_path)
+
 
 # ---------------------------------------------------------------------------
 # T027 — shared seed helper + fixture (replaces ~12 per-file _seed_planned copies)
@@ -68,10 +125,7 @@ def seed_wp_to_planned(
     existing_wp_files = [
         candidate
         for candidate in tasks_dir.glob("*.md")
-        if candidate.stem == wp_id
-        or candidate.stem.startswith(f"{wp_id}-")
-        or candidate.stem.startswith(f"{wp_id}_")
-        or candidate.stem.startswith(f"{wp_id}.")
+        if candidate.stem == wp_id or candidate.stem.startswith(f"{wp_id}-") or candidate.stem.startswith(f"{wp_id}_") or candidate.stem.startswith(f"{wp_id}.")
     ]
     if not existing_wp_files:
         wp_file.write_text(
@@ -121,31 +175,27 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _restore_default_saas_handlers_after_each_status_test() -> None:
-    """Register default sync handlers before and after every status test.
+def _restore_zeitgeist_moment_handlers_around_every_status_test() -> None:
+    """Re-register the Zeitgeist moment handlers around every status test.
 
-    Fixes the order-dependent pollution where tests in
-    ``test_emit_backward_transition.py`` (and ``test_emit_fanout_after_adapter.py``)
-    call ``adapters.reset_handlers()`` in their teardown, wiping the
-    lifecycle SaaS fan-out handler that ``specify_cli.sync`` registered at
-    import time. Subsequent tests in ``test_lifecycle_events.py`` that
-    rely on the lifecycle fan-out being registered then saw an empty
-    registry. See issues Priivacy-ai/spec-kitty#1198 / #1200.
+    Many files in this directory (``test_emit_backward_transition.py``,
+    ``test_emit_fanout_after_adapter.py``, ``test_sync_lane_mapping.py``, ...)
+    call ``adapters.reset_handlers()`` to get an empty registry and never put
+    production wiring back, so one test's wipe would silence every later
+    test's fan-out. #123 added this restoration alongside the sync handlers'
+    own; when #114 deleted the sync package it rewrote the same fixture, and
+    the merge kept #114's version wholesale — dropping the restoration with
+    it. This is #123's fixture minus the sync half that no longer exists.
 
-    The pre-yield registration also covers a fresh xdist worker whose first
-    import used ``SPEC_KITTY_SYNC_MINIMAL_IMPORT``; without it, the first
-    fan-out test in that worker observes an empty registry. Registration is
-    idempotent (the underlying ``register_*_handler`` calls de-duplicate by
-    qualified name), so the before/after calls do not accumulate handlers.
+    Registration is idempotent (the ``register_*_handler`` calls de-duplicate
+    by qualified name), so calling before and after each test never
+    accumulates handlers. The pre-yield call also covers a fresh xdist worker
+    whose first import ran under ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` and
+    therefore registered nothing at import time.
     """
-    try:
-        from specify_cli.sync import register_default_handlers
-    except ImportError:
-        yield
-        return
-    register_default_handlers()
+    adapters.ensure_zeitgeist_moment_handlers()
     yield
-    register_default_handlers()
+    adapters.ensure_zeitgeist_moment_handlers()
 
 
 @pytest.fixture(autouse=True)
@@ -160,7 +210,12 @@ def _disable_saas_fanout_for_local_status_tests(
     JSONL/materialization semantics and should not start auth, tracker, or
     dashboard-daemon flows.
     """
-    if Path(str(request.node.fspath)).name == "test_emit_fanout_after_adapter.py":
+    if Path(str(request.node.fspath)).name in (
+        "test_emit_fanout_after_adapter.py",
+        # The Zeitgeist handler tests drive the real emit -> adapters fan-out;
+        # only the network is faked there.
+        "test_zeitgeist_moment_handler.py",
+    ):
         return
 
     import specify_cli.status.emit as emit_module

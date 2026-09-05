@@ -88,9 +88,7 @@ class HealthVerdict:
         # Rule 1 mechanised: a definite claim must carry evidence. ``unknown``
         # is the only state allowed to have said "I did not / could not check".
         if self.state in ("ok", "fail") and not self.evidence.strip():
-            raise ValueError(
-                "HealthVerdict.evidence is required unless state == 'unknown'"
-            )
+            raise ValueError("HealthVerdict.evidence is required unless state == 'unknown'")
 
     @property
     def headline(self) -> str:
@@ -159,6 +157,7 @@ def evaluate_auth_verdict(
     now: datetime,
     *,
     server_probe: ServerProbe | None = None,
+    session_assessment_reason: str | None = None,
 ) -> HealthVerdict:
     """Derive the one honest auth :class:`HealthVerdict` from a session + clock.
 
@@ -172,6 +171,12 @@ def evaluate_auth_verdict(
     - access expired, refresh valid, probe live  -> ``ok``
     - access expired, refresh valid, probe failed -> ``fail``
     """
+    if session is None and session_assessment_reason == "storage_decryption_failed":
+        return HealthVerdict(
+            state="fail",
+            evidence="stored session could not be decrypted; unreadable session removed",
+            remediation=_LOGIN_REMEDIATION,
+        )
     if session is None:
         return HealthVerdict(
             state="fail",
@@ -196,59 +201,11 @@ def evaluate_auth_verdict(
     return _resolve_expired_access(server_probe)
 
 
-def auth_verdict_from_flags(
-    *,
-    session_present: bool,
-    access_ok: bool,
-    refresh_ok: bool,
-    server_probe: ServerProbe | None = None,
-) -> HealthVerdict:
-    """Flag-driven twin of :func:`evaluate_auth_verdict` for I/O-free cores.
-
-    ``sync_doctor_core`` pre-computes ``(access_ok, refresh_ok)`` in its gather
-    phase (it performs no clock reads), so it consumes this flags-only form. The
-    tri-state decision ladder is identical to :func:`evaluate_auth_verdict`;
-    only the evidence strings are generic (this core never renders them — it
-    maps the verdict *state* onto its own issue vocabulary).
-    """
-    if not session_present:
-        return HealthVerdict(
-            state="fail",
-            evidence="no active session",
-            remediation=_LOGIN_REMEDIATION,
-        )
-    if not refresh_ok:
-        return HealthVerdict(
-            state="fail",
-            evidence="access and refresh tokens expired",
-            remediation=_LOGIN_REMEDIATION,
-        )
-    if access_ok:
-        return HealthVerdict(state="ok", evidence="access token valid")
-    if server_probe is None:
-        return HealthVerdict(
-            state="unknown",
-            evidence="access token expired; refresh chain not verified offline",
-            remediation=_SERVER_REMEDIATION,
-        )
-    if server_probe.active:
-        return HealthVerdict(
-            state="ok",
-            evidence="access token expired but server confirms the session is live",
-        )
-    return HealthVerdict(
-        state="fail",
-        evidence=server_probe.error or "server rejected the session",
-        remediation=_LOGIN_REMEDIATION,
-    )
-
-
 # ``Health`` (the tri-state alias) and ``ServerProbe`` (the probe Protocol) are
 # module-internal: they are referenced only within this module's own type
 # annotations, so they stay off ``__all__`` (no cross-module consumer) rather
 # than becoming dead public symbols. Promote them if a consumer ever needs them.
 __all__ = [
     "HealthVerdict",
-    "auth_verdict_from_flags",
     "evaluate_auth_verdict",
 ]

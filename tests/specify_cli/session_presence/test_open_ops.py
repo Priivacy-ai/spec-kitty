@@ -101,7 +101,6 @@ class TestRenderOpenOpsSection:
         section = render_open_ops_section(tmp_path, now=_NOW)
         assert "01KTBROKEN0000000000000001 — close:" in section
 
-    @pytest.mark.performance
     def test_perf_1k_open_ops_under_half_second(self, tmp_path: Path) -> None:
         """NFR pro-rata budget: 1,000 Op files rendered in < 0.5 s, no git calls."""
         ops_dir = tmp_path / EVENTS_DIR
@@ -132,10 +131,20 @@ class TestSessionStopCommand:
     def test_silent_outside_project(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        from specify_cli.cli.commands.session_stop import session_stop
+        from functools import partial
 
+        from specify_cli.cli.commands import session_stop as session_stop_module
+
+        # Bind the project-root walk to this test's own tree (#130): an
+        # unbounded walk reads shared territory above tmp_path (/tmp, /) where
+        # a stray .kittify/ from a sibling test would flip the verdict.
+        monkeypatch.setattr(
+            session_stop_module,
+            "_find_project_root",
+            partial(session_stop_module._find_project_root, stop=tmp_path),
+        )
         monkeypatch.chdir(tmp_path)
-        session_stop()  # must not raise
+        session_stop_module.session_stop()  # must not raise
         assert capsys.readouterr().out == ""
 
     def test_silent_with_zero_open_ops(

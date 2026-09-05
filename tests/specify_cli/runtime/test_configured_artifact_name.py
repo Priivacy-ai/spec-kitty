@@ -3,7 +3,7 @@
 Mission rc3-charter-gate-predicate-inversion-01M0GGT1, WP04a: a GREEN
 refactor. ``resolve_configured_artifact_name`` / ``required_artifacts_for``
 (``specify_cli.runtime.resolver``) and ``project_artifact_name_set``
-(``charter.offering.missions.step_projection``) build ``artifact_kind -> filename``
+(``doctrine.missions.step_projection``) build ``artifact_kind -> filename``
 from the single per-type authority -- ``expected-artifacts.yaml``'s
 ``path_pattern`` -- twinning the existing template seam
 (``resolve_configured_template``). NFR-003 requires byte-compatible output
@@ -29,7 +29,7 @@ from typing import cast
 
 import pytest
 
-from charter.missions import MissionTemplateRepository
+from charter.offering.missions import MissionTemplateRepository
 from charter.offering.missions import (
     ArtifactClassEnum,
     ConfigResult,
@@ -55,9 +55,7 @@ _BUILT_IN_TYPES = ("software-dev", "documentation", "research", "plan")
         ("specify_cli.analysis_report", "_HASH_INPUTS"),
     ],
 )
-def test_malformed_artifact_manifest_fails_on_first_use_not_import(
-    module_name: str, attribute: str
-) -> None:
+def test_malformed_artifact_manifest_fails_on_first_use_not_import(module_name: str, attribute: str) -> None:
     """#3622: an import survives; the first lazy constant read fails loudly."""
     script = f"""
 import importlib
@@ -89,6 +87,7 @@ else:
         "IMPORT_OK",
         "FIRST_USE_ERROR=poisoned expected-artifacts manifest",
     ]
+
 
 # The 10 built-in filename "tags" referenced by AC-9 / FR-011 (the
 # _PRESENCE_FILE_TAGS 10-tuple, WP05 scope for the *conversion*; WP04 audits
@@ -140,9 +139,7 @@ class TestResolveConfiguredArtifactNameBuiltins:
             ("plan", "output.plan.main", "plan.md"),
         ],
     )
-    def test_resolves_todays_built_in_filename(
-        self, mission_type: str, artifact_key: str, expected_filename: str
-    ) -> None:
+    def test_resolves_todays_built_in_filename(self, mission_type: str, artifact_key: str, expected_filename: str) -> None:
         assert resolve_configured_artifact_name(artifact_key, mission_type) == expected_filename
 
     @pytest.mark.parametrize("mission_type", _BUILT_IN_TYPES)
@@ -158,7 +155,18 @@ class TestResolveConfiguredArtifactNameBuiltins:
         assert resolve_configured_artifact_name(artifact_key, mission_type) == tag
 
     def test_ten_tags_constant_has_exactly_ten_members(self) -> None:
-        assert len(_TEN_TAGS_TO_SOURCE_PAIR) == 10
+        assert set(_TEN_TAGS_TO_SOURCE_PAIR) == {
+            "spec.md",
+            "plan.md",
+            "tasks.md",
+            "source-register.csv",
+            "findings.md",
+            "report.md",
+            "gap-analysis.md",
+            "audit-report.md",
+            "release.md",
+            "research.md",
+        }
 
 
 class TestResolveConfiguredArtifactNameErrors:
@@ -293,14 +301,10 @@ _SENTINEL_SPEC_FILENAME = "AC9-LOAD-BEARING-spec.md"
 #: replacement below calls this saved reference (never
 #: ``MissionTemplateRepository.get_expected_artifacts`` again), otherwise it
 #: would recurse into itself once installed as the class attribute.
-_ORIGINAL_GET_EXPECTED_ARTIFACTS: Callable[[MissionTemplateRepository, str], ConfigResult | None] = (
-    MissionTemplateRepository.get_expected_artifacts
-)
+_ORIGINAL_GET_EXPECTED_ARTIFACTS: Callable[[MissionTemplateRepository, str], ConfigResult | None] = MissionTemplateRepository.get_expected_artifacts
 
 
-def _patched_get_expected_artifacts(
-    self: MissionTemplateRepository, mission: str
-) -> ConfigResult | None:
+def _patched_get_expected_artifacts(self: MissionTemplateRepository, mission: str) -> ConfigResult | None:
     """Return software-dev's real manifest with ``input.spec.main`` renamed.
 
     Patches the actual ``path_pattern`` SOURCE (``get_expected_artifacts``,
@@ -348,15 +352,11 @@ class TestLoadBearingPathPatternPropagation:
         clear_cache()
 
     def test_resolver_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(
-            MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts
-        )
+        monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
 
         assert resolve_configured_artifact_name("input.spec.main") == _SENTINEL_SPEC_FILENAME
 
-    def test_analysis_report_hash_inputs_reflects_the_patch(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_analysis_report_hash_inputs_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.analysis_report as analysis_report_module
         from charter.activation.manifest_loader import clear_cache
 
@@ -366,9 +366,7 @@ class TestLoadBearingPathPatternPropagation:
         # read) forces a fresh, patched load rather than silently replaying
         # this cached value (see the class docstring).
         original_hash_inputs = analysis_report_module._HASH_INPUTS
-        monkeypatch.setattr(
-            MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts
-        )
+        monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
         clear_cache()
         try:
             importlib.reload(analysis_report_module)
@@ -384,18 +382,15 @@ class TestLoadBearingPathPatternPropagation:
         import specify_cli.acceptance as acceptance_module
         from charter.activation.manifest_loader import clear_cache
 
-        # WP02 (#3770): see test_analysis_report_hash_inputs_reflects_the_patch
-        # above -- the "before" reads populate the shared authority cache
-        # with real content, so it must be cleared before both the
-        # post-monkeypatch read and the post-undo restoration read.
+        # Acceptance resolves these compatibility attributes lazily through
+        # module ``__getattr__``. Exercise that call-time seam directly: an
+        # in-process reload would replace public exception classes and strand
+        # already-imported CLI handlers with stale class identities.
         original_spec_file = acceptance_module.SPEC_FILE
         original_plan_file = acceptance_module.PLAN_FILE
-        monkeypatch.setattr(
-            MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts
-        )
+        monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
         clear_cache()
         try:
-            importlib.reload(acceptance_module)
             assert acceptance_module.SPEC_FILE == _SENTINEL_SPEC_FILENAME
             # PLAN_FILE is untouched by the patch -- proves the seam resolves
             # each artifact_key independently, not a single frozen tuple.
@@ -403,20 +398,15 @@ class TestLoadBearingPathPatternPropagation:
         finally:
             monkeypatch.undo()
             clear_cache()
-            importlib.reload(acceptance_module)
             assert original_spec_file == acceptance_module.SPEC_FILE
 
-    def test_retrospect_precondition_reflects_the_patch(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_retrospect_precondition_reflects_the_patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """No reload needed -- the retrospect helper is call-time evaluated."""
         from specify_cli.cli.commands.agent_retrospect import (
             _required_planning_artifact_filenames,
         )
 
-        monkeypatch.setattr(
-            MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts
-        )
+        monkeypatch.setattr(MissionTemplateRepository, "get_expected_artifacts", _patched_get_expected_artifacts)
 
         spec_name, plan_name, tasks_name = _required_planning_artifact_filenames()
 
@@ -534,9 +524,7 @@ class TestRequiredArtifactsForOrgTier:
         # replacement, never a field-merge.
         assert "spec.md" not in result
 
-    def test_repo_root_with_no_org_pack_falls_through_to_built_in_unchanged(
-        self, tmp_path: Path
-    ) -> None:
+    def test_repo_root_with_no_org_pack_falls_through_to_built_in_unchanged(self, tmp_path: Path) -> None:
         """TASKS-VERIFY-003 fix: ``repo_root`` given but no
         ``missions/<type>/expected-artifacts.yaml`` exists under it --
         the org-tier consult's "no match" path must fall through cleanly to
@@ -545,9 +533,7 @@ class TestRequiredArtifactsForOrgTier:
         project_root = tmp_path / "project-no-org-pack"
         project_root.mkdir()
 
-        with_repo_root = required_artifacts_for(
-            "specify", "software-dev", repo_root=project_root
-        )
+        with_repo_root = required_artifacts_for("specify", "software-dev", repo_root=project_root)
         without_repo_root = required_artifacts_for("specify", "software-dev")
 
         assert with_repo_root == without_repo_root == ["spec.md"]
@@ -577,10 +563,7 @@ class TestManifestSchemaErrorPerTier:
         broken_dir = missions_root / self._BROKEN_MISSION_TYPE
         broken_dir.mkdir(parents=True)
         (broken_dir / "expected-artifacts.yaml").write_text(
-            "schema_version: '1.0'\n"
-            f"mission_type: '{self._BROKEN_MISSION_TYPE}'\n"
-            "manifest_version: '1'\n"
-            "not_a_real_field: true\n",
+            f"schema_version: '1.0'\nmission_type: '{self._BROKEN_MISSION_TYPE}'\nmanifest_version: '1'\nnot_a_real_field: true\n",
             encoding="utf-8",
         )
         monkeypatch.setattr(
@@ -589,9 +572,7 @@ class TestManifestSchemaErrorPerTier:
             classmethod(lambda cls: MissionTemplateRepository(missions_root)),
         )
 
-    def test_built_in_schema_invalid_manifest_raises_manifest_schema_error(
-        self, broken_builtin_repo: None
-    ) -> None:
+    def test_built_in_schema_invalid_manifest_raises_manifest_schema_error(self, broken_builtin_repo: None) -> None:
         from specify_cli.dossier.manifest import ManifestSchemaError
 
         with pytest.raises(ManifestSchemaError) as exc_info:
@@ -604,9 +585,7 @@ class TestManifestSchemaErrorPerTier:
         # except-block, manifest.py:326-340).
         assert self._BROKEN_MISSION_TYPE in exc.origin
 
-    def test_org_tier_schema_invalid_manifest_raises_manifest_schema_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_org_tier_schema_invalid_manifest_raises_manifest_schema_error(self, tmp_path: Path) -> None:
         """ANALYZE-FRESH-001: the org-tier branch has no ``config`` variable
         of type ``ConfigResult`` in scope, so ``.origin`` must NOT be read
         off it (that raises ``AttributeError``, not ``ManifestSchemaError``,
@@ -647,9 +626,7 @@ class TestManifestSchemaErrorPerTier:
 
 
 class TestResolverRoutesThroughAuthority:
-    def test_delegates_to_manifest_loader_load_manifest(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_delegates_to_manifest_loader_load_manifest(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import charter.activation.manifest_loader as manifest_loader_module
 
         calls: list[tuple[str, Path | None]] = []

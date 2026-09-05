@@ -1120,60 +1120,49 @@ def test_mission_close_ambiguous_handle_propagates_structured_error(
 
 
 # ---------------------------------------------------------------------------
-# Research dossier-sync parity — the mission_slug handed to
-# trigger_feature_dossier_sync_if_enabled (NamespaceRef.from_context + the
-# OfflineBodyUploadQueue namespace) must be canonical for every handle form,
-# never a split-brain SaaS namespace keyed by the raw operator handle
+# Research canonical-directory parity — ``research`` re-keys the operator's
+# handle onto the resolved directory name (`mission_slug = feature_dir.name`),
+# so every handle form lands on one directory. (The consumer that motivated the
+# re-key — the dossier-sync trigger keying its SaaS namespace by this slug —
+# retired with the sync transport; artifact placement is the surviving
+# observable of the same property.)
 # ---------------------------------------------------------------------------
 
 
 def _invoke_research(
     repo: Path, handle: str, monkeypatch: pytest.MonkeyPatch
-) -> tuple[Result, list[tuple[Path, str, Path]]]:
+) -> Result:
     import typer
     from typer.testing import CliRunner
 
     from specify_cli.cli.commands import research as research_mod
 
-    calls: list[tuple[Path, str, Path]] = []
-
-    def _capture(
-        feature_dir: Path, mission_slug: str, repo_root: Path, **_kw: object
-    ) -> None:
-        calls.append((feature_dir, mission_slug, repo_root))
-
-    # research() imports the trigger lazily from dossier_pipeline at call
-    # time, so patching the pipeline module attribute intercepts the seam.
-    monkeypatch.setattr(
-        "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled",
-        _capture,
-    )
     monkeypatch.chdir(repo)
     app = typer.Typer()
     app.command()(research_mod.research)
-    result = CliRunner().invoke(app, ["--mission", handle], catch_exceptions=False)
-    return result, calls
+    return CliRunner().invoke(app, ["--mission", handle], catch_exceptions=False)
 
 
 @pytest.mark.parametrize("handle", [_FULL_SLUG, _MID8, "083"])
-def test_research_hands_canonical_slug_to_dossier_sync_across_handle_forms(
+def test_research_lands_on_the_canonical_directory_across_handle_forms(
     repo: Path, handle: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``research --mission <handle>`` canonicalizes the DIRECTORY via
-    resolve_feature_dir_for_slug but pre-fix never re-keyed mission_slug —
-    the dossier-sync seam received the RAW handle, splitting the SaaS
-    namespace across handle forms when SPEC_KITTY_ENABLE_SAAS_SYNC=1."""
-    result, calls = _invoke_research(repo, handle, monkeypatch)
+    resolve_feature_dir_for_slug and then re-keys mission_slug to it — every
+    handle form must converge on one directory, never scaffold a second one
+    keyed by the raw operator handle."""
+    result = _invoke_research(repo, handle, monkeypatch)
     assert result.exit_code == 0, result.output
-    assert len(calls) == 1
-    feature_dir, mission_slug, repo_root = calls[0]
-    assert mission_slug == _FULL_SLUG, (
-        f"research --mission {handle!r} handed raw slug {mission_slug!r} to "
-        "the dossier-sync seam — split-brain SaaS namespace vs the full-slug "
-        "invocation"
+
+    canonical = repo / "kitty-specs" / _FULL_SLUG
+    assert (canonical / "research.md").is_file(), (
+        f"research --mission {handle!r} did not land on the canonical directory {canonical}"
     )
-    assert feature_dir.name == _FULL_SLUG
-    assert feature_dir == repo_root / "kitty-specs" / _FULL_SLUG
+    if handle != _FULL_SLUG:
+        assert not (repo / "kitty-specs" / handle).exists(), (
+            f"research --mission {handle!r} scaffolded a directory keyed by the raw handle — "
+            "the handle was not re-keyed onto feature_dir.name"
+        )
 
 
 def test_research_unresolvable_slug_keeps_raw_form(
@@ -1182,10 +1171,9 @@ def test_research_unresolvable_slug_keeps_raw_form(
     """Unresolvable slugs keep their raw form — the historical scaffold-a-new
     -mission-dir behaviour is unchanged (re-key is an identity re-read of the
     composed directory name)."""
-    result, calls = _invoke_research(repo, "999-brand-new-mission", monkeypatch)
+    result = _invoke_research(repo, "999-brand-new-mission", monkeypatch)
     assert result.exit_code == 0, result.output
-    assert len(calls) == 1
-    feature_dir, mission_slug, _repo_root = calls[0]
-    assert mission_slug == "999-brand-new-mission"
-    assert feature_dir.name == "999-brand-new-mission"
-    assert (repo / "kitty-specs" / "999-brand-new-mission" / "research.md").exists()
+
+    feature_dir = repo / "kitty-specs" / "999-brand-new-mission"
+    assert feature_dir.is_dir()
+    assert (feature_dir / "research.md").is_file()

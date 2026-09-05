@@ -72,14 +72,14 @@ def _real_command() -> object:
     return get_command(specify_cli._build_app())
 
 
-def _fast_command(*, saas_enabled: bool) -> object:
-    return completion._build_command_tree(completion._load_manifest(), saas_enabled=saas_enabled)
+def _fast_command() -> object:
+    return completion._build_command_tree(completion._load_manifest())
 
 
 def _fast_command_for_env() -> object:
     # Mirror the real app: the SaaS-gated surface depends on the environment,
     # and Typer's completion classes read os.environ directly.
-    return _fast_command(saas_enabled=completion._saas_enabled(os.environ))
+    return _fast_command()
 
 
 # --------------------------------------------------------------------------- #
@@ -135,18 +135,18 @@ def test_top_level_completion_covers_all_user_facing_commands() -> None:
 
 def test_nested_completion_is_scoped_to_group() -> None:
     # FR-004: nested suggestions never leak commands from another group.
-    agent = set(_drive(_fast_command(saas_enabled=False), "complete_bash", line="spec-kitty agent ").split())
+    agent = set(_drive(_fast_command(), "complete_bash", line="spec-kitty agent ").split())
 
     assert {"config", "mission", "tasks"}.issubset(agent)
     assert "doctor" not in agent  # top-level command must not appear under `agent`
 
 
-def test_saas_gated_commands_follow_environment() -> None:
-    enabled = set(_drive(_fast_command(saas_enabled=True), "complete_bash", line="spec-kitty ").split())
-    disabled = set(_drive(_fast_command(saas_enabled=False), "complete_bash", line="spec-kitty ").split())
+def test_empty_manifest_builds_root_group() -> None:
+    from typer.core import TyperGroup
 
-    assert "tracker" in enabled
-    assert "tracker" not in disabled
+    command = completion._build_command_tree({})
+
+    assert isinstance(command, TyperGroup)
 
 
 # --------------------------------------------------------------------------- #

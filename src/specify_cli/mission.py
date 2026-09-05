@@ -547,7 +547,7 @@ def _canonical_meta_mission_type(meta: dict[str, Any]) -> str | None:
     """Return the canonical mission-type key recorded in ``meta``, or ``None``.
 
     Thin delegate to the one shared runtime reader
-    :func:`charter.activation.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
+    :func:`charter.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
     **only** the canonical ``mission_type`` field — the legacy ``mission`` field
     is no longer consulted (FR-002, legacy-resolution retirement). A typeless /
     absent / blank / non-string value yields ``None``, never a substituted

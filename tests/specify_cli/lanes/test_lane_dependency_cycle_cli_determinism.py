@@ -64,7 +64,7 @@ finally:
 
 def _stable_fields(stdout: str) -> bytes:
     payloads = [json.loads(line) for line in stdout.splitlines() if line.strip()]
-    assert len(payloads) == 1
+    assert len(payloads) == 1  # golden-count: cardinality-is-contract
     payload = payloads[0]
     selected = {
         "error_code": payload["error_code"],
@@ -108,5 +108,5 @@ def test_canonical_finalize_cycle_fields_are_stable_across_hash_seeds(
         assert "Traceback" not in result.stderr
         captures.append(_stable_fields(result.stdout))
 
-    assert len(set(captures)) == 1
+    assert set(captures) == {captures[0]}
     assert hash_content(captures[0].decode("utf-8")).startswith("sha256:")

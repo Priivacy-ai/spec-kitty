@@ -2,59 +2,88 @@
 
 from __future__ import annotations
 
+import inspect
 import io
 import json
-from pathlib import Path
+import urllib.request
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.sync.daemon import DaemonStartOutcome, SyncDaemonStatus
+from specify_cli.dashboard.csp import DASHBOARD_CSP
 from specify_cli.mission import MissionError
 
 pytestmark = pytest.mark.fast
 
 
 class TestHealthEndpointNoSideEffects:
-    """Fix #9: /api/health must NOT call ensure_sync_daemon_running."""
+    """/api/health observes local state only: no daemon spawn, no sync payload."""
 
-    def test_health_does_not_spawn_daemon(self, tmp_path):
-        """handle_health should only observe daemon state, not spawn it."""
+    def test_health_reports_project_without_sync_block(self, tmp_path):
+        """handle_health returns the project identity and nothing daemon-shaped."""
         from specify_cli.dashboard.handlers import api as api_module
 
-        spawn_called = {"called": False}
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler.project_token = "tok"
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        buf = io.BytesIO()
+        handler.wfile = buf
 
-        def boom(*args, **kwargs):
-            spawn_called["called"] = True
-            raise AssertionError("health endpoint must not call ensure_sync_daemon_running")
+        # Call the real handle_health method
+        api_module.APIHandler.handle_health(handler)
 
-        with (
-            patch.object(api_module, "ensure_sync_daemon_running", boom),
-            patch.object(
-                api_module,
-                "get_sync_daemon_status",
-                return_value=SyncDaemonStatus(healthy=False),
-            ),
-        ):
-            handler = MagicMock()
-            handler.project_dir = str(tmp_path)
-            handler.project_token = "tok"
-            handler.send_response = MagicMock()
-            handler.send_header = MagicMock()
-            handler.end_headers = MagicMock()
-            buf = io.BytesIO()
-            handler.wfile = buf
-
-            # Call the real handle_health method
-            api_module.APIHandler.handle_health(handler)
-
-        assert not spawn_called["called"]
-        # Verify it wrote valid JSON
+        handler.send_response.assert_called_once_with(200)
         buf.seek(0)
         data = json.loads(buf.read().decode("utf-8"))
         assert data["status"] == "ok"
-        assert data["sync"]["running"] is False
+        assert data["project_path"] == str(tmp_path.resolve())
+        assert data["token"] == "tok"
+        assert "sync" not in data, "/api/health no longer reports sync-daemon state"
+        assert "websocket_status" not in data, "/api/health no longer reports websocket state"
+
+    def test_dashboard_api_module_has_no_sync_daemon_dependency(self):
+        """The re-homed dashboard must not import or call the sync daemon.
+
+        Guards the E4 re-homing (planning epic #4): the borrowed
+        ``ensure_sync_daemon_running``/``get_sync_daemon_status`` helpers left
+        ``dashboard/`` with the route and health fields they served.
+        """
+        import specify_cli.dashboard.handlers.api as api_module
+
+        source = inspect.getsource(api_module)
+        assert "ensure_sync_daemon_running" not in source
+        assert "get_sync_daemon_status" not in source
+        assert "urllib.request" not in source, (
+            "the dashboard API handler holds no transmit primitive of its own"
+        )
+        assert not hasattr(api_module.APIHandler, "handle_sync_trigger"), (
+            "/api/sync/trigger was deleted; do not reintroduce it"
+        )
+
+    def test_health_never_touches_urlopen(self, tmp_path):
+        """A hostile/unreachable loopback cannot make /api/health transmit."""
+        from specify_cli.dashboard.handlers import api as api_module
+
+        def boom(*args, **kwargs):
+            raise AssertionError("/api/health must not perform network I/O")
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler.project_token = None
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+
+        with patch.object(urllib.request, "urlopen", boom):
+            api_module.APIHandler.handle_health(handler)
+
+        payload = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        assert payload == {"status": "ok", "project_path": str(tmp_path.resolve())}
 
 
 class TestFeaturesEndpointErrorHandling:
@@ -357,7 +386,11 @@ class TestDashboardApiSecurityHardening:
             api_module.APIHandler.handle_root(handler)
 
         handler.send_response.assert_called_once_with(200)
-        handler.send_header.assert_called_once_with("Content-type", "text/html; charset=utf-8")
+        # D2-T1 (HIC-M1-D5-DOMCSP): every dashboard response also carries the
+        # Content-Security-Policy header alongside its content-type header.
+        handler.send_header.assert_any_call("Content-type", "text/html; charset=utf-8")
+        handler.send_header.assert_any_call("Content-Security-Policy", DASHBOARD_CSP)
+        assert handler.send_header.call_count == 2
         handler.wfile.seek(0)
         assert handler.wfile.read() == b"<html>ok</html>"
 
@@ -414,87 +447,3 @@ class TestDashboardApiSecurityHardening:
         handler.send_response.assert_called_once_with(500)
         handler.wfile.seek(0)
         assert handler.wfile.read().decode("utf-8") == "Error loading charter"
-
-    def test_sync_trigger_request_requires_loopback_origin(self):
-        from specify_cli.dashboard.handlers.api import _build_sync_trigger_request
-
-        request = _build_sync_trigger_request("http://127.0.0.1:8765/status", "tok")
-        assert request.full_url == "http://127.0.0.1:8765/api/sync/trigger"
-        assert request.get_method() == "POST"
-
-        with pytest.raises(ValueError, match="http"):
-            _build_sync_trigger_request("https://127.0.0.1:8765/status", "tok")
-
-        with pytest.raises(ValueError, match="loopback"):
-            _build_sync_trigger_request("http://example.com:8765/status", "tok")
-
-    def test_sync_trigger_uses_validated_loopback_request(self, tmp_path):
-        from specify_cli.dashboard.handlers import api as api_module
-
-        handler = MagicMock()
-        handler.path = "/api/sync/trigger?token=tok"
-        handler.project_token = "tok"
-        handler._send_json = MagicMock()
-
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.status = 202
-        mock_response.__exit__.return_value = None
-
-        with (
-            patch.object(api_module, "ensure_sync_daemon_running"),
-            patch.object(
-                api_module,
-                "get_sync_daemon_status",
-                return_value=SyncDaemonStatus(
-                    healthy=True,
-                    url="http://127.0.0.1:8765/status",
-                    token="daemon-token",
-                ),
-            ),
-            patch.object(api_module.urllib.request, "urlopen", return_value=mock_response) as mock_urlopen,
-        ):
-            api_module.APIHandler.handle_sync_trigger(handler)
-
-        request = mock_urlopen.call_args.args[0]
-        assert request.full_url == "http://127.0.0.1:8765/api/sync/trigger"
-        handler._send_json.assert_called_once_with(202, {"status": "scheduled"})
-
-    def test_sync_trigger_manual_mode_returns_202(self):
-        from specify_cli.dashboard.handlers import api as api_module
-
-        handler = MagicMock()
-        handler.path = "/api/sync/trigger?token=tok"
-        handler.project_token = "tok"
-        handler._send_json = MagicMock()
-
-        with patch.object(
-            api_module,
-            "ensure_sync_daemon_running",
-            return_value=DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None),
-        ):
-            api_module.APIHandler.handle_sync_trigger(handler)
-
-        handler._send_json.assert_called_once_with(
-            202,
-            {"status": "skipped", "manual_mode": True, "reason": "policy_manual"},
-        )
-
-    def test_sync_trigger_unavailable_reason_returns_503(self):
-        from specify_cli.dashboard.handlers import api as api_module
-
-        handler = MagicMock()
-        handler.path = "/api/sync/trigger?token=tok"
-        handler.project_token = "tok"
-        handler._send_json = MagicMock()
-
-        with patch.object(
-            api_module,
-            "ensure_sync_daemon_running",
-            return_value=DaemonStartOutcome(started=False, skipped_reason="start_failed:port busy", pid=None),
-        ):
-            api_module.APIHandler.handle_sync_trigger(handler)
-
-        handler._send_json.assert_called_once_with(
-            503,
-            {"error": "sync_daemon_unavailable", "reason": "start_failed:port busy"},
-        )

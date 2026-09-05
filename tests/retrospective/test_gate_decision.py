@@ -559,7 +559,6 @@ class TestDeterminism:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestPerformance:
     """Gate with retrospective.completed present must return in < 1500 ms (generous CI slack)."""
 

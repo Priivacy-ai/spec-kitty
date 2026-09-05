@@ -17,6 +17,10 @@ Subcommands:
   ``mission_type`` into any legacy ``meta.json`` whose only type signal is
   the deprecated ``mission`` field. Idempotent; never overwrites an existing
   ``mission_type``. Implements FR-006, FR-007, FR-008.
+- ``spec-kitty migrate repin-hooks`` — Re-pin this repo's pre-commit hook to
+  the CURRENT interpreter. One-time repair for issue #254: an install-method
+  migration (e.g. pipx -> uv) moves the interpreter the hook pinned at its
+  original install time. Idempotent.
 
 Usage examples::
 
@@ -28,6 +32,7 @@ Usage examples::
     spec-kitty migrate backfill-provenance --dry-run --json
     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
     spec-kitty migrate backfill-mission-type --dry-run --json
+    spec-kitty migrate repin-hooks --json
 """
 
 from __future__ import annotations
@@ -311,7 +316,6 @@ def backfill_identity(
     skipped = [r for r in results if r.action == "skip"]
     errored = [r for r in results if r.action == "error"]
     coerced = [r for r in results if r.number_coerced]
-    warned = [r for r in results if r.dossier_warning]
 
     if json_output:
         payload = {
@@ -322,7 +326,6 @@ def backfill_identity(
                 "skip": len(skipped),
                 "error": len(errored),
                 "number_coerced": len(coerced),
-                "dossier_warnings": len(warned),
             },
             "results": [
                 {
@@ -331,7 +334,6 @@ def backfill_identity(
                     "mission_id": r.mission_id,
                     "number_coerced": r.number_coerced,
                     "reason": r.reason,
-                    "dossier_warning": r.dossier_warning,
                 }
                 for r in results
             ],
@@ -345,8 +347,6 @@ def backfill_identity(
         console.print(f"  Skipped (already set)  : {len(skipped)}")
         console.print(f"  Errors                 : {len(errored)}")
         console.print(f"  Number coerced         : {len(coerced)}")
-        if warned:
-            console.print(f"  [yellow]Dossier warnings       : {len(warned)}[/yellow]")
 
         if errored:
             console.print("\n[red]Errors:[/red]")
@@ -979,13 +979,6 @@ def backfill_runtime_state_cmd(
         cutover_mission,
         cutover_repo,
     )
-    from specify_cli.sync.emitter import reset_captured_failures
-
-    # FR-010 boundary consumer (WP05): the capture-failure flag is process-level.
-    # Reset it at entry so what we surface at the epilogue is this invocation's own
-    # signal — never a leftover from a prior command in a long-lived process.
-    reset_captured_failures()
-
     repo_root = locate_project_root()
     if repo_root is None:
         _error(_NO_PROJECT_ROOT)
@@ -1011,16 +1004,7 @@ def backfill_runtime_state_cmd(
     # --dry-run is a non-mutating preview: an unseeded corpus verifies "not ok"
     # only because the seeds are not yet written, so a preview never fails the
     # command — the counts + any mismatch are reported for the operator.
-    cutover_failed = not dry_run and any(_cutover_failed(r, dry_run=dry_run) for r in results)
-
-    # FR-010 boundary consumer: surface any unrecoverable capture failure WP05's
-    # emitter recorded during this run. Independent of the cutover verdict and
-    # non-fatal to it (it only ever *adds* a non-zero reason; it never rewrites a
-    # cutover failure into success), so a genuinely-swallowed capture failure is
-    # observable at the boundary instead of silently lost (#3391 / NFR-001).
-    capture_failed = _surface_capture_failures()
-
-    if cutover_failed or capture_failed:
+    if not dry_run and any(_cutover_failed(r, dry_run=dry_run) for r in results):
         raise typer.Exit(1)
 
 
@@ -1093,6 +1077,68 @@ def rebaseline_dossier_hashes(
             err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
 
 
+@app.command(name="repin-hooks")
+def repin_hooks(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
+    ] = False,
+) -> None:
+    """Re-pin this repository's pre-commit hook to the current interpreter (#254).
+
+    ``policy/hook_installer.py`` pins the absolute Python interpreter path
+    into the pre-commit hook at install time. An install-method migration
+    (e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing
+    at a path that no longer exists. This command re-runs the same install
+    the ``implement`` lane calls internally, but without requiring a mission
+    or workspace — the repair does not depend on the very thing it is
+    repairing (the ability to commit).
+
+    Idempotent: safe to re-run; a hook already pinned to the current
+    interpreter is re-written to the same effective hook (only the
+    ``# Installed:`` timestamp comment differs).
+
+    Exit codes:
+
+    - ``0`` — the hook was (re-)installed
+    - ``1`` — project root could not be located, or the current
+      ``sys.executable`` does not refer to an existing file
+
+    Examples:
+
+        spec-kitty migrate repin-hooks
+
+        spec-kitty migrate repin-hooks --json
+    """
+    from specify_cli.cli.commands.migrate.repin_hooks import run_repin_hooks_migration
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    try:
+        result = run_repin_hooks_migration(repo_root)
+    except RuntimeError as exc:
+        _error(str(exc))
+        raise typer.Exit(1) from exc
+
+    if json_output:
+        payload = {
+            "result": "repinned",
+            "hook_path": str(result.hook_path),
+            "interpreter": str(result.interpreter),
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        console.print("\n[bold]repin-hooks summary[/bold]")
+        console.print(f"  Hook        : {result.hook_path}")
+        console.print(f"  Interpreter : {result.interpreter}")
+        console.print(
+            "\n[green]Done.[/green] Pre-commit hook re-pinned to the current interpreter."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -1101,29 +1147,6 @@ def rebaseline_dossier_hashes(
 def _error(message: str) -> None:
     """Print an error message to stderr via Rich console."""
     err_console.print(f"[red]Error:[/red] {message}")
-
-
-def _surface_capture_failures() -> bool:
-    """FR-010 boundary consumer: report WP05's recorded capture failures.
-
-    Queries the emitter's process-level capture-failure surface
-    (:func:`specify_cli.sync.emitter.captured_failures`). When one or more
-    unrecoverable failures were swallowed during the run, prints an actionable
-    report naming each ``site`` + ``summary`` and returns ``True`` so the caller
-    can add a non-zero exit reason. Returns ``False`` (silent) on a clean run —
-    the NFR-001 inverse: a healthy root never warning-storms. This never raises:
-    surfacing the flag must not crash the command it is diagnosing.
-    """
-    from specify_cli.sync.emitter import captured_failures
-
-    failures = captured_failures()
-    if not failures:
-        return False
-
-    err_console.print(f"\n[red]{_CAPTURE_FAILURE_HEADER}[/red]")
-    for failure in failures:
-        err_console.print(f"  [red]{failure.site}:[/red] {failure.summary}")
-    return True
 
 
 def _cutover_failed(result: Any, *, dry_run: bool) -> bool:
@@ -1274,7 +1297,6 @@ def _mission_type_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any
                 "mission_type": r.mission_type,
                 "legacy_value": r.legacy_value,
                 "reason": r.reason,
-                "dossier_warning": r.dossier_warning,
             }
             for r in results
         ],

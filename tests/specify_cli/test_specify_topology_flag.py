@@ -489,9 +489,6 @@ def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
     with ExitStack() as stack:
         for target in (
             "specify_cli.merge.executor.commit_merge_bookkeeping",
-            "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled",
-            "specify_cli.merge.executor.emit_mission_closed",
-            "specify_cli.merge.executor._emit_merge_diff_summary",
             "specify_cli.post_merge.stale_assertions.run_check",
             "specify_cli.merge.executor.run_check",
             "specify_cli.merge.executor.require_no_sparse_checkout",

@@ -76,7 +76,7 @@ from .transitions import resolve_lane_alias, validate_transition
 from .wp_state import annotate
 from . import store as _store
 from . import reducer as _reducer
-from .adapters import fire_dossier_sync, fire_resolved_binding_fanout, fire_saas_fanout
+from .adapters import fire_resolved_binding_fanout, fire_saas_fanout
 from .locking import feature_status_lock
 
 logger = logging.getLogger(__name__)
@@ -99,9 +99,7 @@ _LEGACY_LANE_FIELD = "lane"
 try:
     import spec_kitty_events as _spec_kitty_events_mod
 
-    _EVENTS_SUPPORTS_GENESIS: bool = "genesis" in {
-        lane.value for lane in _spec_kitty_events_mod.Lane
-    }
+    _EVENTS_SUPPORTS_GENESIS: bool = "genesis" in {lane.value for lane in _spec_kitty_events_mod.Lane}
     # First-class resolved-binding bridge gate (FR-015 / IC-09, T049). Mirrors the
     # genesis gate: detect at import time whether the installed spec_kitty_events
     # exposes ``WPResolvedBindingChanged``. 6.1.0 does NOT; 6.2.0 (a SEPARATE
@@ -110,9 +108,7 @@ try:
     # ValidationError — local persistence is completely unaffected. When the event
     # ships and the pin is bumped, this gate resolves True on all installs and the
     # bridge lights up automatically with no code change here.
-    _EVENTS_SUPPORTS_RESOLVED_BINDING: bool = hasattr(
-        _spec_kitty_events_mod, "WPResolvedBindingChanged"
-    )
+    _EVENTS_SUPPORTS_RESOLVED_BINDING: bool = hasattr(_spec_kitty_events_mod, "WPResolvedBindingChanged")
 except (ImportError, AttributeError):
     # ImportError: spec_kitty_events not installed. AttributeError: installed but
     # lacks a Lane enum. Either way, treat both capabilities as unsupported.
@@ -161,6 +157,7 @@ def _generate_ulid() -> str:
 # Compatibility callers may still use ``emit_status_transition``.
 # Production workflow code routes through coordination.status_transition
 # so event append + outbound fanout are transactionally ordered.
+
 
 def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass constructor
     *,
@@ -380,14 +377,10 @@ def _infer_subtasks_complete(
 
 def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     """Infer implementation evidence from prior canonical events for this WP."""
-    return _infer_implementation_evidence_from_event_stream(
-        _store.read_event_stream(feature_dir), wp_id
-    )
+    return _infer_implementation_evidence_from_event_stream(_store.read_event_stream(feature_dir), wp_id)
 
 
-def _infer_implementation_evidence_from_event_stream(
-    event_stream: EventStream, wp_id: str
-) -> bool:
+def _infer_implementation_evidence_from_event_stream(event_stream: EventStream, wp_id: str) -> bool:
     """Infer implementation evidence from an already-resolved canonical stream."""
     return any(event.wp_id == wp_id for event in event_stream.transitions)
 
@@ -534,7 +527,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     policy_metadata: dict[str, Any] | None = None,
     review_result: Any = None,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
+    sync_dossier: bool = True,  # noqa: ARG001 -- 3.2.6 compatibility; fan-out retired by #677
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -563,7 +556,9 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         policy_metadata: Orchestrator policy metadata dict (optional).
         review_result: Structured ReviewResult for in_review -> * transitions (optional).
         ensure_sync_daemon: If False, emit SaaS events without starting the local sync daemon.
-        sync_dossier: If False, skip dossier sync for this transition.
+        sync_dossier: Deprecated 3.2.6 compatibility keyword. Accepted as a
+            no-op because the permanently-empty dossier fan-out registry was
+            retired by issue #677.
 
     Returns:
         The persisted StatusEvent.
@@ -652,11 +647,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         if workspace_context is None:
             context_root = repo_root if repo_root is not None else canonical_feature_dir
             workspace_context = f"{execution_mode}:{context_root}"
-        if (
-            not force
-            and from_lane == Lane.IN_PROGRESS
-            and resolved_lane == Lane.FOR_REVIEW
-        ):
+        if not force and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
             primary_subtasks_dir = resolve_subtasks_gate_dir(
@@ -810,10 +801,6 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     if annotation is not None:
         _resolved_binding_fan_out(annotation, mission_slug)
 
-    # Step 8: Dossier sync (fire-and-forget, never blocks)
-    if sync_dossier and repo_root is not None:
-        fire_dossier_sync(canonical_feature_dir, mission_slug, repo_root)
-
     # Step 9: Return the event
     return event
 
@@ -822,14 +809,16 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
     requests: list[TransitionRequest],
     *,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
+    sync_dossier: bool = True,  # noqa: ARG001 -- 3.2.6 compatibility; fan-out retired by #677
 ) -> list[StatusEvent]:
     """Validate and persist a same-WP transition sequence atomically.
 
     Composite operations such as implementation start have multiple legal lane
     edges but one user-visible lifecycle action. This helper validates the full
     sequence before any write, appends all events via ``append_events_atomic``,
-    materializes once, and then performs best-effort fan-out.
+    materializes once, and then performs best-effort fan-out. ``sync_dossier``
+    remains an accepted no-op keyword for 3.2.6 callers after retirement of the
+    permanently-empty dossier fan-out registry in issue #677.
     """
     if not requests:
         return []
@@ -864,11 +853,7 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
             workspace_context = f"{request.execution_mode}:{context_root}"
         subtasks_complete = request.subtasks_complete
         implementation_evidence_present = request.implementation_evidence_present
-        if (
-            not request.force
-            and from_lane == Lane.IN_PROGRESS
-            and resolved_lane == Lane.FOR_REVIEW
-        ):
+        if not request.force and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
             primary_subtasks_dir = resolve_subtasks_gate_dir(feature_dir, request.repo_root, mission_slug)
@@ -970,11 +955,6 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
     for annotation in annotations:
         _resolved_binding_fan_out(annotation, mission_slug)
 
-    if sync_dossier:
-        repo_root = next((request.repo_root for _event, request in built if request.repo_root is not None), None)
-        if repo_root is not None:
-            fire_dossier_sync(feature_dir, mission_slug, repo_root)
-
     return events
 
 
@@ -1036,8 +1016,7 @@ def emit_inner_state_changed(
             _reducer.materialize(feature_dir)
         except Exception:
             logger.warning(
-                "Materialization failed after annotation %s was persisted; "
-                "run 'status materialize' to recover",
+                "Materialization failed after annotation %s was persisted; run 'status materialize' to recover",
                 event.event_id,
             )
 
@@ -1296,7 +1275,7 @@ def emit_resolved_binding(
 def _saas_fan_out(
     event: StatusEvent,
     mission_slug: str,
-    _repo_root: Path | None,
+    repo_root: Path | None,
     *,
     policy_metadata: dict[str, Any] | None = None,
     ensure_sync_daemon: bool = True,
@@ -1352,4 +1331,7 @@ def _saas_fan_out(
         # sync-emission clock (Rule R-T-01 in spec-kitty-events).
         metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
         ensure_daemon=ensure_sync_daemon,
+        # The emitting checkout root, so the Zeitgeist bridge resolves relay
+        # credentials from it instead of the process cwd (#125).
+        repo_root=repo_root,
     )

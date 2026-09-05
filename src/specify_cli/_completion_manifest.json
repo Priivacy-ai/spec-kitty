@@ -101,7 +101,7 @@
        "deprecated": false
       },
       "setup-plan": {
-       "help": "Scaffold implementation plan template in the project root checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates plan.md and commits to target branch.\n\nExamples:\n    spec-kitty agent mission setup-plan --json\n    spec-kitty agent mission setup-plan --mission 020-my-feature --json\n\nLocal verification is authoritative. When hosted sync is requested, the\ncommand collects canonical session, structural-boundary, and route evidence\nwithout raising, composes one immutable decision, and reports any refusal as\nadditive warnings. Lifecycle JSONL is persisted locally first. Lifecycle\nfan-out and dossier publication are executed only by\n:func:`_execute_setup_plan_hosted_effects` after an allowing decision.",
+       "help": "Scaffold implementation plan template in the project root checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates plan.md and commits to target branch.\n\nExamples:\n    spec-kitty agent mission setup-plan --json\n    spec-kitty agent mission setup-plan --mission 020-my-feature --json\n\n------------------------------------------------------------------\nThe SaaS-sync boundary gates this command used to enforce (FR-011 auth\nrefusal, boundary preflight, dossier push) were removed with the sync\ntransport (issue #5); only local planning artifacts are produced here.\n------------------------------------------------------------------",
        "hidden": false,
        "deprecated": false
       },
@@ -400,7 +400,7 @@
      "deprecated": false
     },
     "doctor": {
-     "help": "Diagnose CLI auth and sync-daemon state. Default invocation is read-only.",
+     "help": "Diagnose CLI auth state. Default invocation is read-only.",
      "hidden": false,
      "deprecated": false
     }
@@ -447,7 +447,7 @@
      "deprecated": false
     },
     "synthesize": {
-     "help": "Validate and promote agent-generated project-local doctrine artifacts.\n\nReads the charter interview answers, resolves synthesis targets from the\nDRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.\n\nDoctrine generation is performed by the LLM harness (Claude Code, Codex,\nCursor, etc.) via the spec-kitty-charter-doctrine skill. This command\nvalidates and promotes the artifacts the agent has written.\n\nFresh-project behavior (issue #839 / WP06 T031-T033)\n----------------------------------------------------\nOn a fresh project where ``.kittify/charter/generated/`` is missing or\nempty (i.e. the LLM harness has not yet written agent artifacts), this\ncommand short-circuits the adapter pipeline and materializes the\n**minimal artifact set** the runtime requires:\n\n1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s\n   project-root resolver (``src/charter/_doctrine_paths.py``) is a\n   presence-only check; an empty directory is a valid project layer.\n2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the\n   fresh-project seed path, citing #839.\n\nThe runtime falls back to the built-in doctrine (``packs/built-in/``) for\nall artifact lookups until the harness writes per-target YAML and the\noperator re-runs ``synthesize`` (which then takes the normal adapter\npath). The fresh-project path is **idempotent**: re-running produces\nbytewise-identical output (T033). Charter prerequisites are still\nenforced — ``charter.md`` must exist (else ``TaskCliError`` is raised\nvia ``_build_synthesis_request``).\n\nExamples\n--------\nValidate + promote generated artifacts written by the harness::\n\n    spec-kitty charter synthesize\n\nValidate + promote with fixture adapter (offline/testing)::\n\n    spec-kitty charter synthesize --adapter fixture\n\nDry-run (stage + validate, no promote)::\n\n    spec-kitty charter synthesize --dry-run\n\nPreserve-and-warn default (WP03): a plain run never drops backed\ncontent -- it exits 0 and reports what it retained. Remove divergent\ncontent explicitly::\n\n    spec-kitty charter synthesize --prune\n\nOnly orphaned content (backing artifact deleted) or an unparseable\non-disk overlay make a plain run refuse (exit 1); backed divergence is\nalways preserved and reported, never a refusal.",
+     "help": "Validate and promote agent-generated project-local doctrine artifacts.\n\nReads the charter interview answers, resolves synthesis targets from the\nDRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.\n\nDoctrine generation is performed by the LLM harness (Claude Code, Codex,\nCursor, etc.) via the spec-kitty-charter-doctrine skill. This command\nvalidates and promotes the artifacts the agent has written.\n\nFresh-project behavior (issue #839 / WP06 T031-T033)\n----------------------------------------------------\nOn a fresh project where ``.kittify/charter/generated/`` is missing or\nempty (i.e. the LLM harness has not yet written agent artifacts), this\ncommand short-circuits the adapter pipeline and materializes the\n**minimal artifact set** the runtime requires:\n\n1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s\n   project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a\n   presence-only check; an empty directory is a valid project layer.\n2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the\n   fresh-project seed path, citing #839.\n\nThe runtime falls back to the built-in doctrine (``packs/built-in/``) for\nall artifact lookups until the harness writes per-target YAML and the\noperator re-runs ``synthesize`` (which then takes the normal adapter\npath). The fresh-project path is **idempotent**: re-running produces\nbytewise-identical output (T033). Charter prerequisites are still\nenforced — ``charter.md`` must exist (else ``TaskCliError`` is raised\nvia ``_build_synthesis_request``).\n\nExamples\n--------\nValidate + promote generated artifacts written by the harness::\n\n    spec-kitty charter synthesize\n\nValidate + promote with fixture adapter (offline/testing)::\n\n    spec-kitty charter synthesize --adapter fixture\n\nDry-run (stage + validate, no promote)::\n\n    spec-kitty charter synthesize --dry-run\n\nPreserve-and-warn default (WP03): a plain run never drops backed\ncontent -- it exits 0 and reports what it retained. Remove divergent\ncontent explicitly::\n\n    spec-kitty charter synthesize --prune\n\nOnly orphaned content (backing artifact deleted) or an unparseable\non-disk overlay make a plain run refuse (exit 1); backed divergence is\nalways preserved and reported, never a refusal.",
      "hidden": false,
      "deprecated": false
     },
@@ -523,6 +523,11 @@
      }
     }
    }
+  },
+  "commit-guard-hook": {
+   "help": "Run the commit guard and exit with its result code.",
+   "hidden": true,
+   "deprecated": false
   },
   "config": {
    "help": "Display project configuration and asset resolution information.",
@@ -673,16 +678,6 @@
      "hidden": false,
      "deprecated": false
     },
-    "orphan-daemons": {
-     "help": "List orphan daemon owner records and emit retirement hints.\n\nImplements FR-010 of the identity-boundary mission: an orphan\ndaemon owner record is one whose recorded PID is dead OR whose\nrecorded executable path no longer exists on disk. Each orphan\nis printed with a copy-pasteable retirement command that removes\nthe on-disk ``owner.json`` so the next ``sync status --check``\nreturns clean.\n\nExit codes:\n  0  No orphan records.\n  1  At least one orphan record found.\n\nExamples:\n    spec-kitty doctor orphan-daemons\n    spec-kitty doctor orphan-daemons --json",
-     "hidden": false,
-     "deprecated": false
-    },
-    "restart-daemon": {
-     "help": "Stop the registered sync daemon and respawn it at the foreground.\n\nComposes the existing daemon stop + launch primitives so the operator\nhas a one-shot remedy when the foreground process and the registered\ndaemon disagree on any of the six canonical D-3 fields (version,\nexecutable, source, server URL, team/user, or queue DB path).\n\nExit codes:\n  0  Daemon restarted (or stale owner record cleaned and respawned).\n  1  No registered daemon — run ``spec-kitty sync now`` to launch one.\n  2  Daemon stop succeeded but respawn failed; system is stopped.\n  3  Daemon stop failed (unresponsive); owner record left intact.\n\nExamples:\n    spec-kitty doctor restart-daemon\n    spec-kitty doctor restart-daemon --json",
-     "hidden": false,
-     "deprecated": false
-    },
     "mission-state": {
      "help": "Audit, repair, or TeamSpace-validate mission-state shapes.",
      "hidden": false,
@@ -721,7 +716,7 @@
      "deprecated": false
     },
     "regenerate-graph": {
-     "help": "Regenerate the shipped DRG graph source deterministically (FR-009).\n\nComposes the DRG extractor + calibrator into per-populated-node-kind\n``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;\nrelocated from ``src/doctrine/`` by the pack flatten),\nretiring the legacy ``graph.yaml`` monolith in the same write. Running twice\non unchanged inputs yields byte-identical fragments. With ``--check`` the\ncommand never writes: it regenerates into a temp directory and compares the\nfragment set against the committed source, exiting non-zero when stale — the\noperator-facing twin of the freshness gate.\n\nBoth the write path and ``--check`` merge in the enumerable hand-authored\noverlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the\n``in_tension_with``/``reconciles_tension``/``rejects`` edges and\n``anti_pattern`` nodes hand-authored directly in the graph fragments\n(mission doctrine-tension-edges-01KY1WPC). The extractor has no\nfrontmatter mechanism that could ever mint these, so a bare pure\nregeneration would (a) silently drop them from the committed source on\nwrite, and (b) always report \"stale\" under ``--check`` even when nothing\nis actually stale.",
+     "help": "Regenerate the shipped DRG graph source deterministically (FR-009).\n\nComposes the DRG extractor + calibrator into per-populated-node-kind\n``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;\nrelocated from ``src/charter/offering/`` by the pack flatten),\nretiring the legacy ``graph.yaml`` monolith in the same write. Running twice\non unchanged inputs yields byte-identical fragments. With ``--check`` the\ncommand never writes: it regenerates into a temp directory and compares the\nfragment set against the committed source, exiting non-zero when stale — the\noperator-facing twin of the freshness gate.\n\nBoth the write path and ``--check`` merge in the enumerable hand-authored\noverlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the\n``in_tension_with``/``reconciles_tension``/``rejects`` edges and\n``anti_pattern`` nodes hand-authored directly in the graph fragments\n(mission doctrine-tension-edges-01KY1WPC). The extractor has no\nfrontmatter mechanism that could ever mint these, so a bare pure\nregeneration would (a) silently drop them from the committed source on\nwrite, and (b) always report \"stale\" under ``--check`` even when nothing\nis actually stale.",
      "hidden": false,
      "deprecated": false
     },
@@ -886,8 +881,7 @@
   "issue-search": {
    "help": "Search tracker issues via the hosted read path",
    "hidden": false,
-   "deprecated": false,
-   "saas_gated": true
+   "deprecated": false
   },
   "lint": {
    "help": "Run ruff and mypy on a file and report errors.\n\nThis command is designed to be used as a post-edit hook for AI agents,\nproviding immediate feedback on linting and type-checking violations.\nWhen invoked without a path (the wired hook form), the target file is read\nfrom the harness JSON payload on stdin.",
@@ -981,6 +975,11 @@
     },
     "rebaseline-dossier-hashes": {
      "help": "One-time re-baseline of recorded dossier snapshot hashes (FR-009, WP05).\n\nRecomputes every recorded ``.kittify/dossiers/<slug>/snapshot-latest.json``\nhash under the canonical definition (WP01/WP02) so content that did not\nchange is not flagged divergent after the cutover. Idempotent (snapshots\nalready in canonical ``sha256:`` form are skipped) and read-only over source\nartifacts — only the recorded snapshot cache files are written (#2263).\n\nExit codes:\n\n- ``0`` — completed (some snapshots may be reported as errors and skipped)\n- ``1`` — project root could not be located",
+     "hidden": false,
+     "deprecated": false
+    },
+    "repin-hooks": {
+     "help": "Re-pin this repository's pre-commit hook to the current interpreter (#254).\n\n``policy/hook_installer.py`` pins the absolute Python interpreter path\ninto the pre-commit hook at install time. An install-method migration\n(e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing\nat a path that no longer exists. This command re-runs the same install\nthe ``implement`` lane calls internally, but without requiring a mission\nor workspace — the repair does not depend on the very thing it is\nrepairing (the ability to commit).\n\nIdempotent: safe to re-run; a hook already pinned to the current\ninterpreter is re-written to the same effective hook (only the\n``# Installed:`` timestamp comment differs).\n\nExit codes:\n\n- ``0`` — the hook was (re-)installed\n- ``1`` — project root could not be located, or the current\n  ``sys.executable`` does not refer to an existing file\n\nExamples:\n\n    spec-kitty migrate repin-hooks\n\n    spec-kitty migrate repin-hooks --json",
      "hidden": false,
      "deprecated": false
     }
@@ -1095,6 +1094,28 @@
     },
     "show": {
      "help": "Show the fully resolved MissionType definition for this project (FR-017).\n\nDisplays all fields of the activated mission type:\nid, display_name, action_sequence, template_set,\nsource_layer, extends.\n\nExits with code 1 and lists registered IDs when ``mission_type_id``\nis not an activated type.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "moments": {
+   "help": "Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "off": {
+     "help": "Switch moments to agents OFF: nothing surfaces, and\n`spec-kitty zeitgeist mcp-serve` exits 0 with one line.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "on": {
+     "help": "Switch moments back ON at the documented default (`mine`: only\nmissions this checkout is on).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "status": {
+     "help": "Show the effective mode, which file decided it, and the active filters.",
      "hidden": false,
      "deprecated": false
     }
@@ -1327,6 +1348,11 @@
    "hidden": false,
    "deprecated": false
   },
+  "routes": {
+   "help": "Show which team admits this checkout and which relay carries its moments.",
+   "hidden": false,
+   "deprecated": false
+  },
   "safe-commit": {
    "help": "Commit only the requested files via Spec Kitty's safe-commit path.",
    "hidden": false,
@@ -1352,123 +1378,6 @@
    "hidden": false,
    "deprecated": false
   },
-  "sync": {
-   "help": "Synchronization commands",
-   "hidden": false,
-   "deprecated": false,
-   "commands": {
-    "routes": {
-     "help": "Show where the current checkout sends data and which teams it is shared with.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "share": {
-     "help": "Share the current repository from Private Teamspace into a team.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "unshare": {
-     "help": "Stop sharing the current repository from this developer to one team.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "opt-out": {
-     "help": "Disable SaaS sync for this checkout and purge its pending uploads.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "opt-in": {
-     "help": "Enable SaaS sync for this checkout.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "import-history": {
-     "help": "Materialize existing local mission/WP history into the SaaS projection (#2262).\n\nA first sync registers a remote project/build but leaves it with zero\nmaterialized missions — the SaaS materializer deliberately refuses to\nfabricate a WorkPackage from a status event with no prior create. This\ncommand emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``\nstream (INV-3) so historical work populates the projection.\n\nThis is an explicit three-step flow using the same ``--mission`` selector:\n(1) ``--dry-run`` previews the synthesized cohort with zero staging/egress;\n(2) ``--confirm-history`` stages and confirms those exact local bytes, prints\na history action ID, and performs zero egress; (3) ``--apply\n--history-action-id <ID>`` preflights and uploads only that confirmed cohort.\nSkipping Step 2 or changing the cohort/authority fails closed.\n\nImport is once-and-frozen: each event carries a deterministic id, so\nre-running after the on-disk facts change (e.g. after fixing a malformed WP\nthe dry-run flagged as skipped) re-sends the same id and the server drops the\nupdated payload as a duplicate rather than overwriting. Resolve any skipped\nor incomplete missions the dry-run reports before the first ``--apply``.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "workspace": {
-     "help": "Synchronize workspace with upstream changes.\n\nUpdates the current workspace with changes from its base branch or parent.\nThis is equivalent to `git rebase <base-branch>`.\n\nSync may FAIL on conflicts (must resolve before continuing).\n\nExamples:\n    # Sync current workspace\n    spec-kitty sync workspace\n\n    # Sync with verbose output\n    spec-kitty sync workspace --verbose\n\n    # Attempt recovery from broken state\n    spec-kitty sync workspace --repair",
-     "hidden": false,
-     "deprecated": false
-    },
-    "server": {
-     "help": "Show or set sync server URL.\n\nExamples:\n    spec-kitty sync server\n    spec-kitty sync server https://spec-kitty-dev.fly.dev\n    spec-kitty sync server http://localhost:8000",
-     "hidden": false,
-     "deprecated": false
-    },
-    "now": {
-     "help": "Trigger immediate sync of all queued events.\n\nDrains the offline queue completely, uploading events to the server\nin batches of 1000 until the queue is empty or all remaining events\nhave exceeded their retry limit.\n\nExamples:\n    spec-kitty sync now\n    spec-kitty sync now --report failures.json\n    spec-kitty sync now --no-strict",
-     "hidden": false,
-     "deprecated": false
-    },
-    "gc": {
-     "help": "Purge event payloads delivered to all known targets (explicit, destructive).\n\nDeletes journal payload rows only for events with a terminal-success\ndelivery to **every** registered target; payloads still owed to any known\ntarget are kept so the durable, re-drainable copy is never lost (FR-005).\nThe delivery ledger is never touched, so delivery history survives (FR-010).\nRuns only on this explicit invocation — never from ``sync now``.\n\nExamples:\n    spec-kitty sync gc",
-     "hidden": false,
-     "deprecated": false
-    },
-    "archive": {
-     "help": "Archive retained event payloads (explicit, non-destructive).\n\nStamps the journal's archive marker so events move off the live retained\nsurface without deleting bytes. Idempotent and never touches the delivery\nledger (FR-010). Runs only on this explicit invocation.\n\nExamples:\n    spec-kitty sync archive",
-     "hidden": false,
-     "deprecated": false
-    },
-    "purge": {
-     "help": "Remove a project's retained event data from every store that holds it (FR-016/FR-017).\n\n**Dry-run by default.** Reports per-store, per-delivery-state counts and changes\nnothing; what it predicts is exactly what ``--apply`` then deletes. Deletion is\nonly ever the operator's explicit act (C-002) — nothing here runs unattended.\n\nFour stores hold a project's data and all four are covered: the event journal,\nthe delivery ledger (removed, not retained — an orphan ledger row can quote the\nproject it belonged to), the body-upload queue (verbatim ``spec.md`` /\n``plan.md`` text, not envelopes), and this checkout's queued local-commit frames\n(whose ``changed_files`` are mission slugs).\n\nEvery count in the differential is measured by re-reading the stores rather than\nby adding up what the purge reports deleting, and the report names the\npopulations a targeted purge cannot reach instead of quietly leaving them out.\n\n``--all`` is bounded to the active project's routed store and this checkout's\nlocal-commit frames. Another project store or checkout is neither listed nor\ntouched.\n\nExamples:\n    spec-kitty sync purge --project acme-migration\n    spec-kitty sync purge --project acme-migration --apply --report purge.json\n    spec-kitty sync purge --all\n    spec-kitty sync purge --all --apply --confirm \"purge all events\"",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-preview": {
-     "help": "Inventory immutable legacy sources, including committed WAL content.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-migrate": {
-     "help": "Copy, verify, atomically cut over, and resume one migration.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-status": {
-     "help": "Show durable migration phase without opening legacy sources.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-quarantine": {
-     "help": "Inspect permanently non-deliverable migration quarantine records.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-history": {
-     "help": "Preview, explicitly confirm, or disclose migrated sealed history.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "migrate": {
-     "help": "Refuse the retired shared-store migration and point to copy-only cutover.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "mode": {
-     "help": "Show or set the event-sync retention x delivery mode.\n\nWith no argument, prints the current mode. Mode semantics (which receiver,\nwhether the journal retains) are owned by the policy layer; the CLI only\nroutes the operator token through it (FR-006).\n\nExamples:\n    spec-kitty sync mode\n    spec-kitty sync mode LOCAL_RETENTION\n    spec-kitty sync mode EXTERNAL_RECEIVER --endpoint https://receiver.example/events",
-     "hidden": false,
-     "deprecated": false
-    },
-    "status": {
-     "help": "Show sync queue status, connection state, and auth info.\n\nDisplays:\n- Offline queue size\n- Connection / emitter status\n- Last sync timestamp\n- Auth status\n- Server URL configuration\n\nUse --check to test actual connectivity (adds 3s timeout if server unreachable).\n\nExamples:\n    # Show status (fast)\n    spec-kitty sync status\n\n    # Test connection to server\n    spec-kitty sync status --check",
-     "hidden": false,
-     "deprecated": false
-    },
-    "diagnose": {
-     "help": "Validate queued events locally against the event schema.\n\nReads all pending events from the offline queue and validates each one\nagainst the Pydantic Event model and per-event-type payload rules.\n\nValid events are reported as passing; malformed events show specific\nfield errors grouped by error category.\n\nExamples:\n    spec-kitty sync diagnose\n    spec-kitty sync diagnose --json",
-     "hidden": false,
-     "deprecated": false
-    },
-    "doctor": {
-     "help": "Diagnose sync health: queue, auth, and server connectivity.\n\nRuns a comprehensive check of offline queue state, authentication\nvalidity, and server reachability, printing actionable remediation\nsteps for any issues found.\n\nExamples:\n    spec-kitty sync doctor",
-     "hidden": false,
-     "deprecated": false
-    }
-   }
-  },
   "tasks": {
    "help": "Finalize tasks metadata after task generation.",
    "hidden": false,
@@ -1480,7 +1389,7 @@
    "deprecated": false,
    "commands": {
     "providers": {
-     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — the rollout gate\nitself is enforced by ``tracker_callback`` (and by the conditional\nregistration in ``cli/commands/__init__.py``), which is all the gating\nthis static output needs.",
+     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — ``tracker_callback``\nis the sole rollout gate for the tracker Typer app, which is all the\ngating this static output needs.",
      "hidden": false,
      "deprecated": false
     },
@@ -1553,8 +1462,7 @@
       }
      }
     }
-   },
-   "saas_gated": true
+   }
   },
   "upgrade": {
    "help": "Upgrade a Spec Kitty project to the current version.\n\nDetects the project's current version and applies all necessary migrations\nto bring it up to date with the installed CLI version.\n\n**New flags (WP09)**:\n  ``--cli``     Emit CLI upgrade guidance only.  No project detection;\n                succeeds outside any project (FR-014).\n  ``--project`` Run project migrations only; suppresses CLI nag.\n                Errors outside a project.\n  ``--yes``/``-y``  Non-interactive confirmation (alias for ``--force``).\n                    Does NOT bypass schema-incompatibility blocks (CHK037/A-006).\n  ``--no-nag``  Suppress upgrade-nag banner even when a CLI update exists.\n\nMutual exclusion: ``--cli`` and ``--project`` together exit 2.\n\n**Exit codes** (R-08):\n  0  Success / ALLOW / ALLOW_WITH_NAG / any ``--dry-run``\n  2  ``--cli --project`` flag conflict\n  4  Project migration required (BLOCK_PROJECT_MIGRATION)\n  5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable\n  6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)\n  1  General error\n\nSee also: ``docs/guides/install-and-upgrade.md``\n\nExamples:\n    spec-kitty upgrade              # Upgrade to current version\n    spec-kitty upgrade --dry-run    # Preview changes\n    spec-kitty upgrade --target 0.6.5  # Upgrade to specific version\n    spec-kitty upgrade --cli        # Show CLI upgrade hint, no project needed\n    spec-kitty upgrade --project    # Project migrations only\n    spec-kitty upgrade --yes        # Non-interactive (same as --force)\n    spec-kitty upgrade --dry-run --json  # Machine-readable plan",
@@ -1595,6 +1503,87 @@
      "help": "Import a workflow YAML into `.kittify/overrides/workflows`.",
      "hidden": false,
      "deprecated": false
+    }
+   }
+  },
+  "zeitgeist": {
+   "help": "Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "status": {
+     "help": "One bounded snapshot of ``repo``'s live presence/focus state.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "watch": {
+     "help": "Print live frames plus a final summary, bounded by whole-call\n``--timeout`` and ``--max-frames`` count.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "mcp-serve": {
+     "help": "Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the\nclient disconnects. Process entry point for an MCP client's launcher —\nnot meant for direct interactive use, hence hidden.\n\n#190: switched off (`spec-kitty moments off`), this prints one line to\nstderr and exits 0 — stdout stays clean for the MCP framing protocol —\nrather than starting a server that would only ever look broken.",
+     "hidden": true,
+     "deprecated": false
+    },
+    "outbox": {
+     "help": "Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision requires a real human at a real terminal — there is no --yes/--force option and no reachability from MCP or a script.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "list": {
+       "help": "Every item still awaiting a human disposition. Content is shown only\nas a bounded, redacted preview — never the exact prose (use ``show`` for\nthat, by exact id).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "show": {
+       "help": "The exact full record for ``item_id`` — the one explicit, per-id\ndisclosure action (see ``outbox_approval.py``'s module docstring).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "approve": {
+       "help": "Approve ``item_id``. Requires typing back the item's own challenge at\nthe controlling terminal when prompted — there is no flag to skip this.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "reject": {
+       "help": "Reject ``item_id``. Same human-gesture requirement as ``approve``.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "revoke": {
+       "help": "Pull back an already-approved ``item_id``. Same human-gesture\nrequirement as ``approve``; only valid from ``approved``.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "operability": {
+     "help": "Payload-free self-report of this client's liveness/connection/subscription/outbox status, plus local failure drills (relay unreachable, auth expiry, revoke fail-closed). Every subcommand here reuses zeitgeist_client.operability's signals/drills — no second implementation, no relay-url/token option, no network beyond the one optional canary offer `report` makes when repo already has a stored checkout.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "report": {
+       "help": "One payload-free snapshot of ``repo``'s operability signals. Runs a\nsingle canary offer probe only if ``repo`` already has a stored\ncheckout — otherwise reports honestly stale/inactive rather than\nfabricating a live reading.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "drill-timeout": {
+       "help": "Local \"relay unreachable\" drill — one offer() against a loopback\naddress nothing listens on. Network-free (loopback only) and needs no\nrepo/checkout.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "drill-rotation": {
+       "help": "Local \"auth expiry\" drill for ``repo``'s stored checkout — reads only\nthe stored ``token_issued_at`` timestamp, never the token value.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "drill-rollback": {
+       "help": "Local \"rollback\" drill: proves ``outbox_approval.revoke()`` fails\nclosed on a never-approved item — never touches the controlling\nterminal, never requires a human.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
     }
    }
   }

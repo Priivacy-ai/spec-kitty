@@ -34,9 +34,7 @@ class OwnedMission:
             try:
                 resolved.append(ensure_within_directory(candidate, self.directory))
             except ValueError as exc:
-                raise ActionContextError(
-                    "OWNED_MISSION_PATH_REFUSED", f"Path is outside the selected mission: {path}"
-                ) from exc
+                raise ActionContextError("OWNED_MISSION_PATH_REFUSED", f"Path is outside the selected mission: {path}") from exc
         return resolved
 
 
@@ -50,7 +48,11 @@ def effective_root_kwargs(root: Path | None) -> _EffectiveRootKwargs:
 
 
 def resolve_owned_mission(
-    primary: Path, checkout: Path, handle: str | None, *, target_override: str | None = None,
+    primary: Path,
+    checkout: Path,
+    handle: str | None,
+    *,
+    target_override: str | None = None,
 ) -> OwnedMission:
     """Validate ownership before reading mission data; never fall back to primary."""
     # Imported lazily: both mission_resolver (via the specify_cli.context package) and
@@ -86,9 +88,7 @@ def resolve_owned_mission(
         raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "--owned-checkout currently requires single_branch.")
     current = get_current_branch(root)
     target = str(meta.get("target_branch") or "")
-    if current is None or not target or current != target or (
-        target_override is not None and target_override != target
-    ):
+    if current is None or not target or current != target or (target_override is not None and target_override != target):
         raise ActionContextError("OWNED_BRANCH_REFUSED", "The current branch and mission target must match; detached HEAD is unsupported.")
     if ProtectionPolicy.resolve(primary).is_protected(target) or ProtectionPolicy.resolve(root).is_protected(target):
         raise ActionContextError("OWNED_BRANCH_REFUSED", f"Protected destination refused: {target}")

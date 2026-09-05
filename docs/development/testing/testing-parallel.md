@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-07-31'
+updated: '2026-08-27'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -25,15 +25,19 @@ see the [test-flakiness handling policy](testing-flakiness.md).
 
 ## The local command
 
+Do not hand-roll a broad pytest invocation — `make test-fast` and `make test-full`
+already encode the parallel/serial split below, and a hand-rolled command drifts
+out of date the moment that split changes:
+
 ```bash
-PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider
-# daemon/real-port tests run serially:
-PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py -n0 -q
+make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
+make test-full    # everything, parallel + serial passes — CI's target, not PR validation
 ```
 
-The first command runs the bulk of the suite across worker processes. The second
-command runs the daemon/real-port tests serially. Run both; the parallel command
-deliberately leaves the serial-only tests for the second pass.
+`make test-full` runs the bulk of the suite across worker processes, then gives
+each of the two parallel-unsafe families (`stress` and `timing`) its own
+dedicated serial pass — see [AGENTS.md](../../../AGENTS.md#commands) for the
+exact pass breakdown and the PR-validation test policy.
 
 ## Why `--dist loadfile` (never bare `--dist load`)
 
@@ -80,19 +84,87 @@ not reuse stale state. The regression guard
 Because the real `~/.spec-kitty` is never bound, you do not need to back it up or
 worry about a parallel run truncating your real `queue.db`.
 
-## The serial daemon pass
+## Per-run pytest temp root
+
+Every pytest invocation also gets its **own private basetemp** instead of the
+shared `/tmp/pytest-of-<user>` numbered tree: `<temproot>/spec-kitty-pytest-tmp/run-<pid>`
+(`temproot` honors `PYTEST_DEBUG_TEMPROOT`, then `TMPDIR`). This is a
+housekeeping fix, not a #63 fix: pytest's default tree only ever shrinks
+through its own locked, timeout-gated pruning, so a long-lived box accumulates
+stale `pytest-<N>` roots (some with live `.lock` files) that nobody notices
+until someone clears them by hand. A controller-qa audit falsified the
+original claim that this also fixed #63's `OSError: could not create numbered
+dir … after 10 tries` crash — that crash names a *worker* basetemp, which
+takes a code path with no locking or pruning to race in the first place;
+#63's actual driver is `tmp_path_retention_policy` (see below), and it remains
+open pending a full-suite run that reports a summary.
+
+`tests/conftest.py` wires this in `pytest_configure` via
+`tests/_support/run_basetemp.py`; xdist workers nest under the controller's
+choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
+
+- An explicit `--basetemp` still wins untouched — whoever passes one owns its
+  lifecycle.
+- Retention is outcome-gated (#76): a healthy run (`ExitCode.OK`) leaves
+  nothing behind — it removes the run's dir at interpreter exit. A run with
+  failures, errors, or an interruption keeps its private basetemp tree instead,
+  so `tmp_path` contents from that run ARE available for post-mortem inspection,
+  bounded by the 24 h stale-crash sweep the next run performs at controller
+  startup (`STALE_RUN_MAX_AGE_S`, swept from `install_run_basetemp`; it also
+  catches a run that never reaches `pytest_sessionfinish`, e.g. a SIGKILL,
+  since the exit-gated reap never runs for it either). This differs from
+  pytest's own default 3-session retention, which keeps the last three
+  sessions' trees regardless of outcome.
+
+## `tmp_path` retention policy
+
+`pytest.ini` sets `tmp_path_retention_policy = failed`: a passing test's
+`tmp_path` is removed in the `tmp_path` fixture's own teardown, right after
+that test runs, instead of staying alive for the whole session (pytest's
+`all` default). Across the ~40k tests `make test-full` collects, retaining
+every one's `tmp_path` for the full session is enough on its own to exhaust a
+runner's temp filesystem — the diagnosed driver behind #63's pre-summary
+crashes. Unlike the *session-end* basetemp wipe (which pytest only does when
+`--basetemp` was never given explicitly), this per-test teardown removal is
+unconditional — it fires exactly the same whether the run's basetemp came
+from `--basetemp`, from this repo's per-run private root above, or from
+neither, which is why it still drains the pressure under this repo's scheme
+even though a basetemp is effectively always "given" here.
+
+The *other* retention knob, `tmp_path_retention_count` ("how many past
+sessions' worth of numbered `tmp_path` dirs to keep"), is a no-op in this
+repo: it only ever applies to the code path that prunes pytest's own
+default numbered basetemp tree, which never runs once a basetemp is given —
+so it is not a lever worth reaching for here.
+
+## The serial marker passes
 
 Per-worker HOME isolation protects per-user state, but it does **not** protect
-OS-global resources such as real TCP ports or singleton daemons. Tests that bind
-the reserved daemon port range (9400–9449) — `tests/sync/test_orphan_sweep.py` —
-must run in their own serial pass:
+wall-clock timing or real multi-process/subprocess concurrency. Two marker
+families are corrupted by co-scheduled `pytest-xdist` workers and get their
+own dedicated serial pass instead of running in the main parallel pool:
+`stress` (spawns real multi-process/subprocess concurrency) and `timing`
+(measures wall-clock). `make test-full` deselects both from the parallel pass
+(`-m "not stress and not timing"`, `pytest.ini`'s parallel-unsafe marker set)
+and then runs each family on its own:
 
 ```bash
-PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py -n0 -q
+PWHEADLESS=1 pytest tests/ -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q
+PWHEADLESS=1 pytest tests/ -m timing -n0 --timeout=240 --timeout-method=signal -q
 ```
 
-`-n0` forces serial execution even when xdist is installed. These tests are
-excluded from the parallel pool so two workers never contend for the same port.
+`-n0` forces serial execution even when xdist is installed.
+`--timeout=240 --timeout-method=signal` guards against a hung fork/process
+stalling the pass indefinitely. These mirror the `stress-tests-serial` /
+`timing-nfr-serial` CI jobs (`.github/workflows/ci-quality.yml`) and the
+`Makefile`'s `test-full` target.
+
+(The former fourth pass ran the deleted sync daemon's fixed-port suites — five
+files bound to the reserved 9400–9449 port range, keyed off
+`tests/_real_port_suites.py`'s `FIXED_RANGE_SUITES` registry, isolated so two
+workers never contended for the same fixed port. Both the registry and the
+sync daemon it protected died with the sync transport, issue #5; there is no
+fixed-daemon-port family left to isolate.)
 
 ## Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)
 
@@ -145,8 +217,11 @@ python -m tests._support.coverage_safety.ratchet -n 3 -- \
 
 # 4. Parallel-vs-serial timing: target ≥2× faster on a ≥4-core machine.
 time PWHEADLESS=1 .venv/bin/pytest tests/ -n auto --dist loadfile -p no:cacheprovider \
-  --deselect tests/sync/test_orphan_sweep.py
-time PWHEADLESS=1 .venv/bin/pytest tests/sync/test_orphan_sweep.py -n0 -q   # serial pass
+  -m "not stress and not timing"
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m "stress and not windows_ci" -n0 \
+  --timeout=240 --timeout-method=signal -q
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m timing -n0 \
+  --timeout=240 --timeout-method=signal -q
 
 # 5. Real home untouched: mtime/inode unchanged (or path still absent) after the run.
 ls -la ~/.spec-kitty 2>/dev/null

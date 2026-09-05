@@ -1,4 +1,4 @@
-"""Coverage supplements for ``src/charter/_io.py`` edge paths introduced by
+"""Coverage supplements for ``src/charter/activation/_io.py`` edge paths introduced by
 WP06 of mission ``review-merge-gate-hardening-3-2-x-01KRC57C``.
 
 The main behavioral tests live in:

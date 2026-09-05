@@ -1,27 +1,67 @@
 """Symbol-level dead-code gate (Slice F WP02 / FR-120).
 
 Where ``test_no_dead_modules`` ensures every module has at least one
-non-test caller, this gate ensures every NAME in a module's ``__all__``
-declaration has at least one non-test caller too. A public class
-declared in ``__all__`` with zero callers -- the failure mode that bit
-Mission B WP08 cycle 1 -- fails here.
+non-test caller, this gate ensures every public module-level NAME has
+at least one non-test caller too. A public class declared in
+``__all__`` with zero callers -- the failure mode that bit Mission B
+WP08 cycle 1 -- fails here.
 
 ATDD anchor: AC-8 (covers: FR-120, FR-122).
+
+Scope (#470): widened beyond ``__all__``
+-----------------------------------------
+
+The gate originally scanned ONLY names listed in a module's ``__all__``
+literal. That left every public (non-underscore) module-level name NOT
+in ``__all__`` invisible to the gate -- exactly the blind spot that let
+``audit_invocation_disagreement`` sit dead (imported only by its own
+unit test, never wired to any ``src/`` caller) while nothing red-ed.
+``decls`` (below) is now the UNION of a module's ``__all__`` members and
+every public (non-underscore) module-level ``def``/``class``/assignment
+target. Two consequences of widening past ``__all__``'s explicit
+"exported for other modules" declaration:
+
+* A non-``__all__`` name that is merely referenced somewhere else in its
+  OWN defining module (a ``logger = logging.getLogger(__name__)``-style
+  module-private helper that never intended cross-module use) is not
+  dead -- see ``_used_within_own_module``. This intra-module signal is
+  deliberately NOT extended to ``__all__`` members: being in ``__all__``
+  is itself a claim of cross-module export, so an ``__all__`` member
+  used only within its own module stays caught, unchanged from the
+  original gate.
+* A Typer ``@app.command(...)``/``@app.callback(...)``-decorated
+  function is dispatched only through the CLI framework, never via a
+  direct ``from module import name`` -- see
+  ``_is_typer_command_definition`` (T013 structural auto-exempt,
+  alongside the pre-existing migration-class / Typer-sub-app / re-export
+  checks).
+
+The initial widening pass's residual offenders (real functions/classes/
+constants with zero callers under either signal above, once the two
+structural rescues above are applied) are far too many to hand-triage in
+one PR -- exactly the "unpredictable blast radius...expect a batch of
+small follow-up fixes" the issue anticipated. They are grandfathered in
+``_WIDENED_SCOPE_GRANDFATHERED_470`` (a plain qualified-name set, kept
+deliberately separate from ``_SYMBOL_ALLOWLIST``'s ``SymbolKey``
+machinery -- see that set's own docstring for why) pending follow-up
+triage in #633.
 
 Mechanics
 ---------
 
-* Walk every ``*.py`` file under ``src/`` and collect the modules that
-  declare an ``__all__`` literal at module scope (``ast.Assign`` whose
-  target is ``Name(id="__all__")`` with a list / tuple of string
-  literals as value).
+* Walk every ``*.py`` file under ``src/`` and collect, per module, the
+  UNION of its ``__all__`` literal (``ast.Assign`` whose target is
+  ``Name(id="__all__")`` with a list / tuple of string literals as
+  value) and its public module-level ``def``/``class``/assignment names.
 * Walk every ``*.py`` file under ``src/`` again and collect every
   ``from <module> import <name>`` site, resolving relative imports
   against the importer's containing package (same logic as
   ``test_no_dead_modules``).
-* For each ``(module, name)`` in some ``__all__``, fail if no caller in
+* For each ``(module, name)`` in ``decls``, fail if no caller in
   ``src/`` (other than the declaring module itself) imports that name
-  from that module OR re-exports it from its parent package.
+  from that module OR re-exports it from its parent package -- UNLESS
+  *name* is not an ``__all__`` member and is used within its own
+  defining module (see above).
 
 Tests under ``tests/`` are deliberately NOT counted as callers -- a
 symbol exercised only by its own unit tests is functionally dead in the
@@ -109,6 +149,78 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
+        # specify_cli.dashboard.server::BackgroundPortReportError -- #577:
+        # deliberately exported typed failure contract for callers that need to
+        # distinguish detached-child startup failures. No runtime caller catches
+        # it yet. TODO(triage): wire the first caller or drop from __all__ (FR-303).
+        SymbolKey(
+            "BackgroundPortReportError",
+            "37ae16b8b6363406df0eff14e6a8438305592f244a74124eb646fcc02ef96fb1",
+            source_module="specify_cli.dashboard.server",
+        ),
+        # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant.
+        # WIRE-M2-02 (2026-08-22): send_csp_header() (below) is now wired into all 35 send_response()
+        # sites across handlers/{base,api,features,glossary,lint,static}.py, so the module itself is no
+        # longer an orphan (see test_no_dead_modules). The DASHBOARD_CSP constant is still only consumed
+        # from inside send_csp_header()'s own body, never imported by name from another src/ module, so
+        # it stays here per this gate's rules. TODO(triage): drop from __all__ if no direct consumer of
+        # the raw string ever appears (follow-up bead).
+        SymbolKey("DASHBOARD_CSP", "87a67e7d3a60f84c30f950054f8a23e897e4e6be2ab27089f7c1a8e9cbb968ac", source_module="specify_cli.dashboard.csp"),
+        # specify_cli.status.lifecycle_events::append_lifecycle_event -- M2
+        # canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers
+        # that land with the F1-strict cutover. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "append_lifecycle_event",
+            "3534b0a120eafa5dc1cc295cb539f18cd9737f4003b4c124ce57e7842ad5a1d0",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.lifecycle_events::emit_artifact_phase_local -- convergence
+        # #813: retained local half of the lifecycle persistence/fanout split. Its hosted
+        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
+        # wire this split half when a non-retired hosted consumer lands.
+        SymbolKey(
+            "emit_artifact_phase_local",
+            "e285765b04611be105c42a29d3f4f13beb49fed64afe517243f5a1cc8fa1439f",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.lifecycle_events::fanout_lifecycle_event_hosted -- convergence
+        # #813: retained hosted half of the lifecycle persistence/fanout split. Its hosted
+        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
+        # wire this split half when a non-retired hosted consumer lands.
+        SymbolKey(
+            "fanout_lifecycle_event_hosted",
+            "6807f7943a4c7f909f816db58882b43f5889279cffa8754ed138ab22c28f6350",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2
+        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+        # yet. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "MigrationAction",
+            "120fd17dcda7ba500409b2ee13ee0e7c4426cfaf5756927dc9de14965c4834fc",
+            source_module="specify_cli.status.migrate_lifecycle_envelope",
+        ),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationManifest -- M2
+        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+        # yet. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "MigrationManifest",
+            "c39cc76b8426569d7c3bb6f9b0b70c621b99101f3f13fe97b79c15afbfe67594",
+            source_module="specify_cli.status.migrate_lifecycle_envelope",
+        ),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationRowResult -- M2
+        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+        # yet. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "MigrationRowResult",
+            "0c79465d23a8dfa43650ce146809dfff916378f55f3bfa0321fb8d8129ead618",
+            source_module="specify_cli.status.migrate_lifecycle_envelope",
+        ),
+        # specify_cli.status.migrate_lifecycle_envelope::migrate_lifecycle_envelope -- REMOVED
+        # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
+        # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and calls
+        # it directly. MigrationAction/MigrationManifest/MigrationRowResult above stay
+        # allowlisted -- the wrapper only names the function, never those three types.
         SymbolKey(
             "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter.activation._catalog_miss"
         ),  # charter.activation._catalog_miss::CatalogMissCause
@@ -213,7 +325,7 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
 
 
 # ---------- B. Grandfathered legacy (out of WP02 scope) ----------
-# Pre-existing public symbols across ``src/doctrine/`` + ``src/specify_cli/``
+# Pre-existing public symbols across ``src/charter/offering/`` + ``src/specify_cli/``
 # whose ``__all__`` membership predates the WP02 symbol-level gate. WP02 was
 # scoped to ``src/charter/`` + ``src/kernel/`` per C-007/FR-121, so these
 # entries were inherited as-is into the ratchet baseline. Per the Slice F
@@ -296,13 +408,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "RefreshResult", "8d26dc6c2df664824ed8c070ed4f488088b80dd83ab10a87f2f0cc962f60f141", source_module="specify_cli.auth.refresh_transaction"
         ),  # specify_cli.auth.refresh_transaction::RefreshResult
+        # specify_cli.cli.commands._auth_doctor::DaemonSummary -- PRUNED
+        # (issue-5-delete-sync-transport): the auth-doctor daemon section died with
+        # the sync transport; the dataclass is gone from _auth_doctor.
         SymbolKey(
-            "DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
-        # hash refreshed (#3723): DoctorReport gained the ``auth_verdict:
-        # HealthVerdict`` field so the honest auth verdict rides the report.
-        SymbolKey(
-            "DoctorReport", "bcb87616333b6591b924b2fcb4f8c77d3d169d8ebcf1f30268ed2ee517428617", source_module="specify_cli.cli.commands._auth_doctor"
+            "DoctorReport", "9d02d77be32202c48b37532815694b720249563faea3da5cf3042b207730f6bf", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
         SymbolKey(
             "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
@@ -316,20 +426,18 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
-        # #3723: body now computes the auth verdict + accepts a server_probe so
-        # an expired-access session reads unknown/fail rather than a false green)
+        # #1060: report now carries the token manager's safe persisted-session
+        # decryption-failure assessment into the auth verdict)
         SymbolKey(
-            "assemble_report", "06ff9c93db5232f2212eddb7497dc48b803c03cdce3c5a11b41c709c68063797", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "0151dc1711c6c0c8abb84fe441e55357be72af0c8e238005c48390646c92f051", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
-        # hash refreshed (#3723): "No problems detected." is now gated on a
-        # confirmed ``auth_verdict.state == 'ok'`` (never on finding-emptiness alone)
         SymbolKey(
-            "render_report", "19e9dbc747149473867462a519c6d739f51697c20ea65d5c581666e074d10dd8", source_module="specify_cli.cli.commands._auth_doctor"
+            "render_report", "ec6786950128c6bc191c43a4fad6872e136435c58997e91b42ebc965188a7f4d", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::render_report
         # specify_cli.cli.commands._auth_doctor::render_report_json
-        SymbolKey("render_report_json", "909a351e28d3aa72e41d2986c624b5ac2eb10476fa7010667fb4d1a76993cf8e", source_module="specify_cli.cli.commands._auth_doctor"),
+        SymbolKey("render_report_json", "cb3cc8a08c8d040f7d13cf3126e3864e67f310b3e7308514fdc84680927f4b08", source_module="specify_cli.cli.commands._auth_doctor"),
         # specify_cli.cli.commands._branch_strategy_gate::GateDecision
         SymbolKey(
             "GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899", source_module="specify_cli.cli.commands._branch_strategy_gate"
@@ -342,8 +450,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # `if meta is None` check to avoid masking a missing-meta failure)
         # specify_cli.cli.commands.implement::_ensure_vcs_in_meta
         SymbolKey("_ensure_vcs_in_meta", "4f9c0969a2a5519b1366171eb7ad78b578b40eeae7788578ffc6ca23e645472e", source_module="specify_cli.cli.commands.implement"),
-        # specify_cli.cli.commands.implement::detect_feature_context
-        SymbolKey("detect_feature_context", "03ce3f732e5db8d5a02fbfdcae55ae3acdaf00bdbbd3370b400b37e57fb66b81", source_module="specify_cli.cli.commands.implement"),
         SymbolKey(
             "find_wp_file", "d320a28d54f0ac514cfe9f87a85a5aad28916e7ce651934b3336f33ad6dc5283", source_module="specify_cli.cli.commands.implement"
         ),  # specify_cli.cli.commands.implement::find_wp_file
@@ -398,9 +504,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "DEFAULT_TIMEOUT_S", "06ad6f73f97f6fa8fb8842f61fea9ff0bc7e8c5a6aa3cd65369ee5f09f605e76", source_module="specify_cli.core.upgrade_probe"
         ),  # specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S
-        SymbolKey(
-            "PYPI_JSON_URL", "34521508629be2d77f48e49b4908e2e7e8baedeb8eab95ac9005b0b66ace1b36", source_module="specify_cli.core.upgrade_probe"
-        ),  # specify_cli.core.upgrade_probe::PYPI_JSON_URL
+        # specify_cli.core.upgrade_probe::PYPI_JSON_URL -- restored upstream public
+        # endpoint contract (#798); probe_pypi consumes it in this module, but no other
+        # src/ module imports the constant by name. TODO(triage): wire a direct
+        # consumer or remove it from __all__ if the public contract no longer needs it.
+        SymbolKey("PYPI_JSON_URL", "34521508629be2d77f48e49b4908e2e7e8baedeb8eab95ac9005b0b66ace1b36", source_module="specify_cli.core.upgrade_probe"),
         SymbolKey(
             "FeatureTopology", "7eb983a309007bf528c914ade5ecf049191c487a1de7457dcc663f0b6fbad30e", source_module="specify_cli.core.worktree_topology"
         ),  # specify_cli.core.worktree_topology::FeatureTopology
@@ -443,12 +551,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "ResearchArtifact", "3bceb1df567e06b8b2e1923f5fab8412e4eba3fd49c3ab89d5a2187635ee4b35", source_module="specify_cli.dashboard.api_types"
         ),  # specify_cli.dashboard.api_types::ResearchArtifact
-        SymbolKey(
-            "SyncInfo", "a9b32d4636c364815cab3b0810ccdfb1e51c9c328643fdee8b867f8ae2fafaf5", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::SyncInfo
-        SymbolKey(
-            "SyncTriggerSuccess", "aced0b9a63cd5f3e7442bca40d354db1a176c41d42d6ece869c2c429ba5ad155", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::SyncTriggerSuccess
+        # SyncInfo / SyncTriggerSuccess left the allowlist (E4 re-homing, planning
+        # epic #4): the sync block in HealthResponse and POST /api/sync/trigger
+        # were deleted, so both TypedDicts were deleted with their endpoints --
+        # nothing remains to allowlist.
         SymbolKey(
             "WorkflowStatus", "77fd5a6326798e778a0d9d16adc37b6d87a6c6a93923fc88feca4b74cb2a1030", source_module="specify_cli.dashboard.api_types"
         ),  # specify_cli.dashboard.api_types::WorkflowStatus
@@ -458,8 +564,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.dashboard.lifecycle::_write_dashboard_file
         SymbolKey("_write_dashboard_file", "ef82e6e8e295ed1b746ebbc8983b3fee53ab6f31b6d4bd143be6bfcc4a82017e", source_module="specify_cli.dashboard.lifecycle"),
         SymbolKey(
-            "get_dashboard_html", "99ab224c187cd9b6ac929157228cd64e5c53eca093745248f868dc8da6008cfa", source_module="specify_cli.dashboard.templates"
+            "get_dashboard_html", "41f3d112537b05d8865266e06e50b3d7301d5340c91b9e539cd1a56e801d79ad", source_module="specify_cli.dashboard.templates"
         ),  # specify_cli.dashboard.templates::get_dashboard_html
+        # ^ body_hash refreshed for #66: the mission-context injection moved
+        # into an inert <script type="application/json"> data island, so the
+        # function's body changed while its grandfathered-dead status (no src/
+        # importer; only tests exercise it) did not.
         SymbolKey(
             "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.doctrine.org_charter"
         ),  # specify_cli.doctrine.org_charter::GovernancePolicy
@@ -472,11 +582,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
         SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
-        # Hash refreshed (mission charter-activation-split-01M16ZSE, #3664):
-        # this function's body carries two local ``from charter.X import Y``
-        # calls whose targets moved to ``charter.activation.X`` (importer
-        # closure, MAP-C) -- a body-text edit, not a behavior change; still
-        # grandfathered-dead (no external src/ caller).
         SymbolKey(
             "apply_org_charter_pre_fill", "e3a5d7e2e5d16803128180ed9c1e34256ed4ff2f1e1315a8d9ffefce8a1f0e95", source_module="specify_cli.doctrine.org_charter"
         ),
@@ -673,46 +778,28 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811", source_module="specify_cli.skills.manifest_store"
         ),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
-        SymbolKey(
-            "load", "7689780b2e4a040cfc29e5b540406167217369b98795702cc6c496cb1c9a2b7c", source_module="specify_cli.skills.manifest_store"
-        ),  # specify_cli.skills.manifest_store::load
-        SymbolKey(
-            "save", "222fabd1e77c7d011d9fc0b583fd27d7c8a044cf0fe17fdce0a59c95583b1172", source_module="specify_cli.skills.manifest_store"
-        ),  # specify_cli.skills.manifest_store::save
+        # specify_cli.skills.manifest_store::{load,save} -- REMOVED (#666):
+        # unaliased submodule imports now feed the module-attr detector, so
+        # their many real src/ callers make both rows stale.
         # specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME
         SymbolKey(
             "MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9", source_module="specify_cli.status.lifecycle_events"
         ),
-        # specify_cli.status.lifecycle_events::PROJECT_EVENTS_FILENAME
-        SymbolKey(
-            "PROJECT_EVENTS_FILENAME", "27f95adf27cd2fb348df3cd92afb8f6bd3c015697e237d232da23bfa900f74fe", source_module="specify_cli.status.lifecycle_events"
-        ),
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
-        # specify_cli.status.lifecycle_events::append_lifecycle_event
-        # WP03 compatibility refactor hash refresh; no allowlist growth.
-        SymbolKey(
-            "append_lifecycle_event", "f9dceb5b9277ba3c6bcd30def9dd6bf33cc2b031cbdbe84a9aeaddab2c4f1dcb", source_module="specify_cli.status.lifecycle_events"
-        ),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
         SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d", source_module="specify_cli.status.lifecycle_events"),
-        # specify_cli.status.lifecycle_events::project_event_log_path
-        SymbolKey(
-            "project_event_log_path", "b865a8c81e88c0816fd94a24242e9bfff14f6504da477813fc99b160049f3f70", source_module="specify_cli.status.lifecycle_events"
-        ),
+        # specify_cli.status.lifecycle_events::project_event_log_path -- REMOVED
+        # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
+        # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and
+        # calls it directly to resolve the project-level lifecycle event log path.
         # specify_cli.status.uninitialized_hint::find_wp_dependency_cycles
         SymbolKey(
             "find_wp_dependency_cycles", "5b6258f4436930d9c732a9afc04d5261c137cd98c5b976a780e137d482e97135", source_module="specify_cli.status.uninitialized_hint"
         ),
-        SymbolKey(
-            "SyncDiagnostic", "ea3c1a482cae9570db15cadcdf12eaefbe1ec3841d82c512dc67177c455f40b6", source_module="specify_cli.sync.diagnostics"
-        ),  # specify_cli.sync.diagnostics::SyncDiagnostic
-        SymbolKey(
-            "reset_emitted_codes", "52fe7de8627d0dc2f62a726e39459f8512f20d4ab8206445dd91dc23b8dd20fb", source_module="specify_cli.sync.diagnostics"
-        ),  # specify_cli.sync.diagnostics::reset_emitted_codes
-        SymbolKey(
-            "SweepReport", "7ea93e8eac2a372c62bf080a8b9af326064800e2c072fe7a8ef01111ba1c1c10", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::SweepReport
+        # sync.diagnostics::{SyncDiagnostic,reset_emitted_codes} and
+        # sync.orphan_sweep::SweepReport -- PRUNED (issue-5-delete-sync-transport):
+        # both modules were deleted with the sync transport.
         # specify_cli.task_metadata_validation::TaskMetadataError
         SymbolKey("TaskMetadataError", "a5f4d63d6b2895e3143710b52553986e2c34ee1170b0a2c65909f19b8776aee7", source_module="specify_cli.task_metadata_validation"),
         # specify_cli.task_metadata_validation::detect_lane_mismatch
@@ -736,7 +823,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.tracker.origin::search_origin_candidates
         SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069", source_module="specify_cli.tracker.origin"),
         # specify_cli.tracker.origin::start_mission_from_ticket
-        SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a", source_module="specify_cli.tracker.origin"),
+        SymbolKey("start_mission_from_ticket", "4ce21a98763e91956fb8666c6479e7e86f70f8870f5ea3a0d4b1227f8870071f", source_module="specify_cli.tracker.origin"),
         # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID
         SymbolKey(
             "MIGRATION_ID",
@@ -753,19 +840,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("MigrationDiscoveryError", "541864310809d0a9f476f2963151b6468ced74b86082c66d0e0e3e420cbd133f", source_module="specify_cli.upgrade.migrations"),
         # specify_cli.validators.csv_schema::CSVSchemaValidation
         SymbolKey("CSVSchemaValidation", "9492562d2a8ff78e95fe51a2eb532a7046b2c26e8a04281d800551d07ccb8b9c", source_module="specify_cli.validators.csv_schema"),
-        # re-pinned 2026-08-28 (landing #3783 SHIP-WITH-FOLDS): the
-        # missing_paths_feature_relative field was renamed to
-        # missing_artifact_tokens and its placeholder-branch population
-        # dropped (dead weight -- the sole consumer's artifact_tokens
-        # membership filter could never let a placeholder entry through), which
-        # changed the dataclass body and its content-tier body_hash again;
-        # still a public result type returned by validate_mission_paths with
-        # no src/ importer-by-name, so the allowlist decision is unchanged —
-        # hash-only re-pin, no new FR-303 ticket needed for an
-        # already-allowlisted symbol.
         SymbolKey(
             "PathValidationResult", "0d1a15a99129e28b1216f120e7a9c73d470b36df5dd1a0907d289e410681356a", source_module="specify_cli.validators.paths"
-        ),  # specify_cli.validators.paths::PathValidationResult
+        ),  # specify_cli.validators.paths::PathValidationResult -- #811 port added missing_artifact_tokens field, refreshing this content-hash (#470)
         # specify_cli.validators.paths::suggest_directory_creation
         SymbolKey("suggest_directory_creation", "43ab52fd99963aff65a61cac707bfa4e7460fb71e515f636c9e79960290f90f7", source_module="specify_cli.validators.paths"),
         SymbolKey(
@@ -989,9 +1066,6 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::DeactivationPlan
-        SymbolKey(
-            "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.activation.cascade"
-        ),  # charter.activation.cascade::REFERENCE_RELATIONS
         SymbolKey(
             "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::ReferencedArtifact
@@ -1251,233 +1325,33 @@ _CATEGORY_B_T001_UNBLINDED: frozenset[SymbolKey] = frozenset(
 
 # ---------- C. event-sync retention/delivery mission public surface ----------
 # Mission ``event-sync-retention-delivery-01KVYWRG`` (#2124) shipped two new
-# domains plus a ``sync.migrate_journal`` migration. The names below are the
-# remaining mission public surface: the locked per-WP test-contract plus the
-# C-008 OPT_OUT discard-safety machinery, whose LIVE runtime enforcement is
-# deferred to the legacy-queue retirement follow-up (mission-review-report
-# DRIFT-1/RISK-1). Tracked in
-# ``kitty-specs/event-sync-retention-delivery-01KVYWRG/issue-matrix.md``.
+# domains plus a ``sync.migrate_journal`` migration. Every symbol this category
+# used to grant (``specify_cli.delivery.*``, ``specify_cli.event_journal.*``,
+# ``specify_cli.sync.migrate_journal.*``) died with its module when issue #5
+# deleted the sync transport, so the category is fully drained and stays empty
+# as a tombstone -- re-admitting any of these names would require the module to
+# come back first.
 
-_CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "AuditSink", "1db149c15d93c2e917fb6c942a5dcd9a9fb1b8309af911d0ad060d962544bdf9", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::AuditSink
-        SymbolKey(
-            "Delivery", "b6ae32688201dfdb4daf70060f1071b62a7ddc2ea123c32b4d0c65de5440ecce", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::Delivery
-        SymbolKey(
-            "DiscardAuditRecord", "dab90db7f8fa5c751b0379858c0a9877fe88ff8caf0b658291736ffeaeba32d9", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::DiscardAuditRecord
-        SymbolKey(
-            "DiscardDecision", "e7aa1c068489ec6ce9075c33bfc025a5ed1b3546309995989b7f9d01080f2c93", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::DiscardDecision
-        SymbolKey(
-            "DiscardDecisionKind", "d205655876907c0b0d9765caebcf188ef255e41cba21bfad0d85c09560e9736c", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::DiscardDecisionKind
-        SymbolKey(
-            "FamilyClassification", "7dce11f428dfaca1671eedfe1649ecf07d0803d5cf9bb2046e5b4c40b99f2f40", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::FamilyClassification
-        SymbolKey(
-            "JsonlAuditSink", "c5348817f0566cb012cd9be73c5e243c7a19b4d2e76a7f77f78b8a6ae345914f", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::JsonlAuditSink
-        # specify_cli.delivery.config::MissingExternalEndpointError
-        SymbolKey("MissingExternalEndpointError", "b92bf3e32108adf605bb484a0427e057ed7f7318d1ba7554b5159a81603567e8", source_module="specify_cli.delivery.config"),
-        # specify_cli.delivery.config::PolicyResolutionError
-        SymbolKey("PolicyResolutionError", "937326d99123aab38978177224911a0de39b93c8143da4498727c870c23263f0", source_module="specify_cli.delivery.config"),
-        SymbolKey(
-            "ReceiverFactory", "8bffbd5ba44ccbea82402e5cfeb6915399fb1ea6336abfe5dea1fed5d953b850", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::ReceiverFactory
-        SymbolKey(
-            "ResolvedPolicy", "b9143d0f72c90606233e8e85d20950068b660049e318009aea6c83557707f6d8", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::ResolvedPolicy
-        SymbolKey(
-            "ResolvedTarget", "249eb5ca981d52ddbba5fc8f8468dacd27c5262d5dce4e51abc3f8e25003d258", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::ResolvedTarget
-        SymbolKey(
-            "Retention", "e4346975f8569d23e351047f7b4a892c1b73f40d8e5579ddf6748d06819f2367", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::Retention
-        SymbolKey(
-            "UnknownModeError", "5065dd65ecc8c46ce95b5c762c83b139fd66c21fa6c6d3125a761034ac0033eb", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::UnknownModeError
-        SymbolKey(
-            "discard_decision", "e0c5fd8606d658c33140576b9ddeaace7e88ab9ea9030b536047a9d8e9988c40", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::discard_decision
-        SymbolKey(
-            "LEDGER_INDEX_NAME", "00ff2374543242c1a9bb343f02ce2a4119d806a11f317a6b569f631332aeebca", source_module="specify_cli.delivery.ledger"
-        ),  # specify_cli.delivery.ledger::LEDGER_INDEX_NAME
-        SymbolKey(
-            "LedgerRow", "8120a15f278fab95a5e1eda3af4bc646b746555a8f4ac31e9bcf44559b0da3e3", source_module="specify_cli.delivery.ledger"
-        ),  # specify_cli.delivery.ledger::LedgerRow
-        SymbolKey(
-            "TERMINAL_STATUSES", "39cfb0bb7ccf29fe7683659c8e5648022bc1fa98b30069fdee81822c103fe7bd", source_module="specify_cli.delivery.ledger"
-        ),  # specify_cli.delivery.ledger::TERMINAL_STATUSES
-        SymbolKey(
-            "BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
-        # BATCH_TIMEOUT_SECONDS left the allowlist: sync.history_import.upload now
-        # imports it (reusing the canonical delivery timeout, #2884).
-        # GateDecision left the allowlist: cli.commands.sync now imports it for the
-        # shared _resolve_gated_receiver seam (#2884 landing fold).
-        SymbolKey(
-            "GateKind", "5b6ccac48cf9723e99c997a1f70c7af1f481e819abb62e251d9b3814fd71d05e", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::GateKind
-        SymbolKey(
-            "HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::HttpResponse
-        SymbolKey(
-            "ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::ReceiverGate
-        SymbolKey(
-            "STUB_ENDPOINT_URL", "bf67c1a0cecca5dd72e30cc6a6a0e2b3cef8c69dd363929c13f96bcd5129079d", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::STUB_ENDPOINT_URL
-        # Rehashed for #3030 FR-028: deliver() now takes a ConsentedBatch. The entry is
-        # content-addressed on the symbol body, so ANY edit to an allowlisted symbol
-        # invalidates its key — a red here is not necessarily a new death.
-        SymbolKey(
-            "StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::StubReceiver
-        SymbolKey(
-            "map_batch_response", "608a6a0ba7eb0439166cd843f95d8fcbb2a1cd61f13e7b081e6daa596f4730d2", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::map_batch_response
-        # specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS
-        SymbolKey("ADDITIVE_SECTION_KEYS", "45f0e694af41633f3bf4de2228ba6e52905e1c41a5d9cdbb8c1e67f5b256472a", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::BODY_UPLOAD_COMPAT_KEY
-        SymbolKey("BODY_UPLOAD_COMPAT_KEY", "339aee253812a3490f03a4fc4e1e4e8492c0f62fc5813a55db35b3f22ca79a3e", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::DELIVERY_LEDGER_KEY
-        SymbolKey("DELIVERY_LEDGER_KEY", "d3df6fb989f2687421cd363713117eda8a903ca2b7482791740e12a296cde217", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::DELIVERY_TARGETS_KEY
-        SymbolKey("DELIVERY_TARGETS_KEY", "f44d437e6c09d172b81e68a322038fdf78712517331cbb0f9e4515be21d612c5", source_module="specify_cli.delivery.status_report"),
-        SymbolKey(
-            "EVENT_JOURNAL_KEY", "4e41a05ccac292750359c3be4216534255f1a19bc0c2e70afb07a3b0d8930321", source_module="specify_cli.delivery.status_report"
-        ),  # specify_cli.delivery.status_report::EVENT_JOURNAL_KEY
-        # specify_cli.delivery.status_report::GC_LARGE_JOURNAL_THRESHOLD_BYTES
-        SymbolKey(
-            "GC_LARGE_JOURNAL_THRESHOLD_BYTES",
-            "bae60652257ec6420577d1642eefcc61afc08fb6bec3facc14f60cc5ad4e5074",
-            source_module="specify_cli.delivery.status_report",
-        ),
-        # specify_cli.delivery.status_report::MIGRATION_CONFLICTS_KEY
-        SymbolKey(
-            "MIGRATION_CONFLICTS_KEY", "2b593112d73a14ba353d22c5408b3fbdf6d3672e1f0aeac6f948aee093ee7827", source_module="specify_cli.delivery.status_report"
-        ),
-        # specify_cli.delivery.status_report::TARGET_AUTHORITY_KEY
-        SymbolKey("TARGET_AUTHORITY_KEY", "e07abf140b944fdac04293e228c927c0e3d47e6e3668a0efb02f889d22202d8f", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::TERMINAL_FAILURES_KEY
-        SymbolKey("TERMINAL_FAILURES_KEY", "59fcb2d13859d17054c2b2ec3102d40e6e06a507128e071bca2079e3fa8a9640", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::evaluate_gc_suggestion
-        SymbolKey("evaluate_gc_suggestion", "ec86dd1fd2dac37f7f480eb7e3d7b6f5454ba1b5231f574c5d3232894751e64a", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.event_journal.coalesce::DeliveredAnywhereQuery
-        SymbolKey("DeliveredAnywhereQuery", "006197fe8e8930ae3340613069f631fd0478c9aed0b95416e3c951db65c9c70b", source_module="specify_cli.event_journal.coalesce"),
-        SymbolKey(
-            "SupersedeMarker", "28103221c51dc7ad13004841818581069756ef63456a93fd398760b0e9934968", source_module="specify_cli.event_journal.coalesce"
-        ),  # specify_cli.event_journal.coalesce::SupersedeMarker
-        SymbolKey(
-            "install", "49e1cbe2531458103c6492184d179bc70a1707789487b439a4815b4e21ec58ef", source_module="specify_cli.event_journal.coalesce"
-        ),  # specify_cli.event_journal.coalesce::install
-        SymbolKey(
-            "JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62", source_module="specify_cli.event_journal.journal"
-        ),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
-        # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed AGAIN for
-        # #3030, which appended repo_slug after the T012 re-key below had already
-        # accounted for project_uuid/project_slug. The hash-bound content tier did
-        # exactly its job: appending a column re-opened the entry instead of letting
-        # the previous grant silently cover new content, which is why this gate went
-        # red on the mission branch. Re-adjudicated on the same unchanged grounds,
-        # NOT widened: the constant is consumed inside models.py by
-        # _COLUMN_LIST/_PLACEHOLDERS (so no cross-module import can ever exist), and
-        # it is exported because it is the journal's canonical column-order contract.
-        # It surfaced twice for one root cause: the stale key made the constant a
-        # fresh offender AND orphaned this entry, which is the double signal
-        # `_compute_dangling` documents and suppresses to a single fix.
-        SymbolKey(
-            "ORDERED_COLUMNS", "3054068a5131fb488635e1418800da7b405aed699671821becafd2573d9489c7", source_module="specify_cli.event_journal.models"
-        ),  # specify_cli.event_journal.models::ORDERED_COLUMNS
-        SymbolKey(
-            "KNOWN_PREFIX", "98ecae0739efcb4413e222ecc96031896d1c57e85b9bf934884cbbdb1b2bb838", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::KNOWN_PREFIX
-        SymbolKey(
-            "LEGACY_DIGEST", "170c1daeecd9635cf72713656060e38404f956d4305108275d591c11ecb86d29", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::LEGACY_DIGEST
-        SymbolKey(
-            "MIGRATION_NOTE", "5ed3a197746b627274ddde481632dffb952714f486217193e06475ec10ea466d", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::MIGRATION_NOTE
-        SymbolKey(
-            "MigrationConflict", "28bc71565ef0e26abdfd20e5a6ebb85e30bca5600c6ae1584371a75e2ebc62e9", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::MigrationConflict
-        SymbolKey(
-            "SourceDb", "359bad378deef3920559bea9d89645c9a7aa2d84ff0c14ae315047fb9e5a3e22", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::SourceDb
-        SymbolKey(
-            "SourceOutcome", "e5222067e3eba9771531b0a8364d898136c13fbfa5757cbd3b40a50cf8ce30a2", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::SourceOutcome
-        SymbolKey(
-            "UNKNOWN_PREFIX", "8f1aac4b29244ee6faa6b237b3fdbe471d1ea66cdd9afd0370727053535c2791", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::UNKNOWN_PREFIX
-        # discover_source_dbs REMOVED (#3497 landing): now has a real external
-        # caller -- layout_generation.py's has_legacy_data()/_conservation_ok()
-        # import and call it directly (the "real reader", not a retired stub) --
-        # so the allowlist grant is stale and must be removed (reverse
-        # containment: a symbol with a caller cannot stay allowlisted).
-        # specify_cli.sync.migrate_journal::migration_target_token
-        SymbolKey("migration_target_token", "bce7a50af7aefac52a1f1b1319dba5f0ba128f8d67ac449c16e9cf1986cbf6a0", source_module="specify_cli.sync.migrate_journal"),
-    }
-)
+_CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset()
 
 
 # sync-daemon-orphan-cleanup-01KWC2A3 (#2261): the ``ResetResult`` per-entry
-# dataclasses are the public structured-reporting surface for
-# ``auth doctor --reset`` (FR-005), constructed/asserted directly by the
-# auth-doctor + orphan-sweep test suites but with no in-``src/`` importer
-# because production code consumes them only through ``ResetResult``.
+# dataclasses were the structured-reporting surface for the orphan sweep. The
+# sweep module (``specify_cli.sync.orphan_sweep``) was deleted with the sync
+# transport (issue #5), so this category is fully drained and stays empty as a
+# tombstone.
 
-_CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "FailedEntry", "0e1aa316dd07e92dedc924494897d393b9e8410bb718b8884698933da58900e9", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::FailedEntry
-        SymbolKey(
-            "SkippedEntry", "d55962bfd4eb368c36e7204231f5dd79c7c677768ca27db70fc0c0d21950547f", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::SkippedEntry
-        SymbolKey(
-            "SweptEntry", "e74ae7b75e826cf7e213e08728c1ef15d7ba42dad631136512d9ed2527f1304f", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::SweptEntry
-    }
-)
+_CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset()
 
 
 # ---------- C. legacy->journal capture cutover mission (#3425/#3497) ----------
-# ``layout_generation.py``'s machine layout-generation authority (WP01/WP03)
-# introduces this small public error/config surface for a genuinely-
-# unrecoverable resolution: ``NO_AUTO_CUTOVER_ENV`` names the operator
-# escape-hatch env var read internally by ``_auto_cutover_disabled()`` and
-# echoed into the refusal message; ``LayoutAutoCutoverRefusedError`` and
-# ``LayoutCutoverIncompleteError`` are raised by ``resolve_layout_for_write``.
-# Both errors propagate to ``emitter.py``'s ``_route_event`` catch-all
-# (deliberately generic per the "never silently swallow" contract -- see the
-# comment at ``emitter.py:_queue_event_locally``) rather than being caught by
-# name anywhere else in src/, so no other src/ file imports these symbols by
-# name. All three are exercised directly by
-# ``tests/sync/test_layout_cutover.py`` (T014 escape-hatch /
-# ``pytest.raises(LayoutAutoCutoverRefusedError)`` /
-# ``pytest.raises(LayoutCutoverIncompleteError)``) and
-# ``tests/sync/test_emitter_observability.py`` (Part B resolve-before-UoW).
-# Follow-up tracker: #3497.
+# ``specify_cli.sync.layout_generation``'s cutover error/config surface
+# (``NO_AUTO_CUTOVER_ENV``, ``LayoutAutoCutoverRefusedError``,
+# ``LayoutCutoverIncompleteError``) died with its module when issue #5 deleted
+# the sync transport, so this category is fully drained and stays empty as a
+# tombstone.
 
-_CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.sync.layout_generation::NO_AUTO_CUTOVER_ENV
-        SymbolKey("NO_AUTO_CUTOVER_ENV", "42000b4d43af2be0fe49519580844ae591d5d1757bdd182da765aad0e1098434", source_module="specify_cli.sync.layout_generation"),
-        # specify_cli.sync.layout_generation::LayoutAutoCutoverRefusedError
-        SymbolKey(
-            "LayoutAutoCutoverRefusedError", "4e1aab01c345a9525ac411f202313dfdaa3f3f83711f0d87912e26ce7f235249", source_module="specify_cli.sync.layout_generation"
-        ),
-        # specify_cli.sync.layout_generation::LayoutCutoverIncompleteError
-        SymbolKey(
-            "LayoutCutoverIncompleteError", "b8ea000a40231fd78125c048552b171d12b7ef0d94ddfbcd1954beac76f20505", source_module="specify_cli.sync.layout_generation"
-        ),
-    }
-)
+_CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
 
 
 # ---------- C. runtime-bridge-degod-01KX8M1C (#2531) compat-surface entries ----------
@@ -1503,7 +1377,10 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
 # :func:`_imports_by_target` proper, so the gate now recognises these 4
 # names as live via ``_runtime_bridge_module()``'s call-bound accessor
 # pattern WITHOUT a permanent allowlist row; the 4 entries are removed
-# here in the same commit. Converting the call sites to a direct
+# here in the same commit. ``_build_alias_map_and_consts`` records both
+# aliased and unaliased ``from X import Y`` bindings as ``X.Y``, with the
+# real-module guard rejecting symbol aliases and admitting submodules.
+# Converting the call sites to a direct
 # ``from runtime.next.runtime_bridge import get_or_start_run`` was
 # considered and rejected: it would defeat the very patchability the
 # dynamic accessor exists for and breaks a live regression test
@@ -1515,6 +1392,26 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
 # retired in #3285; the live regression test cited above remains the
 # authoritative proof for these three canonical entries. Tracker: #2531
 # (runtime-bridge-degod), #2559.
+
+# ---------- C. unwired since the sync-transport deletion (issue #5) ----------
+# Issue #5 deleted the whole sync transport (``specify_cli/sync/``,
+# ``delivery/``, ``event_journal/``, ``saas/``, ``cli/commands/sync.py``). Six
+# surviving public symbols lost their LAST cross-file ``src/`` consumer in that
+# deletion (all six were imported only by the deleted ``cli/commands/sync.py``
+# and the sync daemon surfaces), so this gate correctly flagged them as
+# ``__all__``-declared-but-unimported pending the wire-or-prune adjudication
+# tracked by issue #116. That adjudication found no viable low-risk src/
+# consumer for any of the six: three (``EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE``,
+# ``RecoveryOutcome``, ``handle_unauthenticated_with_teamspace``) were the
+# interactive auth-recovery facade for the deleted sync commands, superseded
+# (not reused) by ``readiness.render``'s non-blocking guidance renderer; two
+# (``build_loopback_base_url``, ``build_loopback_url``) were unused loopback
+# URL-string builders; one (``saas_sync_opt_in_recorded_message``) was the
+# confirmation message for the deleted ``sync opt-in`` command. All six were
+# PRUNED (deleted at the source) rather than wired, so this category is now
+# fully drained and stays empty as a tombstone.
+_CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED: frozenset[SymbolKey] = frozenset()
+
 
 _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
 
@@ -1611,67 +1508,27 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = fr
 
 
 # ---------- C. scopesource-gate-followup-01KY6S9P WP04 single-factory-construction hub ----------
-# WP04 (this WP, epic #2535 half A follow-up, tracker #2873) landed the FR-014
-# rewire: ``tasks_move_task._mt_resolve_scope_source`` now delegates to WP02's
-# ``resolve_scope_source`` factory instead of hard-constructing
-# ``GateCoverageScopeSource`` directly, and ``pre_review_gate.py`` no longer
-# imports ``GateCoverageScopeSource`` at all (its former direct uses --
-# ``_live_filter_groups``/``_live_composite_routing`` -- were retired
-# alongside the census tier they backed, FR-001). Every concrete
-# ``ScopeSource`` implementer below is genuinely alive at runtime --
-# ``resolve_scope_source`` selects and constructs one of them on every
-# ``for_review`` move -- but by DESIGN (the structural-Protocol port,
-# ``ScopeSource``/``ScopeBreakdownSource``) callers outside this module never
-# name the concrete class: they receive a value through the factory and use
-# it polymorphically (``scope_source.test_command()``, ``.scope_breakdown()``,
-# ``.file_to_scope()``), so this cross-module-import gate's heuristic never
-# sees a wiring edge for the concrete classes themselves, no matter how
-# thoroughly they are exercised. Proven live + correct end-to-end by ~40
-# tests across ``tests/review/test_scope_source.py``,
-# ``test_pre_review_gate_engine.py``, and ``test_baseline_lifecycle.py``.
+# ``resolve_scope_source`` constructs ``DeclaredCommandScopeSource`` in-module
+# and callers consume it through the structural ``ScopeSource`` port.
 _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
     {
-        # specify_cli.review.scope_source::GateCoverageScopeSource -- constructed
-        # exclusively via resolve_scope_source() (same-module) since WP04's FR-014
-        # rewire; real caller confirmed via tasks_move_task._mt_resolve_scope_source
-        # -> resolve_scope_source -> GateCoverageScopeSource(...).
-        # Content-hash re-pin (landing fold #2892): parse_results now consumes
-        # parse_mode's result in its branch condition (was a discarded call),
-        # moving the class body hash b6749c1 -> 07f52ef. Still same-module-constructed.
-        # specify_cli.review.scope_source::GateCoverageScopeSource
-        SymbolKey("GateCoverageScopeSource", "07f52ef5a1d46d26494964082ad14dbe83e7009c88987837e4096b3de4226be8", source_module="specify_cli.review.scope_source"),
         # specify_cli.review.scope_source::DeclaredCommandScopeSource -- constructed
         # exclusively via resolve_scope_source() (same-module); consumed
         # cross-module only structurally, through the ScopeSource port (never
         # imported by concrete name outside scope_source.py by design).
-        # Content-hash re-pin (landing fold, mission scopesource-gate-followup):
-        # parse_mode/parse_results were stabilized to an outcome-invariant
-        # strategy label (SOURCE_MISMATCH fail-open fix), moving the class body
-        # hash 0ed7a0e -> fac6a9d. Symbol is still same-module-constructed only.
-        # Content-hash re-pin (issue #3612): test_command() now substitutes
-        # {output_file} and shell-wraps via configured_command.py, and
-        # parse_mode/parse_results gained the _output_file/_resolved_artifact_path
-        # fallback (the shell wrap hides --junitxml= from argv-sniffing), moving
-        # the class body hash fac6a9d -> 700b4a0. Symbol is still
-        # same-module-constructed only (refreshed via
-        # _refresh_dead_symbol_hashes.py).
+        # Content-hash re-pin (issues #3612, #596, and #1050): the declared
+        # command is shell-wrapped with output-file substitution, while
+        # malformed quoting degrades to the port's ``None`` signal.
         # specify_cli.review.scope_source::DeclaredCommandScopeSource
         SymbolKey(
-            "DeclaredCommandScopeSource", "700b4a061a61f42c12a40d49333fd8527112de68f121ecfa865b2493e343efbd", source_module="specify_cli.review.scope_source"
+            "DeclaredCommandScopeSource", "155d75fd455536027af7f33395ca73ca9d28f0f028dd486b855c55ecc2b988b6", source_module="specify_cli.review.scope_source"
         ),
-        # specify_cli.review.scope_source::FileScopeBreakdown -- the return value
-        # of GateCoverageScopeSource.scope_breakdown(); consumed structurally
-        # (attribute access) by pre_review_gate._scope_result_from_breakdown,
-        # never imported there by concrete type name.
+        # specify_cli.review.scope_source::FileScopeBreakdown -- the return
+        # value of injected narrowing sources' scope_breakdown(); consumed
+        # structurally by pre_review_gate._scope_result_from_breakdown.
         SymbolKey(
             "FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae", source_module="specify_cli.review.scope_source"
         ),  # specify_cli.review.scope_source::FileScopeBreakdown
-        # specify_cli.review.scope_source::ScopeBreakdownMixin -- inherited only
-        # by GateCoverageScopeSource, same-module; the mixin's file_to_scope
-        # default projection (FR-006) is exercised by every narrowing-source
-        # test but the mixin class itself is never imported cross-module.
-        # specify_cli.review.scope_source::ScopeBreakdownMixin
-        SymbolKey("ScopeBreakdownMixin", "c54d14c1c0c52cbd24231e9cc6bbf90ea9c988b830edce5628bb5d32da27fae4", source_module="specify_cli.review.scope_source"),
     }
 )
 
@@ -1713,11 +1570,15 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
 #   documented caller (docs/guides/accept-and-merge.md
 #   #deferred-invariants-and-the-post-consolidation-gate) that is never a
 #   static ``src/`` import by design.
-# * ``cli/commands/archive.py`` (``create`` / ``list_archives``) are Typer
-#   command callbacks registered by the ``@app.command(...)`` decorator; the
-#   real runtime caller is Typer's own dispatch against ``archive_module.app``
-#   (wired in ``cli/commands/__init__.py``), never a ``from ... import create``
-#   site.
+# * ``cli/commands/archive.py`` (``create`` / ``list_archives``) were
+#   formerly hand-allowlisted here as Typer command callbacks registered by
+#   the ``@app.command(...)`` decorator; the real runtime caller is Typer's
+#   own dispatch against ``archive_module.app`` (wired in
+#   ``cli/commands/__init__.py``), never a ``from ... import create`` site.
+#   Removed (#470): now covered by the ``_is_typer_command_definition`` T013
+#   structural auto-exemption, per the disjointness invariant
+#   (auto_exempt ∩ hand_allowlist = ∅ -- see
+#   ``test_auto_exempt_disjoint_from_hand_allowlist``).
 _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.acceptance.execution_context::CannotEvaluateReason
@@ -1748,12 +1609,6 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
             "e1c30bf407aa9a48fe5dfe0870f00f47cb0fb61367f2ad8f292f608ca2661c9d",
             source_module="specify_cli.acceptance.post_consolidation",
         ),
-        SymbolKey(
-            "create", "758e16e495dc35a5a9338583a8a906a46d7e6b9ffcddc04b9d0b49f7f39227ba", source_module="specify_cli.cli.commands.archive"
-        ),  # specify_cli.cli.commands.archive::create
-        SymbolKey(
-            "list_archives", "1d7216238f988bfdd9f3a29fd315d89a48d0092b8b22c9ebdaf5c23c2308a886", source_module="specify_cli.cli.commands.archive"
-        ),  # specify_cli.cli.commands.archive::list_archives
     }
 )
 
@@ -1761,14 +1616,14 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # ---------- C. Delivery-rail forward API (mission doctrine-delivery-reachability-01KYMXD6) ----------
 # The delivery-rail public API built by mission
 # ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
-# reachability helpers (``src/doctrine/drg/reachability.py``) and the WP07
+# reachability helpers (``src/charter/offering/drg/reachability.py``) and the WP07
 # activation-partition helpers (``src/charter/activation/pack_context.py``).
 #
 # WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK`` — the planned
 # "walk-update" fast-follow itself): this mission wired the *profile* channel.
 # ``profile_channel_reachable`` (never in this frozenset) and
 # ``agent_profile_seed_urns`` (retired below) now have a genuine runtime caller
-# in ``src/doctrine/agent_profiles/repository.py``, so they are no longer
+# in ``src/charter/offering/agent_profiles/repository.py``, so they are no longer
 # forward-only. The remaining eight symbols are a DIFFERENT concern — the
 # charter-activation partition helpers and the *action*-channel reachability
 # helpers — for which this mission builds no ``src/`` consumer; they stay
@@ -1845,8 +1700,8 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
         # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
         # the frozenset, changing its body; still no ``src/`` importer — the sole
-        # reference in src/charter/activation/context_renderers/profile_sections.py:447
-        # is a prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
+        # reference in src/charter/activation/context_renderers/profile_sections.py:341 is a
+        # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
         # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS
         SymbolKey(
             "PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="charter.offering.drg.reachability"
@@ -1860,7 +1715,7 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         ),  # charter.offering.drg.reachability::action_seed_urns
         # ``agent_profile_seed_urns`` retired from this allowlist by WP03
         # (doctrine-delivery-activation-01KYQVQK): it now has a genuine cross-file
-        # ``src/`` consumer — src/doctrine/agent_profiles/repository.py imports it
+        # ``src/`` consumer — src/charter/offering/agent_profiles/repository.py imports it
         # (line 25) and calls it (line 889) — so the gate correctly no longer
         # treats it as unwired forward API.
     }
@@ -2039,40 +1894,17 @@ _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] =
 )
 
 
-# ---------- E. charter-activation-split-01M16ZSE offering<->activation physical
-# split forward API (#3664, M2b) ----------
-# ``charter.drg`` is the pure offering-type re-export facade (its own
-# docstring: "This file is a pure re-export module -- the offering-type
-# surface only"). ``merge_three_layers`` is pure graph logic
-# (``charter.offering.drg.merge.merge_three_layers``, no ``PackContext``
-# dependency), so unlike ``load_org_drg``/``filter_graph_by_activation`` --
-# which DO need activation state and were fully relocated to
-# ``charter.activation.drg_activation`` -- it stays re-exported on both
-# facades: ``charter.drg`` (for a non-activation-aware consumer that only
-# needs the pure merge) and ``charter.activation.drg_activation`` (for an
-# activation-aware consumer already importing ``load_org_drg`` from the same
-# module, per that module's own docstring's "Import them from there" call-
-# site guidance). Before this mission all four live src/ callers imported
-# ``merge_three_layers`` from ``charter.drg`` alongside
-# ``load_org_drg``/``validate_dangling_references`` in one statement; M2b
-# correctly re-pointed those same call sites at the new
-# ``charter.activation.drg_activation`` single-import shape (the module they
-# already needed for ``load_org_drg``), which is what orphaned
-# ``charter.drg::merge_three_layers``'s LAST caller -- not a dropped
-# feature. The symbol resolves to the escalated module_path tier (not
-# content tier) because ``charter.activation.drg_activation::
-# merge_three_layers`` is a byte-identical re-export with a live caller,
-# so the bare-name/body-hash pair alone cannot disambiguate the two
-# facade locations (D-1/D-2 collision escalation, ``_symbol_key.py``).
-# Tracked: https://github.com/Priivacy-ai/spec-kitty/issues/3664
+# ---------- E. charter-activation-split forward API (#806) ----------
+# EXPERIMENTAL deliberately retains its replay semantics, so these restored
+# upstream helpers are public but currently unwired. TODO(triage): #925 owns
+# their wire-or-prune disposition.
 _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
-        # charter.drg::merge_three_layers
         SymbolKey(
             "merge_three_layers",
             "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",
             module_path="charter.drg",
-            source_module="charter.drg",
+            source_module="charter.offering.drg.merge",
         ),
     }
 )
@@ -2105,6 +1937,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
     | _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE
+    | _CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE
@@ -2214,7 +2047,7 @@ def test_every_content_tier_source_module_is_live_and_declares_symbol() -> None:
     tree = ast.parse(_THIS_SOURCE.read_text())
     calls = _content_tier_symbolkey_calls(tree)
     assert calls, "no content-tier allowlist entries discovered -- parser regression"
-    _decls, _path_to_dotted, _path_to_tree, corpus = _walk_modules()
+    _decls, _all_literal_decls, _path_to_dotted, _path_to_tree, corpus = _walk_modules()
     collision_index = classify_collisions(corpus)
 
     violations: list[str] = []
@@ -2227,10 +2060,7 @@ def test_every_content_tier_source_module_is_live_and_declares_symbol() -> None:
         if not any(loc.module_path == source_module for loc in locations):
             violations.append(f"{source_module}::{bare_name}")
 
-    assert not violations, (
-        "content-tier `source_module` names a module that does not declare "
-        "the symbol in the live corpus (FR-007): " + ", ".join(violations)
-    )
+    assert not violations, "content-tier `source_module` names a module that does not declare the symbol in the live corpus (FR-007): " + ", ".join(violations)
 
 
 def _is_asset_blob(path: Path) -> bool:
@@ -2257,7 +2087,7 @@ def _iter_src_python_files() -> list[Path]:
 def _module_dotted(path: Path) -> str:
     """Return the dotted module name for *path* relative to ``src/``.
 
-    ``src/charter/mission_type_profiles.py`` -> ``charter.activation.mission_type_profiles``.
+    ``src/charter/activation/mission_type_profiles.py`` -> ``charter.activation.mission_type_profiles``.
     For ``__init__.py`` the package itself is returned (``charter``).
     """
     rel = path.relative_to(_SRC_ROOT).with_suffix("")
@@ -2314,10 +2144,12 @@ def _build_alias_map_and_consts(
     Returns ``(alias_map, str_consts)`` where:
 
     * ``alias_map`` maps a local Python name to the dotted module it
-      resolves to.  Only explicit ``asname`` bindings are captured:
+      resolves to.  Explicit and unaliased ``ImportFrom`` bindings are
+      captured:
 
       - ``import a.b.c as x``  →  ``{"x": "a.b.c"}``
-      - ``from X import Y as Z``  →  ``{"Z": "X.Y"}`` (absolute X)
+      - ``from X import Y`` / ``from X import Y as Z``  →
+        ``{"Y"/"Z": "X.Y"}`` (absolute X)
 
       Plain ``import a.b.c`` (no alias) is skipped: the gate only needs
       to trace ``x.attr``-style attribute accesses where the module is
@@ -2345,8 +2177,8 @@ def _build_alias_map_and_consts(
         elif isinstance(node, ast.ImportFrom):
             target = _resolve_import_from(node, containing_pkg)
             for alias in node.names:
-                if alias.name != "*" and alias.asname:
-                    alias_map[alias.asname] = f"{target}.{alias.name}"
+                if alias.name != "*":
+                    alias_map[alias.asname or alias.name] = f"{target}.{alias.name}"
     return alias_map, _extract_str_consts_from_body(tree)
 
 
@@ -2500,15 +2332,300 @@ def _record_facade_edges(
                 per_symbol.setdefault(resolved, set()).add(attr_name)
 
 
+def _extract_public_module_level_names(tree: ast.Module) -> frozenset[str]:
+    """Every public (non-underscore) module-level ``def``/``class``/assignment name (#470).
+
+    Scoped to module-scope statements only (``tree.body``, never nested
+    scopes) -- a public-looking name inside a function/class body is not a
+    module-level declaration. An ``ast.Assign``/``ast.AnnAssign`` contributes
+    only ``ast.Name`` targets (a tuple/attribute/subscript target is not a
+    simple module-level symbol binding).
+    """
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if not node.name.startswith("_"):
+                names.add(node.name)
+            continue
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if isinstance(target, ast.Name) and not target.id.startswith("_"):
+                    names.add(target.id)
+    return frozenset(names)
+
+
+def _argument_nodes(args: ast.arguments) -> tuple[ast.arg, ...]:
+    return (
+        *args.posonlyargs,
+        *args.args,
+        *args.kwonlyargs,
+        *(() if args.vararg is None else (args.vararg,)),
+        *(() if args.kwarg is None else (args.kwarg,)),
+    )
+
+
+def _visit_function_outer_expressions(visitor: ast.NodeVisitor, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+    for decorator in node.decorator_list:
+        visitor.visit(decorator)
+    for default in (*node.args.defaults, *(value for value in node.args.kw_defaults if value is not None)):
+        visitor.visit(default)
+    for argument in _argument_nodes(node.args):
+        if argument.annotation is not None:
+            visitor.visit(argument.annotation)
+    if node.returns is not None:
+        visitor.visit(node.returns)
+
+
+class _FunctionScopeVisitor(ast.NodeVisitor):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.binds_name = False
+        self.global_declared = False
+        self.nonlocal_declared = False
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if node.id == self.name and not isinstance(node.ctx, ast.Load):
+            self.binds_name = True
+
+    def visit_alias(self, node: ast.alias) -> None:
+        bound_name = node.asname or node.name.rpartition(".")[2]
+        if bound_name == self.name:
+            self.binds_name = True
+
+    def visit_Global(self, node: ast.Global) -> None:
+        if self.name in node.names:
+            self.global_declared = True
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        if self.name in node.names:
+            self.nonlocal_declared = True
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        _visit_function_outer_expressions(self, node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        _visit_function_outer_expressions(self, node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in node.args.defaults:
+            self.visit(default)
+        for default in (value for value in node.args.kw_defaults if value is not None):
+            self.visit(default)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+    def visit_comprehension(self, node: ast.comprehension) -> None:
+        self.visit(node.iter)
+        for condition in node.ifs:
+            self.visit(condition)
+
+
+def _classify_function_scope(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, name: str) -> tuple[bool, bool, bool]:
+    visitor = _FunctionScopeVisitor(name)
+    for argument in _argument_nodes(node.args):
+        if argument.arg == name:
+            visitor.binds_name = True
+    if isinstance(node, ast.Lambda):
+        visitor.visit(node.body)
+    else:
+        for statement in node.body:
+            visitor.visit(statement)
+    return visitor.binds_name, visitor.global_declared, visitor.nonlocal_declared
+
+
+def _target_binds_name(target: ast.expr, name: str) -> bool:
+    return any(isinstance(node, ast.Name) and node.id == name for node in ast.walk(target))
+
+
+class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.found = False
+        self.scopes: list[tuple[str, bool, bool]] = []
+
+    def _name_is_shadowed(self, *, skip_class_scopes: bool = False) -> bool:
+        crossed_scope_boundary = skip_class_scopes
+        for kind, is_shadowed, global_declared in reversed(self.scopes):
+            if kind == "class" and crossed_scope_boundary:
+                continue
+            if global_declared:
+                return False
+            if is_shadowed:
+                return True
+            crossed_scope_boundary = True
+        return False
+
+    def _mark_current_scope_shadowed(self) -> None:
+        if not self.scopes:
+            return
+        kind, _, global_declared = self.scopes[-1]
+        if not global_declared:
+            self.scopes[-1] = (kind, True, global_declared)
+
+    def _mark_current_scope_global(self) -> None:
+        if not self.scopes:
+            return
+        kind, is_shadowed, _ = self.scopes[-1]
+        self.scopes[-1] = (kind, is_shadowed, True)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if node.id != self.name:
+            return
+        if not isinstance(node.ctx, ast.Load):
+            if self.scopes and self.scopes[-1][0] == "class":
+                self._mark_current_scope_shadowed()
+            return
+        if not self._name_is_shadowed():
+            self.found = True
+
+    def visit_alias(self, node: ast.alias) -> None:
+        bound_name = node.asname or node.name.rpartition(".")[2]
+        if bound_name == self.name and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_shadowed()
+
+    def visit_Global(self, node: ast.Global) -> None:
+        if self.name in node.names and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_global()
+
+    def _visit_function_body(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> None:
+        binds_name, global_declared, nonlocal_declared = _classify_function_scope(node, self.name)
+        if global_declared:
+            is_shadowed = False
+        elif nonlocal_declared:
+            is_shadowed = self._name_is_shadowed(skip_class_scopes=True)
+        else:
+            is_shadowed = self._name_is_shadowed(skip_class_scopes=True) or binds_name
+        self.scopes.append(("function", is_shadowed, global_declared))
+        if isinstance(node, ast.Lambda):
+            self.visit(node.body)
+        else:
+            for statement in node.body:
+                self.visit(statement)
+        self.scopes.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        _visit_function_outer_expressions(self, node)
+        self._visit_function_body(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        _visit_function_outer_expressions(self, node)
+        self._visit_function_body(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in node.args.defaults:
+            self.visit(default)
+        for default in (value for value in node.args.kw_defaults if value is not None):
+            self.visit(default)
+        self._visit_function_body(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        if node.name == self.name and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_shadowed()
+        self.scopes.append(("class", False, False))
+        for statement in node.body:
+            self.visit(statement)
+        self.scopes.pop()
+
+    def _visit_comprehension(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp) -> None:
+        if node.generators:
+            self.visit(node.generators[0].iter)
+        self.scopes.append(("comprehension", False, False))
+        for index, generator in enumerate(node.generators):
+            if index > 0:
+                self.visit(generator.iter)
+            if _target_binds_name(generator.target, self.name):
+                self._mark_current_scope_shadowed()
+            for condition in generator.ifs:
+                self.visit(condition)
+        if isinstance(node, ast.DictComp):
+            self.visit(node.key)
+            self.visit(node.value)
+        else:
+            self.visit(node.elt)
+        self.scopes.pop()
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._visit_comprehension(node)
+
+
+def _used_within_own_module(tree: ast.Module, name: str) -> bool:
+    """True if *name* has a Load that can resolve to the module binding (#470).
+
+    Used ONLY to rescue a widened (non-``__all__``) symbol: intra-module use
+    is real evidence a module-private-by-convention name is not dead, but is
+    deliberately never consulted for an ``__all__`` member -- ``__all__``
+    membership is itself a claim of cross-module export, so a same-module-only
+    ``__all__`` symbol must stay caught (unchanged from the original gate).
+    """
+    visitor = _ModuleLevelNameUseVisitor(name)
+    visitor.visit(tree)
+    return visitor.found
+
+
 def _walk_modules() -> tuple[
+    dict[str, frozenset[str]],
     dict[str, frozenset[str]],
     dict[Path, str],
     dict[Path, ast.Module],
     dict[str, CorpusModule],
 ]:
-    """Walk src/, return (decls, path_to_dotted, path_to_tree, corpus).
+    """Walk src/, return (decls, all_literal_decls, path_to_dotted, path_to_tree, corpus).
 
-    * ``decls`` maps module dotted name to the static ``__all__`` set.
+    * ``decls`` maps module dotted name to the UNION of its static
+      ``__all__`` set and its public module-level names (#470 -- widened
+      past ``__all__``, see the module docstring).
+    * ``all_literal_decls`` maps module dotted name to ONLY its static
+      ``__all__`` set (the pre-#470 scope) -- callers use this to tell an
+      original ``__all__`` member from a widened-in name, since the two are
+      rescued by different caller-detection rules.
     * ``path_to_dotted`` maps each ``*.py`` path to its dotted name.
     * ``path_to_tree`` caches parsed ASTs so the import walk does not
       re-read every file.
@@ -2521,6 +2638,7 @@ def _walk_modules() -> tuple[
       safe to extend.
     """
     decls: dict[str, frozenset[str]] = {}
+    all_literal_decls: dict[str, frozenset[str]] = {}
     path_to_dotted: dict[Path, str] = {}
     path_to_tree: dict[Path, ast.Module] = {}
     corpus: dict[str, CorpusModule] = {}
@@ -2534,10 +2652,13 @@ def _walk_modules() -> tuple[
         path_to_dotted[path] = dotted
         path_to_tree[path] = tree
         corpus[dotted] = CorpusModule(tree=tree, source=source, containing_pkg=_package_of(path))
-        names = _extract_all_literal(tree)
-        if names is not None:
-            decls[dotted] = names
-    return decls, path_to_dotted, path_to_tree, corpus
+        all_literal = _extract_all_literal(tree) or frozenset()
+        if all_literal:
+            all_literal_decls[dotted] = all_literal
+        widened = all_literal | _extract_public_module_level_names(tree)
+        if widened:
+            decls[dotted] = widened
+    return decls, all_literal_decls, path_to_dotted, path_to_tree, corpus
 
 
 def _imports_by_target(
@@ -2748,6 +2869,28 @@ def _is_typer_subapp_definition(name: str, tree: ast.Module) -> bool:
     return False
 
 
+def _is_typer_command_definition(name: str, tree: ast.Module) -> bool:
+    """T013 auto-exempt (#470): a function decorated with ``@X.command(...)``
+    or ``@X.callback(...)``.
+
+    A Typer command/callback function is dispatched only through the Typer
+    CLI framework's decorator-driven registration, never via a direct
+    ``from module import Name`` -- the same reasoning as
+    :func:`_is_typer_subapp_definition`, extended to the command function
+    itself. Introduced because the #470 widened walk now includes every
+    public module-level ``def``, not only ``__all__`` members, and CLI
+    command functions are overwhelmingly public-but-`__all__`-absent.
+    """
+    for node in tree.body:
+        if not (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name):
+            continue
+        for dec in node.decorator_list:
+            target = dec.func if isinstance(dec, ast.Call) else dec
+            if isinstance(target, ast.Attribute) and target.attr in ("command", "callback"):
+                return True
+    return False
+
+
 def _reexport_origin(tree: ast.Module, containing_pkg: str, name: str) -> tuple[str, str] | None:
     """Return ``(origin_module, origin_name)`` for a single-alias ``ImportFrom``
     binding *name*, or ``None`` if *name* is not a simple re-export.
@@ -2821,9 +2964,10 @@ def _is_auto_exempt(
 ) -> bool:
     """T013 -- symbol-granular auto-derived exemptions (never per-module).
 
-    Three structural categories (FR-010), checked in order: a registered
-    ``@MigrationRegistry.register`` class, a Typer sub-app definition, or a
-    re-export shim whose underlying symbol is proven live elsewhere. See
+    Four structural categories (FR-010; the fourth added by #470), checked
+    in order: a registered ``@MigrationRegistry.register`` class, a Typer
+    sub-app definition, a Typer ``@X.command``/``@X.callback`` function, or
+    a re-export shim whose underlying symbol is proven live elsewhere. See
     ``test_auto_exempt_disjoint_from_hand_allowlist`` for the disjointness
     proof against ``_SYMBOL_ALLOWLIST`` (auto_exempt ∩ hand_allowlist = ∅).
     """
@@ -2833,6 +2977,8 @@ def _is_auto_exempt(
     if _is_registered_migration_class(mod_dotted, name, tree):
         return True
     if _is_typer_subapp_definition(name, tree):
+        return True
+    if _is_typer_command_definition(name, tree):
         return True
     return _is_reexport_shim_symbol(mod_dotted, name, module, final_key, per_symbol, submodule_index)
 
@@ -2983,23 +3129,354 @@ def _compute_dangling(
     return dangling
 
 
-def test_no_public_symbol_in_all_is_unimported() -> None:
-    """Every name in every ``__all__`` must have at least one caller in src/.
+# _WIDENED_SCOPE_GRANDFATHERED_470 (#470): pre-existing debt the widened walk
+# surfaced, one plain "module.dotted.path::Name" string per entry. Deliberately
+# NOT unioned into _SYMBOL_ALLOWLIST above: that allowlist's dangling/stale
+# ratchet is SymbolKey-based and its collision classification
+# (classify_collisions, via extract_static_all) only ever indexes __all__
+# members, so a non-__all__ entry keyed the same way would always resolve
+# content-tier and immediately misfire as dangling (zero live __all__
+# locations, by construction). Kept as a flat name set instead, reviewed by
+# hand at widening time -- each entry is either wired into __all__ plus a
+# real caller, or deleted, in follow-up triage issue #633; this set only
+# exists to keep the widened gate from failing this same PR on debt it did
+# not create. Notably includes specify_cli.migration.mission_state's
+# audit_invocation_disagreement chain (CheckoutDisagreement,
+# _DISAGREEMENT_ARTIFACTS, _artifact_sha256, _compare_checkout_mission_state,
+# audit_invocation_disagreement itself) -- traced to a half-built "--audit"
+# honest-disagreement feature whose CLI dispatch path
+# (_mission_state_doctor.py::_run_audit_mode) calls a DIFFERENT audit engine
+# (specify_cli.audit.run_audit) entirely, so it has zero non-test callers.
+# Whether to wire it into the real dispatch or deprecate it is a product
+# decision outside this widening's mandate -- flagged in #633.
+_WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
+    {
+        "charter.activation._io::load_charter_bytes",
+        "charter.bundle::DIRECTIVES_YAML",
+        "charter.bundle::GOVERNANCE_YAML",
+        "charter.bundle::METADATA_YAML",
+        "charter.activation.catalog::DEFAULT_TEMPLATE_SET",
+        "charter.activation.context::NONE_LABEL",
+        "charter.activation.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS",
+        "charter.activation.evidence.code_reader::LANGUAGE_EXTENSIONS",
+        "charter.activation.synthesizer.adapter::BatchCapableSynthesisAdapter",
+        "charter.activation.synthesizer.synthesize_pipeline::run",
+        "charter.offering.agent_profiles.schema_models::AgentProfileSchema",
+        "charter.offering.agent_profiles.validation::is_agent_profile_file",
+        "charter.offering.directives.validation::validate_directive",
+        "charter.offering.drg.migration.hand_authored_overlay::hand_authored_edge_keys",
+        "charter.offering.drg.migration.hand_authored_overlay::hand_authored_node_urns",
+        "charter.offering.drg.models::RELATION_DESCRIPTIONS",
+        "charter.offering.hatch_build::DoctrinePacksSiblingBuildHook",
+        "charter.offering.import_candidates.models::CurationImportCandidate",
+        "charter.offering.import_candidates.models::LegacyImportCandidate",
+        "charter.offering.missions.repository::MissionRepository",
+        "charter.offering.paradigms.validation::validate_paradigm",
+        "charter.offering.styleguides.validation::validate_styleguide",
+        "charter.offering.tactics.validation::validate_tactic",
+        "charter.offering.toolguides.validation::validate_toolguide",
+        "glossary.drg_builder::build_glossary_drg_layer",
+        "glossary.extraction::score_confidence",
+        "glossary.middleware::MockContext",
+        "glossary.models::term_sense_to_dict",
+        "glossary.scope::activate_scope",
+        "glossary.scope::get_scope_precedence",
+        "glossary.scope::should_use_scope",
+        "glossary.scope::validate_seed_file",
+        "glossary.semantic_events::is_high_severity",
+        "kernel.glossary_runner::clear_registry",
+        "runtime.next._internal_runtime.discovery::diagnose_shadowing",
+        "runtime.next._internal_runtime.engine::TransitionGate",
+        "runtime.next._internal_runtime.engine::notify_decision_timeout",
+        "runtime.next._internal_runtime.planner::resolve_next_workflow_action",
+        "runtime.next._internal_runtime.planner::serialize_decision",
+        "runtime.next._internal_runtime.schema::CommitContext",
+        # runtime.next.committed_authority::mission_terminal_verdict --
+        # convergence port PR #1066 (2026-09-03): verbatim upstream pick of
+        # next-committed-state-authority WP01 (#2947/#3780). Its runtime
+        # caller is runtime_bridge's mission-terminal wiring (upstream WP02),
+        # a conflicted commit deliberately deferred on the #1065 manual
+        # re-port queue. TODO(triage): #1065 -- wire the runtime_bridge
+        # caller and delete this entry (FR-303).
+        "runtime.next.committed_authority::mission_terminal_verdict",
+        "runtime.next.decision::derive_mission_state",
+        "runtime.next.decision::evaluate_guards",
+        "runtime.next.runtime_bridge::KITTIFY_DIR",
+        "runtime.next.runtime_bridge_cores::evaluate_guards",
+        "specify_cli.acceptance::logger",
+        "specify_cli.agent_tasks_ports::default_ports",
+        "specify_cli.ast_analysis.imports::extract_static_all",
+        "specify_cli.ast_analysis.imports::module_of_import_from",
+        "specify_cli.audit.detectors::detect_corrupt_jsonl",
+        "specify_cli.audit.identity_adapter::duplicate_ids_to_findings",
+        "specify_cli.audit.identity_adapter::prefix_groups_to_findings",
+        "specify_cli.audit.identity_adapter::selector_groups_to_findings",
+        "specify_cli.auth.transport::reset_user_facing_dedup",
+        "specify_cli.bulk_edit.occurrence_map::logger",
+        "specify_cli.charter_runtime.lint._drg::get_nodes_by_kind",
+        "specify_cli.cli.commands._auth_login::log",
+        "specify_cli.cli.commands._auth_logout::log",
+        "specify_cli.cli.commands.agent.mission::FINALIZE_TASKS_COMMAND_NAME",
+        "specify_cli.cli.commands.agent.mission::INVALID_WP_OWNED_FILES_KITTY_SPECS",
+        "specify_cli.cli.commands.agent.mission::PROJECT_ROOT_NOT_FOUND_MESSAGE",
+        "specify_cli.cli.commands.agent.mission::SETUP_PLAN_COMMAND_NAME",
+        "specify_cli.cli.commands.agent.mission::TASKS_MD_FILENAME",
+        "specify_cli.cli.commands.agent.mission::logger",
+        "specify_cli.cli.commands.agent.mission_setup_plan::TASKS_MD_FILENAME",
+        "specify_cli.cli.commands.agent.tasks::logger",
+        "specify_cli.cli.commands.doctor::logger",
+        "specify_cli.cli.commands.intake::MAX_BRIEF_FILE_SIZE_BYTES",
+        "specify_cli.cli.commands.invocations_cmd::append_to_index",
+        "specify_cli.cli.helpers::check_version_compatibility",
+        "specify_cli.context.mission_resolver::FakeMissionResolver",
+        "specify_cli.contracts.anchoring::composite_key_from_file",
+        "specify_cli.contracts.anchoring::has_diagnostic_locator_marker",
+        "specify_cli.coordination.status_service::append_event_log",
+        "specify_cli.core.subtask_rows::count_subtask_rows",
+        "specify_cli.core.subtask_rows::count_wp_section_subtask_rows",
+        "specify_cli.core.subtask_rows::uncheck_wp_section_subtask_rows",
+        "specify_cli.core.vcs.git::git_stash",
+        "specify_cli.core.vcs.git::git_stash_pop",
+        "specify_cli.core.worktree::create_feature_worktree",
+        "specify_cli.core.worktree::create_wp_workspace",
+        "specify_cli.doc_analysis.doc_generators::check_tool_available",
+        "specify_cli.doc_analysis.doc_state::ensure_documentation_state",
+        "specify_cli.doc_analysis.doc_state::get_state_version",
+        "specify_cli.doc_analysis.doc_state::initialize_documentation_state",
+        "specify_cli.doc_analysis.doc_state::set_divio_types_selected",
+        "specify_cli.doc_analysis.doc_state::set_iteration_mode",
+        "specify_cli.doc_analysis.doc_state::update_documentation_state",
+        "specify_cli.doc_analysis.gap_analysis::detect_version_mismatch",
+        "specify_cli.doc_analysis.gap_analysis::run_gap_analysis_for_feature",
+        "specify_cli.doctrine.org_charter::org_charter_to_json_block",
+        "specify_cli.doctrine.pack_descriptor::PackDescriptor",
+        "specify_cli.dossier.hasher::WP_DESCRIPTIVE_PROJECTION_FIELDS",
+        "specify_cli.dossier.hasher::WP_RUNTIME_PROJECTION_FIELDS",
+        "specify_cli.git.commit_helpers::logger",
+        "specify_cli.git.commit_helpers::protected_branches",
+        "specify_cli.git.protection_policy::logger",
+        "specify_cli.identity.project::generate_build_id",
+        "specify_cli.invocation.executor::ActionRouterPlugin",
+        "specify_cli.invocation.task_class_map::known_verbs",
+        "specify_cli.lanes.branch_naming::is_legacy_branch",
+        "specify_cli.lanes.branch_naming::is_mission_branch",
+        "specify_cli.lanes.compute::SURFACE_TAXONOMY",
+        "specify_cli.migration.backfill_runtime_state::assert_zero_readers",
+        "specify_cli.migration.backfill_runtime_state::backfill_runtime_state_repo",
+        "specify_cli.migration.backfill_runtime_state::run_backfill_and_verify",
+        "specify_cli.migration.mission_state::audit_invocation_disagreement",
+        "specify_cli.migration.strip_frontmatter::RETIRED_FIELDS",
+        "specify_cli.migration.strip_frontmatter::STATIC_FIELDS",
+        "specify_cli.mission::discover_missions",
+        "specify_cli.mission::get_active_mission",
+        "specify_cli.mission::validate_deliverables_path",
+        "specify_cli.mission_metadata::clear_coordination_metadata",
+        "specify_cli.mission_metadata::get_change_mode",
+        "specify_cli.mission_metadata::load_meta_strict",
+        "specify_cli.mission_metadata::set_change_mode",
+        "specify_cli.mission_metadata::set_purpose_summary",
+        "specify_cli.mission_v1.schema::strip_v1_keys",
+        "specify_cli.missions._archive::is_mission_archived",
+        "specify_cli.missions._read_path_resolver::resolve_feature_dir_for_slug",
+        "specify_cli.ownership.frontmatter_source::InMemoryFrontmatterSource",
+        "specify_cli.policy.audit::append_audit_event",
+        "specify_cli.policy.audit::create_audit_event",
+        "specify_cli.policy.audit::read_audit_events",
+        "specify_cli.proof.events::PROOF_EVENT_REQUIRED_FIELDS",
+        "specify_cli.proof.events::ProofEventType",
+        "specify_cli.retrospective.deprecation::reset_emitted_for_testing",
+        "specify_cli.retrospective.events::ProposalGeneratedPayload",
+        "specify_cli.retrospective.gate::ModeResolutionError",
+        "specify_cli.retrospective.lifecycle_events::RetroLifecycleEvent",
+        "specify_cli.retrospective.summary::logger",
+        "specify_cli.review.arbiter::prompt_arbiter_checklist",
+        "specify_cli.review.baseline::load_baseline",
+        "specify_cli.review.gate_bindings::load_gate_bindings",
+        "specify_cli.runtime.resolver::required_artifacts_for",
+        "specify_cli.saas_client.client::logger",
+        "specify_cli.saas_client.endpoints::AdmissionMetadata",
+        "specify_cli.session_presence.upgrade_check::refresh_cache_once",
+        "specify_cli.shims.registry::get_all_skills",
+        "specify_cli.shims.registry::get_consumer_skills",
+        "specify_cli.shims.registry::is_consumer_skill",
+        "specify_cli.skills.command_installer::prune_stale",
+        "specify_cli.skills.command_installer::remove",
+        "specify_cli.skills.command_installer::verify",
+        "specify_cli.state.doctor::logger",
+        "specify_cli.status.adapters::reset_handlers",
+        "specify_cli.status.cutover_eligibility::assert_birth_invariant_holds",
+        "specify_cli.status.emit::append_event_jsonl",
+        "specify_cli.status.migrate_lifecycle_envelope::logger",
+        "specify_cli.status.preflight::filter_dossier_snapshots",
+        "specify_cli.status.verdict_vocab::ArtifactVerdict",
+        "specify_cli.status.verdict_vocab::EmissionArtifactVerdict",
+        "specify_cli.tool_surface.bundles.claude_wrapper::wrapper_bash_content",
+        "specify_cli.tool_surface.bundles.claude_wrapper::wrapper_cmd_content",
+        "specify_cli.tool_surface.docs::format_findings",
+        "specify_cli.tool_surface.enums::CommandSurfaceCapability",
+        "specify_cli.tool_surface.enums::MutabilityPolicy",
+        "specify_cli.tool_surface.findings::DOCS_REF_STALE",
+        "specify_cli.tool_surface.findings::MANAGED_FILE_MODIFIED",
+        "specify_cli.tool_surface.findings::NATIVE_CONFIG_DRIFT",
+        "specify_cli.tool_surface.profiles.projection::LAYER_ORG",
+        "specify_cli.tool_surface.profiles.projection::LAYER_PROJECT",
+        "specify_cli.tool_surface.providers.managed_skills::doctrine_skill_entries",
+        "specify_cli.tool_surface.service::lint_docs_directory",
+        "specify_cli.tracker.origin::logger",
+        "specify_cli.upgrade.autocommit::commit_touched_checkout",
+        "specify_cli.upgrade.migrations.m_2_0_11_install_skills::logger",
+        "specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack::logger",
+        "specify_cli.upgrade.migrations.m_3_0_2_restore_prompt_commands::logger",
+        "specify_cli.upgrade.migrations.m_3_1_1_direct_canonical_commands::logger",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::MIGRATION_ID",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::TARGET_VERSION",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::logger",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill::logger",
+        "specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env::NEVER_SEED_VARS",
+        "specify_cli.upgrade.skill_update::apply_text_replacements",
+        "specify_cli.upgrade.skill_update::exclude_paths",
+        "specify_cli.upgrade.skill_update::replace_skill_file",
+        "specify_cli.widen.state::validate_entry_schema",
+        "specify_cli.zeitgeist_client.budget::OFFER_BUDGET_S",
+        "specify_cli.zeitgeist_client.budget::bound_stdout",
+        "specify_cli.zeitgeist_client.budget::disarm",
+        "specify_cli.zeitgeist_client.budget::open_bounded",
+        "specify_cli.zeitgeist_client.budget::run_with_deadline",
+        "specify_cli.zeitgeist_client.credentials::load",
+        "specify_cli.zeitgeist_client.credentials::load_negative",
+        "specify_cli.zeitgeist_client.credentials::revoke",
+        "specify_cli.zeitgeist_client.credentials::store",
+        "specify_cli.zeitgeist_client.credentials::store_focus_capability",
+        "specify_cli.zeitgeist_client.credentials::store_negative",
+        "specify_cli.zeitgeist_client.filtered_stream::FilteredStream",
+        "specify_cli.zeitgeist_client.grammar::ident",
+        "specify_cli.zeitgeist_client.mcp_stdio::run_stdio",
+        "specify_cli.zeitgeist_client.moments::MomentRateGate",
+        "specify_cli.zeitgeist_client.moments::MomentsDisabled",
+        "specify_cli.zeitgeist_client.moments::allows_repo",
+        "specify_cli.zeitgeist_client.moments::frame_predicate",
+        "specify_cli.zeitgeist_client.moments::load_settings",
+        "specify_cli.zeitgeist_client.moments::write_agents_mode",
+        "specify_cli.zeitgeist_client.operability::collect_report",
+        "specify_cli.zeitgeist_client.operability::rollback_drill",
+        "specify_cli.zeitgeist_client.operability::rotation_drill",
+        "specify_cli.zeitgeist_client.operability::timeout_drill",
+        "specify_cli.zeitgeist_client.outbox_approval::approve",
+        "specify_cli.zeitgeist_client.outbox_approval::get_receipt",
+        "specify_cli.zeitgeist_client.outbox_approval::list_pending",
+        "specify_cli.zeitgeist_client.outbox_approval::redacted_preview",
+        "specify_cli.zeitgeist_client.outbox_approval::reject",
+        "specify_cli.zeitgeist_client.outbox_approval::revoke",
+        "specify_cli.zeitgeist_client.outbox_approval::show",
+        "specify_cli.zeitgeist_client.outbox_approval::status_counts",
+        "specify_cli.zeitgeist_client.outbox_approval::submit",
+        "specify_cli.zeitgeist_client.repo_identity::identity",
+        "specify_cli.zeitgeist_client.repo_identity::origin_url",
+        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_CONTROL_KEYS_VERSION",
+        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS",
+        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS_VERSION",
+        "specify_cli.zeitgeist_client.sanitizer::assert_clean",
+        "specify_cli.zeitgeist_client.subscription::render_event",
+        "specify_cli.zeitgeist_client.subscription::status",
+        "specify_cli.zeitgeist_client.subscription::watch",
+    }
+)
 
-    Failure means a public symbol is declared (``__all__``) but no
-    other ``src/`` file imports it. That's the WP08 cycle-1
-    "library written but never wired" failure mode at symbol level.
+
+def _apply_widened_scope_exemptions(
+    offenders: list[str],
+    all_literal_decls: dict[str, frozenset[str]],
+    corpus: Mapping[str, CorpusModule],
+) -> list[str]:
+    """Drop rescued widened-in (non-``__all__``) offenders (#470).
+
+    An ``__all__`` member is passed through unchanged -- membership in
+    ``__all__`` is itself a claim of a cross-module export contract, so the
+    original strict caller-only semantics stay exactly as they were before
+    #470. A non-``__all__`` offender (only reachable here because the walk
+    now covers every public module-level name) is dropped iff it is either
+    (a) referenced anywhere within its own module (:func:`_used_within_own_module`
+    -- module-private-by-convention names, e.g. a module ``logger``, are not
+    "dead", just never exported), or (b) listed in
+    :data:`_WIDENED_SCOPE_GRANDFATHERED_470`, the pre-existing debt this
+    widening surfaced pending individual follow-up triage.
     """
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    kept: list[str] = []
+    for qualified in offenders:
+        mod_dotted, _, name = qualified.partition("::")
+        if name in all_literal_decls.get(mod_dotted, frozenset()):
+            kept.append(qualified)
+            continue
+        module = corpus.get(mod_dotted)
+        if module is not None and _used_within_own_module(module.tree, name):
+            continue
+        if qualified in _WIDENED_SCOPE_GRANDFATHERED_470:
+            continue
+        kept.append(qualified)
+    return kept
+
+
+def test_no_public_symbol_in_all_is_unimported() -> None:
+    """Every public module-level name must have at least one caller in src/
+    (#470: widened beyond ``__all__`` -- see the module docstring's "Scope"
+    section).
+
+    Failure means a public symbol is declared but no other ``src/`` file
+    imports it, and it is not rescued by an intra-module reference, a T013
+    structural auto-exemption, or the #470 widened-scope grandfather list.
+    That's the WP08 cycle-1 "library written but never wired" failure mode
+    at symbol level.
+    """
+    decls, all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
     collision_index = classify_collisions(corpus)
 
-    offenders = _compute_offenders(decls, per_symbol, star_targets, _SYMBOL_ALLOWLIST, corpus, collision_index)
+    # #470: the widened (non-`__all__`) names are deliberately never checked
+    # against `_SYMBOL_ALLOWLIST`'s content-tier keys. `classify_collisions`
+    # only indexes `__all__` members (see the module docstring's "Scope"
+    # section), so a widened name is invisible to its collision/escalation
+    # machinery -- its body-hash (which drops string-literal content, see
+    # `_hash_text`/`code_tokens_by_line`) could otherwise coincidentally
+    # match an unrelated hand-allowlisted symbol's key (e.g. two distinct
+    # `NAME = "<some string>"` assignments in different modules normalize
+    # identically) and be silently, wrongly rescued through the wrong
+    # channel. So `_compute_offenders` is run twice: once over the true
+    # `__all__` decls against the real allowlist (byte-for-byte the pre-#470
+    # behaviour), and once over the widened-only names against an EMPTY
+    # allowlist (so they can only be rescued by a T013 auto-exemption or a
+    # real caller -- never an accidental allowlist collision). The two
+    # offender lists are merged before the #470 rescue filter runs.
+    widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
+    offenders = _compute_offenders(all_literal_decls, per_symbol, star_targets, _SYMBOL_ALLOWLIST, corpus, collision_index)
+    pre_rescue_widened_offenders = _compute_offenders(widened_only_decls, per_symbol, star_targets, frozenset(), corpus, collision_index)
+    # #470 mutation-proofing (squad pass 2, sk-squad-spec-kitty-638): this is
+    # the LIVE widened-only offender pass, not a hand-built copy of it -- the
+    # assertion below proves this exact call is load-bearing. Deleting the
+    # `pre_rescue_widened_offenders` call above (restoring
+    # `offenders += _compute_offenders(...)` to a no-op) leaves every other
+    # test in this file passing, because the live tree happens to have no
+    # *new* offenders either way. A known `_WIDENED_SCOPE_GRANDFATHERED_470`
+    # entry is dead-with-no-caller by construction (that's why it needed
+    # grandfathering), so it must show up here, pre-rescue -- if it stops
+    # showing up, either this pass was unwired or the entry gained a real
+    # caller and should be pruned (#633 triage).
+    assert any(o in _WIDENED_SCOPE_GRANDFATHERED_470 for o in pre_rescue_widened_offenders), (
+        "the widened-only _compute_offenders pass found none of the known "
+        "_WIDENED_SCOPE_GRANDFATHERED_470 entries as pre-rescue offenders -- "
+        "either that pass has been unwired from the live gate, or every "
+        "grandfathered entry has since gained a real caller and should be "
+        "pruned (#633)"
+    )
+    offenders += pre_rescue_widened_offenders
+    offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
 
     # Ratchet direction 1 (pre-existing): the symbol gained a caller --
-    # remove it from the allowlist (good news).
-    stale = _compute_stale(decls, star_targets, corpus, collision_index, _SYMBOL_ALLOWLIST, per_symbol, submodule_index)
+    # remove it from the allowlist (good news). `_SYMBOL_ALLOWLIST` is
+    # entirely `__all__`-scoped, so this (and `dangling` below) is checked
+    # against `all_literal_decls`, never the #470-widened `decls` -- same
+    # coincidental-collision reason as above.
+    stale = _compute_stale(all_literal_decls, star_targets, corpus, collision_index, _SYMBOL_ALLOWLIST, per_symbol, submodule_index)
 
     # Ratchet direction 3 (relocation-hardened-dead-code-scanners-01KX958P
     # WP03/T015/FR-008): the allow-list entry's key no longer resolves to
@@ -3007,24 +3484,29 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
     # orphaned it. Reconciled with body-sensitivity (T016) so a dead-symbol
     # body edit surfaces as exactly ONE signal via `offenders` above, never
     # an ambiguous offender+prune double-flag -- see `_compute_dangling`.
-    dangling = _compute_dangling(_SYMBOL_ALLOWLIST, decls, collision_index, offenders)
+    dangling = _compute_dangling(_SYMBOL_ALLOWLIST, all_literal_decls, collision_index, offenders)
 
     messages: list[str] = []
     if offenders:
         bullets = "\n  - ".join(sorted(offenders))
         messages.append(
-            "Symbol-level dead-code gate FAILED. The following public "
-            "symbols are declared in __all__ but no other src/ file "
-            "imports them:\n  - " + bullets + "\n\nFix options (in order of preference):\n"
+            "Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION "
+            "every public module-level name). The following public symbols "
+            "have no other src/ caller, no intra-module reference, and no "
+            "T013 structural auto-exemption:\n  - " + bullets + "\n\nFix options (in order of preference):\n"
             "  1) Wire the symbol from a runtime caller.\n"
-            "  2) Remove the symbol from __all__ (it stays in the "
-            "module as an unexported internal).\n"
+            "  2) If declared in __all__, remove it from __all__ (it stays "
+            "in the module as an unexported internal) -- otherwise, if it "
+            "is a widened-in (non-__all__) name, mark it underscore-private.\n"
             "  3) Delete the symbol entirely if it is truly dead.\n"
-            "  4) Add a `SymbolKey(...)` entry (resolve it via "
-            "`resolve_symbol_key`/`key_tier` in `_symbol_key.py`) to the "
-            "appropriate category frozenset in `_SYMBOL_ALLOWLIST`, "
-            "commented with the qualified `module::Name`, plus a rationale "
-            "and a follow-up tracker ticket (FR-303).\n"
+            "  4) If declared in __all__, add a `SymbolKey(...)` entry "
+            "(resolve it via `resolve_symbol_key`/`key_tier` in "
+            "`_symbol_key.py`) to the appropriate category frozenset in "
+            "`_SYMBOL_ALLOWLIST`. If it is a widened-in (non-__all__) name, "
+            "add its qualified `module::Name` string to "
+            "`_WIDENED_SCOPE_GRANDFATHERED_470` instead. Either way, "
+            "comment with a rationale and a follow-up tracker ticket "
+            "(FR-303).\n"
         )
     if stale:
         bullets = "\n  - ".join(sorted(stale))
@@ -3045,6 +3527,193 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
             "delete it from `_SYMBOL_ALLOWLIST`."
         )
     assert not messages, "\n\n".join(messages)
+
+
+# ---------------------------------------------------------------------------
+# #470 mutation-proofing — the widening's own rescue/detection mechanism has
+# to be able to fail. Found by squad review of #470 (spec-kitty#638):
+# `_used_within_own_module` mutated to an unconditional `return True`, or
+# `_extract_public_module_level_names` mutated to an unconditional
+# `return frozenset()`, left every test in this file passing. Each helper
+# below gets a synthetic-fixture unit test, plus a sibling to
+# `test_no_public_symbol_in_all_is_unimported` that proves the widened scan
+# actually finds and flags a synthetic zero-caller widened-in name.
+# ---------------------------------------------------------------------------
+
+
+def test_extract_public_module_level_names_scoping() -> None:
+    """Unit test for `_extract_public_module_level_names` (#470 mutation-proofing).
+
+    Module-level public `def`/`class`/`Assign`/`AnnAssign` `Name` targets are
+    collected; underscore-prefixed names, names nested inside a function or
+    class body, and non-`Name` assignment targets (tuple/attribute) are all
+    excluded.
+    """
+    source = (
+        "def public_func():\n"
+        "    def _nested_helper():\n"
+        "        pass\n"
+        "    inner_var = 1\n"
+        "    return inner_var\n"
+        "\n"
+        "\n"
+        "class PublicClass:\n"
+        "    def method(self):\n"
+        "        pass\n"
+        "\n"
+        "\n"
+        "def _private_func():\n"
+        "    pass\n"
+        "\n"
+        "\n"
+        "PUBLIC_CONST = 1\n"
+        "_PRIVATE_CONST = 2\n"
+        "PUBLIC_ANN: int = 3\n"
+        "a, b = (1, 2)\n"
+        "obj.attr = 4\n"
+    )
+    tree = ast.parse(source)
+    names = _extract_public_module_level_names(tree)
+    assert names == frozenset({"public_func", "PublicClass", "PUBLIC_CONST", "PUBLIC_ANN"}), f"got {sorted(names)!r}"
+
+    # The mutation the squad demonstrated: collapsing the whole widening to
+    # an unconditional empty set. A real implementation must never do this.
+    assert _extract_public_module_level_names(ast.parse("")) == frozenset()
+    assert names != frozenset(), "the widening must surface at least one public module-level name from a non-empty module"
+
+
+def test_used_within_own_module() -> None:
+    """Unit test for `_used_within_own_module` (#470 mutation-proofing).
+
+    True iff *name* is referenced as an ``ast.Name`` Load that can resolve to
+    the module-level binding. A Store-only reference, no reference at all, or
+    a load shadowed by a local binding in an enclosing function or class
+    body scope must return False -- the mutation the squad demonstrated (an unconditional
+    `return True`) would rescue every widened-in offender regardless of real
+    intra-module use.
+    """
+    referenced_tree = ast.parse("logger = get_logger()\ndef use():\n    return logger\n")
+    unreferenced_tree = ast.parse("logger = get_logger()\n")
+    local_shadow_tree = ast.parse("logger = get_logger()\ndef use():\n    logger = logging.getLogger(__name__)\n    return logger\n")
+    parameter_shadow_tree = ast.parse("logger = get_logger()\ndef use(logger):\n    return logger\n")
+    nested_shadow_tree = ast.parse(
+        "logger = get_logger()\ndef outer():\n    logger = logging.getLogger(__name__)\n    def inner():\n        return logger\n    return inner\n"
+    )
+    comprehension_shadow_tree = ast.parse("logger = get_logger()\nvalues = [logger for logger in loggers]\n")
+    class_shadow_tree = ast.parse("logger = get_logger()\nclass Runner:\n    logger = logging.getLogger(__name__)\n    uses = logger\n")
+    class_pre_binding_tree = ast.parse("logger = get_logger()\nclass Runner:\n    uses = logger\n    logger = logging.getLogger(__name__)\n")
+    class_method_tree = ast.parse("logger = get_logger()\nclass Runner:\n    logger = logging.getLogger(__name__)\n    def use(self):\n        return logger\n")
+    assert _used_within_own_module(referenced_tree, "logger") is True
+    assert _used_within_own_module(unreferenced_tree, "logger") is False
+    assert _used_within_own_module(local_shadow_tree, "logger") is False
+    assert _used_within_own_module(parameter_shadow_tree, "logger") is False
+    assert _used_within_own_module(nested_shadow_tree, "logger") is False
+    assert _used_within_own_module(comprehension_shadow_tree, "logger") is False
+    assert _used_within_own_module(class_shadow_tree, "logger") is False
+    assert _used_within_own_module(class_pre_binding_tree, "logger") is True
+    assert _used_within_own_module(class_method_tree, "logger") is True
+    assert _used_within_own_module(unreferenced_tree, "nonexistent_name") is False
+
+
+def test_apply_widened_scope_exemptions() -> None:
+    """Unit test for `_apply_widened_scope_exemptions` (#470 mutation-proofing).
+
+    Covers all rescue paths plus the "still caught" controls: an ``__all__``
+    member stays caught even when only referenced within its own module
+    (unchanged pre-#470 semantics); a non-``__all__`` name referenced within
+    its own module is rescued; a real ``_WIDENED_SCOPE_GRANDFATHERED_470``
+    entry is rescued when its module is absent from ``corpus`` (so the
+    intra-module check cannot mask which rescue actually fired); and a
+    non-``__all__`` name with neither rescue stays caught.
+    """
+    all_member_source = "__all__ = ['AllMember']\nAllMember = 1\ndef use():\n    return AllMember\n"
+    all_member_tree = ast.parse(all_member_source)
+    all_member_module = CorpusModule(tree=all_member_tree, source=all_member_source, containing_pkg="synthetic")
+
+    intra_used_source = "helper = 1\ndef use():\n    return helper\n"
+    intra_used_tree = ast.parse(intra_used_source)
+    intra_used_module = CorpusModule(tree=intra_used_tree, source=intra_used_source, containing_pkg="synthetic")
+
+    truly_dead_source = "truly_dead = 1\n"
+    truly_dead_tree = ast.parse(truly_dead_source)
+    truly_dead_module = CorpusModule(tree=truly_dead_tree, source=truly_dead_source, containing_pkg="synthetic")
+
+    corpus = {
+        "synthetic.all_mod": all_member_module,
+        "synthetic.intra_mod": intra_used_module,
+        "synthetic.dead_mod": truly_dead_module,
+        # deliberately no entry for the grandfathered module -- the rescue
+        # must fire from the flat name set alone, never the intra-module path.
+    }
+    all_literal_decls = {"synthetic.all_mod": frozenset({"AllMember"})}
+
+    grandfathered_qualified = next(iter(_WIDENED_SCOPE_GRANDFATHERED_470))
+    offenders = [
+        "synthetic.all_mod::AllMember",
+        "synthetic.intra_mod::helper",
+        grandfathered_qualified,
+        "synthetic.dead_mod::truly_dead",
+    ]
+    kept = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
+    assert kept == ["synthetic.all_mod::AllMember", "synthetic.dead_mod::truly_dead"], f"got {kept!r}"
+
+
+def test_widened_scope_flags_synthetic_zero_caller_symbol() -> None:
+    """Sibling to `test_no_public_symbol_in_all_is_unimported` (#470 mutation-proofing).
+
+    Drives a synthetic module through the exact `_extract_public_module_level_names`
+    -> widened-``decls`` -> `_compute_offenders` -> `_apply_widened_scope_exemptions`
+    pipeline the production gate uses on ``_walk_modules``'s output, with a
+    public module-level name that has no ``__all__`` entry, no caller, and no
+    intra-module reference -- and asserts the widened scan actually finds and
+    flags it. `test_no_public_symbol_in_all_is_unimported` alone only fails on
+    *new* live-tree offenders; it has no assertion that the widened scan finds
+    anything at all, which is exactly how the squad's two mutations (collapsing
+    `_extract_public_module_level_names` to `frozenset()`, or
+    `_used_within_own_module` to unconditional `True`) passed every test here.
+    """
+    source = "def orphan_widened_helper():\n    return 1\n"
+    tree = ast.parse(source)
+    module = CorpusModule(tree=tree, source=source, containing_pkg="synthetic")
+    corpus = {"synthetic.widened_mod": module}
+    collision_index = classify_collisions(corpus)
+
+    all_literal = _extract_all_literal(tree) or frozenset()
+    widened = all_literal | _extract_public_module_level_names(tree)
+    assert "orphan_widened_helper" in widened, "sanity: the widening must surface the synthetic public name"
+
+    decls = {"synthetic.widened_mod": widened}
+    all_literal_decls: dict[str, frozenset[str]] = {}
+    widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
+
+    offenders = _compute_offenders(widened_only_decls, {}, set(), frozenset(), corpus, collision_index)
+    offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
+
+    assert offenders == ["synthetic.widened_mod::orphan_widened_helper"], (
+        f"the widened scan must flag a zero-caller, unreferenced, non-grandfathered widened-in name; got {offenders!r}"
+    )
+
+
+def test_walk_modules_widening_contributes_on_live_tree() -> None:
+    """`_walk_modules()`'s LIVE wiring must actually widen `decls` past
+    `all_literal_decls` (#470 mutation-proofing, squad pass 2 on
+    sk-squad-spec-kitty-638).
+
+    `test_widened_scope_flags_synthetic_zero_caller_symbol` above proves the
+    helpers are individually correct, but only through a hand-built pipeline
+    that reimplements line 2278's union itself (``widened = all_literal |
+    _extract_public_module_level_names(tree)``) rather than calling
+    `_walk_modules()`. A mutation to that live line (dropping the union down
+    to `widened = all_literal`) leaves every other test in this file
+    passing. This calls the real `_walk_modules()` and asserts the widening
+    contributes at least one non-`__all__` public name somewhere on the
+    actual `src/` tree.
+    """
+    decls, all_literal_decls, _path_to_dotted, _path_to_tree, _corpus = _walk_modules()
+    widened_contribution = sum(len(decls[mod] - all_literal_decls.get(mod, frozenset())) for mod in decls)
+    assert widened_contribution > 0, (
+        "_walk_modules()'s live decls contained zero names beyond __all__ -- the #470 widening at line 2278 may have been unwired from the real gate"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -3105,6 +3774,27 @@ def test_no_false_negative_module_attr_detector() -> None:
     assert _symbol_has_caller("Foo", "other_pkg", ps, sub_idx), "other_pkg::Foo must be rescued by alias.Foo access"
     # A different module with the same symbol name is NOT rescued.
     assert not _symbol_has_caller("Foo", "declaring_module", ps, sub_idx), "declaring_module::Foo must NOT be rescued by alias.Foo where alias→other_pkg"
+
+
+def test_no_false_negative_unaliased_submodule_attr_detector() -> None:
+    """An unaliased submodule import rescues only that real submodule."""
+    src = "from parent import target_mod\ntarget_mod.Bar"
+    tree = ast.parse(src)
+    alias_map, _ = _build_alias_map_and_consts(tree, "")
+    ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(tree, alias_map, ps, frozenset({"parent.target_mod"}))
+    sub_idx = _submodule_index(ps)
+
+    assert _symbol_has_caller("Bar", "parent.target_mod", ps, sub_idx)
+
+    collision_src = "from parent import SomeClass\nSomeClass.NAME"
+    collision_tree = ast.parse(collision_src)
+    collision_alias_map, _ = _build_alias_map_and_consts(collision_tree, "")
+    collision_ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(collision_tree, collision_alias_map, collision_ps, frozenset({"parent"}))
+    collision_sub_idx = _submodule_index(collision_ps)
+
+    assert not _symbol_has_caller("NAME", "parent", collision_ps, collision_sub_idx)
 
 
 def test_no_false_negative_getattr_detector() -> None:
@@ -3269,7 +3959,7 @@ def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() 
     sees them via the now-wired :func:`_imports_by_target` -- driven
     through the REAL live ``src/`` corpus, not a fixture.
     """
-    decls, path_to_dotted, path_to_tree, _corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, _corpus = _walk_modules()
     per_symbol, _star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
 
@@ -3344,7 +4034,7 @@ def test_auto_exempt_disjoint_from_hand_allowlist() -> None:
     the two silently falling out of sync. Walks the LIVE ``src/`` corpus
     (not a fixture) so this is a real, current-state proof.
     """
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
     collision_index = classify_collisions(corpus)
@@ -3501,7 +4191,7 @@ def test_bite_k_full_keyability_hand_and_auto_exempt() -> None:
     for key in _SYMBOL_ALLOWLIST:
         assert key.bare_name and key.body_hash, f"malformed hand-allowlist key: {key!r}"
 
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
     collision_index = classify_collisions(corpus)

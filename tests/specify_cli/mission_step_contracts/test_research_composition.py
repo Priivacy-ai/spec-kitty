@@ -89,7 +89,7 @@ EXPECTED_SOFTWARE_DEV_PROFILES: dict[str, str] = {
 def _repo_root() -> Path:
     """Locate the repository root via a delete-stable ``pyproject.toml`` marker.
 
-    Keyed on ``pyproject.toml`` rather than ``src/doctrine/graph.yaml`` so the
+    Keyed on ``pyproject.toml`` rather than ``src/charter/offering/graph.yaml`` so the
     finder survives the WP05 monolith->fragment migration: the shipped
     ``graph.yaml`` is deleted, but ``pyproject.toml`` is not.
     """

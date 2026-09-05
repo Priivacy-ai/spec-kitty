@@ -36,10 +36,7 @@ from .base import BaseMigration, MigrationResult
 
 #: Rationale stamped onto a reference entry synthesised from a bare
 #: ``context-sources`` id that had no matching ``*-references`` entry.
-_MIGRATED_RATIONALE = (
-    "Migrated from the retired context-sources surface "
-    "(mission doctrine-drg-silent-drop-boundary-01M0PE7E)."
-)
+_MIGRATED_RATIONALE = "Migrated from the retired context-sources surface (mission doctrine-drg-silent-drop-boundary-01M0PE7E)."
 
 #: ``context-sources`` key -> (canonical ``*-references`` field, id key on that
 #: field's entries). ``directive-references`` entries key on ``code``; the other
@@ -113,10 +110,7 @@ def _merge_one_field(
         # Dup-guard: the set-merge must never leave a duplicate id behind.
         merged_ids = [str(r.get(id_key)) for r in refs if isinstance(r, dict)]
         if len(merged_ids) != len(set(merged_ids)):
-            raise ValueError(
-                f"context-sources consolidation produced duplicate ids in "
-                f"{ref_field!r}: {merged_ids}"
-            )
+            raise ValueError(f"context-sources consolidation produced duplicate ids in {ref_field!r}: {merged_ids}")
     return newly
 
 
@@ -177,7 +171,7 @@ class ContextSourcesConsolidationMigration(BaseMigration):
 
     migration_id = "3_3_1_context_sources_consolidation"
     description = "Consolidate agent-profile context-sources onto *-references"
-    target_version = "3.2.6rc4"
+    target_version = "3.2.6rc2"
 
     def detect(self, project_path: Path) -> bool:
         """True when any consumer profile still authors ``context-sources``."""
@@ -244,7 +238,4 @@ def _summarise(outcome: ConsolidationOutcome) -> str:
     # `doctrine-layers:` binding sees exactly which id was discarded, not just a
     # count (audit F5 observability nit).
     dropped = ", ".join(sorted(outcome.dropped))
-    return (
-        f"merged {merged} refs, dropped {len(outcome.dropped)} non-edge "
-        f"entries ({dropped})"
-    )
+    return f"merged {merged} refs, dropped {len(outcome.dropped)} non-edge entries ({dropped})"

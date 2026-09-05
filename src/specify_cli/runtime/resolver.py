@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING
 # fails across modules and test suites that import from both paths flake on
 # `is`/`==`. Historical note: prior to 2026-04-15 this module defined its
 # own duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
-# on the release-readiness job where doctrine.test_resolver and
+# on the release-readiness job where charter.offering.test_resolver and
 # runtime.test_resolver_unit ran in the same session. The charter facade
 # route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
 # (WP07) to enforce the runtime → charter → doctrine boundary.
@@ -41,7 +41,7 @@ from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
 if TYPE_CHECKING:
-    from charter.offering.missions import ExpectedArtifactManifest
+    from charter.missions import ExpectedArtifactManifest
 
 __all__ = [
     "ResolutionResult",
@@ -56,16 +56,6 @@ __all__ = [
     "resolve_template",
     "resolve_template_by_urn",
 ]
-# NOTE: ``required_artifacts_for`` (FR-009) is back in __all__ (WP02, #3704
-# Part 2) now that ``runtime.next.runtime_bridge_io.gather_artifact_presence``
-# is its first real cross-module caller under ``src/`` -- see that
-# function's ``blocking_artifact_names`` resolution. ``ArtifactNameConfigurationError``
-# is still deliberately NOT in __all__: no caller under ``src/`` catches that
-# error type yet -- adding it before one exists would red
-# ``tests/architectural/test_no_dead_symbols.py``. It stays directly
-# importable and unit-tested
-# (tests/specify_cli/runtime/test_configured_artifact_name.py); re-add it
-# here alongside its own first real cross-module caller, whenever that lands.
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
@@ -106,20 +96,7 @@ class TemplateConfigurationError(ValueError):
 
 
 class ArtifactNameConfigurationError(ValueError):
-    """Raised when the per-type manifest cannot resolve an artifact filename.
-
-    Twin of :class:`TemplateConfigurationError` for the artifact-*filename*
-    seam (FR-009): ``resolve_configured_artifact_name`` sources the mapping
-    from ``expected-artifacts.yaml``'s ``path_pattern`` (the single per-type
-    filename authority, squad §S2) rather than a template mapping.
-
-    Attributes:
-        mission_type: Mission-type id passed by the caller.
-        artifact_key: Manifest key requested by the caller, e.g.
-            ``"input.spec.main"``.
-        mapped_filename: Configured filename, when resolution reached that
-            far (``None`` for earlier failures).
-    """
+    """Raised when a mission manifest cannot resolve an artifact filename."""
 
     def __init__(
         self,
@@ -133,7 +110,7 @@ class ArtifactNameConfigurationError(ValueError):
         self.artifact_key = artifact_key
         self.mapped_filename = mapped_filename
         super().__init__(
-            f"Artifact-name configuration for mission type {mission_type!r} "
+            f"Artifact filename configuration for mission type {mission_type!r} "
             f"and artifact key {artifact_key!r} {reason}."
         )
 
@@ -598,8 +575,7 @@ def resolve_configured_artifact_name(
     Twins :func:`resolve_configured_template`'s per-type filename seam
     without adding a second filename authority (squad §S2): the mapping is
     projected from ``expected-artifacts.yaml``'s ``path_pattern`` (via
-    :func:`charter.missions.project_artifact_name_set`, the runtime->charter->
-    doctrine facade),
+    :func:`charter.offering.missions.project_artifact_name_set`),
     never from :attr:`~charter.offering.missions.models.MissionStepTemplateRef.template_file`.
 
     Args:
@@ -613,6 +589,9 @@ def resolve_configured_artifact_name(
         ArtifactNameConfigurationError: If *mission_type* is an unsafe path
             segment, has no expected-artifacts manifest, or has no mapping
             for *artifact_key*.
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
     try:
         assert_safe_path_segment(mission_type)
@@ -666,7 +645,9 @@ def required_artifacts_for(
         has no expected-artifacts manifest (unregistered/custom type).
 
     Raises:
-        ManifestSchemaError: See :func:`_load_expected_artifact_manifest`.
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
     manifest = _load_expected_artifact_manifest(mission_type, repo_root=repo_root)
     if manifest is None:

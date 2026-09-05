@@ -34,39 +34,49 @@ Priivacy-ai/spec-kitty-end-to-end-testing#37.
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
-from typing import Literal
+from typing import Any, Literal, cast
 
 from spec_kitty_events import (
-    ArtifactIdentity as ArtifactIdentity,
-    ContentHashRef as ContentHashRef,
-    LocalNamespaceTuple as LocalNamespaceTuple,
-    MissionDossierArtifactIndexedPayload as MissionDossierArtifactIndexedPayload,
-    MissionDossierArtifactMissingPayload as MissionDossierArtifactMissingPayload,
-    MissionDossierParityDriftDetectedPayload as MissionDossierParityDriftDetectedPayload,
-    MissionDossierSnapshotComputedPayload as MissionDossierSnapshotComputedPayload,
+    ArtifactIdentity,
+    ContentHashRef,
+    LocalNamespaceTuple,
+    MissionDossierArtifactIndexedPayload,
+    MissionDossierArtifactMissingPayload,
+    MissionDossierParityDriftDetectedPayload,
+    MissionDossierSnapshotComputedPayload,
     ProvenanceRef,
 )
 
 from kernel.clock import now_utc_iso
-from specify_cli.dossier.emitter_adapter import fire_dossier_event
-
-# Sync-owned types are deliberately not imported (even under TYPE_CHECKING):
-# the dossier->sync edge is inverted through emitter_adapter
-# (tests/architectural/test_dossier_sync_boundary.py), so the explicit-context
-# parameters are typed structurally.
 
 logger = logging.getLogger(__name__)
 
 
+def _undelivered(event_type: str, _payload: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """Drop an otherwise-valid dossier event envelope: no transport remains.
+
+    The CLI→SaaS sync transport was deleted (Ephemeral Team Status redesign);
+    nothing consumes ``MissionDossier*`` events any more, so delivery is a
+    logged debug no-op. Payload construction above still runs the canonical
+    validators. Every emitter absorbs the retired same-UoW delivery-authority
+    keywords (``project_context``, ``project_unit``, ``project_layout``)
+    without acting on them — via ``**_delivery_authority`` on the snapshot/
+    drift emitters, via :func:`_absorb_delivery_authority_kwargs` on the two
+    artifact emitters — so callers (``sync/dossier_pipeline.py`` until its own
+    deletion) keep working.
+
+    ``_payload`` is retained only as a test-capture seam. Production callers
+    construct and validate it before reaching this no-transport drop point;
+    tests monkeypatch this function to inspect that validated payload.
+    """
+    logger.debug("Dossier event %s validated but not delivered: no transport", event_type)
+    return None
+
+
 # ── Canonical sub-objects (imported from `spec_kitty_events`) ──────────
 #
-# The 7 wire-shape types this module previously hand-maintained as a local
-# Pydantic mirror (``LocalNamespaceTuple``, ``ArtifactIdentity``,
-# ``ContentHashRef``, and the four ``MissionDossier*Payload`` classes) are
-# imported from the canonical ``spec_kitty_events`` package above instead —
-# it already owns and ships these shapes (installed 6.1.0, pinned
-# ``>=6.0.0,<7.0.0``). See Priivacy-ai/spec-kitty#1058.
+# The canonical package owns the wire-shape models; this module only adapts
+# legacy CLI call signatures to those models.
 
 
 # Server schema (`artifact_identity`) defines six artifact classes — no
@@ -93,9 +103,9 @@ def _coerce_namespace(
 ) -> LocalNamespaceTuple | None:
     """Coerce a caller-supplied namespace dict into ``LocalNamespaceTuple``.
 
-    Callers commonly pass the 5-field dict produced by
-    ``specify_cli.sync.namespace.NamespaceRef.to_dict()``. We tolerate either
-    that or a fully-constructed ``LocalNamespaceTuple``. Returns ``None`` when
+    Callers commonly pass a 5-field namespace dict (the shape the deleted
+    sync ``NamespaceRef.to_dict()`` produced). We tolerate either that or a
+    fully-constructed ``LocalNamespaceTuple``. Returns ``None`` when
     the namespace cannot be constructed (in which case the caller MUST refuse
     to emit — the server schema requires ``namespace``).
     """
@@ -128,19 +138,10 @@ def _build_artifact_identity(
     wp_id: str | None = None,
     run_id: str | None = None,
 ) -> ArtifactIdentity:
-    # ``ArtifactIdentity.artifact_class`` is a Literal in the canonical
-    # package; _normalize_artifact_class maps the one legacy value ("other")
-    # into the enum and passes everything else through. Callers that pass a
-    # value outside the six-class enum still fail loudly at validation time,
-    # so the cast only records what the runtime check enforces.
-    canonical_class = cast(
-        "Literal['input', 'workflow', 'output', 'evidence', 'policy', 'runtime']",
-        _normalize_artifact_class(artifact_class),
-    )
     return ArtifactIdentity(
         mission_type=mission_type,
         path=path,
-        artifact_class=canonical_class,
+        artifact_class=_normalize_artifact_class(artifact_class),
         wp_id=wp_id,
         run_id=run_id,
     )
@@ -165,6 +166,53 @@ def _missing_namespace_log(event_type: str) -> None:
         "target_branch/mission_type/manifest_version.",
         event_type,
     )
+
+
+# Legacy same-UoW delivery-authority keyword arguments. The transport that
+# consumed them was deleted with the CLI→SaaS sync (Ephemeral Team Status);
+# callers — ``sync/dossier_pipeline.py`` until its own deletion — still pass
+# them on every emission, so each emitter absorbs them instead of rejecting.
+_DELIVERY_AUTHORITY_KWARGS = ("project_context", "project_unit", "project_layout")
+
+
+def _absorb_delivery_authority_kwargs(kwargs: dict[str, Any]) -> None:
+    """Pop the retired delivery-authority keywords out of ``kwargs`` in place.
+
+    Only the two artifact emitters need this: their ``**kwargs`` feed
+    :func:`_consume_legacy_values`, which rejects unknown names. The snapshot
+    and drift emitters instead absorb everything via ``**_delivery_authority``.
+    """
+    for name in _DELIVERY_AUTHORITY_KWARGS:
+        kwargs.pop(name, None)
+
+
+def _consume_legacy_values(
+    args: tuple[object, ...],
+    kwargs: dict[str, object],
+    *,
+    names: tuple[str, ...],
+    defaults: dict[str, object],
+) -> dict[str, object]:
+    if len(args) > len(names):
+        raise TypeError(f"Expected at most {len(names)} legacy positional arguments, got {len(args)}")
+    values = dict(defaults)
+    for name, value in zip(names, args, strict=False):
+        values[name] = value
+    for name in names[len(args) :]:
+        if name in kwargs:
+            values[name] = kwargs.pop(name)
+    if kwargs:
+        unexpected = ", ".join(sorted(kwargs))
+        raise TypeError(f"Unexpected keyword argument(s): {unexpected}")
+    return values
+
+
+def _optional_str(value: object) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return str(value)
 
 
 def _snapshot_legacy_diagnostics(
@@ -197,18 +245,13 @@ def emit_artifact_indexed(
     relative_path: str,
     content_hash_sha256: str,
     size_bytes: int,
-    *,
+    *args: object,
     namespace: LocalNamespaceTuple | dict[str, Any] | None = None,
     mission_type: str | None = None,
-    wp_id: str | None = None,
-    step_id: str | None = None,
-    required_status: str = "optional",
     indexed_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
     provenance: ProvenanceRef | dict[str, Any] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactIndexed`` in the namespaced envelope.
 
@@ -217,32 +260,29 @@ def emit_artifact_indexed(
     the server schema (``additionalProperties: False``) does not accept
     them at the top level.
 
-    ``provenance``, if given, must match the canonical ``ProvenanceRef``
-    shape (``actor_id``, ``actor_kind``, ``git_ref``, ``git_sha``,
-    ``revised_at``, ``source_event_ids``) — the frozen, ``extra="forbid"``
-    model ``spec_kitty_events`` ships for this field. It does **not** accept
-    this package's own artifact-level provenance shape (``source_kind`` /
-    ``actor_id`` / ``captured_at``, see
-    ``specify_cli.dossier.models.ArtifactRef.provenance``): that shape is a
-    different, CLI-internal concept and passing it here raises
-    ``pydantic.ValidationError`` rather than silently dropping the event.
+    ``provenance`` must match the canonical ``ProvenanceRef`` shape. An
+    invalid value raises rather than being absorbed into the routine
+    validation-failure path.
 
-    Returns the enqueued event dict on success, or ``None`` if the artifact
-    identity/content-hash inputs fail validation. An invalid ``provenance``
-    is deliberately NOT folded into that ``None`` path — see above — so it
-    raises instead.
+    Returns ``None``: the envelope is validated and then dropped locally
+    (no transport remains — see :func:`_undelivered`).
     """
+    _absorb_delivery_authority_kwargs(kwargs)
+    legacy = _consume_legacy_values(
+        args,
+        kwargs,
+        names=("wp_id", "step_id", "required_status"),
+        defaults={"wp_id": None, "step_id": None, "required_status": "optional"},
+    )
+    wp_id = _optional_str(legacy["wp_id"])
+    step_id = _optional_str(legacy["step_id"])
+    required_status = str(legacy["required_status"])
     ns = _coerce_namespace(namespace, mission_slug=mission_slug, step_id=step_id)
     if ns is None:
         _missing_namespace_log("MissionDossierArtifactIndexed")
         return None
 
     if provenance is not None and not isinstance(provenance, ProvenanceRef):
-        # Deliberately outside the try/except below: a malformed provenance
-        # payload is a caller programming error, not a routine validation
-        # failure, and must surface loudly (PR-CONTRACT-001) rather than
-        # being absorbed into the generic "return None" path used for
-        # artifact_id/content_ref construction failures.
         provenance = ProvenanceRef.model_validate(provenance)
 
     effective_mission_type = mission_type or ns.mission_type
@@ -276,14 +316,9 @@ def emit_artifact_indexed(
         logger.exception("Payload validation failed for MissionDossierArtifactIndexed: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierArtifactIndexed",
-        aggregate_id=f"{ns.mission_slug}:{relative_path}",
-        aggregate_type="MissionDossier",
-        payload=payload.model_dump(exclude_none=True),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
+    return _undelivered(
+        "MissionDossierArtifactIndexed",
+        payload.model_dump(exclude_none=True, mode="json"),
     )
 
 
@@ -293,22 +328,41 @@ def emit_artifact_missing(
     artifact_class: str,
     expected_path_pattern: str,
     reason_code: str,
-    *,
+    *args: object,
     namespace: LocalNamespaceTuple | dict[str, Any] | None = None,
     mission_type: str | None = None,
-    reason_detail: str | None = None,
-    blocking: bool = True,
     manifest_step: str | None = None,
     checked_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactMissing`` in the namespaced envelope.
 
     The event fires only when ``blocking=True`` (legacy convention).
     """
+    _absorb_delivery_authority_kwargs(kwargs)
+    legacy = _consume_legacy_values(
+        args,
+        kwargs,
+        names=(
+            "reason_detail",
+            "blocking",
+            "last_known_content_hash_sha256",
+            "last_known_size_bytes",
+        ),
+        defaults={
+            "reason_detail": None,
+            "blocking": True,
+            "last_known_content_hash_sha256": None,
+            "last_known_size_bytes": None,
+        },
+    )
+    # The two legacy last-known fields are accepted for caller compatibility
+    # and then intentionally dropped: the canonical payload's
+    # ``last_known_ref`` is a ``ProvenanceRef``, not a ``ContentHashRef``, so
+    # there is no lossless conversion from the split hash/size pair.
+    reason_detail = _optional_str(legacy["reason_detail"])
+    blocking = bool(legacy["blocking"])
     if not blocking:
         logger.debug("Skipping non-blocking missing-artifact event for %s", artifact_key)
         return None
@@ -343,14 +397,9 @@ def emit_artifact_missing(
         logger.exception("Payload validation failed for MissionDossierArtifactMissing: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierArtifactMissing",
-        aggregate_id=f"{ns.mission_slug}:{expected_path_pattern}",
-        aggregate_type="MissionDossier",
-        payload=payload.model_dump(exclude_none=True),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
+    return _undelivered(
+        "MissionDossierArtifactMissing",
+        payload.model_dump(exclude_none=True, mode="json"),
     )
 
 
@@ -371,9 +420,7 @@ def emit_snapshot_computed(
     computed_at: str | None = None,
     anomaly_count: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
+    **_delivery_authority: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierSnapshotComputed`` in the namespaced envelope.
 
@@ -414,14 +461,9 @@ def emit_snapshot_computed(
         logger.exception("Payload validation failed for MissionDossierSnapshotComputed: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierSnapshotComputed",
-        aggregate_id=f"{ns.mission_slug}:{snapshot_id}",
-        aggregate_type="MissionDossier",
-        payload=payload.model_dump(exclude_none=True),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
+    return _undelivered(
+        "MissionDossierSnapshotComputed",
+        payload.model_dump(exclude_none=True, mode="json"),
     )
 
 
@@ -439,9 +481,7 @@ def emit_parity_drift_detected(
     detected_at: str | None = None,
     rebuild_hint: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
+    **_delivery_authority: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierParityDriftDetected`` in the namespaced envelope.
 
@@ -483,12 +523,8 @@ def emit_parity_drift_detected(
             namespace=ns,
             expected_hash=baseline_parity_hash,
             actual_hash=local_parity_hash,
-            # Canonical payload types drift_kind as a Literal of six known
-            # kinds; unknown values fail loudly at validation (caught by the
-            # except below). The cast records that contract for mypy.
             drift_kind=cast(
-                "Literal['artifact_added', 'artifact_removed', 'artifact_mutated', "
-                "'anomaly_introduced', 'anomaly_resolved', 'manifest_version_changed']",
+                "Literal['artifact_added', 'artifact_removed', 'artifact_mutated', 'anomaly_introduced', 'anomaly_resolved', 'manifest_version_changed']",
                 drift_kind or "anomaly_introduced",
             ),
             detected_at=detected_at or now_utc_iso(),
@@ -500,21 +536,7 @@ def emit_parity_drift_detected(
         logger.exception("Payload validation failed for MissionDossierParityDriftDetected: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierParityDriftDetected",
-        aggregate_id=f"{ns.mission_slug}:drift",
-        aggregate_type="MissionDossier",
-        # mode="json" (T002 fallout): the canonical payload's
-        # ``artifact_ids_changed`` is ``Optional[Tuple[ArtifactIdentity, ...]]``
-        # (was ``list[...] | None`` on the deleted local mirror) -- the default
-        # python-mode model_dump() renders a tuple-typed field as a Python
-        # ``tuple``, which the server's ``anyOf: [array, null]`` JSON Schema
-        # rejects on strict Python-type checking (a tuple is not a ``list``).
-        # ``mode="json"`` renders it as a plain list, matching the pre-T002
-        # wire shape exactly; every other field here is already a plain
-        # str/dict, so this is a no-op for them.
-        payload=payload.model_dump(exclude_none=True, mode="json"),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
+    return _undelivered(
+        "MissionDossierParityDriftDetected",
+        payload.model_dump(exclude_none=True, mode="json"),
     )

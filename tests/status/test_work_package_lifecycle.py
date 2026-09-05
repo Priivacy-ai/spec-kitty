@@ -18,6 +18,7 @@ from specify_cli.status.store import (
     read_events,
 )
 from specify_cli.status.work_package_lifecycle import (
+    GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
     _actor_key,
@@ -36,9 +37,6 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-
-
 def _feature_dir(tmp_path: Path) -> Path:
     feature_dir = tmp_path / "kitty-specs" / "099-lifecycle-test"
     feature_dir.mkdir(parents=True)
@@ -659,6 +657,32 @@ def test_lifecycle_helpers_normalize_lock_roots_and_actors(tmp_path: Path) -> No
     assert resolve_status_lock_root(tmp_path / "loose-feature", None) == tmp_path / "loose-feature"
     assert _actor_key(None) is None
     assert _actors_compatible(None, "claude") is True
+
+
+def test_generic_implementation_actors_exported_on_status_facade() -> None:
+    """FIX-M2-03: the constant must be importable from ``specify_cli.status``
+    (not just this module) so sibling ownership checks (e.g.
+    ``tasks_transition_core._guard_agent_ownership``) share the ONE definition
+    instead of hand-rolling their own copy that could drift out of sync.
+    """
+    import specify_cli.status as status_facade
+
+    assert status_facade.GENERIC_IMPLEMENTATION_ACTORS is GENERIC_IMPLEMENTATION_ACTORS
+    assert frozenset({"implement-command", "unknown"}) == GENERIC_IMPLEMENTATION_ACTORS
+
+
+@pytest.mark.parametrize("generic_current", sorted(GENERIC_IMPLEMENTATION_ACTORS))
+def test_actors_compatible_treats_generic_placeholder_as_unclaimed(generic_current: str) -> None:
+    """A WP whose CURRENT assignee is a generic placeholder (the internal
+    ``implement`` compat surface's default when invoked without ``--actor``,
+    or the plain ``unknown`` fallback) is not a real owner -- any real
+    requested actor is compatible without needing ``allow_generic_existing``
+    to be a real-vs-real match.
+    """
+    assert _actors_compatible(generic_current, "claude", allow_generic_existing=True) is True
+    # Without the allowance, a generic placeholder still fails raw equality --
+    # proving the True result above comes from the allowance, not a no-op.
+    assert _actors_compatible(generic_current, "claude", allow_generic_existing=False) is False
 
 
 def test_claimed_lane_surfaces_as_doing_in_dashboard() -> None:

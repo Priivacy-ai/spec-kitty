@@ -53,9 +53,7 @@ def _tension_graph() -> DRGGraph:
         DRGEdge(source=_ACTION_URN, target=_UNARBITRATED_A, relation=Relation.SCOPE),
         DRGEdge(source=_ACTION_URN, target=_UNARBITRATED_B, relation=Relation.SCOPE),
         DRGEdge(source=_DIRECTIVE_024, target=_DIRECTIVE_025, relation=Relation.IN_TENSION_WITH),
-        DRGEdge(
-            source=_UNARBITRATED_A, target=_UNARBITRATED_B, relation=Relation.IN_TENSION_WITH
-        ),
+        DRGEdge(source=_UNARBITRATED_A, target=_UNARBITRATED_B, relation=Relation.IN_TENSION_WITH),
         DRGEdge(source=_RECONCILER, target=_DIRECTIVE_024, relation=Relation.RECONCILES_TENSION),
         DRGEdge(source=_RECONCILER, target=_DIRECTIVE_025, relation=Relation.RECONCILES_TENSION),
     ]
@@ -69,7 +67,10 @@ def _tension_graph() -> DRGGraph:
 
 
 def test_bundle_carries_tension_arbiters_and_unarbitrated_tensions(tmp_path: Path) -> None:
-    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=_tension_graph()):
+    with patch(
+        "charter.activation._drg_helpers.load_validated_graph",
+        return_value=_tension_graph(),
+    ):
         bundle = _load_action_doctrine_bundle(
             repo_root=tmp_path,
             action="implement",
@@ -86,7 +87,10 @@ def test_bundle_tension_fields_are_hashable_tuples(tmp_path: Path) -> None:
     """Brownfield constraint (tasks.md WP02 T2): tuples, not dict/list, so the
     frozen ``_ActionDoctrineBundle`` construction site stays valid and any
     hashable-context use of the bundle's fields does not raise."""
-    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=_tension_graph()):
+    with patch(
+        "charter.activation._drg_helpers.load_validated_graph",
+        return_value=_tension_graph(),
+    ):
         bundle = _load_action_doctrine_bundle(
             repo_root=tmp_path,
             action="implement",

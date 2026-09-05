@@ -261,16 +261,9 @@ class TestSetupFeatureDirectory:
         assert spec_file.exists()
         assert spec_file.read_text() == "# Feature Specification Template"
 
-    def test_creates_empty_spec_when_no_template(self, tmp_path: Path) -> None:
-        """Should NOT create an empty spec.md when no template exists (FR-012, #3597).
-
-        Reversed (AC-11, mission rc3-charter-gate-predicate-inversion-01M0GGT1
-        WP05): the ``else: spec_file.touch()`` branch is removed --
-        an unread, empty spec.md vacuously satisfied downstream existence
-        gates. See docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md.
-        The template-copy path in the same block is unchanged (still covered
-        by ``test_copies_spec_template_when_exists``, which stays GREEN).
-        """
+    def test_no_spec_file_when_no_template(self, tmp_path: Path) -> None:
+        """Should not create spec.md when no template exists (#228: a stray
+        empty spec.md vacuously satisfies the per-type artifact presence gate)."""
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path

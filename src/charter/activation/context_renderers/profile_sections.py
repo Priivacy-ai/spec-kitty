@@ -78,6 +78,15 @@ __all__ = [
 ]
 
 
+# Styleguide and toolguide profile sections are pointer-only by design: their
+# bodies are fetched on demand rather than inlined on every profile load.
+_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON: str = (
+    "styleguide/toolguide profile sections are pointer-only by design "
+    "(NFR-001 token budget): their bodies are pulled on demand via the "
+    "--include fetch stanza, never inlined on every profile load"
+)
+
+
 _PROFILE_DIRECTIVES_HEADER_TPL = "Profile-Cited Directives ({profile_id}):"
 _PROFILE_TACTICS_HEADER_TPL = "Profile-Cited Tactics ({profile_id}):"
 _PROFILE_STYLEGUIDES_HEADER_TPL = "Profile-Cited Styleguides ({profile_id}):"
@@ -86,6 +95,10 @@ _PROFILE_TOOLGUIDES_HEADER_TPL = "Profile-Cited Toolguides ({profile_id}):"
 # inline citation list, so the header reads "Resolved" rather than "Cited".
 _PROFILE_PROCEDURES_HEADER_TPL = "Profile-Resolved Procedures ({profile_id}):"
 _PROFILE_CODE_CHANGE_WHEN = "are about to apply a code change"
+_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON = (
+    "Styleguide and toolguide bodies vary in shape and are fetched on demand "
+    "under the NFR-001 token budget."
+)
 
 # WP01 (deliver-loaded-doctrine, FR-005): the stated reason styleguide/toolguide
 # profile sections render pointer-only (``body_fn=None``). This is a DELIBERATE

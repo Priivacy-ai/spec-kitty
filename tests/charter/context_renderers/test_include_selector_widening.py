@@ -58,9 +58,7 @@ class _EmptyService:
 
 
 def test_glossary_pack_selector_renders() -> None:
-    out = _render_doctrine_artifact_include(
-        _ServiceWithGlossary(), "glossary_pack", "spec-kitty-core"
-    )
+    out = _render_doctrine_artifact_include(_ServiceWithGlossary(), "glossary_pack", "spec-kitty-core")
     assert out is not None
     assert "Glossary pack spec-kitty-core" in out
     assert "Mission: A unit of work." in out
@@ -68,9 +66,7 @@ def test_glossary_pack_selector_renders() -> None:
 
 def test_glossary_pack_missing_id_is_not_found_not_unsupported() -> None:
     with pytest.raises(ValueError, match="No glossary_pack found for selector"):
-        _render_doctrine_artifact_include(
-            _ServiceWithGlossary(), "glossary_pack", "does-not-exist"
-        )
+        _render_doctrine_artifact_include(_ServiceWithGlossary(), "glossary_pack", "does-not-exist")
 
 
 # ── T021: anti_pattern recognised (not-found, never "unsupported") ────────────

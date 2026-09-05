@@ -23,9 +23,10 @@ Structured after the single-field sibling ``backfill_topology.py`` (NOT the
 two-dimension ``backfill_identity.py``): one dataclass, one per-mission
 decision function with a flat skip/skip/skip/needs-manual/write branch order,
 one repo-walk. The coordination-branch git probe from ``backfill_topology.py``
-is intentionally NOT copied here (irrelevant to ``mission_type``); the
-dossier-rehash pass IS lifted from ``backfill_identity.py`` (topology has
-none) since a written ``mission_type`` is dossier-relevant metadata.
+is intentionally NOT copied here (irrelevant to ``mission_type``); there is
+no dossier-rehash pass — the sync transport it would have driven is deleted
+(issue #5), so a written ``mission_type`` is persisted to ``meta.json`` and
+nothing else.
 """
 
 from __future__ import annotations
@@ -40,7 +41,6 @@ from charter.activation.mission_type_key import canonical_mission_type_key
 from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.mission import MissionNotFoundError
-from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +73,6 @@ class MissionTypeBackfillResult:
             or on ``"needs_manual_resolution"``/``"wrote"``.
         reason: Human-readable explanation (populated on ``"skip"``,
             ``"needs_manual_resolution"``, and ``"error"``).
-        dossier_warning: Non-empty string when the post-write dossier rehash
-            step logged a recoverable warning.
     """
 
     feature_dir: Path
@@ -83,7 +81,6 @@ class MissionTypeBackfillResult:
     mission_type: str | None = None
     legacy_value: str | None = None
     reason: str | None = None
-    dossier_warning: str | None = None
 
 
 def _profile_resolves(repo: MissionTypeProfileRepository, key: str) -> bool:
@@ -193,35 +190,6 @@ def backfill_mission_mission_type(
         )
 
 
-def _rehash_written_missions(
-    results: list[MissionTypeBackfillResult],
-    repo_root: Path,
-    *,
-    dry_run: bool,
-) -> None:
-    """Trigger a dossier rehash for every mission that was actually written.
-
-    Gated on ``action == "wrote" and not dry_run`` (R-1). Never aborts the
-    run: a failure is captured onto the corresponding result's
-    ``dossier_warning`` field.
-    """
-    if dry_run:
-        return
-    for result in results:
-        if result.action != "wrote":
-            continue
-        try:
-            trigger_feature_dossier_sync_if_enabled(
-                feature_dir=result.feature_dir,
-                mission_slug=result.slug,
-                repo_root=repo_root,
-            )
-        except Exception as exc:  # noqa: BLE001 — rehash is fire-and-forget
-            warning = f"dossier rehash failed: {exc}"
-            logger.warning("Dossier rehash warning for %s: %s", result.slug, exc)
-            result.dossier_warning = warning
-
-
 def backfill_mission_type_repo(
     repo_root: Path,
     *,
@@ -235,8 +203,7 @@ def backfill_mission_type_repo(
 
     Args:
         repo_root: Absolute path to the repository root.
-        dry_run: When ``True``, compute results without writing any files or
-            triggering the dossier rehash.
+        dry_run: When ``True``, compute results without writing any files.
         mission_slug: When provided, scope the walk to a single mission
             directory. A slug that does not exist under ``kitty-specs/``
             raises :class:`MissionNotFoundError` — never a silent
@@ -274,14 +241,10 @@ def backfill_mission_type_repo(
         candidates = all_dirs
 
     repo = MissionTypeProfileRepository.for_project(repo_root)
-    results = [
+    return [
         backfill_mission_mission_type(feature_dir, repo=repo, dry_run=dry_run)
         for feature_dir in candidates
     ]
-
-    _rehash_written_missions(results, repo_root, dry_run=dry_run)
-
-    return results
 
 
 # Only the repo-walk entry point is consumed by another ``src/`` module (the

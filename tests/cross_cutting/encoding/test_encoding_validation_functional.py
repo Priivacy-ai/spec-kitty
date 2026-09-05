@@ -244,7 +244,6 @@ class TestDryRunMode:
 
 
 # Performance tests
-@pytest.mark.performance
 class TestPerformance:
     """Performance requirements verification"""
 

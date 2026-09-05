@@ -57,7 +57,7 @@ class TestLoadPackRegistry:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
                     ref: v1.0.0
                   - name: architecture
                     local_path: /opt/arch
@@ -402,11 +402,11 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
                   - name: architecture
                     local_path: /opt/arch
                     source_type: git
-                    url: git@example.com:arch/doctrine.git
+                    url: git@example.com:arch/charter.offering.git
             """,
         )
         fetched_names: list[str] = []
@@ -444,11 +444,11 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
                   - name: architecture
                     local_path: /opt/arch
                     source_type: git
-                    url: git@example.com:arch/doctrine.git
+                    url: git@example.com:arch/charter.offering.git
             """,
         )
         fetched_names: list[str] = []
@@ -474,7 +474,7 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
             """,
         )
         runner = CliRunner()
@@ -498,7 +498,7 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
             """,
         )
         monkeypatch.setattr(

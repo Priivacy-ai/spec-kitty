@@ -9,7 +9,7 @@
 # specify_cli (src/doctrine relocated to src/charter/offering, S2a). The
 # sibling dormant spec-kitty-doctrine wheel this file's comments used to
 # cross-reference (src/charter/offering/pyproject.toml + hatch_build.py, née
-# src/doctrine/...) was DELETED outright per MAP-BUILD -- it was never built
+# src/charter/offering/...) was DELETED outright per MAP-BUILD -- it was never built
 # or published by any CI job. This kernel wheel manifest is unaffected and
 # stays dormant groundwork for a future kernel <- charter cutover.
 
@@ -36,7 +36,7 @@ build-backend = "hatchling.build"
 # root-relative-packages pitfall (WP12) was originally documented alongside
 # the sibling dormant spec-kitty-doctrine wheel manifest, which is now
 # deleted (charter-code-topology-01M152G1, S5, MAP-BUILD) -- see git history
-# at src/doctrine/pyproject.toml (pre-S2a) / src/charter/offering/pyproject.toml
+# at src/charter/offering/pyproject.toml (pre-S2a) / src/charter/offering/pyproject.toml
 # (pre-S5) for the fuller writeup if ever needed again.
 sources = { "" = "kernel" }
 include = ["**/*"]

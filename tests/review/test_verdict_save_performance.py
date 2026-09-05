@@ -52,6 +52,10 @@ from tests.mocked_env import setup_mocked_env
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+_VERDICT_SAVE_MEDIAN_QUARANTINE = pytest.mark.quarantine(
+    reason="spec-kitty#901: wall-clock median budget flakes under shared-runner xdist load; passes alone and on serial re-run"
+)
+
 _MISSION = "verdict-save-performance"
 _MISSION_ID = "01M0SBENCHMARK000000000000"
 _WP_ID = "WP01"
@@ -278,13 +282,7 @@ def _invoke_real_reviewer_command(args: _MoveTaskArgs, ports: TasksPorts) -> Non
 
 
 def _approval_events(feature_dir: Path) -> list[StatusEvent]:
-    return [
-        event
-        for event in read_events(feature_dir)
-        if event.wp_id == _WP_ID
-        and event.review_result is not None
-        and event.review_result.verdict == "approved"
-    ]
+    return [event for event in read_events(feature_dir) if event.wp_id == _WP_ID and event.review_result is not None and event.review_result.verdict == "approved"]
 
 
 def _assert_durable_round(round_: _PreparedRound, payload: dict[str, object]) -> None:
@@ -357,6 +355,7 @@ def test_uncontended_verdict_fixture_runs_the_real_durable_command(
 
 @pytest.mark.performance
 @pytest.mark.benchmark(group="review")
+@_VERDICT_SAVE_MEDIAN_QUARANTINE
 def test_uncontended_real_verdict_save_median_is_below_two_seconds(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -404,10 +403,6 @@ def test_uncontended_real_verdict_save_median_is_below_two_seconds(
     assert benchmark.stats is not None
     stats = benchmark.stats.stats
     assert stats.median < _MEDIAN_BUDGET_SECONDS, (
-        f"SC-006: median uncontended durable verdict save was {stats.median:.3f}s; "
-        f"required < {_MEDIAN_BUDGET_SECONDS:.1f}s"
+        f"SC-006: median uncontended durable verdict save was {stats.median:.3f}s; required < {_MEDIAN_BUDGET_SECONDS:.1f}s"
     )
-    assert stats.max < _SANITY_MAX_SECONDS, (
-        f"slowest uncontended durable verdict save was {stats.max:.3f}s; "
-        "this exceeds the loose secondary sanity ceiling"
-    )
+    assert stats.max < _SANITY_MAX_SECONDS, f"slowest uncontended durable verdict save was {stats.max:.3f}s; this exceeds the loose secondary sanity ceiling"

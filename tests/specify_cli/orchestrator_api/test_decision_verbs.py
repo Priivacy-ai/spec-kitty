@@ -86,9 +86,7 @@ def _init_repo(tmp_path: Path) -> Path:
     """A real, non-protected-branch git repo with an activated mission type."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(
-        ["git", "init", "-b", "wp05-work"], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "init", "-b", "wp05-work"], cwd=repo, check=True, capture_output=True)
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test User")
     (repo / ".kittify").mkdir()
@@ -217,9 +215,7 @@ def test_open_decision_creates_open_ledger_entry(tmp_path: Path) -> None:
     assert entry["input_key"] == "team_size"
 
 
-def test_open_decision_unregistered_decision_error_code_falls_back_never_leaks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_open_decision_unregistered_decision_error_code_falls_back_never_leaks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """PR-CONTRACT-002 (severity 2): a ``DecisionError`` whose ``code.value``
     is NOT registered in ``upstream_contract.json``'s ``allowed_error_codes``
     must never reach the public ``error_code`` field verbatim. Drives this

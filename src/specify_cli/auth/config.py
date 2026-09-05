@@ -3,15 +3,11 @@
 Single source of truth for the *hosted SaaS opt-in* base URL. Per
 architectural decision D-5, :func:`get_saas_base_url` never falls back to a
 default — callers must set ``SPEC_KITTY_SAAS_URL`` in the environment to opt
-a machine into hosted SaaS sync (mirrored by the "D-5 opt-in gate" in
-:func:`specify_cli.saas.readiness._probe_host_config`).
-
-D-5 scopes this opt-in gate, not every SaaS-domain literal in the codebase:
-:data:`specify_cli.sync.target_authority.DEFAULT_SERVER_URL` is a separate,
-documented default used only for local/descriptive resolution (queue-scope
-derivation, diagnostics) when neither the env var nor ``config.toml``
-supplies a target. That default never opens a network connection and never
-bypasses this function's opt-in gate for hosted activation.
+a machine into hosted SaaS flows (mirrored by the "D-5 opt-in gate" in
+:func:`specify_cli.tracker.saas_readiness._probe_host_config`). Since #179 the
+canonical resolver (:func:`specify_cli.auth.server_target.resolve_server_target`)
+holds the same line: with no env value and no ``config.toml`` value it raises
+:class:`ConfigurationError` rather than resolving to a stale hardcoded host.
 """
 
 from __future__ import annotations
@@ -26,9 +22,10 @@ _ENV_VAR = "SPEC_KITTY_SAAS_URL"
 #: hints, remediation notes). This is NOT a functional default: per
 #: architectural decision D-5 (see module docstring) hosted activation has no
 #: hardcoded fallback — callers must set ``SPEC_KITTY_SAAS_URL``. It is shared so
-#: the example does not drift across the auth and sync surfaces that cite it
-#: (#3441). D-5 scopes the opt-in gate, not example literals like this one.
-EXAMPLE_HOSTED_SAAS_URL = "https://app.spec-kitty.ai"
+#: the example does not drift across surfaces that cite it (#3441), and names a
+#: host that actually exists (#179). D-5 scopes the opt-in gate, not example
+#: literals like this one.
+EXAMPLE_HOSTED_SAAS_URL = "https://team.spec-kitty.ai"
 
 
 def get_saas_base_url() -> str:
@@ -36,11 +33,11 @@ def get_saas_base_url() -> str:
 
     Target authority (WP02, contract §1): this is a **low-level env accessor**
     that the canonical resolver
-    (:func:`specify_cli.sync.target_authority.resolve_sync_target`) consumes for
+    (:func:`specify_cli.auth.server_target.resolve_server_target`) consumes for
     its ``env_server_url`` field. It is intentionally *not* the live-target
     surface — higher-level callers asking "what target are we hitting?" must read
-    ``ResolvedSyncTarget.resolved_server_url`` (which folds in ``config.toml``
-    precedence and derives the queue scope) rather than calling this directly.
+    ``ResolvedServerTarget.resolved_server_url`` (which folds in ``config.toml``
+    precedence) rather than calling this directly.
 
     Raises:
         ConfigurationError: If the env var is not set or is empty. There is NO

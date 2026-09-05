@@ -27,19 +27,20 @@ import. Behavior is preserved byte-for-byte from the pre-decomposition
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 import contextlib
 from dataclasses import dataclass
 import logging
 from pathlib import Path
 import shutil
 import subprocess
+from collections.abc import Mapping
 from typing import Annotated, Literal, cast
 
 from specify_cli.cli.console import console
 import typer
 
-from charter import resolve_mission_type_context
+from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.resolution import ResolutionResult
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
@@ -56,20 +57,6 @@ from specify_cli.runtime.resolver import TemplateConfigurationError
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
 )
-from specify_cli.cli.commands.agent.setup_plan_hosted import (
-    HostedSyncDecision,
-    HostedSyncDiagnostic,
-    acquire_session_assessment,
-    decide_hosted_sync,
-    evaluate_boundary,
-    evaluate_route_availability,
-    serialize_hosted_sync_diagnostics,
-)
-from specify_cli.cli.commands.agent.setup_plan_hosted_effects import (
-    execute_setup_plan_hosted_effects as _execute_setup_plan_hosted_effects,
-)
-from specify_cli.auth.token_manager import SessionAssessment
-from specify_cli.core.saas_sync_config import is_saas_sync_enabled
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
     _build_setup_plan_detection_error,
@@ -184,112 +171,6 @@ class SetupPlanLocalOutcome:
     render_kind: Literal["success", "scaffold", "blocked", "error"]
 
 
-@dataclass(frozen=True, slots=True)
-class LifecycleEventIntent:
-    """A locally persisted lifecycle envelope eligible for hosted fan-out."""
-
-    envelope: Mapping[str, object]
-    log_path: Path
-
-
-@dataclass(frozen=True, slots=True)
-class DossierSyncIntent:
-    """Arguments for the setup-plan dossier hosted effect."""
-
-    feature_dir: Path
-    mission_slug: str
-    repo_root: Path
-
-
-def _report_setup_plan_outcome(
-    outcome: SetupPlanLocalOutcome,
-    *,
-    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
-    json_output: bool,
-    human_message: str | None = None,
-) -> None:
-    """Emit one local result, attaching hosted diagnostics additively."""
-    serialized_diagnostics = serialize_hosted_sync_diagnostics(diagnostics)
-    if json_output:
-        payload = dict(outcome.payload)
-        if serialized_diagnostics:
-            payload["warnings"] = serialized_diagnostics
-        _emit_json(payload)
-        return
-
-    for canonical in serialized_diagnostics:
-        # Human and JSON channels consume the same reconstructed closed-registry
-        # envelope.  Never render caller-provided diagnostic fields directly.
-        console.print(f"[yellow]Warning:[/yellow] {canonical['message']}")
-    if human_message is not None:
-        console.print(human_message)
-
-
-def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
-    """Acquire hosted evidence after local verification and compose permission.
-
-    Each adapter is totalized independently, so route resolution is invoked
-    exactly once and a hostile adapter cannot make setup-plan discard the local
-    result it has already computed.
-    """
-    requested = is_saas_sync_enabled()
-    if not requested:
-        return decide_hosted_sync(requested=False)
-
-    try:
-        assessment = acquire_session_assessment(repo_root)
-    except Exception:  # noqa: BLE001 - one failed adapter must not erase peers
-        logger.debug("Hosted setup-plan authentication assessment failed", exc_info=True)
-        assessment = SessionAssessment(False, None, "auth_evaluation_failed")
-    boundary = evaluate_boundary(repo_root)
-    route_available, route_reason = evaluate_route_availability(repo_root)
-    return decide_hosted_sync(
-        requested=True,
-        session_assessment=assessment,
-        boundary=boundary,
-        route_available=route_available,
-        route_reason=route_reason,
-    )
-
-
-
-
-def _finalize_setup_plan_outcome(
-    outcome: SetupPlanLocalOutcome,
-    *,
-    repo_root: Path,
-    json_output: bool,
-    human_message: str | None,
-    lifecycle_intents: tuple[LifecycleEventIntent, ...] = (),
-    dossier_intent: DossierSyncIntent | None = None,
-) -> None:
-    """Report a frozen local outcome after additive hosted assessment.
-
-    This is the sole post-context finalization seam. Hosted adapters run only
-    after the complete local payload and exit code exist, and neither adapter
-    failures nor hosted-effect failures can replace that authoritative result.
-    """
-    try:
-        hosted_decision = _collect_hosted_sync_decision(repo_root)
-    except Exception:  # noqa: BLE001 - frozen local outcome is authoritative
-        logger.debug("Hosted setup-plan assessment failed closed", exc_info=True)
-        hosted_decision = decide_hosted_sync(requested=True)
-    try:
-        _execute_setup_plan_hosted_effects(
-            hosted_decision,
-            lifecycle_intents=lifecycle_intents,
-            dossier_intent=dossier_intent,
-        )
-    except Exception:  # noqa: BLE001 - hosted delivery cannot replace local result
-        logger.debug("Hosted setup-plan effects failed after local completion", exc_info=True)
-    _report_setup_plan_outcome(
-        outcome,
-        diagnostics=hosted_decision.diagnostics,
-        json_output=json_output,
-        human_message=human_message,
-    )
-
-
 # write-surface-coherence WP02 (T007): the ``artifact_type`` → canonical
 # :class:`~mission_runtime.MissionArtifactKind` map and its ``_kind_for_artifact``
 # lookup were RELOCATED to ``mission_feature_resolution`` (the INV-8 one-way leaf)
@@ -390,13 +271,7 @@ def _commit_to_branch(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_setup_plan_feature_dir(
-    repo_root: Path,
-    feature: str | None,
-    *,
-    json_output: bool,
-    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
-) -> Path:
+def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, json_output: bool) -> Path:
     """Resolve the feature directory for setup-plan; exit 1 with a detection payload on failure.
 
     FR-004 / #4: when no ``--mission`` was given and exactly one substantive
@@ -421,19 +296,37 @@ def _resolve_setup_plan_feature_dir(
         return feature_dir
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
-        human_lines = [f"[red]Error:[/red] {payload['error']}"]
-        if not json_output:
+        if json_output:
+            _emit_json(payload)
+        else:
+            console.print(f"[red]Error:[/red] {payload['error']}")
             for slug in cast(list[str], payload.get("available_missions", []))[:10]:
-                human_lines.append(f"  - {slug}")
+                console.print(f"  - {slug}")
             if "example_command" in payload:
-                human_lines.append(f"  {payload['example_command']}")
-        _report_setup_plan_outcome(
-            SetupPlanLocalOutcome(payload, 1, "error"),
-            diagnostics=diagnostics,
-            json_output=json_output,
-            human_message="\n".join(human_lines),
-        )
+                console.print(f"  {payload['example_command']}")
         raise typer.Exit(1) from None
+
+
+def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *, json_output: bool) -> None:
+    """Emit the SPEC_FILE_MISSING payload and exit 1."""
+    payload: dict[str, object] = {
+        "error_code": "SPEC_FILE_MISSING",
+        "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
+        "mission_slug": mission_slug,
+        "feature_dir": str(feature_dir.resolve()),
+        "spec_file": str(spec_file.resolve()),
+        "remediation": [
+            f"Restore the missing spec file at {spec_file.resolve()}",
+            f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
+        ],
+    }
+    if json_output:
+        _emit_json(payload)
+    else:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+        for step in cast(list[str], payload["remediation"]):
+            console.print(f"  - {step}")
+    raise typer.Exit(1)
 
 
 def _resolve_branch_match_operands(
@@ -478,7 +371,6 @@ def _enforce_spec_gate(
     current_branch: str,
     match_target_branch: str | None = None,
     json_output: bool,
-    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
 ) -> bool:
     """Issue #846 entry gate: spec must exist + be committed + substantive.
 
@@ -497,12 +389,10 @@ def _enforce_spec_gate(
     )
     if outcome is None:
         return False
-    _report_setup_plan_outcome(
-        outcome,
-        diagnostics=diagnostics,
-        json_output=json_output,
-        human_message=human_message,
-    )
+    if json_output:
+        _emit_json(dict(outcome.payload))
+    elif human_message is not None:
+        console.print(human_message)
     if outcome.exit_code:
         raise typer.Exit(outcome.exit_code)
     return True
@@ -725,43 +615,30 @@ def _is_plan_pristine(
     )
 
 
-def _emit_spec_plan_phase_events(
-    feature_dir: Path,
-    mission_slug: str,
-    spec_file: Path,
-    repo_root: Path,
-    *,
-    lifecycle_intents: list[LifecycleEventIntent] | None = None,
-) -> None:
-    """Persist SpecifyCompleted + PlanStarted locally and retain fan-out intents."""
+def _emit_spec_plan_phase_events(feature_dir: Path, mission_slug: str, spec_file: Path, repo_root: Path) -> None:
+    """Record SpecifyCompleted + PlanStarted lifecycle markers (issue #1067)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
     try:
-        from specify_cli.status.lifecycle_events import (
-            emit_artifact_phase_local,
-            mission_event_log_path,
+        from specify_cli.status import (
+            emit_artifact_phase,
             SPECIFY_COMPLETED,
             PLAN_STARTED,
         )
 
-        log_path = mission_event_log_path(feature_dir)
-        specify_envelope = emit_artifact_phase_local(
+        emit_artifact_phase(
             feature_dir,
             event_type=SPECIFY_COMPLETED,
             mission_slug=mission_slug,
             actor=SETUP_PLAN_COMMAND_NAME,
             artifact_path=_mission._branch_tree_relative_path(spec_file, repo_root),
         )
-        plan_envelope = emit_artifact_phase_local(
+        emit_artifact_phase(
             feature_dir,
             event_type=PLAN_STARTED,
             mission_slug=mission_slug,
             actor=SETUP_PLAN_COMMAND_NAME,
         )
-        if lifecycle_intents is not None:
-            for envelope in (specify_envelope, plan_envelope):
-                if envelope is not None:
-                    lifecycle_intents.append(LifecycleEventIntent(envelope, log_path))
     except Exception as _phase_exc:  # noqa: BLE001
         logger.debug("Lifecycle phase emission skipped: %s", _phase_exc)
 
@@ -775,7 +652,6 @@ def _commit_plan_if_substantive(
     target_branch: str,
     json_output: bool,
     plan_template: ResolutionResult,
-    lifecycle_intents: list[LifecycleEventIntent] | None = None,
 ) -> tuple[CommitToBranchResult | None, str | None, bool]:
     """Commit plan.md when substantive; otherwise resolve blocked vs. scaffold_only.
 
@@ -801,23 +677,15 @@ def _commit_plan_if_substantive(
     if is_substantive(plan_file, "plan", mission_type=mission_type, project_dir=repo_root):
         commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
         try:
-            from specify_cli.status.lifecycle_events import (
-                emit_artifact_phase_local,
-                mission_event_log_path,
-                PLAN_COMPLETED,
-            )
+            from specify_cli.status import emit_artifact_phase, PLAN_COMPLETED
 
-            envelope = emit_artifact_phase_local(
+            emit_artifact_phase(
                 feature_dir,
                 event_type=PLAN_COMPLETED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
                 artifact_path=_mission._branch_tree_relative_path(plan_file, repo_root),
             )
-            if lifecycle_intents is not None and envelope is not None:
-                lifecycle_intents.append(
-                    LifecycleEventIntent(envelope, mission_event_log_path(feature_dir))
-                )
         except Exception as _plan_exc:  # noqa: BLE001
             logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
         return commit_result, None, False
@@ -1039,7 +907,7 @@ def _build_setup_plan_result(
     match_target_branch: str | None = None,
     plan_scaffold_only: bool = False,
 ) -> SetupPlanLocalOutcome:
-    """Build the authoritative setup-plan result without hosted assessment.
+    """Build the authoritative setup-plan result without rendering it.
 
     FR-009 / #2566: ``plan_scaffold_only=True`` marks the first happy-path
     scaffold write (a pristine, byte-identical-to-template plan.md) as a
@@ -1105,7 +973,6 @@ def _emit_setup_plan_result(
     match_target_branch: str | None = None,
     json_output: bool,
     plan_scaffold_only: bool = False,
-    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
 ) -> None:
     """Compatibility reporter backed by the side-effect-free result builder."""
     outcome = _build_setup_plan_result(
@@ -1123,12 +990,10 @@ def _emit_setup_plan_result(
         match_target_branch=match_target_branch,
         plan_scaffold_only=plan_scaffold_only,
     )
-    _report_setup_plan_outcome(
-        outcome,
-        diagnostics=diagnostics,
-        json_output=json_output,
-        human_message=f"[green]✓[/green] Plan scaffolded: {plan_file}",
-    )
+    if not json_output:
+        console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
+        return
+    _emit_json(dict(outcome.payload))
 
 
 def setup_plan(
@@ -1144,12 +1009,11 @@ def setup_plan(
         spec-kitty agent mission setup-plan --json
         spec-kitty agent mission setup-plan --mission 020-my-feature --json
 
-    Local verification is authoritative. When hosted sync is requested, the
-    command collects canonical session, structural-boundary, and route evidence
-    without raising, composes one immutable decision, and reports any refusal as
-    additive warnings. Lifecycle JSONL is persisted locally first. Lifecycle
-    fan-out and dossier publication are executed only by
-    :func:`_execute_setup_plan_hosted_effects` after an allowing decision.
+    ------------------------------------------------------------------
+    The SaaS-sync boundary gates this command used to enforce (FR-011 auth
+    refusal, boundary preflight, dossier push) were removed with the sync
+    transport (issue #5); only local planning artifacts are produced here.
+    ------------------------------------------------------------------
     """
     # Deferred import keeps this leaf free of an import cycle while honoring the
     # historical ``mission.<name>`` patch seams (``locate_project_root`` /
@@ -1158,11 +1022,7 @@ def setup_plan(
     # ``_commit_to_branch``).
     from specify_cli.cli.commands.agent import mission as _mission
 
-    repo_root: Path | None = None
-    mission_context_ready = False
-
     try:
-
         repo_root = _mission.locate_project_root()
         if repo_root is None:
             error_msg = PROJECT_ROOT_NOT_FOUND_MESSAGE
@@ -1172,20 +1032,16 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
+
         _mission._enforce_git_preflight(
             repo_root,
             json_output=json_output,
             command_name=SETUP_PLAN_COMMAND_NAME,
         )
 
-        feature_dir = _resolve_setup_plan_feature_dir(
-            repo_root,
-            feature,
-            json_output=json_output,
-        )
+        feature_dir = _resolve_setup_plan_feature_dir(repo_root, feature, json_output=json_output)
         mission_slug = feature_dir.name
         _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
-        mission_context_ready = True
 
         # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
         # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
@@ -1202,7 +1058,7 @@ def setup_plan(
         # (PRIMARY-partition kinds) to the primary dir for ALL topologies, so the
         # reads converge on the real artifact. Only the PLANNING reads move
         # (C-002): ``feature_dir`` stays the surface for STATUS/lifecycle emission
-        # (``emit_artifact_phase``) and dossier lookups below. Template context is
+        # (``emit_artifact_phase``). Template context is
         # itself planning configuration, so it must resolve from ``plan_read_dir``
         # where the canonical ``meta.json`` lives; a coord husk may legitimately
         # be meta-less and must not turn a typed mission into the typeless
@@ -1228,7 +1084,7 @@ def setup_plan(
             get_current_branch=_mission.get_current_branch,
         )
 
-        gate_outcome, gate_message = _evaluate_spec_gate(
+        if _enforce_spec_gate(
             spec_file,
             feature_dir,
             mission_slug,
@@ -1236,16 +1092,8 @@ def setup_plan(
             target_branch=target_branch,
             current_branch=current_branch,
             match_target_branch=match_target_branch,
-        )
-        if gate_outcome is not None:
-            _finalize_setup_plan_outcome(
-                gate_outcome,
-                repo_root=repo_root,
-                json_output=json_output,
-                human_message=gate_message,
-            )
-            if gate_outcome.exit_code:
-                raise typer.Exit(gate_outcome.exit_code)
+            json_output=json_output,
+        ):
             return
 
         try:
@@ -1253,14 +1101,7 @@ def setup_plan(
         except FileNotFoundError as exc:
             raise FileNotFoundError("Plan template not found in repository or package") from exc
         _scaffold_plan_template(plan_file, plan_template)
-        lifecycle_intents: list[LifecycleEventIntent] = []
-        _emit_spec_plan_phase_events(
-            feature_dir,
-            mission_slug,
-            spec_file,
-            repo_root,
-            lifecycle_intents=lifecycle_intents,
-        )
+        _emit_spec_plan_phase_events(feature_dir, mission_slug, spec_file, repo_root)
 
         from specify_cli.missions._substantive import is_substantive
 
@@ -1283,14 +1124,13 @@ def setup_plan(
             target_branch=target_branch,
             json_output=json_output,
             plan_template=plan_template,
-            lifecycle_intents=lifecycle_intents,
         )
 
         gap_analysis_path, generators_detected = _run_documentation_wiring(
             mission_slug, repo_root, target_branch=target_branch, json_output=json_output
         )
 
-        local_outcome = _build_setup_plan_result(
+        _emit_setup_plan_result(
             plan_file=plan_file,
             spec_file=spec_file,
             feature_dir=feature_dir,
@@ -1303,16 +1143,8 @@ def setup_plan(
             target_branch=target_branch,
             current_branch=current_branch,
             match_target_branch=match_target_branch,
-            plan_scaffold_only=plan_scaffold_only,
-        )
-
-        _finalize_setup_plan_outcome(
-            local_outcome,
-            repo_root=repo_root,
             json_output=json_output,
-            human_message=f"[green]✓[/green] Plan scaffolded: {plan_file}",
-            lifecycle_intents=tuple(lifecycle_intents),
-            dossier_intent=DossierSyncIntent(feature_dir, mission_slug, repo_root),
+            plan_scaffold_only=plan_scaffold_only,
         )
 
     except typer.Exit:
@@ -1328,35 +1160,14 @@ def setup_plan(
         }
         if e.mapped_filename is not None:
             payload["mapped_filename"] = e.mapped_filename
-        outcome = SetupPlanLocalOutcome(payload, 1, "error")
-        if mission_context_ready and repo_root is not None:
-            _finalize_setup_plan_outcome(
-                outcome,
-                repo_root=repo_root,
-                json_output=json_output,
-                human_message=f"[red]Error:[/red] {e}",
-            )
+        if json_output:
+            _emit_json(payload)
         else:
-            _report_setup_plan_outcome(
-                outcome,
-                json_output=json_output,
-                human_message=f"[red]Error:[/red] {e}",
-            )
+            console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from None
     except Exception as e:
-        payload = {"error": str(e)}
-        outcome = SetupPlanLocalOutcome(payload, 1, "error")
-        if mission_context_ready and repo_root is not None:
-            _finalize_setup_plan_outcome(
-                outcome,
-                repo_root=repo_root,
-                json_output=json_output,
-                human_message=f"[red]Error:[/red] {e}",
-            )
+        if json_output:
+            _emit_json({"error": str(e)})
         else:
-            _report_setup_plan_outcome(
-                outcome,
-                json_output=json_output,
-                human_message=f"[red]Error:[/red] {e}",
-            )
+            console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from None

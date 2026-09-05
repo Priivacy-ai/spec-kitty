@@ -60,7 +60,7 @@ def _load_project_drg(repo_root: Path) -> Any | None:
 
 
 def _load_built_in_drg() -> Any | None:
-    """Try to load the built-in DRG shipped under ``src/doctrine/``.
+    """Try to load the built-in DRG shipped under ``src/charter/offering/``.
 
     Routes through the canonical :func:`charter.offering.drg.loader.load_built_in_graph`
     seam (WP03, mission #2680) so the built-in graph is read in exactly one
@@ -93,7 +93,7 @@ def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
        contract that a synthesized project DRG already incorporates the
        built-in and any org-pack layers; callers do not need to merge
        again.
-    2. Built-in DRG shipped under ``src/doctrine/`` via the canonical
+    2. Built-in DRG shipped under ``src/charter/offering/`` via the canonical
        :func:`charter.offering.drg.loader.load_built_in_graph` seam →
        ``(graph, GraphState.BUILT_IN_ONLY)``.
     3. Nothing loadable → ``(None, GraphState.MISSING)``.

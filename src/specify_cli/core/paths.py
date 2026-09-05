@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 _GITDIR_PREFIX = "gitdir:"
 
+
 # ---------------------------------------------------------------------------
 # Canonical safe-path-segment validator (FR-001 / D-1)
 #
@@ -180,7 +181,7 @@ def _read_worktree_gitdir(git_marker: Path) -> Path | None:
     return gitdir
 
 
-def locate_project_root(start: Path | None = None) -> Path | None:
+def locate_project_root(start: Path | None = None, *, stop: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
 
@@ -202,6 +203,14 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
     Args:
         start: Starting directory for search (defaults to current working directory)
+        stop: Last directory examined by the walk-up (Tier 2/3). Production
+            callers keep the unbounded default (``None``), which walks all the
+            way to the filesystem root. Tests pass an explicit *stop* because
+            nothing above a test's own temp tree is under test control — on a
+            shared machine or under parallel test workers, a sibling test can
+            leave a stray ``.git``/``.kittify`` in a shared ancestor, which
+            would otherwise flip this walk's verdict non-deterministically
+            (same class of bug as #130/#139's ``_find_project_root``).
 
     Returns:
         Path to MAIN project root (not worktree), or None if not found
@@ -230,6 +239,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
+    boundary = stop.resolve() if stop is not None else None
 
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
@@ -255,22 +265,26 @@ def locate_project_root(start: Path | None = None) -> Path | None:
         elif git_path.is_dir():
             # A ``.git`` *directory* is a repo boundary: a regular repo, the
             # main repo of a worktree set, OR a nested clone living inside an
-            # outer primary. Stop here — consistently with
-            # ``resolve_canonical_root`` rule 1 — even when ``.kittify`` is
-            # absent, rather than walking UP past a nested clone's ``.git``
-            # directory into the enclosing primary (FR-007, #2610). Linked
-            # worktrees use a ``.git`` *file* pointer (handled in the branch
-            # above), so this boundary-stop never affects the deliberate
-            # worktree->primary re-anchor.
-            return candidate
+            # outer primary. It is a usable project boundary when it carries
+            # the canonical ``.kittify`` marker or a real Git ``HEAD``; an
+            # empty directory marker is not a checkout. Stop at either shape
+            # rather than walking UP past a nested clone's ``.git`` directory
+            # into the enclosing primary (FR-007, #2610). Linked worktrees use
+            # a ``.git`` *file* pointer (handled in the branch above), so this
+            # boundary-stop never affects the deliberate worktree->primary
+            # re-anchor.
+            if (candidate / KITTIFY_DIR).is_dir() or (git_path / "HEAD").is_file():
+                return candidate
+            break
 
         # Also check for .kittify marker (fallback for non-git scenarios)
         kittify_path = candidate / KITTIFY_DIR
-        if kittify_path.is_symlink() and not kittify_path.exists():
-            # Broken symlink - skip this candidate
-            continue
-        if kittify_path.is_dir():
+        broken_symlink = kittify_path.is_symlink() and not kittify_path.exists()
+        if not broken_symlink and kittify_path.is_dir():
             return candidate
+
+        if boundary is not None and candidate == boundary:
+            break
 
     return None
 
@@ -419,6 +433,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
        Otherwise keep walking so an enclosing repo is still found if one exists.
     4. No git marker anywhere up the tree: raise :class:`WorkspaceRootNotFound`.
 
+    ``GIT_CEILING_DIRECTORIES`` uses Git's ceiling semantics: a listed ancestor
+    is still eligible, but discovery never continues above it. This keeps
+    hermetic fixtures isolated from an ambient repository above their temporary
+    root.
+
     Args:
         cwd: Starting directory. Defaults to :func:`Path.cwd`.
 
@@ -429,6 +448,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
         WorkspaceRootNotFound: when ``cwd`` is not inside a git repo.
     """
     start = (cwd or Path.cwd()).resolve()
+    ceilings = {
+        Path(part).resolve()
+        for part in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
+        if part
+    }
 
     for candidate in [start, *start.parents]:
         git_path = candidate / ".git"
@@ -452,6 +476,8 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
                 continue
             # Real worktree pointer — follow it back to the main checkout.
             return get_main_repo_root(candidate)
+        if candidate in ceilings:
+            break
 
     raise WorkspaceRootNotFound(start)
 

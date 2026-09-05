@@ -112,6 +112,23 @@ _ANALYSIS_REPORT_FILENAME: Final = "analysis-report.md"
 _STATUS_NO_OP_WRONG_SURFACE: Final = "no_op_wrong_surface"
 _STATUS_ERROR: Final = "error"
 
+# #255 fix-round-2 (squad pass 2 MAJOR): the planning SOURCE-doc kinds a
+# mission produces BEFORE ``/spec-kitty.tasks`` has run (mirrors the "Planning
+# SOURCE docs" grouping in ``mission_runtime.artifacts``). The protected-branch
+# refusal below needs to know this membership because the FR-012
+# `finalize-tasks --target-branch` escape hatch only persists once
+# ``tasks/`` exists -- recommending it for one of these kinds writes the
+# override and then silently reverts it (mission_finalize.py's
+# ``_revert_unpersisted_target_branch_override``).
+_PRE_TASKS_ARTIFACT_KINDS: Final[frozenset[MissionArtifactKind]] = frozenset(
+    {
+        MissionArtifactKind.SPEC,
+        MissionArtifactKind.DATA_MODEL,
+        MissionArtifactKind.RESEARCH,
+        MissionArtifactKind.CHECKLIST,
+    }
+)
+
 # #2739 B03: machine-readable ``reason`` strings for the two ``unchanged``
 # no-op flavours, so a caller can tell "nothing to do" from "silently wrong".
 # Named once (S1192) — every ``_STATUS_UNCHANGED`` construction site carries one.
@@ -157,29 +174,8 @@ class CommitRouterResult:
     reason: str | None = None
 
 
-# ---------------------------------------------------------------------------
-# Shared coord-availability predicate (#3536 / FR-005; #2739 convergence)
-# ---------------------------------------------------------------------------
-
-
 def mission_has_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
-    """Return ``True`` iff the mission's stored topology mints a coordination branch.
-
-    The SINGLE authoritative coord-availability answer at the commit-routing seam
-    (FR-005). It composes ``routes_through_coordination(resolve_topology(...))`` —
-    the very predicate this router already uses to decide ``use_coord`` — so it
-    never restates the 2×2 routing subset and never re-derives a surrogate:
-    ``COORD`` / ``LANES_WITH_COORD`` → ``True``; ``LANES`` / ``SINGLE_BRANCH`` →
-    ``False`` (no coord branch is ever minted).
-
-    Consumed by the #3536 no-coord refusal-remedy branch in
-    :meth:`specify_cli.coordination.policy.WorkflowMutationPolicy.assert_allowed`
-    (threaded in as ``coord_available``) AND by epic **#2739**'s protected-primary
-    sub-issues, so both fixes converge on ONE predicate rather than each minting a
-    local ``coordination_branch is None`` check (INV-3536-3). The policy layer
-    stays a pure function of its inputs: it consumes this answer, never re-computes
-    it.
-    """
+    """Return whether the mission's stored topology mints a coordination branch."""
     return routes_through_coordination(resolve_topology(repo_root, mission_slug))
 
 
@@ -346,19 +342,31 @@ def _commit_partition_group(
             coord_ref=placement.ref,
         )
         if isinstance(verdict.non_committable, Refuse):
-            # Refuse (rule 3): a planning artifact resolves to the primary
-            # ``target_branch``; a protected target refuses the commit with guidance
-            # to start a feature branch. The planning→coord transit is GONE (FR-003
-            # / C-005 / write-surface-coherence WP03 T015), so the remedy is a
-            # feature branch, NOT the coordination worktree.
+            # Refuse (rule 3). This mission already exists, so the safe remedy
+            # depends on whether tasks exist: pre-tasks overrides are reverted,
+            # while later missions can durably retarget through finalize-tasks.
+            if kind in _PRE_TASKS_ARTIFACT_KINDS:
+                remedy = (
+                    f"No tasks have been generated for this mission yet, so the "
+                    f"finalize-tasks --target-branch override has nothing durable "
+                    f"to attach to and would silently revert. Start a mission on "
+                    f"a feature branch instead: 'spec-kitty agent mission create "
+                    f"{mission_slug} --start-branch <feature-branch>'."
+                )
+            else:
+                remedy = (
+                    f"Check out or create a non-protected feature branch, then "
+                    f"persist it onto this mission with: 'spec-kitty agent mission "
+                    f"finalize-tasks --mission {mission_slug} --target-branch "
+                    f"<feature-branch>'."
+                )
             return CommitRouterResult(
                 status=_STATUS_NO_OP_WRONG_SURFACE,
                 placement_ref=placement.ref,
                 diagnostic=(
                     f"Refusing to commit planning artifacts to the protected branch "
-                    f"'{placement.ref}'. Start a non-protected feature branch and "
-                    f"commit there: 'spec-kitty agent mission create --start-branch "
-                    f"<feature-branch>' (or check out an existing feature branch). "
+                    f"'{placement.ref}'. This mission's target_branch is protected. "
+                    f"{remedy} "
                     f"Planning artifacts must land on a feature branch. To commit on "
                     f"the current protected branch anyway, set "
                     f"{_ENV_HATCH}=1."

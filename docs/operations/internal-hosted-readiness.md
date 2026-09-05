@@ -96,7 +96,7 @@ sync clients dial.
 
 ```bash
 export SPEC_KITTY_ENABLE_SAAS_SYNC=1
-export SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
+export SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
 spec-kitty auth login
 ```
 
@@ -105,7 +105,7 @@ Or, durably, in `.kitty.env`:
 ```bash
 # .kittify/.kitty.env
 SPEC_KITTY_ENABLE_SAAS_SYNC=1
-SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
+SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
 ```
 
 > **Important framing.** `SPEC_KITTY_SAAS_URL` is an internal **dev /

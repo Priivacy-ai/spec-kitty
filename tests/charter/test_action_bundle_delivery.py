@@ -12,7 +12,7 @@ enumerated exception. The load-bearing trap these tests pin:
   kinds (assets) — and ``delivered(kind) = gate(kind) ∩ channel_reachable``.
 
 The reachability channel is exercised through the **real** pipeline
-(:func:`charter.activation.drg_activation.filter_graph_by_activation` → :func:`charter.offering.drg.query.resolve_context`),
+(:func:`charter.drg.filter_graph_by_activation` → :func:`charter.offering.drg.query.resolve_context`),
 never a hand-rolled walk, so a gate-table drift from the runtime filter reddens
 here (R-1).
 """

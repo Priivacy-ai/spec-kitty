@@ -154,6 +154,35 @@ class TestFeatureDirStatusEntries:
         entries = _feature_dir_status_entries(tmp_path, feature_dir)
         assert entries == []
 
+    def test_dossier_snapshot_churn_is_dropped(self) -> None:
+        """FIX-M2-08: a live-dirty dossier snapshot (D1 EXCLUDE policy --
+        ``contracts/dossier-snapshot-ownership.md``: "No staging, no
+        committing... The file is just a file") must never surface as a
+        status entry -- neither ``_structural_entries`` /
+        ``detect_structural_planning_changes`` nor ``_status_paths_for_commit``
+        (via ``resolve_planning_artifact_staging``) may treat a fire-and-
+        forget dossier-sync re-save as something that blocks the
+        implement-claim precheck. Mirrors the SAME glob ``agent tasks
+        move-task``'s own preflight already strips
+        (``tasks_shared.py::_strip_runtime_state_lines``,
+        ``tasks_parsing_validation.py``)."""
+        fake = _FakeGitPort(
+            porcelain=(
+                " M kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json\n"
+                " M kitty-specs/m/tasks.md\n"
+            )
+        )
+        entries = _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake)
+        assert entries == [_PorcelainEntry(xy=" M", path="kitty-specs/m/tasks.md", is_structural=False)]
+
+    def test_deleted_dossier_snapshot_is_not_structural_either(self) -> None:
+        """A deleted dossier snapshot must not trip the #1598 structural
+        fail-closed guard -- it is "just a file", not a planning artifact
+        whose loss the coordination branch needs to reconcile."""
+        fake = _FakeGitPort(porcelain=" D kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json\n")
+        entries = _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake)
+        assert entries == []
+
 
 # ---------------------------------------------------------------------------
 # _drop_if (WP14 / IC-07d generic filter)
@@ -596,6 +625,78 @@ class TestResolvePlanningArtifactStaging:
             auto_commit=True,
             git=fake,
         )
+        assert plan.files_to_commit == []
+
+    def test_dirty_dossier_snapshot_does_not_poison_the_planning_commit_refusal(self, tmp_path: Path) -> None:
+        """FIX-M2-08 regression: reproduces
+        ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence`` on a coord
+        mission. ``spec.md``/``plan.md``/``tasks.md``/``lanes.json`` are ALREADY
+        committed on the primary (target) branch -- clean in ``git status`` --
+        but a dossier-sync re-save between the last commit and this claim
+        (e.g. by the immediately-preceding ``finalize-tasks``, D1 EXCLUDE:
+        "No staging, no committing... The file is just a file") left the
+        dossier snapshot locally modified. Before the fix this single
+        self-bookkeeping diff populated ``status_paths_to_commit``, which
+        gates ``implement.py``'s "Planning artifacts not committed" fail-closed
+        refusal -- dragging every OTHER (already-committed, undirty) planning
+        artifact into that same printed refusal via ``files_to_commit``'s
+        unconditional ``extra_file_paths`` leg. After the fix, the dossier
+        snapshot never enters ``status_paths_to_commit`` (so the refusal never
+        fires) and never enters ``files_to_commit`` either (so implement's own
+        auto-commit path can never commit it -- the same D1 violation
+        FIX-M2-05 closed in ``mission_finalize.py``, now also closed here)."""
+        artifact_dir = tmp_path / "kitty-specs" / "m"
+        artifact_dir.mkdir(parents=True)
+        # Already committed, byte-identical to HEAD -- these must NOT be
+        # treated as needing a commit.
+        for name, content in (
+            ("spec.md", b"# spec"),
+            ("plan.md", b"# plan"),
+            ("tasks.md", b"# tasks"),
+        ):
+            (artifact_dir / name).write_bytes(content)
+        dossier_dir = artifact_dir / ".kittify" / "dossiers" / "m"
+        dossier_dir.mkdir(parents=True)
+        dossier_path = dossier_dir / "snapshot-latest.json"
+        dossier_path.write_bytes(b'{"snapshot_id": "new"}')
+
+        coord_ref = "kitty/mission-m-AAAA1111"
+        fake = _FakeGitPort(
+            # Only the dossier snapshot is live-dirty; the other planning
+            # artifacts are clean on disk (no porcelain entry for them).
+            porcelain=" M kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json\n",
+            blobs={
+                ("HEAD", "kitty-specs/m/spec.md"): b"# spec",
+                ("HEAD", "kitty-specs/m/plan.md"): b"# plan",
+                ("HEAD", "kitty-specs/m/tasks.md"): b"# tasks",
+                # The coordination branch has never seen any of these
+                # (planning artifacts are PRIMARY-partition, committed to the
+                # primary/target branch only) -- absent blobs everywhere on
+                # coord_ref.
+            },
+        )
+        plan = resolve_planning_artifact_staging(
+            tmp_path,
+            artifact_dir,
+            coord_ref,
+            [
+                "kitty-specs/m/spec.md",
+                "kitty-specs/m/plan.md",
+                "kitty-specs/m/tasks.md",
+                "kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json",
+            ],
+            auto_commit=False,
+            git=fake,
+        )
+        # The refusal-gating field: must be empty, or implement.py prints
+        # "Planning artifacts not committed" and exits 1 even though nothing
+        # genuinely uncommitted exists.
+        assert plan.status_paths_to_commit == []
+        # The dossier snapshot must never become an auto-commit candidate
+        # either (D1: it is never staged/committed by any producer).
+        assert "kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json" not in plan.files_to_commit
+        # The already-committed, byte-identical primary artifacts correctly
+        # drop out too (idempotency guard, INV-5) -- nothing needs staging.
         assert plan.files_to_commit == []
 
 

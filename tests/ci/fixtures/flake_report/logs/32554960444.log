@@ -1,6 +1,0 @@
-=========================== short test summary info ============================
-FAILED tests/architectural/test_run_consistency.py::test_run_consistency_check_completes_within_budget - assert False, budget exceeded
-6.40s call     tests/architectural/test_run_consistency.py::test_run_consistency_check_completes_within_budget
-0.01s setup    tests/architectural/test_run_consistency.py::test_run_consistency_check_completes_within_budget
-===================== 1 failed in 7.60s ======================
-# suite: test_run_consistency_check_completes_within_budget

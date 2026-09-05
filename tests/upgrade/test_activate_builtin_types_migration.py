@@ -329,7 +329,7 @@ def test_apply_reads_live_from_accessor_at_call_time(
     written set is derived, not a frozen literal (C-004).
     """
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated mission_types/ from src/doctrine/missions/mission_types to
+    # relocated mission_types/ from src/charter/offering/missions/mission_types to
     # packs/built-in/missions/mission_types.
     shipped_dir = (
         Path(__file__).resolve().parents[2]

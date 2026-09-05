@@ -130,7 +130,7 @@ def test_toolguide_org_collision_warning_names_id_and_kind(
         id: tool-collide
         title: Tool Collide
         tool: ruff
-        guide_path: src/doctrine/toolguides/RUFF.md
+        guide_path: src/charter/offering/toolguides/RUFF.md
         summary: Ruff lint conventions.
         commands:
           - ruff

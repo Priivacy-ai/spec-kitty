@@ -42,7 +42,7 @@ not carry over unchanged):
 
 Note on the pre-existing ``_resolve_built_in`` shape this primitive replaces:
 that function's own step 3 was *not* redundant, because it read
-``files("doctrine").parent`` -- a different path source (installed-package
+``files("charter.offering").parent`` -- a different path source (installed-package
 metadata via :func:`importlib.resources.files`) than a filesystem walk. This
 primitive intentionally has no equivalent, since it must stay
 package-name-agnostic (it only ever receives the caller's own ``__file__``);

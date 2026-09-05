@@ -65,7 +65,7 @@ import pytest
 import specify_cli.status as _status_facade
 from specify_cli.frontmatter import FrontmatterManager
 from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
-from specify_cli.status.reducer import _RUNTIME_SLOTS
+from spec_kitty_events.diary import _RUNTIME_SLOTS
 from specify_cli.status.store import append_event
 from specify_cli.task_utils import WorkPackage
 
@@ -180,6 +180,7 @@ def test_snapshot_is_authority_over_frontmatter(tmp_path: Path) -> None:
         actor="fixture",
         mission_slug="001-authority-invariant",
         at="2026-01-01T00:00:02+00:00",
+        repo_root=tmp_path,
     )
 
     wp = _make_work_package(wp_file)

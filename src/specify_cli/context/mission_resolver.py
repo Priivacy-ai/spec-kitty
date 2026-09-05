@@ -112,7 +112,7 @@ class AmbiguousHandleError(Exception):
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serialisable error payload for ``--json`` callers."""
         return {
-            "error": "ambiguous_mission_handle",
+            "error": "MISSION_AMBIGUOUS_SELECTOR",
             "handle": self.handle,
             "candidates": [
                 {

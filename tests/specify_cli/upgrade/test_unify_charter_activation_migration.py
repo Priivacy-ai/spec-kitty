@@ -322,7 +322,7 @@ def test_load_default_pack_ids_matches_shipped_default_yaml() -> None:
 # charter.activation.default_pack.load_default_pack_activation_ids — shared-loader
 # coverage (squad finding #2530: org_charter.py's ``_load_default_pack_ids``
 # and this migration's ``load_default_pack_ids`` were near-identical
-# independent readers of the same ``src/charter/packs/default.yaml`` file;
+# independent readers of the same ``src/charter/activation/packs/default.yaml`` file;
 # both now delegate to this one canonical charter-layer helper).
 # ---------------------------------------------------------------------------
 
@@ -339,7 +339,7 @@ def test_load_default_pack_ids_is_a_pure_reexport_of_shared_helper() -> None:
 
 def test_load_default_pack_activation_ids_returns_real_per_kind_builtin_stems() -> None:
     """The shared helper returns the real per-kind built-in stem sets from
-    the shipped ``src/charter/packs/default.yaml`` — every one of the 8
+    the shipped ``src/charter/activation/packs/default.yaml`` — every one of the 8
     charter activation kinds ships a non-empty built-in set, and spot-checked
     ids are the config-stem form (not the canonical ``id:`` form)."""
     from charter.activation.default_pack import load_default_pack_activation_ids

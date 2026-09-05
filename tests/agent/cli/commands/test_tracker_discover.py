@@ -14,7 +14,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.saas.readiness import ReadinessResult, ReadinessState
+from specify_cli.tracker.saas_readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.discovery import BindableResource
 from specify_cli.tracker.service import TrackerServiceError
 

@@ -566,7 +566,6 @@ class TestExtractAllTerms:
         assert len(terms) == 0
 
 
-@pytest.mark.performance
 class TestPerformance:
     """Performance tests for extraction (T015)."""
 

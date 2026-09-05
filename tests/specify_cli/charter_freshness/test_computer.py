@@ -488,7 +488,7 @@ def test_charter_source_invalid_when_schema_version_unsupported(
     contract does not understand (a pre-inversion ``1.0.0`` shape, a
     hypothetical future major, or a non-semver string) parses cleanly but
     must not read ``fresh`` — only the ``"2.x.x"`` series this build's
-    ``charter.activation.schemas.CharterYaml``/``charter.bundle.SCHEMA_VERSION``
+    ``charter.schemas.CharterYaml``/``charter.bundle.SCHEMA_VERSION``
     actually supports may pass.
     """
     _seed_charter_yaml(tmp_path, body=f"schema_version: '{schema_version}'\ncatalog: {{}}\n")

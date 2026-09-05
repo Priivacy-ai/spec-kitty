@@ -141,7 +141,9 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import re
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -178,8 +180,9 @@ from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
+from specify_cli.status import get_all_wp_snapshots
 from specify_cli.status import wp_state_for
-from specify_cli.status_lanes import is_acceptable_ending
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from runtime.next.decision import (
     Decision,
     DecisionKind,
@@ -189,7 +192,7 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
 )
-from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+from runtime.next.event_emitter import RuntimeEventEmitter
 from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
@@ -287,7 +290,7 @@ def _mission_routes_through_coordination(
 
 
 def _wrap_with_decision_git_log(
-    emitter: SyncRuntimeEventEmitter,
+    emitter: RuntimeEventEmitter,
     mission_slug: str,
     repo_root: Path,
     *,
@@ -661,6 +664,9 @@ def _finalized_task_board_override_step(
     This is intentionally narrow: it only overrides stale early runtime phases
     after a mission already has tasks.md, finalized WP files, and canonical WP
     lane state. It does not reorder non-finalized mission DAG execution.
+    A board whose WPs all reach acceptable endings reports ``accept``; ``done``
+    remains reserved for a board whose reduced lanes are all done, so an
+    operator-canceled WP is never reported as done.
     """
     if progress is None:
         return None
@@ -681,20 +687,59 @@ def _finalized_task_board_override_step(
     if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
-    done = int(progress.get("done_wps", 0) or 0)
-    approved = int(progress.get("approved_wps", 0) or 0)
-    if done == total:
-        return "done"
-    if approved + done == total:
-        return "accept"
+    done_endings, acceptable_endings = _count_wp_endings(
+        feature_dir,
+        status_dir=status_dir,
+    )
+    if acceptable_endings == total:
+        return "done" if done_endings == total else "accept"
     return "blocked:no_actionable_wp"
 
+
+def _reduced_wp_lane(wp_snapshot: Mapping[str, Any] | None) -> str:
+    """Return the canonical lane slot from a reduced WP snapshot."""
+    if wp_snapshot is None:
+        return str(Lane.UNINITIALIZED)
+    return str(wp_snapshot.get("lane", Lane.GENESIS))
+
+
+def _count_wp_endings(
+    feature_dir: Path,
+    *,
+    status_dir: Path | None = None,
+) -> tuple[int, int]:
+    """Count WP files whose reduced lanes are done and acceptable endings."""
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir():
+        return 0, 0
+
+    lane_read_dir = status_dir if status_dir is not None else feature_dir
+    try:
+        wp_snapshots = get_all_wp_snapshots(lane_read_dir)
+    except CanonicalStatusNotFoundError:
+        return 0, 0
+
+    acceptable_endings = 0
+    done_endings = 0
+    for wp_file in sorted(tasks_dir.glob(TASKS_GLOB)):
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
+        wp_id = wp_match.group(1) if wp_match else wp_file.stem
+        wp_snapshot = wp_snapshots.get(wp_id)
+        lane = _reduced_wp_lane(wp_snapshot)
+        if lane == str(Lane.DONE):
+            done_endings += 1
+        if is_acceptable_ending(
+            lane,
+            has_provenance=has_operator_provenance(wp_snapshot),
+        ):
+            acceptable_endings += 1
+    return done_endings, acceptable_endings
 
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
-    For implement: all WPs must be handed off or complete
-    (for_review, approved, or done).
+    For implement: all WPs must be handed off, accepted, done, or reach an
+    acceptable ending (operator-canceled).
     For review: all WPs must be approved, done, or canceled-with-operator-
     provenance (#3780, D2/D6/D11).
 
@@ -713,12 +758,11 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     if not wp_files:
         return True
 
-    import re as _re
     from runtime.next import committed_authority
     from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
     for wp_file in wp_files:
-        wp_match = _re.match(r"(WP\d+)", wp_file.stem)
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
         ending = committed_authority.wp_ending(feature_dir, wp_id)
         try:
@@ -747,12 +791,20 @@ def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> b
     never run-affecting there regardless of provenance.
     """
     lane = state.lane
+    if is_acceptable_ending(
+        str(lane),
+        has_provenance=has_provenance,
+    ):
+        return False
     if step_id == "implement":
         # Advance past implement only when the WP has been handed off
-        # (for_review or approved) or completed (done/canceled).
+        # (for_review or approved) or reaches an acceptable ending.
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
-        return state.is_blocked or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
+        return (
+            state.is_blocked
+            or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
+        )
     if step_id == "review":
         return not is_acceptable_ending(str(lane), has_provenance=has_provenance)
     return False
@@ -768,7 +820,13 @@ TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path, repo_root: Path | None = None) -> list[str]:
+def _check_cli_guards(
+    step_id: str,
+    feature_dir: Path,
+    *,
+    mission_family: str | None = None,
+    repo_root: Path | None = None,
+) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_cores.evaluate_guards` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
@@ -777,17 +835,9 @@ def _check_cli_guards(step_id: str, feature_dir: Path, repo_root: Path | None = 
     unmoved :func:`_should_advance_wp_step` I/O read — and its own WP02
     compat reach — stay exactly where they were.
 
-    The mission family passed to ``gather_artifact_presence`` is the
-    mission's actual resolved type (:func:`get_mission_type`, #3407 M3
-    WP06) — never a hardcoded ``"software-dev"`` — so
-    ``evaluate_guards_strict``'s ``_GUARD_TABLES.get(family)`` dispatch
-    reaches the correct per-type guard table (including the ``"plan"``
-    branch) instead of routing every mission type through the
-    software-dev chain. A typeless mission resolves to ``""`` (the neutral
-    result, never ``None`` — see :func:`get_mission_type`), which has no
-    ``_GUARD_TABLES`` entry and so fails closed via
-    :class:`runtime_bridge_cores.UnregisteredMissionFamilyError`, matching
-    every other genuinely-unregistered family.
+    ``mission_family`` is supplied by runtime paths that already resolved the
+    primary-anchored mission type. Direct callers may omit it to preserve the
+    legacy feature-dir lookup behavior.
 
     ``repo_root`` (#3704 WP03, FR-003) is forwarded to
     :func:`runtime_bridge_io.gather_artifact_presence` for org-tier
@@ -797,9 +847,12 @@ def _check_cli_guards(step_id: str, feature_dir: Path, repo_root: Path | None = 
 
     Returns list of failure descriptions; empty list means all guards pass.
     """
-    mission_family = get_mission_type(feature_dir)
+    mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
     snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family=mission_family, step_id=step_id, repo_root=repo_root
+        feature_dir,
+        mission_family=mission_family,
+        step_id=step_id,
+        repo_root=repo_root,
     )
     if step_id in ("implement", "review"):
         snapshot = dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir))
@@ -1159,7 +1212,7 @@ def _advance_run_state_after_composition(
     timestamp: str,
     progress: dict[str, int | float] | None,
     origin: dict[str, Any],
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> Decision:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_engine.advance_run_state_after_composition`. See the
@@ -1375,6 +1428,27 @@ def _materialize_decision(
     return _cores.step_or_blocked(envelope, guard_failures, prompt_exists=_prompt_exists)
 
 
+def _primary_mission_is_completed(primary_metadata_dir: Path) -> bool:
+    """Return whether the PRIMARY checkout proves the mission is MERGED.
+
+    Deliberately gated on the merge marker alone (squad pass 1 on PR #845):
+    ``is_mission_completed`` is also True for an unmerged mission whose WPs are
+    all terminal, and short-circuiting there skips the final advance that
+    appends ``MissionRunCompleted`` and runs the retrospective completion gate.
+    Fail-closed and non-raising: a corrupt primary ``meta.json``
+    (``MissionMetaReadError``) reads as not-merged.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.status import StoreError, is_mission_merged
+
+    if not (primary_metadata_dir / "meta.json").is_file():
+        return False
+    try:
+        return bool(is_mission_merged(primary_metadata_dir))
+    except (StoreError, MissionMetaReadError):
+        return False
+
+
 @dataclasses.dataclass(frozen=True)
 class DecideNextContext:
     """Frozen value carrier threading ``decide_next_via_runtime``'s shared
@@ -1395,7 +1469,7 @@ class DecideNextContext:
     feature_dir: Path
     now: str
     mission_type: str
-    sync_emitter: SyncRuntimeEventEmitter
+    sync_emitter: RuntimeEventEmitter
     emitter_for_engine: Any
     origin: dict[str, Any]
     progress: dict[str, int | float] | None
@@ -1425,7 +1499,7 @@ def _dn_bootstrap(
     """
     if effective_root is None:
         feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-        primary_metadata_dir: Path | None = None
+        primary_metadata_dir: Path | None = _primary_runtime_feature_dir(repo_root, mission_slug)
     else:
         from mission_runtime import MissionArtifactKind, mission_context_for
 
@@ -1463,7 +1537,19 @@ def _dn_bootstrap(
     mission_type = get_mission_type(
         placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA) if primary_metadata_dir is None else primary_metadata_dir
     )
-    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+    if primary_metadata_dir is not None and _primary_mission_is_completed(primary_metadata_dir):
+        return None, _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.terminal,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="done",
+                timestamp=now,
+                reason="Mission is already completed",
+            )
+        )
+    sync_emitter = RuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
@@ -1640,8 +1726,18 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
         # authority for those custom families, exactly as it already is for
         # every non-WP-iteration step of theirs.
         try:
-            guard_failures = _check_cli_guards(current_step_id, feature_dir, repo_root=repo_root)
+            guard_failures = _check_cli_guards(
+                current_step_id,
+                feature_dir,
+                mission_family=mission_type,
+                repo_root=repo_root,
+            )
         except _cores.UnregisteredMissionFamilyError:
+            logger.warning(
+                "Unregistered mission_family %r reached the CLI guard path; "
+                "returning a neutral (empty) guard result.",
+                mission_type,
+            )
             guard_failures = []
         if guard_failures:
             return _build_wp_iteration_decision(
@@ -1674,8 +1770,13 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     # family keeps software-dev byte-identical to its pre-#3407 behavior
     # (AC-14) while restoring the correct blocked decision for the composed
     # families (WP06 wrongly routed them through this ``kind=step`` path).
-    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id) and get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV:
-        guard_failures = _check_cli_guards(current_step_id, feature_dir, repo_root=repo_root)
+    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id) and mission_type == MISSION_TYPE_SOFTWARE_DEV:
+        guard_failures = _check_cli_guards(
+            current_step_id,
+            feature_dir,
+            mission_family=mission_type,
+            repo_root=repo_root,
+        )
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
                 current_step_id,
@@ -2420,10 +2521,8 @@ def query_current_state(
     (``mission_terminal_verdict`` is ``terminal``) short-circuits to
     ``kind: query`` / ``mission_state: "done"`` — query mode's structural
     ``kind: query`` contract (never ``kind: terminal`` here); a
-    ``blocked_conflict`` verdict short-circuits to ``kind: query`` /
-    ``mission_state: "blocked"`` — never ``kind: blocked`` here either, so
-    query mode's ``kind: query`` invariant holds for both terminal
-    outcomes. A ``"none"`` verdict falls through unchanged (F5), so
+    ``blocked_conflict`` verdict short-circuits to ``kind: blocked``. A
+    ``"none"`` verdict falls through unchanged (F5), so
     ``_finalized_task_board_override_step`` (D9) never runs for a merged
     mission.
 
@@ -2545,7 +2644,7 @@ def query_current_state(
                 effective_root=effective_root,
             )
 
-        if snapshot.issued_step_id is None and not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
+        if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
             if runtime_decision.kind in {DecisionKind.step, DecisionKind.decision_required} and runtime_decision.step_id:
                 return _build_initial_query_decision(
                     runtime_decision=runtime_decision,
@@ -2637,7 +2736,7 @@ def answer_decision_via_runtime(
         raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
-    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+    sync_emitter = RuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,

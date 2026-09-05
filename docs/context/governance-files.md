@@ -65,7 +65,7 @@ Use this ownership model instead:
 | Document | Role |
 |---|---|
 | Public governance document outside `.kittify/` | Human-facing policy, historical record, or public project constitution. |
-| `.kittify/charter/charter.yaml` | Runtime charter consumed by Spec Kitty. Its `governance`/`directives` sections should contain the operative policy agents need, plus `governance.doctrine.governance_references` pointers to external authority when useful. |
+| `.kittify/charter/charter.yaml` | Runtime charter consumed by Spec Kitty. Its `governance`/`directives` sections should contain the operative policy agents need, plus `governance.charter.governance_references` pointers to external authority when useful. |
 | `.kittify/charter/charter.md` | Human-facing narrative companion. Useful for onboarding and review; not consumed by the runtime. |
 
 Recommended pattern:
@@ -73,9 +73,9 @@ Recommended pattern:
 1. Keep the external constitution as the public source for long-form governance.
 2. Keep `.kittify/charter/charter.yaml`'s `governance`/`directives` sections concise and
    runtime-oriented: encode the binding directives, and reference the public constitution through
-   `governance.doctrine.governance_references`.
+   `governance.charter.governance_references`.
 3. If agents should inspect a directory of supporting policy, declare that directory under
-   `governance.doctrine.authority_paths`:
+   `governance.charter.authority_paths`:
 
 ```yaml
 governance:
@@ -191,7 +191,7 @@ Projects upgraded from early Spec Kitty layouts may still have stale governance 
 
 If the old constitution file is still useful as public or organizational context, put it in a
 normal project path such as `spec/constitution.md` and list that path under
-`governance.doctrine.governance_references` in `charter.yaml`.
+`governance.charter.governance_references` in `charter.yaml`.
 
 ---
 

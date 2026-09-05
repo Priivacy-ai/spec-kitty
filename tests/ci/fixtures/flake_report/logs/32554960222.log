@@ -1,6 +1,0 @@
-=========================== short test summary info ============================
-FAILED tests/perf/test_mission_scale.py::test_200_missions_under_5s - assert False, budget exceeded
-4.60s call     tests/perf/test_mission_scale.py::test_200_missions_under_5s
-0.01s setup    tests/perf/test_mission_scale.py::test_200_missions_under_5s
-===================== 1 failed in 5.80s ======================
-# suite: test_200_missions_under_5s

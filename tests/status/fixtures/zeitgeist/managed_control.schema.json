@@ -1,0 +1,121 @@
+{
+  "$id": "urn:zeitgeist:schema:managed_control:1",
+  "version": "1.0.0",
+  "title": "ControlEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "op", "request_id", "args"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$"},
+    "op": {
+      "type": "string",
+      "enum": [
+        "presence.publish",
+        "focus.start",
+        "focus.heartbeat",
+        "focus.pause",
+        "focus.end",
+        "session.revoke",
+        "event.publish"
+      ]
+    },
+    "request_id": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}", "maxLength": 64},
+    "args": {"type": "object"}
+  },
+  "$defs": {
+    "FocusArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "repo", "focus_ref", "ttl_s"],
+      "properties": {
+        "session_id": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", "maxLength": 128},
+        "repo": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+/-]{0,119}", "maxLength": 120},
+        "branch": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+/-]{0,119}", "maxLength": 120},
+        "focus_ref": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+-]{0,239}", "maxLength": 240},
+        "ttl_s": {"type": "integer", "minimum": 1, "maximum": 90}
+      }
+    },
+    "FocusEndArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "repo", "focus_ref", "ttl_s", "ended_reason"],
+      "properties": {
+        "session_id": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", "maxLength": 128},
+        "repo": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+/-]{0,119}", "maxLength": 120},
+        "branch": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+/-]{0,119}", "maxLength": 120},
+        "focus_ref": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+-]{0,239}", "maxLength": 240},
+        "ttl_s": {"type": "integer", "minimum": 1, "maximum": 90},
+        "ended_reason": {"type": "string", "enum": ["user", "timeout", "revoked"]}
+      }
+    },
+    "SessionRevokeArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "reason"],
+      "properties": {
+        "session_id": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", "maxLength": 128},
+        "reason": {"type": "string", "enum": ["membership", "admission", "operator"]}
+      }
+    },
+    "EventArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "kind", "attrs"],
+      "properties": {
+        "session_id": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", "maxLength": 128},
+        "kind": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}", "maxLength": 64},
+        "ref": {"type": "string", "maxLength": 240, "maxUtf8Bytes": 240},
+        "attrs": {
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": {"type": "string", "pattern": "[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}", "maxLength": 64},
+          "additionalProperties": {"type": "string", "maxLength": 240, "maxUtf8Bytes": 240}
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "op": {"const": "presence.publish"},
+        "args": {"$ref": "urn:zeitgeist:schema:managed_presence:1#/$defs/PresencePublish"}
+      }
+    },
+    {
+      "properties": {
+        "op": {"const": "focus.start"},
+        "args": {"$ref": "urn:zeitgeist:schema:managed_control:1#/$defs/FocusArgs"}
+      }
+    },
+    {
+      "properties": {
+        "op": {"const": "focus.heartbeat"},
+        "args": {"$ref": "urn:zeitgeist:schema:managed_control:1#/$defs/FocusArgs"}
+      }
+    },
+    {
+      "properties": {
+        "op": {"const": "focus.pause"},
+        "args": {"$ref": "urn:zeitgeist:schema:managed_control:1#/$defs/FocusArgs"}
+      }
+    },
+    {
+      "properties": {
+        "op": {"const": "focus.end"},
+        "args": {"$ref": "urn:zeitgeist:schema:managed_control:1#/$defs/FocusEndArgs"}
+      }
+    },
+    {
+      "properties": {
+        "op": {"const": "session.revoke"},
+        "args": {"$ref": "urn:zeitgeist:schema:managed_control:1#/$defs/SessionRevokeArgs"}
+      }
+    },
+    {
+      "properties": {
+        "op": {"const": "event.publish"},
+        "args": {"$ref": "urn:zeitgeist:schema:managed_control:1#/$defs/EventArgs"}
+      }
+    }
+  ]
+}

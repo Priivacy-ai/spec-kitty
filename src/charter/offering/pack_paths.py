@@ -29,7 +29,7 @@ primitive (DR-1):
    "installed wheel" probe distinct from this walk.
 3. Otherwise the primitive's own :class:`~kernel.sibling_paths.SiblingPathNotFound`
    is caught and re-raised as :class:`PackRootNotFound` -- fail-closed; never
-   fall open to an arbitrary tree or to a path inside ``src/doctrine/``.
+   fall open to an arbitrary tree or to a path inside ``src/charter/offering/``.
 
 For the ``org`` / ``project`` tiers the seam is shared but the input differs:
 the caller-supplied root is returned unchanged.
@@ -50,7 +50,7 @@ library (``pathlib``, :func:`importlib.resources.files`) plus
 zero-dependency leaf importing only ``enum``), :mod:`kernel.sibling_paths`,
 and :mod:`kernel.paths` (the root layer *below* doctrine -- a downward,
 allowed import per ``kernel (root) <- doctrine <- charter <- specify_cli``)
--- so this stays import-cycle-safe. The ``files("doctrine")`` call inside
+-- so this stays import-cycle-safe. The ``files("charter.offering")`` call inside
 :func:`doctrine_package_dir` is an in-layer self-reference and is made lazily
 *inside* the function to avoid an import cycle with ``doctrine/__init__.py``;
 :func:`_resolve_built_in` no longer calls it directly (FR-004) -- see
@@ -136,7 +136,7 @@ def resolve_pack_root(
     :param project_root: caller-supplied root for the ``project`` tier.
     :returns: an existing directory for the requested tier.
     :raises PackRootNotFound: when the tier cannot be resolved. Fail-closed:
-        never returns a path inside ``src/doctrine/`` and never falls open to an
+        never returns a path inside ``src/charter/offering/`` and never falls open to an
         arbitrary tree.
 
     Pure and idempotent: same inputs (and environment) yield the same path.

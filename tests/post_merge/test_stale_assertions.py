@@ -484,7 +484,6 @@ class TestScanTestFile:
 # NFR-001: wall-clock benchmark (≤ 30 seconds on spec-kitty core itself)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.performance
 class TestNFR001Benchmark:
     """NFR-001: run_check must complete within 30s on a real repository."""
 

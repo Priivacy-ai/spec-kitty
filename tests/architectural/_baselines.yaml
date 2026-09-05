@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 104  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). +1 (96->97, PR #3070): m_3_2_x_normalize_activation_absence, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that normalizes activation absence during charter-activation unification — no static importer, so registration not suppression. +1 (97->98, write-side-seam-matrix-tracer-01KYP3MH WP05/FR-008, commit 09f740bd4): m_3_2_6_issue_matrix_driver_repoint, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules, wired via cli/commands/upgrade.py's auto_discover_migrations()) that repoints the #2804 gate-artifact merge driver from issue-matrix.md to issue-matrix.json — no static importer, same false-positive class as every sibling m_3_2_6_* entry. +1 (98->99, review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079): m_3_2_7_review_cycle_merge_driver, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that installs the fail-closed review-cycle-*.md merge driver for already-initialized clones — no static importer, same false-positive class as every sibling driver-seeding migration. +1 (99->100, verdict-seam-write-unification-01KZ9Q35 pre-merge remediation, #3236): m_zz_verdict_provenance_backfill, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that runs the FR-012/SC-008 verdict-provenance backfill over every kitty-specs/ mission on upgrade — no static importer, same false-positive class as its m_zz_runtime_state_backfill sibling. +2 (100->102, consolidated community PRs #3643/#2498 and #3639/#3435): m_3_2_6rc3_narrow_cursor_gitignore and m_3_2_6rc3_lint_report_gitignore_backfill, both auto-discovered gitignore migrations (@MigrationRegistry.register, pkgutil.iter_modules) — no static importer, same false-positive class as the m_3_2_5_agents_skills_gitignore_backfill sibling. +1 (102->103, PR #3710/#3689): m_3_2_6rc3_worktrees_gitignore_backfill is another auto-discovered gitignore migration (@MigrationRegistry.register, pkgutil.iter_modules) with no static importer. +1 (103->104, doctrine-drg-silent-drop-boundary #3629): m_3_3_1_context_sources_consolidation, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that consolidates context-sources.* onto the *-references fields for existing consumer profiles -- no static importer, same false-positive class as every sibling auto-discovered migration. Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer.
+  category_1_auto_discovered_migrations: 105  # justification: 101->105: convergence #3689 adds m_3_2_6rc3_worktrees_gitignore_backfill; main #820 adds m_3_3_1_context_sources_consolidation; main #1006 adds m_3_2_6rc3_narrow_cursor_gitignore and m_3_2_6rc3_lint_report_gitignore_backfill. All are auto-discovered upgrade migrations with no static importer.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -51,24 +51,16 @@ test_no_dead_modules:
   # src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom] `path =
   # "hatch_build.py"` declaration -- never imported from src/ Python code,
   # same external-entrypoint class as commit_guard_hook.
-  # 2 -> 1 (charter-code-topology-01M152G1, S5, MAP-BUILD): the dormant,
-  # never-built spec-kitty-doctrine wheel groundwork (src/charter/offering/
-  # pyproject.toml + hatch_build.py, née src/doctrine/...) was DELETED
-  # outright rather than relocated. charter.offering.hatch_build no longer
-  # exists as a module, so its allowlist entry is removed too (shrink — no
-  # extra workflow steps needed).
-  category_3_external_cli_entrypoints: 1
+  category_3_external_cli_entrypoints: 2
   # justification: 0 documented backward-compat shim modules. (unshim-wave1 WP01
   # #2289 deleted the 7 other category_4 shims — acceptance_matrix,
   # core.identity_aliases, doc_generators, doc_state, gap_analysis,
   # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
-  # 0 -> 1 (charter-code-topology-01M152G1 landing remediation, retire-doctrine-term
-  # justification: M2): ``doctrine`` (src/doctrine.py) is an intentional deprecation
-  # shim for pre-existing external/legacy ``import doctrine`` callers, kept during the
-  # CR-06 window after src/doctrine/ relocated to src/charter/offering/. No src/
-  # module imports it by design.
+  # justification: 0 -> 1 (charter-code-topology-01M152G1, M2): `doctrine`
+  # (src/doctrine.py) is an intentional deprecation shim for legacy external
+  # `import doctrine` callers during the CR-06 compatibility window.
   category_4_backcompat_shims: 1
   # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
   # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
@@ -115,15 +107,53 @@ test_no_dead_modules:
   # 2 -> 3 (#3262 consent program reconciliation, 2026-08-13):
   # sync.admission_operations is WP05's deferred admission-operation record
   # library; wiring tracked as a WP11 TODO(triage) in the allowlist entry.
-  # justification: 3 -> 5 (mission charter-activation-split-01M16ZSE, #3664):
-  # converting charter/__init__.py's 15 eager `from .X import Y` blocks to a
-  # lazy PEP-562 __getattr__ (MAP-B) unmasked two pre-existing orphans
-  # (charter.parser, charter.activation.template_resolver) whose only prior
-  # "caller" was that eager import -- an AST-invisible reference once the
-  # facade is string-keyed. Neither module gained a new caller loss; the
-  # lazy conversion just stopped counting as one. See the allowlist entries
-  # for the TODO(triage) follow-up on each.
-  category_7_grandfathered_orphans: 5
+  # 3 -> 7 (M2 canonical integration, 2026-08-22; docs/bootstrap/M2-CANONICAL-INTEGRATION.json):
+  # justification: four reviewed M1 candidates landed modules with no src/ runtime caller
+  # (D2-T1 dashboard.csp, F2-T1 status.migrate_lifecycle_envelope, TRK-M1-04 tracker.gateway,
+  # Z1-T1 zeitgeist_client.grammar); their sandboxes ran targeted suites and never this gate.
+  # Registered as TODO(triage) so the fact is tracked, not hidden.
+  #
+  # 7 -> 3 (WIRE-M2-01..04, 2026-08-22, LOCAL-RC train lrc-w1): each bead wired exactly one
+  # of the four modules above from src/ and burned down its Cat-7 entry in turn:
+  #   7 -> 6 (WIRE-M2-01): tracker.gateway wired into LocalTrackerService._build_engine
+  #     (local_service.py) -- Beads mutations now build their connector via
+  #     gateway.build_gateway_beads_connector, never the ungated factory.build_connector.
+  #   6 -> 5 (WIRE-M2-02): D2-T1 dashboard.csp wired -- send_csp_header() is now called
+  #     from every send_response() site in handlers/{base,api,features,glossary,lint,
+  #     static}.py.
+  #   5 -> 4 (WIRE-M2-03): status.migrate_lifecycle_envelope now has a live src/ caller
+  #     (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope).
+  #   4 -> 3 (WIRE-M2-04, HIC-M2-DISPOSITIONS-2026-08-22 item 2): zeitgeist_client.grammar
+  #     wired into live_frame.py's identity-field parsing.
+  # All four now have live src/ callers and are no longer orphans; none remain open. Shrink --
+  # fully reverses the M2-canonical-integration deferral bump above.
+  #
+  # 3 -> 4 (Priivacy-ai/spec-kitty#9, E3 credential resolution, 2026-08-25):
+  # zeitgeist_client.resolution is the seam library the #8 zeitgeist handler will
+  # call at fan-out — written library-first with its contract pinned by tests,
+  # no src/ caller yet. Follow-up tracker ticket per FR-303:
+  # Priivacy-ai/spec-kitty#8 (the wiring consumer); the entry burns when that
+  # lands, per the stale-entry check.
+  #
+  # 4 -> 3 (Priivacy-ai/spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
+  # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
+  # zeitgeist_client.resolution at the fan-out seam, so the module has a live
+  # src/ caller and its Cat-7 entry is burned.
+  #
+  # 3 -> 5 (issue-5-delete-sync-transport, 2026-08-25): net +2. -1 for
+  # sync.admission_operations, deleted outright with the sync transport (its
+  # #3262 WP11 wiring consumer died with it -- shrink). +3 for the collateral
+  # orphans whose ONLY src/ caller was the deleted transport
+  # (core.batch_partition, dossier.drift_detector,
+  # migration.envelope_seam); each registered as TODO(triage) wire-or-prune in
+  # the allowlist entry, per FR-303.
+  #
+  # 5 -> 2 (issue-116-wire-or-prune-orphaned-collateral, 2026-08-27): the
+  # three sync-transport collateral orphans (core.batch_partition,
+  # dossier.drift_detector, migration.envelope_seam) were each adjudicated
+  # PRUNE and deleted outright -- none had a viable low-risk wiring target
+  # after the sync transport's removal (issue #5). TODO(triage) notes burned.
+  category_7_grandfathered_orphans: 5  # justification: 8->5 after the latest main merge wired discovery_recursion, org_governance, and project_scan; the remaining orphan disposition is tracked by #925.
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
@@ -252,15 +282,14 @@ test_reference_enum_ratchet:
 # adding a file requires this diff plus a `# justification:` naming why the
 # sink carries no project data, or why its consent seam is sound.
 test_egress_consent_boundary:
-  # justification: 27 files hold a transmit primitive with a recorded reason —
-  # 10 gated by a named consent seam on the data's own project_uuid (E1/E2/E3,
-  # E6-E10, and E13; E9 spans two sink files), 1 per-project transport whose
-  # every caller is separately
-  # seamed (E14), and 16 that are
+  # justification: 28 files hold a transmit primitive with a recorded reason —
+  # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
+  # and E6-E13), 1 per-project transport whose every caller is separately
+  # seamed (E14), and 15 that are
   # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
-  # the readiness probe, five localhost control endpoints and `sync doctor`'s
+  # the readiness probe, four localhost control endpoints and `sync doctor`'s
   # empty-body connectivity probe (E18). Each was verified individually, not
-  # assumed. 10 + 1 + 16 = 27. Earlier, 27 -> 28: the callee-agnostic
+  # assumed. 12 + 1 + 14 = 27. Earlier, 27 -> 28: the callee-agnostic
   # injected-transport rule (added after
   # E20 showed a `poster(...)` parameter is invisible to any method-name rule)
   # surfaced cli/commands/sync.py, which calls request_with_fallback_sync
@@ -280,13 +309,41 @@ test_egress_consent_boundary:
   # userinfo-confused, path-bearing, and portless URLs are rejected before I/O.
   # This is loopback control, not project-data egress, and its exact sink count
   # is independently pinned in test_egress_consent_boundary.py.
-  # 28 -> 27 (#3165): live recomputation before this change found 26 entries,
-  # below the stale ceiling of 28. The HTTPS doctrine source adds one E18
-  # not-project-data sender: its JFrog AQL POST contains only the
-  # operator-configured repository/path/name needed for an inbound fetch. Reset
-  # the ceiling to the exact new live count rather than spending hidden room.
+  # Both sides of the #14 merge moved this counter off 28, in opposite
+  # directions, and both allowances are kept:
+  # - Priivacy-ai/spec-kitty#9 (E3 ephemeral-team-status) ADDED
+  #   specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
+  #   {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token;
+  #   credential traffic gated by team membership over Bearer auth, not
+  #   per-project consent.
+  # - E4 re-homing (planning epic #4, issue spec-kitty#2) REMOVED
+  #   specify_cli/dashboard/handlers/api.py — its /api/sync/trigger proxy
+  #   route was deleted, so the file holds zero transmit primitives and left
+  #   the allowlist entirely (the loopback health probe it used to borrow
+  #   lives in dashboard/lifecycle.py now). Recorded so the ceiling does not
+  #   silently hold a free file.
+  # Recount at the merge (sk-impl-spec-kitty-9): the merged allowlist measures
+  # 26 entries (resolution.py in, api.py out), not the 28 the arithmetic of
+  # the two recorded bumps suggests — the number had drifted +2 ahead of the
+  # real set before either branch touched it. Corrected to the measured count
+  # per the #3167 rule above: this ratchet is shrink-only (growth fails,
+  # shrinkage merely warns), but the ceiling should not hold free files.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 27
+  #
+  # 26 -> 14 (issue-5-delete-sync-transport, 2026-08-25): the sync transport's
+  # deletion removed twelve sink-bearing files outright — delivery/receivers.py,
+  # delivery/dispatcher.py, sync/body_transport.py, sync/runtime.py, sync/events.py,
+  # invocation/propagator.py's E6 row was RE-ANCHORED (not removed) on its
+  # surviving auth seam; sync/sharing_client.py, sync/history_import/upload.py,
+  # sync/client.py, cli/commands/sync.py, and the three loopback rows
+  # (sync/daemon.py, sync/daemon_protocol.py, sync/orphan_sweep.py). saas/readiness.py
+  # re-homed verbatim to tracker/saas_readiness.py (same E18 reason, new address).
+  # Recorded so the ceiling does not silently hold free files.
+  # 14 -> 15 (#217): doctrine HTTPS fetches now query Artifactory AQL for the
+  # configured public pack item's version and SHA-256. The query identifies
+  # repo/path/name from the operator-configured doctrine URL and returns
+  # metadata; it transmits no project data.
+  egress_allowlist_files: 15
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
@@ -294,29 +351,3 @@ test_egress_consent_boundary:
   # to fix the path, never to register it. E1/E2/E3 were the founding entries
   # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
   known_ungated_files: 0
-
-# tests/architectural/test_unfiltered_journal_read_boundary.py
-# Issue #3030 (P0 confidentiality). The project-unfiltered journal read
-# (`read_identity_projection_for_report` / `SELECT_IDENTITY_PROJECTION_ALL_SQL`)
-# may only be named by a listed consumer. Keyed per-SYMBOL
-# (`<relpath>::<qualname>`), not per-file: the one legitimate consumer lives in
-# `delivery/status_report.py`, so a file- or package-keyed rule would have to
-# exempt the very package the pre-fix unfiltered drain read was written in.
-# Registered here for the same reason the egress allowlist is — the allowlist is
-# itself the surface an author would edit to silence the gate.
-test_unfiltered_journal_read_boundary:
-  # justification: 4 functions name the unfiltered-read symbol, and the module's
-  # own test_removing_any_entry_reds_exactly_its_own_key proves all 4 are live
-  # (0 inert). Since the #3262 per-project cutover the machine-global SQL
-  # constant is retired and the owning module holds no counted reference, so
-  # the owner entries are gone; the live consumers are 1 operator report
-  # (delivery/status_report.py::build_per_project_store_report, FR-015/SC-004),
-  # 1 operator selector (cli/commands/sync.py::_purge_resolve_project — the
-  # precedent that motivated the gate), and 2 purge measurement reads
-  # (cli/commands/sync.py::_purge_journal_census / _purge_journal_ids, WP10
-  # cutover tooling: verbatim identity census incl. FR-011 NULL rows,
-  # measurement-only, one explicit operator command).
-  # Growth here means a NEW consumer can reach the read that shipped 1,322
-  # never-opted-in events on 2026-07-27: argue it in the diff, or use
-  # `read_identity_projection(project_uuids=...)` instead.
-  unfiltered_read_allowlist_sites: 4

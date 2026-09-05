@@ -100,18 +100,18 @@ _MISSION_ASSETS_DIR_NAME = "missions"
 #: The relative shape handed to :func:`kernel.sibling_paths.resolve_installed_sibling`
 #: for the non-env-var (ancestor-walk) branch. Mission
 #: ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005, WP05)
-#: relocated the missions *data* subdirectories from ``src/doctrine/missions``
+#: relocated the missions *data* subdirectories from ``src/charter/offering/missions``
 #: to ``packs/built-in/missions`` -- ``packs/`` ships as a fixed-name,
 #: site-packages-level sibling of every top-level package (the root
 #: ``pyproject.toml``'s ``force-include = {"packs" = "packs"}``), so this
 #: pattern is a **literal** relative path, not a per-package wildcard: it can
 #: only ever match the one real data location, never accidentally the
-#: still-existing-but-now-data-less ``src/doctrine/missions`` package
+#: still-existing-but-now-data-less ``src/charter/offering/missions`` package
 #: directory (the ``.py`` logic modules stay there) that a generic
 #: ``"*/missions"`` wildcard pattern would keep matching post-move. This is
 #: the exact self-match trap the mission's reader inventory names as the
 #: highest-severity finding: a bare wildcard pattern still finds *a* directory
-#: named "missions" one ancestor level up from ``src/doctrine/missions``
+#: named "missions" one ancestor level up from ``src/charter/offering/missions``
 #: itself, it is just the wrong (data-less) one. A fully-qualified pattern
 #: naming ``packs/built-in/missions`` structurally cannot make that mistake.
 #:
@@ -133,8 +133,8 @@ MISSION_ASSETS_SIBLING_PATTERN = BUILT_IN_PACK_SIBLING_PATTERN / _MISSION_ASSETS
 #: The relative shape used only by :func:`_resolve_env_root` below, globbed
 #: directly against a caller-supplied ``SPEC_KITTY_TEMPLATE_ROOT`` checkout
 #: root -- NOT handed to the sibling-resolution primitive. A checkout root
-#: sits *two* levels above the sibling package's missions dir
-#: (``<root>/src/<pkg>/missions``), unlike the primitive's own anchor (this
+#: sits above the sibling package's missions dir
+#: (``<root>/src/<namespace>/<pkg>/missions``), unlike the primitive's own anchor (this
 #: module's file, one level below ``src/``), so this candidate needs the
 #: ``src/`` segment that :data:`MISSION_ASSETS_SIBLING_PATTERN` above must
 #: not carry.
@@ -144,7 +144,7 @@ MISSION_ASSETS_SIBLING_PATTERN = BUILT_IN_PACK_SIBLING_PATTERN / _MISSION_ASSETS
 _SRC_LAYOUT_DIR_NAME = "src"
 
 _MISSION_ASSETS_CHECKOUT_GLOB_PATTERN = (
-    PurePosixPath(_SRC_LAYOUT_DIR_NAME) / "*" / _MISSION_ASSETS_DIR_NAME
+    PurePosixPath(_SRC_LAYOUT_DIR_NAME) / "*" / "*" / _MISSION_ASSETS_DIR_NAME
 )
 
 
@@ -164,7 +164,7 @@ def _find_relocated_missions_ancestor(root: Path) -> Path | None:
     """Walk ``root`` and its ancestors for the real, post-relocation missions root.
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
-    moved the missions data from ``src/doctrine/missions`` to
+    moved the missions data from ``src/charter/offering/missions`` to
     ``packs/built-in/missions``. ``SPEC_KITTY_TEMPLATE_ROOT`` may be set to any
     of several legacy shapes (the bare missions directory, a full checkout
     root, a stale sibling-package leaf, ...), each sitting at a *different*
@@ -193,7 +193,7 @@ def _resolve_env_root(root: Path) -> Path:
     location (see :func:`_find_relocated_missions_ancestor`) is tried first and
     unconditionally, since every legacy shape below predates mission #3091's
     move and would otherwise resolve into the now data-less
-    ``src/doctrine/missions`` package directory or the unrelated
+    ``src/charter/offering/missions`` package directory or the unrelated
     ``specify_cli/missions`` legacy tree.
 
     Candidate order matters: the checkout-root candidate (bare ``root``) is
@@ -217,7 +217,7 @@ def _resolve_env_root(root: Path) -> Path:
     # non-deterministically pick an unrelated sibling ``*/missions``) -- this
     # preserves the pre-collapse ``home.py`` behavior (behavior parity, DR-1).
     if root.name == _MISSION_ASSETS_DIR_NAME and root.parent.parent.name == _SRC_LAYOUT_DIR_NAME:
-        candidates.extend(sorted(root.parent.parent.glob(f"*/{_MISSION_ASSETS_DIR_NAME}")))
+        candidates.extend(sorted(root.parent.parent.glob(f"*/*/{_MISSION_ASSETS_DIR_NAME}")))
     candidates.append(root)
     for candidate in candidates:
         if candidate.is_dir() and _looks_like_missions_root(candidate):

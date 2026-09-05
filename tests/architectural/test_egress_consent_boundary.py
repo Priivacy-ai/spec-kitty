@@ -182,7 +182,6 @@ which belongs to a closed mission and is not edited by this change (C-010).
 from __future__ import annotations
 
 import ast
-import re
 import warnings
 from collections import Counter
 from dataclasses import dataclass, field
@@ -259,31 +258,35 @@ _SEAM_GUIDANCE: dict[SinkKind, str] = {
         "already computes exactly that value (E9)"
     ),
     SinkKind.SEND_EVENT: (
-        "gate on the event's own project_uuid via "
-        "sync/consent.py::event_project_consents_to_publish (E7/E8) or "
-        "invocation/adapters.py::resolve_egress_consent (E6) — both fail closed"
+        "gate on the event's own project_uuid behind an authenticated client lookup "
+        "that fails closed (issue #5 retired the per-project consent chain; "
+        "invocation/propagator.py::_get_saas_client returning None must mean no "
+        "send, no log, no fallback path)"
     ),
     SinkKind.WEBSOCKET_SEND: (
-        "gate on the frame's own project_uuid via the emitter's "
-        "_project_consents_to_capture / local_commit's _frame_project_consents "
-        "(E11/E12) before the frame crosses the socket"
+        "the hosted-sync websocket retired with the transport (issue #5); a new "
+        "websocket sender must gate on the frame's own project_uuid and refuse "
+        "when it cannot be proven, never read 'could not determine' as consent "
+        "(FR-003)"
     ),
     SinkKind.HTTP_VERB: (
-        "resolve the payload's own project_uuid and consult specify_cli.sync.consent "
-        "before the request — never a checkout/cwd/repo-slug proxy (FR-019), and "
-        "never read 'could not determine' as consent (FR-003)"
+        "resolve the payload's own project_uuid and refuse unless its egress answer "
+        "is affirmative — never a checkout/cwd/repo-slug proxy for that "
+        "project_uuid (FR-019), and never read 'could not determine' as consent "
+        "(FR-003); hosted requests ride the operator's authenticated session "
+        "(tracker_egress_verdict at HOSTED_SERVICE is the pinned seam)"
     ),
     SinkKind.URLOPEN: (
         "if this is a loopback control endpoint, allowlist it as LOOPBACK_CONTROL; "
-        "otherwise gate on the payload's own project_uuid via specify_cli.sync.consent "
-        "before the call (E8 does this before crossing the loopback socket)"
+        "otherwise resolve the payload's own project_uuid and refuse unless its "
+        "egress answer is affirmative before the call"
     ),
     SinkKind.TRANSPORT_CALL: (
         "this transmits a body through an injected/aliased transport, so the "
-        "method name hides nothing — gate on the payload's own project_uuid via "
-        "specify_cli.sync.consent BEFORE the call. E20 is the precedent: the "
-        "import path had two sinks and gating only the visible one would have "
-        "leaked every envelope while looking closed"
+        "method name hides nothing — resolve the payload's own project_uuid and "
+        "refuse unless its egress answer is affirmative BEFORE the call. E20 is "
+        "the precedent: the import path had two sinks and gating only the visible "
+        "one would have leaked every envelope while looking closed"
     ),
 }
 
@@ -449,85 +452,11 @@ class Allowance:
 #: ``kitty-specs/journal-project-consent-3030-01KYKWQS/egress-inventory.md``.
 _EGRESS_ALLOWLIST: dict[str, Allowance] = {
     # -- Gated by a named consent seam on the data's own project_uuid ---------
-    "specify_cli/delivery/receivers.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E9",
-        note=(
-            "The shared POST transport. Consent is selected one layer above "
-            "(dispatcher), and _cross_project_refusal is the second fence, at "
-            "exactly the position a GateKind would have occupied (FR-001's "
-            "retirement rationale)."
-        ),
-        seam_symbol="_cross_project_refusal",
-        seam_module="specify_cli/delivery/receivers.py",
-    ),
-    "specify_cli/delivery/dispatcher.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E9",
-        note=(
-            "Consent is pushed into SQL by delivery/selection.py::select_consented so "
-            "refused rows cannot starve the window (NFR-002), and the answer is then "
-            "*carried* into a ConsentedBatch rather than re-asked — re-asking would be "
-            "the second consent chain C-003 forbids. Anchored on consented_batch, the "
-            "construction the receiver will not accept a batch without, because that is "
-            "the gate; select_consented is upstream of it and can be renamed."
-        ),
-        seam_symbol="consented_batch",
-        seam_module="specify_cli/delivery/dispatcher.py",
-    ),
-    "specify_cli/sync/body_transport.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E10",
-        note="Per task; the exclusion is pushed into the read that builds the window.",
-        seam_symbol="_consenting_body_project_uuids",
-        seam_module="specify_cli/sync/background.py",
-    ),
-    "specify_cli/sync/runtime.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E7",
-        note="Resolves the event's own uuid, fails closed, gates before every side effect.",
-        seam_symbol="event_project_consents_to_publish",
-        seam_module="specify_cli/sync/runtime.py",
-    ),
-    "specify_cli/sync/events.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E8",
-        note="Same seam as E7, applied before the envelope crosses the loopback socket.",
-        seam_symbol="event_project_consents_to_publish",
-        seam_module="specify_cli/sync/events.py",
-    ),
-    "specify_cli/invocation/propagator.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E6",
-        note=("FR-025. A 4-member enum where NO_RESOLVER / UNANSWERABLE / non-bool all refuse, so 'could not determine' is no longer read as consent (FR-003)."),
-        seam_symbol="resolve_egress_consent",
-        seam_module="specify_cli/invocation/propagator.py",
-    ),
-    "specify_cli/sync/sharing_client.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E13",
-        note="Every endpoint takes an explicit source_project_uuid; own uuid by signature.",
-        seam_symbol="source_project_uuid",
-        seam_module="specify_cli/sync/sharing_client.py",
-    ),
-    # -- Closed by this mission after the 2026-07-30 enumeration found them ----
-    # These three were authored into _KNOWN_UNGATED and moved here when their
-    # work packages landed. The seam is anchored in the sink file itself, so the
-    # allowance depends on nothing but the file it exempts: revert the fix and
-    # test_seam_allowances_name_a_live_seam reds.
-    "specify_cli/sync/history_import/upload.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E1",
-        note=(
-            "FR-028. Closed in the strong form the inventory recommended rather than "
-            "with an `if`: _consented_batches mints ConsentedBatch values and "
-            "DeliveryReceiver.deliver accepts nothing else, so a future caller that "
-            "skips the gate has nothing to hand the receiver. This is the path that "
-            "inherited FR-001's retirement without inheriting its replacement."
-        ),
-        seam_symbol="_consented_batches",
-        seam_module="specify_cli/sync/history_import/upload.py",
-    ),
+    # Issue-5-delete-sync-transport (2026-08-25): every sync/* and delivery/*
+    # row below this marker's predecessors gated or transported the deleted
+    # hosted-sync pipeline (E1/E7/E8/E9/E10/E13); those files were deleted with
+    # their transport and their allowances died with them. The surviving
+    # hosted-egress paths gate on authentication + team admission instead.
     "specify_cli/tracker/saas_client.py": Allowance(
         kind=AllowanceKind.SEAM,
         inventory_id="E2",
@@ -552,23 +481,33 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         kind=AllowanceKind.SEAM,
         inventory_id="E3",
         note=(
-            "FR-030. _refuse_unless_project_consents runs in both _get and _post "
-            "*before the URL is built* — four of five endpoints put mission_id "
-            "('ULID or slug', and a slug is a client engagement name) in the request "
-            "path, so a body-only gate would have missed every one."
+            "Re-anchored at issue-5-delete-sync-transport: FR-030's per-project "
+            "_refuse_unless_project_consents retired with the hosted-sync consent "
+            "chain, and _exchange now gates on _authenticated_authority_for_token "
+            "*before the URL is used* — the bearer-token authority check "
+            "(authenticated account + Private Teamspace + one Collaborative "
+            "Teamspace) that team-side admission enforcement now rides. Four of "
+            "five endpoints still put mission_id ('ULID or slug', and a slug is a "
+            "client engagement name) in the request path, so a body-only gate would "
+            "have missed every one; the authority check sits at that same chokepoint."
         ),
-        seam_symbol="_refuse_unless_project_consents",
+        seam_symbol="_authenticated_authority_for_token",
         seam_module="specify_cli/saas_client/client.py",
     ),
-    # -- Transport whose callers each carry their own seam --------------------
-    "specify_cli/sync/client.py": Allowance(
-        kind=AllowanceKind.TRANSPORT_ONLY,
-        inventory_id="E14",
+    "specify_cli/invocation/propagator.py": Allowance(
+        kind=AllowanceKind.SEAM,
+        inventory_id="E6",
         note=(
-            "The websocket itself, constructed per project. The pong carries only a "
-            "build_id; every caller that sends project data (emitter E11, "
-            "local_commit E12, runtime E7) is separately allowlisted with a seam."
+            "Re-anchored at issue-5-delete-sync-transport: FR-025's "
+            "resolve_egress_consent adapter retired with the per-project consent "
+            "ledger it consulted. The three send_event sites sit behind the auth "
+            "lookup — resolve() returns before any send when _get_saas_client finds "
+            "no connected client — so an unauthenticated checkout sends nothing; "
+            "the envelope itself stays policy-gated by projection_resolution "
+            "(include_request_text / include_evidence_ref)."
         ),
+        seam_symbol="_get_saas_client",
+        seam_module="specify_cli/invocation/propagator.py",
     ),
     # NOTE: E15 (specify_cli/sync/batch.py, kind=UNREACHABLE) was REMOVED by #3167.
     # The allowance existed because the queue-backed drain was ungated but had no
@@ -614,21 +553,13 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="Provisions a websocket token; carries no project data.",
     ),
-    "specify_cli/saas/readiness.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="Server reachability probe; sends no payload.",
-    ),
-    "specify_cli/cli/commands/sync.py": Allowance(
+    "specify_cli/tracker/saas_readiness.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18",
         note=(
-            "`sync doctor`'s connectivity probe: a GET to /sync/health/ and, on "
-            "404/405, a POST of the literal empty body b'{\"events\": []}' to the "
-            "legacy batch endpoint to distinguish a reachable old server from an "
-            "unreachable one. No journal row, no envelope, no identity. Surfaced "
-            "by the injected-transport rule (it calls request_with_fallback_sync, "
-            "not requests.post) — a file nobody had reasoned about until then."
+            "Server reachability probe; sends no payload. Re-homed verbatim from "
+            "`saas/readiness.py` when issue #5 deleted the sync transport — same "
+            "HEAD-only urllib probe, new address."
         ),
     ),
     "specify_cli/doctrine/sources/api_source.py": Allowance(
@@ -638,41 +569,36 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
     ),
     "specify_cli/doctrine/sources/https_source.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
+        inventory_id="E18-#217",
         note=(
-            "Fetches doctrine content inbound. The JFrog AQL POST carries only "
-            "the operator-configured repository, path, and item name; it sends "
-            "no project identity, mission data, or local doctrine content."
+            "Inbound doctrine fetch. The Artifactory AQL query identifies the "
+            "configured public pack item (repo/path/name) and returns metadata; "
+            "it carries no project data."
         ),
     ),
-    "specify_cli/dashboard/handlers/api.py": Allowance(
-        kind=AllowanceKind.LOOPBACK_CONTROL,
-        inventory_id="E18",
-        note="127.0.0.1 daemon endpoint read by the local dashboard.",
+    # -- Credential traffic, not project egress (E3, Priivacy-ai/spec-kitty#9) --
+    "specify_cli/zeitgeist_client/resolution.py": Allowance(
+        kind=AllowanceKind.NOT_PROJECT_DATA,
+        inventory_id="E3-#9",
+        note=(
+            "The capability mint: POST /api/v1/live/capability/cli/ with "
+            "{'repo_slug', 'kind'} and nothing else — a credential exchange that "
+            "*receives* the relay token, in the same class as the auth flows above. "
+            "No journal row, no envelope, no project_uuid: repo_slug is the hosted "
+            "owner/repo key the admission GET one call earlier already carries, and "
+            "the gate here is team membership over Bearer auth (SaasCapabilityGateway), "
+            "not FR-019's per-project consent — presence broadcast must neither queue "
+            "nor consult hosted-sync consent (design page ephemeral-team-status)."
+        ),
     ),
+    # specify_cli/dashboard/handlers/api.py RETIRED (E4 re-homing, planning epic #4):
+    # its only transmit primitive was the /api/sync/trigger proxy urlopen; the
+    # route was deleted rather than gated, so the file holds no sink and is off
+    # the allowlist entirely.
     "specify_cli/dashboard/lifecycle.py": Allowance(
         kind=AllowanceKind.LOOPBACK_CONTROL,
         inventory_id="E18",
-        note="Localhost dashboard shutdown/control endpoints.",
-    ),
-    "specify_cli/sync/daemon.py": Allowance(
-        kind=AllowanceKind.LOOPBACK_CONTROL,
-        inventory_id="E18",
-        note="Localhost health probe and daemon control endpoint.",
-    ),
-    "specify_cli/sync/daemon_protocol.py": Allowance(
-        kind=AllowanceKind.LOOPBACK_CONTROL,
-        inventory_id="WP10-T047",
-        note=(
-            "Authenticated migration quiesce/restart handshake. The constructor "
-            "parses and requires an exact http://127.0.0.1:<port> or "
-            "http://localhost:<port> authority before urllib can be reached."
-        ),
-    ),
-    "specify_cli/sync/orphan_sweep.py": Allowance(
-        kind=AllowanceKind.LOOPBACK_CONTROL,
-        inventory_id="E18",
-        note="127.0.0.1 in the reserved daemon port range; orphan classification.",
+        note="Localhost dashboard health probe and shutdown/control endpoints.",
     ),
 }
 
@@ -1356,303 +1282,12 @@ class TestFR015StructuralTighteningMeasurement:
 
 
 # ---------------------------------------------------------------------------
-# Per-project store mission: named sender and local-writer hand-off (WP01)
+# Per-project store mission: named sender and local-writer hand-off (WP01).
+# Issue-5-delete-sync-transport: the delivery/ and sync/ roots died with their
+# transport; the census below now covers the two surviving hosted senders.
 # ---------------------------------------------------------------------------
 
-
-@dataclass(frozen=True, order=True)
-class _SymbolRef:
-    relpath: str
-    qualname: str
-
-
-class _ResultState(StrEnum):
-    DURABLE = "durable-result-write"
-    DURABLE_FALLBACK = "durable-fallback-not-success"
-    DURABLE_FILE = "durable-file-result"
-    IN_MEMORY = "in-memory-result-only"
-    MISSING = "no-durable-result-write"
-
-
-@dataclass(frozen=True)
-class _ProjectSyncSender:
-    surface: str
-    request_start: _SymbolRef
-    result_write: _SymbolRef | None
-    result_state: _ResultState
-    final_owner: str
-    channel_2_narrowing_only: bool = False
-
-
-_PROJECT_SYNC_SENDER_MATRIX = (
-    _ProjectSyncSender(
-        "direct dispatcher",
-        _SymbolRef("specify_cli/delivery/receivers.py", "_HttpReceiver._attempt_batch_send"),
-        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
-        _ResultState.DURABLE,
-        "WP07",
-    ),
-    _ProjectSyncSender(
-        "emitter websocket",
-        _SymbolRef("specify_cli/sync/client.py", "WebSocketClient._flush_pending_project_events"),
-        _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
-        _ResultState.DURABLE_FALLBACK,
-        "WP07",
-    ),
-    _ProjectSyncSender(
-        "daemon publish",
-        _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime._send_websocket_event"),
-        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
-        _ResultState.DURABLE,
-        "WP08",
-    ),
-    _ProjectSyncSender(
-        "event relay",
-        _SymbolRef("specify_cli/sync/events.py", "_publish_event_via_sync_daemon"),
-        None,
-        _ResultState.MISSING,
-        "WP07",
-    ),
-    _ProjectSyncSender(
-        "body drain",
-        _SymbolRef("specify_cli/sync/body_transport.py", "_send_content_request"),
-        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue._update"),
-        _ResultState.DURABLE,
-        "WP07",
-    ),
-    _ProjectSyncSender(
-        "final and exit sync",
-        _SymbolRef("specify_cli/delivery/receivers.py", "_HttpReceiver._attempt_batch_send"),
-        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
-        _ResultState.DURABLE,
-        "WP07",
-    ),
-    _ProjectSyncSender(
-        "reconnect local commit",
-        _SymbolRef("specify_cli/sync/client.py", "WebSocketClient._send_wire"),
-        _SymbolRef("specify_cli/sync/local_commit.py", "reconcile_local_commit_result"),
-        _ResultState.DURABLE_FILE,
-        "WP07",
-    ),
-    _ProjectSyncSender(
-        "history import",
-        _SymbolRef("specify_cli/sync/history_import/upload.py", "_deliver_chunks"),
-        _SymbolRef("specify_cli/sync/history_import/upload.py", "_tally"),
-        _ResultState.IN_MEMORY,
-        "WP07",
-    ),
-    _ProjectSyncSender(
-        "tracker hosted channel",
-        _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._physical_request_with_retry"),
-        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
-        _ResultState.DURABLE,
-        "WP07",
-        channel_2_narrowing_only=True,
-    ),
-    _ProjectSyncSender(
-        "generic SaaS client",
-        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._send_generic_operation"),
-        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
-        _ResultState.DURABLE,
-        "WP07",
-    ),
-)
-
-_SENDER_CONTRACT = frozenset(
-    {
-        "direct dispatcher",
-        "emitter websocket",
-        "daemon publish",
-        "event relay",
-        "body drain",
-        "final and exit sync",
-        "reconnect local commit",
-        "history import",
-        "tracker hosted channel",
-        "generic SaaS client",
-    }
-)
-
-
-@dataclass(frozen=True)
-class _WP09IntegrationRow:
-    surface: str
-    symbol: _SymbolRef
-    required_delegate: str | None
-    final_owner: str
-    classification: str = "hosted_sender"
-
-
-# T040 closes the post-WP07/WP08 hand-off.  These are the non-physical-sink
-# producer/discovery/control rows that feed the ten physical families above;
-# omitting them would let a file-level sink allowance hide a new raw bypass.
-_WP09_INTEGRATION_ROWS = (
-    _WP09IntegrationRow(
-        "runtime mission start",
-        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_mission_run_started"),
-        "emit_mission_run_started",
-        "WP07",
-    ),
-    _WP09IntegrationRow(
-        "runtime next step",
-        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_next_step_issued"),
-        "emit_next_step_issued",
-        "WP07",
-    ),
-    _WP09IntegrationRow(
-        "runtime auto complete",
-        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_next_step_auto_completed"),
-        "emit_next_step_auto_completed",
-        "WP07",
-    ),
-    _WP09IntegrationRow(
-        "runtime decision request",
-        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_decision_input_requested"),
-        "emit_decision_input_requested",
-        "WP07",
-    ),
-    _WP09IntegrationRow(
-        "runtime decision answer",
-        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_decision_input_answered"),
-        "emit_decision_input_answered",
-        "WP07",
-    ),
-    _WP09IntegrationRow(
-        "runtime mission complete",
-        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_mission_run_completed"),
-        "emit_mission_run_completed",
-        "WP07",
-    ),
-    _WP09IntegrationRow(
-        "runtime significance local-only",
-        _SymbolRef(
-            "specify_cli/sync/runtime_event_emitter.py",
-            "SyncRuntimeEventEmitter.emit_significance_evaluated",
-        ),
-        None,
-        "WP07",
-        "local_only",
-    ),
-    _WP09IntegrationRow(
-        "runtime timeout local-only",
-        _SymbolRef(
-            "specify_cli/sync/runtime_event_emitter.py",
-            "SyncRuntimeEventEmitter.emit_decision_timeout_expired",
-        ),
-        None,
-        "WP07",
-        "local_only",
-    ),
-    _WP09IntegrationRow(
-        "runtime phase transition", _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter._enter_phase"), "emit_phase_entered", "WP07"
-    ),
-    _WP09IntegrationRow("dossier artifact indexed", _SymbolRef("specify_cli/dossier/events.py", "emit_artifact_indexed"), "fire_dossier_event", "WP07"),
-    _WP09IntegrationRow("dossier artifact missing", _SymbolRef("specify_cli/dossier/events.py", "emit_artifact_missing"), "fire_dossier_event", "WP07"),
-    _WP09IntegrationRow("dossier snapshot", _SymbolRef("specify_cli/dossier/events.py", "emit_snapshot_computed"), "fire_dossier_event", "WP07"),
-    _WP09IntegrationRow("dossier parity drift", _SymbolRef("specify_cli/dossier/events.py", "emit_parity_drift_detected"), "fire_dossier_event", "WP07"),
-    _WP09IntegrationRow("dossier adapter", _SymbolRef("specify_cli/dossier/emitter_adapter.py", "fire_dossier_event"), "_emitter", "WP07"),
-    # Anchored at _enqueue_artifact since main's S107/S3776 decomposition of
-    # prepare_body_uploads (prepare_body_uploads -> _process_artifact ->
-    # _enqueue_artifact); the terminal body_queue.enqueue delegation this row
-    # proves is unchanged, one extracted helper deeper.
-    _WP09IntegrationRow("body enqueue", _SymbolRef("specify_cli/sync/body_upload.py", "_enqueue_artifact"), "enqueue", "WP07"),
-    _WP09IntegrationRow(
-        "background project discovery",
-        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._drain_discovered_body_queues"),
-        "_enumerate_project_store_candidates",
-        "WP08",
-    ),
-    _WP09IntegrationRow(
-        "background public body drain", _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService.drain_body_uploads_only"), "_drain_body_queues", "WP08"
-    ),
-    _WP09IntegrationRow(
-        "background gated body transport",
-        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._drain_discovered_body_queues"),
-        "push_content_with_transport_gate",
-        "WP08",
-    ),
-    _WP09IntegrationRow("daemon publish endpoint", _SymbolRef("specify_cli/sync/daemon.py", "SyncDaemonHandler.handle_sync_publish"), "publish_event", "WP08"),
-    _WP09IntegrationRow(
-        "daemon public publish", _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime.publish_event"), "event_project_consents_to_publish", "WP08"
-    ),
-    _WP09IntegrationRow("daemon websocket terminal ack", _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime._send_websocket_event"), "send_event", "WP08"),
-)
-
-
-@dataclass(frozen=True)
-class _WP09SinkClassification:
-    symbol: _SymbolRef
-    matrix_families: frozenset[str]
-    rationale: str
-
-
-def _wp09_sink(
-    relpath: str,
-    qualname: str,
-    *families: str,
-    rationale: str = "project-bearing transport",
-) -> _WP09SinkClassification:
-    return _WP09SinkClassification(
-        _SymbolRef(relpath, qualname),
-        frozenset(families),
-        rationale,
-    )
-
-
-_WP09_MATRIX_FAMILIES = frozenset(
-    {
-        "direct_dispatcher",
-        "emitter_websocket",
-        "daemon_publish",
-        "event_relay",
-        "body_drain",
-        "final_exit_sync",
-        "reconnect_local_commit",
-        "history_import",
-        "tracker_hosted",
-        "generic_saas",
-    }
-)
-
-# Every source-discovered sink symbol is classified here. Empty family sets are
-# explicit non-project loopback/control rows, never an accidental omission.
-_WP09_SINK_CLASSIFICATIONS = (
-    _wp09_sink("specify_cli/delivery/receivers.py", "_HttpReceiver._attempt_batch_send", "direct_dispatcher", "final_exit_sync", "history_import"),
-    _wp09_sink("specify_cli/delivery/receivers.py", "default_http_poster", "direct_dispatcher", "final_exit_sync", "history_import"),
-    _wp09_sink("specify_cli/saas_client/client.py", "SaasClient._send_generic_operation", "generic_saas"),
-    _wp09_sink("specify_cli/sync/body_transport.py", "_send_content_request", "body_drain"),
-    _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._flush_pending_project_events", "emitter_websocket"),
-    _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._send_wire", "emitter_websocket", "daemon_publish", "reconnect_local_commit"),
-    _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._handle_ping", rationale="WebSocket pong carries no project payload"),
-    _wp09_sink("specify_cli/sync/daemon.py", "_fetch_health_payload", rationale="loopback daemon health control"),
-    _wp09_sink("specify_cli/sync/daemon.py", "_stop_daemon_by_http", rationale="loopback daemon shutdown control"),
-    _wp09_sink(
-        "specify_cli/sync/daemon_protocol.py",
-        "_fetch_json",
-        rationale="WP10 loopback migration-daemon control",
-    ),
-    _wp09_sink("specify_cli/sync/events.py", "_publish_event_via_sync_daemon", "event_relay"),
-    _wp09_sink("specify_cli/sync/events.py", "_request_dashboard_sync", rationale="loopback daemon trigger control"),
-    _wp09_sink("specify_cli/sync/history_import/upload.py", "_deliver_chunks", "history_import"),
-    _wp09_sink("specify_cli/sync/history_import/upload.py", "_post_server_preflight", "history_import"),
-    _wp09_sink("specify_cli/sync/orphan_sweep.py", "_http_shutdown_no_token", rationale="loopback orphan-daemon shutdown control"),
-    _wp09_sink("specify_cli/sync/runtime.py", "SyncRuntime._send_websocket_event", "daemon_publish"),
-    _wp09_sink("specify_cli/sync/sharing_client.py", "delete_private_project", "generic_saas"),
-    _wp09_sink("specify_cli/sync/sharing_client.py", "leave_repository_share", "generic_saas"),
-    _wp09_sink("specify_cli/sync/sharing_client.py", "request_repository_share", "generic_saas"),
-    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request", "tracker_hosted"),
-    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._physical_request_with_retry", "tracker_hosted"),
-    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request_with_retry", "tracker_hosted"),
-    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.bind_confirm", "tracker_hosted"),
-    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.bind_mission_origin", "tracker_hosted"),
-    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.push", "tracker_hosted"),
-    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.run", "tracker_hosted"),
-)
-
-
 _PROJECT_SENDER_ROOTS = (
-    _SRC / "specify_cli" / "delivery",
-    _SRC / "specify_cli" / "sync",
     _SRC / "specify_cli" / "tracker",
     _SRC / "specify_cli" / "saas_client",
 )
@@ -1949,6 +1584,14 @@ class _ProjectSinkVisitor(ast.NodeVisitor):
         self._visit_function(node)
 
 
+def _layout_paths(roots: tuple[Path, ...]) -> tuple[Path, ...]:
+    """Every ``*.py`` under each *root* (a directory expands, a file passes through)."""
+    paths: list[Path] = []
+    for root in roots:
+        paths.extend(root.rglob("*.py") if root.is_dir() else [root])
+    return tuple(sorted(set(paths)))
+
+
 def _scan_project_sinks(
     paths: tuple[Path, ...] | None = None,
     *,
@@ -1968,26 +1611,7 @@ def _scan_project_sinks(
 _KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter(
     line.strip()
     for line in """
-specify_cli/delivery/receivers.py::_HttpReceiver._attempt_batch_send::transport-call::self._poster
-specify_cli/delivery/receivers.py::default_http_poster::http-verb::requests.post
-specify_cli/saas_client/client.py::SaasClient._send_generic_operation::http-verb::self._http.post
-specify_cli/sync/body_transport.py::_send_content_request::http-verb::requests.post
-specify_cli/sync/body_transport.py::_send_content_request::transport-call::request_with_stdlib_fallback_sync
-specify_cli/sync/body_transport.py::_send_content_request::transport-call::request_with_stdlib_fallback_sync
-specify_cli/sync/client.py::WebSocketClient._flush_pending_project_events::send-event::self.send_event
-specify_cli/sync/client.py::WebSocketClient._handle_ping::websocket-send::self.ws.send
-specify_cli/sync/client.py::WebSocketClient._send_wire::websocket-send::self.ws.send
-specify_cli/sync/daemon.py::_fetch_health_payload::urlopen::urllib.request.urlopen
-specify_cli/sync/daemon.py::_stop_daemon_by_http::urlopen::urllib.request.urlopen
-specify_cli/sync/events.py::_publish_event_via_sync_daemon::urlopen::urllib.request.urlopen
-specify_cli/sync/events.py::_request_dashboard_sync::urlopen::urllib.request.urlopen
-specify_cli/sync/history_import/upload.py::_deliver_chunks::receiver-deliver::receiver.deliver
-specify_cli/sync/history_import/upload.py::_post_server_preflight::transport-call::poster
-specify_cli/sync/orphan_sweep.py::_http_shutdown_no_token::urlopen::urllib.request.urlopen
-specify_cli/sync/runtime.py::SyncRuntime._send_websocket_event::send-event::self.ws_client.send_event
-specify_cli/sync/sharing_client.py::delete_private_project::http-verb::client.post
-specify_cli/sync/sharing_client.py::leave_repository_share::http-verb::client.post
-specify_cli/sync/sharing_client.py::request_repository_share::http-verb::client.post
+specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request::http-verb::client.request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
@@ -1997,15 +1621,15 @@ specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_confirm::transport-ca
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_mission_origin::transport-call::self._request_with_retry
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.push::transport-call::self._request_with_retry
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.run::transport-call::self._request_with_retry
+specify_cli/tracker/saas_readiness.py::_probe_reachability::urlopen::urllib.request.urlopen
 """.splitlines()
     if line.strip()
 )
 
-_WP10_LOOPBACK_CONTROL_SINK_COUNTS: Counter[str] = Counter(
-    {
-        "specify_cli/sync/daemon_protocol.py::_fetch_json::urlopen::urllib.request.urlopen": 1,
-    }
-)
+#: Empty since issue-5-delete-sync-transport: its single entry was the deleted
+#: sync daemon's quiesce/restart handshake. A loopback control sink reappearing
+#: under the surviving roots reds the growth assertion below instead.
+_WP10_LOOPBACK_CONTROL_SINK_COUNTS: Counter[str] = Counter()
 
 
 def _new_sender_violations(
@@ -2021,645 +1645,10 @@ def _new_sender_violations(
     return tuple(violations)
 
 
-_KNOWN_NON_MUTATING_SQL = frozenset({"SELECT", "PRAGMA", "EXPLAIN", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE"})
-_UNRESOLVED_SQL = "UNRESOLVED"
-
-
-@dataclass(frozen=True, order=True)
-class _LayoutWriteSite:
-    relpath: str
-    qualname: str
-    operation: str
-    callee: str
-    statement: str
-    owner_wp: str
-    lineno: int
-
-    @property
-    def key(self) -> str:
-        return f"{self.relpath}::{self.qualname}::{self.operation}::{self.callee}"
-
-
-def _constant_strings(path: Path) -> dict[str, str]:
-    values: dict[str, str] = {}
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            returns = [child.value for child in ast.walk(node) if isinstance(child, ast.Return) and child.value is not None]
-            rendered_returns = [_sql_text(value, values) for value in returns]
-            if (
-                rendered_returns
-                and all(rendered is not None for rendered in rendered_returns)
-                and all(
-                    re.search(r"\bSELECT\b", rendered.upper()) is not None and _write_operation(rendered) is None
-                    for rendered in rendered_returns
-                    if rendered is not None
-                )
-            ):
-                values[node.name] = "SELECT"
-            continue
-        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-            continue
-        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-        value = node.value
-        if value is None:
-            continue
-        rendered = _sql_text(value, values)
-        for target in targets:
-            if isinstance(target, ast.Name):
-                values.pop(target.id, None)
-                if rendered is not None:
-                    values[target.id] = rendered
-    return values
-
-
-def _imported_string_bindings(path: Path, source_root: Path) -> dict[str, str]:
-    bindings = _constant_strings(path)
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    for node in tree.body:
-        if not isinstance(node, ast.ImportFrom) or node.level != 1 or node.module is None:
-            continue
-        imported_path = path.parent / f"{node.module.replace('.', '/')}.py"
-        if not imported_path.is_file() or source_root not in imported_path.parents:
-            continue
-        exported = _constant_strings(imported_path)
-        for alias in node.names:
-            if alias.name in exported:
-                bindings[alias.asname or alias.name] = exported[alias.name]
-    return bindings
-
-
-def _sql_text(node: ast.expr, bindings: dict[str, str]) -> str | None:
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return node.value
-    if isinstance(node, ast.Name):
-        return bindings.get(node.id)
-    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Dict):
-        choices = [_sql_text(value, bindings) for value in node.value.values]
-        if choices and all(choice is not None and re.search(r"\bSELECT\b", choice.upper()) is not None and _write_operation(choice) is None for choice in choices):
-            return "SELECT"
-    if isinstance(node, ast.JoinedStr):
-        return ast.unparse(node)
-    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        left = _sql_text(node.left, bindings)
-        right = _sql_text(node.right, bindings)
-        return None if left is None or right is None else left + right
-    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "join" and len(node.args) == 1:
-        separator = _sql_text(node.func.value, bindings)
-        values = node.args[0]
-        if separator is None or not isinstance(values, (ast.List, ast.Tuple)):
-            return None
-        pieces = [_sql_text(item, bindings) for item in values.elts]
-        return None if any(piece is None for piece in pieces) else separator.join(piece for piece in pieces if piece is not None)
-    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format":
-        return _sql_text(node.func.value, bindings)
-    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-        return bindings.get(node.func.id)
-    return None
-
-
-def _write_operation(text: str | None) -> str | None:
-    if text is None:
-        return None
-    upper = text.upper()
-    match = re.search(r"\b(ALTER|CREATE|DELETE|DROP|INSERT|REPLACE|UPDATE)\b", upper)
-    if match is not None:
-        return match.group(1)
-    return None
-
-
-def _layout_operation(text: str | None) -> str | None:
-    write = _write_operation(text)
-    if write is not None:
-        return write
-    if text is None:
-        return _UNRESOLVED_SQL
-    words = {match.group(0) for match in re.finditer(r"\b[A-Z]+\b", text.upper())}
-    return None if words & _KNOWN_NON_MUTATING_SQL else _UNRESOLVED_SQL
-
-
-def _writer_owner(relpath: str) -> str:
-    if "migrate" in relpath or "migration" in relpath or relpath.startswith("specify_cli/cli/"):
-        return "WP10"
-    if relpath in {
-        "specify_cli/sync/consent.py",
-        "specify_cli/sync/history_disclosure.py",
-    }:
-        return "WP03"
-    if relpath.startswith("specify_cli/delivery/targets.py"):
-        return "WP05"
-    if relpath.startswith("specify_cli/sync/admission_operations.py"):
-        return "WP05"
-    if relpath.startswith("specify_cli/sync/transport_attempts.py"):
-        return "WP06"
-    if relpath.startswith("specify_cli/delivery/dispatcher.py"):
-        return "WP07"
-    return "WP04"
-
-
-class _LayoutWriteVisitor(ast.NodeVisitor):
-    def __init__(self, path: Path, source_root: Path) -> None:
-        self.path = path
-        self.source_root = source_root
-        self.module_bindings = _imported_string_bindings(path, source_root)
-        self.bindings = self.module_bindings.copy()
-        self.classes: list[str] = []
-        self.functions: list[str] = []
-        self.sites: list[_LayoutWriteSite] = []
-        self.function_depth = 0
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
-        self.classes.append(node.name)
-        self.generic_visit(node)
-        self.classes.pop()
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
-        saved = self.bindings
-        self.bindings = self.module_bindings.copy() if self.function_depth == 0 else self.bindings.copy()
-        self.functions.append(node.name)
-        self.function_depth += 1
-        for statement in node.body:
-            self.visit(statement)
-        self.function_depth -= 1
-        self.functions.pop()
-        self.bindings = saved
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
-        saved = self.bindings
-        self.bindings = self.module_bindings.copy() if self.function_depth == 0 else self.bindings.copy()
-        self.functions.append(node.name)
-        self.function_depth += 1
-        for statement in node.body:
-            self.visit(statement)
-        self.function_depth -= 1
-        self.functions.pop()
-        self.bindings = saved
-
-    def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
-        # TODO(#3280): Track tuple/alternate SQL targets rather than only direct name assignments.
-        value = _sql_text(node.value, self.bindings)
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                self.bindings.pop(target.id, None)
-                if value is not None:
-                    self.bindings[target.id] = value
-        self.generic_visit(node)
-
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802
-        value = _sql_text(node.value, self.bindings) if node.value is not None else None
-        if isinstance(node.target, ast.Name):
-            self.bindings.pop(node.target.id, None)
-            if value is not None:
-                self.bindings[node.target.id] = value
-        self.generic_visit(node)
-
-    def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
-        # TODO(#3280): Merge conditional SQL binding states before execute-family calls; traversal is currently linear.
-        func = node.func
-        if isinstance(func, ast.Attribute) and func.attr in {"execute", "executemany", "executescript"} and node.args:
-            rendered = _sql_text(node.args[0], self.bindings)
-            operation = _layout_operation(rendered)
-            if operation is not None:
-                relpath = self.path.relative_to(self.source_root).as_posix()
-                self.sites.append(
-                    _LayoutWriteSite(
-                        relpath,
-                        ".".join((*self.classes, *self.functions)) or "<module>",
-                        operation,
-                        func.attr,
-                        rendered or "",
-                        _writer_owner(relpath),
-                        node.lineno,
-                    )
-                )
-        self.generic_visit(node)
-
-
-_LAYOUT_ROOTS = (
-    _SRC / "specify_cli" / "event_journal",
-    _SRC / "specify_cli" / "delivery",
-    _SRC / "specify_cli" / "sync",
-    _SRC / "specify_cli" / "cli" / "commands" / "sync.py",
-)
-
-
-def _layout_paths(roots: tuple[Path, ...]) -> tuple[Path, ...]:
-    paths: list[Path] = []
-    for root in roots:
-        paths.extend(root.rglob("*.py") if root.is_dir() else [root])
-    return tuple(sorted(set(paths)))
-
-
-def _scan_layout_writers(
-    roots: tuple[Path, ...] | None = None,
-    *,
-    source_root: Path = _SRC,
-) -> tuple[_LayoutWriteSite, ...]:
-    if roots is None:
-        roots = _LAYOUT_ROOTS if source_root == _SRC else (source_root,)
-    sites: list[_LayoutWriteSite] = []
-    for path in _layout_paths(roots):
-        visitor = _LayoutWriteVisitor(path, source_root)
-        visitor.visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
-        sites.extend(visitor.sites)
-    return tuple(sorted(sites))
-
-
-_RETIRED_LAYOUT_BY_WP04_PREFIXES = (
-    "specify_cli/delivery/ledger.py::",
-    "specify_cli/delivery/retention.py::",
-    "specify_cli/event_journal/coalesce.py::",
-    "specify_cli/event_journal/journal.py::",
-    "specify_cli/sync/body_queue.py::",
-    "specify_cli/sync/queue.py::",
-)
-
-
-_KNOWN_LAYOUT_WRITE_COUNTS: Counter[str] = Counter(
-    line.strip()
-    for line in """
-specify_cli/delivery/ledger.py::SqliteDeliveryLedger._record::INSERT::execute
-specify_cli/delivery/ledger.py::init_ledger::CREATE::executescript
-specify_cli/delivery/retention.py::_purge_all_body_rows::DELETE::execute
-specify_cli/delivery/retention.py::_purge_journal_rows::DELETE::executemany
-specify_cli/delivery/retention.py::_purge_ledger_rows::DELETE::execute
-specify_cli/delivery/targets.py::ProjectDeliveryTargetRegistry.admit_locally::INSERT::execute
-specify_cli/delivery/targets.py::ProjectDeliveryTargetRegistry.register::INSERT::execute
-specify_cli/event_journal/coalesce.py::_collapse_into::UPDATE::execute
-specify_cli/event_journal/coalesce.py::_connect::CREATE::execute
-specify_cli/event_journal/coalesce.py::_record_supersede::INSERT::execute
-specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
-specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
-specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
-specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
-specify_cli/event_journal/journal.py::EventJournal._migrate_add_identity_columns::ALTER::execute
-specify_cli/event_journal/journal.py::EventJournal.append::INSERT::execute
-specify_cli/event_journal/journal.py::EventJournal.mark_archived::UPDATE::execute
-specify_cli/event_journal/journal.py::EventJournal.set_project_identity::UPDATE::executemany
-specify_cli/event_journal/journal.py::JournalTransaction.append::INSERT::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue::INSERT::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_already_exists::DELETE::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_failed_permanent::DELETE::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_failed_retryable::UPDATE::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_uploaded::DELETE::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.record_permanent_failure::INSERT::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_project_tasks::DELETE::execute
-specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_stale::DELETE::execute
-specify_cli/sync/consent.py::_seal_active_epochs::UPDATE::execute
-specify_cli/sync/consent.py::_write_decision::INSERT::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._mark_sent::UPDATE::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._mark_unknown::UPDATE::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._mark_unknown::UPDATE::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._prepare::INSERT::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
-specify_cli/sync/admission_operations.py::AdmissionOperationService.perform::UNRESOLVED::execute
-specify_cli/sync/consent.py::_write_decision::INSERT::execute
-specify_cli/sync/consent.py::allocate_capture_sequence::INSERT::execute
-specify_cli/sync/consent.py::allocate_capture_sequence::INSERT::execute
-specify_cli/sync/history_disclosure.py::confirm_history_disclosure::INSERT::execute
-specify_cli/sync/migrate_journal.py::MigrationAudit.__init__::CREATE::executescript
-specify_cli/sync/migrate_journal.py::MigrationAudit.clear_conflict::DELETE::execute
-specify_cli/sync/migrate_journal.py::MigrationAudit.quarantine_conflict::INSERT::execute
-specify_cli/sync/migrate_journal.py::MigrationAudit.record_conflict::INSERT::execute
-specify_cli/sync/migrate_journal.py::MigrationAudit.record_provenance::INSERT::execute
-specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
-specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
-specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
-specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
-specify_cli/sync/queue.py::OfflineQueue._migrate_add_coalesce_key::ALTER::execute
-specify_cli/sync/queue.py::OfflineQueue._try_coalesce::UPDATE::execute
-specify_cli/sync/queue.py::OfflineQueue.append::INSERT::execute
-specify_cli/sync/queue.py::OfflineQueue.append::UPDATE::execute
-specify_cli/sync/queue.py::OfflineQueue.clear::DELETE::execute
-specify_cli/sync/queue.py::OfflineQueue.increment_retry::UPDATE::execute
-specify_cli/sync/queue.py::OfflineQueue.mark_synced::DELETE::execute
-specify_cli/sync/queue.py::OfflineQueue.process_batch_results::DELETE::execute
-specify_cli/sync/queue.py::OfflineQueue.process_batch_results::UPDATE::execute
-specify_cli/sync/queue.py::OfflineQueue.queue_event::DELETE::execute
-specify_cli/sync/queue.py::OfflineQueue.queue_event::INSERT::execute
-specify_cli/sync/queue.py::OfflineQueue.queue_event::UPDATE::execute
-specify_cli/sync/queue.py::OfflineQueue.remove_events::DELETE::execute
-specify_cli/sync/queue.py::_migrate_body_queue_column_rename::ALTER::execute
-specify_cli/sync/queue.py::_migrate_body_queue_column_rename::ALTER::execute
-specify_cli/sync/queue.py::_migrate_one_table::DELETE::execute
-specify_cli/sync/queue.py::_migrate_one_table::INSERT::execute
-specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
-specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
-specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
-specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
-specify_cli/sync/queue.py::ensure_body_queue_schema::CREATE::executescript
-""".splitlines()
-    if line.strip() and not line.strip().startswith(_RETIRED_LAYOUT_BY_WP04_PREFIXES)
-)
-
-_KNOWN_LAYOUT_WRITE_COUNTS.update(
-    {
-        "specify_cli/delivery/ledger.py::SqliteDeliveryLedger._record.write::INSERT::execute": 3,
-        "specify_cli/delivery/retention.py::purge_project_payloads.write::DELETE::execute": 1,
-        "specify_cli/event_journal/journal.py::EventJournal.append.write::INSERT::execute": 1,
-        "specify_cli/event_journal/journal.py::EventJournal.mark_archived.write::UPDATE::execute": 1,
-        "specify_cli/event_journal/journal.py::EventJournal.purge_events.write::DELETE::execute": 4,
-        "specify_cli/event_journal/journal.py::EventJournal.purge_events.write::UPDATE::execute": 1,
-        "specify_cli/event_journal/journal.py::EventJournal.record_supersede.write::INSERT::execute": 1,
-        "specify_cli/event_journal/journal.py::EventJournal.replace_undelivered_payload.write::UPDATE::execute": 1,
-        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue._update.write::UPDATE::execute": 1,
-        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue.write::INSERT::execute": 1,
-        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_project_tasks.write::DELETE::execute": 1,
-        "specify_cli/sync/queue.py::OfflineQueue._update_tasks.write::UPDATE::execute": 1,
-        "specify_cli/sync/queue.py::OfflineQueue.queue_event.write::INSERT::execute": 1,
-        "specify_cli/sync/history_disclosure.py::stage_sealed_history_cohort::INSERT::execute": 2,
-        "specify_cli/sync/history_disclosure.py::stage_sealed_history_cohort::INSERT::executemany": 1,
-        "specify_cli/sync/transport_attempts.py::_persist_logical_terminal_reference::UPDATE::execute": 1,
-        "specify_cli/sync/transport_attempts.py::_record_delivery_result::INSERT::execute": 1,
-        "specify_cli/sync/transport_attempts.py::_record_delivery_result::UPDATE::execute": 2,
-        "specify_cli/sync/transport_attempts.py::_settle_open_unit::UPDATE::execute": 1,
-        "specify_cli/sync/transport_attempts.py::_terminalize_orphaned_attempt::INSERT::execute": 1,
-        "specify_cli/sync/transport_attempts.py::_terminalize_orphaned_attempt::UPDATE::execute": 1,
-        "specify_cli/sync/transport_attempts.py::attach_remote_operation_id::UPDATE::execute": 1,
-        "specify_cli/sync/transport_attempts.py::execute_remote_operation_query_under_lease::UPDATE::execute": 2,
-        "specify_cli/sync/transport_attempts.py::mark_delivery_result_unknown::UPDATE::execute": 1,
-        "specify_cli/sync/transport_attempts.py::mark_transport_started::UPDATE::execute": 1,
-        "specify_cli/sync/transport_attempts.py::prepare_delivery_attempt::INSERT::execute": 1,
-        "specify_cli/sync/transport_attempts.py::restart_delivery_attempt::UPDATE::execute": 1,
-    }
-)
-
-_WP10_MIGRATION_WRITE_COUNTS: Counter[str] = Counter(
-    {
-        "specify_cli/sync/project_store_migration.py::_copy_project_rows::INSERT::execute": 9,
-    }
-)
-
-_CANONICAL_PROJECT_STORE_LAYOUT_COUNTS: Counter[str] = Counter(
-    {
-        "specify_cli/sync/project_store.py::ProjectSyncStore.unit_of_work::INSERT::execute": 1,
-        "specify_cli/sync/project_store.py::ProjectSyncStore.unit_of_work::UNRESOLVED::execute": 1,
-    }
-)
-
-
-def _is_canonical_project_store_layout_write(site: _LayoutWriteSite) -> bool:
-    return site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.unit_of_work"
-
-
-def _qualified_functions(path: Path) -> frozenset[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    found: set[str] = set()
-
-    class Visitor(ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.classes: list[str] = []
-
-        def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
-            self.classes.append(node.name)
-            self.generic_visit(node)
-            self.classes.pop()
-
-        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
-            found.add(".".join((*self.classes, node.name)))
-            self.generic_visit(node)
-
-        def visit_AsyncFunctionDef(  # noqa: N802
-            self, node: ast.AsyncFunctionDef
-        ) -> None:
-            found.add(".".join((*self.classes, node.name)))
-            self.generic_visit(node)
-
-    Visitor().visit(tree)
-    return frozenset(found)
-
-
-def _qualified_function_node(
-    path: Path,
-    qualname: str,
-) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    found: ast.FunctionDef | ast.AsyncFunctionDef | None = None
-
-    class Visitor(ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.classes: list[str] = []
-
-        def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
-            self.classes.append(node.name)
-            self.generic_visit(node)
-            self.classes.pop()
-
-        def _visit(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-            nonlocal found
-            if ".".join((*self.classes, node.name)) == qualname:
-                found = node
-                return
-            self.generic_visit(node)
-
-        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
-            self._visit(node)
-
-        def visit_AsyncFunctionDef(  # noqa: N802
-            self, node: ast.AsyncFunctionDef
-        ) -> None:
-            self._visit(node)
-
-    Visitor().visit(tree)
-    return found
-
-
-_DURABLE_RESULT_AUTHORITIES: dict[_SymbolRef, tuple[str, str]] = {
-    _SymbolRef(
-        "specify_cli/delivery/ledger.py",
-        "SqliteDeliveryLedger._record",
-    ): ("delivery_results", "attempt_id"),
-    _SymbolRef(
-        "specify_cli/sync/body_queue.py",
-        "OfflineBodyUploadQueue._update",
-    ): ("body_upload_tasks", "row_id"),
-    _SymbolRef(
-        "specify_cli/sync/queue.py",
-        "OfflineQueue.queue_event",
-    ): ("outbox_tasks", "event_id"),
-    _SymbolRef(
-        "specify_cli/sync/transport_attempts.py",
-        "_record_delivery_result",
-    ): ("delivery_results", "attempt_id"),
-}
-
-
-def _reads_name(node: ast.AST, name: str) -> bool:
-    return any(isinstance(item, ast.Name) and item.id == name for item in ast.walk(node))
-
-
-def _durable_result_write(
-    row: _ProjectSyncSender,
-    path: Path,
-    source_root: Path,
-) -> bool:
-    # TODO(#3280): Prove identity-to-column value flow; table, operation, and bound-argument evidence is intentionally narrower.
-    if row.result_write is None:
-        return False
-    requirement = _DURABLE_RESULT_AUTHORITIES.get(row.result_write)
-    node = _qualified_function_node(path, row.result_write.qualname)
-    if requirement is None or node is None:
-        return False
-    table, identity = requirement
-    dml = {"DELETE", "INSERT", "REPLACE", "UPDATE"}
-    authority_lines = {
-        site.lineno
-        for site in _scan_layout_writers((path,), source_root=source_root)
-        if (site.qualname == row.result_write.qualname or site.qualname.startswith(f"{row.result_write.qualname}."))
-        and site.operation in dml
-        and table in site.statement.lower()
-    }
-    return any(
-        isinstance(item, ast.Call)
-        and item.lineno in authority_lines
-        and isinstance(item.func, ast.Attribute)
-        and item.func.attr in {"execute", "executemany", "executescript"}
-        and any(
-            _reads_name(argument, identity)
-            for argument in (
-                *item.args[1:],
-                *(keyword.value for keyword in item.keywords),
-            )
-        )
-        for item in ast.walk(node)
-    )
-
-
-def _durable_file_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    # TODO(#3280): Prove mutation-before-save ordering across paths; this predicate only relates the named field, identity, and save.
-    records_ack_identity = any(
-        isinstance(item, (ast.Assign, ast.AnnAssign))
-        and item.value is not None
-        and any(
-            isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "state" and target.attr == "last_saas_confirmed_hash"
-            for target in (item.targets if isinstance(item, ast.Assign) else [item.target])
-        )
-        and _reads_name(item.value, "git_hash")
-        for item in ast.walk(node)
-    )
-    saves_state = any(
-        isinstance(item, ast.Call)
-        and _attr_tail(item.func) == "save_sync_state"
-        and any(isinstance(argument, ast.Name) and argument.id == "state" for argument in item.args)
-        for item in ast.walk(node)
-    )
-    return records_ack_identity and saves_state
-
-
-def _in_memory_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    # TODO(#3280): Add reachability/path proof for result-guarded report mutations; syntactic guards may be unreachable.
-    result_fields = frozenset({"outcome", "event_id", "error"})
-    report_fields = frozenset({"success", "duplicate", "pending", "rejected", "rejected_samples"})
-
-    def reads_result_member(item: ast.AST, fields: frozenset[str]) -> bool:
-        return any(
-            isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == "result" and child.attr in fields
-            for child in ast.walk(item)
-        )
-
-    def records_documented_member(item: ast.AST) -> bool:
-        if (
-            isinstance(item, ast.AugAssign)
-            and isinstance(item.target, ast.Attribute)
-            and isinstance(item.target.value, ast.Name)
-            and item.target.value.id == "report"
-            and item.target.attr in report_fields
-        ):
-            return True
-        return (
-            isinstance(item, ast.Call)
-            and isinstance(item.func, ast.Attribute)
-            and item.func.attr == "append"
-            and isinstance(item.func.value, ast.Attribute)
-            and isinstance(item.func.value.value, ast.Name)
-            and item.func.value.value.id == "report"
-            and item.func.value.attr in report_fields
-            and any(reads_result_member(argument, result_fields) for argument in item.args)
-        )
-
-    def guarded_record(statements: list[ast.stmt], outcome_guard: bool = False) -> bool:
-        for statement in statements:
-            if isinstance(statement, ast.If):
-                guarded = outcome_guard or reads_result_member(
-                    statement.test,
-                    frozenset({"outcome"}),
-                )
-                if guarded_record(statement.body, guarded) or guarded_record(
-                    statement.orelse,
-                    guarded,
-                ):
-                    return True
-            elif outcome_guard and any(records_documented_member(item) for item in ast.walk(statement)):
-                return True
-        return False
-
-    return guarded_record(node.body)
-
-
-def _has_semantic_result_write(
-    row: _ProjectSyncSender,
-    *,
-    source_root: Path = _SRC,
-) -> bool:
-    """Prove the named result site mutates durable or explicit result state."""
-    if row.result_write is None:
-        return row.result_state is _ResultState.MISSING
-    path = source_root / row.result_write.relpath
-    if row.result_state in {_ResultState.DURABLE, _ResultState.DURABLE_FALLBACK}:
-        return _durable_result_write(row, path, source_root)
-    node = _qualified_function_node(path, row.result_write.qualname)
-    if node is None:
-        return False
-    if row.result_state is _ResultState.DURABLE_FILE:
-        return _durable_file_result_write(node)
-    if row.result_state is _ResultState.IN_MEMORY:
-        return _in_memory_result_write(node)
-    return False
-
-
-def test_project_sync_sender_matrix_maps_actual_request_and_result_sites() -> None:
-    assert {row.surface for row in _PROJECT_SYNC_SENDER_MATRIX} == _SENDER_CONTRACT
-    assert {row.final_owner for row in _PROJECT_SYNC_SENDER_MATRIX} == {"WP07", "WP08"}
-    sink_symbols = {_SymbolRef(site.relpath, site.qualname) for site in _scan_project_sinks()}
-    for row in _PROJECT_SYNC_SENDER_MATRIX:
-        assert row.request_start in sink_symbols, f"request start is not a discovered sink: {row.request_start}"
-        if row.result_write is None:
-            assert row.result_state is _ResultState.MISSING
-        else:
-            assert row.result_write.qualname in _qualified_functions(_SRC / row.result_write.relpath)
-            assert row.result_state is not _ResultState.MISSING
-            assert _has_semantic_result_write(row), f"named result site does not perform a {row.result_state.value}: {row.result_write}"
-        if row.surface == "tracker hosted channel":
-            assert row.channel_2_narrowing_only
-        else:
-            assert not row.channel_2_narrowing_only
-
-
-def test_wp09_producer_discovery_and_control_rows_delegate_by_symbol() -> None:
-    assert len({row.surface for row in _WP09_INTEGRATION_ROWS}) == len(_WP09_INTEGRATION_ROWS)
-    for row in _WP09_INTEGRATION_ROWS:
-        node = _qualified_function_node(_SRC / row.symbol.relpath, row.symbol.qualname)
-        assert node is not None, f"missing live WP09 integration row: {row}"
-        delegates = {_attr_tail(call.func) for call in ast.walk(node) if isinstance(call, ast.Call)}
-        if row.required_delegate is None:
-            assert row.classification == "local_only"
-            assert not delegates, f"local-only row acquired a live call: {row}"
-        else:
-            assert row.classification == "hosted_sender"
-            assert row.required_delegate in delegates, (
-                f"{row.surface} no longer delegates through {row.required_delegate}: {sorted(value for value in delegates if value is not None)}"
-            )
-        assert row.final_owner in {"WP07", "WP08"}
-
-
 def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
     sites = _scan_project_sinks()
     loopback = Counter(site.key for site in sites if site.key in _WP10_LOOPBACK_CONTROL_SINK_COUNTS)
     assert loopback == _WP10_LOOPBACK_CONTROL_SINK_COUNTS
-    assert _EGRESS_ALLOWLIST["specify_cli/sync/daemon_protocol.py"].kind is AllowanceKind.LOOPBACK_CONTROL
     observed = Counter(site.key for site in sites if site.key not in _WP10_LOOPBACK_CONTROL_SINK_COUNTS)
     growth = observed - _KNOWN_PROJECT_SINK_COUNTS
     assert not growth, "new project sender sites:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
@@ -2671,24 +1660,17 @@ def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
         )
 
 
-def test_wp09_sender_census_is_exact_per_symbol_not_per_file() -> None:
+def test_hosted_sender_census_is_exact_per_symbol_not_per_file() -> None:
+    """The surviving hosted senders are pinned per symbol: a NEW transmit call inside an already-
+    allowlisted file cannot be seen by the file-keyed gate above, so this exact census is what
+    reds on it."""
     observed = Counter(site.key for site in _scan_project_sinks() if site.key not in _WP10_LOOPBACK_CONTROL_SINK_COUNTS)
     assert observed == _KNOWN_PROJECT_SINK_COUNTS
 
 
-def test_wp09_every_discovered_sink_symbol_is_classified_into_the_matrix() -> None:
-    observed = {_SymbolRef(site.relpath, site.qualname) for site in _scan_project_sinks()}
-    classified = {row.symbol for row in _WP09_SINK_CLASSIFICATIONS}
-    assert observed == classified
-    covered = frozenset(family for row in _WP09_SINK_CLASSIFICATIONS for family in row.matrix_families)
-    assert covered == _WP09_MATRIX_FAMILIES
-    assert all(row.rationale.strip() for row in _WP09_SINK_CLASSIFICATIONS)
-    assert all(row.rationale != "project-bearing transport" for row in _WP09_SINK_CLASSIFICATIONS if not row.matrix_families)
-
-
 _T034_DURABLE_ADAPTER_SINK_COUNTS: Counter[str] = Counter(
     {
-        "specify_cli/saas_client/client.py::SaasClient._send_generic_operation::http-verb::self._http.post": 1,
+        "specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post": 1,
         "specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 3,
         "specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry": 1,
     }
@@ -2727,93 +1709,13 @@ def test_t034_durable_adapter_sender_census_rejects_extra_retry_mutant(
     )
 
 
-def test_source_discovered_layout_writer_census_is_counted_and_shrink_only() -> None:
-    sites = _scan_layout_writers()
-    canonical = Counter(site.key for site in sites if _is_canonical_project_store_layout_write(site))
-    assert canonical == _CANONICAL_PROJECT_STORE_LAYOUT_COUNTS, "the exact ProjectSyncStore unit of work is the sole new schema/layout writer"
-    migration = Counter(site.key for site in sites if site.key in _WP10_MIGRATION_WRITE_COUNTS)
-    assert migration == _WP10_MIGRATION_WRITE_COUNTS
-    assert all(site.owner_wp == "WP10" for site in sites if site.key in _WP10_MIGRATION_WRITE_COUNTS)
-    observed = Counter(site.key for site in sites if not _is_canonical_project_store_layout_write(site) and site.key not in _WP10_MIGRATION_WRITE_COUNTS)
-    growth = observed - _KNOWN_LAYOUT_WRITE_COUNTS
-    assert not growth, "new current layout writers:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
-    assert all(site.owner_wp.startswith("WP") for site in sites)
-    shrink = _KNOWN_LAYOUT_WRITE_COUNTS - observed
-    if shrink:
-        warnings.warn(
-            "layout-writer census shrank: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
-            stacklevel=1,
-        )
-
-
-_WP04_PERMIT_WRITERS = {
-    _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
-    _SymbolRef("specify_cli/delivery/retention.py", "purge_project_payloads"),
-    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.append"),
-    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.mark_archived"),
-    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.purge_events"),
-    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.record_supersede"),
-    _SymbolRef(
-        "specify_cli/event_journal/journal.py",
-        "EventJournal.replace_undelivered_payload",
-    ),
-    _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue._update"),
-    _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.enqueue"),
-    _SymbolRef(
-        "specify_cli/sync/body_queue.py",
-        "OfflineBodyUploadQueue.remove_project_tasks",
-    ),
-    _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue._update_tasks"),
-    _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
-}
-
-
-def _uses_layout_write_permit(path: Path, qualname: str) -> bool:
-    node = _qualified_function_node(path, qualname)
-    if node is None:
-        return False
-    calls = [item for item in ast.walk(node) if isinstance(item, ast.Call)]
-    has_issue = any(_attr_tail(call.func) == "issue_write_permit" for call in calls)
-    has_execute = any(_attr_tail(call.func) == "execute_write" for call in calls)
-    has_destination_check = any(isinstance(call.func, ast.Name) and call.func.id == "_require_project_destination" for call in calls)
-    return has_issue and has_execute and has_destination_check
-
-
-def test_every_wp04_current_writer_participates_in_layout_permits() -> None:
-    sites = _scan_layout_writers()
-    discovered = {
-        _SymbolRef(site.relpath, site.qualname.removesuffix(".write"))
-        for site in sites
-        if site.owner_wp == "WP04" and not _is_canonical_project_store_layout_write(site)
-    }
-    assert discovered == _WP04_PERMIT_WRITERS
-    assert all(_uses_layout_write_permit(_SRC / writer.relpath, writer.qualname) for writer in _WP04_PERMIT_WRITERS)
-
-
-def test_layout_permit_guard_rejects_a_writer_bypass_mutant(tmp_path: Path) -> None:
-    source = tmp_path / "specify_cli" / "sync" / "queue.py"
-    source.parent.mkdir(parents=True)
-    source.write_text(
-        "class OfflineQueue:\n    def queue_event(self, unit, payload):\n        unit.execute('INSERT INTO outbox_tasks VALUES (?)', (payload,))\n",
-        encoding="utf-8",
-    )
-    sites = _scan_layout_writers((source,), source_root=tmp_path)
-    assert [site.operation for site in sites] == ["INSERT"]
-    assert not _uses_layout_write_permit(source, "OfflineQueue.queue_event")
-
-
-def test_wp10_migration_owner_classification_is_narrow() -> None:
-    assert _writer_owner("specify_cli/sync/project_store_migration.py") == "WP10"
-    assert _writer_owner("specify_cli/sync/project_store.py") == "WP04"
-
-
-def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
-    tmp_path: Path,
-) -> None:
+def test_new_sender_mutants_flow_through_real_collectors(tmp_path: Path) -> None:
+    """A previously-unseen sender and an aliased transport, written into a synthetic root, must
+    reach the real growth collector. (The layout-writer half of this plumbing test retired with
+    the layout-writer census it exercised -- issue #5 deleted that scanner's only subjects.)"""
     sync_root = tmp_path / "specify_cli" / "sync"
     source = sync_root / "previously_unseen_sender.py"
     alias_source = sync_root / "aliased_transport.py"
-    dynamic_writer = sync_root / "dynamic_writer.py"
     clean = sync_root / "wrapped_sender.py"
     sync_root.mkdir(parents=True)
     source.write_text(
@@ -2848,14 +1750,6 @@ def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
         "import httpx as wire\ndef send(payload):\n    wire.post('/events', json=payload)\n",
         encoding="utf-8",
     )
-    dynamic_writer.write_text(
-        "def write(conn, payload):\n"
-        "    sql = ''.join(('INS', 'ERT INTO event_outbox VALUES (?)'))\n"
-        "    conn.execute(sql, (payload,))\n"
-        "    select_sql = ''.join(('SEL', 'ECT * FROM event_outbox'))\n"
-        "    conn.execute(select_sql)\n",
-        encoding="utf-8",
-    )
     clean.write_text(
         "def send(client, payload):\n"
         "    context = ProjectSyncContext(payload['project_uuid'])\n"
@@ -2872,8 +1766,6 @@ def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
     }
     assert all(not site.canonical_attempt for site in sink_sites if site.relpath == "specify_cli/sync/previously_unseen_sender.py")
     assert all(site.canonical_attempt for site in sink_sites if site.relpath == "specify_cli/sync/wrapped_sender.py")
-    writer_sites = _scan_layout_writers(source_root=tmp_path)
-    assert [site.operation for site in writer_sites] == ["INSERT"]
 
 
 def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
@@ -2885,61 +1777,3 @@ def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
     )
     sites = _scan_project_sinks(source_root=tmp_path)
     assert [(site.qualname, site.callee) for site in sites] == [("alias_chain", "client.post")]
-
-
-def test_layout_census_surfaces_unresolved_sql_without_stale_bindings(
-    tmp_path: Path,
-) -> None:
-    source = tmp_path / "specify_cli" / "sync" / "unresolved_writer.py"
-    source.parent.mkdir(parents=True)
-    source.write_text(
-        "def unresolved_write(conn, payload, operation):\n"
-        "    sql = f'{operation} INTO event_outbox VALUES (?)'\n"
-        "    conn.execute(sql, (payload,))\n"
-        "def stale_insert(conn, payload):\n"
-        "    sql = 'INSERT INTO event_outbox VALUES (?)'\n"
-        "    sql = build_query()\n"
-        "    conn.execute(sql, (payload,))\n",
-        encoding="utf-8",
-    )
-    sites = _scan_layout_writers(source_root=tmp_path)
-    assert [(site.qualname, site.operation) for site in sites] == [
-        ("stale_insert", "UNRESOLVED"),
-        ("unresolved_write", "UNRESOLVED"),
-    ]
-
-
-def test_result_matrix_rejects_a_named_function_without_a_result_write(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    sync_root = tmp_path / "specify_cli" / "sync"
-    sync_root.mkdir(parents=True)
-    specimens = {
-        "durable.py": ("def record(conn, event_id):\n    audit(event_id)\n    conn.execute('INSERT INTO delivery_ledger(other) VALUES (?)', ('constant',))\n"),
-        "memory.py": ("def record(report, result):\n    audit(result)\n    report.debug.append('unrelated')\n"),
-        "file.py": ("def record(state, git_hash):\n    audit(git_hash)\n    state.unrelated = True\n    save_sync_state(state)\n"),
-    }
-    states = {
-        "durable.py": _ResultState.DURABLE,
-        "memory.py": _ResultState.IN_MEMORY,
-        "file.py": _ResultState.DURABLE_FILE,
-    }
-    for filename, source in specimens.items():
-        path = sync_root / filename
-        path.write_text(source, encoding="utf-8")
-        symbol = _SymbolRef(f"specify_cli/sync/{filename}", "record")
-        if filename == "durable.py":
-            monkeypatch.setitem(
-                _DURABLE_RESULT_AUTHORITIES,
-                symbol,
-                ("delivery_ledger", "event_id"),
-            )
-        row = _ProjectSyncSender(
-            filename,
-            symbol,
-            symbol,
-            states[filename],
-            "WP04",
-        )
-        assert not _has_semantic_result_write(row, source_root=tmp_path)

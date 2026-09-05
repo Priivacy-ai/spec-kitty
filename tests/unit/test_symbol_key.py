@@ -375,7 +375,7 @@ def test_non_facade_module_has_no_facade_entry_for_unrelated_name() -> None:
 # each doing a bare `from <origin> import Name` re-export of the SAME name.
 # Under alias_body_hash this text is byte-identical ("ArtifactKind") across
 # all three sites, so the live index correctly detects the collision --
-# exactly mirroring src/doctrine/{directives,procedures,tactics}/__init__.py.
+# exactly mirroring src/charter/offering/{directives,procedures,tactics}/__init__.py.
 _TRIO_MODULES = {
     "charter.offering.directives": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
     "charter.offering.procedures": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",

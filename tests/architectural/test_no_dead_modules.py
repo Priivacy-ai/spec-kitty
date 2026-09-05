@@ -9,14 +9,14 @@ The Mission B post-merge review surfaced a process gap:
 
 That cycle-1 failure was structural, not human:
 
-    src/charter/mission_type_profiles.py exported MissionTypeProfile,
+    src/charter/activation/mission_type_profiles.py exported MissionTypeProfile,
     resolve_governance, UnknownMissionTypeError. 14 tests called those
     symbols directly. Zero src/ files imported them. The cycle-2 fix
     wired resolve_governance into prompt_builder.py; a hard CI gate
     would have caught the missing wiring in cycle 1.
 
 This test is that hard gate. It walks every `*.py` file under `src/`,
-derives the module's dotted name (e.g. ``src/charter/mission_type_profiles.py``
+derives the module's dotted name (e.g. ``src/charter/activation/mission_type_profiles.py``
 → ``charter.activation.mission_type_profiles``), and verifies that **at least one
 other file under `src/` imports it** -- via any of:
 
@@ -262,6 +262,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime
         # code. Same sibling shape as the two backfills above.
         "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
+        # 3.2.6rc3 .worktrees/ gitignore backfill migration (#3689):
+        # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
+        # never statically imported by runtime code. Same sibling shape as the
+        # gitignore backfills above.
+        "specify_cli.upgrade.migrations.m_3_2_6rc3_worktrees_gitignore_backfill",
         # 3.2.6rc3 blanket-.cursor/ gitignore narrowing migration (#2498):
         # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
         # never statically imported by runtime code. Same sibling shape as the
@@ -272,11 +277,6 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime
         # code. Same sibling shape as the gitignore backfills above.
         "specify_cli.upgrade.migrations.m_3_2_6rc3_lint_report_gitignore_backfill",
-        # 3.2.6rc3 .worktrees/ gitignore backfill migration (#3689):
-        # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
-        # never statically imported by runtime code. Same sibling shape as the
-        # gitignore backfills above.
-        "specify_cli.upgrade.migrations.m_3_2_6rc3_worktrees_gitignore_backfill",
         "specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers",  # auto-discovered (#2804)
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver",  # auto-discovered (#2709)
@@ -315,6 +315,15 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # unowned-gate edit (WP18 does not own this test file); disclosed in
         # the WP18 implementation report.
         "specify_cli.upgrade.migrations.m_3_2_7_review_cycle_merge_driver",
+        # WIRE-M2-03 (2026-08-22): wires the F2-T1 one-shot F1-strict
+        # lifecycle-envelope rewrite into `spec-kitty upgrade`, over the
+        # project-level and every mission-level event log. Auto-discovered
+        # via pkgutil.iter_modules + @MigrationRegistry.register; never
+        # statically imported by runtime code -- same sibling shape as the
+        # m_zz_* backfill migrations above. (This is also why
+        # `specify_cli.status.migrate_lifecycle_envelope` was removed from
+        # Category 7 above -- it now has a real src/ caller: this module.)
+        "specify_cli.upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope",
     }
 )
 
@@ -339,20 +348,13 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
 )
 
 # ---------- 3. External CLI / hook entry points ----------
-# Invoked as `python -m specify_cli.policy.commit_guard_hook`
-# from the git pre-commit hook script installed by
-# src/specify_cli/policy/hook_installer.py. The module path
-# appears only as the string literal MODULE in hook_installer.
 _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
     {
-        "specify_cli.policy.commit_guard_hook",
-        # charter.offering.hatch_build (formerly doctrine.hatch_build, WP12/D7) was
-        # removed here (charter-code-topology-01M152G1, S5, MAP-BUILD): the dormant,
-        # never-built spec-kitty-doctrine wheel groundwork it powered
-        # (src/charter/offering/pyproject.toml's [tool.hatch.build.hooks.custom]
-        # `path = "hatch_build.py"` declaration) was deleted outright, not merely
-        # relocated -- there is no longer a src/charter/offering/hatch_build.py
-        # module for this allowlist entry to describe.
+        # specify_cli.policy.commit_guard_hook removed (#254): the pre-commit
+        # hook's PATH fallback now reaches it through a real src/ caller,
+        # commit_guard_hook_cmd.commit_guard_hook_cli(), so it is no longer
+        # genuinely dead -- it no longer belongs in this build-script-only
+        # allowlist.
     }
 )
 
@@ -448,8 +450,14 @@ _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
 # Per Slice F C-006 (binding), Cat-7 MUST shrink by >= 2 entries
 # per major release; target = 0 by 4.0. WP01 of Slice F shrinks
 # this list from 10 -> 7 by deleting three modules outright
-# (doctrine.templates.repository, glossary.prompts,
+# (charter.offering.templates.repository, glossary.prompts,
 # glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
+#
+# issue-116-wire-or-prune-orphaned-collateral (2026-08-27): shrinks this list
+# 5 -> 2 by deleting the three sync-transport collateral orphans
+# (core.batch_partition, dossier.drift_detector, migration.envelope_seam)
+# outright -- none had a viable low-risk wiring target after the sync
+# transport's removal (issue #5). See the inline note below for detail.
 _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
     {
         # unshim-wave1-01KWKVHB (#2292) drained this set 6 -> 2 by deleting
@@ -464,55 +472,81 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # - sync.admission_operations: WP05 (#3262) durable admission-operation
-        #   record library (per-project store rows in the admission_operations
-        #   table). Written red-first with a pinned contract
-        #   (tests/sync/test_admission_operations.py); the production wiring
-        #   belongs to the coordinated-acceptance milestone (WP11) which binds
-        #   the Core admission client to the SaaS candidate.
-        #   TODO(triage): wire from the admission client or fold into
-        #   saas_client.admission as part of #3262 WP11 — do not delete: the
-        #   schema row it owns is live in project_store.py.
-        "specify_cli.sync.admission_operations",
-        # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
-        #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06). The
-        #   eventual-wiring follow-up (#3236) landed: the FR-012/SC-008 backfill
-        #   is now called from `src/` by the auto-discovered upgrade migration
-        #   `upgrade.migrations.m_zz_verdict_provenance_backfill` (and its
-        #   `stranded_verdict_findings` predicate by the `accept` provenance
-        #   diagnostic), so the module has live `src/` callers and is no longer
-        #   an orphan. Shrink 3 -> 2 -- reverses the post-merge green-up bump.
-        #
-        # charter-activation-split-01M16ZSE (MAP-B): converting
-        # ``charter/__init__.py`` from 15 eager ``from .X import Y`` blocks to
-        # a PEP-562 lazy ``__getattr__`` (module-path strings resolved via
-        # ``importlib.import_module`` at first attribute access) unmasked two
-        # pre-existing orphans. Neither module had ANY other real `src/`
-        # importer before this mission -- their only "caller" was the eager
-        # `__init__.py` import, which is exactly the reflective, AST-invisible
-        # reference this gate's own docstring describes lazy patterns as
-        # (function-scope `from .X import Y` IS still AST-visible and counted;
-        # a string-keyed `import_module(module_path)` dispatch table is not).
-        # Both stay reachable via the public facade (`charter.CharterParser`,
-        # `charter.CharterTemplateResolver`); this is staleness-visibility,
-        # not new dead code.
-        # - charter.parser: CharterParser/CharterSection re-exported at
-        #   `charter.CharterParser` / `charter.CharterSection`; zero other
-        #   `src/` file parses charter.md directly today.
-        #   TODO(triage): wire a direct caller or fold into the compiler
-        #   pipeline; until then it is exercised only via `charter.__init__`'s
-        #   lazy facade and the `tests/charter/` parser suite.
+        # charter-activation-split (#806) restored EXPERIMENTAL replay
+        # semantics, leaving these activation-adjacent seams without static
+        # src/ callers. TODO(triage): #925 owns wire-or-prune disposition.
         "charter.parser",
-        # - charter.activation.template_resolver: CharterTemplateResolver
-        #   re-exported at `charter.CharterTemplateResolver`. Superseded in
-        #   practice by `charter.activation.resolver.DoctrineService` (see
-        #   that module's own docstring, which documents
-        #   `CharterTemplateResolver` as the historical "second" template
-        #   resolution path) -- no other `src/` file constructs it directly.
-        #   TODO(triage): delete once confirmed fully superseded, or wire the
-        #   remaining caller `specify_cli.runtime.resolver._package_default_path`
-        #   onto it explicitly instead of the DoctrineService detour.
         "charter.activation.template_resolver",
+        # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
+        # 2026-08-25). The module was deleted outright with the sync transport;
+        # its #3262 WP11 wiring consumer no longer exists, so there is nothing
+        # left to triage.
+        #
+        # ---- issue-5-delete-sync-transport collateral, adjudicated (issue #116,
+        # 2026-08-27): three modules whose ONLY src/ caller was the deleted sync
+        # transport (cli/commands/sync.py + the sync/delivery packages) were
+        # registered here pending wire-or-prune triage. Each was investigated for
+        # a viable low-risk wiring target and found to have none -- their sole
+        # reason to exist died with the sync transport (issue #5) -- so all three
+        # were PRUNED (deleted outright) rather than wired or kept allowlisted:
+        # - core.batch_partition: batch-400 poison-isolation bisection (#2755);
+        #   its sole caller was the deleted sync push fan-out. Deleted.
+        # - dossier.drift_detector: dossier drift detection; its sole caller was
+        #   the deleted dossier push trigger chain (dossier/snapshot.py's own
+        #   save path lost its trigger in the same deletion). Deleted.
+        # - migration.envelope_seam: the deliberate migration<->import envelope
+        #   re-export surface (#2262); its sole callers were the deleted
+        #   delivery.targets and the deleted sync status-report writer.
+        #   mission_state.py's own envelope assembly is prose-referenced only.
+        #   Deleted.
+        # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
+        #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06 -- predates and is
+        #   unrelated to the M2 canonical-integration entries below). The eventual-wiring
+        #   follow-up (#3236) landed: the FR-012/SC-008 backfill is now called from `src/`
+        #   by the auto-discovered upgrade migration
+        #   `upgrade.migrations.m_zz_verdict_provenance_backfill` (and its
+        #   `stranded_verdict_findings` predicate by the `accept` provenance diagnostic),
+        #   so the module has live `src/` callers and is no longer an orphan. Shrink
+        #   3 -> 2 -- reverses the post-merge green-up bump.
+        #
+        # ---- M2 canonical integration (2026-08-22): reviewed M1 candidates that
+        # landed a module with no src/ runtime caller; each candidate's own
+        # sandbox ran targeted suites and never this gate. Registered here so the
+        # fact is visible, not hidden (M2-CANONICAL-INTEGRATION.json lists them).
+        # All four were wired and removed in turn by WIRE-M2-01..04 (2026-08-22,
+        # LOCAL-RC train lrc-w1; see tests/architectural/_baselines.yaml's
+        # category_7_grandfathered_orphans for the full 7 -> 3 shrink sequence):
+        # tracker.gateway: REMOVED (WIRE-M2-01). Wired into
+        #   LocalTrackerService._build_engine (local_service.py) -- Beads
+        #   mutations now build their connector via
+        #   gateway.build_gateway_beads_connector instead of the ungated
+        #   factory.build_connector, so the module has a live src/ caller and
+        #   is no longer an orphan. Shrink 7 -> 6.
+        # D2-T1 dashboard.csp: REMOVED (WIRE-M2-02). send_csp_header()
+        #   is now called from all 35 send_response() sites across
+        #   handlers/{base,api,features,glossary,lint,static}.py, so the module has
+        #   live src/ callers and is no longer an orphan. Shrink 6 -> 5.
+        # status.migrate_lifecycle_envelope: REMOVED (WIRE-M2-03). The F2-T1
+        #   one-shot F1-strict envelope rewrite is now called from `src/` by the
+        #   auto-discovered upgrade migration
+        #   `upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope`, so the module
+        #   has a live `src/` caller and is no longer an orphan. Shrink 5 -> 4.
+        # zeitgeist_client.grammar: REMOVED (WIRE-M2-04, HIC-M2-DISPOSITIONS-
+        #   2026-08-22 item 2). live_frame.py now imports grammar (`from . import
+        #   grammar`) and routes every identity field it parses (session_ref,
+        #   actor.user, repo, branch, focus_ref) through grammar.ident()/
+        #   grammar.ident(..., REF_RE) before it reaches a PresenceView/FocusView
+        #   or an internal dict key -- mirrors zeitgeist/editor.py's own
+        #   rendering-time identity sanitization. Real src/ caller landed; no
+        #   longer an orphan. Shrink 4 -> 3.
+        # All four M2-canonical-integration entries are closed; none remain open.
+        #
+        # E3 #9 credential resolution (2026-08-25): zeitgeist_client.resolution
+        # was registered here as the seam library awaiting the #8 zeitgeist
+        # handler as its caller. BURNED (E3 #8, 2026-08-25):
+        # status/zeitgeist_bridge.py resolves credentials at the fan-out seam,
+        # so the module has a live src/ caller and is no longer an orphan.
+        # Shrink 4 -> 3 (baseline updated in _baselines.yaml).
     }
 )
 
@@ -587,7 +621,7 @@ def _is_candidate(path: Path) -> bool:
 def _module_dotted(path: Path) -> str:
     """Return the dotted module name for *path* relative to ``src/``.
 
-    Example: ``src/charter/mission_type_profiles.py`` →
+    Example: ``src/charter/activation/mission_type_profiles.py`` →
     ``charter.activation.mission_type_profiles``.
     """
     rel = path.relative_to(_SRC_ROOT).with_suffix("")
@@ -651,11 +685,7 @@ def _iter_src_python_files() -> list[Path]:
     Excludes doctrine ``asset`` blobs (shipped, loaded by path — see
     :func:`_is_asset_blob`).
     """
-    return sorted(
-        p
-        for p in _SRC_ROOT.rglob("*.py")
-        if "__pycache__" not in p.parts and not _is_asset_blob(p)
-    )
+    return sorted(p for p in _SRC_ROOT.rglob("*.py") if "__pycache__" not in p.parts and not _is_asset_blob(p))
 
 
 def _has_caller(
@@ -761,9 +791,7 @@ def test_no_new_dead_modules_under_src() -> None:
     # Build the import index over ALL src files (including __init__/__main__,
     # since they perform package-level imports that legitimately wire
     # submodules) but excluding files we can't parse.
-    file_imports: list[
-        tuple[Path, list[tuple[str, str, tuple[str, ...] | None]]]
-    ] = []
+    file_imports: list[tuple[Path, list[tuple[str, str, tuple[str, ...] | None]]]] = []
     for path in _iter_src_python_files():
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))

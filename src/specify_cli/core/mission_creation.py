@@ -7,7 +7,6 @@ command ``create()`` is a thin wrapper around this function.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import logging
 import re
@@ -19,6 +18,7 @@ from typing import Any
 
 from ulid import ULID
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -42,6 +42,11 @@ from specify_cli.core.mission_payload import (
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import (
+    ProtectedBranchRefused,
+    SafeCommitDestinationNotFound,
+    SafeCommitHeadMismatch,
+)
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
@@ -59,6 +64,11 @@ _META_KEY_CREATED_AT = "created_at"
 # The glob lets the failure-atomic rollback diff pre- vs post-create refs so it
 # deletes exactly the orphan branch an aborted create left behind.
 _COORDINATION_BRANCH_GLOB = "kitty/mission-*"
+_BOOTSTRAP_META_COMMIT_SKIPS = (
+    ProtectedBranchRefused,
+    SafeCommitDestinationNotFound,
+    SafeCommitHeadMismatch,
+)
 
 
 class MissionCreationError(RuntimeError):
@@ -76,6 +86,7 @@ class MissionCreationResult:
     target_branch: str
     current_branch: str
     created_files: list[Path] = field(default_factory=list)
+    uncommitted_files: list[Path] = field(default_factory=list)
     origin_binding_attempted: bool = False
     origin_binding_succeeded: bool = False
     origin_binding_error: str | None = None
@@ -600,11 +611,7 @@ def _create_mission_core_impl(
     # 3. Resolve planning branch
     # ------------------------------------------------------------------
     planning_branch = target_branch if target_branch else current_branch
-    create_time_target = (
-        resolve_create_time_write_target(planning_branch)
-        if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED
-        else None
-    )
+    create_time_target = resolve_create_time_write_target(planning_branch)
     if not normalized_friendly_name:
         normalized_friendly_name = default_mission_display_name(mission_slug)
 
@@ -842,11 +849,13 @@ def _create_mission_core_impl(
         from specify_cli.identity.project import load_identity
         from specify_cli.status import (
             MISSION_CREATED,
+            _resolve_local_actor,
             emit_mission_created_local,
             read_lifecycle_events,
         )
 
         _identity = load_identity(resolved_root / ".kittify" / "config.yaml")
+        creation_actor = _resolve_local_actor()
         expected_created_payload = build_mission_created_payload(
             mission_slug=mission_slug_formatted,
             mission_id=meta.get("mission_id"),
@@ -858,6 +867,7 @@ def _create_mission_core_impl(
             purpose_tldr=normalized_purpose_tldr,
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+            actor=creation_actor,
         )
         emit_mission_created_local(
             feature_dir,
@@ -873,6 +883,7 @@ def _create_mission_core_impl(
             purpose_tldr=normalized_purpose_tldr,
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+            actor=creation_actor,
         )
         created_events = [event for event in read_lifecycle_events(feature_dir / "status.events.jsonl") if event.get("event_type") == MISSION_CREATED]
         if len(created_events) != 1:
@@ -911,7 +922,7 @@ def _create_mission_core_impl(
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
             actor="spec-kitty mission create",
-            artifact_path=str(spec_file.relative_to(effective_root)) if spec_file.is_relative_to(effective_root) else "spec.md",
+            artifact_path=(str(spec_file.relative_to(effective_root)) if spec_file.is_relative_to(effective_root) else "spec.md"),
         )
     except Exception as _phase_evt_exc:  # noqa: BLE001
         logger.debug(
@@ -941,6 +952,7 @@ def _create_mission_core_impl(
     # genuinely differs from HEAD at create time, so the commit is non-empty.
     # NFR-001: re-raise with step context naming the failing step.
     # ------------------------------------------------------------------
+    scaffold_commit_skipped = False
     try:
         _commit_feature_file(
             (
@@ -955,16 +967,16 @@ def _create_mission_core_impl(
             worktree_root=effective_root,
             create_time_target=create_time_target,
         )
+    except _BOOTSTRAP_META_COMMIT_SKIPS as exc:
+        scaffold_commit_skipped = True
+        logger.info(
+            "Skipping bootstrap scaffold commit for %s on planning branch %s: %s",
+            mission_slug_formatted,
+            planning_branch,
+            exc,
+        )
     except Exception as exc:
         raise RuntimeError(f"meta.json commit failed: {exc}") from exc
-
-    # Dossier sync (fire-and-forget via registered adapter)
-    # SaaS fan-out is already handled by emit_mission_created_local above —
-    # it calls fire_lifecycle_saas_fanout internally via append_lifecycle_event.
-    # No direct INTEGRATION imports needed here (FR-004/FR-006).
-    from specify_cli.status import fire_dossier_sync
-
-    fire_dossier_sync(feature_dir, mission_slug_formatted, resolved_root)
 
     # ------------------------------------------------------------------
     # 9. Consume pending origin if present (ticket-first flow)
@@ -1005,6 +1017,14 @@ def _create_mission_core_impl(
                 worktree_root=effective_root,
                 create_time_target=create_time_target,
             )
+        except _BOOTSTRAP_META_COMMIT_SKIPS as exc:
+            scaffold_commit_skipped = True
+            logger.info(
+                "Skipping origin-ticket binding commit for %s on planning branch %s: %s",
+                mission_slug_formatted,
+                planning_branch,
+                exc,
+            )
         except Exception as exc:
             raise RuntimeError(f"origin-ticket binding commit failed: {exc}") from exc
 
@@ -1012,6 +1032,16 @@ def _create_mission_core_impl(
     # 10. Build result
     # ------------------------------------------------------------------
     created_files = [spec_file, meta_file, tasks_readme]
+    uncommitted_files = [spec_file]
+    if scaffold_commit_skipped:
+        skipped_scaffold = [
+            meta_file,
+            feature_dir / "status.events.jsonl",
+            tasks_readme,
+            tasks_dir / ".gitkeep",
+        ]
+        created_files.extend(path for path in skipped_scaffold if path not in created_files)
+        uncommitted_files.extend(skipped_scaffold)
 
     return MissionCreationResult(
         feature_dir=feature_dir,
@@ -1021,6 +1051,7 @@ def _create_mission_core_impl(
         target_branch=planning_branch,
         current_branch=current_branch,
         created_files=created_files,
+        uncommitted_files=uncommitted_files,
         origin_binding_attempted=origin_binding_attempted,
         origin_binding_succeeded=origin_binding_succeeded,
         origin_binding_error=origin_binding_error,

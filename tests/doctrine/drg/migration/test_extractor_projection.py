@@ -1,14 +1,14 @@
 """Invariance assertions for the WP04 extractor re-point (mission-step-authority).
 
-``extract_mission_type_edges`` (``charter.offering.drg.migration.extractor``) was
+``extract_mission_type_edges`` (``doctrine.drg.migration.extractor``) was
 re-pointed from a raw ``data.get("action_sequence")`` YAML read to the WP02
-projection seam (``charter.offering.missions.step_projection.project_action_sequence``,
+projection seam (``doctrine.missions.step_projection.project_action_sequence``,
 resolved builtin-only via ``MissionStepRepository``). This module pins the
 three invariants that re-point must hold (T012, FR-004/FR-010):
 
 1. **DRG 0-delta (NFR-002)** -- the regenerated graph still counts 280 nodes /
    757 edges / 10 orphans, and is byte-identical to the shipped graph
-   (:func:`~charter.offering.drg.loader.load_built_in_graph`).
+   (:func:`~doctrine.drg.loader.load_built_in_graph`).
 2. **No edge for non-sequence steps** -- a step with ``in_action_sequence:
    false`` (``retrospect``, and software-dev's other 6 non-sequence steps)
    never mints a ``mission_type --requires--> action`` edge.
@@ -25,7 +25,10 @@ from typing import Any
 import pytest
 
 from charter.offering.drg.loader import load_built_in_graph
-from charter.offering.drg.migration.extractor import extract_mission_type_edges, generate_graph
+from charter.offering.drg.migration.extractor import (
+    extract_mission_type_edges,
+    generate_graph,
+)
 from charter.offering.drg.migration.hand_authored_overlay import (
     HAND_AUTHORED_EDGES,
     generate_reference_graph_with_overlay,
@@ -77,7 +80,7 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #: with no ordinary ``tactic_refs``/``references``) adds one orphan of its own
 #: in a PURE regeneration -- its only edges are the hand-authored
 #: ``reconciles_tension`` edges the extractor cannot mint (see
-#: ``charter.offering.drg.migration.hand_authored_overlay``). So a bare
+#: ``doctrine.drg.migration.hand_authored_overlay``). So a bare
 #: ``generate_graph`` run yields 289 - 6 + 1 = 284 nodes,
 #: 765 - 10 = 755 edges, 11 - 1 + 2 = 12 orphans.
 #:

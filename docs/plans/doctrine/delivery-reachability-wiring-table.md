@@ -304,7 +304,7 @@ edge is upgraded and no walk is deepened here.
 - `procedure:drill-down-documentation` — Family C: topology authored, delivery pending
 - `procedure:event-storming-discovery`
 - `procedure:migrate-project-guidance-to-spec-kitty-charter`
-- `styleguide:deployable-skill-authoring` — **direct-activation-only** (#3009 WP02): no defensible source artefact, so no inbound edge is invented (C-003); reached by charter activation directly, never by a traversal. See the `kind-complete-cascade-orphan-wiring-01M0FQCD` ledger below.
+- `styleguide:deployable-skill-authoring`
 - `styleguide:java-conventions`
 - `styleguide:reasons-canvas-writing`
 - `tactic:analysis-extract-before-interpret`
@@ -424,7 +424,7 @@ was 48. After WP01 it rescues 30, so the neither-channel deferred set drops to
 - `paradigm:structured-prompt-driven-development`
 - `procedure:documentation-gap-prioritization`
 - `procedure:migrate-project-guidance-to-spec-kitty-charter`
-- `styleguide:deployable-skill-authoring` — **direct-activation-only** (#3009 WP02): no defensible source artefact, so no inbound edge is invented (C-003); reached by charter activation directly, never by a traversal. See the `kind-complete-cascade-orphan-wiring-01M0FQCD` ledger below.
+- `styleguide:deployable-skill-authoring`
 - `styleguide:java-conventions`
 - `tactic:analysis-extract-before-interpret`
 - `tactic:atomic-design-review-checklist`
@@ -881,11 +881,11 @@ directive whose outbound `suggests` were never walked.
 
 ### The 54 authored edges (all `suggests`)
 
-- **BDD/ATDD hub `DIRECTIVE_034` → 7** (DELIVERS at implement/review): `tactic:development-bdd`, `tactic:atdd-adversarial-acceptance`, `paradigm:specification-by-example`, `tactic:formalized-constraint-testing`, `procedure:example-mapping-workshop`, `styleguide:given-when-then-authoring` (new; later **promoted to `DIRECTIVE_034` frontmatter** — #3009 WP02, see the `kind-complete-cascade-orphan-wiring-01M0FQCD` ledger below), `toolguide:gherkin` (new; later **promoted to `DIRECTIVE_034` frontmatter** — #3009 WP02).
+- **BDD/ATDD hub `DIRECTIVE_034` → 7** (DELIVERS at implement/review): `tactic:development-bdd`, `tactic:atdd-adversarial-acceptance`, `paradigm:specification-by-example`, `tactic:formalized-constraint-testing`, `procedure:example-mapping-workshop`, `styleguide:given-when-then-authoring` (new), `toolguide:gherkin` (new).
 - **Brownfield `paradigm:brownfield-onboarding` → 2** (DELIVERS at d=2 only, via a ≤2-hop suggests chain; `suggests` matches how brownfield already links its non-mandatory members): `tactic:reverse-speccing`, `tactic:test-to-system-reconstruction`.
 - **Mutation hub `USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY` → 4** (INERT — new non-scoped hub): `tactic:mutation-testing-workflow`, `styleguide:mutation-aware-test-design`, `toolguide:python-mutation-tools`, `toolguide:typescript-mutation-tools`.
-- **Test-quality hub `DIRECTIVE_030` → 5** (DELIVERS; the quality-BAR the gate enforces): `tactic:adversarial-qa-handoff`, `tactic:work-package-completion-validation`, `styleguide:testing-principles`, `styleguide:test-desiderata-and-boundaries`, `toolguide:sonar` (new; later **promoted to `DIRECTIVE_030` frontmatter** — #3009 WP02).
-- **Test-quality hub `DIRECTIVE_041` → 3** (INERT — 041 is NOT scope-linked from any action; the clarity/authoring side): `tactic:test-readability-clarity-check`, `tactic:zombies-tdd`, `styleguide:quadruple-a-test-format` (new; later **promoted to `DIRECTIVE_041` frontmatter** — #3009 WP02).
+- **Test-quality hub `DIRECTIVE_030` → 5** (DELIVERS; the quality-BAR the gate enforces): `tactic:adversarial-qa-handoff`, `tactic:work-package-completion-validation`, `styleguide:testing-principles`, `styleguide:test-desiderata-and-boundaries`, `toolguide:sonar` (new).
+- **Test-quality hub `DIRECTIVE_041` → 3** (INERT — 041 is NOT scope-linked from any action; the clarity/authoring side): `tactic:test-readability-clarity-check`, `tactic:zombies-tdd`, `styleguide:quadruple-a-test-format` (new).
 - **Profile → hub → 32** (INERT in the profile channel): 7 implementer-role profiles (frontend-freddy, generic-agent, implementer-ivan, java-jenny, node-norris, python-pedro, randy-reducer) each → {034, mutation, 030, 041}; reviewer-renata → {030, 041, mutation}; debugger-debbie → {mutation}.
 - **Event-storming → 1** (INERT): `agent_profile:architect-alphonso --suggests--> procedure:event-storming-discovery`.
 
@@ -1131,47 +1131,6 @@ following counts — each measured via `load_built_in_graph()` /
   dogfood `.kittify/charter/charter.yaml`, and `agent_profile`/`asset` are not
   activation kinds, so the action-channel activated-unreachable pins do not move.
 - **Glossary term count UNCHANGED (108)** — no glossary edits.
-
-## Composition ledger (NFR-004) — mission `kind-complete-cascade-orphan-wiring-01M0FQCD` (WP02, #3009 RESIDUAL)
-
-Closes the #3009 residual: the five `_ACTIVATED_BUT_ORPHANED` artefacts. Four had
-a defensible source already expressed as a hand-authored **overlay** `suggests`
-edge; each is **promoted** to a real source-artifact frontmatter reference on its
-owning directive (single canonical authority). The fifth has no defensible source
-and is recorded **direct-activation-only** — never given a guessed edge (C-003).
-
-The five orphans and their new disposition:
-
-| artefact URN | before | after | mechanism |
-|---|---|---|---|
-| `styleguide:given-when-then-authoring` | `_ACTIVATED_BUT_ORPHANED` + `_ORPHANS_RESOLVED_BY_OVERLAY` | reachable, pure-graph edge | `DIRECTIVE_034` frontmatter `suggests` (promoted; overlay edge deleted) |
-| `toolguide:gherkin` | `_ACTIVATED_BUT_ORPHANED` + `_ORPHANS_RESOLVED_BY_OVERLAY` | reachable, pure-graph edge | `DIRECTIVE_034` frontmatter `suggests` (promoted; overlay edge deleted) |
-| `toolguide:sonar` | `_ACTIVATED_BUT_ORPHANED` + `_ORPHANS_RESOLVED_BY_OVERLAY` | reachable, pure-graph edge | `DIRECTIVE_030` frontmatter `suggests` (promoted; overlay edge deleted) |
-| `styleguide:quadruple-a-test-format` | `_ACTIVATED_BUT_ORPHANED` + `_ORPHANS_RESOLVED_BY_OVERLAY` | pure-graph edge (stays `_PROFILE_RESCUES`; 041 not action-scoped) | `DIRECTIVE_041` frontmatter `suggests` (promoted; overlay edge deleted) |
-| `styleguide:deployable-skill-authoring` | `_ACTIVATED_BUT_ORPHANED` (sole source-less member) | **direct-activation-only** | new documented disposition (`_DIRECT_ACTIVATION_ONLY`) + rationale; no edge invented |
-
-- **Enabling change:** the extractor's directive `references` loop now parses
-  `reason` symmetrically with `when` (`src/doctrine/drg/migration/extractor.py`),
-  so a promoted frontmatter reference carries the overlay's curated rationale and
-  the regenerated fragment is byte-identical. Backward-compatible: no shipped
-  directive ref carried `reason` before, so every pre-existing edge is unchanged.
-- **Shipped `(source, target, relation)` edge set UNCHANGED** — the four overlay
-  edges were deleted and re-authored byte-identically in directive frontmatter
-  (same source/target/relation/`when`/`reason`). `regenerate-graph --check` clean;
-  the `*.graph.yaml` fragments are net-zero for these edges. Only the four
-  directive files and `pack-manifest.yaml` content hashes change.
-- **Pure orphan set 26 → 22** (`test_extractor_projection.py`): the four promoted
-  artefacts gain a real pure-graph inbound edge and leave the orphan set entirely
-  (−4); `deployable-skill-authoring` merely changes bucket. `_ACTIVATED_BUT_ORPHANED`
-  **−5 → empty**; `_ORPHANS_RESOLVED_BY_OVERLAY` **−4** (only
-  `asset:common-docs-structural-lint` remains). Shipped orphans stay **21**.
-- **`_ACTION_UNREACHABLE_D1`/`D2`, `_PROFILE_UNREACHABLE`, `_PROFILE_RESCUES`
-  UNCHANGED** — the shipped graph is byte-identical, so no reachability pin moves.
-  `given-when-then-authoring`, `gherkin` and `sonar` were already action-reachable
-  in the shipped graph (via the action-scoped `DIRECTIVE_034`/`DIRECTIVE_030`
-  overlay edges the promotion replaces); `quadruple-a-test-format` stays a
-  `_PROFILE_RESCUES` member (`DIRECTIVE_041` is not action-scoped);
-  `deployable-skill-authoring` stays unreachable in both channels by design.
 
 ## Composition ledger (NFR-002/NFR-004) — reachability companion metric (mission `drg-reachability-metric-wiring-01KZS5VR`, WP01, #3009 point 3)
 

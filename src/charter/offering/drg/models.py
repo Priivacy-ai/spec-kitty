@@ -346,7 +346,7 @@ class DRGNode(BaseModel):
     # FR-004: an authored key this model does not declare is a load error, not a
     # silent discard. Pydantic v2's default is ``extra="ignore"``, which is how a
     # graph fragment can carry a key nobody reads and nobody is told about.
-    # Every sibling model under ``src/doctrine/**/models.py`` already forbids
+    # Every sibling model under ``src/charter/offering/**/models.py`` already forbids
     # extras; this brings the DRG models in line rather than inventing a policy.
     model_config = ConfigDict(extra="forbid")
 

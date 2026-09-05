@@ -118,7 +118,7 @@ class ValidationIssue:
     * ``drg_root_graph_missing`` — the pack's ``drg/`` directory contains one
       or more ``*.graph.yaml`` fragments but the pack has no top-level
       ``*.graph.yaml`` **and** no ``drg/fragment.yaml`` — the runtime
-      (``src/charter/_drg_helpers.py:load_validated_graph``) reads pack-root
+      (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads pack-root
       ``*.graph.yaml`` and ``drg/fragment.yaml``, so a ``drg/*.graph.yaml``
       graph fragment is the one DRG shape no runtime path consumes.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
@@ -358,7 +358,7 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
     :func:`_check_drg_root_graph_missing` — a pack whose DRG content lives
     only under ``drg/*.graph.yaml`` fragments with no pack-root
     ``*.graph.yaml`` and no ``drg/fragment.yaml`` is flagged, since the runtime
-    (``src/charter/_drg_helpers.py:load_validated_graph``) reads pack-root
+    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads pack-root
     ``*.graph.yaml`` and ``drg/fragment.yaml`` but never ``drg/*.graph.yaml``.
     Callers that know their own output can never produce that mismatch shape
     (e.g. ``pack_assembler.assemble_pack``'s internal round-trip check) pass
@@ -657,7 +657,7 @@ def _check_drg_root_graph_missing(
 ) -> list[ValidationIssue]:
     """Flag the one DRG shape no runtime path reads: ``drg/*.graph.yaml``.
 
-    The runtime (``src/charter/_drg_helpers.py:load_validated_graph``) reads a
+    The runtime (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads a
     pack-root ``*.graph.yaml`` **and** ``drg/fragment.yaml`` (the latter folded
     via the DRG read-path bridge, mission ``drg-read-path-bridge-01M0CHVZ``,
     #3573). A ``drg/*.graph.yaml`` graph fragment is read by neither path, so it
@@ -696,7 +696,7 @@ def _check_drg_root_graph_missing(
             message=(
                 "DRG content exists under drg/*.graph.yaml with no pack-root "
                 "*.graph.yaml. The runtime "
-                "(src/charter/_drg_helpers.py:load_validated_graph) reads "
+                "(src/charter/activation/_drg_helpers.py:load_validated_graph) reads "
                 "pack-root *.graph.yaml and drg/fragment.yaml; drg/*.graph.yaml "
                 "graph fragments are the unread shape — this pack's "
                 "drg/*.graph.yaml content will not be read as authored."

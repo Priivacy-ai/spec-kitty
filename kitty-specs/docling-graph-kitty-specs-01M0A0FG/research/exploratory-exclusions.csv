@@ -1,7 +1,0 @@
-path,baseline_blob,exposed_at,exposure_mode,completeness_basis
-kitty-specs/005-refactor-mission-system/research.md,fd1a7e3779eb6d3ffed5b1745a6b101b3695effc,2026-08-18,DoclingDocument_roundtrip_and_chunking,pre_spec_command_log
-kitty-specs/005-refactor-mission-system/tasks.md,fc17e8ac7b1f8b2d6f3eb410acb6f3a06812006b,2026-08-18,DoclingDocument_roundtrip_diff,pre_spec_command_log
-kitty-specs/coord-commit-integrity-01KY5JS8/tasks/WP03-placement-and-rehome/review-cycle-1.md,63743e5a1164aed1dd5686212f00dcc6d5f84511,2026-08-18,DoclingDocument_roundtrip,pre_spec_command_log
-kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/spec.md,7b607873cbbd31365fd1f5a473b8430c0cb9d125,2026-08-18,DoclingDocument_roundtrip_and_chunking,pre_spec_command_log
-kitty-specs/worktree-owned-root-3328-01KZRG01/spec.md,671dbcacf0c7041163bc81b15c7463092d2c5ae0,2026-08-18,DoclingDocument_roundtrip_diff_and_repeat,pre_spec_command_log
-kitty-specs/worktree-owned-root-3328-01KZRG01/tasks.md,d210ef96ba2a59215bcb99597869878e3f30bd49,2026-08-18,DoclingDocument_roundtrip,pre_spec_command_log

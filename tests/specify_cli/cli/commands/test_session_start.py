@@ -6,9 +6,9 @@ exception swallowing, and NFR-001 performance (<200ms).
 
 from __future__ import annotations
 
-import os
 import sys
 import time
+from functools import partial
 from pathlib import Path
 from unittest.mock import patch
 
@@ -24,10 +24,32 @@ _WORKTREE_SRC = Path(__file__).resolve().parents[5] / "src"
 if str(_WORKTREE_SRC) not in sys.path:
     sys.path.insert(0, str(_WORKTREE_SRC))
 
+from specify_cli.cli.commands import session_start as session_start_module  # noqa: E402
 from specify_cli.cli.commands.session_start import (  # noqa: E402
     _find_project_root,
     session_start,
 )
+
+
+def _bound_project_root_walk(monkeypatch: pytest.MonkeyPatch, stop: Path) -> None:
+    """Bind the command's project-root walk to *stop*, inside this test's tmp tree (#130).
+
+    Production ``session_start()`` walks from cwd all the way to the filesystem
+    root. Nothing above ``tmp_path`` is under test control: on a shared machine
+    any ancestor (/tmp, /) can gain a stray ``.kittify/`` from a sibling test
+    mid-run, which flips outside-project verdicts non-deterministically — the
+    exact mechanism that sent these nodes red on some main baselines and green
+    on others (issue #130). Bounding the walk to territory this test created
+    makes the verdict deterministic while still exercising the real
+    find-nothing-then-stay-silent command path; the traversal itself is pinned
+    hermetically by ``TestFindProjectRoot``.
+    """
+    monkeypatch.setattr(
+        session_start_module,
+        "_find_project_root",
+        partial(session_start_module._find_project_root, stop=stop),
+    )
+
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -84,48 +106,94 @@ class TestSessionStartOutsideProject:
     def test_exit_0_outside_project(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """No .kittify/ present: exit 0, no output."""
-        monkeypatch.chdir(tmp_path)
+        """No .kittify/ within the bounded walk region: exit 0."""
+        cwd = tmp_path / "outside" / "any" / "project"
+        cwd.mkdir(parents=True)
+        monkeypatch.chdir(cwd)
+        _bound_project_root_walk(monkeypatch, tmp_path)
         result = runner.invoke(_app, [])
         assert result.exit_code == 0
 
     def test_no_output_outside_project(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.chdir(tmp_path)
+        cwd = tmp_path / "outside" / "any" / "project"
+        cwd.mkdir(parents=True)
+        monkeypatch.chdir(cwd)
+        _bound_project_root_walk(monkeypatch, tmp_path)
         result = runner.invoke(_app, [])
         assert result.output.strip() == ""
 
 
 class TestFindProjectRoot:
-    def test_finds_kittify_in_cwd(self, spec_project: Path) -> None:
-        original_cwd = os.getcwd()
-        os.chdir(spec_project)
-        try:
-            root = _find_project_root()
-            assert root == spec_project
-        finally:
-            os.chdir(original_cwd)
+    """Traversal seam coverage — every walk stays inside this test's own tree (#130, #139).
 
-    def test_walks_up_from_nested_subdir(self, spec_project: Path) -> None:
+    Nothing above ``tmp_path`` (``/tmp``, ``/``) is under test control:
+    sibling tests can pollute a shared ancestor with a stray ``.kittify/``
+    mid-run. Walks are therefore pinned either through the explicit
+    ``start``/``stop`` parameters, or — for the two nodes exercising the
+    production no-arg default — because their ``.kittify/`` marker sits
+    *below* ``tmp_path``, terminating the ascent before any shared territory
+    is read.
+    """
+
+    def test_finds_kittify_at_start(self, spec_project: Path) -> None:
+        root = _find_project_root(spec_project)
+        assert root == spec_project
+
+    def test_defaults_to_cwd_start(
+        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No *start* given: the walk begins at the cwd (production default).
+
+        Safe without a stop boundary — a project at the cwd is found on the
+        first check, before any shared ancestor is ever read.
+        """
+        monkeypatch.chdir(spec_project)
+        assert _find_project_root() == spec_project
+
+    def test_walks_up_from_nested_subdir(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No-arg call from a nested cwd ascends to the project root (production shape).
+
+        The only node that exercises the unbounded default boundary — *stop*
+        left at ``None``, exactly as the production callers
+        (``session_start``/``session_stop``) invoke the walk. A regression
+        that leaks *start* into the default boundary makes every such walk
+        answer ``None`` on the first probe, silently disabling both hook
+        commands from any subdirectory while the outer
+        ``except Exception: pass`` keeps exit 0 (#139). Hermetic anyway:
+        ``.kittify/`` sits *below* ``tmp_path``, so the walk terminates
+        before any shared ancestor is read.
+        """
         nested = spec_project / "a" / "b" / "c"
         nested.mkdir(parents=True)
-        original_cwd = os.getcwd()
-        os.chdir(nested)
-        try:
-            root = _find_project_root()
-            assert root == spec_project
-        finally:
-            os.chdir(original_cwd)
+        monkeypatch.chdir(nested)
+        assert _find_project_root() == spec_project
 
-    def test_returns_none_at_filesystem_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """_find_project_root() returns None when no .kittify/ is found anywhere."""
-        monkeypatch.chdir(tmp_path)
-        # tmp_path has no .kittify/
-        root = _find_project_root()
+    def test_finds_kittify_exactly_at_stop_boundary(self, spec_project: Path) -> None:
+        """The stop boundary itself is still examined before the walk ends."""
+        nested = spec_project / "a"
+        nested.mkdir()
+        root = _find_project_root(nested, stop=spec_project)
+        assert root == spec_project
+
+    def test_returns_none_when_region_has_no_kittify(self, tmp_path: Path) -> None:
+        """No .kittify/ between start and the stop boundary → None."""
+        jail = tmp_path / "no-project-here"
+        nested = jail / "a" / "b"
+        nested.mkdir(parents=True)
+        root = _find_project_root(nested, stop=jail)
         assert root is None
+
+    def test_returns_none_at_filesystem_root(self) -> None:
+        """Termination at the true filesystem root.
+
+        Starting AT ``/`` makes ``/.kittify`` the only candidate directory; it
+        cannot exist on a test machine (creating it needs root), so the
+        fs-root termination branch is exercised without walking through any
+        shared territory.
+        """
+        assert _find_project_root(Path("/")) is None
 
 
 class TestExitZeroGuarantee:
@@ -155,7 +223,6 @@ class TestExitZeroGuarantee:
         assert result.exit_code == 0
 
 
-@pytest.mark.performance
 class TestNFR001Performance:
     def test_session_start_completes_under_200ms(
         self, spec_project: Path, monkeypatch: pytest.MonkeyPatch

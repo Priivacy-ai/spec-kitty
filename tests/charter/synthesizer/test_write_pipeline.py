@@ -308,7 +308,6 @@ def test_gate_passes_on_empty_results(tmp_path: Path) -> None:
     _run_neutrality_gate(stage, [], evidence=None)
 
 
-@pytest.mark.performance
 def test_gate_timing(tmp_path: Path) -> None:
     """Neutrality gate completes in under 5 seconds on neutral content."""
     from charter.activation.synthesizer.write_pipeline import _run_neutrality_gate

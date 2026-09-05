@@ -1,9 +1,0 @@
-exclusion_id,screened_item,reason,load_bearing,review_status,reviewer
-SX-01,NONE_FOUND_unversioned_third_party_Docling_tutorials,Current pinned upstream code and docs were sufficient,no,approved_non_load_bearing,researcher
-SX-02,NONE_FOUND_generic_GraphRAG_marketing,Would not test Spec Kitty authority provenance or lifecycle contracts,no,approved_non_load_bearing,researcher
-SX-03,NONE_FOUND_unrelated_PDF_OCR_benchmarks,Target Markdown conversion was directly measurable,no,approved_non_load_bearing,researcher
-SX-04,NONE_FOUND_opinion_posts_or_social_media,Would lack inspectable implementation or target-user evidence,no,approved_non_load_bearing,researcher
-SX-05,NONE_INCLUDED_pre_1_9_1_behavior,Pinned v1.9.1 source is the behavioral authority,no,approved_non_load_bearing,researcher
-SX-06,https://github.com/docling-project/docling-graph/tree/19815e3147503f78a06e263255667e237830bab9/docling_graph/llm_clients,Remote-provider inference execution was excluded because no egress retention consent or provider boundary was approved,yes,approved_execution_path,reviewer-renata_generic_remote_inference_exclusion
-SX-07,private_untracked_user_mission_artifacts,Outside frozen tracked corpus and must not be transmitted or published,yes,approved,reviewer-renata
-SX-08,production_user_telemetry_or_interviews_NONE_AVAILABLE,None were authorized or available; absence forces adoption value to UNKNOWN,yes,approved_as_missing_evidence_forces_UNKNOWN,reviewer-renata

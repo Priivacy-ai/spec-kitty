@@ -15,7 +15,7 @@ per-command logic:
   the event log IS written and the command exits 0).
 
 The exit-code rows (genuine-no-op → 0, wrong-surface → 1 not collapsed) are
-asserted through the canonical ``exit_code_for`` / ``classify_noncommit_outcome``
+asserted through the canonical ``_exit_code_for`` / ``_classify_noncommit_outcome``
 mapping — the same single source the CLI and the WP01 golden harness use. The
 WP01 golden harness (``tests/coordination/test_surface_authority_goldens.py``) is
 re-run unchanged to prove no drift; this file adds the CLI-facing diffs that live
@@ -37,8 +37,8 @@ from specify_cli.coordination.surface_authority import (
     REMEDY_PROTECTED_PRIMARY,
     Refuse,
     RouteToCoord,
-    classify_noncommit_outcome,
-    exit_code_for,
+    _classify_noncommit_outcome,
+    _exit_code_for,
     resolve_surface_authority,
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -73,9 +73,7 @@ def _policy(*, protected: bool) -> ProtectionPolicy:
         (False, False, False),
     ],
 )
-def test_skip_helper_derives_route_to_coord_via_shared_rule(
-    tmp_path: Path, coord_active: bool, protected: bool, expected_skip: bool
-) -> None:
+def test_skip_helper_derives_route_to_coord_via_shared_rule(tmp_path: Path, coord_active: bool, protected: bool, expected_skip: bool) -> None:
     """``_skip_target_branch_commit`` mirrors the shared rule's RouteToCoord verdict.
 
     The lifecycle-kind (STATUS_STATE) under a coord-routing topology with a
@@ -109,7 +107,7 @@ def test_skip_helper_derives_route_to_coord_via_shared_rule(
     assert isinstance(verdict.non_committable, RouteToCoord) is expected_skip
     if expected_skip:
         # RouteToCoord is an exit-0 outcome (the coord commit is authoritative).
-        assert exit_code_for(verdict.non_committable) == 0
+        assert _exit_code_for(verdict.non_committable) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -125,9 +123,7 @@ def test_protected_error_derives_refuse_with_shared_remedy(tmp_path: Path) -> No
     )
 
     with patch.object(_tasks.ProtectionPolicy, "resolve", return_value=_policy(protected=True)):
-        message = _protected_branch_status_commit_error(
-            _PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements"
-        )
+        message = _protected_branch_status_commit_error(_PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements")
 
     assert message is not None
     assert "map-requirements" in message
@@ -144,7 +140,7 @@ def test_protected_error_derives_refuse_with_shared_remedy(tmp_path: Path) -> No
         artifact_kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     assert isinstance(verdict.non_committable, Refuse)
-    assert exit_code_for(verdict.non_committable) == 1
+    assert _exit_code_for(verdict.non_committable) == 1
 
 
 def test_protected_error_none_on_unprotected_primary(tmp_path: Path) -> None:
@@ -155,9 +151,7 @@ def test_protected_error_none_on_unprotected_primary(tmp_path: Path) -> None:
     )
 
     with patch.object(_tasks.ProtectionPolicy, "resolve", return_value=_policy(protected=False)):
-        message = _protected_branch_status_commit_error(
-            _PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements"
-        )
+        message = _protected_branch_status_commit_error(_PRIMARY_BRANCH, tmp_path, "spec-kitty agent tasks map-requirements")
     assert message is None
 
 
@@ -176,13 +170,9 @@ def test_map_requirements_cli_refuses_exit1_on_protected(
     slug = "001-surface-authority"
     mission_dir = repo.repo_root / "kitty-specs" / slug
     (mission_dir / "tasks").mkdir(parents=True)
-    (mission_dir / "meta.json").write_text(
-        json.dumps({"mission_id": "01SURFACEAUTHORITYMISSION0"}), encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_id": "01SURFACEAUTHORITYMISSION0"}), encoding="utf-8")
     (mission_dir / "spec.md").write_text("# Spec\n\n- FR-001: do a thing\n", encoding="utf-8")
-    (mission_dir / "tasks" / "WP01-thing.md").write_text(
-        "---\nwork_package_id: WP01\n---\n# WP01\n", encoding="utf-8"
-    )
+    (mission_dir / "tasks" / "WP01-thing.md").write_text("---\nwork_package_id: WP01\n---\n# WP01\n", encoding="utf-8")
 
     head_before = _head_sha(repo.repo_root)
     runner = CliRunner()
@@ -237,20 +227,20 @@ def test_same_inputs_same_rule_exit_codes_differ_by_kind() -> None:
         artifact_kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     assert isinstance(lifecycle.non_committable, RouteToCoord)
-    assert exit_code_for(lifecycle.non_committable) == 0
+    assert _exit_code_for(lifecycle.non_committable) == 0
     assert isinstance(planning.non_committable, Refuse)
-    assert exit_code_for(planning.non_committable) == 1
+    assert _exit_code_for(planning.non_committable) == 1
 
 
 def test_no_op_exit0_and_wrong_surface_exit1_not_collapsed() -> None:
     """Genuine no-op → exit 0 (typed reason); wrong-surface → Refuse/exit 1 (never collapsed)."""
-    no_op = classify_noncommit_outcome("unchanged", "no_op_no_changes")
-    assert exit_code_for(no_op) == 0
+    no_op = _classify_noncommit_outcome("unchanged", "no_op_no_changes")
+    assert _exit_code_for(no_op) == 0
     assert getattr(no_op, "reason", None) == "no_op_no_changes"
 
-    wrong_surface = classify_noncommit_outcome("no_op_wrong_surface")
+    wrong_surface = _classify_noncommit_outcome("no_op_wrong_surface")
     assert isinstance(wrong_surface, Refuse)
-    assert exit_code_for(wrong_surface) == 1, "wrong-surface must NOT collapse to exit 0"
+    assert _exit_code_for(wrong_surface) == 1, "wrong-surface must NOT collapse to exit 0"
 
 
 # ---------------------------------------------------------------------------
@@ -285,15 +275,9 @@ def test_mark_status_is_frozen_no_commit(
     slug = "001-frozen-no-commit"
     mission_dir = repo.repo_root / "kitty-specs" / slug
     (mission_dir / "tasks").mkdir(parents=True)
-    (mission_dir / "meta.json").write_text(
-        json.dumps({"mission_id": "01FROZENNOCOMMITMISSION000"}), encoding="utf-8"
-    )
-    (mission_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01\nSubtasks: T001\n", encoding="utf-8"
-    )
-    (mission_dir / "tasks" / "WP01-thing.md").write_text(
-        "---\nwork_package_id: WP01\nsubtasks:\n- T001\n---\n# WP01\n", encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_id": "01FROZENNOCOMMITMISSION000"}), encoding="utf-8")
+    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01\nSubtasks: T001\n", encoding="utf-8")
+    (mission_dir / "tasks" / "WP01-thing.md").write_text("---\nwork_package_id: WP01\nsubtasks:\n- T001\n---\n# WP01\n", encoding="utf-8")
 
     from specify_cli.cli.commands.agent.tasks import app
 
@@ -311,9 +295,7 @@ def test_mark_status_is_frozen_no_commit(
             return_value=(repo.repo_root, repo.target_branch),
         ),
         patch(f"{_TASKS}._emit_sparse_session_warning"),
-        patch(
-            "specify_cli.coordination.commit_router.commit_for_mission"
-        ) as router_commit_spy,
+        patch("specify_cli.coordination.commit_router.commit_for_mission") as router_commit_spy,
         patch(f"{_TASKS}.commit_for_mission") as seam_commit_spy,
     ):
         result = runner.invoke(
@@ -335,9 +317,7 @@ def test_mark_status_is_frozen_no_commit(
     router_commit_spy.assert_not_called()
     seam_commit_spy.assert_not_called()
     # (b) HEAD is byte-identical — no commit landed on the protected target.
-    assert _head_sha(repo.repo_root) == head_before, (
-        "event-only mark-status landed a commit on the protected target"
-    )
+    assert _head_sha(repo.repo_root) == head_before, "event-only mark-status landed a commit on the protected target"
     # (c) The event log WAS written — completion is event-sourced, not committed.
     assert events_file.exists(), "mark-status did not append the canonical status event"
     assert events_file.read_text(encoding="utf-8").strip(), "status event log is empty"

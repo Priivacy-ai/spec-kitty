@@ -59,9 +59,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.doctrine]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 _INTERNAL_PACK: Path = _REPO_ROOT / "packs" / "internal"
-_MINIMAL_ORG_PACK_2: Path = (
-    _REPO_ROOT / "tests" / "doctrine" / "fixtures" / "minimal_org_pack_2"
-)
+_MINIMAL_ORG_PACK_2: Path = _REPO_ROOT / "tests" / "doctrine" / "fixtures" / "minimal_org_pack_2"
 
 #: URNs the internal pack contributes (minted ``<singular_kind>:<id>`` from its
 #: plural-kinded fragment nodes). One per declared kind — the class-b coverage.
@@ -88,9 +86,7 @@ def _write_org_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
     ``doctrine.org.packs[]`` shape (``name`` + ``local_path``)."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    entries = "".join(
-        f"      - name: {name}\n        local_path: {path}\n" for name, path in packs
-    )
+    entries = "".join(f"      - name: {name}\n        local_path: {path}\n" for name, path in packs)
     (kittify / "config.yaml").write_text(f"doctrine:\n  org:\n    packs:\n{entries}")
 
 
@@ -113,9 +109,7 @@ def _merge_via_executor_seam(repo_root: Path) -> DRGGraph:
     # Typed local absorbs the ``Any`` mypy sees on the executor's static-method
     # return (facade re-export chain), restoring the concrete type without a
     # suppression (Wave4 strict-quarantine boundary pattern).
-    merged: DRGGraph = StepContractExecutor._load_graph_degrading_malformed_org_pack(
-        repo_root, org_roots=[]
-    )
+    merged: DRGGraph = StepContractExecutor._load_graph_degrading_malformed_org_pack(repo_root, org_roots=[])
     return merged
 
 
@@ -126,9 +120,7 @@ def _merge_via_failloud_apis(repo_root: Path) -> DRGGraph:
     surface as an error rather than being silently degraded away."""
     fragments = load_org_drg(repo_root, strict=False)
     # Typed local absorbs the facade ``Any`` (see :func:`_merge_via_executor_seam`).
-    merged: DRGGraph = load_validated_graph(
-        repo_root, org_roots=[], org_fragments=fragments
-    )
+    merged: DRGGraph = load_validated_graph(repo_root, org_roots=[], org_fragments=fragments)
     return merged
 
 
@@ -157,15 +149,12 @@ def test_class_b_internal_pack_delivers_every_declared_kind(tmp_path: Path) -> N
     for urn in _INTERNAL_DECLARED_URNS.values():
         node = next(n for n in merged.nodes if n.urn == urn)
         assert node.provenance == "org:spec-kitty-internal", (
-            f"{urn} reached the graph but is mis-tiered as {node.provenance!r} "
-            "(F1: an org_roots-seam fix mis-tiers org content as built-in)"
+            f"{urn} reached the graph but is mis-tiered as {node.provenance!r} (F1: an org_roots-seam fix mis-tiers org content as built-in)"
         )
 
     edge_pairs = {(e.source, e.target) for e in merged.edges}
     missing_edges = _INTERNAL_REFINES_EDGES - edge_pairs
-    assert not missing_edges, (
-        f"internal pack refines edges did not reach the consumer: {missing_edges}"
-    )
+    assert not missing_edges, f"internal pack refines edges did not reach the consumer: {missing_edges}"
 
 
 def test_class_b_delivery_matches_failloud_api_path(tmp_path: Path) -> None:
@@ -214,11 +203,7 @@ def test_class_a_second_org_pack_fragment_folds(tmp_path: Path) -> None:
     # Provenance pins it to pack #2 specifically, not "some org node".
     assert marker.provenance == _PACK2_PROVENANCE
 
-    marker_edges = {
-        (e.source, e.target)
-        for e in merged.edges
-        if e.source == _PACK2_MARKER_URN
-    }
+    marker_edges = {(e.source, e.target) for e in merged.edges if e.source == _PACK2_MARKER_URN}
     assert (_PACK2_MARKER_URN, "procedure:red-main-release-discipline") in marker_edges
 
 
@@ -329,14 +314,10 @@ def test_misconfigured_pack_in_chain_fails_loud(
 
     message = str(excinfo.value)
     for fragment in message_fragments:
-        assert fragment in message, (
-            f"{case_id}: {exc_type.__name__} did not name {fragment!r}: {message}"
-        )
+        assert fragment in message, f"{case_id}: {exc_type.__name__} did not name {fragment!r}: {message}"
 
 
-def test_misconfig_raise_is_not_the_graphless_warn(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_misconfig_raise_is_not_the_graphless_warn(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """C-IC5 contrast: a genuinely graphless root (no root ``*.graph.yaml`` and
     no ``drg/fragment.yaml``) is an honest "no graph" case — it WARNS and the
     merged graph still loads. This is the deliberate non-raise the enumerated
@@ -344,14 +325,9 @@ def test_misconfig_raise_is_not_the_graphless_warn(
     graphless = tmp_path / "graphless"
     graphless.mkdir()
 
-    with caplog.at_level(logging.WARNING, logger="charter.activation._drg_helpers"):
-        merged = load_validated_graph(
-            tmp_path, org_roots=[graphless], org_fragments=[]
-        )
+    with caplog.at_level(logging.WARNING, logger="charter._drg_helpers"):
+        merged = load_validated_graph(tmp_path, org_roots=[graphless], org_fragments=[])
 
     # No raise; the built-in layer is still delivered.
     assert merged.nodes
-    assert any(
-        "ships no root-level DRG graph" in record.getMessage()
-        for record in caplog.records
-    ), "graphless root must emit the honest 'no graph' WARNING"
+    assert any("ships no root-level DRG graph" in record.getMessage() for record in caplog.records), "graphless root must emit the honest 'no graph' WARNING"

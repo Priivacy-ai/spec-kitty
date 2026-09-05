@@ -4,46 +4,18 @@ from __future__ import annotations
 
 import json
 import logging
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 from ..api_types import HealthResponse
 from ..charter_path import resolve_project_charter_path, resolve_project_charter_presence
+from ..csp import send_csp_header
 from ..diagnostics import run_diagnostics
 from ..templates import get_dashboard_html_bytes
 from .base import DashboardHandler
-from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_sync_daemon_running, get_sync_daemon_status
 
 __all__ = ["APIHandler"]
 
 logger = logging.getLogger(__name__)
-
-
-def _build_sync_trigger_request(base_url: str, token: str) -> urllib.request.Request:
-    """Build a sync-daemon request for the local loopback daemon only."""
-    parsed = urllib.parse.urlparse(base_url)
-    if parsed.scheme != "http":
-        raise ValueError("sync daemon must use http")
-    if parsed.hostname not in {"127.0.0.1", "localhost"}:
-        raise ValueError("sync daemon must bind to loopback")
-
-    trigger_url = urllib.parse.urlunparse(
-        (
-            parsed.scheme,
-            parsed.netloc,
-            "/api/sync/trigger",
-            "",
-            "",
-            "",
-        )
-    )
-    return urllib.request.Request(
-        trigger_url,
-        data=json.dumps({"token": token}).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
 
 
 class APIHandler(DashboardHandler):
@@ -52,6 +24,7 @@ class APIHandler(DashboardHandler):
     def handle_root(self) -> None:
         """Return the rendered dashboard HTML shell."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
         self.wfile.write(get_dashboard_html_bytes())
@@ -59,6 +32,7 @@ class APIHandler(DashboardHandler):
     def handle_health(self) -> None:
         """Return project health metadata."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "application/json")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
@@ -72,21 +46,6 @@ class APIHandler(DashboardHandler):
             "status": "ok",
             "project_path": project_path,
         }
-
-        try:
-            status = get_sync_daemon_status(timeout=0.2)
-            response_data["sync"] = {
-                "running": status.sync_running,
-                "last_sync": status.last_sync,
-                "consecutive_failures": status.consecutive_failures,
-            }
-            response_data["websocket_status"] = status.websocket_status
-        except Exception as exc:  # pragma: no cover - diagnostic fallback
-            response_data["sync"] = {
-                "running": False,
-                "error": str(exc),
-            }
-            response_data["websocket_status"] = "Offline"
 
         token = getattr(self, "project_token", None)
         if token:
@@ -112,45 +71,6 @@ class APIHandler(DashboardHandler):
         """Delegate to the shared shutdown helper."""
         self._handle_shutdown()
 
-    def handle_sync_trigger(self) -> None:
-        """Ask the machine-global sync daemon to flush soon."""
-        expected_token = getattr(self, "project_token", None)
-        parsed_path = urllib.parse.urlparse(self.path)
-        params = urllib.parse.parse_qs(parsed_path.query)
-        token_values = params.get("token")
-        token = token_values[0] if token_values else None
-
-        if expected_token and token != expected_token:
-            self._send_json(403, {"error": "invalid_token"})
-            return
-
-        try:
-            # Explicit "sync now" endpoint — remote sync is the caller's intent.
-            outcome: DaemonStartOutcome = ensure_sync_daemon_running(
-                intent=DaemonIntent.REMOTE_REQUIRED
-            )
-            if not outcome.started:
-                reason = outcome.skipped_reason or "unknown"
-                if reason in {"rollout_disabled", "policy_manual"}:
-                    logger.info("Sync daemon not started: %s", reason)
-                    self._send_json(202, {"status": "skipped", "manual_mode": True, "reason": reason})
-                    return
-                self._send_json(503, {"error": "sync_daemon_unavailable", "reason": reason})
-                return
-            status = get_sync_daemon_status(timeout=0.2)
-            if not status.healthy or not status.url or not status.token:
-                self._send_json(503, {"error": "sync_daemon_unavailable"})
-                return
-            request = _build_sync_trigger_request(status.url, status.token)
-            with urllib.request.urlopen(request, timeout=0.5) as response:  # nosec B310 — URL is localhost daemon endpoint, scheme is always http://127.0.0.1
-                if response.status not in {200, 202}:
-                    self._send_json(500, {"error": "sync_trigger_failed", "status": response.status})
-                    return
-            self._send_json(202, {"status": "scheduled"})
-        except Exception:  # pragma: no cover - defensive fallback
-            logger.exception("Dashboard sync trigger failed")
-            self._send_json(500, {"error": "sync_trigger_failed"})
-
     def handle_diagnostics(self) -> None:
         """Run diagnostics and report JSON payloads (or errors)."""
         try:
@@ -163,6 +83,7 @@ class APIHandler(DashboardHandler):
             feature_dir: Path | None = None
             diagnostics = run_diagnostics(project_path, feature_dir=feature_dir)
             self.send_response(200)
+            send_csp_header(self)
             self.send_header("Content-type", "application/json")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
@@ -188,6 +109,7 @@ class APIHandler(DashboardHandler):
 
             if resolve_project_charter_presence(project_dir) is None:
                 self.send_response(404)
+                send_csp_header(self)
                 self.send_header("Content-type", "text/plain")
                 self.end_headers()
                 self.wfile.write(b"Charter not found")
@@ -200,6 +122,7 @@ class APIHandler(DashboardHandler):
                 # charter.md prose companion to serve -- distinct from "no
                 # charter" (C-001: presence and body are separate signals).
                 self.send_response(200)
+                send_csp_header(self)
                 self.send_header("Content-type", "text/plain; charset=utf-8")
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
@@ -208,6 +131,7 @@ class APIHandler(DashboardHandler):
 
             content = charter_path.read_text(encoding="utf-8")
             self.send_response(200)
+            send_csp_header(self)
             self.send_header("Content-type", "text/plain; charset=utf-8")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
@@ -215,6 +139,7 @@ class APIHandler(DashboardHandler):
         except Exception:  # pragma: no cover - fallback safety
             logger.exception("Dashboard charter load failed")
             self.send_response(500)
+            send_csp_header(self)
             self.send_header("Content-type", "text/plain; charset=utf-8")
             self.end_headers()
             self.wfile.write(b"Error loading charter")
@@ -239,6 +164,7 @@ class APIHandler(DashboardHandler):
         mission_slug = query.get("feature", [None])[0]
         if not mission_slug:
             self.send_response(400)
+            send_csp_header(self)
             self.send_header("Content-type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Missing feature parameter"}).encode())
@@ -272,6 +198,7 @@ class APIHandler(DashboardHandler):
                 response = handler.handle_dossier_snapshot_export(mission_slug)
             else:
                 self.send_response(404)
+                send_csp_header(self)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": "Dossier endpoint not found"}).encode())
@@ -281,12 +208,14 @@ class APIHandler(DashboardHandler):
             if isinstance(response, dict) and "error" in response:
                 status_code = response.get("status_code", 500)
                 self.send_response(status_code)
+                send_csp_header(self)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(response).encode())
             else:
                 # Success response
                 self.send_response(200)
+                send_csp_header(self)
                 self.send_header("Content-type", "application/json")
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()

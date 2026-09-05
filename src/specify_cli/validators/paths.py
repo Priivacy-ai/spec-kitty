@@ -14,6 +14,7 @@ __all__ = [
     "PathValidationError",
     "PathValidationResult",
     "artifact_tokens_for_mission",
+    "normalize_path_token",
     "suggest_directory_creation",
     "validate_mission_paths",
 ]
@@ -36,7 +37,7 @@ class PathValidationResult:
     required_paths: dict[str, str]
     existing_paths: list[str] = field(default_factory=list)
     missing_paths: list[str] = field(default_factory=list)
-    #: Normalized artifact tokens (via ``_normalize_path_token``) for every
+    #: Normalized artifact tokens (via ``normalize_path_token``) for every
     #: missing path that is ALSO a declared mission artifact (resolved on the
     #: mission's primary surface, see ``is_artifact_tagged`` below) — the FR-002
     #: dedup input consumed by ``summary_core.evaluate_path_conventions``. A
@@ -147,7 +148,7 @@ def _prefix_required_path(path_prefix: str | Path | None, relative_path: str) ->
     return joined.as_posix()
 
 
-def _normalize_path_token(token: str) -> str:
+def normalize_path_token(token: str) -> str:
     """Normalise a path/artifact token for membership comparison (strip slashes)."""
     return str(token).strip().strip("/")
 
@@ -162,7 +163,7 @@ def artifact_tokens_for_mission(mission: Mission) -> set[str]:
     artifacts = getattr(mission.config, "artifacts", None)
     required = getattr(artifacts, "required", ()) or ()
     optional = getattr(artifacts, "optional", ()) or ()
-    return {_normalize_path_token(name) for name in (*required, *optional)}
+    return {normalize_path_token(name) for name in (*required, *optional)}
 
 
 def _remap_declared_paths(
@@ -209,7 +210,7 @@ def _drop_overrides_colliding_with_artifacts(
     for key, value in path_overrides.items():
         if key not in declared:
             continue
-        if _normalize_path_token(value) in artifact_tokens:
+        if normalize_path_token(value) in artifact_tokens:
             warnings.warn(
                 f"project.path_conventions override for {key!r} ({value!r}) collides with a mission "
                 "artifact token and was ignored to avoid flipping path-resolution routing.",
@@ -285,7 +286,7 @@ def validate_mission_paths(
         is_artifact_tagged = False
         if candidate.is_absolute():
             full_path = candidate
-        elif _normalize_path_token(declared[key]) in artifact_tokens:
+        elif normalize_path_token(declared[key]) in artifact_tokens:
             # Mission artifact → resolve on the mission's primary surface.
             full_path = feature_dir / candidate  # type: ignore[operator]
             is_artifact_tagged = True
@@ -314,7 +315,7 @@ def validate_mission_paths(
             # declared mission artifact, so the sole consumer's artifact_tokens
             # membership filter could never let it through (see the field's
             # docstring above).
-            result.missing_artifact_tokens.append(_normalize_path_token(relative_path))
+            result.missing_artifact_tokens.append(normalize_path_token(relative_path))
 
     if result.missing_paths:
         result.suggestions = suggest_directory_creation(result.missing_paths)

@@ -1,6 +1,0 @@
-=========================== short test summary info ============================
-FAILED tests/perf/test_tasks_status_baseline.py::test_tasks_status_p95_within_nfr005_budget - assert False, budget exceeded
-28.10s call     tests/perf/test_tasks_status_baseline.py::test_tasks_status_p95_within_nfr005_budget
-0.01s setup    tests/perf/test_tasks_status_baseline.py::test_tasks_status_p95_within_nfr005_budget
-===================== 1 failed in 29.30s ======================
-# suite: test_tasks_status_p95_within_nfr005_budget

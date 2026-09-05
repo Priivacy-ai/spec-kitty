@@ -21,7 +21,7 @@ reach-through-ed, undoored doctrine path therefore fails CI (FR-002 / SC-002).
 Census numbers, re-measured on this tip (post WP05–WP07 migration) via
 ``reached_doctrine_paths()`` — the same live scan the gate runs on every invocation:
 
-* module-level direct ``from doctrine …`` imports (``ImportFrom.level == 0``): **0**
+* module-level direct ``from charter.offering …`` imports (``ImportFrom.level == 0``): **0**
 * lazy (function-body) direct doctrine imports: **4 files / 5 reaches**
 * ``if TYPE_CHECKING:`` doctrine imports (excluded from the reach-through set): 11 files
 * distinct doctrine module-paths reached (non-TYPE_CHECKING): **4**
@@ -71,7 +71,7 @@ EXEMPT_MANAGEMENT_SURFACE: frozenset[str] = frozenset({"src/specify_cli/doctrine
 
 #: The full disposition taxonomy (data-model.md "Taxonomy (value set)" + the two
 #: census-only tags: TICKETED-BASELINE for doorless management internals, and
-#: INTERNAL-METADATA for ``import doctrine`` path/metadata introspection).
+#: INTERNAL-METADATA for ``import charter.offering`` path/metadata introspection).
 TAXONOMY: frozenset[str] = frozenset(
     {
         "PUBLIC",
@@ -151,7 +151,7 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.pack_paths": "FACADE-ONLY",
     # sole-door service construction (routed through charter builder, IC-05)
     "charter.offering.service": "CONSTRUCTION-ROUTED",
-    # bare ``import doctrine`` — path/metadata introspection (doctrine.__file__)
+    # bare ``import charter.offering`` — path/metadata introspection (charter.offering.__file__)
     # in tool_surface/bundles/codex.py. Not a symbol import; FR-006 exempt.
     "doctrine": "INTERNAL-METADATA",
 }
@@ -255,7 +255,7 @@ def _is_exempt(path: Path) -> bool:
 def reached_doctrine_paths() -> dict[str, set[str]]:
     """Map each non-exempt runtime file → the set of doctrine module-paths it reaches.
 
-    Reach = a direct ``from doctrine…`` / ``import doctrine`` with
+    Reach = a direct ``from charter.offering…`` / ``import charter.offering`` with
     ``ImportFrom.level == 0``, at module level *or* inside a function body,
     excluding ``if TYPE_CHECKING:`` blocks. Files that reach nothing are omitted.
     Public so WP04's ratchet baseline can consume the identical census.
@@ -388,9 +388,9 @@ def test_injected_undoored_path_is_flagged() -> None:
 
     Proves the census gate would fail on a real regression without mutating the tree.
     """
-    reached = {"charter.offering.artifact_kinds", "doctrine.brand_new_undoored_module"}
+    reached = {"charter.offering.artifact_kinds", "charter.offering.brand_new_undoored_module"}
     flagged = undoored_paths(reached, DISPOSITION)
-    assert flagged == {"doctrine.brand_new_undoored_module"}
+    assert flagged == {"charter.offering.brand_new_undoored_module"}
     # And the real, fully-classified reached set must flag nothing.
     real = set().union(*reached_doctrine_paths().values())
     assert undoored_paths(real, DISPOSITION) == set()

@@ -380,9 +380,9 @@ def _safe_load_yaml(path: Path) -> dict[str, object] | None:
 
 #: The only ``schema_version`` major series this build's bundle contract
 #: understands. Mirrors ``charter.bundle.SCHEMA_VERSION`` ("2.0.0") and
-#: ``charter.activation.schemas.CharterYaml.schema_version``'s default/pattern — NOT
+#: ``charter.schemas.CharterYaml.schema_version``'s default/pattern — NOT
 #: imported (same mirror-not-import discipline as ``_LEGACY_BUNDLE_FILENAMES``
-#: above) to keep this module's hot import path off the ``charter.activation.schemas``
+#: above) to keep this module's hot import path off the ``charter.schemas``
 #: pydantic graph (NFR-003).
 _SUPPORTED_CHARTER_SCHEMA_MAJOR = "2"
 _SCHEMA_VERSION_PATTERN = re.compile(r"^(\d+)\.\d+\.\d+$")
@@ -397,12 +397,12 @@ def _is_supported_charter_bundle(data: dict[str, object]) -> bool:
     ``{}`` (no content at all) and a ``schema_version`` this build's bundle
     contract does not understand (a pre-inversion ``"1.0.0"`` charter, or a
     future major bump this install predates). Both parse cleanly as YAML
-    but are not a charter bundle ``charter.activation.schemas.CharterYaml`` (the actual
+    but are not a charter bundle ``charter.schemas.CharterYaml`` (the actual
     round-trip contract every writer targets) or any other real consumer
     would accept — so preflight must not report them ``fresh``. This is a
     deliberately MINIMAL gate (non-empty mapping + a supported
     ``schema_version``), not full pydantic validation: the full ``CharterYaml``
-    model is a heavier, write-side concern (``charter.activation.compiler``) this
+    model is a heavier, write-side concern (``charter.compiler``) this
     read-side freshness check does not import (NFR-003), and every field it
     would additionally require (``catalog``, etc.) is already covered by
     other consumers failing loudly at their own read time — this check's

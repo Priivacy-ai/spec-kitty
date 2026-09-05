@@ -196,7 +196,7 @@ def test_journey2_apply_minimal_without_compile_still_falls_back_not_router_no_m
     config_path = tmp_path / ".kittify" / "config.yaml"
     written = YAML(typ="safe").load(config_path.read_text(encoding="utf-8"))
     # Fixture-realism guard: the real `minimal` pack declares no
-    # `activated_agent_profiles` key at all (src/charter/packs/minimal.yaml) --
+    # `activated_agent_profiles` key at all (src/charter/activation/packs/minimal.yaml) --
     # confirm the produced config carries no such key, so this scenario truly
     # exercises the three-state `None` (not a stand-in `frozenset()`).
     assert "activated_agent_profiles" not in written

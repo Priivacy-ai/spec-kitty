@@ -65,10 +65,7 @@ def _stable_cycle_facts(*, reverse: bool) -> tuple[bytes, LaneDependencyCycleErr
     facts = {
         "error_code": error.error_code,
         "cycle_path": error.cycle_path,
-        "cycle_lanes": [
-            {"lane_id": lane.lane_id, "wp_ids": lane.wp_ids}
-            for lane in error.cycle_lanes
-        ],
+        "cycle_lanes": [{"lane_id": lane.lane_id, "wp_ids": lane.wp_ids} for lane in error.cycle_lanes],
     }
     return (
         json.dumps(facts, sort_keys=True, separators=(",", ":")).encode("utf-8"),
@@ -82,7 +79,7 @@ def test_equivalent_multi_cycle_inputs_have_byte_identical_diagnostics() -> None
     captures.extend(_stable_cycle_facts(reverse=False) for _ in range(5))
 
     serialized = [capture[0] for capture in captures]
-    assert len(set(serialized)) == 1
+    assert set(serialized) == {serialized[0]}
 
     error = captures[0][1]
     assert error.error_code == "LANE_DEPENDENCY_CYCLE"
@@ -91,12 +88,7 @@ def test_equivalent_multi_cycle_inputs_have_byte_identical_diagnostics() -> None
     assert error.cycle_path[0] == min(error.cycle_path[:-1])
 
     expected_edges = {"lane-a": {"lane-b"}, "lane-b": {"lane-a"}}
-    assert all(
-        downstream in expected_edges[upstream]
-        for upstream, downstream in zip(
-            error.cycle_path, error.cycle_path[1:], strict=False
-        )
-    )
+    assert all(downstream in expected_edges[upstream] for upstream, downstream in zip(error.cycle_path, error.cycle_path[1:], strict=False))
     assert tuple(lane.lane_id for lane in error.cycle_lanes) == error.cycle_path[:-1]
     assert len(error.cycle_lanes) == len(set(error.cycle_path[:-1]))
     assert all(lane.wp_ids == tuple(sorted(lane.wp_ids)) for lane in error.cycle_lanes)

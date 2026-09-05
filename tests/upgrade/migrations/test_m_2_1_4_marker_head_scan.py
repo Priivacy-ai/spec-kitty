@@ -190,7 +190,8 @@ def test_apply_rewrites_preexisting_read_only_command_file(tmp_path: Path) -> No
 
     with (
         patch(
-            "specify_cli.upgrade.migrations.m_2_1_4_enforce_command_file_state._get_runtime_command_templates_dir",
+            "specify_cli.upgrade.migrations.m_2_1_4_enforce_command_file_state"
+            "._get_runtime_command_templates_dir",
             return_value=templates_dir,
         ),
         patch(

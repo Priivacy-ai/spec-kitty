@@ -65,7 +65,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 #: today's implementation.
 _CANONICAL_MODULE = (_SRC / "doctrine" / "drg" / "migration" / "extractor.py").resolve()
 
-#: All five of ``DRGGraph``'s declared fields (``src/doctrine/drg/models.py``).
+#: All five of ``DRGGraph``'s declared fields (``src/charter/offering/drg/models.py``).
 #: See the module docstring's "Precision-vs-recall scoping note" for why this
 #: is the full 5-key set rather than a 3-key subset.
 _DOCUMENT_KEYS: frozenset[str] = frozenset(

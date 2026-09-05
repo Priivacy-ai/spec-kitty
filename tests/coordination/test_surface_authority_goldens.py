@@ -140,16 +140,8 @@ def test_row3_mark_status_is_event_log_only_no_commit() -> None:
     assert src_path is not None
     tree = ast.parse(Path(src_path).read_text(encoding="utf-8"))
 
-    do_mark = next(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef) and node.name == "_do_mark_status"
-    )
-    called = {
-        n.func.id
-        for n in ast.walk(do_mark)
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-    }
+    do_mark = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "_do_mark_status")
+    called = {n.func.id for n in ast.walk(do_mark) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
     # The mark-status flow must NOT reach the (dead compat-shim) commit path.
     assert "_ms_commit" not in called, "mark-status re-acquired a commit path (regression #2816)"
     assert LEDGER_GOLDEN["mark_status_coord_protected"]["verdict"] == "no_commit"

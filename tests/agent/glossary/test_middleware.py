@@ -245,7 +245,6 @@ class TestMiddlewareIntegration:
         confidences = [t.confidence for t in result.extracted_terms]
         assert confidences[0] == 1.0  # Highest confidence first
 
-    @pytest.mark.performance
     def test_performance_within_budget(self):
         """Middleware completes within performance budget (<100ms)."""
         import time

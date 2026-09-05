@@ -1,4 +1,4 @@
-"""Tests for src/charter/synthesizer/validation_gate.py (T022).
+"""Tests for src/charter/activation/synthesizer/validation_gate.py (T022).
 
 Covers:
 - Accept valid overlay (merged graph passes validate_graph).
@@ -258,7 +258,6 @@ class TestRejectCycleInRequires:
 # 6. NFR-004: fail-closed within 5 seconds
 # ---------------------------------------------------------------------------
 
-@pytest.mark.performance
 class TestFailClosedTiming:
     """NFR-004: validation failure detected and raised within 5 seconds."""
 

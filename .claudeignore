@@ -56,5 +56,3 @@ desktop.ini
 *.log
 *.db
 *.sqlite
-
-.kittify/.kitty.env

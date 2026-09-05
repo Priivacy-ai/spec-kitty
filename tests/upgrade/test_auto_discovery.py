@@ -239,7 +239,6 @@ class TestAutoDiscoveryIntegration:
         # Should have many migrations
         assert len(applicable) > 20, "Should have discovered many migrations"
 
-    @pytest.mark.performance
     def test_auto_discovery_performance(self):
         """Auto-discovery completes quickly (< 1 second)."""
         import time

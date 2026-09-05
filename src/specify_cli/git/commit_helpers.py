@@ -67,7 +67,7 @@ capability, not a message convention.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import WORKTREES_DIR
 import contextlib
 import logging
 import subprocess
@@ -80,7 +80,6 @@ from typing import Any
 from mission_runtime import CommitTarget
 from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
-from kernel.clock import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from kernel.git_topology import (
     GitTopologyError,
@@ -277,12 +276,22 @@ class ProtectedBranchRefused(SafeCommitError):
         commit_message: str,
     ) -> None:
         message = (
+            # planning#261 (squad MINOR on #258): safe_commit takes no
+            # mission_slug and is called from mission-agnostic sites
+            # (core/mission_creation.py, git/bookkeeping_commit.py,
+            # invocation/executor.py, cli/commands/next_cmd.py,
+            # events/decision_log.py, cli/commands/safe_commit_cmd.py) as well
+            # as from mission-aware ones, so this message states only what
+            # safe_commit itself knows -- destination_ref is protected --
+            # instead of asserting a mission cause or a mission-lifecycle
+            # remedy. The mission-aware caller that has mission_slug in scope
+            # (coordination/commit_router.py) builds its own diagnostic with
+            # the finalize-tasks/mission-create remedy.
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"Start a non-protected feature branch and commit there "
-            f"('spec-kitty agent mission create --start-branch <feature-branch>', or "
-            f"check out an existing feature branch). Planning artifacts must land "
-            f"on a feature branch, or land via the mission lane worktree."
+            f"Retry against a non-protected feature branch, or set "
+            f"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 if you own this "
+            f"branch."
         )
         super().__init__(
             message,
@@ -887,37 +896,6 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str |
     return sha, commit_result.stdout, commit_result.stderr
 
 
-def _derive_mission_id(paths: list[str]) -> str:
-    """Extract the mission slug from the first path under ``kitty-specs/``.
-
-    For example, ``kitty-specs/my-mission-01KT119Y/file.jsonl`` → ``my-mission-01KT119Y``.
-    Returns ``""`` if extraction fails.
-    """
-    for p in paths:
-        parts = Path(p).parts
-        for i, part in enumerate(parts):
-            if part == KITTY_SPECS_DIR and i + 1 < len(parts):
-                return parts[i + 1]
-    return ""
-
-
-def _get_current_build_id(repo_root: Path) -> str:
-    """Return the session-level build_id if available; fall back to ``generate_build_id()``.
-
-    Reads the project identity from ``.kittify/config.yaml`` (stored by
-    ``spec-kitty init``).  Falls back to a fresh UUID4 if none is found so each
-    commit gets a unique build_id that groups correctly at the SaaS level.
-    """
-    try:
-        from specify_cli.identity.project import generate_build_id, load_identity  # noqa: PLC0415
-
-        config_path = repo_root / ".kittify" / "config.yaml"
-        identity = load_identity(config_path)
-        if identity.build_id:
-            return str(identity.build_id)
-        return str(generate_build_id())
-    except Exception:  # noqa: BLE001
-        return str(uuid.uuid4())
 
 
 def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms readability
@@ -1007,6 +985,8 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             safe_commit could not capture recovery state before mutating.
         RuntimeError: a low-level ``git add`` or ``git commit`` failed.
     """
+    # Compatibility-only routing hint after retirement of the ambient sync emitter.
+    del effective_root
     # 0. Compat shim: accept either ``target`` (preferred) or the legacy
     #    ``destination_ref`` string. The CommitTarget's ``ref`` is the single
     #    destination authority; ``destination_ref`` mirrors it below so callers
@@ -1239,25 +1219,6 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         raise backstop_error
 
     assert new_sha is not None  # type narrow: commit_created => new_sha set
-
-    # Emit a LocalCommit frame for any paths under kitty-specs/ (FR-010–FR-017).
-    # This is fire-and-forget: failures are logged and swallowed so a notification
-    # failure never aborts a successful commit.
-    mission_specs_files = [str(Path(p).relative_to(worktree_root)) if Path(p).is_absolute() else str(p) for p in paths if KITTY_SPECS_DIR in Path(p).parts]
-    if mission_specs_files:
-        try:
-            from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
-
-            emit_local_commit(
-                repo_root=effective_root or repo_root,
-                git_hash=new_sha,
-                mission_id=_derive_mission_id(mission_specs_files),
-                build_id=_get_current_build_id(effective_root or repo_root),
-                changed_files=mission_specs_files,
-                committed_at=now_utc_iso(),
-            )
-        except Exception:  # noqa: BLE001
-            logger.warning("emit_local_commit failed after safe_commit; commit succeeded", exc_info=True)
 
     return CommitResult(
         sha=new_sha,

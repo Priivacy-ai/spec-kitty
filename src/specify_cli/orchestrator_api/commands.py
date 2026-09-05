@@ -19,7 +19,6 @@ Error codes used:
                                  resolved (D11 fail-closed; FR-004 -- never a
                                  silent current-branch fallback)
   SAFE_COMMIT_*               -- structured safe_commit refusal/failure
-  WORKFLOW_EVIDENCE_REQUIRED  -- workflow files changed without runner proof
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
@@ -151,62 +150,80 @@ import click
 from typer import core as typer_core
 from typer.core import TyperGroup
 
-# Typer 0.26+ vendors click as typer._click; exceptions from that module are
-# distinct from the standalone click package's exceptions. We need to catch both
-# so that _JSONErrorGroup works regardless of the installed typer version.
-try:
-    from typer import _click as _typer_click_module  # type: ignore[attr-defined]
-    # typer 0.27.2 (2026-08-28) restructured ``typer._click.exceptions`` so
-    # ``Abort`` (and potentially ``UsageError``) is no longer re-exported there —
-    # accessing it raises ``AttributeError``, NOT ``ImportError``. Resolve each
-    # symbol defensively so a future typer reshuffle degrades to click-only
-    # instead of crashing every CLI invocation at import time.
-    _typer_exceptions = _typer_click_module.exceptions
-    _CLICK_USAGE_ERRORS: tuple[type, ...] = tuple(
-        exc
-        for exc in (click.UsageError, getattr(_typer_exceptions, "UsageError", None))
-        if exc is not None
-    )
-    _CLICK_ABORTS: tuple[type, ...] = tuple(
-        exc
-        for exc in (click.Abort, getattr(_typer_exceptions, "Abort", None))
-        if exc is not None
-    )
-except (ImportError, AttributeError):
-    _CLICK_USAGE_ERRORS = (click.UsageError,)
-    _CLICK_ABORTS = (click.Abort,)
+# Typer 0.26+ vendors click as ``typer._click``; exceptions raised by that copy
+# are distinct classes from the standalone ``click`` package's, so every catch
+# below must name both.  The vendored module's surface is itself a moving
+# target: 0.26.x exposed ``exceptions.Abort``/``exceptions.Exit``, while 0.27.x
+# exposes only ``exceptions.UsageError`` and raises typer's own public
+# ``typer.Abort``/``typer.Exit`` instead (spec-kitty#713).  Every class is
+# therefore resolved with ``getattr`` and a ``None`` default — never as an
+# eagerly evaluated default expression such as ``getattr(m, "Abort",
+# m.exceptions.Abort)``, which raised ``AttributeError`` at import time — and
+# typer's stable public ``typer.Abort``/``typer.Exit`` are always included.
 
 
-_CLICK = typer_core._click if hasattr(typer_core, "_click") else typer_core.click
+def _vendored_click_exception(name: str) -> type[BaseException] | None:
+    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
 
-
-def _resolve_click_exc(name: str) -> type:
-    """Resolve a click/typer exception class robustly across typer versions.
-
-    typer 0.27.2 (2026-08-28) dropped ``Abort``/``Exit`` from
-    ``typer._click.exceptions``, so the previous
-    ``getattr(_CLICK, name, _CLICK.exceptions.<name>)`` form crashed at import
-    (the eager default raised ``AttributeError``). Search the vendored module,
-    its ``exceptions`` submodule, the ``typer`` top level, and finally the
-    standalone ``click`` package / its ``exceptions`` so a symbol relocation
-    degrades gracefully instead of breaking every CLI invocation.
+    Looks in the vendored ``exceptions`` submodule first, then the package
+    root, and never touches an attribute it has not confirmed exists.
     """
-    for holder in (
-        _CLICK,
-        getattr(_CLICK, "exceptions", None),
-        typer,
-        click,
-        click.exceptions,
-    ):
-        symbol = getattr(holder, name, None) if holder is not None else None
-        if symbol is not None:
-            return symbol
-    raise AttributeError(f"Cannot resolve click exception class {name!r}")
+    module = getattr(typer_core, "_click", None)
+    if module is None:
+        return None
+    for holder in (getattr(module, "exceptions", None), module):
+        candidate = getattr(holder, name, None) if holder is not None else None
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            return candidate
+    return None
 
 
-_USAGE_ERROR = _resolve_click_exc("UsageError")
-_ABORT = _resolve_click_exc("Abort")
-_EXIT = _resolve_click_exc("Exit")
+def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
+    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
+    classes: list[type[BaseException]] = []
+    for candidate in candidates:
+        if candidate is not None and candidate not in classes:
+            classes.append(candidate)
+    return tuple(classes)
+
+
+_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
+_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
+# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
+# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
+_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
+
+
+def _vendored_click_exception(name: str) -> type[BaseException] | None:
+    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
+
+    Looks in the vendored ``exceptions`` submodule first, then the package
+    root, and never touches an attribute it has not confirmed exists.
+    """
+    module = getattr(typer_core, "_click", None)
+    if module is None:
+        return None
+    for holder in (getattr(module, "exceptions", None), module):
+        candidate = getattr(holder, name, None) if holder is not None else None
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            return candidate
+    return None
+
+
+def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
+    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
+    classes: list[type[BaseException]] = []
+    for candidate in candidates:
+        if candidate is not None and candidate not in classes:
+            classes.append(candidate)
+    return tuple(classes)
+
+
+_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
+_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
+# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
+# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
+_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
 
 
 class _JSONErrorGroup(TyperGroup):
@@ -585,9 +602,7 @@ def _planning_read_dir(main_repo_root: Path, mission_slug: str) -> Path:
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    return placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    return placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
 
 def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
@@ -732,9 +747,7 @@ def _execute_planning_only_merge(
                 assume_yes=True,
             )
     except typer.Exit as exc:
-        raise RuntimeError(
-            f"Planning-artifact closeout failed with exit code {exc.exit_code}"
-        ) from exc
+        raise RuntimeError(f"Planning-artifact closeout failed with exit code {exc.exit_code}") from exc
 
 
 def _resolve_lane_merge_retention(
@@ -1085,10 +1098,7 @@ def list_ready(
     snapshot = reduce(read_events(mission_dir))
     dep_graph = build_dependency_graph(_planning_read_dir(main_repo_root, mission))
     wp_states = snapshot.work_packages
-    wp_lanes = {
-        dep_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
-        for dep_id, state in wp_states.items()
-    }
+    wp_lanes = {dep_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane for dep_id, state in wp_states.items()}
 
     ready_wps = []
     for wp_id, deps in dep_graph.items():
@@ -1226,15 +1236,11 @@ def _lane_assignment_or_legacy(
     manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
     lane = manifest.lane_for_wp(wp) if manifest is not None else None
     if manifest is None or lane is None:
-        return _StartWorkspace(
-            workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp))
-        )
+        return _StartWorkspace(workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp)))
     return manifest, lane
 
 
-def _resolve_start_workspace(
-    cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str
-) -> _StartWorkspace:
+def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace:
     """Resolve (allocating if needed) the workspace for ``wp``.
 
     When the mission has a lanes manifest and ``wp`` is assigned to a lane, this
@@ -1313,9 +1319,7 @@ def _resolve_start_workspace(
     )
 
 
-def _resolve_existing_workspace(
-    main_repo_root: Path, mission: str, wp: str
-) -> _StartWorkspace:
+def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> _StartWorkspace:
     """Read-only companion of :func:`_resolve_start_workspace` (#2337).
 
     Resolves the WP's lane ``workspace_path`` + ``lane_branch`` for its EXISTING
@@ -1444,10 +1448,7 @@ def start_implementation(
             _fail(
                 cmd,
                 "DEPENDENCIES_NOT_SATISFIED",
-                (
-                    f"dependencies_not_satisfied: {wp} depends on {blocked}; "
-                    "all dependencies must be approved or done before implementation can start"
-                ),
+                (f"dependencies_not_satisfied: {wp} depends on {blocked}; all dependencies must be approved or done before implementation can start"),
                 {
                     **_mission_identity_payload(mission_dir),
                     "wp_id": wp,
@@ -1484,7 +1485,6 @@ def start_implementation(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1578,7 +1578,6 @@ def start_review(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1617,9 +1616,7 @@ def start_review(
 # ── Command 6: transition ──────────────────────────────────────────────────
 
 
-def _enforce_for_review_commit_gate(
-    cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str, force: bool
-) -> None:
+def _enforce_for_review_commit_gate(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str, force: bool) -> None:
     """Reject an in_progress->for_review transition that has no commit on the lane.
 
     Thin orchestrator adapter over the shared, surface-neutral gate leaf
@@ -1761,7 +1758,6 @@ def transition(
                 policy_metadata=policy_dict,
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
@@ -1786,9 +1782,7 @@ def transition(
 # ── Command 7: append-history ──────────────────────────────────────────────
 
 
-def _resolve_history_commit_args(
-    main_repo_root: Path, mission: str
-) -> tuple[Path, CommitTarget]:
+def _resolve_history_commit_args(main_repo_root: Path, mission: str) -> tuple[Path, CommitTarget]:
     """Resolve (worktree_root, target) for committing a WP prompt-file edit.
 
     The WP prompt file is a ``WORK_PACKAGE_TASK`` — a PRIMARY artifact kind
@@ -1818,9 +1812,7 @@ def _resolve_history_commit_args(
         # WORK_PACKAGE_TASK is a primary kind: the placement resolves to the
         # primary target branch for every topology (no coord transit). The WP
         # prompt edit therefore commits directly to the primary checkout.
-        placement = resolve_placement_only(
-            main_repo_root, mission, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+        placement = resolve_placement_only(main_repo_root, mission, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     except ActionContextError as exc:
         raise PlacementResolutionRequired(
             "Cannot resolve the canonical write placement for this mission's "
@@ -1948,8 +1940,7 @@ def accept_mission(
     incomplete = [
         wp_id
         for wp_id in sorted(all_wp_ids)
-        if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane
-        not in {Lane.APPROVED, Lane.DONE}
+        if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane not in {Lane.APPROVED, Lane.DONE}
     ]
     if incomplete:
         _fail(
@@ -1964,6 +1955,7 @@ def accept_mission(
         return
 
     from specify_cli.acceptance import collect_feature_summary
+    from specify_cli.config.path_conventions import PathConventionsConfigError
     from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 
     try:
@@ -1976,21 +1968,17 @@ def accept_mission(
         # the message field (keeping the orchestrator JSON envelope contract).
         _fail(cmd, "MISSION_NOT_READY", str(exc), _mission_identity_payload(mission_dir))
         return
-    workflow_evidence_issues = [
-        issue for issue in summary.activity_issues if issue.startswith("Workflow run evidence required:")
-    ]
-    if workflow_evidence_issues:
+    except PathConventionsConfigError as exc:
         _fail(
             cmd,
-            "WORKFLOW_EVIDENCE_REQUIRED",
-            workflow_evidence_issues[0],
+            "MISSION_NOT_READY",
+            str(exc),
             {
+                "message": str(exc),
                 **_mission_identity_payload(mission_dir),
-                "required_evidence_path": str(mission_dir / "workflow-evidence.md"),
             },
         )
         return
-
     # Write acceptance record via centralized metadata writer
     from specify_cli.mission_metadata import record_acceptance
 

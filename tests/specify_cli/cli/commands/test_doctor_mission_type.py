@@ -578,7 +578,6 @@ def _build_200_mission_type_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.mark.performance
 def test_nfr_004_timing_200_missions() -> None:
     """audit_mission_types must complete in < 2 seconds for a synthetic
     200-mission repo (NFR-004)."""

@@ -13,7 +13,7 @@ activation sets (``activated_directives``, ``activated_tactics``,
 project would silently expose every doctrine artifact indiscriminately.
 
 This migration writes the default activation values from
-``src/charter/packs/default.yaml`` into ``config.yaml`` for projects that
+``src/charter/activation/packs/default.yaml`` into ``config.yaml`` for projects that
 lack any of the above keys.  Only absent keys are written; any key that is
 already present (even with an empty list) is left untouched.
 

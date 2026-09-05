@@ -283,7 +283,6 @@ def test_promote_mid_replace_failure_no_manifest(tmp_path: Path) -> None:
     assert not manifest_path.exists(), "Manifest must not be written on partial promote"
 
 
-@pytest.mark.performance
 def test_promote_fail_closed_timing(tmp_path: Path) -> None:
     """Fail-closed path (validation failure) completes in under 5 seconds (NFR-004)."""
     repo = _make_repo_root(tmp_path)

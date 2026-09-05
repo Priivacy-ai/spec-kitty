@@ -342,6 +342,7 @@ def _composition_dispatch_inputs(
     patches it), so it is a plain internal helper re-exported into the
     residual (``decide_next_via_runtime`` still calls it bare) — no native
     delegate needed.
+
     """
     try:
         from charter.activation.mission_type_profiles import (  # noqa: PLC0415
@@ -496,7 +497,8 @@ def _check_composed_action_guard(
     T022; relocated here #2531 WP08). On this tolerant composed extension path
     an :class:`~runtime_bridge_cores.UnregisteredMissionFamilyError` is caught,
     logged at WARNING, and degraded to an explicit neutral (empty) result —
-    unlike the legacy CLI path (``_check_cli_guards``), which lets it raise.
+    matching the legacy CLI path (``_check_cli_guards``), which also catches
+    and logs it at WARNING before degrading to an empty result.
 
     Mirrors ``_check_cli_guards`` semantics for the composed actions.
 

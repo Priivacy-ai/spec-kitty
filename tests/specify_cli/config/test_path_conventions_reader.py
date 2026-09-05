@@ -43,13 +43,7 @@ def test_identity_fields_alongside_override_not_rejected(tmp_path: Path) -> None
     fields (uuid/slug/node_id/build_id) coexist without being rejected."""
     _write_config(
         tmp_path,
-        "project:\n"
-        "  uuid: 01ABC\n"
-        "  slug: my-project\n"
-        "  node_id: node-7\n"
-        "  build_id: b-42\n"
-        "  path_conventions:\n"
-        "    workspace: apps/\n",
+        "project:\n  uuid: 01ABC\n  slug: my-project\n  node_id: node-7\n  build_id: b-42\n  path_conventions:\n    workspace: apps/\n",
     )
     assert load_project_path_conventions(tmp_path) == {"workspace": "apps/"}
 
@@ -134,6 +128,11 @@ def test_dotdot_traversal_value_raises(tmp_path: Path) -> None:
 
 def test_relative_trailing_slash_value_still_accepted(tmp_path: Path) -> None:
     """Non-regression: a normal repo-relative value with a trailing slash (e.g. ``apps/``) must still be
-    accepted — it is later normalized by ``_normalize_path_token`` at the merge site, not here."""
+    accepted — it is later normalized by ``normalize_path_token`` at the merge site, not here."""
     _write_config(tmp_path, "project:\n  path_conventions:\n    workspace: apps/\n")
     assert load_project_path_conventions(tmp_path) == {"workspace": "apps/"}
+
+
+def test_surrounding_whitespace_value_is_trimmed(tmp_path: Path) -> None:
+    _write_config(tmp_path, 'project:\n  path_conventions:\n    workspace: "  apps  "\n')
+    assert load_project_path_conventions(tmp_path) == {"workspace": "apps"}

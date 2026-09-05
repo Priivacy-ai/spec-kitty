@@ -44,6 +44,15 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
+_PLANNING_READ_DIR_QUARANTINE = pytest.mark.quarantine(
+    reason="spec-kitty#1021: flakes under the full parallel main baseline"
+    " (first seen in baseline @a7b8bd306 2026-09-01T10:32Z; recurred in PR"
+    " runs @8725b44f 2026-09-01T12:10Z and @4b9f767d 2026-09-01T12:46Z);"
+    " passes on the serial re-run and in isolation each time. Root cause"
+    " (cross-test nondeterminism reached by -n auto scheduling) is tracked"
+    " in the issue; this quarantine is debt, remove on root-cause fix."
+)
+
 # Production-shaped identity: a full 26-char Crockford-base32 ULID, uppercase
 # mid8, and the canonical on-disk ``<slug>-<mid8>`` layout. The operator HANDLE is
 # the composed ``<slug>-<mid8>`` (a bare-slug fixture would false-green because the
@@ -278,6 +287,7 @@ def test_all_planning_kinds_are_primary_partition() -> None:
     assert all(is_primary_artifact_kind(kind) for kind in kinds.values())
 
 
+@_PLANNING_READ_DIR_QUARANTINE
 def test_planning_read_dir_raises_when_kind_leaves_primary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

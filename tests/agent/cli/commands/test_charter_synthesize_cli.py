@@ -453,4 +453,5 @@ class TestSynthesizeErrorPaths:
 
         assert result.exit_code == 1, result.output
         # The informative body — previously swallowed — must be present.
-        assert "does not exist" in result.output.lower(), result.output
+        assert "does-not-exist/charter.yaml" in result.output
+        assert "Remediation:" in result.output

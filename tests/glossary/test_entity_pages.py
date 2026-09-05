@@ -259,7 +259,6 @@ def test_no_tmp_files_left_behind(repo_root, three_term_drg):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 def test_generate_all_500_terms_under_10_seconds(repo_root):
     urns = [f"glossary:term-{i:04d}" for i in range(500)]
     drg = _make_drg_fixture(term_urns=urns)

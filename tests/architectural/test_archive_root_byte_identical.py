@@ -9,23 +9,26 @@ historical-record surfaces:
 * ``.kittify/missions/`` — mission-state history.
 
 Mission ``charter-authority-flip-01M14RB3`` (wave M1) must not touch a single
-byte of any file that already existed under those roots at the mission base
-:data:`_MISSION_BASE_REV`. Editing an archived artifact to "fix" a stale line is
-forbidden (the correction belongs in the live mission dossier, not the archive —
-see this mission's DD-10). M1 is free to ADD new content under its own new
-archive dir (``kitty-specs/charter-authority-flip-01M14RB3/``); only
+byte of any file that already existed under those roots when this port branched
+from this repository's ``main``. Editing an archived artifact to "fix" a stale
+line is forbidden (the correction belongs in the live mission dossier, not the
+archive — see this mission's DD-10). M1 is free to ADD new content under its own
+new archive dir (``kitty-specs/charter-authority-flip-01M14RB3/``); only
 *pre-existing* files are frozen.
 
-This gate compares the mission base tree to the working tree via a single
-``git diff --name-status`` scoped to the four roots and asserts that every
-reported entry is an ADD of a path that did not exist at the base. Any Modify or
-Delete of a pre-existing archived file is a real NFR-002 violation to surface,
-never to mask.
+This gate compares the port's merge-base with ``origin/main`` to the working
+tree via a single ``git diff --name-status`` scoped to the four roots and asserts
+that every reported entry is an ADD of a path that did not exist at that base.
+Any Modify or Delete of a pre-existing archived file is a real NFR-002 violation
+to surface, never to mask.
 """
 
 from __future__ import annotations
 
+import ast
+import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -33,8 +36,10 @@ from tests.utils import REPO_ROOT
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
-# The mission base commit (pre-WP01 opening state).
-_MISSION_BASE_REV = "fc4acaa897"
+# The convergence-port base ref. The upstream mission base is not an ancestor of
+# this repository's main, so comparing it directly would blame pre-existing fork
+# deletions on M1. The merge-base with main is the exact pre-port EXP tree.
+_PORT_BASE_REF = "origin/main"
 
 # The four fixed exclusion / immutable-archive roots.
 _ARCHIVE_ROOTS: tuple[str, ...] = (
@@ -60,9 +65,7 @@ _ARCHIVE_ROOTS: tuple[str, ...] = (
 # passes, not strictly an append) -- its content integrity is independently
 # policed by the build job's rename-reconcile gate, so a destructive rewrite
 # here would red there, not slip through silently.
-_APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset(
-    {"kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"}
-)
+_APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"})
 
 
 def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -74,34 +77,39 @@ def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _baseline_is_reachable() -> bool:
-    return _run_git(["cat-file", "-e", f"{_MISSION_BASE_REV}^{{commit}}"]).returncode == 0
-
-
 def _files_under_roots_at(rev: str) -> set[str]:
     """Every tracked file under an archive root at ``rev``."""
     result = _run_git(["ls-tree", "-r", "--name-only", rev])
     if result.returncode != 0:
         raise RuntimeError(f"git ls-tree failed for {rev!r}: {result.stderr!r}")
-    return {
-        path
-        for path in result.stdout.splitlines()
-        if any(path.startswith(root) for root in _ARCHIVE_ROOTS)
-    }
+    return {path for path in result.stdout.splitlines() if any(path.startswith(root) for root in _ARCHIVE_ROOTS)}
 
 
-@pytest.mark.skipif(
-    not _baseline_is_reachable(),
-    reason=f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout",
-)
+def _port_base_rev() -> str | None:
+    result = _run_git(["merge-base", "HEAD", _PORT_BASE_REF])
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _require_port_base_rev() -> str:
+    """Return the EXP port base, failing closed under CI when it is absent."""
+    port_base_rev = _port_base_rev()
+    if port_base_rev is not None:
+        return port_base_rev
+    message = f"EXP port base (merge-base HEAD {_PORT_BASE_REF!r}) is not reachable; archive freeze cannot run"
+    if os.environ.get("CI") == "true":
+        pytest.fail(message)
+    pytest.skip(message)
+
+
 def test_no_preexisting_archived_file_was_modified() -> None:
     """No file that existed under an archive root at the mission base may be
     Modified or Deleted in the working tree — only new files may be added."""
-    baseline_files = _files_under_roots_at(_MISSION_BASE_REV)
+    port_base_rev = _require_port_base_rev()
+    baseline_files = _files_under_roots_at(port_base_rev)
 
-    diff = _run_git(
-        ["diff", "--name-status", _MISSION_BASE_REV, "--", *_ARCHIVE_ROOTS]
-    )
+    diff = _run_git(["diff", "--name-status", port_base_rev, "--", *_ARCHIVE_ROOTS])
     if diff.returncode != 0:
         raise RuntimeError(f"git diff failed: {diff.stderr!r}")
 
@@ -135,14 +143,29 @@ def test_no_preexisting_archived_file_was_modified() -> None:
     )
 
 
-@pytest.mark.skipif(
-    not _baseline_is_reachable(),
-    reason=f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout",
-)
 def test_archive_baseline_is_non_empty() -> None:
     """Anti-vacuity floor: the archive roots are non-empty at the base, so the
     byte-identity assertion above is scanning real content, not nothing."""
-    assert _files_under_roots_at(_MISSION_BASE_REV), (
-        "no tracked files found under the archive roots at the mission base — "
-        "the byte-identity gate would pass vacuously"
+    assert _files_under_roots_at(_require_port_base_rev()), (
+        "no tracked files found under the archive roots at the EXP port base — the byte-identity gate would pass vacuously"
+    )
+
+
+def test_archive_freeze_gate_uses_the_exp_port_base_without_import_time_skip() -> None:
+    """NFR-002 must execute in an EXP checkout instead of silently skipping.
+
+    This is deliberately structural: decorators are evaluated while this module
+    imports, before a test body could exercise the guard's runtime fallback.
+    """
+    module = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    assigned_names = {target.id for node in module.body if isinstance(node, ast.Assign) for target in node.targets if isinstance(target, ast.Name)}
+    guarded = {"test_no_preexisting_archived_file_was_modified", "test_archive_baseline_is_non_empty"}
+    guarded_nodes = {node.name: node for node in module.body if isinstance(node, ast.FunctionDef) and node.name in guarded}
+
+    assert "_MISSION" + "_BASE_REV" not in assigned_names
+    assert all(
+        not any(
+            isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute) and decorator.func.attr == "skipif" for decorator in node.decorator_list
+        )
+        for node in guarded_nodes.values()
     )

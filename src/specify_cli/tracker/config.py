@@ -33,7 +33,7 @@ class TrackerConfigError(RuntimeError):
 # `doctrine` -> `ownership` (NOT `charter` -- this surface names field
 # OWNERSHIP, a distinct concept from the charter/doctrine topology rename).
 # Precedent for the read-both/canonical-wins/warn-once shape: `charter.activation.sync`
-# CR-01 (`src/charter/sync.py:245-311`).
+# CR-01 (`src/charter/activation/sync.py:245-311`).
 # ---------------------------------------------------------------------------
 _CANONICAL_OWNERSHIP_KEY: Final = "ownership"
 _LEGACY_OWNERSHIP_KEY: Final = "doctrine"
@@ -41,8 +41,8 @@ _LEGACY_OWNERSHIP_KEY: Final = "doctrine"
 
 class LegacyTrackerOwnershipKeyWarning(UserWarning):
     """Emitted once per process when a project's ``tracker:`` block still
-    carries the retired ``doctrine`` mode/field_owners key instead of the
-    canonical ``ownership`` key (CR-03)."""
+    carries the retired ``doctrine`` ownership surface instead of the
+    canonical ``ownership`` surface (CR-03)."""
 
 
 @functools.lru_cache(maxsize=1)
@@ -57,9 +57,9 @@ def _warn_legacy_ownership_key_once() -> None:
     ``_warn_legacy_ownership_key_once.cache_clear()``.
     """
     warnings.warn(
-        "tracker: config uses the legacy 'doctrine' mode/field_owners key; "
-        "reading it as 'ownership'. Run `spec-kitty tracker bind` again (or "
-        "hand-edit .kittify/config.yaml) to adopt the canonical key.",
+        "tracker: the legacy 'doctrine' ownership key/option was used; "
+        "reading it as 'ownership'. Use the canonical config key or "
+        "`--ownership-mode`.",
         LegacyTrackerOwnershipKeyWarning,
         stacklevel=3,
     )
@@ -91,13 +91,10 @@ class _EgressAbsentType:
     ``dict.get(key, default)`` collapses two distinct situations into one: "the
     key is not there" and "the key is there and holds ``None``" (a present
     ``null``, which FR-006 treats as a *fault*, not as absence). This sentinel
-    is what tells them apart, with the **same semantics as
-    ``sync/consent.py``'s ``_MISSING`` sentinel** (`sync/consent.py:145`) and
-    the reasoning recorded there: a *missing* key must keep falling through to
-    Channel 1, while a key present with nothing after it is a recorded value.
-    The private ``_MISSING`` object itself is not imported here -- doing so
-    would give ``tracker/`` an import-time dependency on ``sync.consent`` and
-    risk an ``ImportError`` out of a gate NFR-003 says must never raise.
+    is what tells them apart: a *missing* key stays absent so the egress
+    resolver (`tracker/egress_verdict.py`) can apply its own no-key rule per
+    destination, while a key present with nothing after it is a recorded fault,
+    and a recorded fault refuses at every destination.
 
     Public and named ``EGRESS_ABSENT`` (module-level, no leading underscore)
     because WP03's ``tracker_egress_verdict`` resolver, in a different module,
@@ -113,8 +110,8 @@ class _EgressAbsentType:
 
     A singleton (``__new__`` always returns the same instance) with
     ``__copy__``/``__deepcopy__``/``__reduce__`` all returning that same
-    instance. Unlike ``sync/consent.py``'s ``_MISSING`` (a bare ``object()``
-    never stored on a dataclass field), this sentinel *is* stored on a
+    instance. Unlike a bare ``object()`` sentinel, which would never sit on a
+    dataclass field, this sentinel *is* stored on a
     ``TrackerProjectConfig`` field, which makes it reachable by
     ``copy.deepcopy``/``dataclasses.replace`` on a config instance -- without
     these overrides, a deep copy would mint a distinct object for which
@@ -189,7 +186,9 @@ class TrackerProjectConfig:
         """Derived fault flag for Channel 2 (#3108 FR-006, C-020).
 
         ``False`` when ``egress`` is ``EGRESS_ABSENT`` (the key was missing --
-        absence is not a fault, it defers to Channel 1) or holds one of the
+        absence is not a fault; Channel 1 is retired, so for
+        ``EgressDestination.HOSTED_SERVICE`` this now falls through to permit
+        directly, with no Channel 1 to defer to) or holds one of the
         exactly two legal strings. ``True`` for anything else present at the
         key -- a present ``null``, the wrong type, or a near-miss string such
         as ``Refused`` or ``refuse`` -- and a fault refuses at both

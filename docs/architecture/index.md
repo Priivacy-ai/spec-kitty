@@ -64,7 +64,6 @@ boundary rule and layout).
 - [AI agent architecture](ai-agent-architecture.md) — how Spec Kitty stays agent-agnostic across agents.
 - [Why the Divio documentation system?](divio-documentation.md) — tutorials/how-to/reference/explanation mapping.
 - [Doctrine relationships](doctrine-relationships.md) — DRG relation types as typed graph edges.
-- [Doctrine projection & delivery](doctrine-projection-and-delivery.md) — how authored doctrine reaches the agent through the emit (DRG projection) and delivery (profile-rendering) seams, and the contracts that bind them.
 - [Understanding the org doctrine layer](org-doctrine-layer.md) — built-in/org/project doctrine resolution.
 - [Understanding Charter: synthesis, DRG, and governed context](charter-synthesis-drg.md).
 - [Understanding governed profile invocation](governed-profile-invocation.md) — standalone dispatch under governance.

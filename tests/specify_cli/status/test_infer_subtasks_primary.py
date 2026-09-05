@@ -43,9 +43,6 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-
-
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -354,7 +351,6 @@ def test_mark_status_writes_completion_to_coord_status_partition(tmp_path: Path)
             return_value=(repo, "main"),
         ),
         patch.object(tasks_module, "_emit_sparse_session_warning"),
-        patch.object(tasks_module, "emit_history_added"),
     ):
         result = runner.invoke(
             tasks_module.app,

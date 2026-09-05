@@ -58,7 +58,7 @@ def test_service_loads_all_repositories_from_built_in_defaults(
     _write_yaml(
         packs_root / "built-in" / "toolguides" / "test-tool.toolguide.yaml",
         {"schema_version": "1.0", "id": "test-tool", "tool": "bash",
-         "title": "Test Tool", "guide_path": "src/doctrine/test-tool.md", "summary": "Test."},
+         "title": "Test Tool", "guide_path": "src/charter/offering/test-tool.md", "summary": "Test."},
     )
     _write_yaml(
         packs_root / "built-in" / "paradigms" / "test-paradigm.paradigm.yaml",
@@ -241,7 +241,7 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(
 # ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission.
 # The Directive model no longer carries inline ``tactic_refs``; cross-artifact
 # relationships are expressed exclusively via edges in
-# the per-kind DRG fragments (``src/doctrine/<kind>.graph.yaml``) and are
+# the per-kind DRG fragments (``src/charter/offering/<kind>.graph.yaml``) and are
 # validated by the DRG cycle/shape tests.
 
 
@@ -278,7 +278,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
             "id": "python-tool",
             "tool": "pytest",
             "title": "Python Tool",
-            "guide_path": "src/doctrine/toolguides/built-in/python.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/python.md",
             "summary": "Python tool",
             "applies_to_languages": ["python"],
         },
@@ -290,7 +290,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
             "id": "generic-tool",
             "tool": "git",
             "title": "Generic Tool",
-            "guide_path": "src/doctrine/toolguides/built-in/generic.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/generic.md",
             "summary": "Generic tool",
         },
     )
@@ -359,7 +359,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
             "id": "python-tool",
             "tool": "pytest",
             "title": "Python Tool",
-            "guide_path": "src/doctrine/toolguides/built-in/python.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/python.md",
             "summary": "Python tool",
             "applies_to_languages": ["python"],
         },

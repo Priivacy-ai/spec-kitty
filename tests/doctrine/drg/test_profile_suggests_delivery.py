@@ -71,7 +71,7 @@ def service() -> DoctrineService:
 
     No explicit built-in root: each repository self-resolves the flattened
     built-in tier via ``resolve_pack_root("built-in")`` (packs/built-in/<kind>).
-    Post-relocation, ``files("doctrine")`` points at the emptied src/doctrine
+    Post-relocation, ``files("charter.offering")`` points at the emptied src/doctrine
     tree and would load nothing.
     """
     return DoctrineService()

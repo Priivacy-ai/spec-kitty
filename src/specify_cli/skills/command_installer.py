@@ -100,9 +100,9 @@ def _package_templates_dir(mission_type: str = "software-dev") -> Path:
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005) relocated ``mission-steps/`` from
-    ``src/doctrine/missions/mission-steps`` to
+    ``src/charter/offering/missions/mission-steps`` to
     ``packs/built-in/missions/mission-steps`` — the retired
-    ``Path(doctrine.__file__).parent``-relative construction addressed
+    ``Path(charter.offering.__file__).parent``-relative construction addressed
     exactly the old, now-nonexistent location. Resolved through the one
     promoted missions-root authority
     (:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,

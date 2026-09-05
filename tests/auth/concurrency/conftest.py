@@ -54,9 +54,7 @@ from specify_cli.auth.session import StoredSession, Team
 
 
 @pytest.fixture
-def auth_store_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Path:
+def auth_store_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Return a ``tmp_path``-rooted auth directory with the lock redirected.
 
     The encrypted file storage backend (:class:`FileFallbackStorage`) accepts
@@ -119,7 +117,7 @@ def seed_session(auth_store_root: Path) -> StoredSession:
     """Persist a starter session under ``auth_store_root`` and return it.
 
     Uses the real :class:`FileFallbackStorage` so the on-disk artifacts
-    (``session.json`` ciphertext + ``session.salt``) match what the
+    (``session.json`` ciphertext + ``session.key``) match what the
     production code writes. Workers that load via ``SecureStorage``
     pointing at the same ``base_dir`` will read this session back.
     """
@@ -193,9 +191,7 @@ def _build_handler_class(
 
         def do_POST(self) -> None:  # noqa: N802 — http.server hook name
             if self.path != "/oauth/token":
-                self._send_json(
-                    HTTPStatus.NOT_FOUND, {"error": "not_found"}
-                )
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
                 return
             body = self._read_body()
             received_refresh_token = body.get("refresh_token", "")

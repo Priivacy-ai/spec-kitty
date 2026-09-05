@@ -28,9 +28,6 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-
-
 # ── Fixtures ──────────────────────────────────────────────────────
 
 
@@ -65,6 +62,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
@@ -1436,6 +1434,39 @@ class TestAcceptMission:
         assert data["error_code"] == "MISSION_NOT_READY"
         assert "WP02" in data["data"]["incomplete_wps"]
 
+    def test_malformed_path_conventions_returns_envelope(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (repo_root / ".kittify").mkdir()
+        (repo_root / ".kittify" / "config.yaml").write_text(
+            "project:\n  path_conventions:\n    workspace: 123\n",
+            encoding="utf-8",
+        )
+
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP02")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "accept-mission",
+                    "--mission",
+                    mission_slug,
+                    "--actor",
+                    "claude",
+                ],
+            )
+
+        assert result.exit_code == 1, result.output
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "MISSION_NOT_READY"
+        assert "project.path_conventions.workspace" in data["data"]["message"]
+
 
 # ── merge-mission ─────────────────────────────────────────────────
 
@@ -1816,6 +1847,7 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     (tasks_dir / "WP01-core-setup.md").write_text(
         "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n",

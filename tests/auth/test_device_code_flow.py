@@ -20,6 +20,8 @@ The headline assertions per WP05's acceptance criteria:
 
 from __future__ import annotations
 
+import io
+
 from kernel.clock import UTC, datetime, now_utc, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -34,6 +36,7 @@ from specify_cli.auth.errors import (
     NetworkError,
 )
 from specify_cli.auth.flows.device_code import DeviceCodeFlow
+from specify_cli.cli.console import CliConsole
 
 
 pytestmark = [pytest.mark.integration]
@@ -348,6 +351,75 @@ class TestPollTokenRequest:
         assert body == {"error": "authorization_pending"}
 
     @pytest.mark.asyncio
+    async def test_429_returns_slow_down_dict(self):
+        """A rate-limit HTTP 429 is routed to the poller's slow_down handling.
+
+        Regression for the CLI aborting the device flow on HTTP 429 instead
+        of letting the poller's existing RFC 8628 backoff handle it.
+        """
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = httpx.Headers({"Retry-After": "7"})
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": 7}
+
+    @pytest.mark.asyncio
+    async def test_429_without_retry_after_header(self):
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = httpx.Headers({})
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": None}
+
+    @pytest.mark.asyncio
+    async def test_429_with_unparseable_retry_after(self):
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = httpx.Headers({"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"})
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": None}
+
+    @pytest.mark.asyncio
+    async def test_429_with_lowercase_retry_after_header(self):
+        """A non-canonical-case header still parses via httpx.Headers' fold.
+
+        Regression for #461: earlier fixtures all used the exact key
+        ``"Retry-After"``, so they passed identically whether
+        ``_parse_retry_after`` did a case-insensitive lookup or a plain
+        ``dict.get``. This uses real ``httpx.Headers`` (case-insensitive by
+        RFC 7230 §3.2) with a lowercase key to actually exercise that.
+        """
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = httpx.Headers({"retry-after": "7"})
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": 7}
+
+    @pytest.mark.asyncio
     async def test_unexpected_status_raises(self):
         flow = DeviceCodeFlow(saas_base_url=_SAAS)
         with patch("httpx.AsyncClient") as mock_client_class:
@@ -408,6 +480,8 @@ class TestBuildSession:
         assert session.refresh_token_expires_at == datetime(
             2099, 1, 1, tzinfo=UTC
         )
+        # #176: the session records which endpoint minted it.
+        assert session.issuer_url == _SAAS
 
     @pytest.mark.asyncio
     async def test_prefers_private_teamspace_for_default_team_id(self):
@@ -696,6 +770,47 @@ class TestLogin:
 
         joined = "\n".join(progress_lines)
         assert f"{_SAAS}/device?code=ABCD1234" in joined
+
+    @pytest.mark.asyncio
+    async def test_login_sanitizes_device_response_fields(self):
+        """Hostile OAuth device response fields cannot emit terminal controls."""
+        safe_text = "Zoë 日本語 🐱"
+        hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
+        hostile = f"{safe_text}{hostile_suffix}"
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        buffer = io.StringIO()
+        console = CliConsole(
+            file=buffer,
+            width=160,
+            no_color=True,
+            highlight=False,
+        )
+
+        post_routes = {
+            "/oauth/device": _mock_httpx_response(
+                200,
+                _device_response(
+                    device_code=f"dc{hostile_suffix}",
+                    user_code=f"ABCD1234{hostile_suffix}",
+                    verification_uri=f"{_SAAS}/device{hostile}",
+                    verification_uri_complete=f"{_SAAS}/complete{hostile}",
+                ),
+            ),
+            "/oauth/token": _mock_httpx_response(200, _token_response()),
+        }
+        get_routes = {
+            "/api/v1/me": _mock_httpx_response(200, _me_response()),
+        }
+
+        with _install_routed_client(post_routes, get_routes):
+            await flow.login(progress_writer=console.print)
+
+        emitted = buffer.getvalue().encode("utf-8")
+        assert safe_text.encode("utf-8") in emitted
+        assert b"ABCD-1234" in emitted
+        assert b"\x1b" not in emitted
+        assert b"[2J" not in emitted
+        assert b"]0;x" not in emitted
 
     @pytest.mark.asyncio
     async def test_login_with_authorization_pending_then_success(self):

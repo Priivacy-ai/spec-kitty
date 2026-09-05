@@ -5,6 +5,7 @@ from __future__ import annotations
 import mimetypes
 from pathlib import Path
 
+from ..csp import send_csp_header
 from .base import DashboardHandler
 
 STATIC_URL_PREFIX = '/static/'
@@ -26,6 +27,7 @@ class StaticHandler(DashboardHandler):
 
         if not relative_path or not safe_path:
             self.send_response(404)
+            send_csp_header(self)
             self.end_headers()
             return
 
@@ -33,16 +35,19 @@ class StaticHandler(DashboardHandler):
             safe_path.relative_to(static_root)
         except ValueError:
             self.send_response(404)
+            send_csp_header(self)
             self.end_headers()
             return
 
         if not safe_path.is_file():
             self.send_response(404)
+            send_csp_header(self)
             self.end_headers()
             return
 
         mime_type, _ = mimetypes.guess_type(safe_path.name)
         self.send_response(200)
+        send_csp_header(self)
         self.send_header('Content-type', mime_type or 'application/octet-stream')
         self.send_header('Cache-Control', 'no-cache')
         self.end_headers()

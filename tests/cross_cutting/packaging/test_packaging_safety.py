@@ -117,7 +117,7 @@ def test_wheel_excludes_build_only_files(build_artifacts: dict[str, Path]) -> No
     Historical note (charter-code-topology-01M152G1, S5): the sibling
     dormant ``spec-kitty-doctrine`` wheel groundwork this test used to guard
     (``src/charter/offering/hatch_build.py`` + ``.../pyproject.toml``, née
-    ``src/doctrine/hatch_build.py`` + ``.../pyproject.toml``) was DELETED
+    ``src/charter/offering/hatch_build.py`` + ``.../pyproject.toml``) was DELETED
     outright per MAP-BUILD rather than merely excluded -- it was never built
     or published by any CI job. The two doctrine keys below stay in the
     checked set as an inert regression guard (they can only ever be

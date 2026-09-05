@@ -14,7 +14,6 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
 from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops
-from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.record import OpCompletedEvent
 from specify_cli.invocation.writer import EVENTS_DIR
@@ -166,9 +165,9 @@ def test_sweep_propagates_completed_event_when_sync_enabled(tmp_path: Path) -> N
     assert record.closed_by == "doctor_sweep"
 
 
-def test_sweep_sync_disabled_closes_locally_without_propagation(tmp_path: Path) -> None:
-    """Sync-gated: with sync disabled, the SaaS client is never consulted but
-    the swept Op is still closed locally (LOCAL-FIRST invariant)."""
+def test_sweep_without_a_transport_closes_locally_without_propagation(tmp_path: Path) -> None:
+    """LOCAL-FIRST invariant: with no transport registered, nothing is sent but
+    the swept Op is still closed locally."""
     from unittest.mock import MagicMock, patch
 
     from specify_cli.invocation import propagator as propagator_mod
@@ -177,29 +176,27 @@ def test_sweep_sync_disabled_closes_locally_without_propagation(tmp_path: Path) 
     stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD031.jsonl"
     _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
 
-    # Run propagation synchronously so the sync-gate is exercised in-test.
+    # Run propagation synchronously so the no-transport path is exercised in-test.
     def _sync_submit(
         self: propagator_mod.InvocationSaaSPropagator, record: object
     ) -> None:
         propagator_mod._propagate_one(record, tmp_path)  # type: ignore[arg-type]
 
-    client_spy = MagicMock()
+    client_spy = MagicMock(return_value=None)
     with (
         patch.object(propagator_mod.InvocationSaaSPropagator, "submit", _sync_submit),
-        patch.object(
-            propagator_mod,
-            "resolve_egress_consent",
-            return_value=EgressConsent.NO_RECORD,  # the project has not consented
-        ),
         patch.object(propagator_mod, "_get_saas_client", client_spy),
     ):
         report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
 
     assert report.swept == 1
-    client_spy.assert_not_called()
+    client_spy.assert_called_once()  # consulted, answered "no transport"
     events = _read_events(stale)
     assert [event["event"] for event in events] == ["started", "completed"], (
-        "local completed event must be written even when sync is disabled"
+        "local completed event must be written even when there is nothing to send through"
+    )
+    assert not (tmp_path / propagator_mod.PROPAGATION_ERRORS_PATH).exists(), (
+        "a transport-less close is not an error and must not be logged as one"
     )
 
 
@@ -370,13 +367,12 @@ def _generate_synthetic_ops(ops_dir: Path, count: int, started_at: str) -> None:
         (ops_dir / f"{invocation_id}.jsonl").write_text(line + "\n", encoding="utf-8")
 
 
-@pytest.mark.performance
 def test_sweep_enumeration_perf_1k_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Default-suite smoke that the 1k-file sweep has no order-of-magnitude regression.
 
-    Tier-1 budget gate (docs/development/testing-flakiness.md): tune, never retry.
+    Tier-1 budget gate (docs/development/testing/testing-flakiness.md): tune, never retry.
     The original 0.5 s budget was a tight single-machine extrapolation that
     tripped on shared CI runners with no code regression (observed 1.67 s on
     GitHub Actions, 2.96 s historically). Widened to 5.0 s so runner variance is
@@ -401,7 +397,6 @@ def test_sweep_enumeration_perf_1k_files(
 
 
 @pytest.mark.slow
-@pytest.mark.performance
 def test_sweep_nfr_002_10k_files_under_5s(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

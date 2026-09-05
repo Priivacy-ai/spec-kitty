@@ -273,7 +273,7 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
 
     # Also create a project doctrine overlay dir so _default_doctrine_service
     # exercises the project-root branch (compiler.py lines 267-269).
-    (tmp_path / "src" / "doctrine").mkdir(parents=True)
+    (tmp_path / "src" / "charter" / "offering").mkdir(parents=True)
 
     compiled = compile_charter(
         mission="software-dev",

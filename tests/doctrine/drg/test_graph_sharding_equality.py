@@ -1,8 +1,8 @@
 """WP06 (mission #2680) — behaviour-preserving equality + totality proofs.
 
 These are the correctness gate on the whole sharding migration (WP05 deleted the
-``src/doctrine/graph.yaml`` monolith and replaced it with per-kind
-``src/doctrine/<kind>.graph.yaml`` fragments). They certify that the sharded,
+``src/charter/offering/graph.yaml`` monolith and replaced it with per-kind
+``src/charter/offering/<kind>.graph.yaml`` fragments). They certify that the sharded,
 on-disk layout reconstructs *exactly* the same graph the extractor composes in
 memory — no node, edge, or node-kind lost or duplicated by the shard/merge round
 trip.
@@ -174,7 +174,7 @@ def reference_graph() -> DRGGraph:
 
 @pytest.fixture(scope="module")
 def sharded_graph() -> DRGGraph:
-    """The graph reloaded from the on-disk ``src/doctrine/*.graph.yaml`` shards."""
+    """The graph reloaded from the on-disk ``src/charter/offering/*.graph.yaml`` shards."""
     return load_built_in_graph()
 
 

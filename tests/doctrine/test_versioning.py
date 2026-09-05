@@ -621,7 +621,7 @@ def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
 
     Self-mutation proof: renaming charter.bundle.CHARTER_YAML/CHARTER_MD's
     filename (e.g. "charter.yaml" -> "charter.yml") without updating the
-    matching literal(s) hardcoded in src/doctrine/versioning.py turns this
+    matching literal(s) hardcoded in src/charter/offering/versioning.py turns this
     red.
     """
     import ast
@@ -643,7 +643,7 @@ def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
     assert literals_found, (
         "charter.offering.versioning no longer contains any 'charter.yaml'/'charter.md' "
         "string literal. If versioning.py was refactored to remove the "
-        "permanent-layering literal entirely, the two src/doctrine/versioning.py "
+        "permanent-layering literal entirely, the two src/charter/offering/versioning.py "
         "entries in tests/architectural/charter_path_literal_allowlist.yaml "
         "should be drained too."
     )
@@ -655,7 +655,7 @@ def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
         f"no longer match charter.bundle's canonical basenames "
         f"{sorted(canonical_names)}. PERMANENT (layering): charter.offering.versioning "
         "cannot import charter.bundle to fix this automatically -- update the "
-        "hardcoded literal(s) in src/doctrine/versioning.py to match the rename."
+        "hardcoded literal(s) in src/charter/offering/versioning.py to match the rename."
     )
 
 

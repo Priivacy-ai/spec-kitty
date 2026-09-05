@@ -85,10 +85,7 @@ def test_review_result_row_audits_clean() -> None:
 
     findings = check_unknown_keys(artifact_type, row, "status.events.jsonl")
     unknown = [f for f in findings if f.code == "UNKNOWN_SHAPE"]
-    assert unknown == [], (
-        "a review_result-carrying status_event_row must audit clean; "
-        f"got UNKNOWN_SHAPE findings: {[f.detail for f in unknown]}"
-    )
+    assert unknown == [], f"a review_result-carrying status_event_row must audit clean; got UNKNOWN_SHAPE findings: {[f.detail for f in unknown]}"
 
 
 @pytest.mark.regression
@@ -103,10 +100,7 @@ def test_persisted_row_keys_all_registered() -> None:
     known = KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT[_ARTIFACT]
 
     unregistered = sorted(set(row) - known)
-    assert unregistered == [], (
-        "persisted status_event_row carries keys absent from the registry: "
-        f"{unregistered}"
-    )
+    assert unregistered == [], f"persisted status_event_row carries keys absent from the registry: {unregistered}"
 
 
 def test_drift_test_is_falsifiable() -> None:
@@ -122,6 +116,4 @@ def test_drift_test_is_falsifiable() -> None:
 
     findings = check_unknown_keys(_ARTIFACT, row, "status.events.jsonl")
     flagged = [f for f in findings if f.code == "UNKNOWN_SHAPE"]
-    assert any("totally_unregistered_key" in f.detail for f in flagged), (
-        "the drift check must flag an unregistered persisted key"
-    )
+    assert any("totally_unregistered_key" in f.detail for f in flagged), "the drift check must flag an unregistered persisted key"

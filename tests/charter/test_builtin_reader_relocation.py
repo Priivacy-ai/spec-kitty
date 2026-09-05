@@ -3,7 +3,7 @@
 Completeness audit for mission ``relocate-builtin-doctrine-packs-01KYT87F``.
 
 The relocation flattened built-in doctrine content out of
-``src/doctrine/<kind>/built-in`` into ``packs/built-in/<kind>``. Every reader of
+``src/charter/offering/<kind>/built-in`` into ``packs/built-in/<kind>``. Every reader of
 a MOVED kind must resolve through the shared ``resolve_pack_root("built-in")``
 seam. ``compiler._build_references_from_yaml`` had one straggler: the
 Python-implementation styleguide read (``compiler.py:867``) still joined onto the

@@ -269,7 +269,6 @@ Bad content here.
                 assert len(lanes[lane_name]) == 0, f"{lane_name} should be empty"
 
 
-@pytest.mark.performance
 class TestDashboardPerformance:
     """Test dashboard auto-fix performance requirements."""
 

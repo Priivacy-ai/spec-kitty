@@ -1,3 +1,0 @@
-FAILED tests/specify_cli/cli/commands/test_agent_config.py::test_add_unknown_agent_rejected - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/specify_cli/cli/commands/test_agent_config.py::test_add_unknown_agent_rejected
-===================== 1 failed in 3.10s ======================

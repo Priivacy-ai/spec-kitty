@@ -48,7 +48,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: repository's own consumer resolves it through the WP04 resolution surface
 #: (``DoctrineService.assets``) by its stable identifier, instead of reaching
 #: through a hard-coded ``_REPO_ROOT`` path. In the dev checkout this lands on
-#: ``src/doctrine/assets/built-in/…``; from a clean installation it lands on
+#: ``src/charter/offering/assets/built-in/…``; from a clean installation it lands on
 #: packaged data — the same addressing the WP05 operator surface uses.
 def _resolve_lint_asset_path() -> Path:
     """Resolve the shipped structural-lint asset via ``DoctrineService.assets``."""
@@ -659,7 +659,77 @@ def test_live_real_tree_is_zero_violation_post_move() -> None:
     assert report.checked > 0
 
 
-@pytest.mark.performance
+def test_live_real_tree_is_zero_violation_under_extended_run() -> None:
+    """The terminal-verification runner (``run_extended``) is also clean.
+
+    ``run()`` (the standing per-PR gate) does not wire in
+    ``check_sanctioned_section_membership`` / ``check_one_index_per_dir`` — so
+    a new top-level ``docs/`` section can be invisible to every PR gate while
+    still breaking terminal verification (planning#583, first tripped by
+    ``docs/convergence/``). This asserts the extended runner independently.
+
+    NOTE: ``docs/convergence/`` has zero files on this tree as of writing
+    (PR #548/issue #401, which lands the first page under it, is still
+    open) — so on its own this assertion cannot fail on a regression to the
+    ``convergence`` config entry; it is only real teeth against every OTHER
+    sanctioned section. See
+    ``test_sanctioned_section_membership_covers_convergence_via_real_config``
+    below for a fixture-backed proof that exercises this fix specifically,
+    independent of whether #548 has merged.
+    """
+    config = load_config(STYLEGUIDE_PATH)
+    docs_root = _REPO_ROOT / "docs"
+
+    report = run_extended(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)
+
+    assert report.violations == [], "\n".join(
+        f"{v.rule_id} {v.path}: {v.message}" for v in report.violations
+    )
+
+
+def test_sanctioned_section_membership_covers_convergence_via_real_config(
+    tmp_path: Path,
+) -> None:
+    """planning#583 fix, exercised NOW — not gated on #548/#401 landing content.
+
+    ``docs/convergence/`` has no files on this tree yet, so
+    ``test_live_real_tree_is_zero_violation_under_extended_run`` cannot exercise
+    ``check_sanctioned_section_membership`` against a real ``convergence`` page
+    (squad finding on PR #622: that test is a no-op guard today). This builds an
+    independent ``docs/convergence/*.md`` fixture and runs it through the
+    REAL shipped styleguide config, reproducing the issue's own 0/1 measurement
+    on THIS tree: 0 violations with ``convergence`` sanctioned (the shipped
+    state), 1 if it is removed (the pre-fix state).
+    """
+    config = load_config(STYLEGUIDE_PATH)
+    assert "convergence" in config.sanctioned_content_sections
+
+    docs = tmp_path / "docs"
+    page = docs / "convergence" / "mission-runtime.md"
+    _write(page, frontmatter=_ACTIVE_FRONTMATTER)
+    md_files = [page]
+
+    after = check_sanctioned_section_membership(md_files, docs, tmp_path, config)
+    assert after == [], (
+        "docs/convergence/ must be sanctioned per the shipped styleguide config, "
+        f"got: {[(v.rule_id, v.path) for v in after]}"
+    )
+
+    pre_fix_config = dataclasses.replace(
+        config,
+        sanctioned_content_sections=tuple(
+            section
+            for section in config.sanctioned_content_sections
+            if section != "convergence"
+        ),
+    )
+    before = check_sanctioned_section_membership(md_files, docs, tmp_path, pre_fix_config)
+    assert [v.rule_id for v in before] == ["sanctioned_section_membership"], (
+        "control: without convergence in sanctioned_content_sections the same "
+        f"page must be flagged (the issue's pre-fix 0->1), got: {before}"
+    )
+
+
 def test_lint_completes_within_five_seconds_on_real_tree() -> None:
     """NFR-003 timing: a full run over the real tree completes in < 5s.
 
@@ -855,7 +925,7 @@ def test_shipped_lint_asset_resolved_via_doctrine_service() -> None:
 
     source = Path(__file__).read_text(encoding="utf-8")
     # Built by concatenation so this guard does not match its own source text.
-    forbidden = "src/doctrine/assets/" + "built-in/docs_structural_lint.py"
+    forbidden = "src/charter/offering/assets/" + "built-in/docs_structural_lint.py"
     assert forbidden not in source, (
         "structural-lint test must not hard-code the shipped asset's repo path; "
         "resolve it by id through DoctrineService.assets.resolve_path (FR-008)."

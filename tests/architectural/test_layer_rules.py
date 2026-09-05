@@ -397,7 +397,7 @@ def _non_canonical_instances(objs: Iterable[object], canonical: type) -> list[st
 class TestUnifiedMissionStepBoundary:
     """WP01 (mission charter-doctrine-mission-type-configuration-01KSWJVX).
 
-    After the unification, the legacy ``doctrine.mission_step_contracts``
+    After the unification, the legacy ``charter.offering.mission_step_contracts``
     subpackage is gone. The unified :class:`MissionStep` model lives at
     ``charter.offering.missions.models``; the legacy step-contract types relocate
     to ``charter.offering.missions.step_contracts``. Charter modules import from
@@ -407,7 +407,7 @@ class TestUnifiedMissionStepBoundary:
     """
 
     def test_legacy_subpackage_is_gone(self) -> None:
-        """The legacy ``doctrine.mission_step_contracts`` import path must
+        """The legacy ``charter.offering.mission_step_contracts`` import path must
         not resolve. WP01 retired this subpackage; any code importing it
         would silently shadow the unified model and reintroduce the
         fragmentation that this WP eliminated.
@@ -424,7 +424,7 @@ class TestUnifiedMissionStepBoundary:
         package behaviour). We therefore rely solely on the source-file
         existence check as the authoritative gate.
         """
-        legacy = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "mission_step_contracts"
+        legacy = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering" / "mission_step_contracts"
         forbidden_source_files = ("__init__.py", "models.py", "repository.py")
         present = [name for name in forbidden_source_files if (legacy / name).exists()]
         assert not present, (

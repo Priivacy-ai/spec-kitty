@@ -580,3 +580,36 @@ def test_create_rejected_review_cycle_survives_a_numbering_gap(tmp_path: Path) -
     assert created.artifact_path.exists()
     cycle_3_bytes_after = cycle_3_path.read_bytes()
     assert cycle_3_bytes_after == cycle_3_bytes_before
+
+
+def test_gate_reads_handed_mission_dir_when_anchor_is_a_foreign_repo(
+    tmp_path: Path,
+) -> None:
+    """#154 regression: partition resolution must not read a phantom log.
+
+    When the canonical-root walk finds a repository that is not the mission's
+    own (an ambient ancestor checkout above an ad-hoc mission dir — the shape
+    every bare ``<tmp>/repo`` fixture builds), recomposing the STATUS_STATE
+    partition against that foreign anchor yields a path under it that does not
+    exist. Reducing that phantom reads an empty snapshot — every WP stateless,
+    gate passes by default, the silent-wrong-answer shape #2885 closed. The
+    handed directory is then its own sole partition."""
+    import subprocess
+
+    ambient = tmp_path / "ambient-checkout"
+    ambient.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(ambient)], check=True)
+    mission_dir = ambient / "repo" / "kitty-specs" / _TEST_ARTIFACTS_MISSION_SLUG
+    mission_dir.mkdir(parents=True)
+
+    _artifacts_append_terminal_event(
+        mission_dir,
+        verdict="changes_requested",
+        to_lane=Lane.APPROVED,
+        event_id="01ARTFRGN0000000000000001",
+    )
+
+    findings = find_rejected_review_artifact_conflicts(mission_dir)
+
+    assert len(findings) == 1
+    assert findings[0].wp_id == "WP01"

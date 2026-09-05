@@ -49,7 +49,7 @@ Gate 2.
 
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
-* ``src/doctrine/`` — the doctrine layer *owns* this class and the raw
+* ``src/charter/offering/`` — the doctrine layer *owns* this class and the raw
   ``charter.offering.service.DoctrineService`` that composes it
   (``doctrine/service.py``'s ``DoctrineService.agent_profiles`` cache). That
   construction is the thing the sole door wraps, not a bypass of it — the same
@@ -263,15 +263,13 @@ def test_census_is_non_empty_and_includes_the_doctrine_owner() -> None:
 
     A gate whose scanner silently resolves nothing would pass its
     zero-violation assertion vacuously. This pins the opposite: the census finds
-    sites, and specifically finds ``charter/offering/service.py``'s own
-    construction (the structurally exempt owner), proving the resolution path
-    works end to end rather than short-circuiting.
+    sites, and specifically finds ``doctrine/service.py``'s own construction
+    (the structurally exempt owner), proving the resolution path works end to
+    end rather than short-circuiting.
     """
     census = agent_profile_census()
     assert len(census.sites) >= 5, [s.describe() for s in census.sites]
-    assert any(s.rel_path == "src/charter/offering/service.py" for s in census.sites), [
-        s.describe() for s in census.sites
-    ]
+    assert any(s.rel_path == "src/charter/offering/service.py" for s in census.sites), [s.describe() for s in census.sites]
     assert all(s.canonical == AGENT_PROFILE_REPOSITORY_QUALNAME for s in census.sites)
 
 
@@ -299,7 +297,7 @@ def test_no_raw_agent_profile_repository_construction_outside_the_sole_door() ->
 
 # =========================================================================== #
 # NFR-003 self-mutation proofs — function-local and nested scope, never
-# module-level-only (the WP10 lesson from doctrine-charter-split-unification).
+# module-level-only (the WP10 lesson from charter.offering-charter-split-unification).
 # =========================================================================== #
 
 

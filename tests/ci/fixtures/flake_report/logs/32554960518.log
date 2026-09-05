@@ -1,6 +1,0 @@
-=========================== short test summary info ============================
-FAILED scripts/check_nfr_003_latency.py::check_nfr_003_latency - assert False, budget exceeded
-5.90s call     scripts/check_nfr_003_latency.py::check_nfr_003_latency
-0.01s setup    scripts/check_nfr_003_latency.py::check_nfr_003_latency
-===================== 1 failed in 7.10s ======================
-# suite: check_nfr_003_latency

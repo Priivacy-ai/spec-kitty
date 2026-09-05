@@ -1,5 +1,4 @@
 {
-  "baseline_merge_commit": "4072da3ae76dfa4181f3658fd294571c13054985",
   "created_at": "2026-08-19T07:21:53.030746+00:00",
   "flattened": false,
   "friendly_name": "Single-Authority Resolution Parity",
@@ -10,9 +9,6 @@
   "purpose_context": "Today, doctrine authored in an org pack or a project overlay can silently under-load or drop out of charter activation: the loader and the activation resolver each decide independently whether to scan subdirectories, and a core kind-name mapping is hand-copied in several places where copies have drifted and fail open. This mission makes org and project doctrine load with the same completeness as the built-in corpus, has the loader and resolver agree by construction, derives the kind mapping from a single authority, and adds a guard that makes any future divergence fail loudly instead of silently, so operators can trust that what they authored is what gets activated.",
   "purpose_tldr": "Org and project doctrine loads as completely as built-in, so authored governance stops silently disappearing from charter activation.",
   "slug": "single-authority-resolution-parity-01M0CEBQ",
-  "status_phase": "1",
   "target_branch": "spec/charter-resolution-parity",
-  "topology": "single_branch",
-  "vcs": "git",
-  "vcs_locked_at": "2026-08-19T14:32:17.284143+00:00"
+  "topology": "single_branch"
 }

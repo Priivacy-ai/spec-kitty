@@ -373,7 +373,7 @@ specialization:
 # ---------------------------------------------------------------------------
 
 # Post-relocation the shipped agent profiles live flattened under
-# ``packs/built-in/agent_profiles/`` (the old ``src/doctrine/agent_profiles/built-in/``
+# ``packs/built-in/agent_profiles/`` (the old ``src/charter/offering/agent_profiles/built-in/``
 # tree is emptied). Reading the old path here silently returned zero profiles,
 # so every assertion in this module passed VACUOUSLY (false-green; FR-008).
 _SHIPPED_PROFILE_DIR = Path(__file__).parent.parent.parent / "packs" / "built-in" / "agent_profiles"

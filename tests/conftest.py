@@ -32,11 +32,19 @@ from tests._support.quarantine import (
     quarantine_opted_in,
     quarantine_skip_mark,
 )
+from tests._support.run_basetemp import install_run_basetemp, mark_session_outcome
+from tests._support.shared_build_artifacts import (
+    SharedBuildError,
+    default_wheel_sdist_builder,
+    ensure_shared_build_artifacts,
+    run_scoped_shared_root,
+)
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations_cached,
     find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
+from tests._support.xdist_scheduling import upgrade_unspecified_xdist_load_to_loadfile
 from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
@@ -53,9 +61,10 @@ from tests.utils import REPO_ROOT, run, write_wp
 #
 # Two layers are required:
 #   1. ``pytest_configure`` sets the HOME/XDG env vars *before collection* so
-#      that modules which bind a home-derived path at import time (e.g.
-#      ``specify_cli.paths.get_runtime_root()``, which ``daemon.py`` calls
-#      lazily on every access) resolve into the isolated home.
+#      that modules which bind a home-derived path at import time resolve into
+#      the isolated home. (The sync daemon was the motivating case; it died
+#      with the sync transport, issue #5, but the isolation stays load-bearing
+#      for every other home-derived binding.)
 #   2. An autouse, function-scoped fixture re-asserts the ``Path.home``
 #      monkeypatch + env for every test, keyed by worker id, so call-time
 #      ``Path.home()`` reads are isolated too. Never session-only: a single
@@ -203,28 +212,53 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    # TEST-M2-03 (xdist-order-sensitive families): promote a silently-scattered
+    # bare `-n <N>` to `--dist loadfile`. See
+    # tests/_support/xdist_scheduling.py for the full rationale and evidence
+    # -- the function is defined there rather than here because this module
+    # is under tests/architectural/test_home_owner_behaviour.py::
+    # test_conftest_definition_order_is_unchanged_with_the_owner_removed,
+    # which permits exactly one new top-level definition beyond a frozen
+    # merge-base snapshot; an imported call is not an AST-visible
+    # ``FunctionDef`` here.
+    upgrade_unspecified_xdist_load_to_loadfile(config)
+
     os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
 
-    # WP04 (sync-deactivate-by-default, FR-010): the suite's DEFAULT posture is
-    # now sync-OFF. We deliberately do NOT set ``SPEC_KITTY_ENABLE_SAAS_SYNC``
-    # here, so the WP05 collection-time ``@pytest.mark.skipif(not
-    # os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))`` gates actually fire.
-    #
-    # Collection-time opt-in (the #3213 lesson): a fixture runs too late to
-    # affect ``skipif``, which is evaluated at collection. Any run that needs
-    # the sync suite SELECTED must set the flag as a process-level env var
-    # BEFORE collection — the ``fast-tests-sync`` CI step does exactly this
-    # (``.github/workflows/ci-quality.yml``, ``env: SPEC_KITTY_ENABLE_SAAS_SYNC:
-    # "1"``). Individual tests that need sync ACTIVE at call time (no skipif on
-    # them) opt in via the ``sync_enabled`` fixture below.
+    # #3213: set the SaaS-sync feature flag ONCE, collection-wide, before any test
+    # module is imported. Import-time ``@pytest.mark.skipif(not
+    # os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))`` gates are evaluated at
+    # collection, which the per-test autouse ``_enable_saas_sync_feature_flag``
+    # fixture (a setup-time monkeypatch) is too late to satisfy. Previously six
+    # docs/architectural modules set it at import via their own
+    # ``os.environ.setdefault``, so whether the gate fired depended on whether
+    # one of those modules happened to be collected — ``pytest tests/ -m
+    # regression`` enforced it, ``pytest tests/regression`` did not. Setting it
+    # here is the single collection-time authority, so a given node's skip/run
+    # decision is the same under every selection. (Historically this also
+    # re-exposed the then-open #2782 P0 red under ``pytest tests/regression``;
+    # #2782 has since been resolved and its reproduction retired, so nothing in
+    # ``tests/regression`` is red today — but the invariant still governs every
+    # other import-time SaaS-sync gate.)
+    os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
-    # home-derived path at import time (e.g. ``daemon.py`` calling
-    # ``get_runtime_root()`` lazily on every access) resolve into the
-    # per-worker isolated home, never the developer's real ``~/.spec-kitty``.
-    # The autouse fixture below re-applies the same mapping per test for
-    # call-time reads.
+    # home-derived path at import time (e.g. ``daemon.SPEC_KITTY_DIR`` at
+    # ``daemon.py:94``) resolve into the per-worker isolated home, never the
+    # developer's real ``~/.spec-kitty``. The autouse fixture below re-applies
+    # the same mapping per test for call-time reads.
     _apply_home_env(_worker_home_base(config))
+
+    # Give this run its own private, wiped-per-run pytest temp root instead of
+    # the shared platform-temp `pytest-of-<user>` numbered tree, which never
+    # shrinks except through its own locked, timeout-gated pruning and
+    # accumulates stale roots on a long-lived box. See run_basetemp.py's
+    # module docstring for why this does NOT fix #63's crash mechanism (that
+    # is `tmp_path_retention_policy` in pytest.ini). Must happen here in
+    # configure — the builtin tmpdir plugin snapshots the option into its
+    # TempPathFactory now, and xdist nests every worker's popen-gwN under the
+    # controller's value. Controller-gated; an explicit --basetemp wins.
+    install_run_basetemp(config, now_epoch())
 
     try:
         prepare_mutants_environment_from_cwd()
@@ -269,8 +303,8 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     skip_windows = pytest.mark.skip(reason="windows_ci: requires sys.platform == 'win32'")
     # Quarantine chokepoint (single, un-bypassable). Per the flakiness policy a
     # quarantined test is held out of every normal/blocking run so it can never
-    # turn main red or block an unrelated PR; the non-blocking quarantine-
-    # visibility CI job sets SPEC_KITTY_RUN_QUARANTINE=1 to run it for real.
+    # turn main red or block an unrelated PR; visibility requires the explicit
+    # SPEC_KITTY_RUN_QUARANTINE=1 opt-in (no hosted CI lane schedules it today).
     apply_quarantine_skip = not quarantine_opted_in(os.environ)
     skip_quarantine = quarantine_skip_mark()
     # Performance chokepoint (env-gated, mirrors quarantine). A single-shot
@@ -420,47 +454,10 @@ def canonical_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
 
-# WP04 (sync-deactivate-by-default, FR-010): the three env vars that govern the
-# SaaS-sync posture. ``sync_enabled`` / ``sync_disabled`` toggle exactly these
-# and nothing else, so the ``sync_module.<name>`` late-bind seam (C-006) keeps
-# reading a real env var — the fixtures set env, they never monkeypatch the
-# ``sync_active`` predicate.
-_SAAS_SYNC_DISABLE_ENV_VARS = (
-    "SPEC_KITTY_SYNC_DISABLE",
-    "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
-)
-
-
-@pytest.fixture
-def sync_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Opt this test into an ACTIVE SaaS-sync posture (call-time).
-
-    Sets ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` and clears the disable / minimal-import
-    escape hatches for the duration of the test, then ``monkeypatch`` restores the
-    prior environment. This is the replacement for the retired autouse
-    ``_enable_saas_sync_feature_flag`` — the suite default is now sync-OFF (FR-010),
-    so a test that needs sync active must request this fixture explicitly.
-
-    Sets env only; it never patches ``sync_active`` so the ``sync_module.<name>``
-    late-bind co-gate (C-006) keeps working. NOTE: this is call-time — it cannot
-    satisfy a collection-time ``skipif``; that opt-in is a CI-step env var (#3213).
-    """
+@pytest.fixture(autouse=True)
+def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep legacy sync/auth tests enabled unless a test opts out explicitly."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    for var in _SAAS_SYNC_DISABLE_ENV_VARS:
-        monkeypatch.delenv(var, raising=False)
-
-
-@pytest.fixture
-def sync_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Force an INACTIVE SaaS-sync posture for this test (call-time).
-
-    Ensures all three sync env vars are unset so ``sync_active()`` reads False,
-    even if a process-level opt-in (e.g. the ``fast-tests-sync`` CI env var) is
-    present. Sets/clears env only — the late-bind seam (C-006) is preserved.
-    """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    for var in _SAAS_SYNC_DISABLE_ENV_VARS:
-        monkeypatch.delenv(var, raising=False)
 
 
 @pytest.fixture(autouse=True)
@@ -1191,25 +1188,27 @@ def _build_tool_available() -> bool:
 
 @pytest.fixture(scope="session")
 def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
-    """Build wheel + sdist once per session. Shared by all packaging tests."""
+    """Build wheel + sdist once per RUN. Shared by all packaging tests *and* all xdist workers.
+
+    A session-scoped fixture runs once per worker process, so this used to
+    spawn up to N concurrent ``python -m build`` runs on an N-worker CI runner.
+    The build now happens at most once per run, published atomically into a
+    lock-guarded run-scoped directory next to the basetemp
+    (``tests/_support/shared_build_artifacts.py``); every other worker reuses
+    it after validating it is complete (#80). The builder itself lives in that
+    module too — this file's definition names are pinned by
+    ``tests/architectural/test_home_owner_behaviour.py``.
+    """
     if not _build_tool_available():
         pytest.skip("python -m build not available")
 
-    outdir = tmp_path_factory.mktemp("build")
-    result = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
-        cwd=REPO_ROOT,
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"Build failed: {result.stderr}")
-
-    wheels = sorted(outdir.glob("spec_kitty_cli-*.whl"))
-    sdists = sorted(outdir.glob("spec_kitty_cli-*.tar.gz"))
-    if not wheels or not sdists:
-        pytest.skip("Build did not produce expected wheel/sdist artifacts")
-
-    return {"wheel": wheels[-1], "sdist": sdists[-1]}
+    try:
+        return ensure_shared_build_artifacts(
+            run_scoped_shared_root(tmp_path_factory),
+            default_wheel_sdist_builder,
+        )
+    except SharedBuildError as error:
+        pytest.skip(str(error))
 
 
 @pytest.fixture(scope="session")
@@ -2172,8 +2171,16 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     _register_test_home_atexit_reaper(config)
 
 
-def pytest_sessionfinish(session: pytest.Session) -> None:
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """T007-T009: controller-gated REPO_ROOT reap-then-assert + prompt sweep.
+
+    Also records this session's outcome for run_basetemp.py's (#76)
+    outcome-gated tmp-tree reaper: ``mark_session_outcome`` is called with the
+    incoming *exitstatus* first, then again with ``succeeded=False`` if the
+    leaked-residue check below forces a failure — so a run that looked green
+    until this hook caught residue still retains its tmp tree. A no-op if
+    ``install_run_basetemp`` never installed a reaper against this config
+    (xdist worker, or an explicit ``--basetemp``).
 
     The N1 test-HOME removal is intentionally NOT done here — it runs from the
     ``atexit`` handler registered at ``pytest_sessionstart`` so it fires after
@@ -2187,6 +2194,8 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
     config = session.config
     if not _is_reaper_controller(config):
         return  # NFR-001: a worker must never reap the shared REPO_ROOT
+
+    mark_session_outcome(config, succeeded=exitstatus == pytest.ExitCode.OK)
 
     baseline = getattr(config, _REAPER_SNAPSHOT_ATTR, None)
     if baseline is None:
@@ -2205,3 +2214,4 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
         if reporter is not None:
             reporter.write_line(str(exc), red=True, bold=True)
         session.exitstatus = 1
+        mark_session_outcome(config, succeeded=False)

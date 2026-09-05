@@ -595,8 +595,10 @@ class TestFinalizeTasksWithFrontmatterRefs:
         mock_find: Mock,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         mock_locate.return_value = tmp_path
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"
@@ -653,8 +655,10 @@ class TestFinalizeTasksWithFrontmatterRefs:
         mock_find: Mock,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         mock_locate.return_value = tmp_path
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"

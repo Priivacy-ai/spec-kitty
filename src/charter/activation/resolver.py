@@ -25,7 +25,7 @@ hatch, for provenance-scan callers that need raw ``list_all()``/
 Finally (FR-003, charter-sole-door-bypass-closure-01KZ3WAA WP05) this module
 is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 6-tier
 asset resolution chain. The tier functions themselves stay in
-``doctrine/resolver.py`` (charter must import doctrine, never the reverse);
+``doctrine/resolver.py`` (charter must import charter.offering, never the reverse);
 what lives here is the entry point — see the "6-tier resolution axis"
 section of :class:`DoctrineService`. Before WP05,
 ``charter.activation.template_resolver.CharterTemplateResolver`` was a *second*

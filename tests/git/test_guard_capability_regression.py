@@ -376,7 +376,6 @@ def test_mark_status_test_mode_env_lands_no_commit_on_protected_target(
         ),
         patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
         patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
-        patch("specify_cli.cli.commands.agent.tasks.emit_history_added"),
     ):
         result = runner.invoke(
             app,

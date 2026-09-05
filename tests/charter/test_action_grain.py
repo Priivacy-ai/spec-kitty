@@ -35,7 +35,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 @pytest.fixture
 def missions_root(repo_root: Path) -> Path:
     """The real shipped missions root: ``packs/built-in/missions`` (relocated
-    from ``src/doctrine/missions`` by mission
+    from ``src/charter/offering/missions`` by mission
     doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005)."""
     return repo_root / "packs" / "built-in" / "missions"
 

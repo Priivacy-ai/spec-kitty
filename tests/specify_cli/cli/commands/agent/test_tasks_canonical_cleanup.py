@@ -328,7 +328,6 @@ class TestBodyNotesNoLane:
         content = wp_file.read_text(encoding="utf-8")
         assert "lane=" not in content, f"Body note should not contain 'lane=' but got:\n{content}"
 
-    @patch("specify_cli.cli.commands.agent.tasks.emit_history_added")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -339,7 +338,6 @@ class TestBodyNotesNoLane:
         mock_slug: MagicMock,
         mock_root: MagicMock,
         mock_branch: MagicMock,
-        mock_emit_history: MagicMock,
         tmp_path: Path,
     ) -> None:
         """add_history entry must not contain 'lane='."""
@@ -397,7 +395,6 @@ class TestBodyNotesNoLane:
 class TestMoveTaskHardFail:
     """move_task must raise RuntimeError when WP has no canonical status."""
 
-    @patch("specify_cli.cli.commands.agent.tasks.emit_error_logged")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
@@ -416,7 +413,6 @@ class TestMoveTaskHardFail:
         mock_review_valid: MagicMock,
         mock_read_events_transactional: MagicMock,
         mock_lock: MagicMock,
-        _mock_emit_error_logged: MagicMock,
         tmp_path: Path,
     ) -> None:
         """move_task exits with error when WP has no canonical status events."""

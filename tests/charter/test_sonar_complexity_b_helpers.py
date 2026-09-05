@@ -9,11 +9,11 @@ indirectly through the public entry points).
 
 Sections:
 
-* ``TestInterviewMappingHelpers`` — ``src/charter/synthesizer/interview_mapping.py``
+* ``TestInterviewMappingHelpers`` — ``src/charter/activation/synthesizer/interview_mapping.py``
   (``normalize_interview_snapshot``'s S3776 finding, cc ~18 -> decomposed).
-* ``TestSectionBodiesHelpers`` — ``src/charter/context_renderers/section_bodies.py``
+* ``TestSectionBodiesHelpers`` — ``src/charter/activation/context_renderers/section_bodies.py``
   (``_find_next_section_start``'s S3776 finding, cc ~18 -> decomposed).
-* ``TestProfileSectionsHelpers`` — ``src/charter/context_renderers/profile_sections.py``
+* ``TestProfileSectionsHelpers`` — ``src/charter/activation/context_renderers/profile_sections.py``
   (``render_profile_selector_refs`` cc ~18 and ``_render_profile_directives``
   cc ~17 -> decomposed; plus the S1192 duplicate-literal hoist onto
   ``_PROFILE_CODE_CHANGE_WHEN``).

@@ -56,10 +56,8 @@ from specify_cli.core.utils import ensure_within_any
 from specify_cli.mission_metadata import load_meta, write_meta
 from specify_cli.workspace import canonicalize_feature_dir
 
-from specify_cli.event_journal.journal import ProjectLayoutRequiredError
 
 from .backfill_runtime_state import (
-    LAYOUT_REFUSAL_REASON,
     BackfillResult,
     MigrationOrderingError,
     VerifyResult,
@@ -354,14 +352,6 @@ def cutover_mission(
         seed = _seed_phase(status_dir, read_dir=feature_dir, dry_run=dry_run, **scope)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, error=str(exc))
-    except ProjectLayoutRequiredError:
-        # #3476: a seed write refused because the layout is not cut over must be
-        # a genuine, honest failure on the result — never a bland success. The
-        # backfill library already translates the refusal to an ``error`` result;
-        # this widens the catch for a direct raise that bypasses that seam so the
-        # CLI boundary (``_cutover_failed`` / ``_cutover_detail``) surfaces it.
-        return CutoverResult(slug=slug, flipped=False, error=LAYOUT_REFUSAL_REASON)
-
     slug = seed.slug
     if seed.action == "error":
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=seed.reason)

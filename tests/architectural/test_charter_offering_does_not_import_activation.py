@@ -101,9 +101,7 @@ def _is_activation_module(module: str) -> bool:
     (e.g. a hypothetical ``charter.activation_log``) is correctly *not*
     flagged.
     """
-    return module in _ACTIVATION_MODULES or any(
-        module.startswith(f"{m}.") for m in _ACTIVATION_MODULES
-    )
+    return module in _ACTIVATION_MODULES or any(module.startswith(f"{m}.") for m in _ACTIVATION_MODULES)
 
 
 def _dotted_module_name(path: Path, package_root: Path) -> str:
@@ -409,7 +407,4 @@ def test_importing_offering_does_not_drag_activation_layer() -> None:
         check=True,
     )
     dragged = [line for line in result.stdout.splitlines() if line.strip()]
-    assert not dragged, (
-        "importing charter.offering.* dragged in the activation layer "
-        f"(MAP-B/#3803 regression): {dragged}"
-    )
+    assert not dragged, f"importing charter.offering.* dragged in the activation layer (MAP-B/#3803 regression): {dragged}"

@@ -23,7 +23,6 @@ def tmp_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return repo
 
 
-@pytest.mark.performance
 def test_warm_resolver_p95_under_5ms(tmp_repo: Path) -> None:
     # Prime the cache.
     resolve_canonical_repo_root(tmp_repo)

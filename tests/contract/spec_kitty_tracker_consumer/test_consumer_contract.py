@@ -115,3 +115,46 @@ def test_sync_engine_class_exists() -> None:
         f"spec_kitty_tracker.SyncEngine is not a class (got {type(SyncEngine)}). "
         "CLI's tracker integration relies on SyncEngine being a class."
     )
+
+
+# ---------------------------------------------------------------------------
+# TRK-M1-04 (specify_cli.tracker.gateway) -- forward-looking, version-gated
+#
+# specify_cli.tracker.gateway.build_gateway_beads_connector consumes
+# spec_kitty_tracker.context.LocalExecutionContext and BeadsConnectorConfig's
+# ``context``/``runner`` kwargs -- landed by the TRK-M1-02/03 kernel (0.5.x)
+# but not yet published to PyPI as of this pin (the committed range below
+# stays ``<0.5`` deliberately; see gateway.py's module docstring and
+# docs/development/how-to/local-overrides.md). These assertions skip
+# cleanly against the currently-published 0.4.x line rather than pinning a
+# floor this CLI mission does not (yet) actually require, and start
+# asserting for real once a >=0.5 spec-kitty-tracker is installed.
+# ---------------------------------------------------------------------------
+
+
+def _require_gateway_tracker() -> None:
+    pytest.importorskip("spec_kitty_tracker.context", reason="TRK-M1-04 gateway wiring needs spec-kitty-tracker>=0.5")
+
+
+def test_local_execution_context_class_exists() -> None:
+    """``LocalExecutionContext`` must be a class (gateway.py instantiates it)."""
+    _require_gateway_tracker()
+    from spec_kitty_tracker.context import LocalExecutionContext
+
+    assert isinstance(LocalExecutionContext, type)
+
+
+def test_beads_connector_config_accepts_context_and_beads_connector_accepts_runner() -> None:
+    """``gateway.build_gateway_beads_connector`` relies on
+    ``BeadsConnectorConfig(..., context=...)`` and ``BeadsConnector(config, runner=...)``
+    (TRK-M1-02 A4)."""
+    _require_gateway_tracker()
+    import inspect
+
+    from spec_kitty_tracker import BeadsConnector, BeadsConnectorConfig
+
+    config_params = inspect.signature(BeadsConnectorConfig).parameters
+    assert "context" in config_params
+
+    connector_params = inspect.signature(BeadsConnector).parameters
+    assert "runner" in connector_params

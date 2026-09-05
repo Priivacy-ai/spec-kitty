@@ -30,8 +30,12 @@ TARGET = "codex/owned"
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(
-        ["git", *args], cwd=root, check=True, capture_output=True,
-        text=True, encoding="utf-8",
+        ["git", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     ).stdout.strip()
 
 
@@ -67,11 +71,20 @@ def checkouts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Pa
     git(primary, "worktree", "add", "-qb", "codex/sibling", str(sibling))
     mission = owned / "kitty-specs" / SLUG
     (mission / "tasks").mkdir(parents=True)
-    (mission / "meta.json").write_text(json.dumps({
-        "mission_id": MID, "mission_slug": SLUG, "slug": SLUG,
-        "mission_type": "software-dev", "topology": "single_branch",
-        "target_branch": TARGET, "flattened": False,
-    }), encoding="utf-8")
+    (mission / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": MID,
+                "mission_slug": SLUG,
+                "slug": SLUG,
+                "mission_type": "software-dev",
+                "topology": "single_branch",
+                "target_branch": TARGET,
+                "flattened": False,
+            }
+        ),
+        encoding="utf-8",
+    )
     (mission / "spec.md").write_text(
         "# Spec\n\n## Functional Requirements\n"
         "| ID | Requirement | Acceptance Criteria | Status |\n"
@@ -90,8 +103,7 @@ def checkouts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Pa
     git(owned, "commit", "-qm", "owned mission")
     monkeypatch.chdir(owned)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(owned))
-    import specify_cli.sync.feature_flags as flags
-    monkeypatch.setattr(flags, "is_saas_sync_enabled", lambda *_a, **_k: False)
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     return primary, owned, sibling
 
 
@@ -343,8 +355,10 @@ def test_accept_without_opt_in_keeps_primary_resolution(checkouts):
     primary, owned, sibling = checkouts
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("accept", owned, opt_in=False)
-    assert result.exit_code == 2, result.output
-    assert json.loads(result.output)["error"] == "mission_not_found"
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
+    assert payload["handle"] == SLUG
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -527,7 +541,8 @@ def test_owned_accept_reports_unsuccessful_cutover(ready_accept_checkouts, monke
         if failure == "exception":
             raise OSError("synthetic stamp failure")
         return runtime_state_cutover.CutoverResult(
-            slug=slug, flipped=False,
+            slug=slug,
+            flipped=False,
             verify=VerifyResult(ok=False, wp_count=1, mismatches=("synthetic stamp failure",)),
         )
 

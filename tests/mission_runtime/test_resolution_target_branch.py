@@ -19,6 +19,7 @@ These tests pin two invariants for the canonical resolver
    mode-correct branch, and the write guard refuses the unauthorized mainline
    write with the stable ``PROTECTED_BRANCH_REFUSED`` code — no silent fallback.
 """
+
 from __future__ import annotations
 
 import json
@@ -75,14 +76,7 @@ def _write_review_wp(feature_dir: Path) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP01-review.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Review target\n"
-        "dependencies: []\n"
-        "execution_mode: planning_artifact\n"
-        "owned_files: []\n"
-        "---\n"
-        "# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: Review target\ndependencies: []\nexecution_mode: planning_artifact\nowned_files: []\n---\n# WP01\n",
         encoding="utf-8",
     )
 
@@ -114,9 +108,7 @@ def repo(tmp_path: Path) -> Path:
     _git(r, "config", "user.name", "Test")
     _git(r, "config", "commit.gpgsign", "false")
     (r / ".kittify").mkdir()
-    (r / ".kittify" / "config.yaml").write_text(
-        "agents:\n  available:\n    - claude\n", encoding="utf-8"
-    )
+    (r / ".kittify" / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
     return r
 
 
@@ -221,9 +213,7 @@ def _add_caller_worktree(repo: Path, tmp_path: Path) -> Path:
     return caller
 
 
-def test_effective_root_prefers_caller_surface_stored_target(
-    repo: Path, tmp_path: Path
-) -> None:
+def test_effective_root_prefers_caller_surface_stored_target(repo: Path, tmp_path: Path) -> None:
     """The caller-owned worktree's stored target_branch wins when present."""
     _build_mission(repo, target_branch="feat/primary-stored")
     _git(repo, "add", ".")
@@ -246,9 +236,7 @@ def test_effective_root_prefers_caller_surface_stored_target(
     assert ctx.target_branch == "feat/caller-stored"
 
 
-def test_effective_root_falls_back_to_primary_stored_target(
-    repo: Path, tmp_path: Path
-) -> None:
+def test_effective_root_falls_back_to_primary_stored_target(repo: Path, tmp_path: Path) -> None:
     """A caller surface whose meta lacks target_branch falls back to PRIMARY's.
 
     Regression: the first cut of the effective-root path degraded to the bare

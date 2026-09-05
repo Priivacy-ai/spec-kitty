@@ -81,9 +81,7 @@ _JOIN_CEILING_SECONDS = DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS + 10.0
 def _init_repo(path: Path) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"], cwd=path, check=True, capture_output=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=path, check=True, capture_output=True)
 
 
 def _build_fixture(repo: Path) -> None:
@@ -223,9 +221,7 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
 
         assert len(outcome) == 1  # golden-count: cardinality-is-contract
         [captured] = outcome
-        assert isinstance(captured, VerdictPersistenceFailure), (
-            f"expected a typed VerdictPersistenceFailure, got: {captured!r}"
-        )
+        assert isinstance(captured, VerdictPersistenceFailure), f"expected a typed VerdictPersistenceFailure, got: {captured!r}"
         signal = captured.signal
         assert signal.outcome.verdict_durably_persisted is False
         assert signal.outcome.classification == "busy"
@@ -240,9 +236,7 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
         parent.close()
 
 
-def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The status-lock bound (#3773 item 1) is scoped to the queue-held path.
 
     The unbounded-hang hazard exists only while the checkout-wide verdict queue
@@ -260,7 +254,6 @@ def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(
 
     monkeypatch.setattr(cycle, "verdict_save_queue_is_held", lambda _repo: False)
     assert cycle._in_queue_status_lock_timeout(tmp_path) == -1.0
-
 
     # A non-git path cannot own the checkout-wide queue: the probe raises
     # GitTopologyError there (not False), and the allocator must degrade to the

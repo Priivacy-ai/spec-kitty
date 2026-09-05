@@ -137,7 +137,7 @@ _AUTHORITY_FILE = Path("src/charter/offering/pack_paths.py")
 #: built-in-tier reconstruction.
 _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
     {
-        # src/charter/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
+        # src/charter/activation/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
         # nested-pack join (`flat / "built-in"`), NOT a built-in-tier
         # reconstruction. See module docstring.
         # FRESHENED 2026-08-11 (#3317 landing): the join was extracted out of
@@ -222,17 +222,13 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # `src/charter/offering/templates/AGENTS.md` (relocated from
         # `src/doctrine/templates/`), pushing this join down one line.
         (Path("src/specify_cli/template/manager.py"), 166),
-        # src/charter/activation/neutrality/lint.py::_default_scan_roots --
-        # scans a caller-supplied `repo_root` (tmp_path-rooted in tests; see
+        # src/charter/activation/neutrality/lint.py::_default_scan_roots -- scans a
+        # caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),
         # not this installation's own built-in tier. See module docstring
         # class 2.
-        # FRESHENED (charter-code-topology-01M152G1 landing): line 353 -> 362;
+        # FRESHENED (charter-activation-split-01M16ZSE M2b landing): line 362 -> 379;
         # behaviour-preserving, same caller-supplied-root join.
-        # FRESHENED (charter-activation-split-01M16ZSE M2b landing): the
-        # module physically moved from src/charter/neutrality/lint.py to
-        # src/charter/activation/neutrality/lint.py, pushing the (unchanged)
-        # caller-supplied-root join from line 362 to line 379.
         (Path("src/charter/activation/neutrality/lint.py"), 379),
     }
 )

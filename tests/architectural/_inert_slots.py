@@ -283,11 +283,7 @@ def _declaration_nodes(tree: ast.Module) -> set[int]:
     declared: set[int] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
-            declared.update(
-                id(statement)
-                for statement in node.body
-                if isinstance(statement, ast.AnnAssign)
-            )
+            declared.update(id(statement) for statement in node.body if isinstance(statement, ast.AnnAssign))
     return declared
 
 
@@ -297,21 +293,14 @@ def _iter_code_producer_names(tree: ast.Module) -> Iterator[str]:
         if isinstance(node, ast.Assign):
             for target in node.targets:
                 yield from _target_names(target)
-        elif (
-            isinstance(node, ast.AugAssign | ast.AnnAssign)
-            and id(node) not in declarations
-        ):
+        elif isinstance(node, ast.AugAssign | ast.AnnAssign) and id(node) not in declarations:
             # ``declarations`` only ever holds ``AnnAssign`` ids, so the membership
             # test is a no-op for ``AugAssign`` and the two branches are one rule.
             yield from _target_names(node.target)
         elif isinstance(node, ast.Call):
             yield from (kw.arg for kw in node.keywords if kw.arg is not None)
         elif isinstance(node, ast.Dict):
-            yield from (
-                key.value
-                for key in node.keys
-                if isinstance(key, ast.Constant) and isinstance(key.value, str)
-            )
+            yield from (key.value for key in node.keys if isinstance(key, ast.Constant) and isinstance(key.value, str))
 
 
 def _code_producers(root: Path) -> set[str]:
@@ -356,11 +345,7 @@ def scanned_slots(root: Path) -> set[InertSlot]:
 def _unproduced(slots: set[InertSlot], producers: set[str]) -> list[InertSlot]:
     """Slots *producers* does not cover, deterministically ordered."""
     return sorted(
-        (
-            slot
-            for slot in slots
-            if slot.name not in producers and slot.name not in ALLOWLIST
-        ),
+        (slot for slot in slots if slot.name not in producers and slot.name not in ALLOWLIST),
         key=lambda slot: (slot.name, str(slot.declared_at)),
     )
 
@@ -397,11 +382,7 @@ def find_code_only_suppressions(root: Path) -> list[InertSlot]:
     """
     slots = scanned_slots(root)
     code = _code_producers(root)
-    return [
-        slot
-        for slot in _unproduced(slots, _artefact_producers(root))
-        if slot.name in code
-    ]
+    return [slot for slot in _unproduced(slots, _artefact_producers(root)) if slot.name in code]
 
 
 def code_producer_writes(root: Path, name: str, producer: Path) -> bool:
@@ -430,9 +411,7 @@ BASELINE_PATH = Path(__file__).with_name("_inert_slots_baseline.yaml")
 
 #: Exactly three structural answers. There is deliberately no ``accepted``, no
 #: ``wont-fix``, no ``by-design`` — "leave it alone" is not a disposition.
-DISPOSITIONS = frozenset(
-    {"wire-the-producer", "delete-the-declaration", "fix-the-lint-definition"}
-)
+DISPOSITIONS = frozenset({"wire-the-producer", "delete-the-declaration", "fix-the-lint-definition"})
 
 UNASSIGNED_OWNER = "unassigned"
 _MISSION_OWNER_PREFIX = "mission:"
@@ -513,10 +492,7 @@ class Baseline:
 
 def _require_str(raw: object, field: str, index: int) -> str:
     if not isinstance(raw, str) or not raw.strip():
-        raise BaselineError(
-            f"baseline entry {index}: {field!r} must be a non-empty string, "
-            f"got {raw!r}. Quote YAML-ambiguous names such as 'on' and 'yes'."
-        )
+        raise BaselineError(f"baseline entry {index}: {field!r} must be a non-empty string, got {raw!r}. Quote YAML-ambiguous names such as 'on' and 'yes'.")
     return raw
 
 
@@ -525,20 +501,14 @@ def _parse_entry(raw: object, index: int) -> BaselineEntry:
         raise BaselineError(f"baseline entry {index} is not a mapping: {raw!r}")
     disposition = _require_str(raw.get("disposition"), "disposition", index)
     if disposition not in DISPOSITIONS:
-        raise BaselineError(
-            f"baseline entry {index}: illegal disposition {disposition!r}. "
-            f"Legal values are {sorted(DISPOSITIONS)} — there is no 'accepted'."
-        )
+        raise BaselineError(f"baseline entry {index}: illegal disposition {disposition!r}. Legal values are {sorted(DISPOSITIONS)} — there is no 'accepted'.")
     provisional = raw.get("provisional", False)
     if not isinstance(provisional, bool):
-        raise BaselineError(
-            f"baseline entry {index}: 'provisional' must be a bool, got {provisional!r}"
-        )
+        raise BaselineError(f"baseline entry {index}: 'provisional' must be a bool, got {provisional!r}")
     owner = _require_str(raw.get("owner"), "owner", index)
     if provisional and owner != UNASSIGNED_OWNER:
         raise BaselineError(
-            f"baseline entry {index}: owner {owner!r} is named, so its disposition "
-            "is that owner's call to make and record — it cannot stay provisional."
+            f"baseline entry {index}: owner {owner!r} is named, so its disposition is that owner's call to make and record — it cannot stay provisional."
         )
     return BaselineEntry(
         name=_require_str(raw.get("name"), "name", index),
@@ -559,22 +529,16 @@ def load_baseline(path: Path = BASELINE_PATH) -> Baseline:
     raw_entries = document.get("entries")
     if not isinstance(raw_entries, list):
         raise BaselineError(f"{path}: 'entries' must be a list")
-    entries = tuple(
-        _parse_entry(raw, index) for index, raw in enumerate(raw_entries)
-    )
+    entries = tuple(_parse_entry(raw, index) for index, raw in enumerate(raw_entries))
     seen: set[InertSlot] = set()
     for entry in entries:
         if entry.slot in seen:
-            raise BaselineError(
-                f"duplicate baseline entry for {entry.name!r} at {entry.declared_at}"
-            )
+            raise BaselineError(f"duplicate baseline entry for {entry.name!r} at {entry.declared_at}")
         seen.add(entry.slot)
     return Baseline(mission=mission, entries=entries)
 
 
-def ratchet(
-    found: list[InertSlot], baseline: Baseline
-) -> tuple[list[InertSlot], list[BaselineEntry]]:
+def ratchet(found: list[InertSlot], baseline: Baseline) -> tuple[list[InertSlot], list[BaselineEntry]]:
     """Split findings against the baseline into ``(new, cleared)``.
 
     ``new`` — findings absent from the baseline. Growth: the gate FAILS.
@@ -641,16 +605,12 @@ def owner_is_complete(owner: str, *, root: Path, mission: str) -> bool:
     if owner.startswith(_MISSION_OWNER_PREFIX):
         slug = owner.removeprefix(_MISSION_OWNER_PREFIX)
         states = _mission_work_packages(root, slug)
-        return bool(states) and all(
-            state.get("lane") in COMPLETED_LANES for state in states.values()
-        )
+        return bool(states) and all(state.get("lane") in COMPLETED_LANES for state in states.values())
     state = _mission_work_packages(root, mission).get(owner)
     return state is not None and state.get("lane") in COMPLETED_LANES
 
 
-def unresolved_by_completed_owners(
-    found: list[InertSlot], baseline: Baseline, *, root: Path
-) -> dict[str, list[BaselineEntry]]:
+def unresolved_by_completed_owners(found: list[InertSlot], baseline: Baseline, *, root: Path) -> dict[str, list[BaselineEntry]]:
     """Baseline entries still present whose owner has already completed.
 
     This is the anti-weasel check. Without it the baseline is an allowlist with
@@ -664,9 +624,7 @@ def unresolved_by_completed_owners(
         if entry.slot not in still_found:
             continue
         if entry.owner not in completion:
-            completion[entry.owner] = owner_is_complete(
-                entry.owner, root=root, mission=baseline.mission
-            )
+            completion[entry.owner] = owner_is_complete(entry.owner, root=root, mission=baseline.mission)
         if completion[entry.owner]:
             offenders.setdefault(entry.owner, []).append(entry)
     return offenders
@@ -683,9 +641,7 @@ def unresolved_by_completed_owners(
 #: Exactly three verdicts, and only the first is a claim that the code write is real.
 #: ``name-collision`` and ``reader-not-producer`` both say "this row is masking a
 #: genuine finding" — they are debt, and :data:`MAX_MASKING_SUPPRESSIONS` caps them.
-CODE_ONLY_VERDICTS = frozenset(
-    {"genuine-producer", "name-collision", "reader-not-producer"}
-)
+CODE_ONLY_VERDICTS = frozenset({"genuine-producer", "name-collision", "reader-not-producer"})
 
 _GENUINE_PRODUCER = "genuine-producer"
 
@@ -733,10 +689,7 @@ def _parse_code_only(raw: object, index: int) -> CodeOnlySuppression:
         raise BaselineError(f"{_CODE_ONLY_KEY} entry {index} is not a mapping: {raw!r}")
     verdict = _require_str(raw.get("verdict"), "verdict", index)
     if verdict not in CODE_ONLY_VERDICTS:
-        raise BaselineError(
-            f"{_CODE_ONLY_KEY} entry {index}: illegal verdict {verdict!r}. Legal "
-            f"values are {sorted(CODE_ONLY_VERDICTS)} — there is no 'accepted'."
-        )
+        raise BaselineError(f"{_CODE_ONLY_KEY} entry {index}: illegal verdict {verdict!r}. Legal values are {sorted(CODE_ONLY_VERDICTS)} — there is no 'accepted'.")
     return CodeOnlySuppression(
         name=_require_str(raw.get("name"), "name", index),
         declared_at=Path(_require_str(raw.get("declared_at"), "declared_at", index)),
@@ -765,16 +718,12 @@ def load_code_only_record(
     seen: set[InertSlot] = set()
     for row in rows:
         if row.slot in seen:
-            raise BaselineError(
-                f"duplicate {_CODE_ONLY_KEY} row for {row.name!r} at {row.declared_at}"
-            )
+            raise BaselineError(f"duplicate {_CODE_ONLY_KEY} row for {row.name!r} at {row.declared_at}")
         seen.add(row.slot)
     return rows
 
 
-def code_only_drift(
-    found: list[InertSlot], recorded: tuple[CodeOnlySuppression, ...]
-) -> tuple[list[InertSlot], list[CodeOnlySuppression]]:
+def code_only_drift(found: list[InertSlot], recorded: tuple[CodeOnlySuppression, ...]) -> tuple[list[InertSlot], list[CodeOnlySuppression]]:
     """Split the computed suppressions against the record into ``(new, stale)``.
 
     Both halves FAIL the gate, for different reasons. ``new`` is the hole: a slot
@@ -836,9 +785,5 @@ def is_schema_declared(slot: InertSlot) -> bool:
 #: regardless of the baseline's size, so ``0 >= 28`` fails exactly as hard as
 #: ``0 >= 30`` did before WP05's excision. Proportional to the baseline, not
 #: absolute — so the same mutation still goes red after every future shrink.
-MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND = len(
-    {slot for slot in BASELINE_SLOTS if is_schema_declared(slot)}
-)
-MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND = len(
-    {slot for slot in BASELINE_SLOTS if not is_schema_declared(slot)}
-)
+MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND = len({slot for slot in BASELINE_SLOTS if is_schema_declared(slot)})
+MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND = len({slot for slot in BASELINE_SLOTS if not is_schema_declared(slot)})

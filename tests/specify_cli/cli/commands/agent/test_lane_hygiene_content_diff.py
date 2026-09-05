@@ -436,3 +436,157 @@ class TestOccurrenceMapException:
         assert not any("occurrence_map.yaml" in p for p in flagged), (
             f"Occurrence map must be excepted even alongside a real violation, got {flagged!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# FIX-M2-04: COORD-partition inheritance from the coordination-branch lane
+# parentage (#1348 WP04 / FR-009 / #2993) is never byte-identical to the
+# planning branch and must not be flagged.
+# ---------------------------------------------------------------------------
+
+
+def _build_coord_status_state_scenario(tmp_path: Path) -> tuple[Path, str, str]:
+    """Reproduce the real ``spec-kitty implement`` coord-topology lane DAG.
+
+    Layout (matches the golden-path repro exactly — ``git log --graph`` on a
+    real ``.worktrees/*-lane-*`` branch after ``spec-kitty implement WP01``)::
+
+        A (main) ── README
+          ├── coord:  A → S   (adds kitty-specs/test-mission/status.events.jsonl
+          │                    + acceptance-matrix.json — the coordination
+          │                    branch's OWN COORD-partition writes: the
+          │                    finalize-tasks bootstrap event + implement's
+          │                    claim transition + acceptance-matrix scaffold,
+          │                    collapsed into one commit for test brevity)
+          │
+          └── planning: A → P (adds kitty-specs/test-mission/spec.md +
+                                tasks.md — the PRIMARY-partition planning
+                                artifacts; status.events.jsonl is NEVER
+                                written here — it is coord-owned and lives
+                                exclusively on the coordination branch, by
+                                design (module docstring,
+                                ``worktree_allocator.py``))
+        lane: forked from coord (S), then FR-009-MERGES the recorded
+              planning commit P (``PlanningCommitMergeConflictError``'s
+              docstring, #2993) — exactly what
+              ``allocate_lane_worktree``/``_merge_recorded_planning_commit``
+              does for every coord-topology lane worktree.
+
+    Because ``status.events.jsonl`` / ``acceptance-matrix.json`` are written
+    ONLY on the coordination branch (never on planning), they can NEVER be
+    byte-identical to the planning tip — ``_filter_by_planning_tip_content``'s
+    exact-match rescue can never save them, which is exactly why every
+    coord-topology mission tripped the "kitty-specs/ changes are not allowed
+    on lane branches" guard structurally, independent of anything an
+    implementer committed.
+
+    Returns ``(repo, coord_branch, planning_branch)``.
+    """
+    repo = _init_repo(tmp_path)
+
+    (repo / "README.md").write_text("anchor\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "anchor")
+
+    # Coordination branch: COORD-partition bookkeeping only, no planning docs.
+    _git(repo, "checkout", "-q", "-b", "coord")
+    coord_ks = repo / "kitty-specs" / "test-mission"
+    coord_ks.mkdir(parents=True)
+    (coord_ks / "status.events.jsonl").write_text(
+        '{"wp_id": "WP01", "to_lane": "planned"}\n'
+        '{"wp_id": "WP01", "to_lane": "claimed"}\n'
+        '{"wp_id": "WP01", "to_lane": "in_progress"}\n',
+        encoding="utf-8",
+    )
+    (coord_ks / "acceptance-matrix.json").write_text('{"WP01": []}\n', encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "coord: bootstrap status + acceptance-matrix")
+
+    # Planning branch: PRIMARY-partition artifacts only — forked from the SAME
+    # anchor as coord, never touches status.events.jsonl / acceptance-matrix.json.
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "checkout", "-q", "-b", "planning")
+    planning_ks = repo / "kitty-specs" / "test-mission"
+    planning_ks.mkdir(parents=True)
+    (planning_ks / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (planning_ks / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "planning: record this-mission spec + tasks")
+    planning_sha = subprocess.run(
+        ["git", "rev-parse", "planning"],
+        cwd=repo, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+    # Lane: parented on coord (#1348 WP04), then FR-009-merges the recorded
+    # planning commit on top (#2993) — the real allocate_lane_worktree shape.
+    _git(repo, "checkout", "-q", "coord")
+    _git(repo, "checkout", "-q", "-b", "lane")
+    _git(repo, "merge", "-q", "--no-edit", planning_sha)
+
+    return repo, "coord", "planning"
+
+
+class TestCoordPartitionInheritanceNotFlagged:
+    """FIX-M2-04: coord-owned status/acceptance-matrix inheritance from the
+    lane's coordination-branch parentage must not be flagged, even though it
+    can never be byte-identical to the planning tip (the file simply does not
+    exist there)."""
+
+    def test_status_events_and_acceptance_matrix_are_not_flagged(
+        self, tmp_path: Path
+    ) -> None:
+        """RED pre-fix / GREEN post-fix: the coord-inherited STATUS_STATE +
+        ACCEPTANCE_MATRIX files must not be reported as lane contamination.
+
+        Pre-fix (``_filter_by_planning_tip_content`` alone): both files differ
+        from the planning tip (they are simply absent there) so BOTH are kept
+        in the flagged list — the exact reported defect (``agent tasks
+        move-task ... --to for_review`` failing with "kitty-specs/ changes are
+        not allowed on lane branches" on a fresh coord-topology project).
+
+        Post-fix: ``is_coord_residue_churn`` drops any candidate whose
+        declared ``MissionArtifactKind`` is COORD-partition before the
+        content re-check ever runs, so neither file reaches the flagged list.
+        """
+        repo, _coord, planning = _build_coord_status_state_scenario(tmp_path)
+
+        flagged = _list_wp_branch_mission_specs_changes(repo, planning)
+
+        assert not any("status.events.jsonl" in p for p in flagged), (
+            f"Coord-owned status.events.jsonl wrongly flagged as lane "
+            f"contamination: {flagged!r}"
+        )
+        assert not any("acceptance-matrix.json" in p for p in flagged), (
+            f"Coord-owned acceptance-matrix.json wrongly flagged as lane "
+            f"contamination: {flagged!r}"
+        )
+        assert flagged == [], f"Expected no lane contamination, got {flagged!r}"
+
+    def test_genuine_primary_artifact_edit_still_flagged(self, tmp_path: Path) -> None:
+        """The coord-residue exemption must not swallow a REAL violation: an
+        implementer editing spec.md directly on the lane (a PRIMARY-partition
+        planning artifact) is still flagged, alongside the harmless coord
+        inheritance from the same topology."""
+        repo, _coord, planning = _build_coord_status_state_scenario(tmp_path)
+
+        # A genuine lane-authored edit to a PRIMARY artifact, on top of the
+        # same coord-parented + FR-009-merged topology.
+        (repo / "kitty-specs" / "test-mission" / "spec.md").write_text(
+            "# Spec EDITED on lane\n", encoding="utf-8"
+        )
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "lane: edit spec.md (real violation)")
+
+        flagged = _list_wp_branch_mission_specs_changes(repo, planning)
+
+        assert any("spec.md" in p for p in flagged), (
+            f"Genuine spec.md edit on the lane must still be flagged, got {flagged!r}"
+        )
+        assert not any("status.events.jsonl" in p for p in flagged), (
+            f"Coord-owned status.events.jsonl must stay excepted even "
+            f"alongside a real violation, got {flagged!r}"
+        )
+        assert not any("acceptance-matrix.json" in p for p in flagged), (
+            f"Coord-owned acceptance-matrix.json must stay excepted even "
+            f"alongside a real violation, got {flagged!r}"
+        )

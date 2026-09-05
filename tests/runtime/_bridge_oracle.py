@@ -339,26 +339,21 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
     real_cli = bridge_module._check_cli_guards
     real_composed = bridge_module._check_composed_action_guard
 
-    def _cli_spy(step_id: str, feature_dir: Path, repo_root: Path | None = None) -> list[str]:
-        # ``repo_root`` (#3704 WP03) is a pure pass-through here -- this is
-        # a call-through spy (never a stub); the real guard logic decides
-        # everything. Not recorded on ``GuardCall`` -- no existing consumer
-        # of this oracle asserts on it, and AC-8's repo_root-threading claim
-        # is pinned directly in tests/runtime/next/test_cli_guard_family.py
-        # instead, closer to the call sites it's about.
-        #
-        # WP03-F1 (#3704 WP04 fold-in, severity 3): the default value on this
-        # parameter (and on ``_composed_spy``'s below) means this oracle
-        # cannot detect a regressed/omitted ``repo_root`` at any of the three
-        # call sites it wraps -- a caller that silently stopped threading
-        # ``repo_root`` through would still satisfy this spy's signature.
-        # That coverage lives ENTIRELY in
-        # ``TestAC8RepoRootThreadedThroughDnDependencyGate``
-        # (tests/runtime/next/test_cli_guard_family.py) -- this oracle does
-        # NOT backstop it. If that test class is ever modified or deleted,
-        # repo_root-threading regression coverage silently disappears with
-        # it; whoever touches it should know that is what they are removing.
-        result: list[str] = list(real_cli(step_id, feature_dir, repo_root=repo_root))
+    def _cli_spy(
+        step_id: str,
+        feature_dir: Path,
+        *,
+        mission_family: str | None = None,
+        repo_root: Path | None = None,
+    ) -> list[str]:
+        result: list[str] = list(
+            real_cli(
+                step_id,
+                feature_dir,
+                mission_family=mission_family,
+                repo_root=repo_root,
+            )
+        )
         calls.append(GuardCall("cli", step_id, None, None, list(result)))
         return result
 
@@ -473,14 +468,14 @@ def capture_side_effects(
     # sink" toggle the harness sets before invoking the entry.
     active_sink_holder = {"sync": capture.sync_emitter_calls, "coord": capture.coord_commit_calls}
 
-    real_for_feature = bridge_module.SyncRuntimeEventEmitter.for_feature
+    real_for_feature = bridge_module.RuntimeEventEmitter.for_feature
 
     def _for_feature_spy(**kwargs: Any) -> Any:
         emitter = real_for_feature(**kwargs)
         return _RecordingProxy(emitter, active_sink_holder["sync"])
 
     monkeypatch.setattr(
-        bridge_module.SyncRuntimeEventEmitter,
+        bridge_module.RuntimeEventEmitter,
         "for_feature",
         staticmethod(_for_feature_spy),
     )

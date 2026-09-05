@@ -226,29 +226,6 @@ class TestCommitOperations:
 
 
 # =============================================================================
-# Sync Operations Integration Tests
-# =============================================================================
-
-
-class TestSyncOperations:
-    """Integration tests for sync operations."""
-
-    def test_sync_up_to_date(self, git_repo, mock_git_only):
-        """Sync should report UP_TO_DATE when nothing to sync."""
-        vcs = get_vcs(git_repo)
-
-        # Create workspace
-        workspace_path = git_repo / ".worktrees" / "sync-test"
-        vcs.create_workspace(workspace_path, "sync-test", repo_root=git_repo)
-
-        # Sync should work (might fail without remote, but shouldn't crash)
-        result = vcs.sync_workspace(workspace_path)
-
-        # Either up to date or failed (no remote)
-        assert result is not None
-
-
-# =============================================================================
 # Operation History Integration Tests
 # =============================================================================
 

@@ -689,7 +689,6 @@ class TestDiffScopeGateCLI:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.performance
 class TestGatePerformance:
     def test_full_docs_scan_under_5_seconds(self) -> None:
         # NFR-001: full docs/ scan must complete in < 5 s.

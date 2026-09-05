@@ -351,22 +351,12 @@ def test_module_has_no_daemon_or_status_event_dependencies() -> None:
     """The primitive remains synchronous and independent of status mutation."""
     source_path = Path(verdict_commit_queue.__file__)
     tree = ast.parse(source_path.read_text(encoding="utf-8"))
-    imported_modules = {
-        node.module
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module is not None
-    }
-    imported_modules.update(
-        alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Import)
-        for alias in node.names
-    )
+    imported_modules = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module is not None}
+    imported_modules.update(alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names)
     forbidden_calls = {
         node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
         for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, (ast.Attribute, ast.Name))
+        if isinstance(node, ast.Call) and isinstance(node.func, (ast.Attribute, ast.Name))
     } & {"Thread", "Process", "Popen"}
 
     assert not forbidden_calls

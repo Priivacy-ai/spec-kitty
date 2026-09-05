@@ -148,16 +148,6 @@ def _run_finalize_with_override(
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return runner.invoke(
             app,
@@ -242,6 +232,39 @@ def test_target_branch_override_reaches_wp_status_bookkeeping(
         check=True,
     ).stdout
     assert json.loads(meta_show)["target_branch"] == FEATURE_BRANCH
+
+
+def test_branch_contract_write_ownership_uses_target_mission_checkout(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The write gate follows the mission directory, not the primary-repo shape."""
+    from specify_cli.cli.commands.agent.mission_finalize import _enforce_branch_contract_write_ownership
+    from typer import Exit
+
+    repo = protected_target_repo.repo_root
+    mission_dir = repo / "kitty-specs" / "issue-3466-write-ownership"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("{}\n", encoding="utf-8")
+    _git(repo, "add", "kitty-specs/issue-3466-write-ownership")
+    _git(repo, "commit", "-q", "-m", "seed write-ownership mission")
+
+    owner = repo.parent / "write-ownership-owner"
+    foreign = repo.parent / "write-ownership-foreign"
+    _git(repo, "worktree", "add", "-q", "-b", "op/write-ownership-owner", str(owner))
+    _git(repo, "worktree", "add", "-q", "-b", "op/write-ownership-foreign", str(foreign))
+
+    owner_mission = owner / "kitty-specs" / "issue-3466-write-ownership"
+    monkeypatch.chdir(owner)
+    _enforce_branch_contract_write_ownership(owner_mission, json_output=False)
+
+    monkeypatch.chdir(foreign)
+    with pytest.raises(Exit):
+        _enforce_branch_contract_write_ownership(owner_mission, json_output=False)
+
+    monkeypatch.chdir(owner)
+    with pytest.raises(Exit):
+        _enforce_branch_contract_write_ownership(mission_dir, json_output=False)
 
 
 # ---------------------------------------------------------------------------
@@ -775,16 +798,6 @@ def _run_finalize_no_override(repo: Path, *, mission_slug: str) -> Result:
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return runner.invoke(
             app,
@@ -996,7 +1009,7 @@ def test_downstream_failure_after_mixed_delta_exclusion_still_reverts_target_bra
     ``_run_commit_pipeline`` flipped ``meta_commit_progress.committed = True``
     UNCONDITIONALLY right after ``_commit_finalize_artifacts`` returned,
     regardless of that exclusion. When a later step
-    (``_emit_saas_wp_created``) then raises, ``finalize_tasks``'s ``except``
+    (the post-commit success report) then raises, ``finalize_tasks``'s ``except``
     handler's revert guard (``not meta_commit_progress.committed``) was
     fooled into skipping the revert -- leaving the --target-branch write
     dangling, uncommitted, forever. This asserts the override IS reverted:
@@ -1019,7 +1032,7 @@ def test_downstream_failure_after_mixed_delta_exclusion_still_reverts_target_bra
     meta_with_foreign_edit_only = meta_path.read_text(encoding="utf-8")
 
     with patch(
-        "specify_cli.cli.commands.agent.mission_finalize._emit_saas_wp_created",
+        "specify_cli.cli.commands.agent.mission_finalize._emit_success_report",
         side_effect=RuntimeError("SK3466-REV2-001 test: simulated downstream failure"),
     ):
         result = _run_finalize_with_override(

@@ -117,21 +117,15 @@ class _FakeRunToolSurfaces:
 
 
 @pytest.fixture
-def project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> tuple[Path, Path, _FakeRunToolSurfaces]:
+def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, _FakeRunToolSurfaces]:
     """Real primary + linked lane worktree, with the repair engine stubbed."""
     primary = _make_primary(tmp_path)
     lane = _add_lane(primary, tmp_path)
     fake = _FakeRunToolSurfaces()
     # Stub the config read (avoids depending on config.yaml shape) and the repair
     # engine (we assert on the checkout it targets, not on real provider I/O).
-    monkeypatch.setattr(
-        surface_doctor, "_configured_tool_keys", lambda _project: ["claude"]
-    )
-    monkeypatch.setattr(
-        "specify_cli.tool_surface.service.run_tool_surfaces", fake
-    )
+    monkeypatch.setattr(surface_doctor, "_configured_tool_keys", lambda _project: ["claude"])
+    monkeypatch.setattr("specify_cli.tool_surface.service.run_tool_surfaces", fake)
     return primary, lane, fake
 
 
@@ -183,9 +177,7 @@ def test_fix_from_owner_primary_repairs_its_own(
 
     # Owner path exits cleanly — never a fail-closed refusal.
     assert not isinstance(exc_info.value, ToolSurfaceFixRefused)
-    assert (primary.resolve(), True) in [
-        (root.resolve(), called_fix) for root, called_fix in fake.calls
-    ]
+    assert (primary.resolve(), True) in [(root.resolve(), called_fix) for root, called_fix in fake.calls]
     assert _marker(primary).exists()
 
 

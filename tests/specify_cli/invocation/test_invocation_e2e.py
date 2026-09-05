@@ -27,12 +27,11 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.errors import InvalidModeForEvidenceError
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
@@ -217,11 +216,11 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
     jsonl.write_text(json.dumps(started_record) + "\n", encoding="utf-8")
 
     # _iter_records reads local JSONL with no SaaS access
-    # Patch resolve_egress_consent (seam) to ensure no SaaS lookup is attempted
-    with patch("specify_cli.invocation.propagator.resolve_egress_consent") as mock_routing:
+    # Patch the transport seam to ensure no SaaS lookup is attempted
+    with patch("specify_cli.invocation.propagator._get_saas_client") as mock_client_lookup:
         records = list(_iter_records(events_dir, profile_filter=None, limit=100, repo_root=project))
-        # SaaS routing is NOT called by the read path — assert it was never invoked
-        mock_routing.assert_not_called()
+        # The transport seam is NOT called by the read path — assert it was never invoked
+        mock_client_lookup.assert_not_called()
 
     assert any(r.get("invocation_id") == test_id for r in records), (
         f"Expected invocation_id={test_id!r} in list output; got: {[r.get('invocation_id') for r in records]}"
@@ -229,44 +228,62 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T021 — test_sync_disabled_no_saas_events
+# T021 — no transport registered: local trail only
 # ---------------------------------------------------------------------------
 
 
-def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
-    """Sync-disabled checkout: local JSONL is written, SaaS client is never called.
+def _inline_submit() -> Any:
+    """A ``submit`` replacement that propagates synchronously.
 
-    Verifies (AC-004):
-    - _get_saas_client is NOT called when effective_sync_enabled=False
+    ``InvocationSaaSPropagator.submit`` runs ``_propagate_one`` on a worker thread;
+    asserting anything about that work from the test thread without joining it is a
+    coin flip. Running it inline keeps the executor's real call path.
+    """
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
+
+    def _sync_submit(self: InvocationSaaSPropagator, record: object) -> None:
+        from specify_cli.invocation.propagator import _propagate_one
+
+        _propagate_one(record, self._repo_root)  # type: ignore[arg-type]
+
+    return _sync_submit
+
+
+def test_without_a_transport_only_local_events_are_written(tmp_path: Path) -> None:
+    """No transport registered: local JSONL is written, nothing reaches a client.
+
+    Verifies (AC-004), over the wired path (executor + propagator, as
+    ``cli.commands.dispatch`` builds them):
+    - the transport seam answers ``None`` (nothing registers a factory since issue
+      #5 deleted the sync transport), so no envelope is built or sent
     - Local JSONL file is still written (Tier 1 trail is mandatory regardless of sync)
     """
-    # Integrated test: executor.invoke() is called with sync disabled.
-    # Verifies both properties in a single, unbroken execution path:
-    # (a) _get_saas_client is never called (sync gate fires inside _propagate_one)
-    # (b) the JSONL file is written by the executor, not manually
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
+
     project = _setup_minimal_project(tmp_path)
 
     with (
         patch(
-            "specify_cli.invocation.propagator.resolve_egress_consent",
-            return_value=EgressConsent.NO_RECORD,  # the project has not consented
+            "specify_cli.invocation.propagator.InvocationSaaSPropagator.submit",
+            new=_inline_submit(),
         ),
         patch(
             "specify_cli.invocation.propagator._get_saas_client",
+            return_value=None,
         ) as mock_client,
-    ):
-        with patch(
+        patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
-        ):
-            executor = ProfileInvocationExecutor(project)
-            payload = executor.invoke(
-                "implement the feature",
-                profile_hint="implementer-fixture",
-            )
+        ),
+    ):
+        executor = ProfileInvocationExecutor(project, propagator=InvocationSaaSPropagator(project))
+        payload = executor.invoke(
+            "implement the feature",
+            profile_hint="implementer-fixture",
+        )
 
-        # (a) SaaS client was never called — sync gate suppressed emission
-        mock_client.assert_not_called()
+        # (a) The seam was consulted, answered "no transport", and nothing was sent
+        mock_client.assert_called_once()
 
     # (b) Local JSONL written by the executor (not manually) — Tier 1 is mandatory
     events_dir = project / EVENTS_DIR
@@ -276,6 +293,12 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
 
     lines = [ln for ln in expected_file.read_text().splitlines() if ln.strip()]
     assert len(lines) >= 1 and _json.loads(lines[0])["event"] == "started"
+
+    from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH
+
+    assert not (project / PROPAGATION_ERRORS_PATH).exists(), (
+        "transport-less propagation is not an error and must not be logged as one"
+    )
 
 
 # ===========================================================================
@@ -808,43 +831,49 @@ def test_invoke_router_branch_unchanged_with_action_hint(tmp_path: Path) -> None
     assert started["action"] != "anything"
 
 
-def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
-    """With sync disabled, all events are written locally; no propagation-errors file is created.
+def test_without_a_transport_no_propagation_errors(tmp_path: Path) -> None:
+    """With no transport registered, all events are written locally; no
+    propagation-errors file is created.
 
     Verifies NFR-007 / SC-008: local-first invariant holds even with correlation events.
     """
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
+
     project = _setup_minimal_project(tmp_path)
 
     with (
         patch(
-            "specify_cli.invocation.propagator.resolve_egress_consent",
-            return_value=EgressConsent.NO_RECORD,  # the project has not consented
+            "specify_cli.invocation.propagator.InvocationSaaSPropagator.submit",
+            new=_inline_submit(),
         ),
-        patch("specify_cli.invocation.propagator._get_saas_client") as mock_client,
-    ):
-        with patch(
+        patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+            return_value=None,
+        ) as mock_client,
+        patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
-        ):
-            executor = ProfileInvocationExecutor(project)
-            payload = executor.invoke(
-                "implement with mode",
-                profile_hint="implementer-fixture",
-                mode_of_work=ModeOfWork.TASK_EXECUTION,
-            )
-            inv_id = payload.invocation_id
+        ),
+    ):
+        executor = ProfileInvocationExecutor(project, propagator=InvocationSaaSPropagator(project))
+        payload = executor.invoke(
+            "implement with mode",
+            profile_hint="implementer-fixture",
+            mode_of_work=ModeOfWork.TASK_EXECUTION,
+        )
+        inv_id = payload.invocation_id
 
-            # Complete with artifact and commit links
-            executor.complete_invocation(
-                invocation_id=inv_id,
-                outcome="done",
-                closed_by="agent",
-                artifact_refs=["src/example.py"],
-                commit_sha="cafebabe1234",
-            )
+        # Complete with artifact and commit links
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            closed_by="agent",
+            artifact_refs=["src/example.py"],
+            commit_sha="cafebabe1234",
+        )
 
-        # SaaS client never called (sync gate fires)
-        mock_client.assert_not_called()
+        # The seam was consulted for both lifecycle events and answered "no transport"
+        assert mock_client.call_count == 2
 
     # All events written locally
     events_dir = project / EVENTS_DIR

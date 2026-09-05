@@ -1,3 +1,0 @@
-FAILED tests/status/test_reducer.py::test_reduce_rejects_out_of_order_event - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/status/test_reducer.py::test_reduce_rejects_out_of_order_event
-===================== 1 failed in 3.10s ======================

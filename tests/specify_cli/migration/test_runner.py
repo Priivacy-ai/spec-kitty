@@ -395,7 +395,6 @@ class TestDryRun:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestPerformance:
     @pytest.mark.slow
     def test_migration_completes_in_under_10_seconds_for_5_features(

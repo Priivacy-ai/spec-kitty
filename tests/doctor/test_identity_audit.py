@@ -639,7 +639,6 @@ def _build_200_mission_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.mark.performance
 def test_nfr_002_timing_200_missions() -> None:
     """audit_repo + find_duplicate_prefixes + find_ambiguous_selectors must complete
     in < 3 seconds for a synthetic 200-mission repo (NFR-002)."""

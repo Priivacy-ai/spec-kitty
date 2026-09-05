@@ -14,7 +14,7 @@ The move is now done. The pre-move-*tree* guards (1) and the pre-move manifest
 existence check (3) assert a tree that no longer exists and are therefore
 retired — they are replaced below by **post-move reality** assertions that pin
 the relocation actually happened: the moving trees are gone from
-``src/doctrine/<kind>/built-in`` and present under ``packs/built-in/<kind>``,
+``src/charter/offering/<kind>/built-in`` and present under ``packs/built-in/<kind>``,
 and the DRG fragments moved out of the ``src/doctrine`` root into
 ``packs/built-in``.
 
@@ -26,7 +26,7 @@ Still meaningful and kept unchanged:
   retained in *pre-move* form (its 14 fragments + 2 ``.py`` payloads feed
   ``test_packaging_parity``), so its *shape* is still asserted while its
   per-path *existence* is not;
-* the **occurrence_map** REPOINT classification of ``src/charter/catalog.py``.
+* the **occurrence_map** REPOINT classification of ``src/charter/activation/catalog.py``.
 
 Note on the reader that the pre-move sweep missed: the sweep's completeness
 regex keyed on a literal ``/ "built-in"`` join, so it could not see
@@ -103,7 +103,7 @@ def _artefact_files(directory: Path, pattern: str) -> list[Path]:
 
 
 def test_moving_trees_are_retired_from_src_doctrine() -> None:
-    """Every ``src/doctrine/<kind>/built-in`` tree must hold no artefact content.
+    """Every ``src/charter/offering/<kind>/built-in`` tree must hold no artefact content.
 
     The move emptied these trees; a stray artefact left behind here would be
     loaded from the retired location and silently shadow the relocated pack
@@ -115,7 +115,7 @@ def test_moving_trees_are_retired_from_src_doctrine() -> None:
         if found:
             survivors[kind] = [p.relative_to(REPO_ROOT).as_posix() for p in found]
     assert not survivors, (
-        "artefacts still live under the retired src/doctrine/<kind>/built-in "
+        "artefacts still live under the retired src/charter/offering/<kind>/built-in "
         f"trees (they must move to packs/built-in/<kind>): {survivors}"
     )
 
@@ -188,12 +188,12 @@ def test_manifest_includes_fragments_and_payloads() -> None:
     manifest = set(_load_manifest())
     fragments = [p for p in manifest if p.endswith(".graph.yaml")]
     assert len(fragments) == 14, f"expected 14 DRG fragments, found {len(fragments)}"  # golden-count: cardinality-is-contract
-    # The manifest lists the pre-move payload locations (src/doctrine/...); the
+    # The manifest lists the pre-move payload locations (src/charter/offering/...); the
     # relocated locations are asserted by
     # ``test_asset_payloads_relocated_under_packs_built_in`` above.
     pre_move_payloads = (
-        "src/doctrine/assets/built-in/docs_structural_lint.py",
-        "src/doctrine/toolguides/built-in/system_tools/__init__.py",
+        "src/charter/offering/assets/built-in/docs_structural_lint.py",
+        "src/charter/offering/toolguides/built-in/system_tools/__init__.py",
     )
     for payload in pre_move_payloads:
         assert payload in manifest, f"asset payload missing from manifest: {payload}"
@@ -205,14 +205,14 @@ def test_manifest_includes_fragments_and_payloads() -> None:
 
 
 def test_charter_catalog_present_as_repoint() -> None:
-    """The catalog scanner is a second, files("doctrine")-rooted built-in reader
+    """The catalog scanner is a second, files("charter.offering")-rooted built-in reader
     that no per-kind-anchor guard catches; it must be classified REPOINT."""
     lines = OCCURRENCE_MAP.read_text(encoding="utf-8").splitlines()
     idx = next(
         (i for i, ln in enumerate(lines) if "catalog.py" in ln),
         None,
     )
-    assert idx is not None, "src/charter/catalog.py missing from occurrence_map"
+    assert idx is not None, "src/charter/activation/catalog.py missing from occurrence_map"
     # The disposition sits on the same or the immediately-following action line.
     window = "\n".join(lines[idx : idx + 2])
     assert "REPOINT" in window, "catalog.py must be classified REPOINT"

@@ -28,11 +28,11 @@ type in isolation — the squad's non-vacuity concern).
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
@@ -327,24 +327,20 @@ class TestDoctorDoctrineGlossaryPackJson:
 
 @pytest.mark.performance
 class TestDoctorDoctrinePerformance:
-    @pytest.mark.benchmark(group="doctrine", warmup=True, min_rounds=5)
+    """NFR-005 wall-clock gate (T026), held out of normal PR runs.
+
+    A single-shot wall-clock budget is cold-start/shared-runner bound, so
+    ``@pytest.mark.performance`` keeps it out of normal runs; set
+    ``SPEC_KITTY_RUN_PERFORMANCE=1`` for an explicit local run. The out-of-band
+    statistical harness is tracked in #3595.
+    """
+
     def test_doctor_doctrine_json_completes_under_two_seconds(
-        self, bare_repo_root: Path, benchmark: BenchmarkFixture
+        self, bare_repo_root: Path
     ) -> None:
-        """Measured statistically (ADR 2026-08-22-1); baseline compare is off-PR."""
-        exit_codes: list[int] = []
+        start = time.perf_counter()
+        exit_code, _payload = _invoke_doctrine_json(bare_repo_root)
+        elapsed = time.perf_counter() - start
 
-        def _invoke() -> None:
-            exit_code, _payload = _invoke_doctrine_json(bare_repo_root)
-            exit_codes.append(exit_code)
-
-        benchmark(_invoke)
-
-        assert exit_codes and all(code == 0 for code in exit_codes)
-        # Very loose sanity ceiling — the statistical baseline compare (off the
-        # PR path) is the primary regression signal, not this assert.
-        assert benchmark.stats.stats.median < 10.0, (
-            f"doctor doctrine --json had a median of {benchmark.stats.stats.median:.2f}s "
-            "across benchmark rounds, wildly beyond the generous sanity ceiling "
-            "(budget: 2.0s nominal)."
-        )
+        assert exit_code == 0
+        assert elapsed < 2.0, f"doctor doctrine --json took {elapsed:.2f}s (budget: 2.0s)"

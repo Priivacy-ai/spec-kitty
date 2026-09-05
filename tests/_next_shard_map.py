@@ -91,10 +91,13 @@ _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # (test_next_shard_marker_completeness.py) still sees a total, disjoint
 # partition of every test under `tests/runtime`.
 _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
+    "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/next/test_import_paths.py",
+    "tests/runtime/next/test_runtime_bridge_cancel_provenance.py",
     "tests/runtime/test_agent_skills.py",
     "tests/runtime/test_bridge_cores.py",
     "tests/runtime/test_bridge_decide_next.py",
+    "tests/runtime/test_cli_guard_family.py",
     "tests/runtime/test_config.py",
     "tests/runtime/test_global_runtime_convergence_unit.py",
     "tests/runtime/test_paths_unit.py",
@@ -102,16 +105,15 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_runtime_bridge_identity_git_repo.py",
     "tests/runtime/test_runtime_identity_seam_wiring.py",
     "tests/runtime/test_runtime_seam.py",
-    "tests/runtime/test_setup_plan_sync_evidence.py",
     "tests/runtime/test_template_source_consolidation.py",
     "tests/runtime/test_utils.py",
     "tests/runtime/test_workspace_context_unit.py",
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/next/test_pertype_presence_gate.py",
-    "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/next/test_composed_guard_launder.py",
     "tests/runtime/test_banner_visibility.py",
+    "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/test_bridge_composition.py",
     "tests/runtime/test_bridge_decision_builder.py",
     "tests/runtime/test_bridge_io.py",
@@ -123,9 +125,12 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_resolver_unit.py",
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
+    # 2026-09-03 (PR #1066 convergence port): upstream's next-committed-state
+    # authority WP01 landed here without its conflicted WP02 sibling, so the
+    # new test file registers now, mirroring upstream's own shard-3 row.
     "tests/runtime/next/test_committed_authority.py",
-    "tests/runtime/next/test_merged_mission_terminal.py",
     "tests/runtime/next/test_presence_filenames.py",
+    "tests/runtime/next/test_merged_mission_terminal.py",
     "tests/runtime/test_bootstrap_unit.py",
     "tests/runtime/test_bootstrap_version_fallback.py",
     "tests/runtime/test_bridge_engine.py",

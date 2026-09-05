@@ -1,3 +1,0 @@
-Using Python 3.11.11 environment at: $TEMP_PATH
-Uninstalled 1 package in 22ms
- - docling-graph==1.9.1 (from file://$TEMP_PATH

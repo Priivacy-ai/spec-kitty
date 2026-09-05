@@ -93,9 +93,7 @@ def _make_graph(nodes: list[DRGNode], edges: list[DRGEdge]) -> DRGGraph:
 
 
 @pytest.mark.doctrine
-def test_required_decision_documentation_directive_scoped_on_implement_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_required_decision_documentation_directive_scoped_on_implement_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A required decision-documentation directive delivered to implement fails.
 
     Uses the REAL, independently-loadable DIRECTIVE_003 (required, title
@@ -132,9 +130,7 @@ def test_required_decision_documentation_directive_scoped_on_implement_fails(
 
 
 @pytest.mark.doctrine
-def test_required_non_decision_documentation_directive_is_not_flagged(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_required_non_decision_documentation_directive_is_not_flagged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A `required` directive whose title is NOT decision-documentation passes.
 
     Proves the gate is class-scoped (decision-documentation directives
@@ -199,9 +195,7 @@ def test_shipped_corpus_passes_the_gate(tmp_path: Path) -> None:
 
 
 @pytest.mark.doctrine
-def test_fail_closed_on_scan_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fail_closed_on_scan_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A forced scan error lands in verification_errors, folded into coherent=False."""
 
     def _boom(ctx: ProjectContext) -> list[str]:

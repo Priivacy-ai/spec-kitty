@@ -33,25 +33,18 @@ from specify_cli.task_utils import (
 from specify_cli.task_utils.support import TaskCliError
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
-from specify_cli.validators.paths import _normalize_path_token
+from specify_cli.validators.paths import normalize_path_token
 
-# WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
-# checks live in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
+# WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate checks live
+# in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
 # in ``summary_core`` (T021). Bare re-export shims, NOT added to ``__all__`` (T025) —
 # ``accept.py`` and the WP01 characterization suite keep importing these names
 # straight off ``specify_cli.acceptance``; only ``collect_feature_summary`` /
 # ``perform_acceptance`` (the executor) and the already-public ``WorkPackageState``
 # are load-bearing package exports.
-# ``_changed_workflow_files`` has no in-module caller after the T022 extraction
-# (it is called via ``_check_workflow_run_evidence``, which now lives in
-# ``gates_core`` too) — it is re-exported solely because
-# ``tests/specify_cli/test_acceptance_regressions.py`` imports it directly
-# off ``specify_cli.acceptance``. Not a dead symbol; noqa is narrowly scoped.
 from .gates_core import (
     AcceptanceCheckDiagnostic,
-    _changed_workflow_files,  # noqa: F401 -- re-export consumed by test_acceptance_regressions.py
     _check_lane_gates,
-    _check_workflow_run_evidence,
     _find_unchecked_tasks,
     _normalized_unchecked_tasks,
 )
@@ -312,8 +305,7 @@ def _accept_dirty_gate(
     git_dirty = [
         line
         for line in git_dirty_raw
-        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature)
-        and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
+        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature) and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(
         git_dirty, repo_root=repo_root, feature=feature,
@@ -740,7 +732,7 @@ def _optional_artifact_tokens(mission: Mission | None) -> list[str]:
 def _missing_artifacts(feature_dir: Path, mission: Mission | None) -> tuple[list[str], list[str]]:
     required = [feature_dir / _spec_file(), feature_dir / _plan_file(), feature_dir / _tasks_file()]
     # ``Path`` normalizes trailing slashes, so a ``contracts/`` token maps to the
-    # same relative string ``contracts`` the ``_normalize_path_token`` dedup expects
+    # same relative string ``contracts`` the ``normalize_path_token`` dedup expects
     # (C-003: severity for ``contracts/`` is decided downstream, unchanged here).
     optional = [feature_dir / token for token in _optional_artifact_tokens(mission)]
     missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
@@ -1270,7 +1262,7 @@ def collect_feature_summary(
     if dedup_tokens:
         # FR-002: apply the dedup query result explicitly — evaluate_path_conventions
         # is a pure query and never mutates our list itself (summary_core.py).
-        missing_optional = [entry for entry in missing_optional if _normalize_path_token(entry) not in dedup_tokens]
+        missing_optional = [entry for entry in missing_optional if normalize_path_token(entry) not in dedup_tokens]
 
     warnings = build_warnings(
         missing_optional=missing_optional,
@@ -1300,8 +1292,6 @@ def collect_feature_summary(
         mutate_matrix=mutate_matrix,
         **scope,
     )
-    _check_workflow_run_evidence(repo_root, read_feature_dir, branch, activity_issues)
-
     normalized_unchecked_tasks = _normalized_unchecked_tasks(
         unchecked_tasks, lanes, all_packages_acceptable=all_packages_acceptable
     )

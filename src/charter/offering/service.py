@@ -150,11 +150,7 @@ class DoctrineService:
     @property
     def agent_profiles(self) -> AgentProfileRepository:
         if "agent_profiles" not in self._cache:
-            project_dir = (
-                self._agent_profile_overlay_dir
-                if self._agent_profile_overlay_dir is not None
-                else self._project_dir("agent_profiles")
-            )
+            project_dir = self._agent_profile_overlay_dir if self._agent_profile_overlay_dir is not None else self._project_dir("agent_profiles")
             self._cache["agent_profiles"] = AgentProfileRepository(
                 org_dirs=self._org_dirs("agent_profiles"),
                 project_dir=project_dir,

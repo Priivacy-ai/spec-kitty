@@ -343,7 +343,6 @@ def test_doctor_doctrine_human_and_json_share_one_report(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 def test_doctor_doctrine_within_budget(
     repo_with_invalid_project_profile: Path,
     monkeypatch: pytest.MonkeyPatch,

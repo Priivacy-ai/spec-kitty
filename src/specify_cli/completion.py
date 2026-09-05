@@ -47,11 +47,6 @@ _COMPLETION_LINE_ENV_VARS = (
 )
 
 
-def _saas_enabled(env: Mapping[str, str]) -> bool:
-    raw = env.get("SPEC_KITTY_ENABLE_SAAS_SYNC", "")
-    return raw.strip().casefold() in {"1", "true", "yes", "on"}
-
-
 def _completion_line_has_option(env: Mapping[str, str]) -> bool:
     """Return True if any token on the completion line looks like an option.
 
@@ -68,7 +63,7 @@ def _completion_line_has_option(env: Mapping[str, str]) -> bool:
     return False
 
 
-def _build_command_tree(manifest: dict[str, Any], *, saas_enabled: bool) -> Any:
+def _build_command_tree(manifest: dict[str, Any]) -> Any:
     """Build a throwaway Typer command tree from the manifest.
 
     The tree carries only the attributes shell completion reads (name, help,
@@ -93,12 +88,6 @@ def _build_command_tree(manifest: dict[str, Any], *, saas_enabled: bool) -> Any:
         return command
 
     root_children = dict(manifest.get("commands", {}))
-    if not saas_enabled:
-        root_children = {
-            name: node
-            for name, node in root_children.items()
-            if not node.get("saas_gated", False)
-        }
     root = {**manifest, "commands": root_children}
     return build(root, PROG_NAME)
 
@@ -131,7 +120,7 @@ def run_completion(env: Mapping[str, str] | None = None) -> int:
     from typer.completion import shell_complete
 
     completion_init()
-    command = _build_command_tree(_load_manifest(), saas_enabled=_saas_enabled(active_env))
+    command = _build_command_tree(_load_manifest())
     return shell_complete(command, {}, PROG_NAME, COMPLETE_VAR, instruction)
 
 
@@ -193,27 +182,19 @@ def generate_manifest() -> dict[str, Any]:
     This imports the full command tree and is intentionally slow; it is only
     invoked by the regeneration helper and the drift-guard test, never on the
     completion hot path.
+
+    ``SPEC_KITTY_ENABLE_SAAS_SYNC`` gates runtime behaviour inside a handful of
+    commands (e.g. ``tracker``, ``mission create --from-ticket``), never their
+    Typer registration, so the command tree captured here is identical
+    regardless of that flag's value (the ``saas_gated`` manifest field this
+    function used to compute died with the sync transport, issue #5, once its
+    last consumer -- the ``tracker`` command -- started registering
+    unconditionally).
     """
     import specify_cli
     from typer.main import get_command
 
-    previous = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
-    try:
-        os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
-        enabled = build_manifest_from_command(get_command(specify_cli._build_app()))
-        os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
-        disabled = build_manifest_from_command(get_command(specify_cli._build_app()))
-    finally:
-        if previous is None:
-            os.environ.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
-        else:
-            os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = previous
-
-    disabled_names = set(disabled.get("commands", {}))
-    for name, node in enabled.get("commands", {}).items():
-        if name not in disabled_names:
-            node["saas_gated"] = True
-    return enabled
+    return build_manifest_from_command(get_command(specify_cli._build_app()))
 
 
 def render_manifest_json(manifest: dict[str, Any]) -> str:
@@ -236,7 +217,7 @@ def _main(argv: list[str]) -> int:
         path = regenerate_manifest_file()
         print(f"Regenerated {path}")
         return 0
-    print("usage: SPEC_KITTY_ENABLE_SAAS_SYNC=1 python -m specify_cli.completion --regenerate", flush=True)
+    print("usage: python -m specify_cli.completion --regenerate", flush=True)
     return 1
 
 

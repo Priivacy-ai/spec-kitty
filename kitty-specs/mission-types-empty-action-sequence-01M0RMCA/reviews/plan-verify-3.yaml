@@ -1,8 +1,0 @@
-# review-verify/v1 — canonical format for fix-verification output.
-schema: review-verify/v1
-complete: true
-phase: plan
-results:
-  - id: PLAN-FRESH2-001
-    status: resolved
-    reason: The carve-out now names only this mission's own kitty-specs/mission-types-empty-action-sequence-01M0RMCA/** directory as the sole exemption from SC-006's literal "any other path is a violation" check, so docs/, mission-steps/**, workflows/**, and other missions' kitty-specs/** remain violations, and the paragraph no longer contradicts the preceding C-007 file-set-bound sentence; the commit diff (6e7c1bbda..f0de5501b) touches only this paragraph in plan.md, leaving spec.md untouched.

@@ -1191,6 +1191,7 @@ def test_cached_scan_repairs_corruption_and_invalidates_on_source_change(tmp_pat
     assert len(list(cache_root.glob("*.json"))) == 2  # golden-count: cardinality-is-contract
 
 
+@pytest.mark.stress
 def test_cached_scan_is_published_and_read_by_distinct_processes(tmp_path: Path) -> None:
     test_file = tmp_path / "test_bad.py"
     cache_root = tmp_path / "cache"

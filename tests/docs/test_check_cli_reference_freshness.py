@@ -131,6 +131,40 @@ class TestExtractReferencedPaths:
         paths = freshness.extract_referenced_paths(text)
         assert paths[("foo",)]["summary"] == "Run the foo command"
 
+    def test_extracts_full_help_body_from_generated_block(self) -> None:
+        text = (
+            "## spec-kitty foo\n\n"
+            "```\n"
+            " Usage: spec-kitty foo [OPTIONS]\n\n"
+            " Stable summary.\n\n"
+            " Body text wrapped across\n"
+            " terminal lines.\n\n"
+            "╭─ Options ─╮\n"
+            "│ --help   │\n"
+            "╰──────────╯\n"
+            "```\n"
+        )
+
+        paths = freshness.extract_referenced_paths(text)
+
+        assert paths[("foo",)]["help_body"] == (
+            "Stable summary. Body text wrapped across terminal lines."
+        )
+
+    def test_extracts_click_deprecated_label_as_presentation_only(self) -> None:
+        text = (
+            "## spec-kitty old\n\n"
+            "```\n"
+            "Usage: spec-kitty old [OPTIONS]\n\n"
+            "(Deprecated) The command's actual help.\n\n"
+            "Options:\n"
+            "```\n"
+        )
+
+        paths = freshness.extract_referenced_paths(text)
+
+        assert paths[("old",)]["help_body"] == "The command's actual help."
+
     def test_extracts_nothing_from_empty(self) -> None:
         assert freshness.extract_referenced_paths("") == {}
 
@@ -329,6 +363,92 @@ class TestRules:
         )
         drift = [f for f in findings if f.rule_id == "HELP-DRIFT"]
         assert drift[0].severity == "error"
+
+    def test_help_drift_detects_body_only_change(self) -> None:
+        entries = [
+            CommandPathEntry(
+                path=("foo",),
+                kind="command",
+                hidden=False,
+                deprecated=False,
+                help_summary="Stable summary",
+                source_file=None,
+                source_function=None,
+                requires_saas_sync=False,
+                help_body="Stable summary. The corrected second paragraph.",
+            )
+        ]
+        ref = (
+            "## spec-kitty foo\n\n"
+            "_Stable summary_\n\n"
+            "```\n"
+            "Usage: spec-kitty foo [OPTIONS]\n\n"
+            "Stable summary. The stale second paragraph.\n\n"
+            "Options:\n"
+            "  --help\n"
+            "```\n"
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=entries,
+            main_reference_text=ref,
+            agent_reference_text="",
+            saas_sync_enabled=True,
+        )
+
+        drift = [f for f in findings if f.rule_id == "HELP-DRIFT"]
+        assert [f.path for f in drift] == [("foo",)]
+        assert "recorded help body" in drift[0].detail
+
+    def test_help_drift_detects_missing_generated_body(self) -> None:
+        entry = CommandPathEntry(
+            path=("foo",),
+            kind="command",
+            hidden=False,
+            deprecated=False,
+            help_summary="",
+            source_file=None,
+            source_function=None,
+            requires_saas_sync=False,
+            help_body="Live full help body.",
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=[entry],
+            main_reference_text="## spec-kitty foo\n",
+            agent_reference_text="",
+            saas_sync_enabled=True,
+        )
+
+        assert any(f.rule_id == "HELP-DRIFT" for f in findings)
+
+    def test_help_drift_uses_canonical_file_when_other_reference_mentions_path(
+        self,
+    ) -> None:
+        entry = CommandPathEntry(
+            path=("foo",),
+            kind="command",
+            hidden=False,
+            deprecated=False,
+            help_summary="",
+            source_file=None,
+            source_function=None,
+            requires_saas_sync=False,
+            help_body="Canonical help body.",
+        )
+        main_ref = (
+            "## spec-kitty foo\n\n"
+            "```\nUsage: spec-kitty foo\n\nCanonical help body.\n\nOptions:\n```\n"
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=[entry],
+            main_reference_text=main_ref,
+            agent_reference_text="See `spec-kitty foo` for context.\n",
+            saas_sync_enabled=True,
+        )
+
+        assert not any(f.rule_id == "HELP-DRIFT" for f in findings)
 
     def test_agent_subtree_uses_agent_reference(self) -> None:
         entries = [
@@ -622,14 +742,10 @@ class TestCli:
 def test_real_typer_app_visible_count_within_tolerance() -> None:
     """The walker against the live ``specify_cli.app`` should match audit.
 
-    Baseline re-pinned 2026-09-03 at 286 visible, measured against the live app
-    after mission design-phase-orchestrator-api-01M1HE6M (issue #3837) added 11
-    orchestrator-api design-phase verbs, on top of the 2026-08-27 baseline of
-    251 (250 + agent tasks check-terminability from mission #3590) — origin/main
-    itself measured at 275 (still inside the prior tolerance band) immediately
-    before this mission's verbs landed, confirming the +11 delta is this
-    mission's own drift and not laundering someone else's.
-    Tolerance: ±10% on the visible count (257..314) to allow natural growth.
+    Baseline re-pinned 2026-09-05 at 281 visible after converging the 11
+    orchestrator-api design-phase verbs onto the experimental tree while
+    preserving its retired-surface removals.
+    Tolerance: ±10% on the visible count (253..309) to allow natural growth.
     """
     os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
     os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
@@ -651,10 +767,8 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 257 <= len(visible) <= 314, (
+    assert 253 <= len(visible) <= 309, (
         f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-09-03 audit baseline of 286 (251 + 11 orchestrator-api "
-        "design-phase verbs from mission design-phase-orchestrator-api-01M1HE6M, "
-        "issue #3837)"
+        "around the 2026-09-05 convergence audit baseline of 281"
     )
     assert len(deprecated) >= 1

@@ -168,9 +168,6 @@ def _patches(
         patch("specify_cli.merge.executor.cleanup_merge_workspace"),
         patch("specify_cli.merge.executor.clear_state"),
         patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         # WP10 (#2057): mission-branch preflight moved to the preflight seam;
         # appended last to keep positional mock indices stable.
         patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
@@ -348,7 +345,6 @@ class TestMergeResumeAfterInterruption:
         assert "lane-b" in lane_merge_calls and "lane-c" in lane_merge_calls
 
 
-@pytest.mark.performance
 class TestMergeResumeBounded:
     """NFR-005: resumed merge of a 10-lane fixture is fast."""
 

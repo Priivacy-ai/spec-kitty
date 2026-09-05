@@ -44,9 +44,6 @@ env/
 *.log
 # Investigation mission evidence logs are first-class review artifacts.
 !kitty-specs/**/research/*.log
-# Frozen CI-log fixtures for the flake-report fidelity test (NFR-003) are
-# committed golden data, not runtime logs.
-!tests/ci/fixtures/flake_report/logs/*.log
 .env
 .env.local
 .codex/
@@ -68,12 +65,14 @@ pyproject.local.toml
 .kittify/events/
 .kittify/dossiers/
 .kittify/workspaces/
+.kittify/config.toml
 .kittify/merge-state.json
 .kittify/sync-state.json
 .kittify/lint-report.json
 .kittify/preflight-warning.json
 .kittify/.migration-backup/
 .kittify/encoding-provenance/
+.test-full-status
 .kittify/migrations/
 .kittify/logs/
 # Per-machine skill install ledger (timestamps, hashes, delivery_mode) — #2412.
@@ -211,6 +210,3 @@ pytest-of-*/
 
 # Build-time PlantUML jar (downloaded + sha256-verified in CI/tests, never committed)
 /plantuml.jar
-
-# Spec Kitty per-repo operator env file (may carry secrets)
-.kittify/.kitty.env

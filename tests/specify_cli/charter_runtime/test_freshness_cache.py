@@ -89,9 +89,7 @@ def test_bundle_invalidation_forces_recompute(tmp_path: Path) -> None:
     assert first.synthesized_drg.state == "fresh"
 
     charter_yaml_path = _charter_yaml_path(tmp_path)
-    charter_yaml_path.write_text(
-        charter_yaml_path.read_text(encoding="utf-8") + "# drift-marker\n", encoding="utf-8"
-    )
+    charter_yaml_path.write_text(charter_yaml_path.read_text(encoding="utf-8") + "# drift-marker\n", encoding="utf-8")
 
     with patch.object(_computer_module, "_safe_load_yaml", wraps=_computer_module._safe_load_yaml) as spy:
         second = compute_freshness_cached(tmp_path)
@@ -117,9 +115,7 @@ def test_graph_invalidation_forces_recompute(tmp_path: Path) -> None:
     assert first.synthesized_drg.state == "fresh"
 
     graph_path = _graph_path(tmp_path)
-    graph_path.write_text(
-        graph_path.read_text(encoding="utf-8") + "# graph content mutated only\n", encoding="utf-8"
-    )
+    graph_path.write_text(graph_path.read_text(encoding="utf-8") + "# graph content mutated only\n", encoding="utf-8")
 
     with patch.object(_computer_module, "_safe_load_yaml", wraps=_computer_module._safe_load_yaml) as spy:
         second = compute_freshness_cached(tmp_path)

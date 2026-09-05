@@ -24,8 +24,6 @@ PACKAGES = (
 )
 RETIRED_PACKAGES = ("spec-kitty-runtime",)
 INSTALLED_DRIFT_REMEDIATION = "Run `uv sync --extra test --extra lint` before collecting release evidence."
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pyproject", default="pyproject.toml")
@@ -128,10 +126,10 @@ def extract_constraints(
         name = req.name.lower()
         if name not in canonical:
             continue
+        package = canonical[name]
         if req.url:
             issues.append(f"{req.name}: direct references are forbidden ({raw})")
             continue
-        package = canonical[name]
         pinned = exact_pin(raw)
         if exact_required and pinned is None:
             issues.append(f"{req.name}: dependency must be exact-pinned with == ({raw})")

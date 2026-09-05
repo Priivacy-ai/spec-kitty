@@ -84,6 +84,11 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from specify_cli.core.owned_mission import OwnedMission
 
+from specify_cli.core.checkout_identity import (
+    FailClosedRefusal,
+    Intent,
+    resolve_checkout_identity,
+)
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
 from specify_cli.core.utils import ensure_within_any
@@ -104,12 +109,6 @@ from specify_cli.status import (
     read_event_stream,
     reduce,
 )
-from specify_cli.core.checkout_identity import (
-    FailClosedRefusal,
-    Intent,
-    resolve_checkout_identity,
-)
-from specify_cli.event_journal.journal import ProjectLayoutRequiredError
 from specify_cli.workspace import canonicalize_feature_dir
 
 from .mission_state import deterministic_ulid
@@ -118,19 +117,6 @@ logger = logging.getLogger(__name__)
 
 #: Actor recorded on seed events (migration provenance, not a live agent).
 BACKFILL_ACTOR = "migration:backfill_runtime_state"
-
-#: Honest ``BackfillResult.reason`` for the #3476 loud-failure path: the seed
-#: write was refused because the project layout has not been cut over, so a live
-#: event write cannot land (``journal.py`` ``_require_project_destination`` ->
-#: :class:`~specify_cli.event_journal.journal.ProjectLayoutRequiredError`). The
-#: message is actionable — it names what could not happen AND the recovery — so
-#: the CLI boundary (``_cutover_detail``) surfaces a fix, not a bare traceback.
-LAYOUT_REFUSAL_REASON = (
-    "runtime-state cutover seed write could not land on the current layout: the "
-    "project layout cutover must complete first (a legacy layout refuses live "
-    "event writes; legacy state is migration input only). Complete the layout "
-    "auto-cutover for this root, then re-run backfill-runtime-state"
-)
 
 #: Distinct provenance for append-only repairs of persisted pre-floor seeds.
 COMPATIBILITY_REPAIR_ACTOR = f"{BACKFILL_ACTOR}:compatibility"
@@ -1543,49 +1529,14 @@ def backfill_runtime_state(
     if dry_run:
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, reason="dry-run (no write)", warnings=warnings)
 
-    try:
-        if new_transitions:
-            append_events_atomic_verified(feature_dir, new_transitions)
-        if new_annotations:
-            append_annotations_atomic_verified(feature_dir, new_annotations)
-    except (ProjectLayoutRequiredError, StoreError) as exc:
-        # #3476 loud-failure path: the seed write was refused because the layout
-        # has not been cut over (``ProjectLayoutRequiredError`` direct, or wrapped
-        # in a store persistence error ``from`` it). Record the honest reason at
-        # the source rather than swallowing the refusal into a bland success.
-        if not _is_layout_refusal(exc):
-            raise
-        return BackfillResult(
-            feature_dir=feature_dir,
-            slug=slug,
-            action="error",
-            seeded_count=seeded_count,
-            reason=LAYOUT_REFUSAL_REASON,
-            warnings=warnings,
-        )
+    if new_transitions:
+        append_events_atomic_verified(feature_dir, new_transitions)
+    if new_annotations:
+        append_annotations_atomic_verified(feature_dir, new_annotations)
+
 
     logger.info("Backfilled %d runtime seed event(s) for %s", seeded_count, slug)
     return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, warnings=warnings)
-
-
-def _is_layout_refusal(exc: BaseException) -> bool:
-    """True iff *exc* (or any cause in its chain) is a layout-cutover refusal.
-
-    The store re-raises an append refusal as a :class:`StoreError` subclass
-    ``from`` the original
-    :class:`~specify_cli.event_journal.journal.ProjectLayoutRequiredError`, so the
-    layout signal survives on ``__cause__``. Walk the chain so both the direct and
-    the wrapped forms are recovered — a non-layout persistence error (disk fault)
-    is NOT a layout refusal and propagates unchanged (IC-05 owns that seam).
-    """
-    seen: set[int] = set()
-    current: BaseException | None = exc
-    while current is not None and id(current) not in seen:
-        if isinstance(current, ProjectLayoutRequiredError):
-            return True
-        seen.add(id(current))
-        current = current.__cause__
-    return False
 
 
 def backfill_runtime_state_repo(

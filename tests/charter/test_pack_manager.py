@@ -446,7 +446,7 @@ class TestDeactivateCascadeAndInvalidKind:
 #
 # Pre-fix, ``_resolve_layer_candidate`` only resolves a directory for
 # ``kind is None`` (mission-type) when ``layer == "built-in"``; org/project
-# fall through to the final ``return None`` (src/charter/pack_manager.py,
+# fall through to the final ``return None`` (src/charter/activation/pack_manager.py,
 # confirmed live before this WP's change). Every test class below was
 # written and run RED against that pre-fix body before the production fix
 # was made -- see WP05's report for the captured pre-fix pytest output.

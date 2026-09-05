@@ -86,17 +86,13 @@ class _CapturingCoordRouter:
     """
 
     write_dir: Path
-    status_result: CommitStatusResult = field(
-        default_factory=lambda: CommitStatusResult(event=None, skipped=False)
-    )
+    status_result: CommitStatusResult = field(default_factory=lambda: CommitStatusResult(event=None, skipped=False))
     requests: list[TransitionRequest] = field(default_factory=list)
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
         return self.write_dir
 
-    def commit_status(
-        self, request: TransitionRequest, *, capability: GuardCapability
-    ) -> CommitStatusResult:
+    def commit_status(self, request: TransitionRequest, *, capability: GuardCapability) -> CommitStatusResult:
         self.requests.append(request)
         return self.status_result
 
@@ -189,8 +185,6 @@ def test_first_pass_approve_writes_review_cycle_artifact_with_reproduction_comma
     assert cycle_path.exists()
     content = cycle_path.read_text(encoding="utf-8")
     assert "reproduction_command:" in content
-    assert "null" not in content.splitlines()[
-        next(i for i, line in enumerate(content.splitlines()) if line.startswith("reproduction_command:"))
-    ]
+    assert "null" not in content.splitlines()[next(i for i, line in enumerate(content.splitlines()) if line.startswith("reproduction_command:"))]
     assert "WP01" in content
     assert "--to approved" in content

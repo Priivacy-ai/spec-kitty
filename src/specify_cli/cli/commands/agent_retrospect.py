@@ -62,9 +62,9 @@ from specify_cli.retrospective.writer import (
     write_gen_record,
     write_record,
 )
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
-from specify_cli.runtime.resolver import resolve_configured_artifact_name
 
 app = typer.Typer(
     name="retrospect",
@@ -233,15 +233,7 @@ def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path
 
 
 def _required_planning_artifact_filenames() -> tuple[str, str, str]:
-    """Return today's (spec, plan, tasks) filenames via the resolved artifact-name seam.
-
-    FR-009/FR-010 (#3599): sourced from the per-type expected-artifacts.yaml
-    path_pattern authority, not hardcoded literals -- byte-compatible with
-    the prior ``("spec.md", "plan.md", "tasks.md")`` literal for software-dev
-    (NFR-003). Evaluated at call time (not cached at import) so this stays
-    live for tests that patch the underlying manifest source -- see
-    tests/specify_cli/runtime/test_configured_artifact_name.py.
-    """
+    """Return today's (spec, plan, tasks) filenames via the resolved artifact-name seam."""
     return (
         resolve_configured_artifact_name("input.spec.main"),
         resolve_configured_artifact_name("output.plan.main"),
@@ -411,8 +403,8 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "mission_not_found",
-                        "error": "mission_not_found",
+                        "outcome": "MISSION_NOT_FOUND",
+                        "error": "MISSION_NOT_FOUND",
                         "handle": exc.handle,
                         "next_action": "Check the mission handle or run `spec-kitty agent mission list`.",
                     }
@@ -433,7 +425,7 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "ambiguous_mission_handle",
+                        "outcome": "MISSION_AMBIGUOUS_SELECTOR",
                     }
                 )
             )

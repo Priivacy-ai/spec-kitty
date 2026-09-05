@@ -119,7 +119,6 @@ class TestLintEngineAllChecks:
         assert "staleness" in categories
         assert "reference_integrity" in categories
 
-    @pytest.mark.performance
     def test_duration_within_limit(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
@@ -346,7 +345,6 @@ class TestNoLLMCalls:
             )
 
 
-@pytest.mark.performance
 class TestPerformance:
     """T036-S8: 500-node fixture completes in < 5 seconds."""
 

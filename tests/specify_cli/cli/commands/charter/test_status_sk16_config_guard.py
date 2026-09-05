@@ -72,9 +72,7 @@ def _build_corrupt_config(repo_root: Path) -> None:
     """
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "config.yaml").write_text(
-        "just-a-plain-string-not-a-mapping\n", encoding="utf-8"
-    )
+    (kittify / "config.yaml").write_text("just-a-plain-string-not-a-mapping\n", encoding="utf-8")
 
 
 @pytest.fixture()
@@ -106,8 +104,7 @@ def _invoke_status_json(repo_root: Path) -> object:
             return_value={"packs": [], "has_built_in": True},
         ),
         patch(
-            "specify_cli.cli.commands.charter.status."
-            "_collect_governance_reference_status",
+            "specify_cli.cli.commands.charter.status._collect_governance_reference_status",
             return_value={"available": True, "references": [], "warnings": []},
         ),
         patch("specify_cli.charter_runtime.freshness.compute_freshness") as compute_freshness,
@@ -117,9 +114,7 @@ def _invoke_status_json(repo_root: Path) -> object:
 
 
 class TestStatusJsonSurvivesNonMappingConfig:
-    def test_status_json_does_not_leak_raw_attribute_error(
-        self, corrupt_config_repo: Path
-    ) -> None:
+    def test_status_json_does_not_leak_raw_attribute_error(self, corrupt_config_repo: Path) -> None:
         """The envelope's ``error`` field (if any) must never be the bare
         Python exception text -- the observable symptom of SK-16."""
         result = _invoke_status_json(corrupt_config_repo)
@@ -127,14 +122,9 @@ class TestStatusJsonSurvivesNonMappingConfig:
         assert result.stdout.strip(), "expected JSON on stdout"
         payload = json.loads(result.stdout)
         error_message = payload.get("error", "")
-        assert "has no attribute" not in error_message, (
-            "charter status --json leaked a raw AttributeError through the "
-            f"error envelope (SK-16): {payload!r}"
-        )
+        assert "has no attribute" not in error_message, f"charter status --json leaked a raw AttributeError through the error envelope (SK-16): {payload!r}"
 
-    def test_status_json_fails_closed_with_structured_diagnostic_on_non_mapping_config(
-        self, corrupt_config_repo: Path
-    ) -> None:
+    def test_status_json_fails_closed_with_structured_diagnostic_on_non_mapping_config(self, corrupt_config_repo: Path) -> None:
         """Post-fix: a non-mapping ``config.yaml`` top level must still FAIL
         (exit != 0, ``success: false``) with a structured diagnostic naming
         the real problem -- not a leaked ``AttributeError``, and not a
@@ -151,9 +141,5 @@ class TestStatusJsonSurvivesNonMappingConfig:
         assert payload["result"] == "error", payload
         assert payload["success"] is False, payload
         error_message = payload["error"]
-        assert "has no attribute" not in error_message, (
-            f"leaked a raw AttributeError instead of a controlled diagnostic: {payload!r}"
-        )
-        assert "config.yaml" in error_message, (
-            f"diagnostic should name the offending file: {payload!r}"
-        )
+        assert "has no attribute" not in error_message, f"leaked a raw AttributeError instead of a controlled diagnostic: {payload!r}"
+        assert "config.yaml" in error_message, f"diagnostic should name the offending file: {payload!r}"

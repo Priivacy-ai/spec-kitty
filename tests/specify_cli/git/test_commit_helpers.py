@@ -279,6 +279,18 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     assert err.destination_ref == "main"
     assert err.worktree_root == repo
     assert err.commit_message == "WP01: add alpha"
+    message = str(err)
+    # planning#261: safe_commit is mission-agnostic (no mission_slug in
+    # scope), so the message states only what it knows -- the destination is
+    # protected -- and leaves the mission-lifecycle remedy (finalize-tasks /
+    # mission create) to the mission-aware caller (commit_router.py).
+    assert "protected branch" in message
+    assert "'main'" in message
+    assert "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1" in message
+    assert "pass a capability" not in message
+    assert "feature branch" in message
+    assert "mission" not in message
+    assert "spec-kitty mission create --start-branch" not in message
 
 
 def test_safe_commit_allows_op_record_on_protected_branch_with_capability(tmp_path: Path) -> None:

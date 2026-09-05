@@ -212,14 +212,14 @@ def test_pack_roots_is_tuple(tmp_path: Path) -> None:
 
 
 def test_pack_roots_contains_builtin_root(tmp_path: Path) -> None:
-    """pack_roots[0] must point at the built-in offer catalogue root (src/charter/offering/, relocated from src/doctrine/ in M2 charter-code-topology)."""
+    """pack_roots[0] must point at the built-in offer catalogue root (src/charter/offering/, relocated from src/charter/offering/ in M2 charter-code-topology)."""
     _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
     assert len(ctx.pack_roots) >= 1
     builtin = ctx.pack_roots[0]
     # The built-in offer catalogue root is src/charter/offering/ (relocated from
-    # src/doctrine/ in M2); the packaged pack root is its `built_in` data dir.
+    # src/charter/offering/ in M2); the packaged pack root is its `built_in` data dir.
     assert builtin.exists()
     assert builtin.name == "offering"
 

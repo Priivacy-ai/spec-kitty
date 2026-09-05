@@ -2,7 +2,7 @@
 flattened ``packs/built-in/`` home.
 
 The flatten (WP03) moved the built-in artifact content and the sharded
-``*.graph.yaml`` fragments from ``src/doctrine/`` to ``packs/built-in/`` and this
+``*.graph.yaml`` fragments from ``src/charter/offering/`` to ``packs/built-in/`` and this
 WP repointed the regeneration surface (the extractor's artifact walks +
 ``_PATH_KIND_PATTERNS`` and the CLI's ``_doctrine_root``) to that home. This
 module is the committed proof that a real regeneration reproduces the on-disk
@@ -12,7 +12,7 @@ or mutated ``when`` gate (the live ``suggests``-``when`` links the profile
 channel delivers, D-7) would be caught.
 
 It also pins the *write target*: regeneration lands in ``packs/built-in/`` and
-the retired ``src/doctrine/`` home carries no fragments — a silent write to the
+the retired ``src/charter/offering/`` home carries no fragments — a silent write to the
 old, emptied tree would leave the shipped source stale while the build stayed
 green.
 """
@@ -62,7 +62,7 @@ def _regenerate_into(directory: Path) -> DRGGraph:
 
 class TestRegenerationWriteTarget:
     """Regeneration targets the flattened ``packs/built-in/`` home, not the
-    retired ``src/doctrine/`` tree."""
+    retired ``src/charter/offering/`` tree."""
 
     def test_doctrine_root_resolves_flattened_pack_home(self) -> None:
         resolved = _doctrine_root()

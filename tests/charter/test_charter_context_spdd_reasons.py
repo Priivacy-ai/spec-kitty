@@ -395,7 +395,6 @@ class TestCharterContextActive:
         # Legacy non-canonical names must NOT leak into the review surface.
         assert "Non-functionals" not in joined
 
-    @pytest.mark.performance
     def test_performance_under_2s_active(self, tmp_path: Path) -> None:
         # NFR-002: one render call must complete well under 2s. The renderer
         # is in-memory and trivially fast; this guards against accidental
@@ -435,7 +434,7 @@ class TestParadigmRoundTrip:
 
     This is a smoke test for the existing synthesizer plumbing, not a change
     in T010. ``selected_paradigms`` is already a first-class field on
-    ``DoctrineSelectionConfig`` (src/charter/schemas.py) and is wired through
+    ``DoctrineSelectionConfig`` (src/charter/activation/schemas.py) and is wired through
     interview → extractor → governance.yaml. The check below confirms the
     activation helper sees the paradigm when written to governance.yaml.
     """

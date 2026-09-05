@@ -214,7 +214,7 @@ def _doctrine_root() -> Path:
 
     Post-flatten (relocate-builtin-doctrine-packs, WP03) the built-in artifact
     content and the sharded ``*.graph.yaml`` fragments live in
-    ``packs/built-in/`` — no longer under ``src/doctrine/<kind>/built-in``. This
+    ``packs/built-in/`` — no longer under ``src/charter/offering/<kind>/built-in``. This
     root is both the extractor's artifact input *and* the fragment write-target /
     freshness read source; the extractor resolves ``missions/`` (which did NOT
     move) internally.
@@ -260,7 +260,7 @@ def regenerate_graph(
 
     Composes the DRG extractor + calibrator into per-populated-node-kind
     ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
-    relocated from ``src/doctrine/`` by the pack flatten),
+    relocated from ``src/charter/offering/`` by the pack flatten),
     retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
     on unchanged inputs yields byte-identical fragments. With ``--check`` the
     command never writes: it regenerates into a temp directory and compares the
@@ -476,7 +476,7 @@ def pack_assemble(
 #: Per-kind stub bodies (T016).  Each value is a ``str.format``-ready YAML
 #: template whose ``{artifact_id}`` placeholder the scaffolder substitutes; the
 #: rendered stub is the *minimum* payload that passes the corresponding Pydantic
-#: schema in ``src/doctrine/*/models.py`` (or ``AssetManifest``).  The scaffolder
+#: schema in ``src/charter/offering/*/models.py`` (or ``AssetManifest``).  The scaffolder
 #: validates the rendered stub against the schema before writing — a future
 #: schema tightening surfaces at the next ``doctrine new`` rather than silently
 #: scaffolding an invalid file.
@@ -518,13 +518,13 @@ _STUB_TEMPLATES: dict[ArtifactKind, str] = {
         "  - TODO first principle\n"
         "applies_to_languages: []\n"
     ),
-    # Toolguide: guide_path must match ^src/doctrine/.+\.md$.
+    # Toolguide: guide_path must match ^src/charter/offering/.+\.md$.
     ArtifactKind.TOOLGUIDE: (
         'schema_version: "1.0"\n'
         "id: {artifact_id}\n"
         "tool: TODO tool name\n"
         "title: TODO short title\n"
-        "guide_path: src/doctrine/toolguides/{artifact_id}.md\n"
+        "guide_path: src/charter/offering/toolguides/{artifact_id}.md\n"
         "summary: TODO one-line summary\n"
     ),
     ArtifactKind.PARADIGM: (

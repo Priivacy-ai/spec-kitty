@@ -267,7 +267,6 @@ class TestCli:
 # ── T018: NFR-002 — reconcile one mission dossier ≤ 2 s ──────────────────────
 
 
-@pytest.mark.performance
 class TestNfr002:
     def test_single_mission_reconciles_under_two_seconds(self, tmp_path, monkeypatch):
         from specify_cli.cli.commands.reconcile import reconcile_mission_dossier

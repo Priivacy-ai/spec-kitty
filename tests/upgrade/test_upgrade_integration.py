@@ -151,9 +151,7 @@ def test_project_yes_full_success_exits_zero_with_printed_outcome(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
-def test_failed_run_exit_code_equals_outcome_exit_code(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_failed_run_exit_code_equals_outcome_exit_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A FAILED run's exit code comes from ``UpgradeOutcome.exit_code`` — not
     a stray ``typer.Exit`` surviving in the tail (post-tasks squad concern;
     the pre-refactor code raised independently at several sites). Forces the
@@ -178,9 +176,7 @@ def test_failed_run_exit_code_equals_outcome_exit_code(
     assert "forced activation failure" in payload["errors"]
 
 
-def test_failed_run_exit_code_equals_outcome_exit_code_human_mode(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_failed_run_exit_code_equals_outcome_exit_code_human_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Same failure channel, human-readable renderer: still exits 1, and the
     failure is rendered (not silently swallowed)."""
     project = tmp_path / "proj"
@@ -282,9 +278,7 @@ def _stub_churn_git_status(monkeypatch: pytest.MonkeyPatch, churn_paths: set[str
     monkeypatch.setattr(autocommit, "git_status_paths", _fake_status)
 
 
-def test_auto_commit_disabled_reports_left_uncommitted_human_mode(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_auto_commit_disabled_reports_left_uncommitted_human_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """FR-003/US2 scenario 1: `auto_commit: false` + real churn must print an
     explicit "left uncommitted" line in human-mode output — not stay silent."""
     project_path = tmp_path / "proj"
@@ -351,9 +345,7 @@ def test_auto_commit_disabled_json_mode_still_reports_auto_committed_false(
 # ---------------------------------------------------------------------------
 
 
-def test_auto_commit_disabled_worktree_decision_reaches_runner_fanout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_auto_commit_disabled_worktree_decision_reaches_runner_fanout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """SC-002 end-to-end: with `auto_commit: false`, (1)
     ``should_auto_commit_for_worktree`` itself returns False, AND (2) that
     decision genuinely reaches ``MigrationRunner.upgrade``'s ``auto_commit``
@@ -410,8 +402,7 @@ def test_auto_commit_disabled_worktree_decision_reaches_runner_fanout(
     )
 
     assert captured_auto_commit == [False], (
-        "the config opt-out must reach MigrationRunner.upgrade's auto_commit kwarg "
-        "(the seam runner._upgrade_worktrees fans out to every worktree from)"
+        "the config opt-out must reach MigrationRunner.upgrade's auto_commit kwarg (the seam runner._upgrade_worktrees fans out to every worktree from)"
     )
 
 

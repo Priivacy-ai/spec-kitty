@@ -1,13 +1,13 @@
 """Architectural guardrail (T011, C-002): the glossary_packs import boundary.
 
-``src/doctrine/glossary_packs/`` MUST NOT import the retiring runtime
+``src/charter/offering/glossary_packs/`` MUST NOT import the retiring runtime
 ``glossary`` package (``src/glossary/``). Mission A ships the pack schema +
 repository as static doctrine assets with no seeding into the runtime
 glossary — the #1418 ``pack_seed_loader`` ACL (which coupled a doctrine
 artifact to `src/glossary/`) is deliberately dropped, not reintroduced
 (``contracts/pack-schema.md`` §6).
 
-The guard AST-walks every module under ``src/doctrine/glossary_packs/`` and
+The guard AST-walks every module under ``src/charter/offering/glossary_packs/`` and
 flags any import of the runtime ``glossary`` module **at a module boundary**:
 ``import glossary``, ``import glossary.<x>``, ``from glossary import ...``,
 ``from glossary.<x> import ...``. It explicitly must NOT match the sibling
@@ -28,7 +28,7 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_PACKAGE_ROOT = _REPO_ROOT / "src" / "doctrine" / "glossary_packs"
+_PACKAGE_ROOT = _REPO_ROOT / "src" / "charter" / "offering" / "glossary_packs"
 
 # The runtime module this package must never couple to.
 _FORBIDDEN_MODULE = "glossary"
@@ -80,7 +80,7 @@ def _is_forbidden_module_boundary(module_name: str) -> bool:
 
 
 def test_glossary_packs_package_has_no_runtime_glossary_imports() -> None:
-    """No module under src/doctrine/glossary_packs/ imports runtime `glossary`."""
+    """No module under src/charter/offering/glossary_packs/ imports runtime `glossary`."""
     offenders: dict[str, list[str]] = {}
     for path in _iter_package_python_files(_PACKAGE_ROOT):
         offenses = find_forbidden_glossary_imports(path.read_text(encoding="utf-8"))
@@ -88,7 +88,7 @@ def test_glossary_packs_package_has_no_runtime_glossary_imports() -> None:
             offenders[_rel(path)] = offenses
 
     assert not offenders, (
-        "src/doctrine/glossary_packs/ must not import the retiring runtime "
+        "src/charter/offering/glossary_packs/ must not import the retiring runtime "
         f"`glossary` package (C-002): {offenders}. Pack loading is a static "
         "doctrine asset concern; do not reintroduce the #1418 "
         "pack_seed_loader-style coupling to src/glossary/."

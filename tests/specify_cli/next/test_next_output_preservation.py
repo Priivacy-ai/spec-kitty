@@ -63,10 +63,7 @@ def _run_next_json(project: Path) -> dict[str, Any]:
         env=env,
         timeout=30,
     )
-    assert result.returncode == 0, (
-        f"`next --json` failed against the no-charter fixture.\n"
-        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"`next --json` failed against the no-charter fixture.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     payload: dict[str, Any] = json.loads(result.stdout)
     return payload
 
@@ -84,9 +81,7 @@ def test_next_json_is_byte_identical_across_two_runs_except_timestamp(tmp_path: 
     first = _run_next_json(project)
     second = _run_next_json(project)
 
-    assert "timestamp" in first and "timestamp" in second, (
-        "expected both payloads to carry the per-call `timestamp` field"
-    )
+    assert "timestamp" in first and "timestamp" in second, "expected both payloads to carry the per-call `timestamp` field"
     # Normalize ONLY `timestamp` — every other field must be byte-identical
     # per the contract (no masked-oracle shortcuts).
     first_normalized = dict(first, timestamp=None)
@@ -102,6 +97,4 @@ def test_next_json_is_byte_identical_across_two_runs_except_timestamp(tmp_path: 
         text=True,
         check=True,
     )
-    assert status.stdout.strip() == "", (
-        f"query-mode `next --json` unexpectedly modified the checkout:\n{status.stdout}"
-    )
+    assert status.stdout.strip() == "", f"query-mode `next --json` unexpectedly modified the checkout:\n{status.stdout}"

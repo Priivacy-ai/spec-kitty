@@ -284,7 +284,7 @@ def create_cmd(
     Example:
         spec-kitty mission create --from-ticket linear:PRI-42
     """
-    from specify_cli.sync.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+    from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
     from specify_cli.tracker.config import load_tracker_config, require_repo_root
     from specify_cli.tracker.saas_client import SaaSTrackerClientError
     from specify_cli.tracker.service import TrackerService, TrackerServiceError
@@ -1224,8 +1224,28 @@ def _branch_resolvable(repo_root: Path, branch: str) -> bool:
     return False
 
 
-def _emit_selector_error(exc: Exception) -> None:
-    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero."""
+def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
+    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero.
+
+    When ``json_output`` is set, emits the same shared ``{"success": False,
+    "error_code": ..., "error": ..., "handle": ..., "candidates": [...]}``
+    JSON envelope used elsewhere for ``MissionSelectorAmbiguous`` (e.g.
+    ``status.py``/``tasks_shared.py``'s ``_find_mission_slug``), instead of
+    Rich-formatted text on stdout (spec-kitty#477).
+    """
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error_code": getattr(exc, "error_code", "MISSION_AMBIGUOUS_SELECTOR"),
+                    "error": str(exc),
+                    "handle": getattr(exc, "handle", ""),
+                    "candidates": getattr(exc, "candidates", []),
+                }
+            )
+        )
+        return
     console.print(f"[red]MISSION_AMBIGUOUS_SELECTOR[/red]\n{exc}")
 
 
@@ -1269,7 +1289,7 @@ def reopen_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     # Fail-closed predicate (a): meta.json absent / corrupt (no resolvable mission_id).
@@ -1401,7 +1421,7 @@ def follow_up_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     if not resolved.mission_id:

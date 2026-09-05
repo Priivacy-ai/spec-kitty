@@ -301,122 +301,67 @@ class TestSrcFallbackWarning:
 
 
 # ---------------------------------------------------------------------------
-# detect_post_integration_acceptance (#3590 INTERIM, warn-only)
+# #227: a nested sub-heading under Acceptance Criteria must not truncate scope
 # ---------------------------------------------------------------------------
 
-_CODE_WP_POST_INTEGRATION = """\
+
+class TestAcceptanceCriteriaScopeHeadingDepth:
+    def test_marker_under_nested_subheading_is_detected(self) -> None:
+        content = """---
+work_package_id: WP01
+title: t
 ---
-execution_mode: code_change
-owned_files:
-  - src/specify_cli/sync/emitter.py
----
-
-# WP09 — Wire the durable-publish gate
-
-Implement the gate in `src/specify_cli/sync/emitter.py` and add a test under
-`tests/sync/`.
-
-## Objectives & Success Criteria
-
-- The event is confirmed delivered to subscribers **post-merge**, once the sync
-  daemon is running against main.
-- Verified after integration by observing the dashboard update in production.
+# WP01
+## Acceptance Criteria
+- foo
+### Notes
+- the dashboard is only observable once merged
 """
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
+        assert warnings
+        assert "once merged" in warnings[0]
 
-_CODE_WP_DIFF_OBSERVABLE = """\
+    def test_scope_still_closes_on_sibling_heading(self) -> None:
+        """A heading at the same level as the acceptance heading still closes scope."""
+        content = """---
+work_package_id: WP01
+title: t
 ---
-execution_mode: code_change
-owned_files:
-  - src/specify_cli/orchestrator_api/commands.py
----
-
-# WP01 — Preserve the failure message
-
-Edit `src/specify_cli/orchestrator_api/commands.py` and add a test under
-`tests/specify_cli/`.
-
-## Objectives & Success Criteria
-
-- `_fail(..., data={...})` returns an envelope whose `data` carries both the
-  `message` string and the structured fields.
-- A unit test asserts the dict contents directly.
+# WP01
+## Acceptance Criteria
+- foo
+## Implementation Notes
+- the dashboard is only observable once merged
 """
-
-_PLANNING_WP_POST_INTEGRATION = """\
----
-execution_mode: planning_artifact
-owned_files:
-  - kitty-specs/099-thing/spec.md
----
-
-# WP00 — Author the spec
-
-Write `kitty-specs/099-thing/spec.md` and `plan.md`.
-
-## Objectives & Success Criteria
-
-- The rollout is validated post-merge across every consumer once deployed.
-"""
-
-_CODE_WP_MARKER_OUTSIDE_ACCEPTANCE = """\
----
-execution_mode: code_change
-owned_files:
-  - src/specify_cli/sync/emitter.py
----
-
-# WP09 — Wire the durable-publish gate
-
-Implement the gate in `src/specify_cli/sync/emitter.py`.
-
-## Objectives & Success Criteria
-
-- `_route_event` returns False and `_emit` returns None; a unit test asserts it.
-
-## Notes
-
-- Downstream teams will observe the effect post-merge, but that is out of scope
-  for this WP.
-"""
-
-
-class TestDetectPostIntegrationAcceptance:
-    def test_fires_on_code_wp_with_post_integration_criteria(self) -> None:
-        """A code WP whose AC are only observable post-integration warns."""
-        warnings = detect_post_integration_acceptance(
-            _CODE_WP_POST_INTEGRATION, ["src/specify_cli/sync/emitter.py"]
-        )
-        assert warnings != []
-        joined = " ".join(warnings).lower()
-        assert "post-integration" in joined
-        assert "post-merge" in joined
-        assert "after integration" in joined
-
-    def test_false_positive_control_diff_observable_criteria(self) -> None:
-        """A code WP with diff-observable AC does NOT warn (precision control)."""
-        warnings = detect_post_integration_acceptance(
-            _CODE_WP_DIFF_OBSERVABLE,
-            ["src/specify_cli/orchestrator_api/commands.py"],
-        )
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
         assert warnings == []
 
-    def test_planning_artifact_wp_is_exempt(self) -> None:
-        """A planning-artifact WP legitimately names downstream outcomes — exempt."""
-        warnings = detect_post_integration_acceptance(
-            _PLANNING_WP_POST_INTEGRATION, ["kitty-specs/099-thing/spec.md"]
-        )
+    def test_scope_closes_on_shallower_heading(self) -> None:
+        """A heading shallower than the acceptance heading closes scope."""
+        content = """---
+work_package_id: WP01
+title: t
+---
+## Acceptance Criteria
+- foo
+# Next Section
+- the dashboard is only observable once merged
+"""
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
         assert warnings == []
 
-    def test_marker_outside_acceptance_section_does_not_fire(self) -> None:
-        """A post-integration mention in a Notes section is not an AC — no warning."""
-        warnings = detect_post_integration_acceptance(
-            _CODE_WP_MARKER_OUTSIDE_ACCEPTANCE,
-            ["src/specify_cli/sync/emitter.py"],
-        )
-        assert warnings == []
-
-    def test_no_acceptance_section_does_not_fire(self) -> None:
-        """A body with no acceptance/success-criteria section yields no warning."""
-        body = "# WP\n\nImplement `src/foo.py`.\n\n## Notes\n\nShip it once merged.\n"
-        warnings = detect_post_integration_acceptance(body, ["src/foo.py"])
-        assert warnings == []
+    def test_marker_under_doubly_nested_subheading_is_detected(self) -> None:
+        """Depth-tracking holds for more than one level of nesting."""
+        content = """---
+work_package_id: WP01
+title: t
+---
+## Acceptance Criteria
+- foo
+### Notes
+#### Details
+- the dashboard is only observable once merged
+"""
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
+        assert warnings
+        assert "once merged" in warnings[0]

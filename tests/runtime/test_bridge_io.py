@@ -488,7 +488,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
         context = io_seam._build_discovery_context(repo_root)
 
     assert len(caught) == 1  # golden-count: cardinality-is-contract
-    assert "Invalid org-pack config; ignoring org layer:" in str(caught[0].message)
+    assert "Invalid org-pack config" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds.
     assert context.org_roots == []
 

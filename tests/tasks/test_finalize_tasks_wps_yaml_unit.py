@@ -138,9 +138,6 @@ def _invoke_finalize_tasks(
             "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_make_run_command(git_status_out),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-        ),
     ):
         return runner.invoke(app, args)
 
@@ -356,9 +353,6 @@ class TestFinalizTasksWithWpsYaml:
             patch(
                 "specify_cli.cli.commands.agent.mission.run_command",
                 side_effect=_make_run_command("M tasks.md"),
-            ),
-            patch(
-                "specify_cli.cli.commands.agent.mission.get_emitter",
             ),
         ):
             result = runner.invoke(

@@ -47,6 +47,7 @@ def test_mission_slug_starting_with_number_accepted(tmp_path, monkeypatch):
     # Run outside the repository so this acceptance check cannot create and commit
     # a real test mission in the shared checkout.
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     # The slug itself is valid; the CLI may reject for other reasons (not in a git repo,
     # worktree context, etc.) but NOT for the slug format.
     result = runner.invoke(app, ["create", slug, "--json"])

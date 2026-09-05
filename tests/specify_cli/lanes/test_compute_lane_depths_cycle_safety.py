@@ -6,6 +6,7 @@ asking that helper to process them.
 
 Regression test for FR-015 of mission test-stabilization-and-debt-pass-01KSF9HJ.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -20,6 +21,7 @@ from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _make_lane(lane_id: str) -> ExecutionLane:
     """Minimal ExecutionLane factory for tests.

@@ -439,7 +439,6 @@ def test_migration_does_not_touch_memory_symlinks(
     assert agents_link.read_text("utf-8") == "a"
 
 
-@pytest.mark.performance
 def test_duration_ms_under_2000(
     fixture_b_no_derivatives: Path, migration: Any
 ) -> None:

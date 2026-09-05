@@ -505,7 +505,6 @@ class TestWidenHappyPathContinue:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestNFR001PrereqLatency:
     """NFR-001: prereq check + audience-default fetch < 300ms at p95."""
 

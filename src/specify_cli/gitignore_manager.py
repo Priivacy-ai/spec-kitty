@@ -6,43 +6,98 @@ to protect AI agent directories from being accidentally committed to git.
 It replaces the fragmented approach where only .codex/ was protected.
 """
 
+import contextlib
 import os
-import stat
 import subprocess
+import stat
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.core.constants import WORKTREES_DIR
+from specify_cli.core.no_follow import (
+    NoFollowPathError,
+    open_no_follow,
+    read_text_no_follow,
+    write_text_no_follow,
+)
 from specify_cli.state.contract import get_runtime_gitignore_entries
 
 
 SPEC_KITTY_GITIGNORE_MARKER = "# Added by Spec Kitty CLI (auto-managed)"
+
+
+class GitignorePathError(Exception):
+    """Raised when an ignore file (`.gitignore`, `.claudeignore`) is a symlink.
+
+    `Path.read_text()` / `Path.write_text()` / `Path.exists()` all follow
+    symlinks, so an ignore file swapped for a symlink (e.g. by a malicious
+    repo checkout) would let a caller's presence/content check, or a write,
+    follow it to an arbitrary path. Fail closed instead of following it.
+    """
+
+
 _WORKTREES_ENTRY = f"{WORKTREES_DIR}/"
 _WORKTREES_PROBE = f"{WORKTREES_DIR}/.spec-kitty-ignore-probe"
 
 
-class GitignorePathError(ValueError):
-    """Raised when ``.gitignore`` cannot be read or replaced safely."""
+# Kept as a compatibility alias for migrations that predate the manager-wide
+# name consolidation; both names signal the same fail-closed condition.
+IgnoreFilePathError = GitignorePathError
+
+
+def _get_umask() -> int:
+    """Return the process umask without permanently changing it.
+
+    `os.umask()` is the only way to read the current umask, and it's a
+    process-global set-and-return-previous call, so restore it immediately.
+    """
+    current = os.umask(0)
+    os.umask(current)
+    return current
+
+
+def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig", errors: str | None = None) -> str:
+    """Read an ignore file's text content, refusing to follow a symlink.
+
+    Used for presence/content checks against `.gitignore`/`.claudeignore`
+    (e.g. migration `detect()` logic) that must not be redirected by a
+    symlink the way a bare `Path.read_text()`/`.exists()` pair would be.
+    Opens through `read_text_no_follow()` rather than an `is_symlink()`
+    check-then-read, so a symlink swapped in between the check and the read
+    cannot be followed either.
+
+    Args:
+        path: Path to the ignore file (e.g. `.gitignore` or `.claudeignore`).
+        encoding: Text encoding to decode with.
+        errors: Decode error handler passed through to `Path.read_text()`
+            (e.g. `"ignore"` to tolerate undecodable bytes). `None` uses
+            strict decoding.
+
+    Returns:
+        The file's text content, or `""` if it does not exist.
+
+    Raises:
+        GitignorePathError: If `path` is a symlink.
+    """
+    try:
+        return read_text_no_follow(path, encoding=encoding, errors=errors)
+    except FileNotFoundError:
+        return ""
+    except NoFollowPathError as exc:
+        raise GitignorePathError(f"{path} is a symlink; refusing to read through it") from exc
 
 
 def read_gitignore_text(gitignore_path: Path) -> str | None:
-    """Read a regular UTF-8 ``.gitignore`` without following a final symlink.
-
-    ``None`` means the path is genuinely absent. Symlinks (including dangling
-    ones) and undecodable content fail closed so an upgrade cannot read or
-    later rewrite a file outside the project or silently discard bytes.
-    """
+    """Read a regular UTF-8 ``.gitignore`` without following a final symlink."""
     if gitignore_path.is_symlink():
         raise GitignorePathError(f"Refusing to read symlinked .gitignore: {gitignore_path}")
-    if not gitignore_path.exists():
-        return None
-
-    flags = os.O_RDONLY
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
     try:
-        fd = os.open(gitignore_path, flags)
+        fd = open_no_follow(gitignore_path, os.O_RDONLY)
+    except FileNotFoundError:
+        return None
+    except NoFollowPathError as exc:
+        raise GitignorePathError(f"Refusing to read symlinked .gitignore: {gitignore_path}") from exc
     except OSError as exc:
         raise GitignorePathError(f"Could not safely open .gitignore: {exc}") from exc
     try:
@@ -50,6 +105,48 @@ def read_gitignore_text(gitignore_path: Path) -> str | None:
             return handle.read()
     except UnicodeDecodeError as exc:
         raise GitignorePathError(f".gitignore is not valid UTF-8: {exc}") from exc
+
+
+def write_gitignore_text(gitignore_path: Path, content: str) -> None:
+    """Atomically replace a regular ``.gitignore`` without following symlinks."""
+    if gitignore_path.is_symlink():
+        raise GitignorePathError(f"Refusing to write symlinked .gitignore: {gitignore_path}")
+
+    existing_mode: int | None = None
+    if gitignore_path.exists():
+        existing_mode = stat.S_IMODE(gitignore_path.stat(follow_symlinks=False).st_mode)
+        if not existing_mode & stat.S_IWUSR:
+            raise PermissionError(f"Permission denied: {gitignore_path}")
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            dir=gitignore_path.parent,
+            prefix=".gitignore.spec-kitty-",
+            delete=False,
+        ) as handle:
+            handle.write(content)
+            temporary_path = Path(handle.name)
+        if existing_mode is not None:
+            temporary_path.chmod(existing_mode)
+        else:
+            # No existing file to replicate the mode of (the common
+            # `spec-kitty init` first-write path): `NamedTemporaryFile`
+            # always creates its tempfile at 0600 regardless of the process
+            # umask, so a brand-new .gitignore would otherwise land there
+            # instead of the umask-respecting mode `write_text()` used to
+            # produce. Match that historical behaviour explicitly.
+            temporary_path.chmod(0o666 & ~_get_umask())
+        if gitignore_path.is_symlink():
+            raise GitignorePathError(f"Refusing to replace symlinked .gitignore: {gitignore_path}")
+        os.replace(temporary_path, gitignore_path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | None:
@@ -79,8 +176,7 @@ def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | 
 def _has_git_control_path(project_path: Path) -> bool:
     """Return whether this path or an ancestor has Git control metadata."""
     return any(
-        candidate.joinpath(".git").exists()
-        or candidate.joinpath(".git").is_symlink()
+        candidate.joinpath(".git").is_file() or (candidate.joinpath(".git").is_dir() and candidate.joinpath(".git", "HEAD").is_file())
         for candidate in (project_path, *project_path.parents)
     )
 
@@ -116,15 +212,8 @@ def _tracked_git_paths(project_path: Path, root_path: str) -> tuple[str, ...]:
         raise GitignorePathError(f"Could not inspect tracked paths under {root_path}: {exc}") from exc
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise GitignorePathError(
-            f"Could not inspect tracked paths under {root_path}"
-            + (f": {detail}" if detail else "")
-        )
-    return tuple(
-        path.decode("utf-8", errors="surrogateescape")
-        for path in result.stdout.split(b"\0")
-        if path
-    )
+        raise GitignorePathError(f"Could not inspect tracked paths under {root_path}" + (f": {detail}" if detail else ""))
+    return tuple(path.decode("utf-8", errors="surrogateescape") for path in result.stdout.split(b"\0") if path)
 
 
 def is_gitignore_root_effectively_ignored(
@@ -160,8 +249,11 @@ def is_gitignore_root_effectively_ignored(
                 "`spec-kitty upgrade` (or `spec-kitty init` during initialization)."
             )
 
-    content = read_gitignore_text(project_path / ".gitignore")
-    if content is None:
+    try:
+        content = read_ignore_file_text(project_path / ".gitignore")
+    except UnicodeError as exc:
+        raise GitignorePathError(f"{project_path / '.gitignore'} is not valid UTF-8; refusing to decode it") from exc
+    if not content:
         return False
 
     entries = tuple(entry for line in content.splitlines() if (entry := line.rstrip()) and not entry.startswith("#"))
@@ -178,43 +270,6 @@ def is_gitignore_root_effectively_ignored(
     if verdict is None:
         raise GitignorePathError("Git could not verify the managed root ignore state")
     return verdict
-
-
-def write_gitignore_text(gitignore_path: Path, content: str) -> None:
-    """Atomically replace a regular ``.gitignore`` without following symlinks."""
-    if gitignore_path.is_symlink():
-        raise GitignorePathError(f"Refusing to write symlinked .gitignore: {gitignore_path}")
-
-    existing_mode: int | None = None
-    if gitignore_path.exists():
-        existing_mode = stat.S_IMODE(gitignore_path.stat(follow_symlinks=False).st_mode)
-        if not existing_mode & stat.S_IWUSR:
-            raise PermissionError(f"Permission denied: {gitignore_path}")
-
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="",
-            dir=gitignore_path.parent,
-            prefix=".gitignore.spec-kitty-",
-            delete=False,
-        ) as handle:
-            handle.write(content)
-            temporary_path = Path(handle.name)
-        if existing_mode is not None:
-            temporary_path.chmod(existing_mode)
-        # Re-check for an operator-visible symlink. Even if a concurrent swap
-        # happens after this check, os.replace replaces the link itself rather
-        # than following it, so an external target is never modified.
-        if gitignore_path.is_symlink():
-            raise GitignorePathError(f"Refusing to replace symlinked .gitignore: {gitignore_path}")
-        os.replace(temporary_path, gitignore_path)
-        temporary_path = None
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
 
 
 @dataclass
@@ -347,7 +402,7 @@ class GitignoreManager:
         if not entries:
             return False
 
-        # Read existing content or start with empty list
+        self._reject_symlink()
         content = read_gitignore_text(self.gitignore_path)
         if content is not None:
             # Detect and store line ending style
@@ -390,6 +445,59 @@ class GitignoreManager:
 
         return changed
 
+    def _reject_symlink(self) -> None:
+        """Raise GitignorePathError if `.gitignore` is a symlink."""
+        if self.gitignore_path.is_symlink():
+            target = os.readlink(self.gitignore_path)
+            raise GitignorePathError(f".gitignore is a symlink to {target!r}; refusing to read or write through it: {self.gitignore_path}")
+
+    def _read_text_no_follow(self) -> str:
+        """Read `.gitignore` through the shared no-follow helper."""
+        try:
+            return read_text_no_follow(self.gitignore_path, encoding="utf-8-sig")
+        except NoFollowPathError as exc:
+            raise GitignorePathError(f".gitignore is a symlink; refusing to read or write through it: {self.gitignore_path}") from exc
+
+    def _atomic_write(self, content: str) -> None:
+        """Write `.gitignore` atomically without following a symlink.
+
+        Writes to a same-directory tempfile, then `os.replace()`s it into
+        place. `os.replace()` (POSIX `rename()`) replaces the destination
+        directory entry itself rather than following it, so even a
+        `.gitignore` swapped for a symlink between the guard above and this
+        call cannot redirect the write to an arbitrary target.
+        """
+        self._reject_symlink()
+        existing_mode = self.gitignore_path.stat().st_mode & 0o777 if self.gitignore_path.exists() else None
+        if existing_mode is not None:
+            # os.replace() (rename) only requires write access to the parent
+            # directory, not to the file it replaces, so it would otherwise
+            # silently clobber a read-only .gitignore. Probe with a real
+            # open() to preserve the PermissionError a direct write raises.
+            try:
+                os.close(open_no_follow(self.gitignore_path, os.O_WRONLY))
+            except NoFollowPathError as exc:
+                raise GitignorePathError(f".gitignore is a symlink; refusing to read or write through it: {self.gitignore_path}") from exc
+        fd, tmp_path = tempfile.mkstemp(
+            dir=self.gitignore_path.parent,
+            prefix=".gitignore.",
+            suffix=".tmp",
+        )
+        try:
+            # mkstemp() always creates the tempfile at mode 0600, regardless
+            # of umask. For an existing .gitignore, replicate its own mode.
+            # For a brand-new one, replicate what open()/write_text() would
+            # have produced: 0666 narrowed by the process umask.
+            target_mode = existing_mode if existing_mode is not None else (0o666 & ~_get_umask())
+            os.chmod(tmp_path, target_mode)
+            os.close(fd)
+            write_text_no_follow(Path(tmp_path), content)
+            os.replace(tmp_path, self.gitignore_path)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_path)
+            raise
+
     def _detect_line_ending(self, content: str) -> str:
         """
         Detect and return the line ending style used in content.
@@ -431,6 +539,7 @@ class GitignoreManager:
 
         try:
             # Snapshot existing entries before modification
+            self._reject_symlink()
             existing_before: set[str] = set()
             content = read_gitignore_text(self.gitignore_path)
             if content is not None:

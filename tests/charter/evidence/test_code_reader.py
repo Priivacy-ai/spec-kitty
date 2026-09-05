@@ -164,7 +164,6 @@ def test_nonexistent_root_raises(tmp_path):
 
 
 @pytest.mark.timeout(10)
-@pytest.mark.performance
 def test_performance_1000_files(tmp_path):
     """collect() must complete in under 5 seconds on a 1 000-file tree."""
     import time
