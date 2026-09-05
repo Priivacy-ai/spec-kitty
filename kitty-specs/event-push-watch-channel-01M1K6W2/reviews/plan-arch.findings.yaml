@@ -81,4 +81,3 @@ findings:
       `_err_console.print_json(json.dumps({"error": ..., "detail": ...}))` call sites — before this
       plan is used to author WP04. A one-line fix; no design change needed since the plan's prose
       description of the pattern is otherwise correct.
-
