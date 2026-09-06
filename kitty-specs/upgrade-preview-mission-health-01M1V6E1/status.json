@@ -1,7 +1,7 @@
 {
-  "event_count": 53,
-  "last_event_id": "01M1VVW8ZTK91G99T85B44EQ52",
-  "materialized_at": "2026-09-06T17:22:24.891053+00:00",
+  "event_count": 55,
+  "last_event_id": "01M1VVZ2RC342TZ3M249GCZ4R8",
+  "materialized_at": "2026-09-06T17:23:56.755488+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 5,
+    "in_progress": 6,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -142,9 +142,9 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01M1VVW8ZTK91G99T85B44EQ52",
-      "last_transition_at": "2026-09-06T17:22:24.891053+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M1VVZ2RC342TZ3M249GCZ4R8",
+      "last_transition_at": "2026-09-06T17:23:56.755488+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Owned delivery RED3f50b533e GREEN51bbf50f3,1289delivery1642fast/staticpass. Parent canonicalconfig [] gap unresolved/outsideownership; independentreview must retain it, nofullcontractapproval yet. wp07-handoff.md.",
