@@ -110,6 +110,16 @@ def test_flow_root_provisioning_retains_unowned_text(tmp_path: Path, body: bytes
         assert path.read_bytes().endswith(b" # tail\n")
 
 
+def test_new_file_writer_does_not_require_unix_fchmod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+    from charter.activation.charter_yaml_io import prepare_yaml_write, apply_yaml_write
+
+    prepared = prepare_yaml_write(tmp_path / "charter.yaml", b"metadata: {}\n", section="document")
+    monkeypatch.delattr(os, "fchmod", raising=False)
+    assert apply_yaml_write(prepared)
+    assert (tmp_path / "charter.yaml").read_bytes() == prepared.desired_bytes
+
+
 _FIXTURE = """\
 schema_version: "2.0.0"
 governance:
