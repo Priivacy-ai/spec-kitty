@@ -32,7 +32,15 @@ Authored baseline0ff8914f7, RED5441be33d, implementation411cd2eb0. Parent
 independently ran99 owned tests in2.62s. Worker624 subsystem,22 caller,1642 fast
 and94 architecture passes plus static checks remain reported evidence. Concrete
 provider assessment/public upgrade completeness remain downstream obligations.
-Canonical review claimed; no approval yet.
+Independent Renata/Lovelace review REJECTED cycle one. Three P2 findings:
+zero-expansion dispatch erases selected-tool/definition context; the connected
+service bypasses guarded incomplete-inventory handling; a later pre-write
+recheck exception loses known successful earlier results. Reviewer independently
+ran121 tests and static checks, then reproduced all three gaps with adversarial
+controls. Passing existing tests did not satisfy these contracts.
+Canonical rejection event `01M1VKZ7C2K7Z0AWFEJBP3490V` is durable. WP02 was
+reclaimed for scoped correction; dependent owner packages remain unstarted.
+Full external findings: `wp02-independent-review.md` beside this checkout.
 
 ## WP11: Recovered Corpus, Independent Review Pending
 
