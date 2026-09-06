@@ -147,24 +147,26 @@
       "last_transition_at": "2026-09-06T17:22:24.891053+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Owned delivery RED3f50b533e GREEN51bbf50f3,1289delivery1642fast/staticpass. Parent canonicalconfig [] gap unresolved/outsideownership; independentreview must retain it, nofullcontractapproval yet. wp07-handoff.md."
+        "Owned delivery RED3f50b533e GREEN51bbf50f3,1289delivery1642fast/staticpass. Parent canonicalconfig [] gap unresolved/outsideownership; independentreview must retain it, nofullcontractapproval yet. wp07-handoff.md.",
+        "Independent review rejects four reproduced defects; separate #3917 remains unresolved."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP07-native-session-assessment/review-cycle-1.md",
         "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP07-native-session-assessment/review-cycle-1.md",
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T034": "done",
-        "T035": "done",
-        "T036": "done",
-        "T037": "done",
-        "T038": "done"
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned"
       }
     },
     "WP08": {
