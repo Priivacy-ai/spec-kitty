@@ -236,3 +236,16 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   terminal exit 0. The process remained live briefly after printing its summary;
   the parent waited for its actual exit, without restart or termination.
 - Independent review remains pending; operation stays open.
+
+## Init Command Rendering Order: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3920.
+- Op: `01M1VXP7D4P42AJRTXEWW7JB42`, open. Separate supporting correction,
+  not a waiver of WP04's remaining subsystem failure.
+- Actual unchanged init/truncate-manifest/upgrade witness expects fifteen
+  entries but obtains ten. Init renders before final REASONS activation; later
+  canonical bytes differ in five files after manifest ownership is truncated.
+- Correct init composition while ownership is still authoritative. Preserve
+  explicit deactivation, authored configuration, unknown content and the original
+  public regression test. Do not adopt historical variants without proof or
+  change counts to hide the defect. RED/GREEN and independent review required.
