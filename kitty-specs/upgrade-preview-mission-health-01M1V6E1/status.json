@@ -159,8 +159,8 @@
     "WP05": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "for_review",
       "last_event_id": "01M1WD3K53MHW6YXDX0R1H9XTY",
@@ -168,7 +168,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation committed at 5f271f07fde9d6efeb16661c00e2205a04816a13. Author reports 161 owned tests, all-12-path Ruff and strict mypy passing, real coordinated consumer evidence. First independent WP05 review pending; full integration gates remain required. Supplier dependency approved separately; Op closure pending consumer review.",
-        "First independent review rejected F1 aggregate provider preflight and F2 shared logical-owner completeness. Corrective review limited to findings, changed diff and adjacent risk; supplier dependency remains approved. Supporting Op stays open."
+        "First independent review rejected F1 aggregate provider preflight and F2 shared logical-owner completeness. Corrective review limited to findings, changed diff and adjacent risk; supplier dependency remains approved. Supporting Op stays open.",
+        "F1/F2 corrections at a458fc01fae48d80946f450ce90ab09ab19e8f1c follow real RED e81927a402a3c0341236d485c769b21a607fa7ad. Four corrective paths, 11 focused and 9 adjacent author checks, changed Ruff/strict mypy pass. Review 2 limited to findings/corrective diff/adjacent risk; supplier and WP02 unchanged. No Op closure or integrated gate claim."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
