@@ -480,7 +480,11 @@ attempts to remove its checks, then obtain independent review.
     seam: --yes alone cannot authorize mission-state repair or alter metadata,
     events/verdicts; explicit separate consent must reach the intended owner path.
     Assert actual owner effect/no-effect and filesystem evidence, not a startup
-    crash or mocked plan/apply success. Consume WP10 seams without editing them.
+    crash or mocked plan/apply success. Use the existing successful human upgrade
+    finalizer and independent consent owner, with a real TTY approval for the
+    positive control; JSON or failed-upgrade early returns are not that witness.
+    No new WP10 API is required and no WP10-owned file may be edited here.
+    Isolate existing startup writes; WP13 T070 reruns against integrated WP10.
 12. Record commands, SHAs, finding codes, raw evidence hashes and no-churn results.
     Additional blockers are failures to route, not reasons to lower thresholds.
     WP11 data approval never means #3911 is green; no backward dependency,
