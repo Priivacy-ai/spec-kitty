@@ -1,7 +1,7 @@
 {
-  "event_count": 85,
-  "last_event_id": "01M1W3EJVFA0THJ3CNDK60R582",
-  "materialized_at": "2026-09-06T19:34:44.848054+00:00",
+  "event_count": 86,
+  "last_event_id": "01M1W49A3D4SPR4SJVZ2XGCZAD",
+  "materialized_at": "2026-09-06T19:49:20.622000+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
@@ -13,8 +13,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 4,
-    "in_review": 1,
-    "planned": 4
+    "in_review": 0,
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -239,10 +239,10 @@
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 2,
-      "lane": "in_review",
-      "last_event_id": "01M1W3EJVFA0THJ3CNDK60R582",
-      "last_transition_at": "2026-09-06T19:34:44.848054+00:00",
+      "force_count": 3,
+      "lane": "planned",
+      "last_event_id": "01M1W49A3D4SPR4SJVZ2XGCZAD",
+      "last_transition_at": "2026-09-06T19:49:20.622000+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "T043-T046 seven-file delivery through3ca087912; owning checks/static89architecture1642fast pass. Broad3877pass plus8retained publicRED, correctedPATHfailure and6skips; not broadgreen. wp09-handoff.md; independentreview required.",
