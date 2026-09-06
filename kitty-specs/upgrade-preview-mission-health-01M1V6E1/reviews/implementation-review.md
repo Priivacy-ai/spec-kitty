@@ -55,7 +55,7 @@ The repaired identity resolver
 now reaches the declared source but no review.test_command is configured;
 NO_COVERAGE remains visible and is not a passing test gate.
 
-## WP09: Charter Preparation Independently Reviewing
+## WP09: Independent Review Rejected
 
 Exact seven-file delivery from c18531d304 to3ca087912: original REDd6095bda3,
 tidy20b68d3c6, implementation2432b5eb1, portability RED0d3ceb18c and fix3ca087912.
@@ -73,7 +73,16 @@ Actual legacy/pointer P7 applies preserve authored content and change one policy
 target each. Previews still omit that provisioning, owned by downstream WP10/13.
 
 Canonical for-review event: `01M1VPC9NBEK7P1BRJ44DXE2YQ`. Independent reviewer
-Heisenberg is reviewing the full authored diff and original RED/control evidence.
+Heisenberg REJECTED the full authored diff after reproducing three introduced
+regressions against the exact BASE: P1 null/explicit-empty YAML becomes invalid
+despite successful provisioning; P2 block-list updates drop authored key comments;
+P2 unowned numeric keys cause unrelated alias/section refusal. Nine failing cells
+on final source all pass BASE. The 276 fresh existing checks, static passes and
+ordinary public P7 apply/repeat controls do not cover these defects.
+Canonical durable rejection event: `01M1VQGMKWMNF513HX11EP0Y9V`; four subtasks
+reset. Original author remediation is required before re-review or WP10 use.
+Full external findings: `wp09-independent-review.md`. Reported on #3901,
+comment5560448992. No blanket exemption or baseline-failure disposition applies.
 Live gate reports the same no-configured-command NO_COVERAGE, not a pass.
 External evidence: `wp09-handoff.md` and `wp09-evidence/` beside this checkout.
 
