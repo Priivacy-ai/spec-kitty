@@ -21,7 +21,7 @@ from specify_cli.skills.manifest import (
     compute_content_hash,
     load_manifest,
 )
-from specify_cli.skills.registry import CanonicalSkill
+from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.providers.command_skills import (
     CommandSkillsProvider,
@@ -313,11 +313,11 @@ class _StubInstaller:
         return self._repaired, self._failed
 
 
-class _StubRegistry:
-    def __init__(self, skills: list[object]) -> None:
+class _StubRegistry(SkillRegistry):
+    def __init__(self, skills: list[CanonicalSkill]) -> None:
         self._skills = skills
 
-    def discover_skills(self) -> list[object]:
+    def discover_skills(self) -> list[CanonicalSkill]:
         return self._skills
 
 
@@ -510,10 +510,9 @@ def test_doctrine_vs_command_skill_in_doctor_output(
     assert ToolSurfaceKind.DOCTRINE_SKILL in kinds
     assert ToolSurfaceKind.COMMAND_SKILL in kinds
     payload = outcome.to_json()
-    surface_kinds = {entry["kind"] for entry in payload["surfaces"]}  # type: ignore[index]
+    surface_kinds = {entry["kind"] for entry in payload["surfaces"]}
     assert "doctrine_skill" in surface_kinds
     assert "command_skill" in surface_kinds
-    assert "doctrine_skill" != "command_skill"
 
 
 def test_run_tool_surfaces_kind_filter_doctrine_only(

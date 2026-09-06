@@ -177,7 +177,8 @@ class TestInstallSharedRootAgent:
             path: str | Path,
             ignore_errors: bool = False,
             onerror: Callable[[Callable[[str], object], str, object], object] | None = None,
-            **kwargs: object,
+            *,
+            dir_fd: int | None = None,
         ) -> None:
             readonly_files = [file_path for file_path in Path(path).rglob("*") if file_path.is_file() and not file_path.stat().st_mode & stat.S_IWRITE]
             if readonly_files and onerror is None:
@@ -192,9 +193,9 @@ class TestInstallSharedRootAgent:
                     target.unlink()
 
                 onerror(remove_after_chmod, str(readonly_file), PermissionError(str(readonly_file)))
-            real_rmtree(path, ignore_errors=ignore_errors, onerror=onerror, **kwargs)
+            real_rmtree(path, ignore_errors=ignore_errors, onerror=onerror, dir_fd=dir_fd)
 
-        monkeypatch.setattr(installer.shutil, "rmtree", windows_like_rmtree)
+        monkeypatch.setattr(shutil, "rmtree", windows_like_rmtree)
 
         install_skills_for_agent(project, "claude", [skill])
 
@@ -717,7 +718,7 @@ def test_wp05_backup_identity_excludes_clock(tmp_path: Path, monkeypatch: pytest
         entry = ManagedFileEntry("sample", "SKILL.md", dest.relative_to(project).as_posix(),
                                  SKILL_CLASS_NATIVE, "claude", compute_content_hash(dest), "2025-01-01")
         save_manifest(ManagedSkillManifest(entries=[entry]), project)
-        monkeypatch.setattr(installer, "now_utc_compact_stamp", lambda clock=clock: clock)
+        monkeypatch.setattr(installer, "now_utc_iso", lambda clock=clock: clock)
         _, backup = installer._project_skill_file(source, dest, project)
         assert backup is not None
         assert (backup / dest.relative_to(project)).read_bytes() == b"previous managed content"
@@ -736,3 +737,200 @@ def test_wp05_installer_preserves_unknown_canonical_content(tmp_path: Path) -> N
     assert (dest.read_bytes(), dest.stat().st_mtime_ns) == before
     assert not any(entry.source_file == "SKILL.md" for entry in entries)
     assert (dest.parent / "references/independent.md").is_file()
+
+
+def test_backup_allocator_is_pure_sorted_and_relocation_independent(tmp_path: Path) -> None:
+    from dataclasses import replace
+    from specify_cli.skills.installer import SkillBackupReplacement, prepare_skill_backup
+    from specify_cli.tool_surface.operations import FileState
+
+    before = FileState("file", sha256="a" * 64, mode=0o444, mtime_ns=1)
+    after = FileState("file", sha256="b" * 64, mode=0o444, mtime_ns=2)
+    first = SkillBackupReplacement(".claude/skills/sample/SKILL.md", before, after)
+    second = SkillBackupReplacement(".agents/skills/sample/SKILL.md", before, after)
+    left = prepare_skill_backup(tmp_path / "left", (second, first))
+    right = prepare_skill_backup(tmp_path / "right", (
+        replace(first, before=replace(before, mtime_ns=99)), second,
+    ))
+    assert left.root.name == right.root.name
+    assert left.root.name.startswith("state-v1-")
+    assert not list(tmp_path.iterdir())
+    changed = prepare_skill_backup(tmp_path / "left", (replace(first, after=replace(after, mode=0o644)), second))
+    assert changed.root.name != left.root.name
+
+
+@pytest.mark.parametrize("kind", ["file", "directory", "symlink"])
+def test_backup_allocator_preserves_collisions_and_refuses_races(tmp_path: Path, kind: str) -> None:
+    from specify_cli.skills.installer import SkillBackupReplacement, prepare_skill_backup, create_skill_backup
+    from specify_cli.tool_surface.operations import FileState
+
+    replacement = SkillBackupReplacement(".claude/skills/sample/SKILL.md", FileState("file", sha256="a" * 64, mode=0o444), FileState("absent"))
+    original = prepare_skill_backup(tmp_path, (replacement,))
+    original.root.parent.mkdir(parents=True)
+    if kind == "file":
+        original.root.write_bytes(b"unrelated backup")
+    elif kind == "directory":
+        original.root.mkdir()
+        (original.root / "unknown").write_bytes(b"unrelated backup")
+    else:
+        original.root.symlink_to("missing-user-target")
+    second = prepare_skill_backup(tmp_path, (replacement,))
+    assert second.root.name == original.root.name + "-1"
+    with pytest.raises(FileExistsError):
+        prepare_skill_backup(tmp_path, (replacement,), explicit_root=original.root)
+    second.root.write_bytes(b"racing writer")
+    with pytest.raises(ValueError, match="input changed"):
+        create_skill_backup(second)
+    assert second.root.read_bytes() == b"racing writer"
+    third = prepare_skill_backup(tmp_path, (replacement,))
+    assert third.root.name == original.root.name + "-2"
+    created = create_skill_backup(third)
+    assert stat.S_IMODE(created.stat().st_mode) == 0o700
+    if kind == "file":
+        assert original.root.read_bytes() == b"unrelated backup"
+    elif kind == "directory":
+        assert (original.root / "unknown").read_bytes() == b"unrelated backup"
+    else:
+        assert original.root.readlink() == Path("missing-user-target")
+
+
+def test_backup_member_is_exclusive_and_preserves_mode_and_content(tmp_path: Path) -> None:
+    from specify_cli.skills.installer import _archive_existing_path
+
+    dest = tmp_path / ".claude/skills/sample/SKILL.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"original readonly content")
+    dest.chmod(0o444)
+    stamp = dest.stat().st_mtime_ns
+    root = _archive_existing_path(dest, tmp_path, None)
+    retained = root / dest.relative_to(tmp_path)
+    assert retained.read_bytes() == b"original readonly content"
+    assert stat.S_IMODE(retained.stat().st_mode) == 0o444
+    assert retained.stat().st_mtime_ns == stamp
+    assert not dest.exists()
+    dest.write_bytes(b"next content")
+    with pytest.raises(FileExistsError):
+        _archive_existing_path(dest, tmp_path, root)
+    assert dest.read_bytes() == b"next content"
+    assert retained.read_bytes() == b"original readonly content"
+
+
+def test_backup_preserves_literal_dangling_link_and_rejects_escape(tmp_path: Path) -> None:
+    from specify_cli.skills.installer import _archive_existing_path, SkillBackupReplacement, prepare_skill_backup
+    from specify_cli.tool_surface.operations import FileState
+
+    dest = tmp_path / ".claude/skills/sample/SKILL.md"
+    dest.parent.mkdir(parents=True)
+    dest.symlink_to("../../../missing")
+    before = dest.lstat()
+    root = _archive_existing_path(dest, tmp_path, None)
+    retained = root / dest.relative_to(tmp_path)
+    assert retained.readlink() == Path("../../../missing")
+    assert stat.S_IMODE(retained.lstat().st_mode) == stat.S_IMODE(before.st_mode)
+    assert retained.lstat().st_mtime_ns == before.st_mtime_ns
+    assert not dest.is_symlink()
+    replacement = SkillBackupReplacement("../escape", FileState("file", sha256="a" * 64, mode=0o444), FileState("absent"))
+    with pytest.raises(ValueError, match="Unsafe"):
+        prepare_skill_backup(tmp_path, (replacement,))
+
+
+def test_projection_preserves_modified_owned_file_and_unknown_link(tmp_path: Path) -> None:
+    from specify_cli.skills.installer import _project_skill_file
+    from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+
+    source = tmp_path / "source"
+    source.write_bytes(b"new canonical content")
+    project = tmp_path / "project"
+    dest = project / ".claude/skills/sample/SKILL.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"owned content")
+    entry = ManagedFileEntry("sample", "SKILL.md", dest.relative_to(project).as_posix(),
+                             SKILL_CLASS_NATIVE, "claude", compute_content_hash(dest), "2025-01-01")
+    save_manifest(ManagedSkillManifest(entries=[entry]), project)
+    dest.write_bytes(b"user edits")
+    assert _project_skill_file(source, dest, project)[0] == "preserved"
+    assert dest.read_bytes() == b"user edits"
+    dest.unlink()
+    dest.symlink_to(source)
+    assert _project_skill_file(source, dest, project)[0] == "preserved"
+    assert dest.is_symlink()
+    assert not (project / ".kittify/.migration-backup").exists()
+
+
+def test_projection_backup_identity_covers_all_skill_replacements(tmp_path: Path) -> None:
+    from specify_cli.skills.installer import _project_skill_files, prepare_skill_backup, SkillBackupReplacement
+    from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+    from specify_cli.skills.paths import observe_skill_path
+
+    project = tmp_path / "project"
+    project.mkdir()
+    skill = _make_skill(tmp_path / "source", "sample", references=["other.md"])
+    target = project / ".claude/skills/sample"
+    original = _project_skill_files(skill, target, skill.skill_dir, project, SKILL_CLASS_NATIVE, "claude")
+    save_manifest(ManagedSkillManifest(entries=original), project)
+    replacements = []
+    for source in skill.all_files:
+        dest = target / source.relative_to(skill.skill_dir)
+        source.write_bytes(b"new canonical bytes " + source.name.encode())
+        replacements.append(SkillBackupReplacement(dest.relative_to(project).as_posix(),
+                                                   observe_skill_path(dest).state, observe_skill_path(source).state))
+    expected = prepare_skill_backup(project, tuple(replacements))
+    archives: list[Path] = []
+    _project_skill_files(skill, target, skill.skill_dir, project, SKILL_CLASS_NATIVE, "claude", archives)
+    assert len(archives) == 2
+    assert all(archive.is_relative_to(expected.root) for archive in archives)
+    assert len(list(expected.root.parent.iterdir())) == 1
+    assert all(archive.read_bytes() != (project / archive.relative_to(expected.root)).read_bytes() for archive in archives)
+
+
+def test_shared_projection_does_not_adopt_unknown_content(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    skill = _make_skill(tmp_path / "source", "sample", references=["independent.md"])
+    dest = project / ".agents/skills/sample/SKILL.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"unknown shared skill")
+    shared: set[str] = set()
+    first = install_skills_for_agent(project, "codex", [skill], shared_root_installed=shared)
+    second = install_skills_for_agent(project, "copilot", [skill], shared_root_installed=shared)
+    assert dest.read_bytes() == b"unknown shared skill"
+    assert {entry.source_file for entry in first} == {"references/independent.md"}
+    assert {entry.source_file for entry in second} == {"references/independent.md"}
+    assert first[0].installed_path == second[0].installed_path
+    assert first[0].agent_key != second[0].agent_key
+
+
+def test_project_retired_name_alone_does_not_authorize_deletion(tmp_path: Path) -> None:
+    from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
+
+    name = sorted(RETIRED_CANONICAL_SKILL_NAMES)[0]
+    dest = tmp_path / ".claude/skills" / name / "SKILL.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"unknown retired-name content")
+    before = dest.read_bytes(), dest.stat().st_mtime_ns
+    assert install_skills_for_agent(tmp_path, "claude", []) == []
+    assert (dest.read_bytes(), dest.stat().st_mtime_ns) == before
+
+
+@pytest.mark.parametrize("change", ["collision", "parent"])
+def test_backup_rechecks_collision_and_parent_before_any_write(tmp_path: Path, change: str) -> None:
+    from specify_cli.skills.installer import SkillBackupReplacement, prepare_skill_backup, create_skill_backup
+    from specify_cli.tool_surface.operations import FileState
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    replacement = SkillBackupReplacement(".claude/skills/sample/SKILL.md", FileState("file", sha256="a" * 64, mode=0o444), FileState("absent"))
+    first = prepare_skill_backup(project, (replacement,))
+    first.root.parent.mkdir(parents=True)
+    first.root.write_bytes(b"prior backup")
+    prepared = prepare_skill_backup(project, (replacement,))
+    if change == "collision":
+        first.root.write_bytes(b"changed collision")
+    else:
+        outside = tmp_path / "outside"
+        (project / ".kittify").rename(outside)
+        (project / ".kittify").symlink_to(outside, target_is_directory=True)
+    before = snapshot({"sandbox": tmp_path})
+    with pytest.raises(ValueError, match="input changed"):
+        create_skill_backup(prepared)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
