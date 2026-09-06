@@ -1,0 +1,75 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: SPEC-GOV-001
+    lens: guard-path scope correctness (mission-derived) / C-003 verification
+    severity: 4
+    title: "C-003/US1's claim that _check_cli_guards is 'scoped away' from the reported #3883 scenario is contradicted by the actual dispatch code, for the exact fixture (mission=\"software-dev\") the spec itself specifies"
+    evidence:
+      - artifact: "spec.md § User Story 1 (lines 12-14): '_check_composed_action_guard (the live guard path for a custom mission type — _check_cli_guards is scoped away from it)'"
+      - artifact: "spec.md § User Story 1, Independent Test (line 31): 'call `_check_composed_action_guard(\"implement\", coord_worktree_feature_dir, mission=\"software-dev\")` directly'"
+      - artifact: "spec.md § C-003: 'For a custom mission type, `_check_composed_action_guard` (`runtime_bridge_composition.py:485`) is the live guard — `_check_cli_guards` (`runtime_bridge.py:823`) is scoped away from it. Design and tests must exercise `_check_composed_action_guard` directly (not only `_check_cli_guards`)'"
+      - code: "src/runtime/next/runtime_bridge.py:1677-1735 (_dn_dependency_gate, WP-iteration branch)"
+      - code: "src/runtime/next/runtime_bridge.py:1712-1723 (own comment: 'this WP-iteration branch runs for every mission family whose current step is implement/review ... including software-dev and plan, both of which ARE registered in _GUARD_TABLES')"
+      - code: "src/runtime/next/runtime_bridge_cores.py:689-693 (_GUARD_TABLES = {\"research\":..., \"documentation\":..., \"software-dev\": _evaluate_software_dev_guards, \"plan\":...})"
+      - code: "src/runtime/next/runtime_bridge.py:1773 (the ONLY call site that is actually gated `mission_type == MISSION_TYPE_SOFTWARE_DEV`-only is the separate *non*-WP-iteration pre-check, not the WP-iteration one)"
+    claim: >
+      The spec asserts, as a load-bearing scope constraint (C-003) binding on plan+implement's
+      test design, that `_check_cli_guards` is "scoped away" from the guard path exercised by
+      the #3883 reproduction, and that only `_check_composed_action_guard` is "the live guard
+      path" that must be exercised. Tracing the real dispatch code (`_dn_dependency_gate` in
+      `runtime_bridge.py`, Phase 2/4 of `decide_next_via_runtime`) shows this is false for the
+      exact fixture the spec's own Independent Test and SC-001 specify: `mission="software-dev"`
+      at the `implement` step. `implement`/`review` are WP-iteration steps
+      (`_WP_ITERATION_STEPS`, `runtime_bridge.py:648`); for those steps, once
+      `_should_advance_wp_step` reports all WPs done, `_dn_dependency_gate` calls
+      `_check_cli_guards(current_step_id, feature_dir, mission_family=mission_type, ...)`
+      directly (`runtime_bridge.py:1729`) for **every** mission family, not just software-dev.
+      Because `"software-dev"` IS a registered key in `_GUARD_TABLES`
+      (`runtime_bridge_cores.py:689-693`), this call does NOT raise
+      `UnregisteredMissionFamilyError` and does NOT degrade to `[]` — it genuinely runs
+      `evaluate_guards_strict` → `_evaluate_software_dev_guards` over a
+      `gather_artifact_presence` snapshot, and would surface the buggy `["tasks.md"]` failure
+      and return a `blocked` decision right there, in `_dn_dependency_gate`, BEFORE composition
+      dispatch (Phase 3/4) ever runs `_check_composed_action_guard`. The only call site that is
+      genuinely scoped to software-dev-only vs. scoped-away-for-others is the *separate*,
+      *non*-WP-iteration pre-check gated by `mission_type == MISSION_TYPE_SOFTWARE_DEV`
+      (`runtime_bridge.py:1773`) — a different branch than the one covering `implement`/
+      `review`. `_check_composed_action_guard` genuinely is the sole authority only for a
+      **truly unregistered** (not-in-`_GUARD_TABLES`) custom family, where the WP-iteration
+      `_check_cli_guards` call raises and is caught into `[]` (per the code's own comment at
+      `runtime_bridge.py:1712-1723`) — but that is not the family the spec's Independent Test,
+      SC-001, or SC-002 use. The spec conflates "custom mission type" (a genuinely
+      unregistered family) with "software-dev" (a registered, non-custom, built-in family) in
+      the same sentence and the same fixture, and the resulting C-003 constraint would steer
+      plan/implement's red-first reproduction test (mandated by DIRECTIVE_034/041 to reproduce
+      "through the pre-existing entry point") away from the actual first-hit live entry point —
+      `_check_cli_guards` inside `_dn_dependency_gate` — for the concrete `software-dev`
+      scenario the mission background describes (query mode `implement` vs. advance-mode
+      `blocked, guard_failures: ["tasks.md"]`). Since FR-001-003 correctly centers the actual
+      *fix* on the shared `gather_artifact_presence` seam (used by both callers), the fix
+      itself would still work — but a test suite that follows C-003 to the letter and only
+      calls `_check_composed_action_guard` directly (bypassing `decide_next_via_runtime`)
+      would never exercise, and therefore never red-first-prove, the actual code path a real
+      software-dev coord-topology mission takes to produce the reported symptom.
+    remediation: >
+      Correct C-003 (and the parenthetical in US1) to state precisely which callers are
+      genuinely reachable for which mission families at the `implement`/`review` steps: (a) for
+      any mission family registered in `_GUARD_TABLES` (`software-dev`, `plan`, `research`,
+      `documentation`), the WP-iteration branch's direct `_check_cli_guards` call
+      (`runtime_bridge.py:1729`, inside `_dn_dependency_gate`) is genuinely live and is in fact
+      the FIRST guard evaluated, ahead of composition dispatch — call it out explicitly instead
+      of asserting it is "scoped away"; (b) `_check_composed_action_guard` is the sole authority
+      only for a truly unregistered custom family. Then require plan/implement's red-first test
+      design to add (not substitute) a reproduction through the real `decide_next_via_runtime` →
+      `_dn_dependency_gate` → `_check_cli_guards` path for `mission="software-dev"` (matching the
+      spec's own SC-001/SC-002 fixture), in addition to any direct
+      `_check_composed_action_guard` unit call — so the red-first test actually walks the
+      pre-existing entry point a real coord-topology software-dev mission hits, per
+      DIRECTIVE_034/041. If the intent was genuinely to test only the unregistered-custom-family
+      path, change the fixture's `mission=` value to a family absent from `_GUARD_TABLES` and
+      drop the "software-dev" framing from C-003/US1 to remove the contradiction.

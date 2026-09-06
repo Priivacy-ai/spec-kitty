@@ -1,0 +1,41 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: round2-targets
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-SEQ-001
+    severity: 3
+    source: plan-verify.yaml (unresolved after round 1 fix)
+    title: "WP1a/WP1b's red-first reproductions #3/#4 call a _should_advance_wp_step keyword interface (repo_root=, mission_slug=) that doesn't exist until WP2's Seam-2 extension lands"
+    reason_unresolved: >
+      Calling _should_advance_wp_step(..., repo_root=..., mission_slug=...) against
+      the live/pre-fix signature def _should_advance_wp_step(step_id, feature_dir)
+      would raise TypeError, not return True as the plan asserts for the "pre-fix"
+      RED state -- contradicting the plan's own claim that WP1a/WP1b run independently
+      of and before WP2's anchoring work.
+  - id: PLAN-FRESH-001
+    severity: 4
+    source: plan-fresh.yaml (fresh sweep after round 1 fix)
+    title: "The 2 NEW FR-006 catch-site arms (_check_composed_action_guard:557, _dn_dependency_gate's direct _should_advance_wp_step call) have zero red-first test coverage"
+    detail: >
+      Reproduction #2 still says "three FR-006 call sites" verbatim (unchanged from
+      before the Seam-2 extension). Reproduction #4 (credited by the coverage-arithmetic
+      section as covering the 2 new arms) only tests the anchoring-success/
+      Lane.UNINITIALIZED happy path -- never injects a resolution failure, so it
+      cannot be exercising either new except arm. As written, an implementer would
+      ship two new except blocks with zero direct test coverage.
+  - id: PLAN-FRESH-002
+    severity: 3
+    source: plan-fresh.yaml (fresh sweep after round 1 fix)
+    title: "gather_artifact_presence's anchor_dir block is shown twice -- once inline, once as the extracted resolve_primary_anchor_dir helper -- never reconciled"
+    detail: >
+      The Design decision section (Seam 1) shows the full inline try/placement_seam/
+      except anchor_dir block as gather_artifact_presence's own body. The Seam 2
+      extension's resolve_primary_anchor_dir code sample says it is "extracted from
+      gather_artifact_presence's existing inline anchor_dir block; gather_artifact_presence
+      itself now calls this instead of inlining." But gather_artifact_presence's
+      updated body (calling the helper) is never shown -- an implementer following
+      the code samples literally could keep BOTH the original inline block AND add
+      the new helper, i.e. exactly the "second anchoring mechanism duplicated"
+      outcome DIRECTIVE_044 forbids.

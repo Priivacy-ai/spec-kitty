@@ -1,0 +1,87 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+phase: tasks
+lens_group: seq
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: TASKS-SEQ-001
+    lens: write-scopes
+    severity: 4
+    title: "WP01's gather_artifact_presence anchoring fix (T008/T009) collides with an already-open PR editing the same function"
+    evidence:
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T008 (PrimaryPlacementResolutionError + resolve_primary_anchor_dir) and § Subtask T009 (gather_artifact_presence gains mission_slug + anchors the PRIMARY reads)"
+      - code: "src/runtime/next/runtime_bridge_io.py:998 (gather_artifact_presence, current unmodified signature — confirmed live at this line)"
+      - code: "PR #3923 (codex/upgrade-preview-mission-health, DRAFT, base=main) diff to src/runtime/next/runtime_bridge_io.py: adds `_artifact_presence_read_dir(feature_dir, name, repo_root)` using `placement_seam`/`kind_for_mission_file`/`MissionArtifactKind`, and rewrites gather_artifact_presence's named-artifact loop, `tasks_dir` computation, and the three status_facts helper calls (_check_requirement_mapping_ready/_check_bare_prose_requirements_ready/_occurrence_gate_failures) to route through it — the exact same reads T009/T010 target."
+    claim: >
+      wps.yaml's owned_files are pairwise-disjoint across this mission's own three
+      WPs (verified: no file appears in more than one WP's owned_files), but the
+      tasks phase never checked owned_files against files an already-open PR is
+      touching, per this lens's explicit instruction. PR #3923 (open, DRAFT,
+      targeting main) is currently rewriting `gather_artifact_presence`'s body in
+      `src/runtime/next/runtime_bridge_io.py` to anchor the SAME named-artifact
+      presence loop, the SAME tasks_dir glob, and the SAME three status_facts
+      helper calls onto a repo_root/placement_seam-resolved directory — using a
+      different, per-filename-kind design (`_artifact_presence_read_dir`, gated
+      on `kind_for_mission_file(...) is not None`) than the one T008/T009
+      specify (`resolve_primary_anchor_dir`, gated on `repo_root is not None`,
+      raising a new `PrimaryPlacementResolutionError`). Both edits target the
+      identical lines of the identical function. If PR #3923 lands on main before
+      this mission's WP01 merges, WP01's T009 line citations (runtime_bridge_io.py
+      `:1040-1043`, `:1045-1049`, `:1054`, `:1086`, `:1090`, `:1098`) go stale and,
+      worse, WP01 would either have to reconcile two independently-invented
+      "resolve the primary placement directory" mechanisms in the same function
+      (a direct hit on the charter's Governing Principle "Single canonical
+      authority ... Reconcile (extend/reference) existing doctrine rather than
+      add a second authority", the very DIRECTIVE_044 principle T008's own docstring
+      invokes by name) or silently duplicate anchoring logic that T008 explicitly
+      says must never happen ("never two independent copies of the same anchoring
+      logic (DIRECTIVE_044)"). Neither wps.yaml, tasks.md, nor any WP file mentions
+      PR #3923 or this collision.
+    remediation: >
+      Before WP01 begins implementation, check whether PR #3923 (or its eventual
+      successor once "implementation lanes are consolidated") has merged to main;
+      if so, re-verify T009's line citations and reconcile the two anchoring
+      designs into one canonical helper (extend `_artifact_presence_read_dir`
+      rather than adding a parallel `resolve_primary_anchor_dir`, or vice versa —
+      whichever lands second must extend/call the other, not duplicate it) before
+      writing the fix, and record the reconciliation decision in
+      tracer-design-decisions.md. If PR #3923 has not merged, add a one-line flag
+      to WP01's Risks section noting this open, actively-changing external PR as
+      a landing-order risk so the implementer checks it at kickoff rather than
+      relying on stale citations.
+
+  - id: TASKS-SEQ-002
+    lens: global-subtask-id-sequence-integrity
+    severity: 2
+    title: "WP01 body contains a 'Subtask T014a' heading with no corresponding ID in WP01's frontmatter subtasks list"
+    evidence:
+      - artifact: "tasks/WP01-merged-production-fix.md § heading '## Subtask T014a (folded into T014's scope): the three ORIGINAL FR-006 catch sites'"
+      - artifact: "tasks/WP01-merged-production-fix.md frontmatter `subtasks:` list — T008 through T019 inclusive, no T014a entry"
+    claim: >
+      WP01's frontmatter `subtasks` list (T008-T019, 12 entries) matches wps.yaml's
+      WP01 `subtasks` list exactly, and the body contains a `### Subtask Txxx`-style
+      heading for every one of T008-T019. But the body also contains an additional,
+      differently-formatted heading, "## Subtask T014a (folded into T014's scope):
+      the three ORIGINAL FR-006 catch sites", which is NOT one of the frontmatter's
+      declared IDs. The heading's own text disclaims it ("This is not a separate
+      numbered subtask") and its content is real, load-bearing implementation work
+      (the three original FR-006 catch-site edits T015's reproduction #2 depends
+      on) — so nothing is lost, but the heading still uses the `Txxx` naming
+      convention `spec-kitty agent tasks mark-status` keys off of everywhere else
+      in this mission's WP files, which risks an implementer either attempting
+      `spec-kitty agent tasks mark-status T014a --status done` (which will fail,
+      since T014a is not in the roster read from wps.yaml/frontmatter) or a
+      reviewer concluding a subtask went missing from the Definition of Done's
+      T008-T019 completion checklist. This is exactly the frontmatter/body-heading
+      mismatch defect class this lens was asked to check for explicitly, even
+      though in this instance the WP's own prose defuses most of the risk by
+      stating plainly that T014a is not separately tracked.
+    remediation: >
+      Rename the heading to drop the `Txxx`-shaped id entirely (e.g. "## The three
+      ORIGINAL FR-006 catch sites (part of T014's scope)") so it cannot be mistaken
+      for a fourteenth registered subtask ID, or — if the work is substantial
+      enough to warrant its own tracked completion state — renumber it into the
+      mission's single contiguous ID sequence (which would require shifting every
+      subsequent ID, T015-T023, by one) and add it to both wps.yaml and this WP's
+      frontmatter `subtasks` list.
+complete: true
