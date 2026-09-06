@@ -1,13 +1,14 @@
 """Tests for manifest_store.repair_stale_manifest and remove_unsafe_symlinks.
 
-Covers:
-- T028: repair_stale_manifest adds missing canonical entries
-- T028: repair_stale_manifest removes orphaned entries
+Covers (PRIMARY WP04 T020 supersedes the unsafe legacy assertions):
+- Canonical rendered content can acquire ownership for configured agents only
+- Unknown/missing content cannot acquire arbitrary hash or placeholder ownership
+- Adopt-only normalization retains orphan ownership for the pruning owner
 - T028: repair_stale_manifest is idempotent (no-op on already-correct manifest)
 - T028: repair_stale_manifest detects drifted files (reports, does not auto-repair)
 - T028: repair_stale_manifest returns changed=False when nothing changed
 - T029: drifted entries appear in result.drifted
-- T030: remove_unsafe_symlinks removes symlink directories, leaves real dirs
+- Exact ownership authorizes link removal; prefixes do not
 - T030: remove_unsafe_symlinks ignores non-spec-kitty entries
 - T030: remove_unsafe_symlinks is a no-op when skills dir absent
 """
@@ -15,8 +16,13 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
+from dataclasses import replace
 
 import pytest
+
+from specify_cli.skills import command_installer
+from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
 from specify_cli.skills.manifest_store import (
     ManifestEntry,
@@ -66,47 +72,68 @@ def _write_skill_file(project_root: Path, rel_path: str, content: bytes = b"hell
     return abs_path
 
 
+def _configure(project: Path) -> None:
+    (project / ".kittify").mkdir(exist_ok=True)
+    (project / ".kittify/config.yaml").write_text("agents:\n  available: [vibe]\n", encoding="utf-8")
+
+
+def _canonical_unowned(project: Path) -> bytes:
+    """Real canonical setup, then remove only the specify ownership entry."""
+    _configure(project)
+    command_installer.install(project, "vibe")
+    manifest = load(project)
+    manifest.remove_path(_PATH_SPECIFY)
+    save(project, manifest)
+    return (project / _PATH_SPECIFY).read_bytes()
+
+
 # ---------------------------------------------------------------------------
 # T028 + T029 — repair_stale_manifest
 # ---------------------------------------------------------------------------
 
 
 class TestRepairStaleManifestAddsEntries:
-    """Missing canonical entries are added to the manifest."""
+    """Retained content requires canonical proof, not merely an on-disk hash."""
 
-    def test_adds_missing_entry_when_file_exists(self, tmp_path: Path) -> None:
-        """A missing entry is synthesized from the on-disk file hash."""
+    @pytest.mark.parametrize("full_catalog", [False, True])
+    def test_preserves_unknown_file_without_adopting_hash(self, tmp_path: Path, full_catalog: bool) -> None:
+        """Retain the original arbitrary-byte fixture, including readonly mode."""
         # Write a skill file
         content = b"# spec-kitty.specify skill"
-        _write_skill_file(tmp_path, _PATH_SPECIFY, content)
+        victim = _write_skill_file(tmp_path, _PATH_SPECIFY, content)
+        victim.chmod(0o400)
+        _configure(tmp_path)
 
         # Manifest starts empty
         save(tmp_path, SkillsManifest())
 
-        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
+        before = snapshot({"project": tmp_path})
+        commands = list(command_installer.CANONICAL_COMMANDS) if full_catalog else [_CMD_SPECIFY]
+        result = repair_stale_manifest(tmp_path, canonical_commands=commands)
+        assert not result.changed and not result.added
+        assert load(tmp_path).find(_PATH_SPECIFY) is None
+        assert victim.read_bytes() == content
+        assert_unchanged(before, snapshot({"project": tmp_path}))
 
-        assert _PATH_SPECIFY in result.added
-        assert result.changed is True
-
-        # Verify the entry was persisted with the correct hash and a non-empty agents tuple
-        manifest = load(tmp_path)
-        entry = manifest.find(_PATH_SPECIFY)
-        assert entry is not None
-        assert entry.content_hash == fingerprint(content)
-        assert len(entry.agents) > 0  # schema requires non-empty agents
-
-    def test_adds_missing_entry_with_placeholder_when_file_absent(self, tmp_path: Path) -> None:
-        """A missing entry is added with empty-bytes placeholder hash when file does not exist."""
+    def test_missing_file_does_not_receive_placeholder_ownership(self, tmp_path: Path) -> None:
+        """The absent-file fixture must remain absent, without a manifest rewrite."""
+        _configure(tmp_path)
         save(tmp_path, SkillsManifest())
+        before = snapshot({"project": tmp_path})
+        result = repair_stale_manifest(tmp_path, canonical_commands=list(command_installer.CANONICAL_COMMANDS))
+        assert not result.changed and not result.added
+        assert load(tmp_path).find(_PATH_SPECIFY) is None
+        assert_unchanged(before, snapshot({"project": tmp_path}))
 
-        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
-
-        assert _PATH_SPECIFY in result.added
-        manifest = load(tmp_path)
-        entry = manifest.find(_PATH_SPECIFY)
-        assert entry is not None
-        assert entry.content_hash == fingerprint(b"")
-        assert len(entry.agents) > 0  # schema requires non-empty agents
+    def test_adopts_real_canonical_bytes_for_configured_owner(self, tmp_path: Path) -> None:
+        content = _canonical_unowned(tmp_path)
+        before = snapshot({"project": tmp_path})
+        result = repair_stale_manifest(tmp_path, canonical_commands=list(command_installer.CANONICAL_COMMANDS))
+        assert result.added == [_PATH_SPECIFY] and result.changed
+        entry = load(tmp_path).find(_PATH_SPECIFY)
+        assert entry is not None and entry.content_hash == fingerprint(content)
+        assert entry.agents == ("vibe",)
+        assert {effect.path for effect in net_delta(before, snapshot({"project": tmp_path}))} == {".kittify/command-skills-manifest.json"}
 
     def test_does_not_add_already_present_entry(self, tmp_path: Path) -> None:
         """Entries already in the manifest are not re-added."""
@@ -121,31 +148,55 @@ class TestRepairStaleManifestAddsEntries:
 
 
 class TestRepairStaleManifestRemovesOrphans:
-    """Orphaned entries (not in canonical_commands) are removed."""
+    """Normalization must retain proof until the pruning owner can assess it."""
 
-    def test_removes_orphaned_entry(self, tmp_path: Path) -> None:
+    def test_retains_orphaned_entry_for_proven_pruning(self, tmp_path: Path) -> None:
         m = SkillsManifest()
         m.upsert(_make_entry(_PATH_SPECIFY))
         m.upsert(_make_entry(_PATH_ORPHAN))  # not in canonical set
         save(tmp_path, m)
-
+        before = snapshot({"project": tmp_path})
         result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
-
-        assert _PATH_ORPHAN in result.removed
-        assert result.changed is True
-
+        assert not result.removed and not result.changed
         manifest = load(tmp_path)
-        assert manifest.find(_PATH_ORPHAN) is None
+        assert manifest.find(_PATH_ORPHAN) == m.find(_PATH_ORPHAN)
         assert manifest.find(_PATH_SPECIFY) is not None
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+
+    @pytest.mark.parametrize("edited", [False, True])
+    def test_pruning_retains_shared_or_edited_candidates(self, tmp_path: Path, edited: bool) -> None:
+        _configure(tmp_path)
+        victim = _write_skill_file(tmp_path, _PATH_ORPHAN, b"owned retired command")
+        entry = replace(_make_entry(_PATH_ORPHAN, fingerprint(victim.read_bytes())), agents=("codex", "vibe"))
+        save(tmp_path, SkillsManifest(entries=[entry]))
+        if edited:
+            victim.write_bytes(b"edited retired command")
+        before = snapshot({"project": tmp_path})
+        inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=ApplyConsent(automatic=True))
+        assessment = command_installer.prepare_commands(inputs, (), remove_agents=("codex",))
+        assert assessment.complete
+        assert command_installer.apply_commands(assessment, inputs.consent).outcome == "applied"
+        if edited:
+            assert any(d.state == "consent_required" for d in assessment.dispositions)
+            assert_unchanged(before, snapshot({"project": tmp_path}))
+        else:
+            retained = load(tmp_path).find(_PATH_ORPHAN)
+            assert retained is not None and retained.agents == ("vibe",)
+            assert victim.read_bytes() == b"owned retired command"
+            assert {e.path for e in net_delta(before, snapshot({"project": tmp_path}))} == {".kittify/command-skills-manifest.json"}
+            assert command_installer.prune_stale(tmp_path) == [_PATH_ORPHAN]
+            assert not victim.exists() and not victim.parent.exists()
+            assert load(tmp_path).find(_PATH_ORPHAN) is None
 
     def test_no_orphans_when_manifest_matches_canonical(self, tmp_path: Path) -> None:
         m = SkillsManifest()
         m.upsert(_make_entry(_PATH_SPECIFY))
         save(tmp_path, m)
-
+        before = snapshot({"project": tmp_path})
         result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert result.removed == []
+        assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
 class TestRepairStaleManifestIdempotent:
@@ -158,12 +209,13 @@ class TestRepairStaleManifestIdempotent:
         m = SkillsManifest()
         m.upsert(_make_entry(_PATH_SPECIFY, content_hash=fingerprint(content)))
         save(tmp_path, m)
-
+        before = snapshot({"project": tmp_path})
         result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert result.added == []
         assert result.removed == []
         assert result.changed is False
+        assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
 class TestRepairStaleManifestDriftDetection:
@@ -193,9 +245,14 @@ class TestRepairStaleManifestDriftDetection:
         _write_skill_file(tmp_path, _PATH_SPECIFY, content)
 
         save(tmp_path, SkillsManifest())  # empty manifest — entry is missing
-
-        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
-
+        # Preserve the arbitrary-byte edge case separately from canonical adoption.
+        before = snapshot({"project": tmp_path})
+        refused = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
+        assert not refused.added and not refused.drifted
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+        (tmp_path / _PATH_SPECIFY).unlink()
+        _canonical_unowned(tmp_path)
+        result = repair_stale_manifest(tmp_path, canonical_commands=list(command_installer.CANONICAL_COMMANDS))
         assert _PATH_SPECIFY in result.added
         # The newly-added entry must NOT also appear in drifted
         assert _PATH_SPECIFY not in result.drifted
@@ -233,16 +290,23 @@ class TestRepairStaleManifestChangedFlag:
 
     def test_changed_true_when_entry_added(self, tmp_path: Path) -> None:
         save(tmp_path, SkillsManifest())
-        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
+        before = snapshot({"project": tmp_path})
+        absent = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
+        assert not absent.changed
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+        _canonical_unowned(tmp_path)
+        result = repair_stale_manifest(tmp_path, canonical_commands=list(command_installer.CANONICAL_COMMANDS))
         assert result.changed is True
 
-    def test_changed_true_when_entry_removed(self, tmp_path: Path) -> None:
+    def test_changed_false_when_orphan_ownership_is_retained(self, tmp_path: Path) -> None:
         m = SkillsManifest()
         m.upsert(_make_entry(_PATH_ORPHAN))
         save(tmp_path, m)
-
+        before = snapshot({"project": tmp_path})
         result = repair_stale_manifest(tmp_path, canonical_commands=[])
-        assert result.changed is True
+        assert not result.changed and not result.removed
+        assert load(tmp_path).find(_PATH_ORPHAN) == m.find(_PATH_ORPHAN)
+        assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
 # ---------------------------------------------------------------------------
@@ -251,9 +315,10 @@ class TestRepairStaleManifestChangedFlag:
 
 
 class TestRemoveUnsafeSymlinks:
-    """Unsafe symlink artifacts in .agents/skills/ are detected and removed."""
+    """Exact manifest ownership, never the package prefix, permits unlinking."""
 
-    def test_removes_symlink_dir(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("dangling", [False, True])
+    def test_preserves_unowned_symlink_dir(self, tmp_path: Path, dangling: bool) -> None:
         skills_dir = tmp_path / ".agents" / "skills"
         skills_dir.mkdir(parents=True, exist_ok=True)
 
@@ -261,12 +326,16 @@ class TestRemoveUnsafeSymlinks:
         link = skills_dir / "spec-kitty"
         target = tmp_path / "elsewhere"
         target.mkdir()
+        (target / "sentinel").write_bytes(b"target data")
+        if dangling:
+            target = target / "absent"
         link.symlink_to(target)
-
+        before = snapshot({"project": tmp_path})
+        target_text = link.readlink()
         result = remove_unsafe_symlinks(tmp_path)
-
-        assert not link.exists()
-        assert str(link) in result.symlinks_removed
+        assert link.is_symlink() and link.readlink() == target_text
+        assert not result.changed and not result.symlinks_removed
+        assert_unchanged(before, snapshot({"project": tmp_path}))
 
     def test_leaves_real_skill_dirs_untouched(self, tmp_path: Path) -> None:
         skills_dir = tmp_path / ".agents" / "skills"
@@ -300,21 +369,45 @@ class TestRemoveUnsafeSymlinks:
         assert result.symlinks_removed == []
         assert result.changed is False
 
-    def test_removes_multiple_symlinks(self, tmp_path: Path) -> None:
+    def test_preserves_multiple_unowned_symlinks(self, tmp_path: Path) -> None:
         skills_dir = tmp_path / ".agents" / "skills"
         skills_dir.mkdir(parents=True, exist_ok=True)
         target = tmp_path / "tgt"
         target.mkdir()
+        (target / "sentinel").write_bytes(b"target data")
 
         links = ["spec-kitty", "spec-kitty.old-cmd"]
         for name in links:
             (skills_dir / name).symlink_to(target)
 
+        before = snapshot({"project": tmp_path})
         result = remove_unsafe_symlinks(tmp_path)
-
-        assert len(result.symlinks_removed) == 2
+        assert not result.changed and not result.symlinks_removed
         for name in links:
-            assert not (skills_dir / name).exists()
+            link = skills_dir / name
+            assert link.is_symlink() and link.readlink() == target
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+
+    def test_removes_exact_owned_link_without_losing_shared_owners(self, tmp_path: Path) -> None:
+        _configure(tmp_path)
+        command_installer.install(tmp_path, "codex")
+        command_installer.install(tmp_path, "vibe")
+        package = (tmp_path / _PATH_SPECIFY).parent
+        target = tmp_path / "retained-package"
+        package.rename(target)
+        package.symlink_to(target, target_is_directory=True)
+        before = snapshot({"project": tmp_path})
+        original_manifest = load(tmp_path)
+        result = remove_unsafe_symlinks(tmp_path)
+        assert result.symlinks_removed == [str(package)] and result.changed
+        after = snapshot({"project": tmp_path})
+        assert {(e.path, e.action) for e in net_delta(before, after)} == {(package.relative_to(tmp_path).as_posix(), "delete")}
+        assert load(tmp_path) == original_manifest
+        assert before[("project", "retained-package/SKILL.md")] == after[("project", "retained-package/SKILL.md")]
+        command_installer.install(tmp_path, "vibe")
+        entry = load(tmp_path).find(_PATH_SPECIFY)
+        assert entry is not None and entry.agents == ("codex", "vibe")
+        assert (package / "SKILL.md").read_bytes() == (target / "SKILL.md").read_bytes()
 
     def test_changed_false_when_no_symlinks(self, tmp_path: Path) -> None:
         skills_dir = tmp_path / ".agents" / "skills"
