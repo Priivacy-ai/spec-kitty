@@ -1,12 +1,22 @@
 """Validate package bundling includes correct templates."""
 
 from pathlib import Path
+import re
 import tarfile
 import zipfile
 
 import pytest
 
 pytestmark = [pytest.mark.integration]
+
+
+@pytest.mark.slow
+def test_wheel_bundles_exact_build_revision(build_artifacts: dict[str, Path]) -> None:
+    """Installed builds retain the source revision after Git metadata is gone."""
+    with zipfile.ZipFile(build_artifacts["wheel"]) as wheel:
+        build_info = wheel.read("specify_cli/_build_info.py").decode("utf-8")
+
+    assert re.search(r'^BUILD_REVISION = "[0-9a-f]{12}"$', build_info, re.MULTILINE)
 
 LEGACY_SDIST_SEGMENT = "/src/charter/offering/" + "agent" + "-" + "profiles"
 

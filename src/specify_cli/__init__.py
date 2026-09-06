@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING, Any  # noqa: E402
 
 
 import typer  # noqa: E402
+from specify_cli.version_utils import get_build_revision, get_version  # noqa: E402
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -48,12 +49,11 @@ if TYPE_CHECKING:
 
 # Get version from package metadata
 # Test mode: use environment override to ensure tests use source version
-if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
-    __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
-else:
-    from specify_cli.version_utils import get_version
-
-    __version__ = get_version()
+__version__ = (
+    os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
+    if os.environ.get("SPEC_KITTY_TEST_MODE") == "1"
+    else get_version()
+)
 
 _APP: typer.Typer | None = None
 
@@ -104,7 +104,7 @@ def version_callback(value: bool) -> None:
         profile = resolve_distribution_profile()
         label = profile.version_label or profile.package_name
         console.print(
-            f"{label} version {__version__}",
+            f"{label} version {__version__} build {get_build_revision()}",
             soft_wrap=True,
             highlight=False,
             markup=False,

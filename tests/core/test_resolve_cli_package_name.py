@@ -81,8 +81,9 @@ def test_version_callback_label_uses_resolved_name(monkeypatch: pytest.MonkeyPat
 
     import specify_cli
 
+    monkeypatch.setattr(specify_cli, "get_build_revision", lambda: "a1b2c3d4e5f6")
     with pytest.raises(typer.Exit):
         specify_cli.version_callback(True)
 
     assert printed
-    assert printed[0].startswith("acme-spec-kitty-cli version ")
+    assert printed[0] == f"acme-spec-kitty-cli version {specify_cli.__version__} build a1b2c3d4e5f6"

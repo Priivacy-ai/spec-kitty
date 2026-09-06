@@ -165,6 +165,21 @@ class TestVersionConsistency:
         version_pattern = re.compile(r"\d+\.\d+\.\d+")
         assert version_pattern.search(output), f"Output should contain version number, got: {output}"
 
+    def test_version_via_cli_command_in_test_mode(self):
+        """Test-mode version overrides retain diagnostic build provenance."""
+        env = os.environ.copy()
+        env["SPEC_KITTY_TEST_MODE"] = "1"
+        env["SPEC_KITTY_CLI_VERSION"] = "9.8.7-test"
+        result = subprocess.run(
+            [str(get_venv_python()), "-m", "specify_cli.__init__", "--version"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "version 9.8.7-test build " in result.stdout
+
     def test_all_version_methods_agree(self):
         """Verify all version access methods return the same value."""
         # Method 1: Module import
