@@ -224,7 +224,7 @@ class NativeConfigProvider:
             try:
                 ensure_project_skill_path(assessment.root.path, prepared=prepared)
             except (OSError, ValueError) as exc:
-                succeeded = tuple(e.id for e in assessment.effects if e.after.kind == "directory" and e.destination.is_dir() and not e.destination.is_symlink())
+                succeeded = tuple(e.id for e in assessment.effects if _directory_postcondition_holds(e))
                 return OwnerApplyResult(
                     PROVIDER_KEY,
                     succeeded=succeeded,
@@ -348,6 +348,17 @@ class NativeConfigProvider:
             failed=failed,
             dry_run=dry_run,
         )
+
+
+def _directory_postcondition_holds(effect: PhysicalEffect) -> bool:
+    """A mkdir alone does not complete a create with a promised final mode."""
+    if effect.after.kind != "directory":
+        return False
+    try:
+        observed = observe_presence_path(effect.root.path, effect.path)[-1]
+    except (OSError, ValueError):
+        return False
+    return bool(presence_state(observed) == effect.after)
 
 
 def _vibe_skill_path_present(config_path: Path) -> bool:

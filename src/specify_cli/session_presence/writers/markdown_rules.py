@@ -72,14 +72,16 @@ def observe_presence_path(root: Path, relative: str) -> tuple[InputObservation, 
         if stat.S_ISLNK(info.st_mode):
             raise ValueError(f"Refusing unowned symlink: {rel}")
         if stat.S_ISDIR(info.st_mode):
-            state = FileState("directory", mode=mode, mtime_ns=info.st_mtime_ns)
+            # Sibling effects change directory mtimes, not confinement. Keep
+            # directory identity/mode and exact file mtimes as preconditions.
+            state = FileState("directory", mode=mode)
         elif stat.S_ISREG(info.st_mode) and index == len(paths) - 1:
             data = read_presence_bytes(path)
             state = FileState("file", sha256=sha256(data).hexdigest(), mode=mode, mtime_ns=info.st_mtime_ns)
         else:
             raise ValueError(f"Unsupported presence node: {rel}")
         after = path.lstat()
-        if (info.st_ino, info.st_mtime_ns, info.st_mode) != (after.st_ino, after.st_mtime_ns, after.st_mode):
+        if (info.st_dev, info.st_ino, info.st_mtime_ns, info.st_mode) != (after.st_dev, after.st_ino, after.st_mtime_ns, after.st_mode):
             raise ValueError(f"Presence input changed while reading: {rel}")
         observations.append(InputObservation(str(rel), (state, info.st_dev, info.st_ino)))
     return tuple(observations)
@@ -264,7 +266,11 @@ def _presence_parent(root: Path, relative: Path, *, create: bool) -> Iterator[in
                     raise
                 os.mkdir(part, 0o755, dir_fd=fd)
                 child = os.open(part, flags, dir_fd=fd)
-                os.fchmod(child, 0o755)
+                try:
+                    os.fchmod(child, 0o755)
+                except OSError:
+                    os.close(child)
+                    raise
             os.close(fd)
             fd = child
         yield fd

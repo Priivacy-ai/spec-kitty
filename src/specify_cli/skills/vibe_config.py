@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from dataclasses import dataclass
 import json
+import math
 import tomllib
 
 from specify_cli.session_presence.writers.markdown_rules import (
@@ -51,9 +52,22 @@ def prepare_project_skill_path(project_root: Path) -> PreparedVibeConfig:
         parsed = tomllib.loads(desired.decode("utf-8"))
         expected = dict(data)
         expected["skill_paths"] = ([paths] if isinstance(paths, str) else paths or []) + [VIBE_SKILL_PATH]
-        if parsed != expected:
+        if not _same_toml(parsed, expected):
             raise ValueError("Native config preparation changed an unowned TOML key")
     return PreparedVibeConfig(PreparedPresenceFile(relative, state, desired), observations)
+
+
+def _same_toml(left: object, right: object) -> bool:
+    """Compare validated TOML values, including legal non-reflexive NaNs."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict) and isinstance(right, dict):
+        return left.keys() == right.keys() and all(_same_toml(value, right[key]) for key, value in left.items())
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(_same_toml(a, b) for a, b in zip(left, right, strict=True))
+    if isinstance(left, float) and isinstance(right, float) and math.isnan(left):
+        return math.isnan(right)
+    return bool(left == right)
 
 
 def _add_skill_path(text: str, paths: object) -> str:
@@ -117,6 +131,12 @@ def _toml_value_end(text: str, start: int) -> int:
                 continue
             if text.startswith(quote, index):
                 index += len(quote)
+                if len(quote) == 3:
+                    # TOML permits one/two content quotes adjoining the closing
+                    # triple delimiter. The complete document was parsed first.
+                    for _ in range(2):
+                        if index < len(text) and text[index] == quote[0]:
+                            index += 1
                 quote = ""
                 if depth == 0:
                     return index

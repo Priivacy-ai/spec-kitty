@@ -171,9 +171,11 @@ def test_wp07_cycle2_directory_chmod_failure_is_not_success(tmp_path: Path, monk
     assessment = _native_assessment(tmp_path)
     assert assessment.complete and len(assessment.effects) == 2
     original = os.fchmod
+    failed_descriptors: list[int] = []
 
     def fail_directory(fd: int, mode: int) -> None:
         if stat.S_ISDIR(os.fstat(fd).st_mode):
+            failed_descriptors.append(fd)
             raise OSError("cycle2 directory fchmod fault")
         original(fd, mode)
 
@@ -190,6 +192,51 @@ def test_wp07_cycle2_directory_chmod_failure_is_not_success(tmp_path: Path, monk
     assert directory.after.mode == 0o755
     assert directory.id not in result.succeeded
     assert directory.id in result.failed and result.diagnostics
+    assert failed_descriptors
+    with pytest.raises(OSError):
+        os.fstat(failed_descriptors[0])
+
+
+def test_wp07_cycle2_completed_directory_survives_file_fault(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from tests.upgrade.preview_support.snapshot import net_delta, snapshot
+
+    assessment = _native_assessment(tmp_path)
+
+    def fail_replace(*args: object, **kwargs: object) -> None:
+        raise OSError("cycle2 file replace fault")
+
+    monkeypatch.setattr(os, "replace", fail_replace)
+    before = snapshot({"project": tmp_path})
+    previous = os.umask(0o077)
+    try:
+        result = NativeConfigProvider().apply(assessment, ApplyConsent(automatic=True))
+    finally:
+        os.umask(previous)
+    delta = net_delta(before, snapshot({"project": tmp_path}))
+    assert [(e.path, e.after.kind, e.after.mode) for e in delta] == [(".vibe", "directory", 0o755)]
+    assert result.outcome == "partial" and result.failed
+    assert result.succeeded == tuple(e.id for e in assessment.effects if e.path == ".vibe")
+
+
+def test_wp07_cycle2_nan_does_not_bypass_nested_preservation_validation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import vibe_config
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    (tmp_path / ".vibe").mkdir()
+    (tmp_path / ".vibe/config.toml").write_text('skill_paths = ["custom"]\nnested = {special = nan, finite = 1}\n')
+    original = vibe_config._add_skill_path
+
+    def corrupt_foreign(text: str, paths: object) -> str:
+        return original(text, paths).replace("finite = 1", "finite = 2")
+
+    monkeypatch.setattr(vibe_config, "_add_skill_path", corrupt_foreign)
+    before = snapshot({"project": tmp_path})
+    assessment = _native_assessment(tmp_path)
+    assert not assessment.complete and not assessment.effects
+    assert "unowned TOML key" in assessment.diagnostics[0].message
+    assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
 @pytest.mark.parametrize("foreign", [b"threshold = nan\n", b"threshold = {nested = [nan, {negative = -nan, positive = +nan}]}\n"])

@@ -31,6 +31,83 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+@pytest.mark.parametrize(
+    "raw",
+    ["[]", "false", "0", "''"]
+    + [f"{section}: {value}" for section in ("agents", "tools") for value in ("[]", "false", "0", "''")]
+    + [f"agents: {value}\ntools: {{available: [vibe]}}" for value in ("[]", "false", "0", "''")]
+    + [f"agents: {empty}\ntools: {value}" for empty in ("null", "{}") for value in ("[]", "false", "0", "''")]
+    + ["agents: {available: [1]}", "agents: {available: [{}]}"],
+)
+def test_wp07_cycle2_integrated_config_refuses_without_writes(tmp_path: Path, raw: str) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, ApplyConsent, OperationRoot
+    from specify_cli.tool_surface.service import run_tool_surfaces, build_providers
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify/config.yaml").write_text(raw + "\n")
+    before = snapshot({"project": tmp_path})
+    consent = ApplyConsent(automatic=True)
+    assessed = run_tool_surfaces(
+        tmp_path, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE],
+        assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent),
+    )
+    assert {a.owner_key for a in assessed.assessments} == {"native_config", "session_presence"}
+    assert all(not a.complete and not a.effects and a.diagnostics for a in assessed.assessments)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    results = SurfaceRepairService(build_providers()).apply_assessments(assessed.assessments, consent)
+    assert all(not result.succeeded for result in results)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize(
+    ("raw", "repair"),
+    [
+        (None, True),  # An explicitly selected surface still works without a config file.
+        ("", False), ("# comment", False), ("null", False), ("{}", False),
+        ("agents: null", False), ("agents: {}", False),
+        ("agents: {available: []}\ntools: {available: [vibe]}", False),
+        ("agents: {available: [vibe]}", True), ("tools: {available: [vibe]}", True),
+        ("agents: null\ntools: {available: [vibe]}", True), ("agents: {}\ntools: {available: [vibe]}", True),
+        ("agents: {available: [claude]}\ntools: {available: [vibe]}", False),
+        ("agents: {available: [vibe]}\ntools: []", True),
+        ("agents: {custom: true}\ntools: {available: [vibe]}", False),
+        ("tools: {available: vibe}", True),
+    ],
+)
+def test_wp07_cycle2_integrated_config_preserves_selection_policy(tmp_path: Path, raw: str | None, repair: bool) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, ApplyConsent, OperationRoot
+    from specify_cli.tool_surface.service import run_tool_surfaces, build_providers
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    if raw is not None:
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".kittify/config.yaml").write_text(raw + "\n")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent)
+    before = snapshot({"project": tmp_path})
+    assessed = run_tool_surfaces(tmp_path, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE], assessment_inputs=inputs)
+    assert len(assessed.assessments) == 2 and all(a.complete for a in assessed.assessments)
+    assert all(bool(a.effects) == repair for a in assessed.assessments)
+    if not repair:
+        assert all(a.dispositions and all(d.state == "not_applicable" for d in a.dispositions) for a in assessed.assessments)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    results = SurfaceRepairService(build_providers()).apply_assessments(assessed.assessments, consent)
+    assert all(not result.failed for result in results)
+    after = snapshot({"project": tmp_path})
+    assert {(e.path, e.action, e.after.kind, e.after.mode, e.after.sha256) for a in assessed.assessments for e in a.effects} == {
+        (e.path, e.action, e.after.kind, e.after.mode, e.after.sha256) for e in net_delta(before, after)
+    }
+    if not repair:
+        assert_unchanged(before, after)
+    again = run_tool_surfaces(tmp_path, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE], assessment_inputs=inputs)
+    assert all(a.complete and not a.effects for a in again.assessments)
+    SurfaceRepairService(build_providers()).apply_assessments(again.assessments, consent)
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 @pytest.mark.parametrize("existing_parent", [False, True])
 def test_wp07_cycle2_combined_native_session_dispatch(tmp_path: Path, existing_parent: bool) -> None:
     from specify_cli.tool_surface.operations import AssessmentInputs, ApplyConsent, OperationRoot
@@ -63,6 +140,51 @@ def test_wp07_cycle2_combined_native_session_dispatch(tmp_path: Path, existing_p
         assert_unchanged(after, snapshot({"project": tmp_path}))
 
 
+@pytest.mark.parametrize("change", ["root_inode", "root_mode", "root_symlink", "config_bytes", "config_mtime", "target"])
+def test_wp07_cycle2_native_success_does_not_hide_external_race(tmp_path: Path, change: str) -> None:
+    import os
+    import shutil
+    from specify_cli.tool_surface.operations import AssessmentInputs, ApplyConsent, OperationRoot
+    from specify_cli.tool_surface.service import run_tool_surfaces, build_providers
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    root = tmp_path / "project"
+    (root / ".kittify").mkdir(parents=True)
+    config = root / ".kittify/config.yaml"
+    config.write_text("agents:\n  available: [vibe]\n")
+    consent = ApplyConsent(automatic=True)
+    assessed = run_tool_surfaces(
+        root, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE],
+        assessment_inputs=AssessmentInputs(OperationRoot("project", "project", root), consent=consent),
+    )
+    service = SurfaceRepairService(build_providers())
+    native = tuple(a for a in assessed.assessments if a.owner_key == "native_config")
+    session = tuple(a for a in assessed.assessments if a.owner_key == "session_presence")
+    assert len(native) == len(session) == 1 and all(a.complete for a in assessed.assessments)
+    assert service.apply_assessments(native, consent)[0].outcome == "applied"
+    if change in {"root_inode", "root_symlink"}:
+        previous = tmp_path / "previous"
+        root.rename(previous)
+        if change == "root_inode":
+            shutil.copytree(previous, root, copy_function=shutil.copy2)
+        else:
+            root.symlink_to(previous, target_is_directory=True)
+    elif change == "root_mode":
+        root.chmod(root.stat().st_mode ^ 0o200)
+    elif change == "config_bytes":
+        config.write_text("agents:\n  available: [vibe]\ncustom: true\n")
+    elif change == "config_mtime":
+        info = config.stat()
+        os.utime(config, ns=(info.st_atime_ns, info.st_mtime_ns + 1_000_000_000))
+    else:
+        (root / "AGENTS.md").write_bytes(b"foreign late occupant\n")
+    before = snapshot({"sandbox": tmp_path})
+    result = service.apply_assessments(session, consent)[0]
+    assert result.outcome == "precondition_changed" and not result.succeeded
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
 @pytest.mark.parametrize("policy", ["optional", "required", "research_gap"])
 @pytest.mark.parametrize("owner", ["session", "native"])
 def test_wp07_nonrepairable_policy_never_becomes_automatic(tmp_path: Path, policy: str, owner: str) -> None:
@@ -86,7 +208,7 @@ def test_wp07_nonrepairable_policy_never_becomes_automatic(tmp_path: Path, polic
 
 
 @pytest.mark.parametrize("owner", ["native", "session"])
-@pytest.mark.parametrize("stage", ["assess", "changed_precondition"])
+@pytest.mark.parametrize("stage", ["assess", "changed_precondition", "malformed_config"])
 def test_wp07_assessment_has_no_transient_write_attempts(tmp_path: Path, owner: str, stage: str) -> None:
     import os
     import sys
@@ -114,6 +236,9 @@ def test_wp07_assessment_has_no_transient_write_attempts(tmp_path: Path, owner: 
     sys.addaudithook(deny)
     assess = _native_assessment if owner == "native" else _session_assessment
     prepared = None
+    if stage == "malformed_config":
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".kittify/config.yaml").write_bytes(b"[]\n")
     if stage == "changed_precondition":
         prepared = assess(tmp_path)
         assert prepared.complete and prepared.effects
@@ -127,7 +252,10 @@ def test_wp07_assessment_has_no_transient_write_attempts(tmp_path: Path, owner: 
     try:
         if prepared is None:
             assessment = assess(tmp_path)
-            assert assessment.complete and assessment.effects
+            if stage == "malformed_config":
+                assert not assessment.complete and assessment.diagnostics and not assessment.effects
+            else:
+                assert assessment.complete and assessment.effects
         else:
             provider = NativeConfigProvider() if owner == "native" else SessionPresenceProvider()
             result = provider.apply(prepared, ApplyConsent(automatic=True))
