@@ -157,7 +157,8 @@
       "last_transition_at": "2026-09-06T15:13:07.400177+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Recovery13e75ffd0/3cb4af0cc/8e2d40bc0; parent full423mission audit zero errors/blockers. 31restores/2moves/2original+1adjudicatedreplay,11verdicts; rawhistory and repeat no-churn preserved. wp11-handoff.md; archive gate #3911 ownedWP12,124redirect findings unchangedbaseline awaiting followup."
+        "Recovery13e75ffd0/3cb4af0cc/8e2d40bc0; parent full423mission audit zero errors/blockers. 31restores/2moves/2original+1adjudicatedreplay,11verdicts; rawhistory and repeat no-churn preserved. wp11-handoff.md; archive gate #3911 ownedWP12,124redirect findings unchangedbaseline awaiting followup.",
+        "Independent Renata/Boyle APPROVE exact data commits13e75ffd0/3cb4af0cc/8e2d40bc0 and receiptf320ada8; wp11-independent-review.md. Verified31restores+schema/2moves/3scopedreplays/11fullapprovals/rawhistory;26corruptioncontrols,38pass,full423missionzeroaudit. WP12archivegate and#3914baseline remain tracked, notgreen."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
