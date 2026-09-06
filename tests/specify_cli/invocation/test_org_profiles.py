@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
 from specify_cli.invocation.org_profiles import (
     ResolvedOrgProfile,
     resolve_activated_org_profiles,
@@ -43,7 +44,7 @@ def _org_profile_yaml(profile_id: str, *, name: str, role: str) -> str:
     return (
         f"profile-id: {profile_id}\n"
         f"name: {name}\n"
-        'description: Org-pack profile for activation-resolver fixtures\n'
+        "description: Org-pack profile for activation-resolver fixtures\n"
         'schema-version: "1.0"\n'
         "roles:\n"
         f"  - {role}\n"
@@ -143,12 +144,8 @@ class TestThreeRegimeActivation:
 
     def test_results_are_deterministically_ordered_by_profile_id(self, tmp_path: Path) -> None:
         """Two activated org profiles come back sorted by profile_id."""
-        curator_body = _org_profile_yaml(
-            _ORG_CURATOR_ID, name="Orgzilla Org Curator", role="curator"
-        )
-        pack_root = _write_org_pack(
-            tmp_path, extra_files={f"{_ORG_CURATOR_ID}.agent.yaml": curator_body}
-        )
+        curator_body = _org_profile_yaml(_ORG_CURATOR_ID, name="Orgzilla Org Curator", role="curator")
+        pack_root = _write_org_pack(tmp_path, extra_files={f"{_ORG_CURATOR_ID}.agent.yaml": curator_body})
         _write_config(tmp_path, pack_root, activated=[_ORG_ANALYST_ID, _ORG_CURATOR_ID])
 
         resolved = resolve_activated_org_profiles(tmp_path)
@@ -162,9 +159,31 @@ class TestThreeRegimeActivation:
 
 
 class TestFailClosed:
-    def test_malformed_pack_member_does_not_admit_excluded_profile(
-        self, tmp_path: Path
-    ) -> None:
+    @pytest.mark.parametrize("activated", [None, [_ORG_ANALYST_ID], [_BUILTIN_ID], []])
+    def test_corrupt_sibling_diagnostics_survive_activation(self, tmp_path: Path, activated: list[str] | None) -> None:
+        """The existing entrypoint must expose corruption even with no admission."""
+        pack_root = _write_org_pack(
+            tmp_path,
+            extra_files={
+                "orgzilla-broken.agent.yaml": "profile-id: orgzilla-broken\n: : : not valid yaml [\n",
+            },
+        )
+        _write_config(tmp_path, pack_root, activated=activated)
+        service = build_activation_aware_doctrine_service(tmp_path)
+        _ = service.agent_profiles
+        expected = tuple(item for item in service.agent_profile_repository.skipped_profiles() if item.layer == "org")
+        assert len(expected) == 1
+        assert expected[0].error_summary
+        assert Path(expected[0].path) == pack_root / "agent_profiles/orgzilla-broken.agent.yaml"
+
+        resolved = resolve_activated_org_profiles(tmp_path)
+
+        assert isinstance(resolved, list)
+        assert _ids(resolved) == ([_ORG_ANALYST_ID] if activated is None or _ORG_ANALYST_ID in activated else [])
+        # Missing diagnostics is the observed bug, not a new-API import failure.
+        assert getattr(resolved, "skipped_profiles", ()) == expected
+
+    def test_malformed_pack_member_does_not_admit_excluded_profile(self, tmp_path: Path) -> None:
         """A corrupt sibling profile must NOT flip a de-activated id to admitted.
 
         The pack ships a valid analyst, a valid curator, and a corrupt file.
@@ -172,9 +191,7 @@ class TestFailClosed:
         excluded analyst stays absent and the corrupt member never surfaces —
         the helper never silently returns the full org set.
         """
-        curator_body = _org_profile_yaml(
-            _ORG_CURATOR_ID, name="Orgzilla Org Curator", role="curator"
-        )
+        curator_body = _org_profile_yaml(_ORG_CURATOR_ID, name="Orgzilla Org Curator", role="curator")
         pack_root = _write_org_pack(
             tmp_path,
             extra_files={
@@ -205,6 +222,66 @@ class TestFailClosed:
         assert resolved == []
 
 
+class TestDiagnosticControls:
+    @pytest.mark.parametrize("activated", [None, [_ORG_ANALYST_ID], [_BUILTIN_ID], []])
+    def test_healthy_pack_has_no_diagnostics(self, tmp_path: Path, activated: list[str] | None) -> None:
+        pack_root = _write_org_pack(tmp_path)
+        _write_config(tmp_path, pack_root, activated=activated)
+
+        resolved = resolve_activated_org_profiles(tmp_path)
+
+        assert resolved.skipped_profiles == ()
+        assert _ids(resolved) == ([_ORG_ANALYST_ID] if activated is None or _ORG_ANALYST_ID in activated else [])
+
+    def test_diagnostics_keep_canonical_provenance_and_order(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from charter.profiles import AgentProfileRepository
+
+        pack_root = _write_org_pack(
+            tmp_path,
+            extra_files={
+                "orgzilla-zulu.agent.yaml": "[",
+                "orgzilla-alpha.agent.yaml": "[",
+            },
+        )
+        _write_config(tmp_path, pack_root, activated=[])
+        builtin_dir = tmp_path / "builtin-profiles"
+        project_dir = tmp_path / ".kittify/doctrine/agent_profiles"
+        for directory in (builtin_dir, project_dir):
+            directory.mkdir(parents=True)
+            # Same filename as an org failure: layer, not ID/path heuristics,
+            # owns attribution. Both layers really fail canonical loading.
+            (directory / "orgzilla-alpha.agent.yaml").write_text("[", encoding="utf-8")
+        monkeypatch.setattr(AgentProfileRepository, "_default_built_in_dir", staticmethod(lambda: builtin_dir))
+        service = build_activation_aware_doctrine_service(tmp_path)
+        _ = service.agent_profiles
+        canonical = service.agent_profile_repository.skipped_profiles()
+        assert {item.layer for item in canonical} == {"builtin", "org", "project"}
+        expected = tuple(sorted((item for item in canonical if item.layer == "org"), key=lambda item: item.path))
+        assert len(expected) == 2
+        assert all(item.profile_id is None and item.error_summary for item in expected)
+
+        resolved = resolve_activated_org_profiles(tmp_path)
+
+        assert resolved == []
+        assert resolved.skipped_profiles == expected
+        assert [Path(item.path).name for item in resolved.skipped_profiles] == ["orgzilla-alpha.agent.yaml", "orgzilla-zulu.agent.yaml"]
+        assert resolve_activated_org_profiles(tmp_path).skipped_profiles == expected
+
+    def test_list_operations_do_not_change_diagnostics(self, tmp_path: Path) -> None:
+        pack_root = _write_org_pack(tmp_path, extra_files={"orgzilla-broken.agent.yaml": "["})
+        _write_config(tmp_path, pack_root, activated=None)
+        resolved = resolve_activated_org_profiles(tmp_path)
+        diagnostics = resolved.skipped_profiles
+
+        assert len(diagnostics) == 1
+        assert list(resolved) == resolved[:]
+        assert resolved[0].source_path == pack_root / "agent_profiles" / f"{_ORG_ANALYST_ID}.agent.yaml"
+        resolved.clear()
+
+        assert not resolved
+        assert resolved.skipped_profiles == diagnostics
+
+
 # ---------------------------------------------------------------------------
 # R4 — no-org-packs short-circuit (perf): skip the activation-aware build
 # ---------------------------------------------------------------------------
@@ -219,25 +296,23 @@ class TestNoOrgPacksShortCircuit:
         with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
             YAML().dump({"agents": {"available": ["claude"]}}, fh)
 
-        assert resolve_activated_org_profiles(tmp_path) == []
+        resolved = resolve_activated_org_profiles(tmp_path)
+        assert resolved == []
+        assert resolved.skipped_profiles == ()
 
-    def test_no_org_packs_does_not_build_the_service(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_org_packs_does_not_build_the_service(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The short-circuit must avoid constructing the activation-aware service."""
         import specify_cli.invocation.org_profiles as org_profiles
 
         def _explode(_repo_root: Path) -> object:
-            raise AssertionError(
-                "no-org-packs path must not build the activation-aware service"
-            )
+            raise AssertionError("no-org-packs path must not build the activation-aware service")
 
-        monkeypatch.setattr(
-            org_profiles, "build_activation_aware_doctrine_service", _explode
-        )
+        monkeypatch.setattr(org_profiles, "build_activation_aware_doctrine_service", _explode)
 
         # No .kittify/config.yaml at all → no org roots → fast path.
-        assert resolve_activated_org_profiles(tmp_path) == []
+        resolved = resolve_activated_org_profiles(tmp_path)
+        assert resolved == []
+        assert resolved.skipped_profiles == ()
 
     def test_org_present_case_still_builds_and_resolves(self, tmp_path: Path) -> None:
         """Output unchanged for the org-present case (the build still happens)."""
