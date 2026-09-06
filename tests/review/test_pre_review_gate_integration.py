@@ -70,6 +70,7 @@ from typing import Any
 import pytest
 import typer
 
+from charter.offering.missions.step_contracts import GateBinding
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
@@ -86,6 +87,7 @@ from specify_cli.review.gate_bindings import (
     GateCoverage,
     resolve_gate_bindings_for_transition,
 )
+from specify_cli.review.gate_registry import TransitionGateContext
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import append_event
 from specify_cli.status.reducer import materialize
@@ -497,7 +499,7 @@ def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, 
     config_path = repo / ".kittify" / "config.yaml"
     command = f"{shlex.quote(sys.executable)} -m pytest tests/git -q --junitxml={{output_file}}"
     config_path.write_text(
-        config_path.read_text() + f"\nreview:\n  test_command: {json.dumps(command)}\n  test_output_format: junit\n",
+        config_path.read_text() + f"\nreview:\n  test_command: {json.dumps(command)}\n  test_output_format: junit_xml\n",
         encoding="utf-8",
     )
     _write_file(repo, "src/specify_cli/git/foo.py", "VALUE = 2\n")
@@ -505,7 +507,7 @@ def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, 
     selected: list[str] = []
     dispatch = tasks_move_task._mt_dispatch_transition_gates
 
-    def record_dispatch(bindings: Any, context: Any) -> Any:
+    def record_dispatch(bindings: list[GateBinding], context: TransitionGateContext) -> list[pre_review_gate.GateVerdict]:
         selected.extend(binding.handler for binding in bindings)
         return dispatch(bindings, context)
 
@@ -524,8 +526,10 @@ def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, 
     assert metadata["block_enabled"] is False
     assert metadata["force_bypassed"] is False
     assert router.write_dir == coord
-    assert len(read_events(coord)) == 2
-    assert (coord / "status.events.jsonl").read_bytes().startswith(before)
+    assert router.status_calls[0].feature_dir == coord
+    # The existing recording port captures the transition without emitting it.
+    assert len(read_events(coord)) == 1
+    assert (coord / "status.events.jsonl").read_bytes() == before
     assert not (primary / "status.events.jsonl").exists()
     assert not (coord / "meta.json").exists()
 

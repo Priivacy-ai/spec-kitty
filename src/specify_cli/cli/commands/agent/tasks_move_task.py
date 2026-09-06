@@ -1616,7 +1616,13 @@ def _mt_resolve_active_gate_bindings(st: _MoveTaskState) -> GateBindingResolutio
     full activated-doctrine repo fixture.
     """
     edge_key = f"{st.old_lane.value}->{st.target_lane.value}"
-    mission = resolve_mission_type(st, feature_dir=st.feature_dir)
+    # Status may live in a coord husk without the PRIMARY mission identity.
+    identity_dir = placement_seam(
+        st.main_repo_root,
+        st.mission_slug,
+        **({"effective_root": st.owned.root} if st.owned else {}),
+    ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    mission = resolve_mission_type(st, feature_dir=identity_dir)
     operation_root = st.owned.root if st.owned is not None else st.main_repo_root
     return resolve_gate_bindings_for_transition(operation_root, mission, edge_key)
 
