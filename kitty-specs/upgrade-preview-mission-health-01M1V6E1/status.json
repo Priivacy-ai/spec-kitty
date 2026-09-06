@@ -1,7 +1,7 @@
 {
-  "event_count": 77,
-  "last_event_id": "01M1W0MNE919NCCPVWDAFMFCM7",
-  "materialized_at": "2026-09-06T18:45:38.377874+00:00",
+  "event_count": 83,
+  "last_event_id": "01M1W2SNAA6KRHZ1YQBENH4EPV",
+  "materialized_at": "2026-09-06T19:23:19.175129+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 3,
-    "in_review": 2,
+    "in_progress": 5,
+    "in_review": 0,
     "planned": 4
   },
   "work_packages": {
@@ -124,24 +124,32 @@
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M1W0MNE919NCCPVWDAFMFCM7",
-      "last_transition_at": "2026-09-06T18:45:38.377874+00:00",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01M1W2SNAA6KRHZ1YQBENH4EPV",
+      "last_transition_at": "2026-09-06T19:23:19.175129+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP04 and separately authorized #3920 init-ordering Op delivered at 234a2b433a0c4bc621352ca55484cef3edc37f79. Original public witness unchanged; 967 subsystem, 12 public wiring, 1642 fast, 94 architecture tests pass. Independent full ownership and supporting-Op review required; seven broader CLI failures and formatter debt retained, not waived."
+        "WP04 and separately authorized #3920 init-ordering Op delivered at 234a2b433a0c4bc621352ca55484cef3edc37f79. Original public witness unchanged; 967 subsystem, 12 public wiring, 1642 fast, 94 architecture tests pass. Independent full ownership and supporting-Op review required; seven broader CLI failures and formatter debt retained, not waived.",
+        "Independent request changes: mixed disabled selections acquire ownership; cyclic config symlink escapes incomplete-assessment boundary. Separate #3920 request changes: post-config interruption leaves zero commands and retry falsely reports initialized. Preserve final-config rendering, runtime-root protection and authored config; separate scoped corrections and independent re-review required."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP04-command-skill-effects/review-cycle-1.md",
+        "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP04-command-skill-effects/review-cycle-1.md",
+        "reviewer": "codex",
+        "verdict": "changes_requested"
+      },
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done",
-        "T022": "done"
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned"
       }
     },
     "WP05": {
@@ -156,24 +164,32 @@
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M1VZQABPSRQNGPQ2ZS2K2DAN",
-      "last_transition_at": "2026-09-06T18:29:36.758610+00:00",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01M1W0VYDK197VXF4N517F2G0N",
+      "last_transition_at": "2026-09-06T18:49:36.822924+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Implementation delivered at 1626c9fc4a9c52bfea6836ea325189346572cb0f; canonical org diagnostics consumed before admission filtering. Four real corrupt-org RED witnesses; 811 subsystem/architecture, 1642 fast, 22 caller tests pass. Independent review required; formatter exclusions and eight public integration REDs explicitly retained in external handoff."
+        "Implementation delivered at 1626c9fc4a9c52bfea6836ea325189346572cb0f; canonical org diagnostics consumed before admission filtering. Four real corrupt-org RED witnesses; 811 subsystem/architecture, 1642 fast, 22 caller tests pass. Independent review required; formatter exclusions and eight public integration REDs explicitly retained in external handoff.",
+        "Independent REJECT: structurally malformed manifest fields become complete assessments; late confinement ValueError loses actual partial writes; shared orphan deletion omits VS Code logical ownership. Preserve org diagnostic fix and exact supplier bytes. Correct with real RED-first controls within existing profile owner boundary."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP06-profile-projection-assessment/review-cycle-1.md",
+        "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP06-profile-projection-assessment/review-cycle-1.md",
+        "reviewer": "codex",
+        "verdict": "changes_requested"
+      },
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T029": "done",
-        "T030": "done",
-        "T031": "done",
-        "T032": "done",
-        "T033": "done"
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned"
       }
     },
     "WP07": {
