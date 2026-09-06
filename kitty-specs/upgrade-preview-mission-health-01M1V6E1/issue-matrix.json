@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#2446": {
+      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/issues/2446 tracks mixed src/tests prefix guard; explicit owned primary prefix used without guard rewrite. Tooling followup outside four-issue product scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
     "#3888": {
       "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/pull/3888 merged c0054153b9bce0778cf41a85d11ecd4e9650031d at2026-09-06T10:09:16Z; #3522 closed one second later; baseline antecedent, not new mission work.",
       "fr": null,
