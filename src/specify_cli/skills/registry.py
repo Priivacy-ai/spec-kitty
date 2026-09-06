@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.skills.paths import SkillPathObservation, observe_skill_path, recheck_skill_paths, skill_path_observations
+
 
 @dataclass(frozen=True)
 class CanonicalSkill:
@@ -37,6 +39,29 @@ class SkillRegistry:
 
     def __init__(self, skills_root: Path) -> None:
         self._skills_root = skills_root
+
+    def snapshot_catalog(self) -> tuple[tuple[CanonicalSkill, ...], tuple[SkillPathObservation, ...]]:
+        """Read the existing inventory policy and retain membership/source inputs."""
+        root = observe_skill_path(self._skills_root, members=True)
+        if root.state.kind != "directory":
+            raise ValueError("Required canonical skill catalog is missing or not a directory")
+        observations = [root]
+        skills = tuple(self.discover_skills())
+        for skill in skills:
+            for path in (skill.skill_dir, *(skill.skill_dir / name for name in ("references", "scripts", "assets"))):
+                ancestry = skill_path_observations(self._skills_root, path)
+                observations.extend(ancestry)
+                if ancestry[-1].state.kind not in {"directory", "absent"}:
+                    raise ValueError(f"Canonical skill directory is unsafe: {path}")
+                observations.append(observe_skill_path(path, members=True))
+            for path in skill.all_files:
+                inputs = skill_path_observations(self._skills_root, path)
+                if inputs[-1].state.kind != "file":
+                    raise ValueError(f"Canonical skill source is not a regular file: {path}")
+                observations.extend(inputs)
+        retained = tuple(observations)
+        recheck_skill_paths(retained)
+        return skills, retained
 
     @classmethod
     def from_local_repo(cls, repo_root: Path) -> SkillRegistry:

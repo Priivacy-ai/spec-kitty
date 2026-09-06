@@ -14,14 +14,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.skills import installer as skill_installer
 from specify_cli.skills.manifest import (
-    ManagedFileEntry,
-    ManagedSkillManifest,
     compute_content_hash,
     load_manifest,
 )
-from specify_cli.skills.registry import CanonicalSkill
+from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.providers.command_skills import (
     CommandSkillsProvider,
@@ -90,6 +87,279 @@ def test_provider_satisfies_reporting_protocol() -> None:
     provider = ManagedSkillsProvider()
     assert isinstance(provider, ReportingSurfaceProvider)
     assert provider.provider_key == "managed_skills"
+
+
+def test_project_assessment_exposes_effects_but_blocks_uncoordinated_global_contribution(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.protocol import AssessingSurfaceProvider
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _canonical_skill(tmp_path / "source")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "source"))
+    assert isinstance(provider, AssessingSurfaceProvider)
+    consent = ApplyConsent(automatic=True)
+    before = snapshot({"sandbox": tmp_path})
+    assessment = provider.assess(AssessmentInputs(OperationRoot("project", "project", project), consent=consent), (),
+                                 selections=(SurfaceSelection("codex", managed_skill_definition()),))
+    assert assessment.effects and not assessment.complete
+    assert any(item.code == "managed_skills_global_context_required" for item in assessment.diagnostics)
+    with provider.recheck(assessment) as diagnostics:
+        assert diagnostics
+        assert provider.apply(assessment, consent).outcome == "precondition_changed"
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def _bind_consumer_home(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for key, suffix in {
+        "HOME": "", "USERPROFILE": "", "SPEC_KITTY_HOME": ".kittify",
+        "XDG_CONFIG_HOME": ".config", "XDG_DATA_HOME": ".local/share",
+        "XDG_STATE_HOME": ".local/state", "XDG_CACHE_HOME": ".cache",
+        "APPDATA": "appdata", "LOCALAPPDATA": "localappdata",
+        "OPENCODE_CONFIG_DIR": ".config/opencode",
+    }.items():
+        monkeypatch.setenv(key, str(home / suffix))
+
+
+@pytest.mark.parametrize("all_families", [False, True])
+def test_coordinated_provider_dispatch_keeps_both_owner_batches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, all_families: bool,
+) -> None:
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from collections.abc import Sequence
+    from specify_cli.tool_surface.operations import OwnerAssessment, OwnerApplyResult
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    home, project = tmp_path / "home", tmp_path / "project"
+    home.mkdir()
+    project.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    _canonical_skill(tmp_path / "source")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    root = OperationRoot("project", "project", project)
+    before = snapshot({"sandbox": tmp_path})
+    installation = assess_skill_installation(
+        AssessmentInputs(root, consent=consent), registry, ("codex",),
+        runtime=all_families, commands=all_families, command_agent_keys=["claude"],
+    )
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+    assessment = provider.assess(AssessmentInputs(root, projected=installation, consent=consent), (),
+                                 selections=(SurfaceSelection("codex", managed_skill_definition()),))
+    assert assessment is installation.project_skills and assessment.complete
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    dispatched: list[tuple[OwnerAssessment, ...]] = []
+    real_dispatch = SurfaceRepairService.apply_assessments
+
+    def observe_dispatch(
+        service: SurfaceRepairService, assessments: Sequence[OwnerAssessment], explicit_consent: ApplyConsent,
+    ) -> tuple[OwnerApplyResult, ...]:
+        dispatched.append(tuple(assessments))
+        results: tuple[OwnerApplyResult, ...] = real_dispatch(service, assessments, explicit_consent)
+        return results
+
+    monkeypatch.setattr(SurfaceRepairService, "apply_assessments", observe_dispatch)
+    results = provider.apply_installation(installation, consent)
+    assert dispatched == [(installation.global_assets, assessment)]
+    assert all(result.outcome == "applied" for result in results), [
+        (result.owner_key, result.outcome, result.diagnostics) for result in results
+    ]
+    effects = installation.global_assets.effects + assessment.effects
+    assert {effect.id for effect in effects} == {effect_id for result in results for effect_id in result.succeeded}
+    expected = {(effect.destination.relative_to(tmp_path).as_posix(), effect.action, effect.after.kind,
+                 effect.after.sha256, effect.after.target, effect.after.mode) for effect in effects}
+    assert {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)
+            for effect in net_delta(before, snapshot({"sandbox": tmp_path}))} == expected
+
+
+@pytest.mark.parametrize("route", ["direct", "provider", "paired-provider"])
+def test_paired_consumer_config_change_refuses_before_any_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str,
+) -> None:
+    from specify_cli.skills.installer import assess_skill_installation, apply_skill_installation
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    _canonical_skill(tmp_path / "source")
+    (project / ".kittify").mkdir()
+    config = project / ".kittify/config.yaml"
+    config.write_text("agents:\n  available: [codex]\n")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    installation = assess_skill_installation(inputs, registry, ("codex",))
+    assert installation.global_assets.complete and installation.project_skills.complete
+    assert installation.global_assets.effects and installation.project_skills.effects
+    config.write_text(config.read_text() + "review_change: true\n")
+    before = snapshot({"sandbox": tmp_path})
+    if route == "direct":
+        results = apply_skill_installation(installation, consent)
+    else:
+        provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+        assessment = provider.assess(
+            AssessmentInputs(inputs.root, projected=installation, consent=consent), (),
+            selections=(SurfaceSelection("codex", managed_skill_definition()),),
+        )
+        assert assessment is installation.project_skills
+        results = (
+            provider.apply_installation(installation, consent) if route == "paired-provider"
+            else SurfaceRepairService([GlobalSkillAssetsProvider(), provider]).apply_assessments(
+                (installation.global_assets, assessment), consent,
+            )
+        )
+    changes = net_delta(before, snapshot({"sandbox": tmp_path}))
+    assert not changes, [(effect.path, effect.action) for effect in changes]
+    assert all(result.outcome == "precondition_changed" and not result.succeeded for result in results)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_paired_provider_global_change_refuses_project_and_context_does_not_leak(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    _canonical_skill(tmp_path / "source")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    installation = assess_skill_installation(inputs, registry, ("codex",))
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+    global_path = home / ".agents/skills/a/SKILL.md"
+    global_path.parent.mkdir(parents=True)
+    global_path.write_text("new unknown content")
+    before = snapshot({"sandbox": tmp_path})
+    results = provider.apply_installation(installation, consent)
+    assert len(results) == 2 and all(result.outcome == "precondition_changed" for result in results)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    fresh = assess_skill_installation(inputs, registry, ("codex",))
+    results = provider.apply_installation(fresh, consent)
+    assert all(result.outcome == "applied" for result in results)
+    after = snapshot({"sandbox": tmp_path})
+    adapter = GlobalSkillAssetsProvider()
+    with adapter.recheck(fresh.global_assets) as errors:
+        assert errors[0].code == "paired_skill_preflight_required"
+    assert adapter.apply(fresh.global_assets, consent).outcome == "precondition_changed"
+    assert_unchanged(after, snapshot({"sandbox": tmp_path}))
+
+
+@pytest.mark.parametrize("refusal", ["consent", "incomplete", "dispatch-error"])
+def test_paired_provider_refusal_and_exception_release_context(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, refusal: str,
+) -> None:
+    from dataclasses import replace
+    from collections.abc import Sequence
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot, OwnerAssessment, OwnerApplyResult
+    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    _canonical_skill(tmp_path / "source")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    installation = assess_skill_installation(
+        AssessmentInputs(OperationRoot("project", "project", project), consent=consent), registry, ("codex",),
+    )
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+    before = snapshot({"sandbox": tmp_path})
+    if refusal == "dispatch-error":
+        def fail_dispatch(
+            service: SurfaceRepairService, assessments: Sequence[OwnerAssessment], explicit_consent: ApplyConsent,
+        ) -> tuple[OwnerApplyResult, ...]:
+            _ = service, assessments, explicit_consent
+            raise RuntimeError("injected dispatch exception")
+
+        monkeypatch.setattr(SurfaceRepairService, "apply_assessments", fail_dispatch)
+        with pytest.raises(RuntimeError, match="injected dispatch exception"):
+            provider.apply_installation(installation, consent)
+    else:
+        changed = (replace(installation, project_skills=replace(installation.project_skills, complete=False))
+                   if refusal == "incomplete" else installation)
+        explicit = ApplyConsent(automatic=True, overwrite_paths=(".agents/skills/a/SKILL.md",)) if refusal == "consent" else consent
+        results = provider.apply_installation(changed, explicit)
+        assert all(result.outcome == "precondition_changed" for result in results)
+    adapter = GlobalSkillAssetsProvider()
+    with adapter.recheck(installation.global_assets) as errors:
+        assert errors[0].code == "paired_skill_preflight_required"
+    assert adapter.apply(installation.global_assets, consent).outcome == "precondition_changed"
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_real_provider_never_reports_preserved_unknown_content_repaired(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dry_run: bool,
+) -> None:
+    from specify_cli.tool_surface.status import SurfaceStatus
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "source")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "source"))
+    instance = provider.expand(managed_skill_definition(), "codex", project)[0]
+    instance.path.parent.mkdir(parents=True)
+    instance.path.write_text("user-owned content")
+    before = snapshot({"sandbox": tmp_path})
+    result = provider.repair(project, [SurfaceStatus(instance=instance, state=STATE_DRIFTED)], dry_run=dry_run)
+    assert not result.repaired
+    assert instance.surface_id in result.skipped
+    assert instance.path.read_text() == "user-owned content"
+    if dry_run:
+        assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_real_provider_partial_failure_reports_paths_not_count_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.skills import installer
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "source", "a")
+    _canonical_skill(tmp_path / "source", "b")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "source"))
+    instances = provider.expand(managed_skill_definition(), "codex", project)
+    statuses = [provider.probe(instance) for instance in reversed(instances)]
+    writer = installer._apply_project_skill_write
+
+    def fail_second(write: installer.PreparedProjectSkillWrite) -> None:
+        if write.effect.path == ".agents/skills/b/SKILL.md":
+            raise OSError("injected second project file failure")
+        writer(write)
+
+    monkeypatch.setattr(installer, "_apply_project_skill_write", fail_second)
+    result = provider.repair(project, statuses)
+    assert result.repaired == (instances[0].surface_id,)
+    assert instances[1].surface_id in result.failed
+    assert instances[0].path.is_file() and not instances[1].path.exists()
+    assert not (project / ".kittify/skills-manifest.json").exists()
 
 
 def test_managed_skills_provider_can_handle_doctrine_skill() -> None:
@@ -222,63 +492,46 @@ def test_managed_skills_repair_no_actionable_returns_clean(tmp_path: Path) -> No
     assert result.failed == ()
 
 
-def test_managed_skills_repair_dry_run_does_not_install(tmp_path: Path) -> None:
-    _write_manifest(
-        tmp_path,
-        [_entry("codex", ".agents/skills/a/SKILL.md", "sha256:deadbeef", skill_name="a")],
-    )
-    provider = _manifest_only_provider()
-    instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
+def test_managed_skills_repair_dry_run_does_not_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "canonical")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "canonical"))
+    instance = provider.expand(managed_skill_definition(), "codex", project)[0]
     missing = provider.probe(instance)
     assert missing.state == STATE_MISSING
-    result = provider.repair(tmp_path, [missing], dry_run=True)
+    before = snapshot({"sandbox": tmp_path})
+    result = provider.repair(project, [missing], dry_run=True)
     assert result.dry_run is True
     assert result.repaired  # reported, but nothing installed
     assert not instance.path.exists()
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
 
 def test_managed_skills_repair_without_manifest_installs_expected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    skill = _canonical_skill(tmp_path / "canonical")
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "canonical")
     provider = ManagedSkillsProvider(
-        registry_factory=lambda: _StubRegistry([skill]),
+        registry_factory=lambda: SkillRegistry(tmp_path / "canonical"),
     )
-    instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
+    instance = provider.expand(managed_skill_definition(), "codex", project)[0]
     missing = provider.probe(instance)
-    calls: list[tuple[Path, list[str]]] = []
-
-    def fake_install_all_skills(
-        project_path: Path, agent_keys: list[str], registry: object
-    ) -> ManagedSkillManifest:
-        calls.append((project_path, agent_keys))
-        assert registry.discover_skills() == [skill]  # type: ignore[attr-defined]
-        return ManagedSkillManifest(
-            entries=[
-                ManagedFileEntry(
-                    skill_name="a",
-                    source_file="SKILL.md",
-                    installed_path=".agents/skills/a/SKILL.md",
-                    installation_class="shared-root-capable",
-                    agent_key="codex",
-                    content_hash="sha256:" + "1" * 64,
-                    installed_at="2026-06-14T00:00:00+00:00",
-                    delivery_mode="copy",
-                )
-            ]
-        )
-
-    monkeypatch.setattr(
-        skill_installer, "install_all_skills", fake_install_all_skills
-    )
-
-    result = provider.repair(tmp_path, [missing])
-
-    assert calls == [(tmp_path, ["codex"])]
+    result = provider.repair(project, [missing])
     assert result.failed == ()
     assert result.repaired
-    manifest = load_manifest(tmp_path)
+    assert instance.path.is_file()
+    assert (home / ".agents/skills/a/SKILL.md").is_file()
+    manifest = load_manifest(project)
     assert manifest is not None
     assert [entry.installed_path for entry in manifest.entries] == [
         ".agents/skills/a/SKILL.md"
@@ -313,11 +566,11 @@ class _StubInstaller:
         return self._repaired, self._failed
 
 
-class _StubRegistry:
-    def __init__(self, skills: list[object]) -> None:
+class _StubRegistry(SkillRegistry):
+    def __init__(self, skills: list[CanonicalSkill]) -> None:
         self._skills = skills
 
-    def discover_skills(self) -> list[object]:
+    def discover_skills(self) -> list[CanonicalSkill]:
         return self._skills
 
 
@@ -510,10 +763,9 @@ def test_doctrine_vs_command_skill_in_doctor_output(
     assert ToolSurfaceKind.DOCTRINE_SKILL in kinds
     assert ToolSurfaceKind.COMMAND_SKILL in kinds
     payload = outcome.to_json()
-    surface_kinds = {entry["kind"] for entry in payload["surfaces"]}  # type: ignore[index]
+    surface_kinds = {entry["kind"] for entry in payload["surfaces"]}
     assert "doctrine_skill" in surface_kinds
     assert "command_skill" in surface_kinds
-    assert "doctrine_skill" != "command_skill"
 
 
 def test_run_tool_surfaces_kind_filter_doctrine_only(
