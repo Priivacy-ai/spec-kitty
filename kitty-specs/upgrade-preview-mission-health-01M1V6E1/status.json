@@ -336,7 +336,8 @@
       "notes": [
         "Delivered ee431b2fc8cd3d334e70bc56de857cb62dc92402 with real RED-first archive gate evidence,187 committed-tree tests and static checks passing. Full corpus and owner witnesses in external wp12-handoff.md. Broader failures #3919 historical terminology,#3914 redirects and offline sync collection conflict remain unresolved; supporting shard/format defect corrected separately. Independent full-contract review required, no final architecture or mission acceptance claim.",
         "Independent review rejects: full-corpus persistent control accepts scanner omitting 419 missions; unrelated unchanged Gitlink causes archive false rejection. Preserve immutable recovery evidence; correct both scoped defects with RED-first controls.",
-        "Cycle2d74cb9e1b76dd525a9c567acfc2b937f42e5ee92 delivered; exact corpusmembership and unrelatedGitlink corrections. Targeted independentreviewpending; broader architecture failures separately retained."
+        "Cycle2d74cb9e1b76dd525a9c567acfc2b937f42e5ee92 delivered; exact corpusmembership and unrelatedGitlink corrections. Targeted independentreviewpending; broader architecture failures separately retained.",
+        "Independent focused cycle2APPROVE d74cb9e1b76dd525a9c567acfc2b937f42e5ee92: both findings closed,21targetedpasses,exact scanner mutant killed,11retained audits independentlyverified. Priorpreservationevidence retained; finalintegratedcorpus/architecturegates notwaived. Report wp12-cycle2-independent-review.md."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
