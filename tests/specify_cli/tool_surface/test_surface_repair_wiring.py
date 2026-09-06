@@ -308,3 +308,85 @@ def test_init_preserves_authored_disabled_config(tmp_path: Path, pointed: bool) 
     assert "Already initialized" in result.stdout
     assert snapshot({"project": tmp_path}) == before
     assert not is_spdd_reasons_active(tmp_path)
+
+
+@pytest.mark.parametrize("agents", ["codex", "codex,vibe"])
+@pytest.mark.parametrize("authored_after_fault", [False, True])
+def test_init_retry_recovers_real_config_save_interruption(tmp_path: Path, agents: str, authored_after_fault: bool) -> None:
+    """#3920: retry finishes new delivery, without rewriting persisted config."""
+    import hashlib
+    import json
+    import sys
+    from collections import Counter
+
+    from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
+    from specify_cli.skills import command_installer
+    from tests.upgrade.preview_support import write_observer
+    from tests.upgrade.preview_support.process import child_environment, run_process
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+    from .integration._compat_support import project_root
+
+    project = tmp_path / "project"
+    project.mkdir()
+    fault = """
+import importlib, sys
+module = importlib.import_module("specify_cli.cli.commands.init")
+print("INIT_SOURCE", module.__file__, flush=True)
+original = module.save_agent_config
+def interrupted(*args, **kwargs):
+    original(*args, **kwargs)
+    print("REAL_CONFIG_SAVE_INTERRUPTED", flush=True)
+    raise KeyboardInterrupt("after real config persistence")
+module.save_agent_config = interrupted
+from specify_cli import main
+sys.argv = ["spec-kitty", "init", "--ai", sys.argv[1], "--non-interactive"]
+main()
+"""
+    env = child_environment(tmp_path / "sandbox")
+    lane = project_root()
+    env["PYTHONPATH"] = str(lane / "src") + ":" + str(lane)
+    env["SPECIFY_REPO_ROOT"] = str(project)
+    first = run_process([sys.executable, "-c", fault, agents], project, env)
+    assert first.returncode == 130, first.stdout + first.stderr
+    assert "REAL_CONFIG_SAVE_INTERRUPTED" in first.stdout
+    assert str(lane / "src/specify_cli/cli/commands/init.py") in first.stdout
+    config = project / ".kittify/config.yaml"
+    assert config.is_file()
+    if authored_after_fault:
+        # An interruption token must not authorize replacing later authored input.
+        config.write_text(
+            "# Authored after interruption\nagents:\n  available: [codex]\n"
+            "activated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n",
+            encoding="utf-8",
+        )
+    before = snapshot({"config": config})
+    log = tmp_path / "retry-writes.jsonl"
+    retry = run_process(
+        [sys.executable, str(write_observer.__file__), str(log), "record", "cli", "init", "--ai", agents, "--non-interactive"],
+        project, env,
+    )
+    retry.require_success()
+    manifest = project / ".kittify/command-skills-manifest.json"
+    assert manifest.is_file(), "retry left the interrupted command delivery absent"
+    entries = json.loads(manifest.read_text())["entries"]
+    assert len(entries) == len(command_installer.CANONICAL_COMMANDS)
+    assert len(list((project / ".agents/skills").glob("spec-kitty.*/SKILL.md"))) == len(command_installer.CANONICAL_COMMANDS)
+    owners = ["codex"] if authored_after_fault else sorted(agents.split(","))
+    for entry in entries:
+        assert entry["agents"] == owners
+        assert entry["content_hash"] == hashlib.sha256((project / entry["path"]).read_bytes()).hexdigest()  # noqa: TID251 -- independent checksum
+    assert_unchanged(before, snapshot({"config": config}))
+    assert is_spdd_reasons_active(project) is not authored_after_fault
+    plan = (project / ".agents/skills/spec-kitty.plan/SKILL.md").read_bytes()
+    assert (b"### REASONS Guidance" in plan) is not authored_after_fault
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    replacements = Counter(row["args"][1] for row in rows[1:] if row["event"] == "os.rename")
+    writes = Counter(row["args"][0] for row in rows[1:] if row["event"] == "open")
+    for entry in entries:
+        target = str(project / entry["path"])
+        assert replacements[target] == 1 and writes[target + ".tmp"] == 1
+        assert writes[target] == 0
+    finished = snapshot({"project": project})
+    again = run_process([sys.executable, "-m", "specify_cli", "init", "--ai", agents, "--non-interactive"], project, env)
+    assert again.returncode == 0 and "Already initialized" in again.stdout
+    assert_unchanged(finished, snapshot({"project": project}))
