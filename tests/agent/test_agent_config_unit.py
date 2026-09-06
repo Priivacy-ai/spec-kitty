@@ -38,6 +38,37 @@ class TestCorruptYaml:
 
 
 class TestNonMappingConfigShape:
+    @pytest.mark.parametrize("content", ["[]", "false", "0", "''", "[claude]", "true", "42"])
+    def test_non_mapping_root_is_not_a_default(self, tmp_path: Path, content: str) -> None:
+        _write_config(tmp_path, content)
+
+        with pytest.raises(AgentConfigError, match="expected a YAML mapping at the top level"):
+            load_agent_config(tmp_path)
+
+    @pytest.mark.parametrize("value", ["[]", "false", "0", "''", "[claude]", "true", "text"])
+    @pytest.mark.parametrize(
+        "prefix, section",
+        [("", "agents"), ("", "tools"), ("agents: null\n", "tools"), ("agents: {}\n", "tools")],
+    )
+    def test_selected_section_requires_mapping(
+        self, tmp_path: Path, value: str, prefix: str, section: str
+    ) -> None:
+        config_file = _write_config(tmp_path, f"{prefix}{section}: {value}\n")
+
+        with pytest.raises(AgentConfigError) as exc_info:
+            load_agent_config(tmp_path)
+
+        message = str(exc_info.value)
+        assert str(config_file) in message
+        assert section in message
+        assert "mapping" in message
+
+    def test_malformed_agents_cannot_fall_back_to_valid_tools(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, "agents: false\ntools:\n  available: [codex]\n")
+
+        with pytest.raises(AgentConfigError):
+            load_agent_config(tmp_path)
+
     def test_non_mapping_top_level_raises_agent_config_error(
         self, tmp_path: Path
     ) -> None:
@@ -112,6 +143,41 @@ class TestAutoCommitLoading:
 
 
 class TestToolsKeyFallback:
+    @pytest.mark.parametrize("content", [None, "", "null", "{}", "agents: null", "agents: {}", "tools: null", "tools: {}"])
+    def test_empty_config_returns_defaults(self, tmp_path: Path, content: str | None) -> None:
+        if content is not None:
+            _write_config(tmp_path, content)
+
+        assert load_agent_config(tmp_path) == AgentConfig()
+
+    @pytest.mark.parametrize("agents", ["null", "{}"])
+    def test_empty_agents_falls_back_to_tools(self, tmp_path: Path, agents: str) -> None:
+        _write_config(
+            tmp_path,
+            f"agents: {agents}\ntools:\n  available: [codex]\n  auto_commit: false\n  lint_on_edit: true\n",
+        )
+
+        assert load_agent_config(tmp_path) == AgentConfig(
+            available=["codex"], auto_commit=False, lint_on_edit=True
+        )
+
+    @pytest.mark.parametrize("tools", ["false", "[codex]", "{available: [codex]}"])
+    def test_selected_agents_ignores_tools(self, tmp_path: Path, tools: str) -> None:
+        _write_config(
+            tmp_path,
+            f"agents:\n  available: [claude]\n  auto_commit: false\n  lint_on_edit: true\ntools: {tools}\n",
+        )
+
+        assert load_agent_config(tmp_path) == AgentConfig(
+            available=["claude"], auto_commit=False, lint_on_edit=True
+        )
+
+    @pytest.mark.parametrize("section", ["agents", "tools"])
+    def test_empty_section_preserves_top_level_settings(self, tmp_path: Path, section: str) -> None:
+        _write_config(tmp_path, f"{section}: {{}}\nauto_commit: false\nlint_on_edit: true\n")
+
+        assert load_agent_config(tmp_path) == AgentConfig(auto_commit=False, lint_on_edit=True)
+
     def test_load_agent_config_tools_key(self, tmp_path: Path) -> None:
         """load_agent_config() reads from 'tools' key (post-m_2_0_1 migration)."""
         config_dir = tmp_path / ".kittify"
