@@ -6,6 +6,33 @@ updated: 2026-09-06
 
 # Implementation Review Evidence
 
+## Current Status
+
+This summary supersedes historical readiness statements below. Six WPs are
+approved: WP01, WP02, WP03, WP06, WP07 and WP11. WP05 is implementing;
+WP04 and WP12 are undergoing focused corrective review. WP08, WP10 and WP13
+remain pending dependencies. No mission acceptance or consolidation is complete.
+
+WP03 approval `01M1W56TVQYABKXJD3VSEJYTT2` closes its coordinated-global-owner
+finding at `876a6f00ed1c32d67fabdb0573c5c3979a40108c`. Independent review ran
+74 focused checks, proving retained effects, observations, locks and no-churn.
+Deferred public integration and historical timeout-cause uncertainty remain open.
+
+WP06 approval `01M1W5N34C35V1989GAREFJ5ZS` closes all three prior findings at
+`11818b3379d9c23fd3be3b577fbbab00ba676ae2`. Fresh RED/GREEN controls and
+33 corrective plus 16 manifest tests support the focused verdict; valid unchanged
+prior evidence is retained. This is not public upgrade acceptance.
+
+WP09's third rejection `01M1W49A3D4SPR4SJVZ2XGCZAD` fixed prior findings but
+introduced comment loss when a loaded YAML document is reused across saves.
+Parent arbitration declines approval of data loss and awaits user disposition
+on further bounded correction. No automatic fourth retry or acceptance waiver.
+Already-observed YAML-directive compatibility failures remain unresolved too.
+
+Supporting #3918, #3919 and #3924 Ops are complete with independent review and
+target-checkout evidence in ops-review.md. #3920 remains under separate review
+alongside WP04. Draft PR #3923 does not yet contain every implementation lane.
+
 ## WP01: Independent Harness Approved
 
 Independent Reviewer Renata (Lorentz, not the implementer) approved the exact
