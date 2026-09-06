@@ -176,6 +176,158 @@ def test_profile_unreadable_required_input_is_not_empty_success(tmp_path: Path, 
     assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
+@pytest.mark.parametrize(
+    "field", ["profile_urn", "source_layer", "tool_key", "output_path", "format", "file_hash", "source_path", "source_hash", "projection_version"]
+)
+def test_manifest_field_classes_block_real_assessment(tmp_path: Path, field: str) -> None:
+    import json
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    provider = AgentProfilesProvider()
+    instances = provider.expand(agent_profile_definition(), "claude", tmp_path)
+    installed = provider.repair(tmp_path, [provider.probe(i) for i in instances])
+    assert installed.repaired and not installed.failed
+    path = manifest_path_for(tmp_path)
+    original = path.read_bytes()
+    healthy = _assess_real(tmp_path)
+    assert healthy.complete and not healthy.effects
+    required = field in {"profile_urn", "source_layer", "tool_key", "output_path", "format"}
+    invalid: list[object] = [[], {}, True, 1.5]
+    invalid.extend([None, "", 7] if required else ["1", "invalid"] if field == "projection_version" else [7])
+    for value in invalid:
+        payload = json.loads(original)
+        payload["entries"][0][field] = value
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        before = snapshot({"project": tmp_path})
+        assessment = _assess_real(tmp_path)
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+        assert not assessment.complete and not assessment.effects, (field, value, assessment)
+        assert any(d.severity == "error" for d in assessment.diagnostics)
+        assert not _apply_real(assessment).succeeded
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+        with pytest.raises(ValueError):
+            ProfileManifest.load(tmp_path)
+    payload = json.loads(original)
+    del payload["entries"][0][field]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    if required:
+        assessment = _assess_real(tmp_path)
+        assert not assessment.complete and not assessment.effects
+    else:
+        # Absent/nullable provenance and hash fields are legitimate legacy records.
+        assert ProfileManifest.load(tmp_path).all_entries()
+        assert _assess_real(tmp_path).complete
+        payload["entries"][0][field] = None
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        assert ProfileManifest.load(tmp_path).all_entries()
+        assert _assess_real(tmp_path).complete
+    path.write_bytes(original)
+    before = snapshot({"project": tmp_path})
+    for _ in range(2):
+        recovered = _assess_real(tmp_path)
+        assert recovered.complete and not recovered.effects
+        assert not _apply_real(recovered).succeeded
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("race", ["parent_link", "parent_file", "target", "target_fifo", "permission", "io", "healthy"])
+def test_late_profile_failure_retains_actual_partial_results(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str) -> None:
+    from dataclasses import replace
+    import specify_cli.tool_surface.providers.agent_profiles as module
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    sentinel = tmp_path / "sentinel"
+    sentinel.mkdir()
+    (sentinel / "custom").write_text("must survive\n")
+    sentinel_before = snapshot({"sentinel": sentinel})
+    assessment = _assess_real(tmp_path, ("claude", "codex"))
+    assert assessment.complete and assessment.effects
+    before = snapshot({"project": tmp_path})
+    writer = module._write_profile_effect
+    actual_success: list[str] = []
+    refused: list[str] = []
+
+    def late_failure(effect: PhysicalEffect, content: bytes | None) -> None:
+        if effect.path.startswith(".codex/agents/") and effect.after.kind == "file" and not refused and race != "healthy":
+            assert actual_success
+            assert any((tmp_path / ".claude/agents").glob("*.md"))
+            refused.append(effect.id)
+            if race.startswith("parent_"):
+                effect.destination.parent.rmdir()
+                if race == "parent_link":
+                    effect.destination.parent.symlink_to(sentinel, target_is_directory=True)
+                else:
+                    effect.destination.parent.write_text("racing parent\n")
+            elif race == "target":
+                effect.destination.write_text("racing occupant\n")
+            elif race == "target_fifo":
+                import os
+
+                os.mkfifo(effect.destination)
+            elif race == "permission":
+                raise PermissionError("late permission refusal")
+            else:
+                raise OSError("late I/O refusal")
+        writer(effect, content)
+        actual_success.append(effect.id)
+
+    monkeypatch.setattr(module, "_write_profile_effect", late_failure)
+    result = _apply_real(assessment)
+    assert actual_success
+    assert set(result.succeeded) == set(actual_success)
+    assert_unchanged(sentinel_before, snapshot({"sentinel": sentinel}))
+    if race == "healthy":
+        assert result.outcome == "applied" and not result.failed
+        _assert_exact_delta(assessment, before, snapshot({"project": tmp_path}))
+        after = snapshot({"project": tmp_path})
+        for _ in range(2):
+            repeated = _assess_real(tmp_path, ("claude", "codex"))
+            assert repeated.complete and not repeated.effects
+            assert not _apply_real(repeated).succeeded
+            assert_unchanged(after, snapshot({"project": tmp_path}))
+    else:
+        assert result.outcome == "partial" and set(refused) <= set(result.failed)
+        assert set(result.succeeded).isdisjoint(result.failed)
+        assert set(result.succeeded) | set(result.failed) == {e.id for e in assessment.effects}
+        assert any(d.code == "profile_apply_failed" for d in result.diagnostics)
+        assert not manifest_path_for(tmp_path).exists()
+        if race in {"permission", "io"}:
+            _assert_exact_delta(
+                replace(assessment, effects=tuple(e for e in assessment.effects if e.id in result.succeeded)), before, snapshot({"project": tmp_path})
+            )
+
+
+@pytest.mark.parametrize("unsafe", ["absolute", "traversal", "unknown_identity"])
+def test_legacy_manifest_strings_remain_non_authorizing(tmp_path: Path, unsafe: str) -> None:
+    import json
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    assert _apply_real(_assess_real(tmp_path)).outcome == "applied"
+    manifest = manifest_path_for(tmp_path)
+    payload = json.loads(manifest.read_bytes())
+    entry = payload["entries"][0]
+    if unsafe == "unknown_identity":
+        entry["profile_urn"] = "legacy:unknown"
+    else:
+        sentinel = tmp_path / "sentinel"
+        sentinel.write_text("legacy path grants no authority\n")
+        entry["output_path"] = str(sentinel) if unsafe == "absolute" else ".claude/../sentinel"
+    # Legacy optional provenance may be absent; the string path is not corruption.
+    for field in ("source_path", "source_hash", "projection_version"):
+        entry.pop(field)
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    loaded = ProfileManifest.load(tmp_path).all_entries()
+    assert loaded
+    before = snapshot({"project": tmp_path})
+    assessment = _assess_real(tmp_path)
+    assert assessment.complete, assessment.diagnostics
+    assert any(d.state == "preserve" for d in assessment.dispositions)
+    assert not any(e.action == "delete" for e in assessment.effects)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert not _apply_real(assessment).failed
+    assert all(e in ProfileManifest.load(tmp_path).all_entries() for e in loaded)
+
+
 def test_profile_shared_aliases_coalesce_actual_outputs(tmp_path: Path) -> None:
     from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
 

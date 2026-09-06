@@ -162,6 +162,103 @@ def test_fix_preserves_edited_orphan_and_discloses_drift(tmp_path: Path) -> None
     assert any("drift" in message.lower() for message in result.failed)
 
 
+@pytest.mark.parametrize(
+    "installed_tools, selected_tools",
+    [
+        (("copilot", "vscode"), ("copilot", "vscode")),
+        (("vscode", "copilot"), ("vscode", "copilot")),
+        (("copilot",), ("copilot",)),
+        (("vscode",), ("vscode",)),
+        (("copilot",), ("vscode",)),
+        (("vscode",), ("copilot",)),
+    ],
+)
+@pytest.mark.parametrize("absent", [False, True])
+def test_shared_alias_orphan_owners_and_excluded_record(
+    tmp_path: Path,
+    installed_tools: tuple[str, ...],
+    selected_tools: tuple[str, ...],
+    absent: bool,
+) -> None:
+    from dataclasses import replace
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from .test_agent_profiles import _assess_real, _apply_real, _assert_exact_delta
+
+    pack = _write_org_pack(tmp_path)
+    _write_config(tmp_path, pack, activated=None)
+    created = _assess_real(tmp_path, installed_tools)
+    assert created.complete and created.effects
+    org_effect = next(e for e in created.effects if _ORG_ANALYST_ID in e.path)
+    assert set(org_effect.logical_owners) == set(installed_tools)
+    assert _apply_real(created).outcome == "applied"
+    path = org_effect.destination
+    recorded = next(e for e in ProfileManifest.load(tmp_path).all_entries() if e.output_path == path)
+    if absent:
+        path.unlink()
+    _write_config(tmp_path, pack, activated=[])
+    before = snapshot({"project": tmp_path})
+    assessed = _assess_real(tmp_path, selected_tools)
+    assert assessed.complete
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    retained = recorded.tool_key not in selected_tools
+    deletes = tuple(e for e in assessed.effects if e.action == "delete")
+    assert len(deletes) == int(not retained and not absent)
+    assert _apply_real(assessed).outcome == ("skipped" if retained else "applied")
+    after = snapshot({"project": tmp_path})
+    _assert_exact_delta(assessed, before, after)
+    assert (recorded in ProfileManifest.load(tmp_path).all_entries()) == retained
+    if retained:
+        assert not assessed.effects
+        assert_unchanged(before, after)
+    else:
+        assert not path.exists()
+        manifest_effect = next(e for e in assessed.effects if e.path.endswith("agent_profiles_manifest.json"))
+        if deletes:
+            deletion = deletes[0]
+            expected_ids = {f"{tool}.agent_profile.{path.name}" for tool in selected_tools}
+            assert set(deletion.logical_owners) == set(selected_tools)
+            assert set(deletion.surface_ids) == expected_ids
+            with pytest.raises(AssertionError):
+                _assert_exact_delta(replace(assessed, effects=tuple(e for e in assessed.effects if e != deletion)), before, after)
+            if len(selected_tools) > 1:
+                with pytest.raises(AssertionError):
+                    assert set(replace(deletion, logical_owners=deletion.logical_owners[:1]).logical_owners) == set(selected_tools)
+        assert set(selected_tools) <= set(manifest_effect.logical_owners)
+    for _ in range(2):
+        repeated = _assess_real(tmp_path, selected_tools)
+        assert repeated.complete and not repeated.effects
+        assert not _apply_real(repeated).succeeded
+        assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("recorded_tool", ["copilot", "vscode"])
+def test_shared_alias_disabled_recorded_owner_is_retained(tmp_path: Path, recorded_tool: str) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.enums import ActivationMode
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from .test_agent_profiles import _assess_real, _apply_real
+
+    pack = _write_org_pack(tmp_path)
+    _write_config(tmp_path, pack, activated=None)
+    assert _apply_real(_assess_real(tmp_path, (recorded_tool,))).outcome == "applied"
+    original = ProfileManifest.load(tmp_path).all_entries()
+    _write_config(tmp_path, pack, activated=[])
+    before = snapshot({"project": tmp_path})
+    definition = agent_profile_definition()
+    selections = tuple(
+        SurfaceSelection(tool, replace(definition, activation_mode=ActivationMode.DISABLED) if tool == recorded_tool else definition)
+        for tool in ("copilot", "vscode")
+    )
+    for _ in range(2):
+        assessment = AgentProfilesProvider().assess(AssessmentInputs(OperationRoot("project", "project", tmp_path)), (), selections=selections)
+        assert assessment.complete and not assessment.effects
+        assert not _apply_real(assessment).succeeded
+        assert ProfileManifest.load(tmp_path).all_entries() == original
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 def test_failed_orphan_unlink_preserves_ownership(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.tool_surface.providers.agent_profiles as module
     from specify_cli.tool_surface.operations import PhysicalEffect
