@@ -9,11 +9,19 @@ updated: 2026-09-06
 ## Current Status
 
 This summary supersedes historical readiness statements below. Eight WPs are
-approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05 is implementing;
+approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05 is in its first
+independent review at implementation `5f271f07fde9d6efeb16661c00e2205a04816a13`;
 its caller-resolved global skill input extension is independently approved;
 supporting Op closure awaits actual WP05 consumer integration verification.
 WP08, WP10 and WP13
 remain pending dependencies. No mission acceptance or consolidation is complete.
+
+WP05 author reports 161 owned tests, all-12-path Ruff and strict mypy passing,
+plus real coordinated global/project consumer checks. Supplier dependency files
+remain identical to their approved versions. These are author results, not WP05
+approval. Canonical for-review event `01M1WB3STVDS6CPJHVEG5E504W` reports
+`no_coverage` because the injected scope has no configured test command; it does
+not independently run or certify these tests. Full integrated gates remain open.
 
 WP03 approval `01M1W56TVQYABKXJD3VSEJYTT2` closes its coordinated-global-owner
 finding at `876a6f00ed1c32d67fabdb0573c5c3979a40108c`. Independent review ran
