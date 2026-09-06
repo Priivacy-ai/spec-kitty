@@ -119,6 +119,18 @@
       "title": null,
       "verdict": "deferred-with-followup",
       "wp": null
+    },
+    "#3911": {
+      "evidence_ref": "WP12 owns exact evidence-bound archive preservation gate and counterfactual tests; observed baseline gate failures remain pending, no waiver.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP12"
     }
   },
   "schema_version": 1
