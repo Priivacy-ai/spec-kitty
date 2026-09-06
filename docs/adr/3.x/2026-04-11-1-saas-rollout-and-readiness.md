@@ -1,9 +1,16 @@
 ---
 title: SaaS Rollout Gate and Hosted Readiness Split
 description: 'Separates hosted rollout visibility from per-prerequisite readiness diagnostics into one saas package, leaving the old flag modules as thin re-export shims.'
-status: Accepted
+status: Superseded
 date: '2026-04-11'
+superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 ---
+
+> **Superseded (2026-09-06)** by
+> [`2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
+> The `specify_cli.saas` rollout/readiness package this ADR governs was deleted by the Convergence
+> (#3881 / #3824); residual readiness re-homed to `tracker/saas_readiness.py`, the SaaS-sync flag to
+> `core/saas_sync_config.py`. Retained as historical record.
 
 ## Context and Problem Statement
 
