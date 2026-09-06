@@ -1,5 +1,4 @@
 {
-  "accept_commit": "ea0a056873e0a23528e9b3dcc326fc0c98f88b7d",
   "acceptance_history": [
     {
       "accept_commit": "bbae107183f00d4f27589cbf4066cc6fd6edb988",
@@ -14,12 +13,18 @@
       "accepted_at": "2026-09-06T20:51:31.307960+00:00",
       "accepted_by": "robert",
       "accepted_from_commit": "1402898ce4b104eec15854c485d8448d7ada7392"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-06T20:51:39.503920+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "6436dd62b0d370a16fe0c01ef1e9c2b8206307d6"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-09-06T20:51:31.307960+00:00",
+  "accepted_at": "2026-09-06T20:51:39.503920+00:00",
   "accepted_by": "robert",
-  "accepted_from_commit": "1402898ce4b104eec15854c485d8448d7ada7392",
+  "accepted_from_commit": "6436dd62b0d370a16fe0c01ef1e9c2b8206307d6",
   "coordination_branch": "kitty/mission-dead-port-disposition-01M1VRA2",
   "created_at": "2026-09-06T16:20:03.072496+00:00",
   "flattened": false,
