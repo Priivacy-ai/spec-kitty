@@ -30,7 +30,7 @@ Specification: ../spec.md.
 - [x] Existing root-entrypoint and strict JSON false-positive risks addressed.
 - [x] Research preserves full cyclic mission history, not only identity metadata.
 - [x] Post-spec independent reviews fully reconciled before commit.
-- [ ] Substantive spec and metadata committed through spec-commit.
+- [x] Substantive spec and metadata committed through spec-commit (6ada9613).
 
 ## Notes
 

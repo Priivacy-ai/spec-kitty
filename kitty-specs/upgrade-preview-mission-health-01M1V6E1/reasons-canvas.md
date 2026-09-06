@@ -21,7 +21,9 @@
 
 ## Structure
 - Startup/runtime; tool_surface and skills installers; upgrade/compat composition;
-  four corpus directories. Plan will freeze interfaces and disjoint ownership.
+  narrow charter-owned provisioning preparation; four corpus directories.
+- Reviewed plan and contracts freeze interfaces, physical-effect semantics and
+  ownership concerns; task slicing must keep their write sets disjoint.
 
 ## Operations
 - Research and specify, plan, tasks, analyze, red-first implement/review, accept,
@@ -40,3 +42,9 @@
 ## Deviations (append-only)
 - 2026-09-06 - planning - governance resolver degraded (#3908); binding charter
   and profile sources read explicitly. No claim of equivalent resolved payload.
+- 2026-09-06 - planning - #3910 runtime guard repaired under a reviewed Op;
+  actual supported retry advanced from specify to plan without copying artifacts.
+- 2026-09-06 - planning - independent reviews added charter preparation ownership,
+  deterministic backup/clock semantics, effective hidden-flag precedence and the
+  existing too-new actual-JSON exception. Final gate prerequisites remain explicit;
+  known architecture/E2E failures are reported, not waived.
