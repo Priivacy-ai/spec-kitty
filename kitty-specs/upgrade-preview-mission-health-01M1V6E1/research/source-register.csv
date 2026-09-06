@@ -1,0 +1,8 @@
+id,kind,reference,notes
+S001,issue,https://github.com/Priivacy-ai/spec-kitty/issues/3900,Exact acceptance and historical public CLI reproduction
+S002,issue,https://github.com/Priivacy-ai/spec-kitty/issues/3901,Same-version preview/application divergence
+S003,issue,https://github.com/Priivacy-ai/spec-kitty/issues/3902,Human JSON target parity
+S004,issue,https://github.com/Priivacy-ai/spec-kitty/issues/3903,Four corpus errors and consent/provenance boundary
+S005,git,3442ca1afc20b1b83b27a7bc64fd7014050b12a1,Original cyclic mission history
+S006,git,0be7d692adcc71503ad1c3b0ad6b0d16accdef62,R2-T1 documentation introduction
+S007,git,c0054153b9bce0778cf41a85d11ecd4e9650031d,Current source baseline
