@@ -1,0 +1,8 @@
+id,source_id,finding,verification,status
+E001,S001,Root callback bootstraps before preview,Source trace plus issue reproduction,confirmed source
+E002,S002,Provider dry-run misses supporting writes,Source trace of providers and installers,confirmed source
+E003,S003,JSON bypasses existing target validator,Source trace plus issue reproduction,confirmed source
+E004,S004,Four corpus blockers remain,Public doctor audit exit 1 with four errors,live reproduced
+E005,S005,Cyclic mission history recoverable,Git tree comparison and immutable identity,live inspected
+E006,S006,R2-T1 is documentation only,All-ref path history and two evidence files,live inspected
+E007,S004,Snapshot replay preserves eight verdicts,Read-only canonical replay and exact comparisons,live inspected
