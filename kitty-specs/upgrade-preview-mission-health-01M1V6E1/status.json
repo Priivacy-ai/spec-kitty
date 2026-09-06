@@ -1,19 +1,19 @@
 {
-  "event_count": 98,
-  "last_event_id": "01M1W61RRB0KSS3N5666GVC1P5",
-  "materialized_at": "2026-09-06T20:20:10.635146+00:00",
+  "event_count": 99,
+  "last_event_id": "01M1W6AZT4M5M0HVT147V0JM9V",
+  "materialized_at": "2026-09-06T20:25:12.772720+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
-    "in_review": 2,
+    "in_review": 1,
     "planned": 4
   },
   "work_packages": {
@@ -329,9 +329,9 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01M1W5W801SG5CX9VDYTKTMV86",
-      "last_transition_at": "2026-09-06T20:17:09.633694+00:00",
+      "lane": "approved",
+      "last_event_id": "01M1W6AZT4M5M0HVT147V0JM9V",
+      "last_transition_at": "2026-09-06T20:25:12.772720+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Delivered ee431b2fc8cd3d334e70bc56de857cb62dc92402 with real RED-first archive gate evidence,187 committed-tree tests and static checks passing. Full corpus and owner witnesses in external wp12-handoff.md. Broader failures #3919 historical terminology,#3914 redirects and offline sync collection conflict remain unresolved; supporting shard/format defect corrected separately. Independent full-contract review required, no final architecture or mission acceptance claim.",
@@ -344,7 +344,7 @@
         "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP12-archive-preservation-gate/review-cycle-1.md",
         "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP12-archive-preservation-gate/review-cycle-1.md",
         "reviewer": "codex",
-        "verdict": "changes_requested"
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": 26467,
