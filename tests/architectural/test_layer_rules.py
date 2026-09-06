@@ -141,6 +141,64 @@ _MISSION_RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str] = frozenset(
     }
 )
 
+# ---------------------------------------------------------------------------
+# post-convergence-governance-01M1TMPH / WP03 (#3522): runtime -> specify_cli
+# outbound ledger
+# ---------------------------------------------------------------------------
+#
+# The landscape places ``runtime`` BELOW ``specify_cli``
+# (kernel <- ... <- runtime <- specify_cli), so a ``runtime -> specify_cli`` import
+# is a layer inversion. Before this WP the inversion was UNGATED: ``TestRuntimeBoundary``
+# (below) forbids only ``specify_cli.cli`` / ``specify_cli.next``, and the
+# runtime<->doctrine gate (``test_runtime_charter_doctrine_boundary.py``) scans only
+# the doctrine surface — so a NEW ``runtime -> specify_cli`` edge landed green. Modularity
+# SSOT audit (report 11, D5; #3522, also #2986/#3290) measured **93 such edges** across
+# **23** first-level ``specify_cli.<sub>`` subpackages.
+#
+# PRE-DECIDED (mirrors the sibling ``mission_runtime`` ledger, research D6): the clean rule
+# ``runtime should_not access specify_cli`` would red on existing, working code, so these
+# edges are a DOCUMENTED allowed-exception set. Inverting them (behind ports) is carved-out
+# future work (infra/logic epic #2173; #3522). This ledger is SHRINK-ONLY by construction:
+#   * ADDING a ``specify_cli.<sub>`` edge outside this set MUST red the rule
+#     (proven by ``test_rule_rejects_out_of_ledger_import``),
+#   * REMOVING an edge (future port work) must delete its entry; a stale entry with no
+#     matching live import reds ``test_runtime_ledger_has_no_stale_entries``.
+#
+# ``specify_cli.cli`` / ``specify_cli.next`` are DELIBERATELY ABSENT — they stay
+# hard-forbidden by ``TestRuntimeBoundary``; if runtime ever imported them this ledger would
+# red too (belt-and-suspenders). Derived from a live AST scan of ``src/runtime/`` — do NOT
+# hand-copy from the plan; re-scan to refresh.
+_RUNTIME_ROOT = _SRC / "runtime"
+
+_RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str] = frozenset(
+    {
+        "",  # bare ``import specify_cli`` in next/runtime_bridge_io.py: resolve the
+             # legacy missions package root via specify_cli.__file__ (2 edges).
+        "bulk_edit",
+        "coordination",
+        "core",
+        "events",
+        "invocation",
+        "lanes",
+        "migration",
+        "mission",
+        "mission_loader",
+        "mission_metadata",
+        "mission_step_contracts",
+        "mission_v1",
+        "missions",
+        "requirement_mapping",
+        "retrospective",
+        "review",
+        "runtime",           # specify_cli.runtime (installed-runtime assets), not the top-level pkg
+        "shims",
+        "status",
+        "status_lanes",
+        "task_utils",
+        "workspace",
+    }
+)
+
 
 def _is_specify_cli_module(module: str) -> bool:
     """True when ``module`` is ``specify_cli`` itself or one of its subpackages."""
@@ -592,6 +650,77 @@ class TestMissionRuntimeBoundary:
             for _, module in _collect_specify_cli_imports(_MISSION_RUNTIME_ROOT)
         }
         stale = _MISSION_RUNTIME_ALLOWED_SPECIFY_CLI - live_subpackages
+        assert not stale, (
+            f"allowed-exception ledger has entries with no live edge: {sorted(stale)!r}. "
+            "Remove them — the ledger is shrink-only."
+        )
+
+
+# --- Invariant 6: WP03 — runtime -> specify_cli outbound boundary (#3522) ---
+
+
+class TestRuntimeSpecifyCliLedger:
+    """post-convergence-governance-01M1TMPH / WP03 (#3522): bind runtime -> specify_cli.
+
+    ``runtime`` sits BELOW ``specify_cli`` in the landscape, so importing upward is a
+    layer inversion. The clean ``should_not access specify_cli`` rule would red on the 93
+    existing, working edges, so — mirroring the sibling ``TestMissionRuntimeBoundary`` — the
+    real upward edges are pinned as a named allowed-exception ledger
+    (:data:`_RUNTIME_ALLOWED_SPECIFY_CLI`). This class binds the previously-missing outbound
+    rule (the #3522 hole: a new runtime->specify_cli edge used to land green) and proves it
+    is non-vacuous and shrink-only. Reuses the same pure matcher/collector helpers as the
+    mission_runtime ledger so the two boundaries stay behaviourally identical.
+    """
+
+    def test_runtime_specify_cli_imports_within_ledger(self) -> None:
+        """Every runtime -> specify_cli edge must be in the named ledger.
+
+        Adding a NEW ``specify_cli.<sub>`` import outside the ledger reds here — the intended
+        loud signal for the carved-out dependency-inversion work (#2173). This is the
+        outbound rule the WP binds; before it, the edge was ungated (#3522).
+        """
+        offenders = _out_of_ledger_specify_cli_imports(
+            _collect_specify_cli_imports(_RUNTIME_ROOT),
+            _RUNTIME_ALLOWED_SPECIFY_CLI,
+        )
+        assert not offenders, (
+            "runtime imports specify_cli subpackages outside the documented "
+            "allowed-exception ledger (_RUNTIME_ALLOWED_SPECIFY_CLI):\n  "
+            + "\n  ".join(offenders)
+            + "\nInvert the dependency (preferred) or, if the edge is sanctioned, add the "
+            "subpackage to the ledger with a rationale comment. Note: specify_cli.cli / "
+            "specify_cli.next are hard-forbidden (TestRuntimeBoundary) and must NOT be added."
+        )
+
+    def test_rule_rejects_out_of_ledger_import(self) -> None:
+        """Non-vacuity guard: the matcher MUST flag a synthetic out-of-set edge.
+
+        Drives the SAME matcher with a synthetic ``specify_cli.cli`` edge (deliberately
+        absent from the ledger, and additionally hard-forbidden) and asserts it is rejected,
+        proving the rule has teeth. Committed CI-selected negative test.
+        """
+        synthetic = [
+            ("runtime/next/runtime_bridge.py", "specify_cli.cli.commands.tasks"),
+        ]
+        offenders = _out_of_ledger_specify_cli_imports(
+            synthetic, _RUNTIME_ALLOWED_SPECIFY_CLI
+        )
+        assert offenders == [
+            "runtime/next/runtime_bridge.py imports specify_cli.cli.commands.tasks"
+        ], "the outbound rule must reject a specify_cli subpackage outside the ledger"
+
+    def test_runtime_ledger_has_no_stale_entries(self) -> None:
+        """Shrink-only guard: every ledger entry must match a live source edge.
+
+        When future port work removes an upward edge, its ledger entry must be deleted too.
+        A stale entry (no matching import under ``src/runtime/``) reds here, keeping the
+        exception set honestly minimal so the debt can only shrink.
+        """
+        live_subpackages = {
+            _specify_cli_subpackage(module)
+            for _, module in _collect_specify_cli_imports(_RUNTIME_ROOT)
+        }
+        stale = _RUNTIME_ALLOWED_SPECIFY_CLI - live_subpackages
         assert not stale, (
             f"allowed-exception ledger has entries with no live edge: {sorted(stale)!r}. "
             "Remove them — the ledger is shrink-only."
