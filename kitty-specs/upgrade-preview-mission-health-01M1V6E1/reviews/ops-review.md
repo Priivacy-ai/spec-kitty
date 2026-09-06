@@ -133,3 +133,17 @@ gates must execute on the eventual integrated implementation.
   `pass1-fix-handoff.md`, `parent-pass1-ci-final*`, and `pr-body-pass1.md`
   under the timestamped workspace's parent directory. This operation closes
   only the tested correction handoff, not core mission acceptance or merge.
+
+### Programme Merge and CI Coverage Limitation
+
+Programme merged PR414 as `cb6939eb700f05845a8adf48546e11ab897182c2` after
+pass-two squad review and exact-head CI at50d47d6. Reported full CI:
+737 passed,6 skipped,371 deselected in1467.00s. However, the scenario leg
+explicitly skipped contract_drift_caught.py because source checkout discovery
+failed (four passed,one skipped). This confirms E2E#416 in the actual runner.
+The remote green label does not prove execution of this changed witness.
+Local explicit-source control/mutation evidence above remains distinct.
+Final core mission E2E acceptance must bind the source and execute every
+required floor case rather than count a missing prerequisite as coverage.
+Evidence and follow-up:
+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/416#issuecomment-5560076553.
