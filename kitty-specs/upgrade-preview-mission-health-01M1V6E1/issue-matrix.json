@@ -107,6 +107,18 @@
       "title": null,
       "verdict": "deferred-with-followup",
       "wp": null
+    },
+    "#3909": {
+      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/issues/3909 tracks composition placeholder; actual canonical pack prompt consumed. Separate tooling followup, not fixed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
     }
   },
   "schema_version": 1
