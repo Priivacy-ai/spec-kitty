@@ -145,3 +145,42 @@ def test_occurrence_guard_reads_primary_metadata(tmp_path: Path) -> None:
     snapshot = gather_artifact_presence(status, mission_family="software-dev", step_id="tasks_finalize", repo_root=repo)
     assert snapshot.status_facts["occurrence_gate_failures"]
     assert str(primary / "occurrence_map.yaml") in snapshot.status_facts["occurrence_gate_failures"][0]
+
+
+@pytest.mark.parametrize("artifact,step", [("spec.md", "specify"), ("plan.md", "plan")])
+@pytest.mark.parametrize("authoritative", [True, False], ids=["owned-only", "root-decoy"])
+def test_owned_checkout_artifact_guards(
+    tmp_path: Path, artifact: str, step: str, authoritative: bool
+) -> None:
+    repo, primary, _ = _mission(tmp_path, "single_branch")
+    owned = tmp_path / "owned"
+    _git(repo, "worktree", "add", "-q", "-b", "codex/owned", str(owned))
+    owned_mission = owned / "kitty-specs" / MISSION_SLUG
+    home = owned_mission if authoritative else primary
+    (home / artifact).write_text("# Owned planning contract\n", encoding="utf-8")
+    _git(home, "add", artifact)
+    _git(home, "commit", "-qm", "Record isolated planning input")
+    seam = placement_seam(owned, MISSION_SLUG, effective_root=owned)
+    assert seam.read_dir(MissionArtifactKind.SPEC) == owned_mission
+    expected = [] if authoritative else [f"Required artifact missing: {artifact}"]
+
+    cli_failures = bridge._check_cli_guards(step, owned_mission, mission_family="software-dev", repo_root=owned)
+    composed_failures = composition._check_composed_action_guard(step, owned_mission, repo_root=owned)
+    assert (cli_failures, composed_failures) == (expected, expected)
+    snapshot = gather_artifact_presence(owned_mission, mission_family="software-dev", step_id=step, repo_root=owned)
+    assert (artifact in snapshot.present_artifacts) is authoritative
+    assert not ((primary if authoritative else owned_mission) / artifact).exists()
+
+
+@pytest.mark.parametrize("topology", ["single_branch", "coord"])
+def test_normal_linked_caller_keeps_canonical_status_authority(tmp_path: Path, topology: str) -> None:
+    repo, primary, canonical_status = _mission(tmp_path, topology)
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-q", "-b", "codex/linked", str(linked))
+    (primary / "spec.md").write_text("# Canonical planning contract\n", encoding="utf-8")
+    # Without explicit ownership, bootstrap supplies the canonical status home.
+    status = placement_seam(linked, MISSION_SLUG).read_dir(MissionArtifactKind.STATUS_STATE)
+    assert status == canonical_status
+    assert bridge._check_cli_guards("specify", status, mission_family="software-dev", repo_root=linked) == []
+    assert composition._check_composed_action_guard("specify", status, repo_root=linked) == []
+    assert not (linked / "kitty-specs" / MISSION_SLUG / "spec.md").exists()
