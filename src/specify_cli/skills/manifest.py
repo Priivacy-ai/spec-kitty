@@ -18,7 +18,10 @@ MANIFEST_FILENAME = "skills-manifest.json"
 
 @dataclass
 class ManagedFileEntry:
-    """A single file installed by the skill manager."""
+    """A single file installed by the skill manager.
+
+    Manifest paths are portable relative paths and always use POSIX separators.
+    """
 
     skill_name: str  # e.g., "spec-kitty-setup-doctor"
     source_file: str  # Relative within skill dir, e.g., "SKILL.md"
@@ -28,6 +31,11 @@ class ManagedFileEntry:
     content_hash: str  # "sha256:<hex>"
     installed_at: str  # ISO 8601 UTC
     delivery_mode: str = "copy"  # "copy" or "symlink"
+
+    def __post_init__(self) -> None:
+        """Normalize paths produced on Windows or loaded from older manifests."""
+        self.source_file = self.source_file.replace("\\", "/")
+        self.installed_path = self.installed_path.replace("\\", "/")
 
 
 @dataclass
@@ -46,11 +54,7 @@ class ManagedSkillManifest:
         Shared-root agents intentionally share ``installed_path`` so deduplication
         must include ``agent_key`` to avoid collapsing entries for different agents.
         """
-        self.entries = [
-            e
-            for e in self.entries
-            if not (e.installed_path == entry.installed_path and e.agent_key == entry.agent_key)
-        ]
+        self.entries = [e for e in self.entries if not (e.installed_path == entry.installed_path and e.agent_key == entry.agent_key)]
         self.entries.append(entry)
 
     def remove_entries_for_agent(self, agent_key: str) -> list[ManagedFileEntry]:
