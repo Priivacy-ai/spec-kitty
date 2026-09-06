@@ -833,7 +833,8 @@ def test_doctrine_pair_allowlist_growth_fails_and_shrink_is_reported(
     module = importlib.import_module(f"tests.architectural.{module_name}")
     allowed = getattr(module, symbol)
     baseline = _load_baselines()[module_name][key]
-    assert all(isinstance(pair, tuple) and len(pair) == 2 for pair in allowed)
+    # Pair arity is the contract, not the number of allowed dependency pairs.
+    assert all(isinstance(pair, tuple) and len(pair) == 2 for pair in allowed)  # golden-count: cardinality-is-contract
     extra = {
         (f"src/runtime/baseline_probe_{i}.py", "charter.offering.new_dependency")
         for i in range(max(1, baseline - len(allowed) + 1))

@@ -4,7 +4,7 @@
   "materialized_at": "2026-09-06T15:54:09.248294+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 3,
     "blocked": 0,
