@@ -24,6 +24,31 @@ from specify_cli.tool_surface.bundles.codex import CodexBundleProjector
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_full_codex_build_preserves_all_node_mtimes(tmp_path: Path) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    projector = CodexBundleProjector(tmp_path / "dist")
+    projector.build(skip_validate=True)
+    before = snapshot({"stage": tmp_path})
+    projector.build(skip_validate=True)
+    assert_unchanged(before, snapshot({"stage": tmp_path}))
+
+
+def test_codex_hook_copy_preserves_unknown_descendant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import charter.offering as offering
+
+    source = tmp_path / "source"
+    (source / "hooks").mkdir(parents=True)
+    (source / "hooks" / "run.sh").write_bytes(b"#!/bin/sh\nexit 0\n")
+    monkeypatch.setattr(offering, "__file__", str(source / "__init__.py"))
+    projector = CodexBundleProjector(tmp_path / "dist")
+    custom = projector.bundle_dir / "hooks" / "custom.txt"
+    custom.parent.mkdir(parents=True)
+    custom.write_bytes(b"retain this custom hook note")
+    projector.build(skip_validate=True)
+    assert custom.read_bytes() == b"retain this custom hook note"
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -33,6 +33,16 @@ from specify_cli.tool_surface.bundles.claude import ClaudeBundleProjector
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_full_claude_build_preserves_all_node_mtimes(tmp_path: Path) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    projector = ClaudeBundleProjector(tmp_path / "dist")
+    projector.build(skip_validate=True)
+    before = snapshot({"stage": tmp_path})
+    projector.build(skip_validate=True)
+    assert_unchanged(before, snapshot({"stage": tmp_path}))
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
