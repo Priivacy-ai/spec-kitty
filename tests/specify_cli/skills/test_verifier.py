@@ -21,6 +21,34 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_wp05_repair_requires_explicit_drift_consent(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    entry = _setup_manifest_and_file(project, ".claude/skills/test-skill/SKILL.md", "installed")
+    save_manifest(ManagedSkillManifest(entries=[entry]), project)
+    dest = project / entry.installed_path
+    dest.write_text("user modification")
+    registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": "canonical"})
+    result = VerifyResult(ok=False, drifted=[(entry, compute_content_hash(dest))])
+    before = dest.read_bytes(), dest.stat().st_mtime_ns
+    repaired, failed = repair_skills(project, result, registry)
+    assert (dest.read_bytes(), dest.stat().st_mtime_ns) == before
+    assert repaired == 0 and failed == 1
+
+
+def test_wp05_repair_does_not_claim_unknown_directory(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    entry = _make_entry()
+    dest = project / entry.installed_path
+    dest.mkdir(parents=True)
+    (dest / "user-notes").write_bytes(b"unknown")
+    save_manifest(ManagedSkillManifest(entries=[entry]), project)
+    registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": "canonical"})
+    result = VerifyResult(ok=False, drifted=[(entry, "directory")])
+    repaired, failed = repair_skills(project, result, registry)
+    assert (dest / "user-notes").read_bytes() == b"unknown"
+    assert repaired == 0 and failed == 1
+
+
 def _make_entry(
     skill_name: str = "test-skill",
     source_file: str = "SKILL.md",
