@@ -49,6 +49,23 @@ def test_wp05_repair_does_not_claim_unknown_directory(tmp_path: Path) -> None:
     assert repaired == 0 and failed == 1
 
 
+def test_wp05_verification_reports_corruption_and_never_reads_link_targets(tmp_path: Path) -> None:
+    target = tmp_path / ".kittify/skills-manifest.json"
+    target.parent.mkdir()
+    target.write_bytes(b"not a manifest")
+    result = verify_installed_skills(tmp_path)
+    assert not result.ok and result.errors
+    target.unlink()
+    entry = _make_entry(delivery_mode="symlink")
+    dest = tmp_path / entry.installed_path
+    dest.parent.mkdir(parents=True)
+    dest.symlink_to(tmp_path / "unknown-target")
+    save_manifest(ManagedSkillManifest(entries=[entry]), tmp_path)
+    result = verify_installed_skills(tmp_path)
+    assert not result.ok and result.drifted[0][0] == entry
+    assert result.drifted[0][1].startswith("symlink:")
+
+
 def _make_entry(
     skill_name: str = "test-skill",
     source_file: str = "SKILL.md",
@@ -241,7 +258,8 @@ def test_repair_restores_missing_file(tmp_path: Path) -> None:
 
 
 def test_repair_restores_drifted_file(tmp_path: Path) -> None:
-    """Repair overwrites a drifted file with canonical content."""
+    """Only exact-path consent permits overwriting modified managed content."""
+    from specify_cli.tool_surface.operations import ApplyConsent
     canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
     registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": canonical})
 
@@ -260,7 +278,12 @@ def test_repair_restores_drifted_file(tmp_path: Path) -> None:
 
     verify_result = VerifyResult(ok=False, drifted=[(entry, actual_hash)])
 
-    repaired, failed = repair_skills(tmp_path, verify_result, registry)
+    assert repair_skills(tmp_path, verify_result, registry) == (0, 1)
+    assert (tmp_path / installed_path).read_text() == "user edited this"
+    repaired, failed = repair_skills(
+        tmp_path, verify_result, registry,
+        consent=ApplyConsent(automatic=True, overwrite_paths=(installed_path,)),
+    )
     assert repaired == 1
     assert failed == 0
 
@@ -287,7 +310,7 @@ def test_repair_handles_missing_source(tmp_path: Path) -> None:
     assert failed == 1
 
 
-def test_repair_heals_external_symlink_destination(tmp_path: Path) -> None:
+def test_repair_heals_external_symlink_destination(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A symlink at the managed path is replaced with a copy; its target is
     never written (#2412 — repairs always land copies)."""
     canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
@@ -296,6 +319,7 @@ def test_repair_heals_external_symlink_destination(tmp_path: Path) -> None:
     external = tmp_path / "home" / ".claude" / "skills" / "test-skill" / "SKILL.md"
     external.parent.mkdir(parents=True, exist_ok=True)
     external.write_text("EXTERNAL", encoding="utf-8")
+    monkeypatch.setattr("specify_cli.skills.installer.get_primary_global_skill_root", lambda _agent: external.parent.parent)
 
     repo = tmp_path / "repo"
     installed_path = ".claude/skills/test-skill/SKILL.md"
@@ -308,6 +332,7 @@ def test_repair_heals_external_symlink_destination(tmp_path: Path) -> None:
         source_file="SKILL.md",
         installed_path=installed_path,
         content_hash="sha256:stale",
+        delivery_mode="symlink",
     )
     save_manifest(ManagedSkillManifest(entries=[entry]), repo)
 
@@ -356,7 +381,7 @@ def test_repair_refuses_external_symlinked_ancestor(tmp_path: Path) -> None:
     assert external_file.read_text(encoding="utf-8") == "EXTERNAL"
 
 
-def test_repair_converts_legacy_symlink_entry_to_copy(tmp_path: Path) -> None:
+def test_repair_converts_legacy_symlink_entry_to_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A pre-#2412 manifest entry (delivery_mode=symlink, dangling link on
     disk) repairs to a real copy and the manifest entry flips to copy."""
     canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
@@ -367,7 +392,9 @@ def test_repair_converts_legacy_symlink_entry_to_copy(tmp_path: Path) -> None:
     dest = repo / installed_path
     dest.parent.mkdir(parents=True, exist_ok=True)
     # Dangling absolute symlink — the classic dev-container failure mode.
-    os.symlink(tmp_path / "gone-global-root" / "SKILL.md", dest)
+    global_root = tmp_path / "gone-global-root"
+    monkeypatch.setattr("specify_cli.skills.installer.get_primary_global_skill_root", lambda _agent: global_root)
+    os.symlink(global_root / "test-skill" / "SKILL.md", dest)
 
     entry = _make_entry(
         skill_name="test-skill",
@@ -542,7 +569,7 @@ def _registry_with_kept_skill(tmp_path: Path) -> SkillRegistry:
 
 
 def test_retired_skill_broken_symlink_drained_without_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The #2409 loop: a retired skill's projection symlink breaks when the
     global root drops the skill; repair used to warn 'not found in registry'
@@ -552,17 +579,20 @@ def test_retired_skill_broken_symlink_drained_without_warning(
     installed_path = ".agents/skills/spk-team-upsun-cli-sync/SKILL.md"
     dest = tmp_path / installed_path
     dest.parent.mkdir(parents=True)
-    dest.symlink_to(tmp_path / "gone-global-root" / "SKILL.md")  # broken
+    global_root = tmp_path / "gone-global-root"
+    monkeypatch.setattr("specify_cli.skills.installer.get_primary_global_skill_root", lambda agent: global_root)
+    dest.symlink_to(global_root / "spk-team-upsun-cli-sync/SKILL.md")  # proven managed, broken
 
     entry = _make_entry(
         skill_name="spk-team-upsun-cli-sync",
         installed_path=installed_path,
         delivery_mode="symlink",
+        agent_key="codex",
     )
     save_manifest(ManagedSkillManifest(entries=[entry]), tmp_path)
 
     verify_result = verify_installed_skills(tmp_path)
-    assert entry.installed_path in [e.installed_path for e in verify_result.missing]
+    assert entry.installed_path in [e.installed_path for e, _ in verify_result.drifted]
 
     with caplog.at_level("WARNING"):
         repaired, failed = repair_skills(tmp_path, verify_result, registry)
@@ -611,7 +641,13 @@ def test_retired_skill_modified_copy_archived_not_deleted(tmp_path: Path) -> Non
     dest.write_text("# Retired — with my local edits\n", encoding="utf-8")
     save_manifest(ManagedSkillManifest(entries=[entry]), tmp_path)
 
+    from specify_cli.tool_surface.operations import ApplyConsent
+
     repaired, failed = repair_skills(tmp_path, VerifyResult(ok=False), registry)
+    assert (repaired, failed) == (0, 1)
+    assert dest.read_text(encoding="utf-8") == "# Retired — with my local edits\n"
+    repaired, failed = repair_skills(tmp_path, VerifyResult(ok=False), registry,
+                                     consent=ApplyConsent(automatic=True, overwrite_paths=(installed_path,)))
 
     assert (repaired, failed) == (1, 0)
     assert not dest.exists()
@@ -622,10 +658,13 @@ def test_retired_skill_modified_copy_archived_not_deleted(tmp_path: Path) -> Non
     assert backups[0].read_text(encoding="utf-8") == "# Retired — with my local edits\n"
 
 
-def test_empty_registry_never_retires(tmp_path: Path) -> None:
+@pytest.mark.parametrize("absent", [True, False])
+def test_empty_registry_never_retires(tmp_path: Path, absent: bool) -> None:
     """An empty registry signals a broken canonical source, not mass
     retirement — the manifest and files must be left untouched."""
     registry = SkillRegistry(tmp_path / "_empty_registry")
+    if not absent:
+        (tmp_path / "_empty_registry").mkdir()
     installed_path = ".claude/skills/some-skill/SKILL.md"
     entry = _setup_manifest_and_file(
         tmp_path, installed_path, "# Skill\n", skill_name="some-skill"
@@ -634,7 +673,7 @@ def test_empty_registry_never_retires(tmp_path: Path) -> None:
 
     repaired, failed = repair_skills(tmp_path, VerifyResult(ok=False), registry)
 
-    assert (repaired, failed) == (0, 0)
+    assert (repaired, failed) == (0, int(absent))
     assert (tmp_path / installed_path).exists()
     manifest = load_manifest(tmp_path)
     assert manifest is not None

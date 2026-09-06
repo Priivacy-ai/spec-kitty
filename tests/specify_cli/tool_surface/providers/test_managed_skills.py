@@ -14,10 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.skills import installer as skill_installer
 from specify_cli.skills.manifest import (
-    ManagedFileEntry,
-    ManagedSkillManifest,
     compute_content_hash,
     load_manifest,
 )
@@ -90,6 +87,117 @@ def test_provider_satisfies_reporting_protocol() -> None:
     provider = ManagedSkillsProvider()
     assert isinstance(provider, ReportingSurfaceProvider)
     assert provider.provider_key == "managed_skills"
+
+
+def test_project_assessment_exposes_effects_but_blocks_uncoordinated_global_contribution(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.protocol import AssessingSurfaceProvider
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _canonical_skill(tmp_path / "source")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "source"))
+    assert isinstance(provider, AssessingSurfaceProvider)
+    consent = ApplyConsent(automatic=True)
+    before = snapshot({"sandbox": tmp_path})
+    assessment = provider.assess(AssessmentInputs(OperationRoot("project", "project", project), consent=consent), (),
+                                 selections=(SurfaceSelection("codex", managed_skill_definition()),))
+    assert assessment.effects and not assessment.complete
+    assert any(item.code == "managed_skills_global_context_required" for item in assessment.diagnostics)
+    with provider.recheck(assessment) as diagnostics:
+        assert diagnostics
+        assert provider.apply(assessment, consent).outcome == "precondition_changed"
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_coordinated_provider_dispatch_keeps_both_owner_batches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    home, project = tmp_path / "home", tmp_path / "project"
+    home.mkdir()
+    project.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "source")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    root = OperationRoot("project", "project", project)
+    before = snapshot({"sandbox": tmp_path})
+    installation = assess_skill_installation(AssessmentInputs(root, consent=consent), registry, ("codex",))
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+    assessment = provider.assess(AssessmentInputs(root, projected=installation, consent=consent), (),
+                                 selections=(SurfaceSelection("codex", managed_skill_definition()),))
+    assert assessment is installation.project_skills and assessment.complete
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    service = SurfaceRepairService([GlobalSkillAssetsProvider(), provider])
+    results = service.apply_assessments((installation.global_assets, assessment), consent)
+    assert all(result.outcome == "applied" for result in results), results
+    effects = installation.global_assets.effects + assessment.effects
+    assert {effect.id for effect in effects} == {effect_id for result in results for effect_id in result.succeeded}
+    expected = {(effect.destination.relative_to(tmp_path).as_posix(), effect.action, effect.after.kind,
+                 effect.after.sha256, effect.after.target, effect.after.mode) for effect in effects}
+    assert {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)
+            for effect in net_delta(before, snapshot({"sandbox": tmp_path}))} == expected
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_real_provider_never_reports_preserved_unknown_content_repaired(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dry_run: bool,
+) -> None:
+    from specify_cli.tool_surface.status import SurfaceStatus
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "source")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "source"))
+    instance = provider.expand(managed_skill_definition(), "codex", project)[0]
+    instance.path.parent.mkdir(parents=True)
+    instance.path.write_text("user-owned content")
+    before = snapshot({"sandbox": tmp_path})
+    result = provider.repair(project, [SurfaceStatus(instance=instance, state=STATE_DRIFTED)], dry_run=dry_run)
+    assert not result.repaired
+    assert instance.surface_id in result.skipped
+    assert instance.path.read_text() == "user-owned content"
+    if dry_run:
+        assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_real_provider_partial_failure_reports_paths_not_count_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.skills import installer
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "source", "a")
+    _canonical_skill(tmp_path / "source", "b")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "source"))
+    instances = provider.expand(managed_skill_definition(), "codex", project)
+    statuses = [provider.probe(instance) for instance in reversed(instances)]
+    writer = installer._apply_project_skill_write
+
+    def fail_second(write: installer.PreparedProjectSkillWrite) -> None:
+        if write.effect.path == ".agents/skills/b/SKILL.md":
+            raise OSError("injected second project file failure")
+        writer(write)
+
+    monkeypatch.setattr(installer, "_apply_project_skill_write", fail_second)
+    result = provider.repair(project, statuses)
+    assert result.repaired == (instances[0].surface_id,)
+    assert instances[1].surface_id in result.failed
+    assert instances[0].path.is_file() and not instances[1].path.exists()
+    assert not (project / ".kittify/skills-manifest.json").exists()
 
 
 def test_managed_skills_provider_can_handle_doctrine_skill() -> None:
@@ -222,63 +330,46 @@ def test_managed_skills_repair_no_actionable_returns_clean(tmp_path: Path) -> No
     assert result.failed == ()
 
 
-def test_managed_skills_repair_dry_run_does_not_install(tmp_path: Path) -> None:
-    _write_manifest(
-        tmp_path,
-        [_entry("codex", ".agents/skills/a/SKILL.md", "sha256:deadbeef", skill_name="a")],
-    )
-    provider = _manifest_only_provider()
-    instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
+def test_managed_skills_repair_dry_run_does_not_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "canonical")
+    provider = ManagedSkillsProvider(registry_factory=lambda: SkillRegistry(tmp_path / "canonical"))
+    instance = provider.expand(managed_skill_definition(), "codex", project)[0]
     missing = provider.probe(instance)
     assert missing.state == STATE_MISSING
-    result = provider.repair(tmp_path, [missing], dry_run=True)
+    before = snapshot({"sandbox": tmp_path})
+    result = provider.repair(project, [missing], dry_run=True)
     assert result.dry_run is True
     assert result.repaired  # reported, but nothing installed
     assert not instance.path.exists()
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
 
 def test_managed_skills_repair_without_manifest_installs_expected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    skill = _canonical_skill(tmp_path / "canonical")
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _canonical_skill(tmp_path / "canonical")
     provider = ManagedSkillsProvider(
-        registry_factory=lambda: _StubRegistry([skill]),
+        registry_factory=lambda: SkillRegistry(tmp_path / "canonical"),
     )
-    instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
+    instance = provider.expand(managed_skill_definition(), "codex", project)[0]
     missing = provider.probe(instance)
-    calls: list[tuple[Path, list[str]]] = []
-
-    def fake_install_all_skills(
-        project_path: Path, agent_keys: list[str], registry: object
-    ) -> ManagedSkillManifest:
-        calls.append((project_path, agent_keys))
-        assert registry.discover_skills() == [skill]  # type: ignore[attr-defined]
-        return ManagedSkillManifest(
-            entries=[
-                ManagedFileEntry(
-                    skill_name="a",
-                    source_file="SKILL.md",
-                    installed_path=".agents/skills/a/SKILL.md",
-                    installation_class="shared-root-capable",
-                    agent_key="codex",
-                    content_hash="sha256:" + "1" * 64,
-                    installed_at="2026-06-14T00:00:00+00:00",
-                    delivery_mode="copy",
-                )
-            ]
-        )
-
-    monkeypatch.setattr(
-        skill_installer, "install_all_skills", fake_install_all_skills
-    )
-
-    result = provider.repair(tmp_path, [missing])
-
-    assert calls == [(tmp_path, ["codex"])]
+    result = provider.repair(project, [missing])
     assert result.failed == ()
     assert result.repaired
-    manifest = load_manifest(tmp_path)
+    assert instance.path.is_file()
+    assert (home / ".agents/skills/a/SKILL.md").is_file()
+    manifest = load_manifest(project)
     assert manifest is not None
     assert [entry.installed_path for entry in manifest.entries] == [
         ".agents/skills/a/SKILL.md"

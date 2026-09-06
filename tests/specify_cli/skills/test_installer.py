@@ -161,8 +161,6 @@ class TestInstallSharedRootAgent:
         assert "name: plain-skill\n" in content
 
     def test_reinstall_clears_windows_readonly_global_tree(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from specify_cli.skills import installer
-
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
         skills_root = tmp_path / "skills_src"
         project = tmp_path / "project"
@@ -229,7 +227,7 @@ class TestInstallSharedRootAgent:
         assert installed.is_file()
         assert not installed.is_symlink()
 
-    def test_install_removes_retired_skill_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_install_preserves_unowned_retired_skill_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
         skills_root = tmp_path / "skills_src"
         project = tmp_path / "project"
@@ -255,17 +253,12 @@ class TestInstallSharedRootAgent:
             project / ".claude" / "skills",
         ]:
             for retired_name in RETIRED_CANONICAL_SKILL_NAMES:
-                assert not (root / retired_name).exists()
+                assert (root / retired_name / "SKILL.md").read_text(encoding="utf-8") == "# retired\n"
             assert (root / "custom-skill" / "SKILL.md").is_file()
             assert (root / "my-skill" / "SKILL.md").is_file()
 
-    def test_install_removes_stale_upsun_kittyfooding_skill(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """PR #2312: an existing pack still carrying spk-team-upsun-cli-sync is cleaned on install.
-
-        Regression guard for the retired internal kittyfooding skill relocated to
-        spec-kitty-saas#370. A consumer upgraded from a version that shipped the
-        skill would otherwise keep a stale customer-visible copy after upgrade.
-        """
+    def test_install_preserves_unowned_stale_upsun_skill(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A retired canonical-looking name is not ownership evidence (WP05)."""
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
         skills_root = tmp_path / "skills_src"
         project = tmp_path / "project"
@@ -295,7 +288,8 @@ class TestInstallSharedRootAgent:
             tmp_path / "home" / ".claude" / "skills",
             project / ".claude" / "skills",
         ]:
-            assert not (root / RETIRED_UPSUN_SKILL).exists()
+            assert (root / RETIRED_UPSUN_SKILL / "SKILL.md").read_text(encoding="utf-8") == upsun_body
+            assert (root / RETIRED_UPSUN_SKILL / "scripts/use-upsun-env.sh").read_text(encoding="utf-8") == "#!/usr/bin/env bash\n"
             assert (root / "spk-team-sync" / "SKILL.md").is_file()
 
 
@@ -632,6 +626,11 @@ class TestCopyDelivery:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.symlink_to(legacy_target)
 
+        from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+        entry = ManagedFileEntry("my-skill", "SKILL.md", dest.relative_to(project).as_posix(),
+                                 SKILL_CLASS_SHARED, "codex", compute_content_hash(legacy_target), "historical", "symlink")
+        save_manifest(ManagedSkillManifest(entries=[entry]), project)
+
         entries = install_skills_for_agent(project, "codex", [skill])
 
         assert not dest.is_symlink()
@@ -664,9 +663,8 @@ class TestCopyDelivery:
         assert mode == "copy"
         assert dest.read_text(encoding="utf-8") == "canonical\n"
 
-    def test_divergent_copy_archived_then_replaced(self, tmp_path: Path) -> None:
-        """User-modified content at the destination is archived to the backup
-        root before the fresh copy lands (behavior preserved from symlink era)."""
+    def test_owned_stale_copy_archived_then_replaced(self, tmp_path: Path) -> None:
+        """An unmodified recorded copy is archived before a canonical update."""
         from specify_cli.skills.installer import _project_skill_file
 
         source = tmp_path / "global" / "SKILL.md"
@@ -676,6 +674,12 @@ class TestCopyDelivery:
         dest = project / ".agents" / "skills" / "my-skill" / "SKILL.md"
         dest.parent.mkdir(parents=True)
         dest.write_text("user edited\n", encoding="utf-8")
+        from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+        assert _project_skill_file(source, dest, project)[0] == "preserved"
+        assert dest.read_text(encoding="utf-8") == "user edited\n"
+        entry = ManagedFileEntry("my-skill", "SKILL.md", dest.relative_to(project).as_posix(),
+                                 SKILL_CLASS_SHARED, "codex", compute_content_hash(dest), "historical")
+        save_manifest(ManagedSkillManifest(entries=[entry]), project)
 
         archived: list[Path] = []
         mode, backup_root = _project_skill_file(
@@ -934,3 +938,412 @@ def test_backup_rechecks_collision_and_parent_before_any_write(tmp_path: Path, c
     with pytest.raises(ValueError, match="input changed"):
         create_skill_backup(prepared)
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+@pytest.mark.parametrize("invalid", ["missing-catalog", "config-yaml", "config-shape"])
+def test_project_owner_rejects_missing_required_sources_and_corrupt_config(tmp_path: Path, invalid: str) -> None:
+    from specify_cli.skills.installer import assess_project_skills
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    if invalid != "missing-catalog":
+        _make_skill(tmp_path / "source", "alpha")
+        (project / ".kittify").mkdir()
+        (project / ".kittify/config.yaml").write_text("agents: [" if invalid == "config-yaml" else "- invalid\n")
+    before = snapshot({"sandbox": tmp_path})
+    assessment = assess_project_skills(
+        AssessmentInputs(OperationRoot("project", "project", project), consent=ApplyConsent(automatic=True)),
+        SkillRegistry(tmp_path / "source"), ("claude",),
+    )
+    assert not assessment.complete and assessment.diagnostics
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_project_owner_exact_effects_shared_and_idempotent(tmp_path: Path) -> None:
+    from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
+    from specify_cli.skills.manifest import load_manifest
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "alpha", references=["more.md"])
+    _make_skill(tmp_path / "source", "beta")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    before = snapshot({"sandbox": tmp_path})
+    assessment = assess_project_skills(inputs, registry, ("claude", "codex", "copilot"))
+    assert assessment.complete, assessment.diagnostics
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    physical_before = snapshot({"project": project})
+    with recheck_project_skills(assessment) as diagnostics:
+        assert not diagnostics
+        result = apply_project_skills(assessment, consent)
+    assert result.outcome == "applied", result
+    assert set(result.succeeded) == {effect.id for effect in assessment.effects}
+    actual = net_delta(physical_before, snapshot({"project": project}))
+    expected_states = {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)
+                       for effect in assessment.effects}
+    assert {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)
+            for effect in actual} == expected_states
+    manifest = load_manifest(project, strict=True)
+    assert manifest is not None and len(manifest.entries) == 9
+    shared = next(effect for effect in assessment.effects if effect.path == ".agents/skills/alpha/SKILL.md")
+    assert shared.logical_owners == ("codex", "copilot")
+    assert len(shared.surface_ids) == 2
+    current = snapshot({"sandbox": tmp_path})
+    second = assess_project_skills(inputs, registry, ("claude", "copilot", "codex"))
+    assert second.complete and not second.effects
+    with recheck_project_skills(second) as diagnostics:
+        assert not diagnostics
+        assert apply_project_skills(second, consent).outcome == "applied"
+    assert_unchanged(current, snapshot({"sandbox": tmp_path}))
+
+
+@pytest.mark.parametrize("change", ["source", "mode", "mtime", "catalog", "config", "manifest", "destination", "parent"])
+def test_project_owner_rechecks_whole_batch_before_writes(tmp_path: Path, change: str) -> None:
+    import os
+    from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    skill = _make_skill(tmp_path / "source", "alpha", references=["more.md"])
+    (project / ".claude").mkdir()
+    (project / ".kittify").mkdir()
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    assessment = assess_project_skills(AssessmentInputs(OperationRoot("project", "project", project), consent=consent), registry, ("claude",))
+    assert assessment.complete
+    if change == "source":
+        skill.skill_md.write_bytes(b"changed source")
+    elif change == "mode":
+        skill.skill_md.chmod(0o444)
+    elif change == "mtime":
+        info = skill.skill_md.stat()
+        os.utime(skill.skill_md, ns=(info.st_atime_ns, info.st_mtime_ns + 1_000_000_000))
+    elif change == "catalog":
+        (skill.skill_dir / "references/new.md").write_bytes(b"new source")
+    elif change == "config":
+        (project / ".kittify/config.yaml").write_bytes(b"changed: true")
+    elif change == "manifest":
+        (project / ".kittify/skills-manifest.json").write_bytes(b"{}")
+    elif change == "destination":
+        (project / ".claude/skills").mkdir()
+    else:
+        (project / ".claude").rename(tmp_path / "outside")
+        (project / ".claude").symlink_to(tmp_path / "outside", target_is_directory=True)
+    before = snapshot({"sandbox": tmp_path})
+    with recheck_project_skills(assessment) as diagnostics:
+        assert diagnostics and diagnostics[0].code == "precondition_changed"
+        assert apply_project_skills(assessment, consent).outcome == "precondition_changed"
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_project_owner_one_backup_set_and_retained_clock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    skills = [_make_skill(tmp_path / "source", name) for name in ("alpha", "beta")]
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    first = installer.assess_project_skills(inputs, registry, ("claude",))
+    with installer.recheck_project_skills(first):
+        assert installer.apply_project_skills(first, consent).outcome == "applied"
+    for skill in skills:
+        skill.skill_md.write_bytes(b"changed canonical " + skill.name.encode())
+    assessment = installer.assess_project_skills(inputs, registry, ("claude",))
+    assert assessment.complete
+    backup_files = [effect for effect in assessment.effects if effect.path.startswith(".kittify/.migration-backup/") and effect.after.kind == "file"]
+    assert len(backup_files) == 2
+    assert len({Path(effect.path).parts[3] for effect in backup_files}) == 1
+    assert isinstance(assessment.prepared, installer.PreparedProjectSkills)
+    manifest = next(write for write in assessment.prepared.writes if write.effect.path == ".kittify/skills-manifest.json")
+
+    def clock_forbidden() -> str:
+        raise AssertionError("apply sampled clock")
+
+    monkeypatch.setattr(installer, "now_utc_iso", clock_forbidden)
+    with installer.recheck_project_skills(assessment) as diagnostics:
+        assert not diagnostics
+        assert installer.apply_project_skills(assessment, consent).outcome == "applied"
+    assert (project / ".kittify/skills-manifest.json").read_bytes() == manifest.content
+    assert all((project / effect.path).read_bytes() for effect in backup_files)
+
+
+def test_project_owner_drift_consent_does_not_block_independent_missing_file(tmp_path: Path) -> None:
+    from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
+    from specify_cli.skills.manifest import load_manifest
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "alpha", references=["more.md"])
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    initial = assess_project_skills(inputs, registry, ("claude",))
+    with recheck_project_skills(initial):
+        assert apply_project_skills(initial, consent).outcome == "applied"
+    path = ".claude/skills/alpha/SKILL.md"
+    dest = project / path
+    dest.chmod(0o644)
+    dest.write_bytes(b"user edits")
+    missing = project / ".claude/skills/alpha/references/more.md"
+    missing.unlink()
+    assessment = assess_project_skills(inputs, registry, ("claude",))
+    assert any(item.path == path and item.state == "consent_required" for item in assessment.dispositions)
+    assert not any(effect.path == path for effect in assessment.effects)
+    with recheck_project_skills(assessment):
+        assert apply_project_skills(assessment, consent).outcome == "applied"
+    assert dest.read_bytes() == b"user edits" and missing.is_file()
+    explicit = ApplyConsent(automatic=True, overwrite_paths=(path,))
+    changed = assess_project_skills(AssessmentInputs(inputs.root, consent=explicit), registry, ("claude",))
+    assert any(effect.path == path for effect in changed.effects)
+    with recheck_project_skills(changed):
+        assert apply_project_skills(changed, explicit).outcome == "applied"
+    assert dest.read_bytes() != b"user edits"
+    retained = [effect for effect in changed.effects if effect.path.startswith(".kittify/.migration-backup/") and effect.after.kind == "file"]
+    assert len(retained) == 1 and retained[0].destination.read_bytes() == b"user edits"
+    assert load_manifest(project, strict=True) is not None
+
+
+def test_project_owner_partial_io_reports_exact_completed_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "alpha", references=["more.md"])
+    consent = ApplyConsent(automatic=True)
+    assessment = installer.assess_project_skills(
+        AssessmentInputs(OperationRoot("project", "project", project), consent=consent),
+        SkillRegistry(tmp_path / "source"), ("claude",),
+    )
+    assert assessment.complete
+    real_write = installer._apply_project_skill_write
+    executed: list[str] = []
+
+    def failing_write(write: installer.PreparedProjectSkillWrite) -> None:
+        if write.effect.path.endswith("references/more.md"):
+            raise OSError("injected owner I/O failure")
+        real_write(write)
+        executed.append(write.effect.id)
+
+    monkeypatch.setattr(installer, "_apply_project_skill_write", failing_write)
+    with installer.recheck_project_skills(assessment):
+        result = installer.apply_project_skills(assessment, consent)
+    assert result.outcome == "partial"
+    assert result.succeeded == tuple(executed)
+    assert len(result.failed) == 1 and result.skipped
+    assert set(result.succeeded + result.failed + result.skipped) == {effect.id for effect in assessment.effects}
+    assert (project / ".claude/skills/alpha/SKILL.md").is_file()
+    assert not (project / ".kittify/skills-manifest.json").exists()
+    assert "injected owner I/O failure" in result.diagnostics[0].message
+
+
+@pytest.mark.parametrize("known_target", [True, False])
+def test_project_owner_converts_only_proven_managed_links(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, known_target: bool) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+
+    project = tmp_path / "project"
+    dest = project / ".claude/skills/alpha/SKILL.md"
+    dest.parent.mkdir(parents=True)
+    _make_skill(tmp_path / "source", "alpha")
+    global_root = tmp_path / "global"
+    monkeypatch.setattr(installer, "get_primary_global_skill_root", lambda agent: global_root)
+    target = global_root / "alpha/SKILL.md" if known_target else tmp_path / "user-link-target"
+    dest.symlink_to(target)
+    entry = ManagedFileEntry("alpha", "SKILL.md", dest.relative_to(project).as_posix(),
+                             SKILL_CLASS_NATIVE, "claude", "sha256:" + "a" * 64, "historical", "symlink")
+    save_manifest(ManagedSkillManifest(entries=[entry]), project)
+    consent = ApplyConsent(automatic=True, overwrite_paths=(entry.installed_path,))
+    assessment = installer.assess_project_skills(AssessmentInputs(OperationRoot("project", "project", project), consent=consent),
+                                                SkillRegistry(tmp_path / "source"), ("claude",))
+    assert assessment.complete, assessment.diagnostics
+    with installer.recheck_project_skills(assessment) as diagnostics:
+        assert not diagnostics
+        assert installer.apply_project_skills(assessment, consent).outcome == "applied"
+    if known_target:
+        assert dest.is_file() and not dest.is_symlink()
+        backup = next(effect for effect in assessment.effects if effect.after.kind == "symlink")
+        assert backup.destination.readlink() == target
+    else:
+        assert dest.readlink() == target
+        assert any(item.state == "preserve" for item in assessment.dispositions)
+    assert not global_root.exists()
+
+
+def test_project_owner_retirement_preserves_shared_owners_and_unknown_members(tmp_path: Path) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.skills.manifest import load_manifest
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import net_delta, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "alpha")
+    _make_skill(tmp_path / "source", "beta")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    initial = installer.assess_project_skills(inputs, registry, ("codex", "copilot"))
+    with installer.recheck_project_skills(initial):
+        assert installer.apply_project_skills(initial, consent).outcome == "applied"
+    shutil.rmtree(tmp_path / "source/alpha")
+    dest = project / ".agents/skills/alpha/SKILL.md"
+    notes = dest.parent / "user-notes"
+    notes.write_bytes(b"preserve unknown member")
+    partial = installer.assess_project_skills(inputs, registry, ("codex",))
+    assert partial.complete
+    assert not any(effect.path == dest.relative_to(project).as_posix() for effect in partial.effects)
+    with installer.recheck_project_skills(partial):
+        assert installer.apply_project_skills(partial, consent).outcome == "applied"
+    manifest = load_manifest(project, strict=True)
+    assert manifest is not None
+    assert [entry.agent_key for entry in manifest.find_by_skill("alpha")] == ["copilot"]
+    assert dest.is_file()
+    final = installer.assess_project_skills(inputs, registry, ("copilot",))
+    assert final.complete
+    before = snapshot({"project": project})
+    with installer.recheck_project_skills(final):
+        assert installer.apply_project_skills(final, consent).outcome == "applied"
+    assert not dest.exists() and notes.read_bytes() == b"preserve unknown member"
+    assert {(effect.path, effect.action) for effect in net_delta(before, snapshot({"project": project}))} == {
+        (effect.path, effect.action) for effect in final.effects
+    }
+
+
+def test_project_owner_refuses_unguarded_and_changed_consent(tmp_path: Path) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "alpha")
+    consent = ApplyConsent(automatic=True)
+    assessment = installer.assess_project_skills(AssessmentInputs(OperationRoot("project", "project", project), consent=consent),
+                                                SkillRegistry(tmp_path / "source"), ("claude",))
+    before = snapshot({"sandbox": tmp_path})
+    assert installer.apply_project_skills(assessment, consent).outcome == "precondition_changed"
+    with installer.recheck_project_skills(assessment):
+        assert installer.apply_project_skills(assessment, ApplyConsent()).outcome == "skipped"
+        assert installer.apply_project_skills(assessment, consent).outcome == "precondition_changed"
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_real_consumer_uses_one_selected_global_batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.runtime import asset_preparation
+    from specify_cli.runtime.agent_skills import GlobalSkillSelection
+    from specify_cli.skills.manifest import save_manifest
+    from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    project = tmp_path / "project"
+    project.mkdir()
+    alpha = _make_skill(tmp_path / "source", "caller-alpha")
+    _make_skill(tmp_path / "source", "caller-beta")
+    unknown = home / ".claude/skills/caller-beta/SKILL.md"
+    unknown.parent.mkdir(parents=True)
+    unknown.write_bytes(b"untracked global user content")
+    registry = SkillRegistry(tmp_path / "source")
+    calls: list[GlobalSkillSelection] = []
+    real_assess = asset_preparation.assess_global_assets
+
+    def observed_assess(*, runtime: bool = True, commands: bool = True, skills: bool = True,
+                        agent_keys: list[str] | None = None, skill_selection: GlobalSkillSelection | None = None,
+                        consent: ApplyConsent = ApplyConsent()) -> OwnerAssessment:
+        assert skill_selection is not None
+        calls.append(skill_selection)
+        return real_assess(runtime=runtime, commands=commands, skills=skills, agent_keys=agent_keys,
+                           skill_selection=skill_selection, consent=consent)
+
+    monkeypatch.setattr(asset_preparation, "assess_global_assets", observed_assess)
+    manifest = install_all_skills(project, ["claude"], registry)
+    assert len(calls) == 1 and calls[0].agent_keys == ("claude",)
+    save_manifest(manifest, project)
+    assert {entry.skill_name for entry in manifest.entries} == {"caller-alpha", "caller-beta"}
+    assert unknown.read_bytes() == b"untracked global user content"
+    assert not (home / ".agents").exists()
+    global_alpha = home / ".claude/skills/caller-alpha/SKILL.md"
+    assert global_alpha.read_bytes() == alpha.skill_md.read_bytes()
+    alpha.skill_md.write_bytes(b"---\nname: caller-alpha\n---\nupdated source\n")
+    save_manifest(install_all_skills(project, ["claude"], registry), project)
+    assert len(calls) == 2
+    assert global_alpha.read_bytes() == alpha.skill_md.read_bytes()
+    assert (project / ".claude/skills/caller-alpha/SKILL.md").read_bytes() == alpha.skill_md.read_bytes()
+    assert unknown.read_bytes() == b"untracked global user content"
+    before = snapshot({"sandbox": tmp_path})
+    save_manifest(install_all_skills(project, ["claude"], registry), project)
+    assert len(calls) == 3
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    empty = tmp_path / "empty-source"
+    empty.mkdir()
+    before_empty = snapshot({"sandbox": tmp_path})
+    save_manifest(install_all_skills(project, ["claude"], SkillRegistry(empty)), project)
+    save_manifest(install_all_skills(project, [], registry), project)
+    assert len(calls) == 5
+    assert_unchanged(before_empty, snapshot({"sandbox": tmp_path}))
+
+
+@pytest.mark.parametrize("all_families", [False, True])
+def test_coordinated_skill_installation_exact_delta_and_project_precheck(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, all_families: bool,
+) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
+    monkeypatch.setenv("OPENCODE_CONFIG_DIR", str(home / ".config/opencode"))
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "caller-alpha", references=["more.md"])
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    before = snapshot({"sandbox": tmp_path})
+    installation = installer.assess_skill_installation(
+        inputs, registry, ("codex", "copilot"),
+        runtime=all_families, commands=all_families, command_agent_keys=["claude"],
+    )
+    assert installation.global_assets.complete and installation.project_skills.complete
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    results = installer.apply_skill_installation(installation, consent)
+    assert all(result.outcome == "applied" for result in results), results
+    effects = installation.global_assets.effects + installation.project_skills.effects
+    expected = {(effect.destination.relative_to(tmp_path).as_posix(), effect.action,
+                 effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode) for effect in effects}
+    actual = {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)
+              for effect in net_delta(before, snapshot({"sandbox": tmp_path}))}
+    assert actual == expected
+    assert {effect.id for effect in effects} == {effect_id for result in results for effect_id in result.succeeded}
+    if all_families:
+        assert (home / ".kittify/cache/runtime_bootstrap-assets.json").is_file()
+        assert (home / ".kittify/cache/slash_commands-assets.json").is_file()
+        assert (home / ".kittify/cache/global_skills-assets.json").is_file()
+    source = tmp_path / "source/caller-alpha/SKILL.md"
+    source.write_bytes(b"new source")
+    changed = installer.assess_skill_installation(inputs, registry, ("codex", "copilot"))
+    (project / ".agents/skills/caller-alpha/references/more.md").unlink()
+    current = snapshot({"sandbox": tmp_path})
+    refused = installer.apply_skill_installation(changed, consent)
+    assert all(result.outcome == "precondition_changed" for result in refused)
+    assert_unchanged(current, snapshot({"sandbox": tmp_path}))
