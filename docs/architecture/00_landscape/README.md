@@ -35,8 +35,11 @@ implementation-agnostic:
 | Event Store | Filesystem (JSONL, frontmatter, meta.json) | Database, cloud event store |
 | Orchestration | Python modules (lifecycle engine, status) | Same — domain logic |
 | Agent Tool Connectors | In-tool (`spec-kitty implement`) | Async shell, SDK, remote API |
-| Doctrine | YAML artifacts in `src/doctrine/`; canonical skill packs in `src/doctrine/skills/`; deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
-| Charter | Compiled governance bundle in `.kittify/` | Same — governance artifacts |
+| Doctrine (offering) | Pack content in `packs/built-in/`; doctrine code + canonical skill packs in `src/charter/offering/` (incl. `src/charter/offering/skills/`); deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
+| Charter | Governance authority in `src/charter/` (absorbed the former `src/doctrine/` package at `src/charter/offering/`); compiled bundle in `.kittify/` | Same — governance artifacts |
+| Glossary | Terminology / semantic-integrity pipeline + DRG glossary bridge in `src/glossary/` | Same — knowledge artifacts |
+| Runtime | Canonical mission control loop in `src/runtime/next/_internal_runtime/` | Same — domain logic |
+| Mission Runtime | Artifact-placement seam in `src/mission_runtime/` (PlacementSeam, resolver port, identity, lifecycle_phase) | Same — domain logic |
 | Kernel | Zero-dependency shared primitives in `src/kernel/` | Same — utility layer |
 
 Whether a module is in-process, a separate service, or a remote API is an
@@ -159,8 +162,10 @@ scope which artifacts apply to each execution phase within a mission.
 Consumed by Charter (compilation source and action-scoped intersection)
 and by Agent Tool Connectors (execution-time governance context). The Skills
 Installer (`specify_cli/skills/`) deploys canonical skill packs from
-`doctrine/skills/` into agent directories during `spec-kitty init`. Doctrine
-itself is standalone — it does not depend on any other container.
+`src/charter/offering/skills/` into agent directories during `spec-kitty init`.
+The doctrine code now lives under `src/charter/offering/` (the former top-level
+`src/doctrine/` package was absorbed there in the convergence; `src/doctrine.py`
+is a deprecation shim) — it depends on nothing except Kernel.
 
 ### Charter
 
