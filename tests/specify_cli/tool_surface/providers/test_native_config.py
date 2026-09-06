@@ -142,3 +142,17 @@ def test_remove_is_noop(tmp_path: Path) -> None:
     provider = NativeConfigProvider()
     instance = provider.expand(native_config_definition(), "vibe", tmp_path)[0]
     assert provider.remove(instance) is False
+
+
+def test_wp07_existing_vibe_helper_preserves_unowned_toml(tmp_path: Path) -> None:
+    from specify_cli.skills.vibe_config import ensure_project_skill_path
+
+    target = tmp_path / ".vibe/config.toml"
+    target.parent.mkdir()
+    original = (
+        '# personal config\r\nskill_paths = ["custom"] # retain comment\r\n'
+        '\r\n[tools]\r\nskill_paths = ["nested"]\r\ncustom = "value"\r\n\r\n'
+    ).encode()
+    target.write_bytes(original)
+    ensure_project_skill_path(tmp_path)
+    assert target.read_bytes() == original.replace(b'["custom"]', b'["custom", ".agents/skills"]')

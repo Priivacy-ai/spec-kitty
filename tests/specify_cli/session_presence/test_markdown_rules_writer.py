@@ -17,6 +17,21 @@ from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWri
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_wp07_existing_markdown_second_write_has_no_churn(tmp_path: Path) -> None:
+    import os
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    writer = MarkdownRulesWriter("codex", "AGENTS.md", True)
+    content = SessionPresenceContent("3.2.0", "example", "healthy", None)
+    writer.write(tmp_path, content)
+    target = tmp_path / "AGENTS.md"
+    target.chmod(0o640)
+    os.utime(target, ns=(1_000_000_000, 1_000_000_000))
+    before = snapshot({"project": tmp_path})
+    writer.write(tmp_path, content)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 def _make_content(
     version: str = "3.2.0",
     slug: str = "test-project",

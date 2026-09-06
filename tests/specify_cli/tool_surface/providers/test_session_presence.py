@@ -31,6 +31,25 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_wp07_existing_repair_refuses_malformed_sibling_before_orientation(tmp_path: Path) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    target = tmp_path / ".claude/CLAUDE.md"
+    _write_orientation(target, version="0.1.0")
+    (target.parent / "settings.json").write_bytes(b'{"hooks":')
+    provider = SessionPresenceProvider()
+    statuses = [
+        provider.probe(instance)
+        for instance in provider.expand(context_file_definition(), "claude", tmp_path)
+    ]
+    assert statuses[0].state == STATE_STALE
+    before = snapshot({"project": tmp_path})
+    result = provider.repair(tmp_path, statuses)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert result.failed
+    assert not result.repaired
+
+
 def _installed_version() -> str:
     from importlib.metadata import version
 
