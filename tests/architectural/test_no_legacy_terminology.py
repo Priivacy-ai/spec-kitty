@@ -12,14 +12,26 @@ module so the test file does not flag itself.
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 
+# #3919: reviewed recovery evidence is immutable, not a general archive exemption.
 _RECEIPT_PATH = "docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json"
 _RECEIPT_SHA256 = "f320ada834fbabcddd7186147d606551dcecf066dad4c4eef182eafcf0a7f4b8"
+
+# #3919: collection evidence introduced by 177e0626 and frozen by 89c8e373.
+# Only these reviewed whole-file bytes qualify, not other reports or node IDs.
+_CENSUS_DIRECTORY = "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw"
+_CENSUS_SHA256 = {
+    f"{_CENSUS_DIRECTORY}/base-census.json": "c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b",
+    f"{_CENSUS_DIRECTORY}/head-census.json": "44349d051e845bc13a97babb59eb4034bebb515ab85cc9bc3ba111a6613c9bda",
+}
 
 # Architectural invariant scan that shells out to ``git grep`` over the live
 # repo, so it carries both the architectural-gate marker and ``git_repo``
@@ -77,14 +89,124 @@ _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
 
 
 def _line_is_excluded(line: str) -> bool:
-    """True when a ``git grep`` hit line falls under an excluded path fragment.
+    """Exclude only canonical source paths; content never grants an exemption."""
+    hit = _hit_parts(line)
+    if hit is None:
+        return False
+    path = hit[0]
+    directories = path.split("/")[:-1]
+    for excluded in _EXCLUDED_PATH_FRAGMENTS:
+        if excluded in {".worktrees/", ".venv/", "node_modules/", ".git/"}:
+            if excluded[:-1] in directories:
+                return True
+        elif (excluded.endswith("/") and path.startswith(excluded)) or path == excluded:
+            return True
+    return False
 
-    A hit line has the form ``<path>:<line-number>:<content>``; a match is
-    excluded when any excluded fragment appears anywhere in it. Extracted as a
-    pure seam so the exclusion policy (including the narrow docs/adr/ exemption)
-    is testable without shelling out to git.
+
+def _hit_parts(line: str) -> tuple[str, int, str] | None:
+    """Parse diagnostic hits, JSON-quoted for unusual paths by the Git adapter.
+
+    Legacy plain hits remain supported by the pure seams. Malformed or
+    noncanonical paths are retained as violations, never normalized to history.
     """
-    return any(fragment in line for fragment in _EXCLUDED_PATH_FRAGMENTS)
+    if line.startswith('"'):
+        try:
+            path, end = json.JSONDecoder().raw_decode(line)
+        except ValueError:
+            return None
+        remainder = line[end:]
+    else:
+        path, separator, rest = line.partition(":")
+        remainder = separator + rest
+    match = re.fullmatch(r":([1-9][0-9]*):(.*)", remainder, flags=re.DOTALL)
+    if not isinstance(path, str) or match is None:
+        return None
+    if "\\" in path or any(part in {"", ".", ".."} for part in path.split("/")):
+        return None
+    return path, int(match[1]), match[2]
+
+
+def _git_grep_hits(needle: str, roots: tuple[str, ...], *, kind: str, ignore_case: bool = False) -> list[str]:
+    """Read NUL-delimited paths and line numbers, independent of Git quoting/config."""
+    cmd = [
+        "git",
+        "-C",
+        str(_repo_root()),
+        "grep",
+        "--null",
+        "--line-number",
+        "--full-name",
+        "--no-color",
+        "--no-heading",
+        "--no-break",
+        "--text",
+        "--fixed-strings",
+        *(["--ignore-case"] if ignore_case else []),
+        "-e",
+        needle,
+        "--",
+        *(f"{root}/" for root in roots),
+    ]
+    result = subprocess.run(cmd, capture_output=True, check=False)
+    if result.returncode == 1:
+        return []
+    if result.returncode != 0:
+        raise RuntimeError(f"git grep failed for {kind} {needle!r}: exit={result.returncode} stderr={result.stderr!r}")
+    return _decode_grep_hits(result.stdout)
+
+
+def _decode_grep_hits(output: bytes) -> list[str]:
+    hits: list[str] = []
+    remaining = output
+    while remaining:
+        path, path_separator, remaining = remaining.partition(b"\0")
+        number, number_separator, remaining = remaining.partition(b"\0")
+        content, newline, remaining = remaining.partition(b"\n")
+        if not path or not path_separator or not number_separator or not newline or not re.fullmatch(rb"[1-9][0-9]*", number):
+            raise RuntimeError("Malformed git grep output; refusing to suppress hits")
+        # Git's -z bypasses C-style path quoting. JSON is only our diagnostic
+        # encoding; it keeps colons, newlines and non-ASCII path bytes unambiguous.
+        source_path = path.decode("utf-8", errors="surrogateescape")
+        if not source_path.isascii() or any(char in source_path for char in ':"\\\r\n\t'):
+            source_path = json.dumps(source_path)
+        hits.append(f"{source_path}:{number.decode('ascii')}:{content.decode('utf-8', errors='surrogateescape')}")
+    if not hits:
+        raise RuntimeError("Malformed git grep output: success without hits")
+    return hits
+
+
+def _is_reviewed_recovery_hit(line: str, root: Path) -> bool:
+    hit = _hit_parts(line)
+    if hit is None or hit[0] != _RECEIPT_PATH:
+        return False
+    content = hit[2]
+    if content.strip() != f'"rename-{_FORBIDDEN_TERMS[0]}-to-status-commit-01KSPN6C",':
+        return False
+    return _matches_frozen_source_hit(hit, root, _RECEIPT_SHA256)
+
+
+def _is_reviewed_census_hit(line: str, root: Path) -> bool:
+    hit = _hit_parts(line)
+    if hit is None or (expected := _CENSUS_SHA256.get(hit[0])) is None:
+        return False
+    return _matches_frozen_source_hit(hit, root, expected)
+
+
+def _matches_frozen_source_hit(hit: tuple[str, int, str], root: Path, expected: str) -> bool:
+    relative, number, content = hit
+    path = root
+    for component in relative.split("/"):
+        path /= component
+        if path.is_symlink():
+            return False
+    evidence = path.read_bytes()
+    # This is byte-integrity evidence, not a charter-content hash.
+    if hashlib.sha256(evidence).hexdigest() != expected:  # noqa: TID251
+        return False
+    # Git separates content lines only on LF, retaining any other source bytes.
+    lines = evidence.removesuffix(b"\n").split(b"\n")
+    return number <= len(lines) and lines[number - 1] == content.encode("utf-8", errors="surrogateescape")
 
 
 def _repo_root() -> Path:
@@ -97,32 +219,13 @@ def _repo_root() -> Path:
 
 
 def _grep_for(term: str) -> list[str]:
-    """Return all matching `<file>:<line>:<content>` lines for `term`.
-
-    Uses `git grep` so .gitignore exclusions apply automatically (excludes
-    .venv/, node_modules/, etc.). If git is unavailable, falls back to a
-    manual walk; this is a best-effort fallback for environments where the
-    test runs outside a checkout.
-    """
+    """Scan tracked active sources; Git/read/parse errors fail closed."""
     root = _repo_root()
-    cmd = [
-        "git",
-        "-C",
-        str(root),
-        "grep",
-        "--line-number",
-        "--fixed-strings",
-        term,
-        "--",
-        *(f"{r}/" for r in _SCAN_ROOTS),
+    return [
+        line
+        for line in _git_grep_hits(term, _SCAN_ROOTS, kind="term")
+        if not _line_is_excluded(line) and not _is_reviewed_recovery_hit(line, root) and not _is_reviewed_census_hit(line, root)
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    # git grep exits 1 when no matches, 0 when matches found, >1 on error.
-    if result.returncode == 1:
-        return []
-    if result.returncode != 0:
-        raise RuntimeError(f"git grep failed for term {term!r}: exit={result.returncode} stderr={result.stderr!r}")
-    return [line for line in result.stdout.splitlines() if not _line_is_excluded(line)]
 
 
 @pytest.mark.parametrize("term", _FORBIDDEN_TERMS)
@@ -245,26 +348,9 @@ def _grep_for_phrase_ci(phrase: str, *, roots: tuple[str, ...]) -> list[str]:
     baseline application is a separate, pure step in ``_hits_outside_baseline``
     so it stays independently testable without a git subprocess).
     """
-    root = _repo_root()
-    cmd = [
-        "git",
-        "-C",
-        str(root),
-        "grep",
-        "--line-number",
-        "--fixed-strings",
-        "--ignore-case",
-        phrase,
-        "--",
-        *(f"{r}/" for r in roots),
+    return [
+        line for line in _git_grep_hits(phrase, roots, kind="phrase", ignore_case=True) if (hit := _hit_parts(line)) is None or not hit[0].startswith("docs/adr/")
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    # git grep exits 1 when no matches, 0 when matches found, >1 on error.
-    if result.returncode == 1:
-        return []
-    if result.returncode != 0:
-        raise RuntimeError(f"git grep failed for phrase {phrase!r}: exit={result.returncode} stderr={result.stderr!r}")
-    return [line for line in result.stdout.splitlines() if "docs/adr/" not in line.split(":", 1)[0]]
 
 
 def _hits_outside_baseline(hits: list[str], baseline: frozenset[str]) -> dict[str, list[str]]:
@@ -276,7 +362,8 @@ def _hits_outside_baseline(hits: list[str], baseline: frozenset[str]) -> dict[st
     """
     violations: dict[str, list[str]] = {}
     for line in hits:
-        rel_path = line.split(":", 1)[0]
+        hit = _hit_parts(line)
+        rel_path = hit[0] if hit is not None else line
         if rel_path in baseline:
             continue
         violations.setdefault(rel_path, []).append(line)
@@ -479,7 +566,7 @@ def test_exclusion_preserves_legitimate_paths(path: str) -> None:
     assert _line_is_excluded(f"{path}:7:{_FORBIDDEN_TERMS[0]}")
 
 
-def _stage_scanner_fixture(root: Path, files: dict[str, str | bytes]) -> None:
+def _stage_scanner_fixture(root: Path, files: Mapping[str, str | bytes]) -> None:
     subprocess.run(["git", "init", "--quiet", str(root)], check=True, capture_output=True)
     for relative, content in files.items():
         path = root / relative
@@ -504,7 +591,7 @@ def test_real_term_scanner_keeps_active_hits(tmp_path: Path, monkeypatch: pytest
     _stage_scanner_fixture(
         tmp_path,
         {
-            **{path: f"Use {term}; see docs/adr/history.md\n" for path in active},
+            **dict.fromkeys(active, f"Use {term}; see docs/adr/history.md\n"),
             "docs/adr/history.md": f"Historical {term}\n",
         },
     )
@@ -543,7 +630,8 @@ def test_real_scanners_fail_closed_outside_git(tmp_path: Path, monkeypatch: pyte
 
 
 def test_reviewed_receipt_bytes_are_preserved() -> None:
-    assert hashlib.sha256((_repo_root() / _RECEIPT_PATH).read_bytes()).hexdigest() == _RECEIPT_SHA256
+    # Reviewed file-integrity checksum; deliberately not charter normalization.
+    assert hashlib.sha256((_repo_root() / _RECEIPT_PATH).read_bytes()).hexdigest() == _RECEIPT_SHA256  # noqa: TID251
 
 
 @pytest.mark.parametrize("mutation", ["none", "append", "replace", "alongside", "lookalike"])
@@ -553,7 +641,8 @@ def test_real_scanner_receipt_boundary(
     mutation: str,
 ) -> None:
     receipt = (_repo_root() / _RECEIPT_PATH).read_bytes()
-    assert hashlib.sha256(receipt).hexdigest() == _RECEIPT_SHA256
+    # Reviewed file-integrity checksum; deliberately not charter normalization.
+    assert hashlib.sha256(receipt).hexdigest() == _RECEIPT_SHA256  # noqa: TID251
     term = _FORBIDDEN_TERMS[0]
     prose = f"Use {term}; see docs/adr/history.md"
     if mutation == "append":
@@ -581,3 +670,133 @@ def test_real_scanner_receipt_boundary(
             assert len(hits) == 2, hits
         with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
             test_forbidden_term_does_not_appear(term)
+
+
+def test_real_scanners_empty_matches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _stage_scanner_fixture(tmp_path, {"docs/current.md": "Use status commits and consolidate lanes.\n"})
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    assert _grep_for(_FORBIDDEN_TERMS[0]) == []
+    assert _grep_for_phrase_ci("lane merge", roots=("docs",)) == []
+
+
+@pytest.mark.parametrize("output", [b"", b"docs/adr/history.md:1:bad\n", b"docs/a\0x\0bad\n", b"docs/a\x001\x00bad"])
+def test_scanners_reject_malformed_git_output(output: bytes, monkeypatch: pytest.MonkeyPatch) -> None:
+    def malformed(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.CompletedProcess(["git", "grep"], 0, stdout=output, stderr=b"")
+
+    monkeypatch.setattr(subprocess, "run", malformed)
+    with pytest.raises(RuntimeError, match="Malformed git grep output"):
+        _grep_for(_FORBIDDEN_TERMS[0])
+    with pytest.raises(RuntimeError, match="Malformed git grep output"):
+        _grep_for_phrase_ci("lane merge", roots=("docs",))
+
+
+@pytest.mark.parametrize("line", ['"docs/adr/broken:1:text', "docs/adr/file:zero:text", "/docs/adr/file:1:text"])
+def test_malformed_hits_cannot_join_phrase_baseline(line: str) -> None:
+    assert not _line_is_excluded(line)
+    assert _hits_outside_baseline([line], frozenset({"docs/adr/file"}))
+
+
+def test_receipt_hit_requires_real_matching_bytes(tmp_path: Path) -> None:
+    term = _FORBIDDEN_TERMS[0]
+    literal = f'"rename-{term}-to-status-commit-01KSPN6C",'
+    source = (_repo_root() / _RECEIPT_PATH).read_bytes()
+    _stage_scanner_fixture(tmp_path, {_RECEIPT_PATH: source})
+    assert not _is_reviewed_recovery_hit(f"{_RECEIPT_PATH}:1:{literal}", tmp_path)
+    assert not _is_reviewed_recovery_hit(f"{_RECEIPT_PATH}:999999:{literal}", tmp_path)
+    assert not _is_reviewed_recovery_hit(f"{_RECEIPT_PATH}:337:Use {term}", tmp_path)
+    path = tmp_path / _RECEIPT_PATH
+    path.unlink()
+    with pytest.raises(FileNotFoundError):
+        _is_reviewed_recovery_hit(f"{_RECEIPT_PATH}:337:{literal}", tmp_path)
+    original = tmp_path / "original.json"
+    original.write_bytes(source)
+    path.symlink_to(original)
+    assert not _is_reviewed_recovery_hit(f"{_RECEIPT_PATH}:337:{literal}", tmp_path)
+
+
+def test_real_phrase_scanner_rejects_prose_in_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    receipt = (_repo_root() / _RECEIPT_PATH).read_bytes()
+    _stage_scanner_fixture(tmp_path, {_RECEIPT_PATH: receipt + b"\nlane merge; see docs/adr/history.md\n"})
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    assert len(_grep_for_phrase_ci("lane merge", roots=("docs",))) == 1
+    with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
+        test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
+
+
+@pytest.mark.parametrize("name", ["base", "head"])
+def test_frozen_census_bytes(name: str) -> None:
+    assert len(_CENSUS_SHA256) == 2
+    relative = f"{_CENSUS_DIRECTORY}/{name}-census.json"
+    # Parent-reviewed whole-file evidence integrity, not charter hashing.
+    assert hashlib.sha256((_repo_root() / relative).read_bytes()).hexdigest() == _CENSUS_SHA256[relative]  # noqa: TID251
+
+
+@pytest.mark.parametrize("name", ["base", "head"])
+@pytest.mark.parametrize("mutation", ["none", "append", "replace", "neighbor", "lookalike"])
+def test_real_census_term_boundary(name: str, mutation: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    relative = f"{_CENSUS_DIRECTORY}/{name}-census.json"
+    source = (_repo_root() / relative).read_bytes()
+    prose = f"Use {_FORBIDDEN_TERMS[0]}; see docs/adr/history.md"
+    if mutation == "append":
+        source += f"\n{prose}\n".encode()
+    elif mutation == "replace":
+        source = source.replace(b'"collection":', json.dumps(prose).encode() + b":", 1)
+    files = {relative: source}
+    if mutation == "neighbor":
+        files[f"{_CENSUS_DIRECTORY}/current.md"] = prose.encode()
+    elif mutation == "lookalike":
+        files = {relative + ".bak": source}
+    _stage_scanner_fixture(tmp_path, files)
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    for term in _FORBIDDEN_TERMS:
+        hits = _grep_for(term)
+        if mutation == "none" or (mutation == "neighbor" and term == _FORBIDDEN_TERMS[1]):
+            assert len(hits) == 0
+            test_forbidden_term_does_not_appear(term)
+        else:
+            assert len(hits) > 0
+            if mutation in {"append", "replace", "neighbor"} and term == _FORBIDDEN_TERMS[0]:
+                assert any(prose in hit for hit in hits)
+            if mutation == "neighbor":
+                assert len(hits) == 1
+            with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
+                test_forbidden_term_does_not_appear(term)
+
+
+@pytest.mark.parametrize("name", ["base", "head"])
+@pytest.mark.parametrize("attack", ["content", "line-number", "symlink", "parent-symlink"])
+def test_census_source_hits_cannot_be_forged(name: str, attack: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    relative = f"{_CENSUS_DIRECTORY}/{name}-census.json"
+    source = (_repo_root() / relative).read_bytes()
+    _stage_scanner_fixture(tmp_path, {relative: source})
+    path = tmp_path / relative
+    if attack == "symlink":
+        path.unlink()
+        original = tmp_path / "original.json"
+        original.write_bytes(source)
+        path.symlink_to(original)
+    elif attack == "parent-symlink":
+        original_dir = tmp_path / "original"
+        path.parent.rename(original_dir)
+        path.parent.symlink_to(original_dir, target_is_directory=True)
+    number = 2 if attack == "line-number" else 1
+    content = f"Use {_FORBIDDEN_TERMS[0]}" if attack == "content" else source.decode().rstrip("\n")
+    forged = f"{relative}:{number}:{content}"
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(sys.modules[__name__], "_git_grep_hits", lambda *args, **kwargs: [forged])
+    hits = _grep_for(_FORBIDDEN_TERMS[0])
+    assert len(hits) == 1
+    assert hits[0] == forged
+
+
+@pytest.mark.parametrize("name", ["base", "head"])
+def test_real_census_phrase_prose_remains_visible(name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    relative = f"{_CENSUS_DIRECTORY}/{name}-census.json"
+    source = (_repo_root() / relative).read_bytes()
+    _stage_scanner_fixture(tmp_path, {relative: source + b"\nlane merge; see docs/adr/history.md\n"})
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    hits = _grep_for_phrase_ci("lane merge", roots=("docs",))
+    assert any("lane merge; see docs/adr/history.md" in hit for hit in hits)
+    with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
+        test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
