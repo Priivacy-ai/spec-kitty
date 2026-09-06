@@ -16,6 +16,27 @@ from specify_cli.tool_surface.status import STATE_MISSING, STATE_PRESENT
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_probe_detects_one_missing_member_among_surviving_kinds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.specify_cli.tool_surface.bundles._support import full_plans
+
+    plans = full_plans(tmp_path)
+    provider = PluginBundleProvider()
+    monkeypatch.setattr(provider, "_plans_for_projection", lambda root: plans)
+    instances = provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path)
+    result = provider.repair(tmp_path, [provider.probe(i) for i in instances])
+    assert not result.failed
+    victim = instances[0].path.parent.parent / "skills/spec-kitty.plan/SKILL.md"
+    assert victim.is_file()
+    victim.unlink()
+    assert (victim.parent.parent / "spec-kitty.charter/SKILL.md").is_file()
+    status = provider.probe(instances[0])
+    assert status.state == STATE_MISSING, "Surviving kinds concealed an omitted member"
+    assert not provider.repair(tmp_path, [status]).failed
+    assert victim.read_bytes() == plans[0].instances[0].path.read_bytes()
+
+
 def test_plugin_bundle_repair_is_staging_only_and_dry_run_is_inert(
     tmp_path: Path,
 ) -> None:

@@ -15,6 +15,48 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_repeat_projection_preserves_every_node_mtime(tmp_path: Path) -> None:
+    import os
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, out = tmp_path / "project", tmp_path / "dist"
+    plans = full_plans(project)
+    projector = ClaudeCodeBundleProjector()
+    projector.project(plans, project, out)
+    for path in (out, *out.rglob("*")):
+        os.utime(path, ns=(1_000_000_000, 1_000_000_000), follow_symlinks=False)
+    before = snapshot({"stage": out})
+    projector.project(plans, project, out)
+    assert_unchanged(before, snapshot({"stage": out}))
+
+
+def test_missing_required_source_refuses_before_staging(tmp_path: Path) -> None:
+    project, out = tmp_path / "project", tmp_path / "dist"
+    plans = full_plans(project)
+    plans[0].instances[0].path.unlink()
+    try:
+        ClaudeCodeBundleProjector().project(plans, project, out)
+    except (OSError, ValueError):
+        pass
+    assert not out.exists(), "Missing source produced a successful empty placeholder"
+
+
+def test_projection_preserves_unknown_destination_link(tmp_path: Path) -> None:
+    project, out = tmp_path / "project", tmp_path / "dist"
+    plans = full_plans(project)
+    sentinel = tmp_path / "sentinel"
+    sentinel.write_bytes(b"custom outside staged tree")
+    destination = out / "skills/spec-kitty.plan/SKILL.md"
+    destination.parent.mkdir(parents=True)
+    destination.symlink_to(sentinel)
+    try:
+        ClaudeCodeBundleProjector().project(plans, project, out)
+    except (OSError, ValueError):
+        pass
+    assert destination.is_symlink()
+    assert sentinel.read_bytes() == b"custom outside staged tree"
+
+
 def test_claude_code_bundle_layout_is_correct(tmp_path: Path) -> None:
     project = tmp_path / "proj"
     out = tmp_path / "dist"
