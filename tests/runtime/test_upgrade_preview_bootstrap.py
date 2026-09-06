@@ -514,3 +514,34 @@ def test_source_catalog_addition_refuses_whole_batch(owner_home: Path, skill_sou
     result = apply_assets(assessment, ApplyConsent(automatic=True))
     assert result.outcome == "precondition_changed" and not result.succeeded
     assert_unchanged(before, snapshot({"home": owner_home}))
+
+
+@pytest.mark.parametrize("through_provider", [False, True])
+def test_command_effects_retain_their_physical_agent_owners(owner_home: Path, tmp_path: Path, through_provider: bool) -> None:
+    from specify_cli.tool_surface.model import SurfacePlan
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.slash_commands import SlashCommandsProvider, slash_command_definition
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+
+    keys = ("claude", "gemini")
+    if through_provider:
+        project = tmp_path / "project"
+        project.mkdir()
+        inputs = AssessmentInputs(OperationRoot("project", "project", project))
+        definition = slash_command_definition()
+        service = SurfaceRepairService((SlashCommandsProvider(),))
+        plans = tuple(SurfacePlan(key, (), "T1", (definition,)) for key in keys)
+        assessment = service.assess(inputs, (), plans=plans)[0]
+    else:
+        assessment = agent_commands.assess_global_agent_commands(agent_keys=list(keys))
+    assert assessment.complete
+    for key in keys:
+        directory = agent_commands.get_global_command_dir(key)
+        files = [effect for effect in assessment.effects if effect.destination.parent == directory and effect.after.kind == "file"]
+        assert files
+        assert all(effect.logical_owners == (key,) for effect in files)
+    if through_provider:
+        result = service.apply_assessments((assessment,), ApplyConsent(automatic=True))
+        assert result[0].outcome == "applied"
+    else:
+        _apply_exact(assessment)
