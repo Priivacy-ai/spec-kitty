@@ -131,6 +131,18 @@
       "title": null,
       "verdict": "in-mission",
       "wp": "WP12"
+    },
+    "#3912": {
+      "evidence_ref": "be5a58f55 integrated independently reviewed planning-root ancestry fix;10 focused plus406 adjacent passes and actual E2E lifecycle1 passed333.98s; original RED71a76f497 retained.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
     }
   },
   "schema_version": 1
