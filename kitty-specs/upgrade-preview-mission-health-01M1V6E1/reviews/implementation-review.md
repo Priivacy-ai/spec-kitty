@@ -10,8 +10,8 @@ updated: 2026-09-06
 
 This summary supersedes historical readiness statements below. Eight WPs are
 approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05's first review
-rejected implementation `5f271f07fde9d6efeb16661c00e2205a04816a13`; its author
-is correcting two findings within the existing owned scope.
+rejected implementation `5f271f07fde9d6efeb16661c00e2205a04816a13`; corrections
+at `a458fc01fae48d80946f450ce90ab09ab19e8f1c` are now in focused second review.
 Its caller-resolved global skill input extension is independently approved;
 supporting Op closure awaits actual WP05 consumer integration verification.
 WP08, WP10 and WP13
@@ -34,6 +34,14 @@ retained separately from the genuine product failure. No supplier code reopened.
 Issue #3900 comment5562493948 links this in-flight implementation finding.
 Follow-up review is limited to these findings, corrective diff and adjacent risks;
 unchanged evidence is reused. Consumer Op remains open.
+
+Corrections follow committed RED `e81927a402a3c0341236d485c769b21a607fa7ad`.
+Four changed files add a paired provider boundary through the real dispatcher
+and separate affected-consumer metadata from prior ownership proof. Author
+reports 11 focused and 9 adjacent passing checks (three overlap), plus changed
+lint/types. These claims await the original reviewer's F1/F2 verification;
+unchanged supplier/WP02/WP03 evidence is reused, not reopened. No broad-suite or
+public integration completion is claimed.
 
 WP03 approval `01M1W56TVQYABKXJD3VSEJYTT2` closes its coordinated-global-owner
 finding at `876a6f00ed1c32d67fabdb0573c5c3979a40108c`. Independent review ran
