@@ -6,9 +6,9 @@ updated: '2026-07-17'
 related:
 - docs/development/how-to/manage-issue-tracker.md
 - docs/guides/how-to/missions/keep-main-clean.md
-- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 ---
+
 
 # 3.2.x Delivery Approach — Operator Plan, Dialectically Challenged
 
@@ -40,9 +40,8 @@ lives in its **domain plan** — cross-reference those rather than duplicating t
 - **Doctrine & charter** — [Doctrine & Charter — Domain Plan](domains/doctrine-charter-domain-plan.md)
   (companions: the [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) and the
   [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md)).
-- **SaaS & hosted sync** — [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md)
-  (sync & event-envelope integrity, consent & identity, auth & token lifecycle, hosted
-  rollout readiness).
+- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881): the hosted-sync surface re-homed to the authoritative upstream repos; see the convergence-retirement ADR
+  (`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`).
 - **Packs extraction** — *(planned domain plan)*.
 - **API & dashboard** — *(planned domain plan)*.
 
