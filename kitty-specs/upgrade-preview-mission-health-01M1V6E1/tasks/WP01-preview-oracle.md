@@ -2,20 +2,39 @@
 work_package_id: WP01
 title: Independent preview oracle and baseline witnesses
 dependencies: []
-owned_files:
-  - tests/upgrade/preview_support/**
-  - tests/upgrade/test_preview_oracle.py
-create_intent:
-  - tests/upgrade/test_preview_oracle.py
-authoritative_surface: tests/upgrade/
-execution_mode: code_change
-task_type: testing
+requirement_refs:
+- FR-001
+- FR-003
+- FR-011
+- NFR-001
+- NFR-003
+- C-003
+planning_base_branch: codex/upgrade-preview-mission-health
+merge_target_branch: codex/upgrade-preview-mission-health
+branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+history: []
 agent_profile: python-pedro
+authoritative_surface: tests/upgrade/
+create_intent:
+- tests/upgrade/test_preview_oracle.py
+execution_mode: code_change
+owned_files:
+- tests/upgrade/preview_support/**
+- tests/upgrade/test_preview_oracle.py
 role: implementer
-agent: codex
-requirement_refs: [FR-001, FR-003, FR-011, NFR-001, NFR-003, C-003]
-tracker_refs: ['#3900', '#3901', '#3902', '#3903']
-subtasks: [T001, T002, T003, T004, T005]
+tags: []
+task_type: testing
+tracker_refs:
+- '#3900'
+- '#3901'
+- '#3902'
+- '#3903'
 ---
 
 # WP01: Independent Preview Oracle

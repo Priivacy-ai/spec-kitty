@@ -1,23 +1,40 @@
 ---
-work_package_id: "WP07"
-title: "Native configuration and session presence assessment"
-dependencies: ["WP01", "WP02"]
-owned_files:
-  - "src/specify_cli/tool_surface/providers/native_config.py"
-  - "src/specify_cli/tool_surface/providers/session_presence.py"
-  - "src/specify_cli/session_presence/**"
-  - "src/specify_cli/skills/vibe_config.py"
-  - "tests/specify_cli/session_presence/**"
-  - "tests/specify_cli/tool_surface/providers/test_native_config.py"
-  - "tests/specify_cli/tool_surface/providers/test_session_presence.py"
-requirement_refs: ["FR-002", "FR-003", "FR-004", "NFR-004", "C-001"]
-subtasks: ["T034", "T035", "T036", "T037", "T038"]
-authoritative_surface: "src/specify_cli/session_presence/"
-execution_mode: "code_change"
+work_package_id: WP07
+title: Native configuration and session presence assessment
+dependencies:
+- WP01
+- WP02
+requirement_refs:
+- FR-002
+- FR-003
+- FR-004
+- NFR-004
+- C-001
+planning_base_branch: codex/upgrade-preview-mission-health
+merge_target_branch: codex/upgrade-preview-mission-health
+branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
+subtasks:
+- T034
+- T035
+- T036
+- T037
+- T038
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/session_presence/
 create_intent: []
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "codex"
+execution_mode: code_change
+owned_files:
+- src/specify_cli/tool_surface/providers/native_config.py
+- src/specify_cli/tool_surface/providers/session_presence.py
+- src/specify_cli/session_presence/**
+- src/specify_cli/skills/vibe_config.py
+- tests/specify_cli/session_presence/**
+- tests/specify_cli/tool_surface/providers/test_native_config.py
+- tests/specify_cli/tool_surface/providers/test_session_presence.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP07: Native configuration and session presence assessment
