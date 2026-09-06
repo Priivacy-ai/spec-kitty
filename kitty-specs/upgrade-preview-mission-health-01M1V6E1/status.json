@@ -1,19 +1,19 @@
 {
-  "event_count": 93,
-  "last_event_id": "01M1W5ESXVA31KF0TE2PV6JMGY",
-  "materialized_at": "2026-09-06T20:09:49.208987+00:00",
+  "event_count": 94,
+  "last_event_id": "01M1W5N34C35V1989GAREFJ5ZS",
+  "materialized_at": "2026-09-06T20:13:15.276187+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 3,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 4
   },
   "work_packages": {
@@ -175,9 +175,9 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01M1W4TBK2QQXS5WQSK96H2EXN",
-      "last_transition_at": "2026-09-06T19:58:39.202464+00:00",
+      "lane": "approved",
+      "last_event_id": "01M1W5N34C35V1989GAREFJ5ZS",
+      "last_transition_at": "2026-09-06T20:13:15.276187+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation delivered at 1626c9fc4a9c52bfea6836ea325189346572cb0f; canonical org diagnostics consumed before admission filtering. Four real corrupt-org RED witnesses; 811 subsystem/architecture, 1642 fast, 22 caller tests pass. Independent review required; formatter exclusions and eight public integration REDs explicitly retained in external handoff.",
@@ -190,7 +190,7 @@
         "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP06-profile-projection-assessment/review-cycle-1.md",
         "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP06-profile-projection-assessment/review-cycle-1.md",
         "reviewer": "codex",
-        "verdict": "changes_requested"
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": 26467,
