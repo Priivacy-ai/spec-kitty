@@ -60,6 +60,7 @@ import contextlib
 import json
 import os
 import signal
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -89,6 +90,8 @@ from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import append_event
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
+from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_mission_meta
@@ -458,6 +461,73 @@ def _gate_metadata(request: TransitionRequest) -> dict[str, Any]:
     metadata = request.policy_metadata["pre_review_gate"]
     assert isinstance(metadata, dict)
     return metadata
+
+
+@pytest.mark.integration
+def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """PRIMARY metadata selects the real handler while COORD retains status."""
+    repo = _build_base_repo(
+        tmp_path,
+        extra_base_files={
+            ".gitignore": ".worktrees/\n",
+            "src/specify_cli/git/foo.py": "VALUE = 1\n",
+            "tests/git/test_consumer.py": _CONSUMER_TEST_BODY,
+        },
+    )
+    primary, wp = _build_wp_file(repo, _MISSION, "WP01")
+    meta_path = primary / "meta.json"
+    meta = json.loads(meta_path.read_text())
+    coord_branch = "kitty/mission-pre-review-gate"
+    meta.update(topology="coord", target_branch="main", coordination_branch=coord_branch)
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    # Materialize a real coord worktree from the metadata-free base commit.
+    coord = coord_feature_dir(repo, _MISSION, meta["mid8"])
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", coord_branch, str(coord.parents[1]), "main"],
+        cwd=repo, check=True,
+    )
+    coord.mkdir(parents=True)
+    _seed_wp_event(coord, "WP01", "in_progress")
+    before = (coord / "status.events.jsonl").read_bytes()
+    assert not (coord / "meta.json").exists()
+    assert placement_seam(repo, _MISSION).read_dir(MissionArtifactKind.PRIMARY_METADATA) == primary
+    assert placement_seam(repo, _MISSION).read_dir(MissionArtifactKind.STATUS_STATE) == coord
+    assert "pre_review_test_scope" not in wp.read_text()
+    _seed_baseline(primary, wp.stem, failed=0)
+    config_path = repo / ".kittify" / "config.yaml"
+    command = f"{shlex.quote(sys.executable)} -m pytest tests/git -q --junitxml={{output_file}}"
+    config_path.write_text(
+        config_path.read_text() + f"\nreview:\n  test_command: {json.dumps(command)}\n  test_output_format: junit\n",
+        encoding="utf-8",
+    )
+    _write_file(repo, "src/specify_cli/git/foo.py", "VALUE = 2\n")
+    _git_commit_all(repo, "break the consumer contract")
+    selected: list[str] = []
+    dispatch = tasks_move_task._mt_dispatch_transition_gates
+
+    def record_dispatch(bindings: Any, context: Any) -> Any:
+        selected.extend(binding.handler for binding in bindings)
+        return dispatch(bindings, context)
+
+    monkeypatch.setattr(tasks_move_task, "_mt_dispatch_transition_gates", record_dispatch)
+    ports, router = _fake_ports(coord)
+
+    _run_move(repo, ports=ports, workspace_resolution=_fixture_workspace(repo))
+
+    assert len(router.status_calls) == 1
+    metadata = _gate_metadata(router.status_calls[0])
+    assert metadata["outcome"] == "new_failures", metadata
+    assert selected == ["spec-kitty-pre-review"]
+    assert metadata["new_failure_count"] == 1
+    assert any("test_consumer_reads_shared_contract" in node for node in metadata["new_failure_nodeids"])
+    assert metadata["blocked"] is False
+    assert metadata["block_enabled"] is False
+    assert metadata["force_bypassed"] is False
+    assert router.write_dir == coord
+    assert len(read_events(coord)) == 2
+    assert (coord / "status.events.jsonl").read_bytes().startswith(before)
+    assert not (primary / "status.events.jsonl").exists()
+    assert not (coord / "meta.json").exists()
 
 
 # ---------------------------------------------------------------------------
