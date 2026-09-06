@@ -29,6 +29,36 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.mark.parametrize("pointer", [False, True])
+@pytest.mark.parametrize("body", [b"null\n", b"~ # keep\n", b"---\n...\n", b"42: user-value\n"])
+def test_provision_supported_yaml_documents(tmp_path: Path, pointer: bool, body: bytes) -> None:
+    from charter.activation.compiler import provision_mission_type_activations
+    from charter.activation.default_pack import load_default_mission_type_activations
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "policy.yaml" if pointer else config
+    if pointer:
+        config.write_bytes(b"charter: policy.yaml\n")
+    target.write_bytes(body)
+
+    assert provision_mission_type_activations(tmp_path) is True
+    persisted = YAML().load(target.read_bytes())
+    assert isinstance(persisted, dict)
+    assert persisted["mission_type_activations"] == load_default_mission_type_activations()
+    if b"42:" in body:
+        assert target.read_bytes().startswith(body)
+        assert persisted[42] == "user-value"
+    if b"# keep" in body:
+        assert b"# keep\n" in target.read_bytes()
+    if body.startswith(b"---"):
+        assert target.read_bytes().startswith(b"---\n")
+        assert target.read_bytes().endswith(b"...\n")
+    before = snapshot({"project": tmp_path})
+    assert provision_mission_type_activations(tmp_path) is False
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("pointer", [False, True])
 def test_provision_preserves_complete_authored_bytes(tmp_path: Path, pointer: bool) -> None:
     from charter.activation.compiler import provision_mission_type_activations
     from charter.activation.default_pack import load_default_mission_type_activations

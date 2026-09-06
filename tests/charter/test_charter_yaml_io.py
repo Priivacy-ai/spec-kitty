@@ -27,6 +27,17 @@ from charter.activation.charter_yaml_io import (
 pytestmark = [pytest.mark.unit]
 
 
+def test_update_block_collection_retains_key_comment(tmp_path: Path) -> None:
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(b"activated_directives: # keep this rationale\n  - old\nmetadata: {}\n")
+
+    update_charter_yaml_section(path, "activation", {"activated_directives": ["new"]})
+
+    assert load_charter_yaml(path)["activated_directives"] == ["new"]
+    assert path.read_bytes().startswith(b"activated_directives: # keep this rationale\n")
+    assert path.read_bytes().endswith(b"metadata: {}\n")
+
+
 def test_update_existing_activation_does_not_open_for_write(tmp_path: Path) -> None:
     import os
 
