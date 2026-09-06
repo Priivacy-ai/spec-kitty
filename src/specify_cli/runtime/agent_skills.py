@@ -139,6 +139,17 @@ def _observe_registry_catalog(prepared: AssetPreparation, skills: list[Canonical
         raise ValueError("Canonical skill catalog changed during discovery")
 
 
+def _load_registry_skills(prepared: AssetPreparation) -> list[CanonicalSkill]:
+    registry = _discover_registry()
+    if registry is None:
+        raise ValueError("Required canonical skill registry unavailable")
+    skills = registry.discover_skills()
+    if not skills:
+        raise ValueError("Required canonical skill registry is empty")
+    _observe_registry_catalog(prepared, skills)
+    return skills
+
+
 def assess_global_agent_skills(
     *,
     consent: ApplyConsent = ApplyConsent(),
@@ -156,13 +167,7 @@ def assess_global_agent_skills(
     root = global_asset_root("global_skills", (home, *roots))
     try:
         prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent)
-        registry = _discover_registry()
-        if registry is None:
-            raise ValueError("Required canonical skill registry unavailable")
-        skills = registry.discover_skills()
-        if not skills:
-            raise ValueError("Required canonical skill registry is empty")
-        _observe_registry_catalog(prepared, skills)
+        skills = _load_registry_skills(prepared)
         for destination_root in roots:
             state = prepared.observe(destination_root, members=True)
             if state.kind not in {"directory", "absent"}:
