@@ -1,7 +1,7 @@
 {
-  "event_count": 80,
-  "last_event_id": "01M1W0VYDK197VXF4N517F2G0N",
-  "materialized_at": "2026-09-06T18:49:36.822924+00:00",
+  "event_count": 90,
+  "last_event_id": "01M1W4TBK2QQXS5WQSK96H2EXN",
+  "materialized_at": "2026-09-06T19:58:39.202464+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 4,
-    "in_review": 1,
-    "planned": 4
+    "in_progress": 2,
+    "in_review": 2,
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -90,13 +90,14 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01M1W0EJADRSE9ZNKVKR3S8EP1",
-      "last_transition_at": "2026-09-06T18:42:18.529803+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M1W4FV6XB8X7CBE50X627XCN",
+      "last_transition_at": "2026-09-06T19:52:54.749347+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Delivery047dc8a69b32c39aa4309a6dcefe3af53855b169; final96focused plus realcatalog observer control/staticpass. Earlier805runtime/1642fast predate final metadata correction; independent finalsource verification required. Two dead architecture gates await WP10 consumer, eightpublicRED unchanged. Real cross-owner cold-directory conflicts remain explicit in external wp03-interface-note.md, not aggregate startup acceptance. Independent full-contract review required.",
-        "Independent REJECT: cold runtime, command and skill preparations claim shared parent effects; combined dispatcher conflicts and sequential application invalidates retained preconditions. Coordinate one retained executable boundary without weakening WP02, omitting effects or reassessment. Review also retains unresolved init timeout and deferred public intent gates."
+        "Independent REJECT: cold runtime, command and skill preparations claim shared parent effects; combined dispatcher conflicts and sequential application invalidates retained preconditions. Coordinate one retained executable boundary without weakening WP02, omitting effects or reassessment. Review also retains unresolved init timeout and deferred public intent gates.",
+        "Cycle2 correction delivered at876a6f00ed1c32d67fabdb0573c5c3979a40108c; REDc1842bce531dc0027b9d1d2698c73b805cc6378a. Independent focused F1/corrective-diff review pending; public integration gates remain open."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -106,17 +107,17 @@
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464",
       "subtasks": {
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned",
-        "T015": "planned",
-        "T016": "planned",
-        "T017": "planned"
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
       }
     },
     "WP04": {
@@ -124,24 +125,32 @@
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M1W0MNE919NCCPVWDAFMFCM7",
-      "last_transition_at": "2026-09-06T18:45:38.377874+00:00",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01M1W2SNAA6KRHZ1YQBENH4EPV",
+      "last_transition_at": "2026-09-06T19:23:19.175129+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP04 and separately authorized #3920 init-ordering Op delivered at 234a2b433a0c4bc621352ca55484cef3edc37f79. Original public witness unchanged; 967 subsystem, 12 public wiring, 1642 fast, 94 architecture tests pass. Independent full ownership and supporting-Op review required; seven broader CLI failures and formatter debt retained, not waived."
+        "WP04 and separately authorized #3920 init-ordering Op delivered at 234a2b433a0c4bc621352ca55484cef3edc37f79. Original public witness unchanged; 967 subsystem, 12 public wiring, 1642 fast, 94 architecture tests pass. Independent full ownership and supporting-Op review required; seven broader CLI failures and formatter debt retained, not waived.",
+        "Independent request changes: mixed disabled selections acquire ownership; cyclic config symlink escapes incomplete-assessment boundary. Separate #3920 request changes: post-config interruption leaves zero commands and retry falsely reports initialized. Preserve final-config rendering, runtime-root protection and authored config; separate scoped corrections and independent re-review required."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP04-command-skill-effects/review-cycle-1.md",
+        "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP04-command-skill-effects/review-cycle-1.md",
+        "reviewer": "codex",
+        "verdict": "changes_requested"
+      },
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done",
-        "T022": "done"
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned"
       }
     },
     "WP05": {
@@ -157,13 +166,14 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01M1W0VYDK197VXF4N517F2G0N",
-      "last_transition_at": "2026-09-06T18:49:36.822924+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M1W4TBK2QQXS5WQSK96H2EXN",
+      "last_transition_at": "2026-09-06T19:58:39.202464+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation delivered at 1626c9fc4a9c52bfea6836ea325189346572cb0f; canonical org diagnostics consumed before admission filtering. Four real corrupt-org RED witnesses; 811 subsystem/architecture, 1642 fast, 22 caller tests pass. Independent review required; formatter exclusions and eight public integration REDs explicitly retained in external handoff.",
-        "Independent REJECT: structurally malformed manifest fields become complete assessments; late confinement ValueError loses actual partial writes; shared orphan deletion omits VS Code logical ownership. Preserve org diagnostic fix and exact supplier bytes. Correct with real RED-first controls within existing profile owner boundary."
+        "Independent REJECT: structurally malformed manifest fields become complete assessments; late confinement ValueError loses actual partial writes; shared orphan deletion omits VS Code logical ownership. Preserve org diagnostic fix and exact supplier bytes. Correct with real RED-first controls within existing profile owner boundary.",
+        "Correction delivered11818b3379d9c23fd3be3b577fbbab00ba676ae2; targeted independent prior-findings review pending, supplier unchanged, final integration gates remain open."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -173,15 +183,15 @@
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464",
       "subtasks": {
-        "T029": "planned",
-        "T030": "planned",
-        "T031": "planned",
-        "T032": "planned",
-        "T033": "planned"
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
       }
     },
     "WP07": {
@@ -231,16 +241,18 @@
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01M1VZ5QKVCG3SAS0WN68DYF1F",
-      "last_transition_at": "2026-09-06T18:20:00.454120+00:00",
+      "force_count": 3,
+      "lane": "planned",
+      "last_event_id": "01M1W49A3D4SPR4SJVZ2XGCZAD",
+      "last_transition_at": "2026-09-06T19:49:20.622000+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "T043-T046 seven-file delivery through3ca087912; owning checks/static89architecture1642fast pass. Broad3877pass plus8retained publicRED, correctedPATHfailure and6skips; not broadgreen. wp09-handoff.md; independentreview required.",
         "Independent Renata/Heisenberg REJECT: R1 P1 null/explicitempty YAML invalidwrite; R2 block-listkeycommentloss; R3 numericunownedkeyrefusal. RealBASEcontrols pass/final9cells fail;276otherchecks pass notapproval.",
         "Cycle2 correction4e72cedb49a13516fc1c0f12ff0a4d32b18d4c0d. Reviewer R1-R3 plus deactivation newline regression corrected with RED-first history; 324 owner/caller/architecture checks,1642 Make tests and both public P7 layouts passed. Eight public preview REDs remain WP10/WP13, not waived. Independent re-review required; external wp09-handoff.md supersedes cycle1.",
-        "Cycle2 REJECT: multiline key comments deleted and valid explicit owned YAML keys break update/deactivation; exact BASE/current controls and both layouts reproduced. Original narrow R1-R3 pass but do not close defect class. Preserve full independent cycle2 report; no WP10 dependency waiver."
+        "Cycle2 REJECT: multiline key comments deleted and valid explicit owned YAML keys break update/deactivation; exact BASE/current controls and both layouts reproduced. Original narrow R1-R3 pass but do not close defect class. Preserve full independent cycle2 report; no WP10 dependency waiver.",
+        "Cycle3 correction b86c191608cea1b1c591730a7a934c48a038e724, RED555d07c4bef5ba43a687832d219443764dd660d8. 388 owner/caller/architecture and 1642 fast tests pass; explicit-key/comment preservation controls and public P7 apply/repeat verified by author. Independent full-contract re-review required. Eight public REDs and unchanged timing failure retained; third rejection requires arbiter escalation.",
+        "Third rejection: proven corrective-diff comment loss on reused documents; prior C2 findings fixed. Arbiter declines approval of data loss and escalates bounded further correction to user. No automatic fourth retry."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
