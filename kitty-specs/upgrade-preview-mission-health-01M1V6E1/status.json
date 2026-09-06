@@ -52,8 +52,8 @@
     "WP02": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "for_review",
       "last_event_id": "01M1VNWT1SDF1BEBE3A4E5M43T",
@@ -61,7 +61,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation411cd2eb0; parent99ownedpass2.62s; worker624subsystem/22caller/1642fast/94architecture plus Ruff/mypy clean. wp02-handoff.md requests independent review; downstream public acceptance pending.",
-        "Independent Renata/Lovelace REJECT: F1 selected owner context erased for zero expansion; F2 live service bypasses inventory failure assessment; F3 later recheck I/O failure loses earlier actual successful results. Require focused regressions and independent re-review; no dependent claim."
+        "Independent Renata/Lovelace REJECT: F1 selected owner context erased for zero expansion; F2 live service bypasses inventory failure assessment; F3 later recheck I/O failure loses earlier actual successful results. Require focused regressions and independent re-review; no dependent claim.",
+        "Cycle2 fixes F1-F3; RED87b8cd2c1 GREEN78cf3627a.117owned642subsystem22caller94architecture1642fast; independent re-review required. wp02-handoff.md."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
