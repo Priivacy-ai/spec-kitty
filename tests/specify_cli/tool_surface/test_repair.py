@@ -153,7 +153,7 @@ class _AssessmentProvider(_RecordingProvider):
     def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
         return [SurfaceInstance(definition, project_root / "shared", False, None, tool_key)]
 
-    def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus]) -> OwnerAssessment:
+    def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...] = ()) -> OwnerAssessment:
         from hashlib import sha256  # noqa: TID251 - exact prepared file-byte integrity, not charter hashing.
         from specify_cli.tool_surface.operations import FileState, OwnerAssessment, OwnershipProof, PhysicalEffect
 
@@ -409,7 +409,7 @@ def test_foreign_result_ids_are_rejected() -> None:
 
 def test_unreadable_owner_source_reports_incomplete() -> None:
     class UnreadableOwner(_AssessmentProvider):
-        def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus]) -> OwnerAssessment:
+        def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...] = ()) -> OwnerAssessment:
             raise OSError("source unavailable")
 
     provider = UnreadableOwner()
@@ -423,8 +423,8 @@ def test_conflict_inside_single_owner_stays_incomplete_and_refuses_apply() -> No
     from specify_cli.tool_surface.operations import FileState
 
     class ConflictingOwner(_AssessmentProvider):
-        def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus]) -> OwnerAssessment:
-            assessment = super().assess(inputs, statuses)
+        def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...] = ()) -> OwnerAssessment:
+            assessment = super().assess(inputs, statuses, selections=selections)
             contradictory = replace(assessment.effects[0], after=FileState("file", sha256="f" * 64, mode=0o644))
             return replace(assessment, effects=(*assessment.effects, contradictory))
 
@@ -437,12 +437,13 @@ def test_conflict_inside_single_owner_stays_incomplete_and_refuses_apply() -> No
     assert provider.write_calls == 0
 
 
-@pytest.mark.parametrize("tool", ["codex", "vibe"])
-@pytest.mark.parametrize("kind", [ToolSurfaceKind.COMMAND_SKILL, ToolSurfaceKind.COMMAND_FILE])
+@pytest.mark.parametrize("tool", [None, "codex", "vibe"])
+@pytest.mark.parametrize("kind", [None, ToolSurfaceKind.COMMAND_SKILL, ToolSurfaceKind.COMMAND_FILE])
 def test_empty_expansion_retains_canonical_selection_for_orphan_pruning(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, tool: str, kind: ToolSurfaceKind
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, tool: str | None, kind: ToolSurfaceKind | None
 ) -> None:
     from dataclasses import FrozenInstanceError
+    from hashlib import sha256  # noqa: TID251 - exact fixture file-byte integrity, not charter hashing.
     from specify_cli.tool_surface.operations import FileState, OperationRoot, OwnershipProof, PhysicalEffect
     from specify_cli.tool_surface.providers._registry import SurfaceProviderRegistry, SurfaceRegistration
     from specify_cli.tool_surface.service import run_tool_surfaces
@@ -461,16 +462,20 @@ def test_empty_expansion_retains_canonical_selection_for_orphan_pruning(
         def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
             return []
 
-        def assess(
-            self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...] = ()
-        ) -> OwnerAssessment:
+        def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...] = ()) -> OwnerAssessment:
             assert inputs.projected == b"owner-manifest"
             assert not statuses
             received.append(selections)
             effects = tuple(
                 PhysicalEffect(
-                    "p", "surface_repair", inputs.root, f"{selection.tool_key}-{selection.definition.kind}.orphan",
-                    "delete", FileState("file", sha256="a" * 64, mode=0o644), FileState("absent"), "Owned orphan",
+                    "p",
+                    "surface_repair",
+                    inputs.root,
+                    f"{selection.tool_key}-{selection.definition.kind}.orphan",
+                    "delete",
+                    FileState("file", sha256=sha256(b"orphan").hexdigest(), mode=0o644),
+                    FileState("absent"),
+                    "Owned orphan",
                     (OwnershipProof("manifest", f"{selection.tool_key}:{selection.definition.path_pattern}"),),
                     (selection.tool_key,),
                 )
@@ -479,18 +484,26 @@ def test_empty_expansion_retains_canonical_selection_for_orphan_pruning(
             return OwnerAssessment("p", inputs.root, effects=effects)
 
     monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [SurfaceRegistration(EmptyOwner, definitions, {})])
-    outcome = run_tool_surfaces(tmp_path, ("codex", "vibe"), tool_filter=tool, kinds=(kind,), assessment_inputs=inputs)
+    outcome = run_tool_surfaces(tmp_path, ("codex", "vibe"), tool_filter=tool, kinds=(kind,) if kind is not None else None, assessment_inputs=inputs)
     assert len(outcome.assessments) == 1
     assessment = outcome.assessments[0]
     assert assessment.complete
-    assert tuple(effect.path for effect in assessment.effects) == (f"{tool}-{kind}.orphan",)
-    assert len(received[0]) == 1
-    selection = received[0][0]
-    assert selection.tool_key == tool
-    assert selection.definition is next(d for d in definitions if d.kind == kind)
-    assert selection.definition.required_policy == RequiredPolicy.REPAIRABLE_REQUIRED
-    with pytest.raises(FrozenInstanceError):
-        setattr(selection, "tool_key", "different")
+    expected = {
+        (owner, definition.kind)
+        for owner in ("codex", "vibe")
+        if tool is None or tool == owner
+        for definition in definitions
+        if kind is None or kind == definition.kind
+    }
+    assert {effect.path for effect in assessment.effects} == {f"{owner}-{selected_kind}.orphan" for owner, selected_kind in expected}
+    assert len(received) == 1 and isinstance(received[0], tuple)
+    assert {(s.tool_key, s.definition.kind) for s in received[0]} == expected
+    for selection in received[0]:
+        assert selection.definition is next(d for d in definitions if d.kind == selection.definition.kind)
+        assert selection.definition.required_policy == RequiredPolicy.REPAIRABLE_REQUIRED
+        for attribute, value in (("tool_key", "different"), ("definition", definitions[0])):
+            with pytest.raises(FrozenInstanceError):
+                setattr(selection, attribute, value)
     assert len(list(tmp_path.glob("*.orphan"))) == 4, "Assessment must not prune on disk"
 
 
@@ -504,8 +517,10 @@ def test_later_prewrite_recheck_failure_retains_known_batch_success(tmp_path: Pa
         def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
             @contextmanager
             def unavailable() -> Iterator[tuple[Diagnostic, ...]]:
+                yield fail()
+
+            def fail() -> tuple[Diagnostic, ...]:
                 raise OSError("lock unavailable")
-                yield ()  # pragma: no cover - contextmanager must be a generator
 
             if assessment.root.root_id == "second":
                 if failure_at == "factory":
@@ -542,4 +557,39 @@ def test_later_prewrite_recheck_failure_retains_known_batch_success(tmp_path: Pa
     assert results[2].succeeded == (batches[2].effects[0].id,)
     assert (tmp_path / "third/a").read_bytes() == b"T1"
     assert owner.write_calls == 2
+    assert not owner.locked
+
+
+@pytest.mark.parametrize("failure_at", ["apply", "exit"])
+def test_postwrite_exceptions_are_not_reclassified_as_prewrite_skips(tmp_path: Path, failure_at: str) -> None:
+    from contextlib import contextmanager
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import OperationRoot
+
+    class UnknownWriteOwner(_AssessmentProvider):
+        def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
+            @contextmanager
+            def locked() -> Iterator[tuple[Diagnostic, ...]]:
+                with super(UnknownWriteOwner, self).recheck(assessment) as diagnostics:
+                    yield diagnostics
+                    if failure_at == "exit":
+                        raise OSError("post-write failure")
+
+            return locked()
+
+        def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+            result = super().apply(assessment, explicit_consent)
+            assessment.effects[0].destination.write_bytes(b"T1")
+            if failure_at == "apply":
+                raise OSError("post-write failure")
+            return result
+
+    owner = UnknownWriteOwner()
+    service, assessments, _ = _assess(owner, (_status(ToolSurfaceKind.COMMAND_SKILL, "a"),))
+    root = OperationRoot("project", "project", tmp_path)
+    assessment = replace(assessments[0], root=root, effects=(replace(assessments[0].effects[0], root=root),))
+    with pytest.raises(OSError, match="post-write failure"):
+        service.apply_assessments((assessment,), ApplyConsent(automatic=True))
+    assert (tmp_path / "a").read_bytes() == b"T1"
+    assert owner.write_calls == 1
     assert not owner.locked

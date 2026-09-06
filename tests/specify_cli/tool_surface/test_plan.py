@@ -130,7 +130,7 @@ def test_required_missing_or_legacy_owner_is_explicitly_incomplete(tmp_path: Pat
     registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "fake"))
     providers = [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)] if registered else []
     inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path))
-    assessments = SurfacePlanBuilder(registry, providers).assess(["codex"], inputs)
+    assessments = SurfacePlanBuilder(registry, providers).assess(["codex"], inputs).assessments
     assert len(assessments) == 1
     assert not assessments[0].complete
     expected = "assessment_unsupported" if registered else "missing_provider"
@@ -152,9 +152,13 @@ def test_advisory_or_disabled_absent_owner_is_a_disposition(tmp_path: Path, poli
     registry = ToolSurfaceRegistry()
     definition = replace(_definition(ToolSurfaceKind.COMMAND_SKILL, "fake"), required_policy=policy, activation_mode=activation)
     registry.register_definition("codex", definition)
-    assessments = SurfacePlanBuilder(registry, []).assess(
-        ["codex"],
-        AssessmentInputs(OperationRoot("project", "project", tmp_path)),
+    assessments = (
+        SurfacePlanBuilder(registry, [])
+        .assess(
+            ["codex"],
+            AssessmentInputs(OperationRoot("project", "project", tmp_path)),
+        )
+        .assessments
     )
     assert assessments[0].complete
     assert not assessments[0].effects
@@ -171,7 +175,7 @@ def test_unreadable_inventory_is_incomplete_not_empty_success(tmp_path: Path) ->
     registry = ToolSurfaceRegistry()
     registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "fake"))
     builder = SurfacePlanBuilder(registry, [BrokenSource(ToolSurfaceKind.COMMAND_SKILL)])
-    assessments = builder.assess(("codex",), AssessmentInputs(OperationRoot("project", "project", tmp_path)))
+    assessments = builder.assess(("codex",), AssessmentInputs(OperationRoot("project", "project", tmp_path))).assessments
     assert not assessments[0].complete
     assert assessments[0].diagnostics[0].code == "inventory_unreadable"
 
@@ -184,10 +188,14 @@ def test_removing_real_required_provider_keeps_definition_coverage(tmp_path: Pat
     providers = build_providers()
     assert any(p.provider_key == "command_skills" for p in providers)
     providers = [p for p in providers if p.provider_key != "command_skills"]
-    assessments = SurfacePlanBuilder(registry, providers).assess(
-        ("codex",),
-        AssessmentInputs(OperationRoot("project", "project", tmp_path)),
-        ToolSurfaceKind.COMMAND_SKILL,
+    assessments = (
+        SurfacePlanBuilder(registry, providers)
+        .assess(
+            ("codex",),
+            AssessmentInputs(OperationRoot("project", "project", tmp_path)),
+            ToolSurfaceKind.COMMAND_SKILL,
+        )
+        .assessments
     )
     assert len(assessments) == 1
     assert not assessments[0].complete
@@ -204,28 +212,67 @@ def test_service_assessment_guards_inventory_errors_without_changing_legacy_beha
     from specify_cli.tool_surface.providers._registry import SurfaceProviderRegistry, SurfaceRegistration
     from specify_cli.tool_surface.service import run_tool_surfaces
 
+    calls: list[str] = []
+
     class BrokenInventory(_FakeProvider):
         def __init__(self) -> None:
             super().__init__(ToolSurfaceKind.COMMAND_SKILL)
 
         def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
+            calls.append("expand")
             if stage == "expand":
                 raise error_type("required inventory unreadable")
             return super().expand(definition, tool_key, project_root)
 
         def probe(self, instance: SurfaceInstance) -> SurfaceStatus:
+            calls.append("probe")
             raise error_type("required inventory unreadable")
 
     definition = _definition(ToolSurfaceKind.COMMAND_SKILL, "fake")
     monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [SurfaceRegistration(BrokenInventory, (definition,), {})])
     with pytest.raises(error_type, match="required inventory unreadable"):
         run_tool_surfaces(tmp_path, ("codex",))
-    outcome = run_tool_surfaces(
-        tmp_path, ("codex",), assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path))
-    )
+    calls.clear()
+    outcome = run_tool_surfaces(tmp_path, ("codex",), assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path)))
     assert len(outcome.assessments) == 1
     assert not outcome.assessments[0].complete
     assert not outcome.assessments[0].effects
     assert outcome.assessments[0].diagnostics[0].code == "inventory_unreadable"
     assert not outcome.report.ok
     assert outcome.report.configured_tools == ("codex",)
+    assert outcome.report.summary.errors == 1
+    assert outcome.report.findings[0].message == "required inventory unreadable"
+    assert calls == (["expand"] if stage == "expand" else ["expand", "probe"])
+
+
+def test_assessment_kind_selection_does_not_expand_excluded_unreadable_inventory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers._registry import SurfaceProviderRegistry, SurfaceRegistration
+    from specify_cli.tool_surface.service import run_tool_surfaces
+
+    expanded: list[ToolSurfaceKind] = []
+
+    class SelectedInventory(_FakeProvider):
+        def __init__(self) -> None:
+            super().__init__(ToolSurfaceKind.COMMAND_SKILL)
+
+        def can_handle(self, definition: SurfaceDefinition) -> bool:
+            return definition.provider_key == self.provider_key
+
+        def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
+            expanded.append(definition.kind)
+            if definition.kind == ToolSurfaceKind.COMMAND_FILE:
+                raise OSError("excluded source unreadable")
+            return super().expand(definition, tool_key, project_root)
+
+    definitions = tuple(_definition(kind, "fake") for kind in (ToolSurfaceKind.COMMAND_SKILL, ToolSurfaceKind.COMMAND_FILE))
+    monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [SurfaceRegistration(SelectedInventory, definitions, {})])
+    outcome = run_tool_surfaces(
+        tmp_path,
+        ("codex",),
+        kinds=(ToolSurfaceKind.COMMAND_SKILL,),
+        assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path)),
+    )
+    assert expanded == [ToolSurfaceKind.COMMAND_SKILL]
+    assert outcome.assessments[0].diagnostics[0].code == "assessment_unsupported"
+    assert len(outcome.report.surfaces) == 1

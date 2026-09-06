@@ -13,12 +13,13 @@ and returns a structured :class:`DriftPolicySummary`.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .enums import ActivationMode, RequiredPolicy, ToolSurfaceKind
 from .findings import SurfaceFinding
-from .model import SurfaceDefinition, SurfacePlan
+from .model import SurfacePlan, SurfaceSelection
 from .operations import (
     ApplyConsent,
     AssessmentInputs,
@@ -94,24 +95,28 @@ class SurfaceRepairService:
         passed intact, including drift and source/manifest context. Owners handle
         their own projected inputs and pruning beyond expanded instances.
         """
-        definitions: dict[str, list[SurfaceDefinition]] = {}
+        selections: dict[str, list[SurfaceSelection]] = {}
         selected: dict[str, ReportingSurfaceProvider | None] = {}
         for plan in plans:
-            for definition in plan.definitions:
+            for definition in dict.fromkeys((*plan.definitions, *(i.definition for i in plan.instances))):
                 provider = next((p for p in self._providers if p.can_handle(definition)), None)
                 key = provider.provider_key if provider is not None else definition.provider_key
-                definitions.setdefault(key, []).append(definition)
+                selection = SurfaceSelection(plan.tool_key, definition)
+                if selection not in selections.setdefault(key, []):
+                    selections[key].append(selection)
                 selected[key] = provider
         # Accept original hand-built plans too, without inventing a second catalog.
         for status in statuses:
             provider = self._provider_for(status)
             key = provider.provider_key if provider is not None else status.instance.definition.provider_key
             selected[key] = provider
-            definitions.setdefault(key, []).append(status.instance.definition)
+            owned_selections = selections.setdefault(key, [])
+            if not any(s.definition == status.instance.definition for s in owned_selections):
+                owned_selections.append(SurfaceSelection(status.instance.owner, status.instance.definition))
         assessments = []
         for key, provider in sorted(selected.items()):
             owned = tuple(s for s in statuses if self._provider_for(s) is provider and (provider is not None or s.instance.definition.provider_key == key))
-            assessments.append(_assess_owner(key, provider, inputs, owned, definitions[key]))
+            assessments.append(_assess_owner(key, provider, inputs, owned, tuple(selections[key])))
         return tuple(assessments)
 
     def apply_assessments(
@@ -210,13 +215,13 @@ def _assess_owner(
     provider: ReportingSurfaceProvider | None,
     inputs: AssessmentInputs,
     statuses: tuple[SurfaceStatus, ...],
-    definitions: Sequence[SurfaceDefinition],
+    selections: tuple[SurfaceSelection, ...],
 ) -> OwnerAssessment:
-    enabled = [d for d in definitions if d.activation_mode != ActivationMode.DISABLED]
+    enabled = [s.definition for s in selections if s.definition.activation_mode != ActivationMode.DISABLED]
     required = any(d.required_policy in {RequiredPolicy.REQUIRED, RequiredPolicy.REPAIRABLE_REQUIRED} for d in enabled)
     if enabled and isinstance(provider, AssessingSurfaceProvider):
         try:
-            assessment = provider.assess(inputs, statuses)
+            assessment = provider.assess(inputs, statuses, selections=selections)
         except (OSError, ValueError) as exc:
             return OwnerAssessment(key, inputs.root, complete=False, diagnostics=(Diagnostic("assessment_failed", key, "error", str(exc)),))
         if assessment.owner_key != key or assessment.root != inputs.root:
@@ -292,7 +297,13 @@ def _apply_assessment(
         return _refused(assessment, "consent_changed", "Drift consent requires fresh exact-path assessment")
     if not isinstance(provider, AssessingSurfaceProvider):
         return _refused(assessment, "assessment_unsupported", "Selected owner unavailable for checked application")
-    with provider.recheck(assessment) as diagnostics:
+    with ExitStack() as lock:
+        # Only acquisition/recheck is known to precede writes. Apply/exit errors
+        # must not be relabeled as skipped when the owner may already have written.
+        try:
+            diagnostics = lock.enter_context(provider.recheck(assessment))
+        except OSError as exc:
+            return _refused(assessment, "recheck_failed", str(exc))
         if any(d.severity == "error" or d.code == "precondition_changed" for d in diagnostics):
             return OwnerApplyResult(assessment.owner_key, skipped=ids, diagnostics=diagnostics, outcome="precondition_changed")
         result = provider.apply(assessment, consent)

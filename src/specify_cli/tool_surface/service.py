@@ -147,13 +147,13 @@ def run_tool_surfaces(
     # filter is active (the operator asked for one specific tool) or when no
     # tools are configured (a bundle has nothing to aggregate).
     plan_tools = [*tools, PLUGIN_BUNDLE_TOOL_KEY] if tools and tool_filter is None else list(tools)
+    if assessment_inputs is not None:
+        assessed = builder.assess(plan_tools, assessment_inputs, kinds=kinds, configured_tools=tools)
+        return ToolSurfaceOutcome(report=assessed.report, assessments=assessed.assessments)
     plans = builder.build(plan_tools, project_root)
     if kind_set is not None:
         plans = _filter_plans_by_kinds(plans, kind_set)
     report = SurfaceStatusService(providers).collect(project_root, plans, configured_tools=tools)
-    if assessment_inputs is not None:
-        assessments = SurfaceRepairService(providers).assess(assessment_inputs, report.surfaces, plans=plans)
-        return ToolSurfaceOutcome(report=report, assessments=assessments)
     if not fix:
         return ToolSurfaceOutcome(report=report)
     repair = SurfaceRepairService(providers).repair(project_root, report.surfaces, kinds=kind_set)

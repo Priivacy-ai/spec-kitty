@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from ..model import SurfaceDefinition, SurfaceInstance
+from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -73,8 +73,12 @@ class AssessingSurfaceProvider(Protocol):
 
     provider_key: str
 
-    def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus]) -> OwnerAssessment:
-        """Prepare exact owner effects without writing, prompting or installing."""
+    def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...]) -> OwnerAssessment:
+        """Prepare effects using original statuses and canonical selected policies.
+
+        Selections retain tool keys and definitions even for zero expansion.
+        They come from the registry plans, never duplicated in opaque inputs.
+        """
         ...
 
     def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:

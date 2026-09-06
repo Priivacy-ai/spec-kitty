@@ -40,6 +40,14 @@ class SurfaceDefinition:
 
 
 @dataclass(frozen=True)
+class SurfaceSelection:
+    """Canonical tool/definition selection, even when expansion has no instances."""
+
+    tool_key: str
+    definition: SurfaceDefinition
+
+
+@dataclass(frozen=True)
 class SurfaceInstance:
     """A concrete materialization of a :class:`SurfaceDefinition` at a path."""
 
