@@ -284,24 +284,26 @@
       "last_transition_at": "2026-09-06T18:35:38.588804+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Delivered ee431b2fc8cd3d334e70bc56de857cb62dc92402 with real RED-first archive gate evidence,187 committed-tree tests and static checks passing. Full corpus and owner witnesses in external wp12-handoff.md. Broader failures #3919 historical terminology,#3914 redirects and offline sync collection conflict remain unresolved; supporting shard/format defect corrected separately. Independent full-contract review required, no final architecture or mission acceptance claim."
+        "Delivered ee431b2fc8cd3d334e70bc56de857cb62dc92402 with real RED-first archive gate evidence,187 committed-tree tests and static checks passing. Full corpus and owner witnesses in external wp12-handoff.md. Broader failures #3919 historical terminology,#3914 redirects and offline sync collection conflict remain unresolved; supporting shard/format defect corrected separately. Independent full-contract review required, no final architecture or mission acceptance claim.",
+        "Independent review rejects: full-corpus persistent control accepts scanner omitting 419 missions; unrelated unchanged Gitlink causes archive false rejection. Preserve immutable recovery evidence; correct both scoped defects with RED-first controls."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP12-archive-preservation-gate/review-cycle-1.md",
         "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP12-archive-preservation-gate/review-cycle-1.md",
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T060": "done",
-        "T061": "done",
-        "T062": "done",
-        "T063": "done",
-        "T064": "done"
+        "T060": "planned",
+        "T061": "planned",
+        "T062": "planned",
+        "T063": "planned",
+        "T064": "planned"
       }
     },
     "WP13": {
