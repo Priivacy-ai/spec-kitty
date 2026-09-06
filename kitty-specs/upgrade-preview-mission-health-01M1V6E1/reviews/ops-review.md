@@ -280,6 +280,14 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
 - Dispatch exited successfully; governance hash `da91c778426bd64d` still reports
   unresolved directives (#3908). This is not full governance-resolution success.
 
+- Independent review rejected candidate `447b4864bf94bece5a66724f66b7af961127bfb5`:
+  real Git skips staged leaf symlinks while byte checks follow their targets.
+  All 79 existing tests pass despite three failing real-Git rejection controls,
+  one per frozen evidence path. Enforce the regular-file/no-symlink boundary
+  independently of source hits. Original author is correcting this one finding;
+  follow-up review targets the corrective diff and adjacent path regressions.
+  Report: `terminology-gate-independent-review.md`; #3919 comment5561704532.
+
 ## Moments Literal-Output Test: Open
 
 - Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3924.

@@ -195,7 +195,7 @@ Fresh 289 focused tests and original/org-health RED/GREEN controls passed.
 Those positives do not cure the three findings. Fixes must retain the canonical
 org diagnostics and supplier bytes, without inventing a profile-refcount schema.
 
-### WP04 And Supporting Init Op: Review Pending
+### WP04 And Supporting Init Op: Corrections Required
 
 Candidate source: `234a2b433a0c4bc621352ca55484cef3edc37f79`; supporting
 test-only RED: `36ac0c9e111a9cf01fd137d723c5c4542418d568`.
@@ -208,17 +208,32 @@ tests passed. The broader run remains red: 3923 passed, seven failed, two skippe
 two xfailed. Four planner-state and two timing failures were not reproduced by
 serial pre-Op comparisons; their cause remains unclassified. The seventh is a
 sync-on assertion conflicting with mandatory offline policy.
-Canonical for-review event: `01M1W0M05X358WKZC2YZ8GYF2J`; independent full WP04
-and separate supporting-Op review is running. No Op closure or approval claimed.
+Independent review rejected mixed enabled/disabled command ownership and an
+uncaught cyclic-config-symlink observation failure. The separate init Op also
+leaves interrupted initialization without commands after config is saved;
+retry reports already initialized without recovering those commands.
+Canonical rejection: `01M1W2R344RA0HHNT7RZF105SK`; original author reclaimed
+both bounded corrections. No Op closure or approval claimed. Full findings:
+`wp04-independent-review.md`; #3920 comment5561569074.
 Reports: `init-command-ordering-handoff.md`, `wp04-handoff.md`.
 
 ### Remaining Gates
 
 WP09's second review rejected lost multiline key comments and valid explicit
-YAML key failures; correction cycle 3 is running. A third rejection requires
+YAML key failures; independent cycle 3 review is running on
+`b86c191608cea1b1c591730a7a934c48a038e724`. A third rejection requires
 the skill's arbiter escalation, not another automatic retry. Report:
 `wp09-cycle2-independent-review.md`; rejection `01M1VZ1NA3NR8NMFVZYZKX182G`.
 WP05/WP08/WP10/WP13, complete public matrices, installed-wheel/E2E coverage,
 full architecture/contracts, acceptance, consolidation, independent mission
 review and retrospective remain outstanding. Automatic NO_COVERAGE envelopes
 are not passing tests. Draft publication does not complete any of these gates.
+
+### Follow-Up Review Scope
+
+Successive reviews focus on prior findings, the corrective diff and nearby
+regression contracts. Valid evidence for unchanged areas is reused; reopening
+settled areas or repeating broad suites requires a concrete new risk. Known
+blockers are not waived. Full mission acceptance and integration gates remain
+required on the integrated implementation. WP09 cycle 3 specifically targets
+multiline-comment and explicit-key preservation rather than restarting review.
