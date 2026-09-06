@@ -108,9 +108,14 @@ def _ensure_backup_root(project_path: Path, backup_root: Path | None) -> Path:
         return backup_root
 
     timestamp = now_utc_compact_stamp()
-    root = project_path / ".kittify" / ".migration-backup" / "agent-skills" / timestamp
+    root = _backup_parent(project_path) / timestamp
     root.mkdir(parents=True, exist_ok=True)
     return root
+
+
+def _backup_parent(project_path: Path) -> Path:
+    """Return the established owner-local retained-backup directory."""
+    return project_path / ".kittify" / ".migration-backup" / "agent-skills"
 
 
 def _archive_existing_path(dest: Path, project_path: Path, backup_root: Path | None) -> Path:

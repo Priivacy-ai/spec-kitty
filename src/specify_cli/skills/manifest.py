@@ -71,11 +71,16 @@ class ManagedSkillManifest:
         return None
 
 
+def _render_manifest(manifest: ManagedSkillManifest) -> str:
+    """Serialize the managed-skill schema in its established wire format."""
+    data = asdict(manifest)
+    return json.dumps(data, indent=2) + "\n"
+
+
 def save_manifest(manifest: ManagedSkillManifest, project_path: Path) -> None:
     """Persist the manifest to .kittify/skills-manifest.json."""
     manifest.updated_at = now_utc_iso()
-    data = asdict(manifest)
-    content = json.dumps(data, indent=2) + "\n"
+    content = _render_manifest(manifest)
     target = project_path / ".kittify" / MANIFEST_FILENAME
     atomic_write(target, content, mkdir=True)
 
