@@ -122,3 +122,15 @@ def test_dry_run_passed_through() -> None:
         Path("/proj"), [_status(ToolSurfaceKind.COMMAND_SKILL, "a")], dry_run=True
     )
     assert result.dry_run is True
+
+
+def test_shared_owner_legacy_repair_keeps_both_original_statuses() -> None:
+    from dataclasses import replace
+
+    provider = _RecordingProvider(ToolSurfaceKind.COMMAND_SKILL)
+    codex = _status(ToolSurfaceKind.COMMAND_SKILL, "shared")
+    vibe = replace(codex, instance=replace(codex.instance, owner="vibe", file_hash="source-context"))
+    result = SurfaceRepairService([provider]).repair(Path("/proj"), [codex, vibe])
+    assert provider.received[0] is codex
+    assert provider.received[1] is vibe
+    assert set(result.repaired) == {_surface_id(codex.instance), _surface_id(vibe.instance)}

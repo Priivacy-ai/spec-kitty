@@ -112,3 +112,13 @@ def test_no_provider_yields_no_instances(tmp_path: Path) -> None:
     builder = SurfacePlanBuilder(registry, [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)])
     plans = builder.build(["codex"], tmp_path)
     assert plans[0].instances == ()
+
+
+def test_required_definition_cannot_disappear_from_existing_builder(tmp_path: Path) -> None:
+    registry = ToolSurfaceRegistry()
+    registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "missing"))
+    assert registry.get_definitions("codex")
+    plan = SurfacePlanBuilder(registry, []).build(["codex"], tmp_path)[0]
+    assert plan.instances or getattr(plan, "diagnostics", ()), (
+        "A selected required definition vanished without an instance or diagnostic"
+    )
