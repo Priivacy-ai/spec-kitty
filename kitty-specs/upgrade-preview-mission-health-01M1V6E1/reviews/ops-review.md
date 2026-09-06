@@ -54,12 +54,29 @@ The full pre-integration architecture sweep had two reported failures, not a
 green baseline. Archive preservation #3911 remains unresolved; final mission
 gates must execute on the eventual integrated implementation.
 
+## Planning Workspace Ancestry (#3912)
+
+- Op: `01M1V9DJH0BQGR18AZ838K4VPZ`.
+- Implementer: Mill under Python Pedro; independent reviewer: parent under
+  Reviewer Renata. Reviewer did not edit the implementation or tests.
+- Integrated red: `71a76f497` (original `86d535f60`); green: `be5a58f55`
+  (original `0c9dfabe2be235854dd1de584b50de585091c993`).
+- Planning self-heal now selects the canonical root workspace, preserves the
+  existing ancestry predicate and merges only approved dependency refs.
+  Protected/dirty roots refuse mutation; ordinary lane behavior is unchanged.
+- Independent verdict: APPROVE. Ten focused tests passed before integration
+  and again after integration (36.50s), including rollback and idempotence.
+- Inspected implementer evidence: 406 passed/1 skipped, Ruff/mypy clean;
+  real E2E lifecycle scenario passed in 333.98s with 97 child records.
+- Worker stopped on workspace credits after producing the reviewed patch.
+  Parent preserved red-first history and committed/integrated unchanged code.
+  Full final mission gates remain pending.
+
 ## Open Prerequisite Operations
 
-- `01M1V9DJH0BQGR18AZ838K4VPZ`: #3912 planning-artifact ancestry correction,
-  isolated implementation and independent review pending.
 - `01M1V9DM1GNCDPRJ9R9ADP1PCS`: E2E repository #411 contract-drift harness,
-  isolated cross-repository implementation and independent review pending.
+  partial implementation passes its targeted scenario, but independent review
+  retains a nested-bootstrap environment question. Not approved or integrated.
 
-Neither is claimed complete or passing. Their final evidence and separate E2E
-PR link must be included in the publication handoff.
+The E2E operation is not claimed complete. Final evidence and separate E2E PR
+link must be included in the publication handoff.

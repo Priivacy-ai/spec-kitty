@@ -16,9 +16,9 @@ work_packages:
     subtasks: ["T006","T007","T008","T009","T010"]
     prompt_file: null
   - id: "WP03"
-    title: "Read-only startup intent and global runtime assessment"
+    title: "Pure startup intent and global runtime assessment"
     dependencies: ["WP01","WP02"]
-    owned_files: ["src/specify_cli/__init__.py","src/specify_cli/cli/helpers.py","src/specify_cli/upgrade/intent.py","src/specify_cli/runtime/**","src/specify_cli/tool_surface/providers/slash_commands.py","tests/runtime/test_upgrade_preview_bootstrap.py","tests/runtime/test_bootstrap_unit.py","tests/runtime/test_agent_skills.py","tests/specify_cli/runtime/**"]
+    owned_files: ["src/specify_cli/upgrade/intent.py","src/specify_cli/runtime/**","src/specify_cli/tool_surface/providers/slash_commands.py","tests/runtime/test_upgrade_preview_bootstrap.py","tests/runtime/test_bootstrap_unit.py","tests/runtime/test_agent_skills.py","tests/specify_cli/runtime/**"]
     requirement_refs: ["FR-001","FR-002","FR-003","FR-004","NFR-001","NFR-004","C-001"]
     plan_concern_refs: ["IC-02"]
     subtasks: ["T011","T012","T013","T014","T015","T016","T017"]
@@ -74,9 +74,9 @@ work_packages:
   - id: "WP10"
     title: "Upgrade composition and compatible CLI reporting"
     dependencies: ["WP03","WP04","WP05","WP06","WP07","WP08","WP09"]
-    owned_files: ["src/specify_cli/cli/commands/upgrade.py","src/specify_cli/upgrade/assessment.py","src/specify_cli/upgrade/runner.py","src/specify_cli/upgrade/finalize.py","src/specify_cli/upgrade/metadata.py","src/specify_cli/upgrade/outcome.py","src/specify_cli/upgrade/compat.py","src/specify_cli/upgrade/detector.py","src/specify_cli/upgrade/registry.py","src/specify_cli/upgrade/autocommit.py","src/specify_cli/compat/**","tests/specify_cli/compat/**","tests/upgrade/test_upgrade_assessment.py","tests/upgrade/test_upgrade_cli_contract.py","tests/upgrade/test_finalizer.py","tests/upgrade/test_upgrade_integration.py","tests/upgrade/test_upgrade_idempotency.py","tests/upgrade/test_teamspace_consent_scope.py","docs/guides/how-to/installation/upgrade-project.md","docs/guides/how-to/installation/upgrade-cli.md","docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md","docs/api/upgrade-lifecycle.md"]
+    owned_files: ["src/specify_cli/__init__.py","src/specify_cli/cli/helpers.py","src/specify_cli/cli/commands/upgrade.py","src/specify_cli/upgrade/assessment.py","src/specify_cli/upgrade/runner.py","src/specify_cli/upgrade/finalize.py","src/specify_cli/upgrade/metadata.py","src/specify_cli/upgrade/outcome.py","src/specify_cli/upgrade/compat.py","src/specify_cli/upgrade/detector.py","src/specify_cli/upgrade/registry.py","src/specify_cli/upgrade/autocommit.py","src/specify_cli/compat/**","tests/specify_cli/compat/**","tests/upgrade/test_upgrade_assessment.py","tests/upgrade/test_upgrade_cli_contract.py","tests/upgrade/test_finalizer.py","tests/upgrade/test_upgrade_integration.py","tests/upgrade/test_upgrade_idempotency.py","tests/upgrade/test_teamspace_consent_scope.py","docs/guides/how-to/installation/upgrade-project.md","docs/guides/how-to/installation/upgrade-cli.md","docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md","docs/api/upgrade-lifecycle.md"]
     requirement_refs: ["FR-001","FR-002","FR-003","FR-004","FR-005","FR-006","FR-010","NFR-002","C-001","C-002"]
-    plan_concern_refs: ["IC-07"]
+    plan_concern_refs: ["IC-02","IC-07"]
     subtasks: ["T047","T048","T049","T050","T051","T052","T053"]
     prompt_file: null
   - id: "WP11"
