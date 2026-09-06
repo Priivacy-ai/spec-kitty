@@ -629,9 +629,21 @@ def test_real_scanners_fail_closed_outside_git(tmp_path: Path, monkeypatch: pyte
         _grep_for_phrase_ci("lane merge", roots=("docs",))
 
 
+def _regular_frozen_evidence_path(relative: str) -> Path:
+    # Git grep omits staged symlinks; enforce this even when there are no hits.
+    path = _repo_root()
+    message = f"Frozen evidence must be a regular file without symlinks: {relative}"
+    for component in relative.split("/"):
+        path /= component
+        assert not path.is_symlink(), message
+    assert path.is_file(), message
+    return path
+
+
 def test_reviewed_receipt_bytes_are_preserved() -> None:
+    path = _regular_frozen_evidence_path(_RECEIPT_PATH)
     # Reviewed file-integrity checksum; deliberately not charter normalization.
-    assert hashlib.sha256((_repo_root() / _RECEIPT_PATH).read_bytes()).hexdigest() == _RECEIPT_SHA256  # noqa: TID251
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == _RECEIPT_SHA256  # noqa: TID251
 
 
 @pytest.mark.parametrize("mutation", ["none", "append", "replace", "alongside", "lookalike"])
@@ -728,8 +740,9 @@ def test_real_phrase_scanner_rejects_prose_in_receipt(tmp_path: Path, monkeypatc
 def test_frozen_census_bytes(name: str) -> None:
     assert len(_CENSUS_SHA256) == 2
     relative = f"{_CENSUS_DIRECTORY}/{name}-census.json"
+    path = _regular_frozen_evidence_path(relative)
     # Parent-reviewed whole-file evidence integrity, not charter hashing.
-    assert hashlib.sha256((_repo_root() / relative).read_bytes()).hexdigest() == _CENSUS_SHA256[relative]  # noqa: TID251
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == _CENSUS_SHA256[relative]  # noqa: TID251
 
 
 @pytest.mark.parametrize("name", ["base", "head"])
@@ -804,9 +817,7 @@ def test_real_census_phrase_prose_remains_visible(name: str, tmp_path: Path, mon
 
 @pytest.mark.parametrize("relative", [_RECEIPT_PATH, *_CENSUS_SHA256])
 @pytest.mark.parametrize("replacement", ["leaf-symlink", "parent-symlink", "directory"])
-def test_real_git_frozen_evidence_requires_regular_path(
-    relative: str, replacement: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_real_git_frozen_evidence_requires_regular_path(relative: str, replacement: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     source = (_repo_root() / relative).read_bytes()
     _stage_scanner_fixture(tmp_path, {relative: source})
     monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
