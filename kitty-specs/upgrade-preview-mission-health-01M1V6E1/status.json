@@ -169,23 +169,25 @@
       "last_transition_at": "2026-09-06T16:06:09.276853+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "T043-T046 seven-file delivery through3ca087912; owning checks/static89architecture1642fast pass. Broad3877pass plus8retained publicRED, correctedPATHfailure and6skips; not broadgreen. wp09-handoff.md; independentreview required."
+        "T043-T046 seven-file delivery through3ca087912; owning checks/static89architecture1642fast pass. Broad3877pass plus8retained publicRED, correctedPATHfailure and6skips; not broadgreen. wp09-handoff.md; independentreview required.",
+        "Independent Renata/Heisenberg REJECT: R1 P1 null/explicitempty YAML invalidwrite; R2 block-listkeycommentloss; R3 numericunownedkeyrefusal. RealBASEcontrols pass/final9cells fail;276otherchecks pass notapproval."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP09-charter-provisioning-preparation/review-cycle-1.md",
         "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP09-charter-provisioning-preparation/review-cycle-1.md",
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T043": "done",
-        "T044": "done",
-        "T045": "done",
-        "T046": "done"
+        "T043": "planned",
+        "T044": "planned",
+        "T045": "planned",
+        "T046": "planned"
       }
     },
     "WP10": {
