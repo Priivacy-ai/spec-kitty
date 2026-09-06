@@ -201,3 +201,110 @@ def test_second_upgrade_is_idempotent(tmp_path: Path) -> None:
         if path.is_file()
     }
     assert after == before, "second upgrade must not change any file bytes"
+
+
+@pytest.mark.parametrize("agents", ["codex", "codex,vibe", "vibe,codex"])
+def test_init_command_bytes_agree_with_final_config(tmp_path: Path, agents: str) -> None:
+    """#3920: first init renders final activation, once per physical skill."""
+    import hashlib
+    import json
+    import os
+    import sys
+    from collections import Counter
+
+    from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
+    from specify_cli import __version__
+    from specify_cli.skills import command_installer, command_renderer
+    from tests.upgrade.preview_support import write_observer
+    from tests.upgrade.preview_support.process import run_process
+
+    project = tmp_path / "project"
+    project.mkdir()
+    assert not is_spdd_reasons_active(project), "absent config remains inactive"
+    log = tmp_path / "writes.jsonl"
+    result = run_process(
+        [sys.executable, str(write_observer.__file__), str(log), "record", "cli", "init", "--ai", agents, "--non-interactive"],
+        project,
+        dict(os.environ, SPECIFY_REPO_ROOT=str(project)),
+    )
+    result.require_success()
+    assert is_spdd_reasons_active(project), "fresh final config enables built-ins"
+    manifest = json.loads((project / ".kittify/command-skills-manifest.json").read_text())
+    entries = manifest["entries"]
+    assert len(entries) == len(command_installer.CANONICAL_COMMANDS)
+    assert len({entry["path"] for entry in entries}) == len(entries)
+    for entry in entries:
+        assert entry["agents"] == sorted(agents.split(","))
+        actual = (project / entry["path"]).read_bytes()
+        assert entry["content_hash"] == hashlib.sha256(actual).hexdigest()  # noqa: TID251 -- independent file-integrity checksum
+        command = Path(entry["path"]).parent.name.removeprefix("spec-kitty.")
+        if command in command_installer.PROMPT_BACKED_COMMANDS:
+            rendered = (
+                command_renderer.render(
+                    command_installer._resolve_template(project, command),
+                    agents.split(",")[0],
+                    __version__,
+                    repo_root=project,
+                )
+                .to_skill_md()
+                .encode()
+            )
+            assert actual == rendered, f"init/final-config render disagreement: {command}"
+    assert b"### REASONS Guidance" in (project / ".agents/skills/spec-kitty.plan/SKILL.md").read_bytes(), (
+        "independent content pin must not accept two inactive renders"
+    )
+
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert rows[0] == {"installed_before_cli": True}
+    replacements = Counter(row["args"][1] for row in rows[1:] if row["event"] == "os.rename")
+    writes = Counter(row["args"][0] for row in rows[1:] if row["event"] == "open")
+    for entry in entries:
+        target = str(project / entry["path"])
+        assert replacements[target] == 1, f"duplicate physical replacement: {target}"
+        assert writes[target + ".tmp"] == 1, f"duplicate physical write: {target}"
+        assert writes[target] == 0, f"unexpected direct write: {target}"
+
+
+def test_init_preserves_unknown_command_bytes_and_no_proof(tmp_path: Path) -> None:
+    """#3920: delaying installation cannot authorize an unknown canonical name."""
+    import json
+
+    from tests.upgrade.preview_support.snapshot import snapshot
+
+    victim = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    victim.parent.mkdir(parents=True)
+    victim.write_bytes(b"# Authored plan\nNot a shipped command.\n")
+    victim.chmod(0o400)
+    before = snapshot({"custom": victim})
+    result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
+    assert "unexpected_collision" in result.stdout + result.stderr
+    assert snapshot({"custom": victim}) == before
+    manifest_path = tmp_path / ".kittify/command-skills-manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text())
+        assert all(entry["path"] != victim.relative_to(tmp_path).as_posix() for entry in manifest["entries"])
+
+
+@pytest.mark.parametrize("pointed", [False, True])
+def test_init_preserves_authored_disabled_config(tmp_path: Path, pointed: bool) -> None:
+    """#3920: authored config is still the idempotency boundary, not re-init."""
+    from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
+    from tests.upgrade.preview_support.snapshot import snapshot
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    disabled = "activated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n"
+    config = "# Keep authored settings\nmission_type_activations: []\ncustom: retained\n"
+    if pointed:
+        (kittify / "authored.yaml").write_text(disabled)
+        config += "charter: .kittify/authored.yaml\n"
+    else:
+        config += disabled
+    (kittify / "config.yaml").write_text(config)
+    assert not is_spdd_reasons_active(tmp_path)
+    before = snapshot({"project": tmp_path})
+    result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "Already initialized" in result.stdout
+    assert snapshot({"project": tmp_path}) == before
+    assert not is_spdd_reasons_active(tmp_path)
