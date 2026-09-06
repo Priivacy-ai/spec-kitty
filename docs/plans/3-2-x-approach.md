@@ -1,14 +1,18 @@
 ---
 title: '3.2.x Delivery Approach — Operator Plan, Dialectically Challenged'
 description: 'The operator''s 3.2.x sequencing (doctrine-swap first, cleanup next, hold non-critical PRs), stress-tested by a two-round dialectic squad into a fact-checked plan.'
-doc_status: proposed
-updated: '2026-07-17'
+doc_status: superseded
+updated: '2026-09-06'
 related:
 - docs/development/how-to/manage-issue-tracker.md
 - docs/guides/how-to/missions/keep-main-clean.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 ---
 
+> **Superseded (2026-09-06, Convergence #3881).** This plan describes the pre-convergence
+> line, including the since-removed local sync daemon / delivery / import-history surface.
+> It is kept as a historical record; the current plan of record is the
+> [3.2.x Milestone Roadmap](3-2-x-milestone-roadmap.md).
 
 # 3.2.x Delivery Approach — Operator Plan, Dialectically Challenged
 

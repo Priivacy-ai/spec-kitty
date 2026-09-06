@@ -2,12 +2,11 @@
 title: 'API & Dashboard — Domain Plan'
 description: 'Durable domain plan for the application/mission-data API surface (#645) and dashboard/UX (#650): stable data API, dashboard consumers, retiring the Feature-labelled UI drift.'
 doc_status: durable
-updated: '2026-08-12'
+updated: '2026-09-06'
 related:
 - docs/plans/index.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/plans/domains/packs-extraction-domain-plan.md
 - docs/architecture/status-model.md
 ---
@@ -37,8 +36,8 @@ plan, this surface had no standalone throughline — the [plans index](../index.
 "API & dashboard" only as a *planned* domain plan. This plan makes the throughline
 explicit and becomes the domain's index. It is a sibling to the [Doctrine & Charter
 Domain Plan](doctrine-charter-domain-plan.md), the [Packs Extraction Domain
-Plan](packs-extraction-domain-plan.md), and the [SaaS & Hosted Sync Domain
-Plan](saas-hosted-sync-domain-plan.md).
+Plan](packs-extraction-domain-plan.md), and (until its 2026-09-06 retirement,
+Convergence #3881) the SaaS & Hosted Sync domain plan.
 
 **In scope — the application surface.** "API & dashboard" here means the data surface the
 project's own consumers read mission state from, and the UX that renders it:
@@ -218,8 +217,11 @@ drift being killed — not a live UI label.*
   `docs/plans/doctrine-charter-domain-plan.md`; the domains/ migration WP moves it and
   repoints these links.)*
 - **Packs extraction** — [Packs Extraction Domain Plan](packs-extraction-domain-plan.md).
-- **SaaS & hosted sync** — [SaaS & Hosted Sync Domain Plan](saas-hosted-sync-domain-plan.md),
-  whose sync projection feeds the hosted rendering of this data surface.
+- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881). The former
+  in-process sync projection no longer exists: hosted/team rendering is server-side in the
+  authoritative upstream repos, and this repo's dashboard data surface is consumed locally,
+  with hosted status delivered via `zeitgeist_client` (ephemeral by design). See the
+  convergence-retirement ADR.
 
 **Design of record:**
 
