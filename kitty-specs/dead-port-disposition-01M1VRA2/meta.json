@@ -28,9 +28,8 @@
   "accepted_by": "robert",
   "accepted_from_commit": "6436dd62b0d370a16fe0c01ef1e9c2b8206307d6",
   "baseline_merge_commit": "9281b6de822f3c0dd6b542a49bfa6dff0040a917",
-  "coordination_branch": "kitty/mission-dead-port-disposition-01M1VRA2",
   "created_at": "2026-09-06T16:20:03.072496+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Dead-Port Disposition: RuntimeEventEmitter Seam Consolidation",
   "mission_id": "01M1VRA2VWSET7NAR2M5Z6TZ5M",
   "mission_number": null,
@@ -42,7 +41,6 @@
   "slug": "dead-port-disposition-01M1VRA2",
   "status_phase": "1",
   "target_branch": "feat/dead-port-disposition",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-09-06T18:25:11.326895+00:00"
 }
