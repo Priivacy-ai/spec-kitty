@@ -355,15 +355,15 @@ main()
     if authored_after_fault:
         # An interruption token must not authorize replacing later authored input.
         config.write_text(
-            "# Authored after interruption\nagents:\n  available: [codex]\n"
-            "activated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n",
+            "# Authored after interruption\nagents:\n  available: [codex]\nactivated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n",
             encoding="utf-8",
         )
     before = snapshot({"config": config})
     log = tmp_path / "retry-writes.jsonl"
     retry = run_process(
         [sys.executable, str(write_observer.__file__), str(log), "record", "cli", "init", "--ai", agents, "--non-interactive"],
-        project, env,
+        project,
+        env,
     )
     retry.require_success()
     manifest = project / ".kittify/command-skills-manifest.json"
@@ -390,3 +390,109 @@ main()
     again = run_process([sys.executable, "-m", "specify_cli", "init", "--ai", agents, "--non-interactive"], project, env)
     assert again.returncode == 0 and "Already initialized" in again.stdout
     assert_unchanged(finished, snapshot({"project": project}))
+
+
+@pytest.mark.parametrize("damage", ["bytes", "schema", "boolean-schema", "agents", "duplicates", "symlink", "changed-selection"])
+def test_init_pending_command_record_preserves_unsafe_inputs(tmp_path: Path, damage: str) -> None:
+    """A reserved recovery path is not permission to replace arbitrary bytes."""
+    import importlib
+    import json
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    init = importlib.import_module("specify_cli.cli.commands.init")
+    (tmp_path / ".kittify").mkdir()
+    init._start_command_delivery(tmp_path, ["codex", "vibe"])
+    record = tmp_path / ".kittify/init-command-skills.pending.json"
+    if damage == "bytes":
+        record.write_bytes(b"authored, not a recovery record")
+    elif damage == "schema":
+        record.write_text(json.dumps({"schema_version": 2, "agents": ["codex"]}))
+    elif damage == "boolean-schema":
+        record.write_text(json.dumps({"schema_version": True, "agents": ["codex", "vibe"]}))
+    elif damage == "agents":
+        record.write_text(json.dumps({"schema_version": 1, "agents": ["foreign"]}))
+    elif damage == "duplicates":
+        record.write_text(json.dumps({"schema_version": 1, "agents": ["codex", "codex"]}))
+    elif damage == "symlink":
+        target = tmp_path / "foreign"
+        target.write_bytes(record.read_bytes())
+        record.unlink()
+        record.symlink_to(target)
+    before = snapshot({"project": tmp_path})
+    with pytest.raises(ValueError):
+        init._start_command_delivery(tmp_path, ["codex"] if damage == "changed-selection" else ["codex", "vibe"])
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("case", ["all-removed", "unknown-skill", "runtime-guard", "unsaved-selection", "completed"])
+def test_init_pending_command_recovery_boundaries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str) -> None:
+    """Exercise real owners beneath the recovery boundary, not fake installers."""
+    import importlib
+    import io
+    from rich.console import Console
+    from specify_cli.core.agent_config import AgentConfig, save_agent_config
+    from specify_cli.gitignore_manager import GitignoreManager
+    from specify_cli.skills import command_installer, manifest_store
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    init = importlib.import_module("specify_cli.cli.commands.init")
+    monkeypatch.setattr(init, "_console", Console(file=io.StringIO()))
+    (tmp_path / ".kittify").mkdir()
+    initial = snapshot({"project": tmp_path})
+    init._start_command_delivery(tmp_path, [])
+    assert_unchanged(initial, snapshot({"project": tmp_path}))
+    init._start_command_delivery(tmp_path, ["codex", "vibe"])
+    pending = snapshot({"project": tmp_path})
+    init._start_command_delivery(tmp_path, ["vibe", "codex"])
+    assert_unchanged(pending, snapshot({"project": tmp_path}))
+    assert not (tmp_path / ".kittify/config.yaml").exists()
+    save_agent_config(tmp_path, AgentConfig(available=[] if case == "all-removed" else ["codex", "vibe"]))
+    record = tmp_path / ".kittify/init-command-skills.pending.json"
+    assert GitignoreManager(tmp_path).protect_all_agents().success
+    custom = tmp_path / "custom"
+    custom.write_bytes(b"foreign bytes")
+    if case == "runtime-guard":
+        ignore = tmp_path / ".gitignore"
+        ignore.unlink()
+        ignore.symlink_to(custom)
+    elif case == "unknown-skill":
+        custom = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+        custom.parent.mkdir(parents=True)
+        custom.write_bytes(b"unknown plan")
+        custom.chmod(0o400)
+    elif case == "unsaved-selection":
+        (tmp_path / ".kittify/config.yaml").write_text("project: {}\n")
+    elif case == "completed":
+        for agent in ("codex", "vibe"):
+            command_installer.install(tmp_path, agent)
+    config_before = snapshot({"config": tmp_path / ".kittify/config.yaml"})
+    custom_before = snapshot({"custom": custom})
+    if case in {"unknown-skill", "runtime-guard", "unsaved-selection"}:
+        with pytest.raises(ValueError):
+            init._resume_command_delivery(tmp_path)
+        assert record.is_file()
+        assert not manifest_store.load(tmp_path).entries
+    else:
+        commands_before = snapshot({"commands": tmp_path / ".agents"})
+        assert init._resume_command_delivery(tmp_path)
+        assert not record.exists()
+        assert_unchanged(commands_before, snapshot({"commands": tmp_path / ".agents"}))
+        assert not init._resume_command_delivery(tmp_path)
+    assert_unchanged(config_before, snapshot({"config": tmp_path / ".kittify/config.yaml"}))
+    assert_unchanged(custom_before, snapshot({"custom": custom}))
+
+
+def test_init_runtime_protection_precedes_pending_command_record(tmp_path: Path) -> None:
+    """Real fresh init refuses a foreign ignore link before publishing config."""
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    target = tmp_path / "authored-ignore"
+    target.write_bytes(b"foreign ignore content")
+    link = tmp_path / ".gitignore"
+    link.symlink_to(target)
+    before = snapshot({"link": link, "target": target})
+    result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert not (tmp_path / ".kittify/config.yaml").exists()
+    assert not (tmp_path / ".kittify/init-command-skills.pending.json").exists()
+    assert_unchanged(before, snapshot({"link": link, "target": target}))
