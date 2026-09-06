@@ -99,3 +99,37 @@ gates must execute on the eventual integrated implementation.
   programme squad review belong to the existing CI/merge agents after handoff.
   PR is ready-for-squad, not locally squad-approved or merged. The current
   core mission's final five-case E2E floor still requires integrated execution.
+
+## Contract-Drift Pass-One Correction
+
+- Correction Op: `01M1VEJSZMGHJAE5C6G4SD0RY7`.
+- PR414 correction head: `50d47d634123e865033762fd676db66a2043b454`.
+  The original operation above records its historical initial handoff, not
+  approval of this later correction or programme merge.
+- Programme pass one identified Git-locked events8.0.0 unavailable through
+  the previous PyPI-only install, an unsupported provenance import, and two
+  reproduction commands missing explicit pytest plugin-autoload isolation.
+- Distinct implementer fixed immutable registry/Git source selection and
+  PEP610 source/commit verification, limited provenance imports to the selected
+  Event model, and preserved existing trusted system Git transport while
+  isolating user/global Git configuration. No new proxy or dependency change.
+- Parent independently reviewed the fixed diff and ran 42 focused tests
+  (0.17s). Owning offline suite: 297 passed, 2 known baseline failures
+  (#412/#413), 3 skipped, 362 deselected in130.95s. No full-green claim.
+- Public source c3657a86a/events9.1.6: scenario1 passed23.11s. Actual CI source
+  e4a083107/events8.0.0: parent final-patch scenario1 passed29.81s using
+  authenticated-read exact-commit local mirrors, not the remote CI platform.
+  Both runs preserve identical29 control identities, exactly the intended
+  required-field assertion failure plus28 passes after mutation, no errors or
+  skips, and exact original-model restoration. No credentials copied to tests.
+- Parent published the corrected five-section PR body with both Op IDs,
+  executable reproduction, evidence limits and deferred gates. Verified new
+  head and open PR; programme review is running. Old ci:green is not evidence
+  for this head. Programme pass two, remote CI and merge remain external.
+- Separate nested-checkout fixture gap filed E2E#416. Source selection is
+  explicitly bound in these witnesses; missing prerequisite skips never count
+  as completing acceptance. Static advisories and missing mypy remain disclosed.
+- External evidence: `drift-harness-evidence/parent-pass1-review.md`,
+  `pass1-fix-handoff.md`, `parent-pass1-ci-final*`, and `pr-body-pass1.md`
+  under the timestamped workspace's parent directory. This operation closes
+  only the tested correction handoff, not core mission acceptance or merge.
