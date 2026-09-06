@@ -259,6 +259,17 @@ for the complete suffix using invalid middle-row controls, not reader counts.
 
 ### Subtask T062: Persist corpus regressions and admit exact reviewed recovery evidence
 
+**Parent disposition, 2026-09-06:** Independently validate the additional cyclic
+replay pinned in contracts/corpus-recovery.md, "Separately Adjudicated
+Restored-Mission Replay". This explicitly supersedes two-snapshot/eight-verdict
+total counts below: two original repairs plus one restored-mission replay,
+eleven complete standing verdicts. Prove exact historical restoration before
+replay, then admit only the separately pinned cyclic status.json output; all
+other historical blobs remain exact. Bind reviewed input/output and current
+canonical computation; reject receipt/output forgery and fourth-path admission.
+The pre-replay historical snapshot pin must remain in provenance. No generic
+snapshot exemption or weakened no-churn, consent or full-audit requirement.
+
 **Purpose**: Admit only WP11's verified recovery operations while keeping the
 receipt subordinate to approved scope and independently checked provenance.
 
@@ -480,7 +491,11 @@ attempts to remove its checks, then obtain independent review.
     seam: --yes alone cannot authorize mission-state repair or alter metadata,
     events/verdicts; explicit separate consent must reach the intended owner path.
     Assert actual owner effect/no-effect and filesystem evidence, not a startup
-    crash or mocked plan/apply success. Consume WP10 seams without editing them.
+    crash or mocked plan/apply success. Use the existing successful human upgrade
+    finalizer and independent consent owner, with a real TTY approval for the
+    positive control; JSON or failed-upgrade early returns are not that witness.
+    No new WP10 API is required and no WP10-owned file may be edited here.
+    Isolate existing startup writes; WP13 T070 reruns against integrated WP10.
 12. Record commands, SHAs, finding codes, raw evidence hashes and no-churn results.
     Additional blockers are failures to route, not reasons to lower thresholds.
     WP11 data approval never means #3911 is green; no backward dependency,
