@@ -282,7 +282,9 @@ def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML
         if key not in desired_keys and node.flow_style:
             raise ValueError("Cannot preserve deletion from flow-style YAML root")
         replacement = rendered[slice(*replacements[key])] if key in desired_keys else ""
-        if end and text[end - 1] not in "\r\n":
+        if replacement and end and text[end - 1] in "\r\n":
+            replacement = replacement.rstrip("\r\n") + ("\r\n" if text[:end].endswith("\r\n") else "\n")
+        elif end:
             replacement = replacement.rstrip("\r\n")
         edits.append((start, end, replacement))
     additions = CommentedMap({desired_keys[key]: document[desired_keys[key]] for key in replacements if key not in original_spans})
