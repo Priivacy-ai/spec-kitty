@@ -124,3 +124,101 @@ https://github.com/Priivacy-ai/spec-kitty/issues/3915,
 review uses explicit author commits and source blobs, never an empty diff.
 Independent tests/reviews remain mandatory evidence. Final integration, accept,
 mission consolidation/review, retrospective and PR handoff are not complete.
+
+## Subsequent Independent Review Outcomes
+
+This section supersedes earlier lane status, not its historical evidence.
+Draft PR #3923 is published for visibility. It is not ready for merge, and its
+target branch does not yet contain every unconsolidated implementation lane.
+Detailed reports named below remain outside the checkout; canonical review
+events preserve the durable verdicts. Test counts are separate runs, not sums
+of unique tests or claims of full mission acceptance.
+
+### WP07: Cycle 2 Approved
+
+Reviewed source: `6e866c2892fe52c08635ee2784466ed5519f7662`.
+Independent reviewer verified all four prior findings closed: shared-parent
+mtime interference, false directory-mode success/descriptor leak, legal TOML
+NaNs, and legal four/five closing-quote runs. Actual combined dispatch, partial
+I/O, hostile replacement, exact effects and two no-churn repeats were tested.
+Fresh runs: 380 scoped, 1190 broader, 1642 fast, and 39 native-provider tests;
+Ruff and strict mypy passed. These runs overlap. Native statement coverage was
+141/149, not universal failure-branch or platform coverage.
+Canonical approval: `01M1W054XBCMM22PFBS1B1J80J`.
+Report: `wp07-cycle2-independent-review.md`.
+
+Canonical nested-roster TypeErrors remain unresolved, although both selected
+owners safely convert them to incomplete assessments without writes. Initial
+review runs wrote an ignored lane cache; that deviation is recorded, not erased.
+Darwin evidence does not certify Windows/Linux. Public preview and installed-wheel
+acceptance remain pending.
+
+### WP03: Composition Rejected
+
+Reviewed source: `047dc8a69b32c39aa4309a6dcefe3af53855b169`.
+Three real cold global preparations claim shared missing parent effects. The
+approved dispatcher rejects combined application; sequential application instead
+invalidates later retained preconditions. Individual owner success does not
+establish complete composition. Correction must coordinate one retained
+executable boundary without weakening WP02, dropping effects or reassessing.
+Canonical rejection: `01M1W0ACHAS9C9A5PCZ454KTH2`; correction reclaimed.
+Report: `wp03-independent-review.md`; #3900 comment5561320201.
+Fresh 1555 subsystem and 1642 fast tests passed, but two deferred intent gates
+and the unchanged 90-second init setup timeout remained red. Timeout causation
+is unproven; no threshold increase or baseline waiver is authorized.
+
+### WP12: Preservation Controls Rejected
+
+Reviewed source: `ee431b2fc8cd3d334e70bc56de857cb62dc92402`.
+The persistent corpus test accepted a real scanner restricted to the named
+defect directories, omitting 419 missions through all eleven audits. Independently
+derived exact membership and duplicate checks are required for every report,
+with a durable narrowing negative control. Separately, an unchanged Gitlink
+outside protected roots falsely failed the archive gate's whole-tree blob check.
+Protected kinds and unscoped rename endpoint visibility must remain enforced.
+Canonical rejection: `01M1W02BPWVZ2VCG2MA74HGD58`; correction reclaimed.
+Report: `wp12-independent-review.md`; #3903 comment5561295806.
+Fresh 97 normal tests and extensive preservation controls passed, but the surviving
+scanner mutation invalidates full-corpus assurance. The immutable receipt and
+historical bytes are not being rewritten to satisfy these gates.
+
+### WP06: Profile Contract Rejected
+
+Reviewed source: `1626c9fc4a9c52bfea6836ea325189346572cb0f`.
+Malformed manifest fields are coerced into complete assessments; this inherited
+decoder gap violates the explicit corrupt-state contract. A late confinement
+ValueError escapes after 29 real effects, losing partial-write results. Shared
+Copilot/VS Code orphan deletion reports only Copilot ownership.
+Canonical rejection: `01M1W0SWGZHS1S1N3PZW3RXVBZ`; correction reclaimed.
+Report: `wp06-independent-review.md`; #3901 comment5561368568.
+Fresh 289 focused tests and original/org-health RED/GREEN controls passed.
+Those positives do not cure the three findings. Fixes must retain the canonical
+org diagnostics and supplier bytes, without inventing a profile-refcount schema.
+
+### WP04 And Supporting Init Op: Review Pending
+
+Candidate source: `234a2b433a0c4bc621352ca55484cef3edc37f79`; supporting
+test-only RED: `36ac0c9e111a9cf01fd137d723c5c4542418d568`.
+Separately authorized #3920 Op `01M1VXP7D4P42AJRTXEWW7JB42` defers existing
+command installation until final config, preserving the runtime-root gate and
+every original byte of the public wiring test prefix. Original ownership APIs
+remain at `8f1499826520f32b06dcff7b8d5c34de9e74b644`.
+Author evidence: 967 subsystem, 12 public wiring, 1642 fast and 94 architecture
+tests passed. The broader run remains red: 3923 passed, seven failed, two skipped,
+two xfailed. Four planner-state and two timing failures were not reproduced by
+serial pre-Op comparisons; their cause remains unclassified. The seventh is a
+sync-on assertion conflicting with mandatory offline policy.
+Canonical for-review event: `01M1W0M05X358WKZC2YZ8GYF2J`; independent full WP04
+and separate supporting-Op review is running. No Op closure or approval claimed.
+Reports: `init-command-ordering-handoff.md`, `wp04-handoff.md`.
+
+### Remaining Gates
+
+WP09's second review rejected lost multiline key comments and valid explicit
+YAML key failures; correction cycle 3 is running. A third rejection requires
+the skill's arbiter escalation, not another automatic retry. Report:
+`wp09-cycle2-independent-review.md`; rejection `01M1VZ1NA3NR8NMFVZYZKX182G`.
+WP05/WP08/WP10/WP13, complete public matrices, installed-wheel/E2E coverage,
+full architecture/contracts, acceptance, consolidation, independent mission
+review and retrospective remain outstanding. Automatic NO_COVERAGE envelopes
+are not passing tests. Draft publication does not complete any of these gates.
