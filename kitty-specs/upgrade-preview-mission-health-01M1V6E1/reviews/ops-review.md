@@ -1,5 +1,21 @@
 # Supporting Operation Reviews
 
+## Caller-Resolved Global Skill Inputs: Open
+
+Op `01M1W6MA0EWJ38MJDQG2D50ZJ3` supplies the missing WP03 input needed by
+WP05's existing direct installers. Their caller-resolved registry, concrete
+skill selection and skill-agent selection must remain authoritative; default
+package/all-agent behavior must remain unchanged. One coordinated preparation,
+retained observations/bytes/owners and existing WP02 guards remain mandatory.
+Scoped runtime extension and independent review precede consumer integration.
+External reproduction and scope: wp05-interface-request.md.
+
+Operator isolation incident F038 is disclosed in the external friction ledger
+and #3900 comment5561980379: earlier governance/parent CLI calls inherited live
+HOME; exact global changes are unknown without before snapshots. They are not
+claimed isolated. Future parent calls use an externally verified isolated-home
+wrapper with OS real-home and network denial. No blind rollback was attempted.
+
 Audience: agentic-framework-core-team. Updated: 2026-09-06.
 These are bounded workflow/test repairs, not completion of #3900-#3903.
 Detailed friction and raw command logs remain in the operator's external ledger.
