@@ -143,6 +143,18 @@
       "title": null,
       "verdict": "fixed",
       "wp": null
+    },
+    "#411": {
+      "evidence_ref": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/pull/414 head50d47d634123e865033762fd676db66a2043b454 fixes witness; programme pass-two/remoteCI/merge pending, tracked https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/411. Separate E2E repo, not core issue411.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
     }
   },
   "schema_version": 1
