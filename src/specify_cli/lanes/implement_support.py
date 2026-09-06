@@ -9,7 +9,7 @@ This module handles both supported execution paths:
 from __future__ import annotations
 
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
@@ -270,7 +270,9 @@ def reenter_lane_self_heal(
     must not hard-fail just because the agent has legitimate uncommitted
     work-in-progress, and git's own merge machinery already refuses a merge
     that would conflict with dirty local changes -- no separate upfront gate
-    is needed here.
+    is needed for allocator-owned lane worktrees. Planning lanes instead reuse
+    the canonical root workspace: pending reconciliation there requires a clean,
+    unprotected checkout, and only fully approved dependency tips are merged.
 
     A workspace whose ancestry is already correct is a true no-op: both merge
     helpers short-circuit on their own ``git merge-base --is-ancestor`` check
@@ -290,7 +292,11 @@ def reenter_lane_self_heal(
     from specify_cli.lanes.worktree_allocator import (
         _merge_dependency_lane_tips,
         _merge_recorded_planning_commit,
+        _validate_worktree_clean,
     )
+    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.ownership.workspace_strategy import create_planning_workspace
+    from specify_cli.git import assert_not_protected_branch
 
     manifest = read_lanes_json(_planning_dir(main_repo_root, mission_slug))
     if manifest is None:
@@ -299,7 +305,23 @@ def reenter_lane_self_heal(
     if lane is None:
         return None
     workspace_path: Path
-    workspace_path, _branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
+    if is_planning_lane(lane):
+        workspace_path = create_planning_workspace(
+            mission_slug, wp_id, list(lane.write_scope), main_repo_root
+        )
+        status_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+        if check_claim_ancestry(main_repo_root, mission_slug, status_dir, wp_id, workspace_path).ok:
+            return workspace_path
+        # Root is shared, not an allocator-owned disposable lane checkout.
+        # Refuse protected/dirty roots before the merge helpers can mutate it.
+        assert_not_protected_branch(workspace_path, operation="reconcile planning workspace ancestry")
+        _validate_worktree_clean(workspace_path, lane.lane_id)
+        # A planning lane aggregates multiple WPs' dependencies. Reconcile only
+        # the fully approved tips required by the existing claim predicate.
+        approved = _approved_dependency_lane_refs(main_repo_root, mission_slug, status_dir, lane, manifest)
+        lane = replace(lane, depends_on_lanes=tuple(dep_id for dep_id, _ref in approved))
+    else:
+        workspace_path, _branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
     if not workspace_path.exists():
         return None
     _merge_recorded_planning_commit(
