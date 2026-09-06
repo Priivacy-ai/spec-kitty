@@ -8,9 +8,10 @@ updated: 2026-09-06
 
 ## Current Status
 
-This summary supersedes historical readiness statements below. Seven WPs are
-approved: WP01, WP02, WP03, WP06, WP07, WP11 and WP12. WP05 is implementing;
-WP04 is undergoing focused corrective review. WP08, WP10 and WP13
+This summary supersedes historical readiness statements below. Eight WPs are
+approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05 is implementing;
+its missing caller-resolved global skill input is routed through a supporting Op.
+WP08, WP10 and WP13
 remain pending dependencies. No mission acceptance or consolidation is complete.
 
 WP03 approval `01M1W56TVQYABKXJD3VSEJYTT2` closes its coordinated-global-owner
@@ -37,7 +38,16 @@ Already-observed YAML-directive compatibility failures remain unresolved too.
 
 Supporting #3918, #3919 and #3924 Ops are complete with independent review and
 target-checkout evidence in ops-review.md. #3920 remains under separate review
-alongside WP04. Draft PR #3923 does not yet contain every implementation lane.
+for target integration after independent approval alongside WP04. Draft PR #3923
+does not yet contain every implementation lane.
+
+WP04 approval `01M1W6ZR5V2CKE8832QB8VKJAB` follows live independent F1/F2
+RED/GREEN controls at `fad0f8d08374d97b4b96f5d2c5cf4b5c986db896`. Separate
+#3920 recovery at `e9907343ba82782a91cb940df7c027d60dbdee9a` is independently
+approved, not yet target-integrated or Op-closed. Prior reviewer executions used
+external HOME but lacked OS real-home/network denial; this limitation remains
+explicit, not retroactively certified. Subsequent parent CLI uses verified OS
+denial and isolated HOME. Final integrated gates remain required.
 
 ## WP01: Independent Harness Approved
 

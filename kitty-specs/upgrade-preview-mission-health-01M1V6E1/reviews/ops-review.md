@@ -269,6 +269,13 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
 
 ## Init Command Rendering Order: Open
 
+Independent corrective review now approves `e9907343ba82782a91cb940df7c027d60dbdee9a`
+separately from WP04. Exact interrupted-save RED and normal/shared/edited-selector
+recovery controls pass, with preserved config, unknown content and original test
+prefix. Target integration and post-integration checks with WP04's command owner
+remain pending; Op stays open. Report: `wp04-cycle2-independent-review.md`.
+This is bounded command-delivery recovery, not full-init transactionality.
+
 - Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3920.
 - Op: `01M1VXP7D4P42AJRTXEWW7JB42`, open. Separate supporting correction,
   not a waiver of WP04's remaining subsystem failure.
