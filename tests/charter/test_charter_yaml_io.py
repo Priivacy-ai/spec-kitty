@@ -124,6 +124,32 @@ def test_save_refuses_nonmapping_document(tmp_path: Path, present: bool, documen
     assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+@pytest.mark.parametrize(
+    "section,key,old,new",
+    [
+        ("activation", "activated_directives", "\n  - old", []),
+        ("activation", "activated_directives", " [old]", []),
+        ("metadata", "metadata", "\n  label: old", {}),
+        ("metadata", "metadata", " {label: old}", {}),
+    ],
+)
+def test_empty_collection_keeps_following_key_boundary(tmp_path: Path, newline: str, section: str, key: str, old: str, new: object) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    tail = 'overrides: {label: "keep"}' + newline
+    path.write_bytes((key + ":" + old + "\n").replace("\n", newline).encode() + tail.encode())
+    values = {key: new} if section == "activation" else new
+    assert isinstance(values, dict)
+    update_charter_yaml_section(path, section, values)
+    assert load_charter_yaml(path)[key] == new
+    assert path.read_bytes().endswith(tail.encode())
+    after = snapshot({"project": tmp_path})
+    update_charter_yaml_section(path, section, values)
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 def test_inherited_activation_override_preserves_merge_source(tmp_path: Path) -> None:
     path = tmp_path / "charter.yaml"
     prefix = b"defaults: &defaults {activated_directives: [old]}\n<<: *defaults\n"
