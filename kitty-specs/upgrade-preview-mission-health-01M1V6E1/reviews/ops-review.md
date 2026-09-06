@@ -175,3 +175,18 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   `pre-review-identity-independent-review.md` beside this checkout. Worker
   process-tree readiness timing failure remains disclosed, not represented as
   fresh reviewer reproduction. No source suppression or timeout extension.
+
+## Canonical Agent Config Shape Repair: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3917.
+- Supporting Op: `01M1VV3PYTR3HESCVHEXG9W7TQ`, open; no fix or closure yet.
+- WP07 identified load_agent_config using yaml.load(f) or {} before shape
+  validation. Parent independently reproduced [], false, 0 and empty-string
+  documents returning successful empty AgentConfig instead of AgentConfigError.
+- This can make selected native/session assessment report complete/not_applicable
+  rather than incomplete. Shared canonical loader is outside WP07/WP10 ownership;
+  no provider-local schema or default change is authorized as a workaround.
+- Required correction: typed canonical failure for malformed root/selected-section
+  shapes, preserving absent/null/default mapping behavior and documented valid
+  agents/tools precedence. Separate RED/GREEN and independent consumer checks
+  remain required before the malformed-config contract is complete.
