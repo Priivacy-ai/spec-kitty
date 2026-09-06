@@ -155,9 +155,8 @@ PWHEADLESS=1 pytest tests/ -m timing -n0 --timeout=240 --timeout-method=signal -
 
 `-n0` forces serial execution even when xdist is installed.
 `--timeout=240 --timeout-method=signal` guards against a hung fork/process
-stalling the pass indefinitely. These mirror the `stress-tests-serial` /
-`timing-nfr-serial` CI jobs (`.github/workflows/ci-quality.yml`) and the
-`Makefile`'s `test-full` target.
+stalling the pass indefinitely. These mirror the `Makefile`'s `test-full`
+target's serial marker passes.
 
 (The former fourth pass ran the deleted sync daemon's fixed-port suites — five
 files bound to the reserved 9400–9449 port range, keyed off
