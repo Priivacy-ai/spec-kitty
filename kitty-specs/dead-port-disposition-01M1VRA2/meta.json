@@ -25,6 +25,7 @@
   "purpose_context": "The dead-code census flagged the concrete RuntimeEventEmitter as dormant and leaned toward deletion; the accepted ADR 2026-09-06-2 adjudicated rewire-ready consolidation instead. This mission executes that decision within the ADR's fail-closed boundary: one class named RuntimeEventEmitter remains, the bridge constructs the seam via a factory, buffered decision events on strict-policy decision_required advances reach the coordination-branch decision log, and no live zeitgeist producer is wired (E3 stays deferred).",
   "purpose_tldr": "Consolidate the permanently no-op RuntimeEventEmitter seam into the canonical runtime Protocol per ADR 2026-09-06-2, fixing the decision-event flush bypasses instead of deleting a reserved port.",
   "slug": "dead-port-disposition-01M1VRA2",
+  "status_phase": "1",
   "target_branch": "feat/dead-port-disposition",
   "topology": "coord",
   "vcs": "git",
