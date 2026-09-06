@@ -39,6 +39,7 @@ from ..operations import (
     ApplyConsent,
     AssessmentInputs,
     Diagnostic,
+    Disposition,
     InputObservation,
     OperationRoot,
     OwnerAssessment,
@@ -102,10 +103,35 @@ class CommandSkillsProvider:
 
     def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...]) -> OwnerAssessment:
         """Prepare the full selected batch, including zero-expansion pruning."""
-        agents = tuple(sorted({selection.tool_key for selection in selections if self.can_handle(selection.definition)}))
+        agents = tuple(
+            sorted(
+                {
+                    selection.tool_key
+                    for selection in selections
+                    if self.can_handle(selection.definition) and selection.definition.activation_mode != ActivationMode.DISABLED
+                }
+            )
+        )
+        if not agents:
+            return OwnerAssessment(
+                PROVIDER_KEY,
+                inputs.root,
+                dispositions=(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", "No enabled command-skill selection"),),
+                inputs_fingerprint=(InputObservation("selections", selections),),
+                consent=inputs.consent,
+            )
         assessment = command_installer.prepare_commands(inputs, agents, prune=True)
         effects = tuple(
-            replace(effect, surface_ids=tuple(_surface_id(status.instance) for status in statuses if status.instance.path == effect.destination))
+            replace(
+                effect,
+                surface_ids=tuple(
+                    _surface_id(status.instance)
+                    for status in statuses
+                    if status.instance.path == effect.destination
+                    and status.instance.owner in agents
+                    and status.instance.definition.activation_mode != ActivationMode.DISABLED
+                ),
+            )
             for effect in assessment.effects
         )
         return replace(

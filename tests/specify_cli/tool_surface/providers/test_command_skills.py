@@ -25,9 +25,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.mark.parametrize("enabled", [("codex",), ("codex", "vibe"), ()])
 @pytest.mark.parametrize("empty_catalog", [False, True])
-def test_wp04_dispatch_respects_disabled_selection(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, enabled: tuple[str, ...], empty_catalog: bool
-) -> None:
+def test_wp04_dispatch_respects_disabled_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, enabled: tuple[str, ...], empty_catalog: bool) -> None:
     from dataclasses import replace
     from specify_cli.tool_surface.enums import ActivationMode
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
@@ -56,10 +54,8 @@ def test_wp04_dispatch_respects_disabled_selection(
         registry.register_definition(agent, definition)
     consent = ApplyConsent(automatic=True)
     before = snapshot({"project": tmp_path})
-    assessed = SurfacePlanBuilder(registry, [provider]).assess(
-        ("codex", "vibe"), AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent)
-    )
-    assessment, = assessed.assessments
+    assessed = SurfacePlanBuilder(registry, [provider]).assess(("codex", "vibe"), AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent))
+    (assessment,) = assessed.assessments
     assert assessment.complete, assessment.diagnostics
     assert_unchanged(before, snapshot({"project": tmp_path}))
     results = SurfaceRepairService([provider]).apply_assessments(assessed.assessments, consent)
@@ -125,12 +121,12 @@ def test_wp04_dispatch_config_observation_boundary(tmp_path: Path, config_kind: 
     sys.addaudithook(observe)
     try:
         assessed = SurfacePlanBuilder(registry, [provider]).assess(("codex",), inputs)
-        assessment, = assessed.assessments
+        (assessment,) = assessed.assessments
         broken = config_kind in {"loop", "pointer-loop", "corrupt"}
         assert assessment.complete is not broken, assessment.diagnostics
         if broken:
             assert assessment.diagnostics and not assessment.effects
-            result, = SurfaceRepairService([provider]).apply_assessments(assessed.assessments, consent)
+            (result,) = SurfaceRepairService([provider]).apply_assessments(assessed.assessments, consent)
             assert result.outcome != "applied" and result.diagnostics
         else:
             assert assessment.effects and not assessment.diagnostics
@@ -156,7 +152,8 @@ def test_wp04_dispatch_does_not_hide_programmer_runtime_error(tmp_path: Path, mo
     with pytest.raises(RuntimeError, match="programmer defect"):
         CommandSkillsProvider().assess(
             AssessmentInputs(OperationRoot("project", "project", tmp_path)),
-            (), selections=(SurfaceSelection("codex", command_skill_definition()),),
+            (),
+            selections=(SurfaceSelection("codex", command_skill_definition()),),
         )
 
 

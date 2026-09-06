@@ -26,6 +26,7 @@ module.  The only directory removal is a targeted
 from __future__ import annotations
 
 import contextlib
+import errno
 import os
 import stat
 from dataclasses import dataclass, field, replace
@@ -663,6 +664,18 @@ class _CommandBatch:
         )
 
 
+def _resolve_observed_input(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except RuntimeError as exc:
+        # Python 3.11 pathlib translates ELOOP into RuntimeError. Translate only
+        # that observation failure; programmer exceptions still escape.
+        cause = exc.__cause__ or exc.__context__
+        if isinstance(cause, OSError) and cause.errno == errno.ELOOP:
+            raise cause from exc
+        raise
+
+
 def prepare_commands(
     inputs: AssessmentInputs,
     agents: tuple[str, ...],
@@ -682,7 +695,7 @@ def prepare_commands(
         batch = _CommandBatch(inputs, agents)
         for path in command_renderer.rendering_inputs(inputs.root.path):
             batch.observe(path)
-            resolved = path.resolve()
+            resolved = _resolve_observed_input(path)
             if resolved != path:
                 batch.observe(resolved)
         for command in CANONICAL_COMMANDS if agents else ():
@@ -690,7 +703,7 @@ def prepare_commands(
                 template = _resolve_template(inputs.root.path, command)
                 batch.template_paths.append((command, template))
                 batch.observe(template)
-                batch.observe(template.resolve())
+                batch.observe(_resolve_observed_input(template))
             variants = tuple(_render_command_skill(inputs.root.path, command, agent, batch.version) for agent in agents)
             if len(set(variants)) != 1:
                 raise InstallerError("shared_content_conflict", command=command)
