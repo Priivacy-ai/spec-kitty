@@ -42,6 +42,36 @@ Canonical rejection event `01M1VKZ7C2K7Z0AWFEJBP3490V` is durable. WP02 was
 reclaimed for scoped correction; dependent owner packages remain unstarted.
 Full external findings: `wp02-independent-review.md` beside this checkout.
 
+Cycle two author delivery: RED87b8cd2c1, GREEN78cf3627a. The updated external
+handoff reports 117 owned, 642 subsystem, 22 caller, 94 architecture and 1642
+fast passes plus clean static checks. Canonical for-review event
+`01M1VNWT1SDF1BEBE3A4E5M43T`; independent original reviewer re-review is active.
+No approval yet and no dependent owner started. The repaired identity resolver
+now reaches the declared source but no review.test_command is configured;
+NO_COVERAGE remains visible and is not a passing test gate.
+
+## WP09: Charter Preparation Independently Reviewing
+
+Exact seven-file delivery from c18531d304 to3ca087912: original REDd6095bda3,
+tidy20b68d3c6, implementation2432b5eb1, portability RED0d3ceb18c and fix3ca087912.
+Prepared charter writes preserve raw unrelated YAML/comments and exact desired
+bytes, distinguish absent/empty activation keys, and recheck observed inputs.
+These are implementation claims under independent review, not yet approval.
+
+Worker owning tests, Ruff/strict mypy, 89 architecture and 1642 fast checks passed.
+Full affected subsystem run: 3877 passed, nine failed, six skipped. Eight failures
+are retained public RED obligations for #3900-3903; the ninth was a stripped-PATH
+uv invocation, whose exact test passed after the isolated PATH correction.
+The broad suite is not green. Four missing directive-fixture and two platform
+skips remain explicit gaps; portability simulation is not native Windows proof.
+Actual legacy/pointer P7 applies preserve authored content and change one policy
+target each. Previews still omit that provisioning, owned by downstream WP10/13.
+
+Canonical for-review event: `01M1VPC9NBEK7P1BRJ44DXE2YQ`. Independent reviewer
+Heisenberg is reviewing the full authored diff and original RED/control evidence.
+Live gate reports the same no-configured-command NO_COVERAGE, not a pass.
+External evidence: `wp09-handoff.md` and `wp09-evidence/` beside this checkout.
+
 ## WP11: Recovered Corpus Independently Approved
 
 Author commits13e75ffd0,3cb4af0cc,8e2d40bc0; parent exact replay amendment
