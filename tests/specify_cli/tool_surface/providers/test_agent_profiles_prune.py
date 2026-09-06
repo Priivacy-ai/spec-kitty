@@ -135,3 +135,53 @@ def test_fix_does_not_prune_unrelated_user_file(tmp_path: Path) -> None:
     _run_fix(tmp_path)
 
     assert user_file.exists(), "untracked user files must never be pruned"
+
+
+def test_fix_preserves_edited_orphan_and_discloses_drift(tmp_path: Path) -> None:
+    """T029: existing repair must preserve edited, formerly admitted content."""
+    from tests.upgrade.preview_support.snapshot import snapshot
+
+    pack = _write_org_pack(tmp_path)
+    _write_config(tmp_path, pack, activated=None)
+    _run_fix(tmp_path)
+    orphan = tmp_path / ".claude/agents" / f"{_ORG_ANALYST_ID}.md"
+    orphan.write_text("# Operator customization\n", encoding="utf-8")
+    orphan.chmod(0o640)
+    custom = orphan.parent / "handwritten.md"
+    custom.write_text("untouched\n", encoding="utf-8")
+    manifest_entry = next(e for e in ProfileManifest.load(tmp_path).all_entries() if e.output_path == orphan)
+    _write_config(tmp_path, pack, activated=[_UNRELATED_BUILTIN_ID])
+    provider = AgentProfilesProvider()
+    instances = provider.expand(agent_profile_definition(), _TOOL_KEY, tmp_path)
+    assert orphan not in {i.path for i in instances}
+    before = snapshot({"project": tmp_path})
+    result = provider.repair(tmp_path, [provider.probe(i) for i in instances])
+    after = snapshot({"project": tmp_path})
+    key = ("project", orphan.relative_to(tmp_path).as_posix())
+    assert after.get(key) == before[key], "edited managed orphan must survive repair unchanged"
+    assert manifest_entry in ProfileManifest.load(tmp_path).all_entries()
+    assert after[("project", custom.relative_to(tmp_path).as_posix())] == before[("project", custom.relative_to(tmp_path).as_posix())]
+    assert any("drift" in message.lower() for message in result.failed)
+
+
+def test_existing_dry_run_omits_statusless_orphan_effects(tmp_path: Path) -> None:
+    """Historical reporting seam omits physical prune/manifest effects (WP10)."""
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    pack = _write_org_pack(tmp_path)
+    _write_config(tmp_path, pack, activated=None)
+    _run_fix(tmp_path)
+    _write_config(tmp_path, pack, activated=[_UNRELATED_BUILTIN_ID])
+    provider = AgentProfilesProvider()
+    instances = provider.expand(agent_profile_definition(), _TOOL_KEY, tmp_path)
+    statuses = [provider.probe(i) for i in instances]
+    before = snapshot({"project": tmp_path})
+    preview = provider.repair(tmp_path, statuses, dry_run=True)
+    assert preview.repaired == ()
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    provider.repair(tmp_path, statuses)
+    delta = net_delta(before, snapshot({"project": tmp_path}))
+    paths = {(e.path, e.action) for e in delta}
+    assert (f".claude/agents/{_ORG_ANALYST_ID}.md", "delete") in paths
+    assert (".kittify/agent_profiles_manifest.json", "update") in paths
+    print("original ID-only preview:", preview, "independent physical delta:", delta)
