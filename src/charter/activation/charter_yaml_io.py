@@ -149,7 +149,7 @@ def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
     descriptor = os.open(prepared.target, flags, prepared.mode)
     with os.fdopen(descriptor, "wb") as stream:
         if prepared.before_bytes is None:
-            os.fchmod(stream.fileno(), prepared.mode)
+            prepared.target.chmod(prepared.mode)
         stream.write(prepared.desired_bytes)
     return True
 
