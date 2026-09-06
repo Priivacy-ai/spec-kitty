@@ -190,3 +190,18 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   shapes, preserving absent/null/default mapping behavior and documented valid
   agents/tools precedence. Separate RED/GREEN and independent consumer checks
   remain required before the malformed-config contract is complete.
+
+## Canonical Org Profile Diagnostics: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3918.
+- Supporting Op: `01M1VW15S0RR4AC182V3KJSNBS`, open; no fix or closure yet.
+- Parent reproduced a real corrupt org sibling through the existing resolver
+  fixture. The activation-aware repository reports an org SkippedProfile, while
+  resolve_activated_org_profiles returns only admitted records without that
+  diagnostic. Admission filtering remains correct; source-health evidence is lost.
+- WP06 T030/T033 remain incomplete pending the canonical diagnostic seam and
+  consumer integration. Preserve activation, provenance, deterministic results,
+  list-caller compatibility and the no-org fast path. No raw-org admission or
+  provider-local schema validation may substitute for canonical diagnostics.
+- Require RED/GREEN controls and independent review before integration/closure.
+  External reproduction: org-profile-diagnostic-probe.py beside this checkout.
