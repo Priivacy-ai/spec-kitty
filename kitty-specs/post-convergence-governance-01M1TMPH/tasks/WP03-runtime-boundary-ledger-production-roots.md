@@ -49,3 +49,28 @@ plus a bare-`import specify_cli` sentinel (`""`, 2 edges in `runtime/next/runtim
 - `_PRODUCTION_ROOTS` contains `mission_runtime` + `glossary`, not `doctrine`;
   `test_shared_package_boundary.py` passes.
 - Both gates run in ≤5 s.
+
+## Amendment — #3522 scan-root widening + census spelling fix (2026-09-06, second-opinion fold)
+
+The second-opinion architecture check (work/post-convergence/19, PR comment thread) found the ledger
+above closes only the ADJACENT half of #3522. The LITERAL ask — the doctrine-facade boundary never
+scans `src/runtime/` — required two further test-only changes, folded into this WP:
+
+- `test_runtime_charter_doctrine_boundary.py`: `_RUNTIME_ROOT` → explicit `_SCAN_ROOTS` list
+  (`src/specify_cli`, `src/runtime`); `src/runtime`'s two live lazy doctrine reaches
+  (`runtime_bridge_composition.py` → `charter.offering.missions.step_contracts`,
+  `runtime_bridge_io.py` → `….step_projection`, both census-classified FACADE-ONLY) pinned in the
+  shrink-only lazy baseline; failure-message prose updated.
+- `test_doctrine_census.py`: same explicit `_SCAN_ROOTS`; the two runtime files recorded as
+  documented `ORPHAN_REACHED_EXCEPTIONS` (#2173 owns the future door-routing). **Found and fixed in
+  passing: the census matcher recognized only the legacy `doctrine.*` spelling — since the
+  `charter.offering` relocation, `reached_doctrine_paths()` returned EMPTY and every census gate
+  passed vacuously.** Dual-spelling matcher restored (mirrors the boundary file's
+  `_is_doctrine_module`); bare `charter.offering` added to DISPOSITION as INTERNAL-METADATA
+  (sibling of the legacy `doctrine` entry); docstring census numbers re-measured
+  (6 files / 11 reaches / 10 distinct paths).
+
+Acceptance re-run: `test_doctrine_census.py` + `test_runtime_charter_doctrine_boundary.py` +
+`test_layer_rules.py` → 35 passed; `ruff check` clean on both files. With this amendment the WP
+delivers BOTH halves of #3522 (layer-rule ledger + doctrine scan-root coverage), and the census gate
+is non-vacuous again.

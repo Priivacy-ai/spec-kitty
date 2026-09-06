@@ -13,8 +13,16 @@ from tests.architectural.test_doctrine_census import EXEMPT_MANAGEMENT_SURFACE
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_RUNTIME_ROOT = _REPO_ROOT / "src" / "specify_cli"
-_EXEMPT_SUBPACKAGE = _RUNTIME_ROOT / "doctrine"
+# Scanned roots are an EXPLICIT LIST (#3522): the boundary must examine every
+# package that reaches doctrine, and adding a src/ package to the scan is a
+# visible, reviewed decision — not an accident of a single hardcoded root.
+# ``src/runtime`` was silently unscanned before (the #3522 gap: a direct
+# doctrine import there passed CI); it is now a first-class scan root.
+_SCAN_ROOTS: tuple[Path, ...] = (
+    _REPO_ROOT / "src" / "specify_cli",
+    _REPO_ROOT / "src" / "runtime",
+)
+_EXEMPT_SUBPACKAGE = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
 
 # The absolute-``doctrine`` matcher literals, hoisted per Sonar S1192 (they recur
 # across the module-level ratchet, the lazy ratchet, and the laundering scan).
@@ -59,7 +67,7 @@ def _is_exempt_subpackage(path: Path) -> bool:
 
 
 def _iter_runtime_python_files() -> list[Path]:
-    return sorted(_RUNTIME_ROOT.rglob("*.py"))
+    return sorted(path for root in _SCAN_ROOTS for path in root.rglob("*.py"))
 
 
 def _rel_to_repo(path: Path) -> str:
@@ -145,6 +153,14 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[str] = frozenset(
         "src/specify_cli/cli/commands/_doctrine_collect.py",
         "src/specify_cli/cli/commands/doctrine.py",
         "src/specify_cli/tool_surface/bundles/codex.py",
+        # #3522 scan-root widening: ``src/runtime`` joined the scan. Its two
+        # live lazy reaches (both census-classified FACADE-ONLY:
+        # ``charter.offering.missions.step_contracts`` /
+        # ``charter.offering.missions.step_projection``) are pinned here;
+        # routing them through a charter.missions door is the shrink target
+        # (infra/logic epic #2173).
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_io.py",
     }
 )
 
@@ -287,7 +303,8 @@ def _format_lazy_ratchet_failure(
         bullets = "\n  - ".join(new_violators)
         parts.append(
             "Lazy (function-body) doctrine reach-through. The following files under\n"
-            "src/specify_cli/ introduce a NEW nested `from charter.offering.*` / `import\n"
+            "the scanned roots (src/specify_cli/, src/runtime/) introduce a NEW nested\n"
+            "`from charter.offering.*` / `import\n"
             "doctrine` import (outside `if TYPE_CHECKING:` and outside the\n"
             "src/specify_cli/doctrine/ management surface) that is not in the\n"
             "lazy baseline:\n"
