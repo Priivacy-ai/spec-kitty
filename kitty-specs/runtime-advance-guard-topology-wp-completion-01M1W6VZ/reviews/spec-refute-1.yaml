@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "runtime_bridge.py:1712-1723's own comment plus _GUARD_TABLES (runtime_bridge_cores.py:689-693, includes \"software-dev\") confirm _dn_dependency_gate calls _check_cli_guards for every _GUARD_TABLES-registered family including software-dev at implement/review WP-iteration steps, ahead of composition dispatch, so US1's Independent Test (mission=\"software-dev\" calling _check_composed_action_guard directly) bypasses the real first-hit entry point for that fixture."
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: "artifacts.py:147-172 places WORK_PACKAGE_TASK in _PRIMARY_ARTIFACT_KINDS (confirmed by direct read) and docs/context/orchestration.md:542/608 (both lines match exactly) define PRIMARY as including work-package outlines while COORD's list excludes them, so FR-002's grouping of the tasks_dir WP-file glob with COORD-partition reads is a real mischaracterization; the reachability half of the claim is honestly hedged (\"may be unreachable\") rather than overstated."
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: "Direct reads confirm _check_requirement_mapping_ready (runtime_bridge.py:923,943-944) and _check_bare_prose_requirements_ready (:989,1012-1013) return [] when spec.md is absent, and ensure_occurrence_classification_ready (bulk_edit/gate.py:75-86) returns passed=True when meta.json is absent, none of which are named anywhere in spec.md (grep confirms zero mentions) despite gather_artifact_presence invoking all three unconditionally on the raw feature_dir."
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: "spec.md's Edge Cases section lists exactly four scenarios (primary-resolution failure, flattened/single_branch no-op, partial-events WP, guard_failures byte-content) and none address the operational discontinuity of previously-blocked coord-topology missions flipping to unblocked once this ships."
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: "_wp_blocks_step (runtime_bridge.py:781) runs through its terminal `return False` at line 810, not 800 as spec.md line 72 cites, confirmed by direct read of the full function body."
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: "FR-006 and US1 AC3 both use the exact disjunctive \"raise or otherwise surface as a reportable error\" wording (confirmed by direct spec text read), and CoordWorktreeResolutionError (commit_router.py:48) is a real existing fail-loud precedent, so the ambiguity between a raised exception and a structured return value is genuine and unresolved."
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: "Ran `pytest tests/runtime -q --collect-only` live: 746 tests collected (not 672), while `pytest tests/runtime --ignore=tests/runtime/next -q --collect-only` collects exactly 673 (672+1 skipped), directly reproducing the false-regression-alarm risk the finding describes."
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "Grepped all 7 cited files and every named line contains a live guard_failures content/order assertion (test_bridge_decision_builder.py:109,123,139,215,378; test_bridge_decide_next.py:467,509,538,561,595,649; test_runtime_bridge_blocked_paths.py:105,234,290,340,386; test_bridge_parity.py:1089-1100; both *_runtime_walk.py integration tests at the cited lines; test_runtime_bridge_composition.py:1953-1956), confirming C-002's 2-test citation set is materially incomplete."

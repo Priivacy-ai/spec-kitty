@@ -1,0 +1,57 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: round2-targets
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: SPEC-GOV-001
+    severity: 4
+    source: spec-verify.yaml (unresolved after round 1 fix)
+    title: "Round-1 fix introduced a new false claim: implement step's WP-iteration guard does not check tasks.md presence at all"
+    reason_unresolved: >
+      packs/built-in/missions/software-dev/expected-artifacts.yaml has `implement: []`
+      (no blocking artifacts at that step; comment confirms _evaluate_wp_iteration_guard
+      only checks WP status, never a filename), and _evaluate_wp_iteration_guard/
+      wp_advance_ready never inspects filenames at the implement step. So the spec's
+      current claim that "both calls return [\"tasks.md\", ...]" before the fix, at the
+      implement WP-iteration guard, does not match what the real code produces there.
+  - id: SPEC-VERIFY-003
+    severity: 1
+    source: spec-verify.yaml (unresolved after round 1 fix)
+    title: "_wp_blocks_step citation still off-by-one"
+    reason_unresolved: "Citation moved to 781-809 but the function's real closing line (final `return False` fallback) is 810."
+  - id: SPEC-FRESH-001
+    severity: 4
+    source: spec-fresh.yaml (fresh sweep after round 1 fix)
+    title: "FR-006's new 'must raise' contract has no catch site in any of the three live guard call paths"
+    detail: >
+      _check_cli_guards (runtime_bridge.py:1729, WP-iteration branch) is wrapped only in
+      except UnregisteredMissionFamilyError, which is raised later by evaluate_guards_strict
+      -- NOT around the earlier unconditional gather_artifact_presence call. _check_cli_guards
+      itself (runtime_bridge.py:823-855) calls gather_artifact_presence unconditionally before
+      evaluate_guards_strict. _check_composed_action_guard (runtime_bridge_composition.py:540-561)
+      has NO try/except around its gather_artifact_presence call at all. A primary-resolution
+      failure inside gather_artifact_presence (FR-001/FR-006) will propagate as an UNCAUGHT
+      exception out of decide_next_via_runtime for every mission family -- including the
+      "genuinely unregistered custom family" case the spec frames as unaffected by
+      _check_cli_guards (it still calls gather_artifact_presence before ever reaching the
+      UnregisteredMissionFamilyError raise point).
+  - id: SPEC-FRESH-002
+    severity: 4
+    source: spec-fresh.yaml (fresh sweep after round 1 fix)
+    title: "FR-006 claims C-008's red-first test targets a raised exception, but C-008's text names only the two original bug reproductions"
+    detail: >
+      C-008 as currently written scopes red-first discipline to exactly User Story 1's
+      missing-artifact reproduction and User Story 2's never-claimed-WP reproduction --
+      neither is Acceptance Scenario 3's raise-on-primary-resolution-failure behavior.
+      FR-006's sentence "C-008's red-first test targets a raised exception" is not
+      supported by C-008's actual text.
+  - id: SPEC-FRESH-003
+    severity: 2
+    source: spec-fresh.yaml (fresh sweep after round 1 fix)
+    title: "FR-008's status_facts citation range excludes its own third named helper's line"
+    detail: >
+      FR-008 cites runtime_bridge_io.py:1090-1097 as where all three helpers
+      (_check_requirement_mapping_ready, _check_bare_prose_requirements_ready,
+      _occurrence_gate_failures) are wired into status_facts. The third
+      (occurrence_gate_failures) is actually at line 1098, one past the cited range.

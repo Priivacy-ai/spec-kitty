@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "mission_slug": "runtime-advance-guard-topology-wp-completion-01M1W6VZ",
+  "mission_id": "01M1W6VZTPSFZXP3NQZ8Y3WQW5",
+  "mission_branch": "kitty/mission-runtime-advance-guard-topology-wp-completion-01M1W6VZ",
+  "target_branch": "fix/runtime-advance-guard-3883",
+  "lanes": [
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/runtime/next/test_coord_topology_fixture_repro1.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "tests/runtime/next/test_advance_guard_raise_and_catch.py",
+        "tests/runtime/next/test_advance_guard_uninitialized_wp.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-approach.md",
+        "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-design-decisions.md",
+        "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-07T00:11:40.619065+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "e4294a1a765af44685b78c0aa1157c50cca2880f"
+}

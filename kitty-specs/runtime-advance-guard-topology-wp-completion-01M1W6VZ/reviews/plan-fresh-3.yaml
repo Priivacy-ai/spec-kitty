@@ -1,0 +1,126 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh3
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-FRESH3-001
+    lens: debugger-debbie/dual-system-divergence-mapping
+    severity: 4
+    title: >
+      Call (b)'s WP-iteration-branch half is structurally unreachable — the
+      new PLAN-FIT-001 catch arm at :1680 always intercepts the shared
+      corrupt-fixture raise before _check_cli_guards (:1729) is ever called,
+      so FR-006's original catch site #1 has no real failure-injection path
+      and "5 real catch sites, each independently exercised" is inflated
+    evidence:
+      - artifact: "plan.md § Test Strategy, reproduction #2, Call (b), line 863-866 (\"each of the two `_check_cli_guards` call sites (`_dn_dependency_gate`'s WP-iteration and non-WP-iteration branches) converts a raise reached via `gather_artifact_presence` into a `DecisionKind.blocked` Decision\")"
+      - artifact: "plan.md § Test Strategy, reproduction #2, line 909-911 (\"Together, (a), (b), and (e) cover the three catch sites FR-006's original scope planned: ... (b) exercises the two `_dn_dependency_gate`/`_check_cli_guards` wraps\")"
+      - artifact: "plan.md § Seam 2 extension, Call-site threading table, line 636 and line 638 (both `_check_cli_guards:858` and the WP-iteration-branch direct call at `:1680` are fed the SAME `repo_root`/`mission_slug` locals bound once before line 1680)"
+      - artifact: "plan.md § Seam 2 extension, FR-006 catch-site extension, item 1, line 652-657 (\"a raise here [`_check_cli_guards:858`] propagates out of `_check_cli_guards` exactly like a raise from its `gather_artifact_presence` call already does\" — confirms both raises inside `_check_cli_guards` are caught by the SAME enclosing except arm, but does not address that the arm's caller never gets invoked)"
+      - artifact: "plan.md § Phasing, WP2 bullet, line 1195-1200 (Call (b) \"turns green only after the separate `_dn_dependency_gate` catch-arm commit (the `:1729`/`:1774` `except PrimaryPlacementResolutionError` arms) lands\" — asserts both arms are needed, without noting :1729 is never reached)"
+      - code: "src/runtime/next/runtime_bridge.py:1678-1697 (WP-iteration branch: `should_advance = _should_advance_wp_step(current_step_id, feature_dir)` — with the Seam-2 extension, `repo_root=repo_root, mission_slug=mission_slug` — runs and can raise/return BEFORE anything below it executes)"
+      - code: "src/runtime/next/runtime_bridge.py:1725-1735 (the `_check_cli_guards(current_step_id, feature_dir, mission_family=mission_type, repo_root=repo_root)` call at :1729 is only reached AFTER `should_advance` above resolved without raising and returned `True` — same `repo_root`/`mission_slug`/`feature_dir` triple as the :1680 call, since both come from the same `ctx.repo_root`/`ctx.mission_slug` locals)"
+      - code: "src/runtime/next/runtime_bridge_composition.py: `_should_advance_wp_step`'s Seam-2 body (`anchor_dir = _io_seam.resolve_primary_anchor_dir(feature_dir, repo_root, mission_slug)` unconditionally first when `repo_root is not None`) is the same helper `gather_artifact_presence` itself calls for the identical inputs — verified against the plan's own \"Design decision: reuse, don't duplicate\" text (line 583-593)"
+    claim: >
+      For the WP-iteration branch (current_step_id in {"implement","review"}),
+      `_dn_dependency_gate` calls `_should_advance_wp_step(current_step_id,
+      feature_dir, repo_root=repo_root, mission_slug=mission_slug)` directly
+      at `:1680`, unconditionally, before it ever reaches the `_check_cli_guards`
+      call at `:1729`. Once the Seam-2 extension lands, that `:1680` call
+      resolves `anchor_dir` via the exact same `resolve_primary_anchor_dir`
+      helper, with the exact same `feature_dir`/`repo_root`/`mission_slug`
+      that `_check_cli_guards`'s own `gather_artifact_presence` call (reached
+      later, at `:1729`) would use. Under Call (b)'s described fixture — "a
+      fixture where the primary-partition placement directory cannot be
+      resolved (corrupt/missing meta.json)", the SAME uniform fixture used for
+      Call (a)/(e), not the asymmetric mock-based one Call (c)/(d) explicitly
+      require — that helper call fails identically and deterministically
+      every time it's invoked with those inputs. So the `:1680` call always
+      raises first, is caught by the NEW PLAN-FIT-001 except arm there
+      (catch site #5, added specifically for this call), and `_dn_dependency_gate`
+      returns its blocked Decision immediately — the WP-iteration branch's
+      `_check_cli_guards` call at `:1729`, and its enclosing except arm
+      (FR-006's ORIGINAL catch site #1), is never reached at all in this
+      scenario. The only way `:1729`'s except arm could ever actually catch a
+      `gather_artifact_presence`-sourced raise is if the `:1680` call succeeded
+      (no raise) while the near-identical call moments later, with identical
+      inputs via the identical helper, then failed — which the plan itself
+      recognizes requires a purpose-built ASYMMETRIC fixture (exactly the
+      technique it uses for Call (c)/(d)'s "gather_artifact_presence succeeds
+      but the SEPARATE, later `_should_advance_wp_step` call... fails"
+      construction) — yet Call (b) is never given one. As written, Call (b)
+      either (a) cannot be implemented as described for its WP-iteration half
+      at all, or (b) will pass only because the earlier `:1680` catch fires
+      and produces the same `DecisionKind.blocked` shape, silently never
+      exercising `:1729`'s except arm — an implementer who writes this test
+      naively and sees it pass would incorrectly believe catch site #1 is
+      covered. This is the same class of gap that PLAN-FRESH-001/PLAN-FRESH2-001
+      closed for other catch sites (a call that "should" reach a site but
+      structurally can't with the fixture given) — left open here, for a
+      third round running, because nobody traced the ORDER in which `:1680`
+      and `:1729` fire relative to each other once both gained the same
+      exception surface. It also means the "5 real catch sites, all
+      independently exercised" framing overstates the design: once Seam 2
+      ships, FR-006's original catch site #1 (`:1729`'s own except arm,
+      specifically for a `gather_artifact_presence`-sourced raise) is
+      effectively moot/unreachable in both the test suite AND production —
+      any real primary-resolution failure on an implement/review step will
+      always surface via the `:1680` catch first.
+    remediation: >
+      Either (1) give Call (b)'s WP-iteration-branch half its own asymmetric,
+      mock-based fixture — analogous to Call (c)/(d)'s technique — where
+      `_should_advance_wp_step`'s `:1680` call is made to SUCCEED (e.g. by
+      patching `resolve_primary_anchor_dir` with a `side_effect` list so the
+      first invocation returns a valid dir and only the SECOND, inside
+      `_check_cli_guards`'s `gather_artifact_presence` call, raises) so
+      `:1729`'s except arm is genuinely exercised — and state this
+      explicitly, the way (c)/(d)'s fixture asymmetry is already spelled out;
+      or (2) acknowledge in the plan that FR-006's original catch site #1 is
+      structurally subsumed by the new `:1680` catch arm once Seam 2 lands
+      (its except arm remains as defensive/structural symmetry with `:1774`,
+      not as an independently-testable path), drop the claim that Call (b)
+      exercises it, and correct the "Together, (a), (b), and (e) cover the
+      three catch sites" and coverage-arithmetic sentences accordingly. Also
+      correct the WP2 commit-ordering note (line ~1198) that Call (b) "turns
+      green only after ... the `:1729`/`:1774` ... arms" — under option (2)
+      it turns green (indistinguishably from catch site #5's own coverage)
+      once ONLY the `:1774` arm and the `:1680` arm exist, regardless of
+      whether `:1729`'s arm is ever added.
+
+  - id: PLAN-FRESH3-002
+    lens: debugger-debbie/five-whys-cartographer
+    severity: 2
+    title: >
+      Reproduction #2's Calls (a)-(e) reuse the exact same letters as
+      reproduction #1's Calls (a)/(b) for unrelated tests, and round 3 grew
+      this collision surface from 4 to 7 same-named-different-meaning Calls
+      in one document without disambiguating
+    evidence:
+      - artifact: "plan.md § Test Strategy, reproduction #1, line 808-834 (Call (a): `_check_composed_action_guard(\"tasks\", ...)` happy-path dual-path check; Call (b): `_dn_dependency_gate(ctx)` via `test_cli_pre_check_threads_real_repo_root` pattern)"
+      - artifact: "plan.md § Test Strategy, reproduction #2, line 860-907 (Calls (a)-(e): five entirely different raise/catch assertions against a corrupt-fixture)"
+    claim: >
+      "Call (a)" and "Call (b)" each name two unrelated tests in this plan —
+      one under reproduction #1 (US1's happy-path dual-guard-path check) and
+      a differently-scoped one under reproduction #2 (FR-006's raise-and-catch
+      failure injection). This predates round 3, but round 3's own fix (adding
+      Call (e)) grew reproduction #2's lettered set to five without adding any
+      qualifier ("repro #2's Call (a)" vs. "repro #1's Call (a)") anywhere in
+      the document, including in the very sentence it introduces ("Call (e)
+      below closes that gap" — "below" is the only disambiguator, and it
+      breaks the moment this text is quoted, copied into a WP file, or read
+      out of its surrounding paragraph). The Phasing/WP2 section (line
+      1173-1220) already has to say "Call (a) and Call (e)" and "Calls (c)/(d)"
+      repeatedly with no reproduction-number prefix, relying entirely on
+      surrounding prose to disambiguate from reproduction #1's own (a)/(b).
+      An implementer skimming just the WP2 checklist, or a future reviewer
+      grepping for "Call (b)", cannot tell without reading the full
+      surrounding paragraph which of the two "Call (b)"s (or now, effectively,
+      the two "Call (a)"s) is meant.
+    remediation: >
+      Prefix every Call reference with its reproduction number wherever it
+      appears outside the reproduction's own bullet — e.g. "repro #2 Call (e)"
+      / "repro #1 Call (b)" — at minimum in the Phasing/WP2 section (line
+      1173-1220) and the "Together, (a), (b), and (e) cover..." sentence
+      (line 909), since those are the places most likely to be read or quoted
+      without their defining paragraph attached.

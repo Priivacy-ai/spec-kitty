@@ -1,0 +1,114 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true               # flipped after the yaml self-check passed
+phase: tasks
+lens_group: verify
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Baseline captured before the first change
+    severity: 2
+    title: "NFR-001's exact pre-change baseline invocations are never assigned as a WP subtask — only re-verified post-fix in WP03"
+    evidence:
+      - artifact: "plan.md § Baseline (NFR-001) (line 1122-1146)"
+      - artifact: "tasks/WP02-coord-topology-fixture-repro1.md (no NFR-001/baseline-invocation subtask anywhere)"
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T019 step 4 (line 762-769)"
+      - artifact: "tasks/WP03-regression-sweep-baseline-reverify.md § Subtask T021 (line 118-165)"
+    claim: >
+      plan.md's Baseline (NFR-001) section explicitly instructs: "run these
+      exact invocations FIRST, before any production-code change (WP1a/WP1b,
+      alongside the red-first tests), and record the counts" — i.e. an
+      implementation-time (not merely planning-time) live capture of the
+      three exact baseline invocations before WP01's production diff lands.
+      Under the mission's 3-WP repartition, WP02 (test-only, runs first, no
+      production changes) is the natural place to do this, and WP01's own
+      internal commit sequence is where the first production changes land.
+      Neither tasks/WP02-coord-topology-fixture-repro1.md nor
+      tasks/WP01-merged-production-fix.md contains a subtask instructing an
+      implementer to run and record the three NFR-001-exact invocations
+      before WP01's first production-code commit. WP01's own T019 step 4
+      self-check runs a different, broader shard invocation ("tests/runtime
+      tests/runtime/next tests/next tests/specify_cli/next
+      tests/specify_cli/status" — combining tests/runtime AND
+      tests/runtime/next together, not matching any of the three NFR-001-exact
+      commands) and explicitly disclaims itself as "not a substitute" for
+      WP03's sweep. The only WP that actually runs and records the three
+      NFR-001-exact invocations is WP03 (T021), and only AFTER WP01's fix has
+      already landed — there is no live "before" data point from this
+      mission's own execution to diff WP03's "after" numbers against; WP03
+      instead diffs against plan.md's own planning-time citation of the
+      baseline. This does not currently cause a wrong outcome (WP03's T021
+      step 4 already requires bisecting any deviation against
+      main/upstream/main at the same commit before attributing it to this
+      mission, which is an adequate substitute mechanism), so severity is
+      capped at minor rather than moderate — but it is a genuine gap between
+      what plan.md's own Baseline section directs and what the tasks phase
+      assigned as concrete subtasks.
+    remediation: >
+      Add an explicit subtask to WP02 (or the start of WP01, before its first
+      production commit) instructing the implementer to run and record, in
+      tracer-design-decisions.md, the three NFR-001-exact invocations
+      ("pytest tests/runtime tests/next tests/specify_cli/next
+      tests/specify_cli/status", "pytest tests/runtime/next tests/next", and
+      "pytest tests/runtime --ignore=tests/runtime/next") BEFORE any
+      production-code change lands, mirroring plan.md's own "run FIRST"
+      instruction verbatim, so WP03's post-fix numbers in T021 have a live,
+      this-mission's-own-execution "before" data point to diff against
+      instead of relying solely on plan.md's planning-time citation.
+
+  - id: TASKS-VERIFY-002
+    lens: "Mission-derived lens 2 — Test-strategy fidelity for the FR-006 catch-site sequence (extended: FR-002 coverage check)"
+    severity: 3
+    title: "FR-002 / US1 Acceptance Scenario 2 (WP-lane-state read must stay on feature_dir, not primary) has no dedicated discriminating test in WP01's task list"
+    evidence:
+      - artifact: "spec.md § Requirements, FR-002 row"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 2"
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T009 step 4 (line 252-255, design instruction only, not a test)"
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T018 (line 702-740, no item names get_wp_lane/wp_lane_raw)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1070 (get_wp_lane(feature_dir, wp_id), left on feature_dir per T009 step 4)"
+      - code: "src/runtime/next/committed_authority.py:117-133 (wp_ending raises CanonicalStatusNotFoundError when feature_dir carries no event log)"
+    claim: >
+      FR-002 is a named functional requirement (spec.md's Requirements table)
+      and US1's Acceptance Scenario 2 states it as an explicit, independently
+      testable behavior: after FR-001's primary-anchoring fix lands, the
+      WP-lane-state read (get_wp_lane over status.events.jsonl, inside
+      gather_artifact_presence and inside _should_advance_wp_step's
+      committed_authority.wp_ending call) must keep resolving against the
+      coord worktree's feature_dir, not get silently re-anchored to the
+      primary directory FR-001 introduces. WP01's task file (which owns
+      FR-002 per its requirement_refs) only encodes this as an implementer
+      instruction ("Leave these UNCHANGED on feature_dir — do not touch",
+      T009 step 4; "# UNCHANGED" comment in T013's own code snippet) — no
+      subtask in T008-T019 or the "Additional narrow unit tests" list (T018)
+      names a dedicated assertion that would fail if an implementer
+      accidentally redirected the WP-lane read to anchor_dir instead of
+      feature_dir. The only incidental protection is that WP02's/T017's
+      coord-topology fixture never populates a status.events.jsonl on
+      primary_dir at all, so a wrongly-redirected wp_ending call would raise
+      CanonicalStatusNotFoundError instead of silently returning a plausible
+      wrong lane — but this is a side effect of an unrelated fixture's
+      construction, not a deliberate, documented assertion of FR-002's
+      contract, and it depends on that fixture shape never changing (e.g. it
+      would stop protecting FR-002 the moment a future edit gives
+      primary_dir its own status.events.jsonl for an unrelated reason). A
+      reviewer following WP01's own "Reviewer Guidance" section (which lists
+      checks for the 8-row call-site table, the FR-006 catch sites, the
+      mission_slug fallback, and C-002's byte-exact suite) has no checklist
+      item prompting them to confirm FR-002/AC-Scenario-2 is actually
+      exercised, so a regression here could pass review undetected until a
+      real coord-topology mission (where primary DOES carry a divergent
+      status.events.jsonl history) exhibits the FR-002 defect FR-001's own
+      fix exists to avoid re-introducing.
+    remediation: >
+      Add one explicit, discriminating test to T015 or T018 (in
+      test_advance_guard_raise_and_catch.py): build a coord-topology fixture
+      where primary_dir's OWN status.events.jsonl marks the WP as, e.g.,
+      APPROVED (a lane that would NOT block implement), while the coord
+      feature_dir's status.events.jsonl marks the same WP as genuinely
+      claimed-but-blocked (or UNINITIALIZED), then assert
+      _should_advance_wp_step (post-fix, with repo_root/mission_slug set)
+      returns the coord-anchored answer, not the primary-anchored one. This
+      makes FR-002/AC-Scenario-2 an explicit, positive assertion instead of
+      an incidental side effect of a fixture that happens to omit
+      status.events.jsonl from primary_dir, and gives WP01's "Reviewer
+      Guidance" section a concrete line item to check.

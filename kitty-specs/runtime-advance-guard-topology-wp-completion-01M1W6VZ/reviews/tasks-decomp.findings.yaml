@@ -1,0 +1,53 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: decomp
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: TASKS-DECOMP-001
+    lens: single-PR reviewable-diff (decomp)
+    severity: 2
+    title: WP01 never re-asserts plan.md's "reviewable-in-one-sitting" claim at the post-fold granularity
+    evidence:
+      - artifact: "plan.md § Phasing — ONE PR (spec-kitty default) (~line 1177-1186)"
+      - artifact: "tasks/WP01-merged-production-fix.md § Context (\"Why this WP merges plan.md's WP1a and WP2\", \"Why this WP is not split further\") and § Risks (\"This WP is large by construction, not by oversight\")"
+      - artifact: "tasks.md, wps.yaml — no mention of PR-diff readability anywhere"
+    claim: >
+      plan.md's Phasing section justifies shipping this Mission as ONE PR by
+      arguing the diff "qualifies as reviewable-in-one-sitting" specifically
+      because it is "two well-isolated, independently-testable function
+      fixes ... A reviewer can read the FR-001/006 diff and the FR-004/005
+      diff as two independent, small hunks even inside one PR" — an argument
+      that assumed the two hunks could still be inspected as separate,
+      independently-reviewable units. The tasks phase's mandatory fold (this
+      mission's own file-level owned_files-disjointness rule) merges both
+      hunks into ONE work package (WP01: 3 src files + 2 new test files,
+      ~700+ lines, 12 subtasks) that receives ONE WP-level review pass, not
+      two. WP01's own Context/Risks sections justify the SIZE ("expected and
+      sanctioned... do not split it") but never re-assert or re-verify
+      plan.md's specific human-readability claim at this new, larger review
+      granularity — the fold is defended on the file-ownership constraint
+      alone, not on whether a single WP-review sitting can still take in the
+      combined FR-001/002/003/006/007/008 anchoring diff and the
+      FR-004/005 Lane.UNINITIALIZED diff together as cleanly as plan.md's
+      original two-hunk framing promised. Neither tasks.md nor wps.yaml
+      addresses this either. This is a documentation/traceability gap, not
+      evidence the diff is actually unreadable — WP01's own subtask
+      breakdown (T008 exception/helper, T009-T010 anchoring, T011 8-row
+      threading, T012 Lane.UNINITIALIZED, T013 Seam 2, T014/T014a catch
+      arms, T015-T018 tests) still separates cleanly along the same two
+      hunks plan.md described, and its Reviewer Guidance section gives a
+      reviewer a concrete checklist to work through — but the WP file leaves
+      the reviewability verdict itself unstated at the point that changed.
+    remediation: >
+      Add one sentence to WP01's Context or Risks section (or to tasks.md)
+      explicitly re-affirming plan.md's reviewable-in-one-sitting claim at
+      the merged-WP granularity — e.g., noting that despite landing in one
+      WP, the diff still separates into the same two hunks plan.md described
+      (FR-001/002/003/006/007/008 anchoring vs. FR-004/005's
+      Lane.UNINITIALIZED disjunct, each independently testable) so a
+      WP-level reviewer can still review it as two logical passes in one
+      sitting — closing the gap between "sanctioned by the owned_files rule"
+      and "actually reviewable," which the current text only argues the
+      former for.
