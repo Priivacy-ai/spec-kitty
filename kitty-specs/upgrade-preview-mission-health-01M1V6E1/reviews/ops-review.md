@@ -176,10 +176,10 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   process-tree readiness timing failure remains disclosed, not represented as
   fresh reviewer reproduction. No source suppression or timeout extension.
 
-## Canonical Agent Config Shape Repair: Open
+## Canonical Agent Config Shape Repair: Reviewed and Integrated
 
 - Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3917.
-- Supporting Op: `01M1VV3PYTR3HESCVHEXG9W7TQ`, open; no fix or closure yet.
+- Supporting Op: `01M1VV3PYTR3HESCVHEXG9W7TQ`.
 - WP07 identified load_agent_config using yaml.load(f) or {} before shape
   validation. Parent independently reproduced [], false, 0 and empty-string
   documents returning successful empty AgentConfig instead of AgentConfigError.
@@ -190,6 +190,21 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   shapes, preserving absent/null/default mapping behavior and documented valid
   agents/tools precedence. Separate RED/GREEN and independent consumer checks
   remain required before the malformed-config contract is complete.
+- Independent scoped verdict: APPROVE. Reviewer reproduced the original
+  33-failure RED and passed 61 fresh tests plus 98 independent controls.
+  Original RED/GREEN: f04dece22f66c4e79a33965f32556c8723bd6377 /
+  59ee50ec05f6d68b5a8511a5c3f80ce151f4581a. Parent integration preserves that
+  sequence as 4ab373e0e / eab71296f; both files match reviewed bytes exactly.
+- Parent post-integration loader and doctor-envelope run: 61 passed in 47.44
+  seconds, terminal exit 0. External independent report:
+  agent-config-shape-independent-review.md beside this checkout.
+- This completes only root/selected-section mapping validation. Existing nested
+  roster-element TypeErrors for available: [1] and available: [{}] remain
+  reported on #3917. The 64 hosted tracker test failures under required sync=0
+  remain disclosed, not waived or represented as broad-suite green.
+- WP07 must still verify real native/session consumers after dependency uptake
+  and resolve its separate review findings. No WP07 or mission approval follows
+  from this supporting operation's completion.
 
 ## Canonical Org Profile Diagnostics: Open
 
