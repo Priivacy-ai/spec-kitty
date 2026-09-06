@@ -318,3 +318,27 @@ External reports: `terminology-gate-cycle2-independent-review.md` and
   evidence are retained externally in `moments-wrapping-issue.md` and
   `terminology-gate-evidence/moments-probe.json`. Governance degradation #3908
   remains explicit despite successful dispatch.
+
+### Moments Repair Approved And Integrated
+
+RED `5dc39d1880fafc052c9bafc7602d19f6412b6c9e`, GREEN
+`1a4c441f0c28cf8aa79b5d937c82176bf7cef516`; only the permitted test changed.
+Independent reviewer approved after 19 affected tests, static checks, real
+wrapping and mutation controls. Author's single canonical fast run passed 1643
+tests; reviewer inspected that receipt rather than rerunning it. Parent integrated
+with provenance as `f0f843ae2` / `c938e1905` and independently ran all 19 affected
+tests on the target checkout: 19 passed in 28.49s, terminal exit 0.
+The original diagnostic, literal-markup and no-crash obligations are retained;
+no production changes or widened-console workaround. Historical RED remains
+historical, not retrospectively green. External evidence:
+`moments-wrapping-independent-review.md`, `moments-parent-integration.sh`,
+`terminology-gate-evidence/parent-moments-integration.log`.
+
+### Org Diagnostics Consumer Follow-Through Complete
+
+The previously approved and integrated #3918 supplier remains byte-identical.
+Independent WP06 review verified actual consumer health handling before list
+copying/truthiness; its separate corrective review closed all other WP06 findings
+without changing the supplier or that consumer seam. WP06 approved event:
+`01M1W5N34C35V1989GAREFJ5ZS`. This satisfies the pending consumer follow-through
+for Op `01M1VW15S0RR4AC182V3KJSNBS`; full public integration remains pending.
