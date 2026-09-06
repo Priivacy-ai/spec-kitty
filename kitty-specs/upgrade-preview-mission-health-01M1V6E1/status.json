@@ -1,7 +1,7 @@
 {
-  "event_count": 91,
-  "last_event_id": "01M1W56TVQYABKXJD3VSEJYTT2",
-  "materialized_at": "2026-09-06T20:05:28.055528+00:00",
+  "event_count": 93,
+  "last_event_id": "01M1W5ESXVA31KF0TE2PV6JMGY",
+  "materialized_at": "2026-09-06T20:09:49.208987+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 3,
     "in_review": 1,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -155,11 +155,19 @@
       }
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "codex",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VEF2N2MHP2W39PESEC73MN",
-      "last_transition_at": "2026-09-06T13:28:00.930809+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01M1W5ESXVA31KF0TE2PV6JMGY",
+      "last_transition_at": "2026-09-06T20:09:49.208987+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464"
     },
     "WP06": {
       "actor": "codex",
