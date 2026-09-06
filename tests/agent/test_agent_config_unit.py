@@ -17,6 +17,7 @@ from specify_cli.core.agent_config import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 def _write_config(tmp_path: Path, content: str) -> Path:
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
@@ -50,9 +51,7 @@ class TestNonMappingConfigShape:
         "prefix, section",
         [("", "agents"), ("", "tools"), ("agents: null\n", "tools"), ("agents: {}\n", "tools")],
     )
-    def test_selected_section_requires_mapping(
-        self, tmp_path: Path, value: str, prefix: str, section: str
-    ) -> None:
+    def test_selected_section_requires_mapping(self, tmp_path: Path, value: str, prefix: str, section: str) -> None:
         config_file = _write_config(tmp_path, f"{prefix}{section}: {value}\n")
 
         with pytest.raises(AgentConfigError) as exc_info:
@@ -69,9 +68,7 @@ class TestNonMappingConfigShape:
         with pytest.raises(AgentConfigError):
             load_agent_config(tmp_path)
 
-    def test_non_mapping_top_level_raises_agent_config_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_non_mapping_top_level_raises_agent_config_error(self, tmp_path: Path) -> None:
         """A ``config.yaml`` whose top-level YAML content is a bare scalar
         (valid YAML, not a mapping) previously crashed with a bare
         ``AttributeError: 'str' object has no attribute 'get'`` from the
@@ -85,9 +82,7 @@ class TestNonMappingConfigShape:
             load_agent_config(tmp_path)
 
         message = str(exc_info.value)
-        assert "has no attribute" not in message, (
-            f"leaked a raw AttributeError instead of a controlled diagnostic: {message}"
-        )
+        assert "has no attribute" not in message, f"leaked a raw AttributeError instead of a controlled diagnostic: {message}"
         assert "config.yaml" in message
 
 
@@ -157,9 +152,7 @@ class TestToolsKeyFallback:
             f"agents: {agents}\ntools:\n  available: [codex]\n  auto_commit: false\n  lint_on_edit: true\n",
         )
 
-        assert load_agent_config(tmp_path) == AgentConfig(
-            available=["codex"], auto_commit=False, lint_on_edit=True
-        )
+        assert load_agent_config(tmp_path) == AgentConfig(available=["codex"], auto_commit=False, lint_on_edit=True)
 
     @pytest.mark.parametrize("tools", ["false", "[codex]", "{available: [codex]}"])
     def test_selected_agents_ignores_tools(self, tmp_path: Path, tools: str) -> None:
@@ -168,9 +161,7 @@ class TestToolsKeyFallback:
             f"agents:\n  available: [claude]\n  auto_commit: false\n  lint_on_edit: true\ntools: {tools}\n",
         )
 
-        assert load_agent_config(tmp_path) == AgentConfig(
-            available=["claude"], auto_commit=False, lint_on_edit=True
-        )
+        assert load_agent_config(tmp_path) == AgentConfig(available=["claude"], auto_commit=False, lint_on_edit=True)
 
     @pytest.mark.parametrize("section", ["agents", "tools"])
     def test_empty_section_preserves_top_level_settings(self, tmp_path: Path, section: str) -> None:
@@ -182,9 +173,7 @@ class TestToolsKeyFallback:
         """load_agent_config() reads from 'tools' key (post-m_2_0_1 migration)."""
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
-        (config_dir / "config.yaml").write_text(
-            "tools:\n  available:\n    - opencode\n  auto_commit: false\n"
-        )
+        (config_dir / "config.yaml").write_text("tools:\n  available:\n    - opencode\n  auto_commit: false\n")
         config = load_agent_config(tmp_path)
         assert config.available == ["opencode"]
         assert config.auto_commit is False
