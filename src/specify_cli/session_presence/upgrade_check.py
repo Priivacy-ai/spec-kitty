@@ -39,7 +39,7 @@ OPT_OUT_ENV_VAR: str = "SPEC_KITTY_NO_UPGRADE_CHECK"
 
 def _is_opt_out_set() -> bool:
     """Return True when upgrade checks are disabled by environment."""
-    return is_truthy(os.environ.get(OPT_OUT_ENV_VAR))
+    return bool(is_truthy(os.environ.get(OPT_OUT_ENV_VAR)))
 
 
 def refresh_cache_once() -> None:

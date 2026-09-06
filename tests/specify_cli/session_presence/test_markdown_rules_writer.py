@@ -17,6 +17,55 @@ from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWri
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_wp07_atomic_writer_preserves_foreign_temp_sentinel(tmp_path: Path) -> None:
+    sentinel = tmp_path / "AGENTS.md.tmp"
+    sentinel.write_bytes(b"foreign in-flight content")
+    writer = MarkdownRulesWriter("codex", "AGENTS.md", True)
+    writer.write(tmp_path, SessionPresenceContent("3.2.0", "example", "healthy", None))
+    assert sentinel.read_bytes() == b"foreign in-flight content"
+
+
+def test_wp07_mixed_markdown_preserves_exact_prefix_suffix(tmp_path: Path) -> None:
+    writer = MarkdownRulesWriter("codex", "AGENTS.md", True)
+    old = SessionPresenceContent("0.1.0", "example", "healthy", None)
+    new = SessionPresenceContent("3.2.0", "example", "healthy", None)
+    prefix, suffix = b"# foreign\r\n\r\n\r\n", b"\r\n\r\n# footer with no newline"
+    target = tmp_path / "AGENTS.md"
+    target.write_bytes(prefix + old.render().strip().replace("\n", "\r\n").encode() + suffix)
+    writer.write(tmp_path, new)
+    assert target.read_bytes() == prefix + new.render().strip().replace("\n", "\r\n").encode() + suffix
+
+
+def test_wp07_same_version_health_difference_has_no_churn(tmp_path: Path) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    writer = MarkdownRulesWriter("codex", "AGENTS.md", True)
+    writer.write(tmp_path, SessionPresenceContent("3.2.0", "example", "upgrade-available", "4.0.0"))
+    before = snapshot({"project": tmp_path})
+    writer.write(tmp_path, SessionPresenceContent("3.2.0", "example", "healthy", None))
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+def test_wp07_oracle_rejects_unowned_overwrite_and_same_byte_churn(tmp_path: Path) -> None:
+    import os
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    writer = MarkdownRulesWriter("codex", "AGENTS.md", True)
+    target = tmp_path / "AGENTS.md"
+    target.write_bytes(b"# foreign\n")
+    writer.write(tmp_path, SessionPresenceContent("3.2.0", "example", "healthy", None))
+    original = target.read_bytes()
+    before = snapshot({"project": tmp_path})
+    target.write_bytes(original.replace(b"# foreign", b"# clobbered"))
+    with pytest.raises(AssertionError, match="Filesystem changed"):
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+    target.write_bytes(original)
+    before = snapshot({"project": tmp_path})
+    os.utime(target, ns=(1_000_000_000, 1_000_000_000))
+    with pytest.raises(AssertionError, match="Filesystem changed"):
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 def test_wp07_existing_markdown_second_write_has_no_churn(tmp_path: Path) -> None:
     import os
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
@@ -45,9 +94,7 @@ class TestAppendModeTrue:
     """Tests for MarkdownRulesWriter with append_mode=True (e.g. CLAUDE.md)."""
 
     def _writer(self, rules_path: str = "CLAUDE.md") -> MarkdownRulesWriter:
-        return MarkdownRulesWriter(
-            harness_key="test", rules_path=rules_path, append_mode=True
-        )
+        return MarkdownRulesWriter(harness_key="test", rules_path=rules_path, append_mode=True)
 
     def test_first_write_creates_file(self, tmp_path: Path) -> None:
         writer = self._writer()
@@ -123,12 +170,8 @@ class TestAppendModeTrue:
 class TestAppendModeFalse:
     """Tests for MarkdownRulesWriter with append_mode=False (standalone file)."""
 
-    def _writer(
-        self, rules_path: str = ".cursor/rules/spec-kitty.mdc"
-    ) -> MarkdownRulesWriter:
-        return MarkdownRulesWriter(
-            harness_key="cursor", rules_path=rules_path, append_mode=False
-        )
+    def _writer(self, rules_path: str = ".cursor/rules/spec-kitty.mdc") -> MarkdownRulesWriter:
+        return MarkdownRulesWriter(harness_key="cursor", rules_path=rules_path, append_mode=False)
 
     def test_first_write_creates_file(self, tmp_path: Path) -> None:
         rules_dir = tmp_path / ".cursor" / "rules"
@@ -174,17 +217,23 @@ class TestAppendModeFalse:
 
 
 class TestAtomicity:
-    def test_original_file_unchanged_on_os_replace_failure(
-        self, tmp_path: Path
-    ) -> None:
+    def test_custom_prelude_in_old_managed_block_is_preserved(self, tmp_path: Path) -> None:
+        target = tmp_path / "CLAUDE.md"
+        original = _make_content(version="0.1.0").render().replace("Two usage patterns:", "My custom instruction.\n\nTwo usage patterns:")
+        target.write_text(original, encoding="utf-8")
+        before = target.stat()
+        writer = MarkdownRulesWriter(harness_key="test", rules_path="CLAUDE.md", append_mode=True)
+        writer.write(tmp_path, _make_content())
+        assert target.read_text(encoding="utf-8") == original
+        assert target.stat().st_mtime_ns == before.st_mtime_ns
+
+    def test_original_file_unchanged_on_os_replace_failure(self, tmp_path: Path) -> None:
         """Atomicity: if os.replace raises, original file must be unchanged."""
         target = tmp_path / "CLAUDE.md"
         original_content = "# Original content\n"
         target.write_text(original_content, encoding="utf-8")
 
-        writer = MarkdownRulesWriter(
-            harness_key="test", rules_path="CLAUDE.md", append_mode=True
-        )
+        writer = MarkdownRulesWriter(harness_key="test", rules_path="CLAUDE.md", append_mode=True)
 
         with patch("os.replace", side_effect=OSError("disk full")), pytest.raises(OSError):
             writer.write(tmp_path, _make_content())
