@@ -24,6 +24,12 @@ PRIMARY_BRANCH = "codex/planning"
 COORD_BRANCH = "kitty/mission-guard-placement-01M1V6E1-coord"
 
 
+@pytest.fixture(autouse=True)
+def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Override the suite's sync-on default for these isolated guard regressions."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+
+
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
 

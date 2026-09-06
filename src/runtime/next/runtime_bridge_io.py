@@ -87,7 +87,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
-from mission_runtime import CommitTarget
+from mission_runtime import CommitTarget, kind_for_mission_file, placement_seam
 from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
@@ -995,6 +995,14 @@ class ArtifactPresenceSnapshot:
     blocking_artifact_names: frozenset[str] | None = None
 
 
+def _artifact_presence_read_dir(feature_dir: Path, name: str, repo_root: Path | None) -> Path:
+    """Resolve classified inputs; unclassified filenames retain their caller's home."""
+    kind = kind_for_mission_file(feature_dir / name)
+    if repo_root is None or kind is None:
+        return feature_dir
+    return placement_seam(repo_root, feature_dir.name).read_dir(kind)
+
+
 def gather_artifact_presence(
     feature_dir: Path,
     *,
@@ -1029,20 +1037,22 @@ def gather_artifact_presence(
     cross-check against each guard branch's exact predicate before this
     snapshot replaces the guards' own reads.
 
-    ``repo_root`` (WP02, FR-008) is forwarded to :func:`_presence_filenames_for`
-    and :func:`specify_cli.runtime.resolver.required_artifacts_for` for
-    org-tier manifest resolution; defaults to ``None`` (built-in tree only,
-    today's exact behavior).
+    ``repo_root`` enables kind-aware artifact placement as well as org-tier
+    manifest resolution. Classified planning inputs use their canonical home;
+    lifecycle facts continue to use ``feature_dir`` (the STATUS authority).
+    Unclassified/custom filenames and callers without ``repo_root`` retain
+    their supplied directory; no alternate copies are searched.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     present: set[str] = set()
     for tag in _presence_filenames_for(mission_family, repo_root=repo_root):
-        if (feature_dir / tag).is_file():
+        if (_artifact_presence_read_dir(feature_dir, tag, repo_root) / tag).is_file():
             present.add(tag)
 
-    tasks_dir = feature_dir / "tasks"
+    planning_dir = _artifact_presence_read_dir(feature_dir, "spec.md", repo_root)
+    tasks_dir = _artifact_presence_read_dir(feature_dir, "tasks", repo_root) / "tasks"
     tasks_dir_is_dir = tasks_dir.is_dir()
     wp_files = sorted(tasks_dir.glob("WP*.md")) if tasks_dir_is_dir else []
     if wp_files:
@@ -1093,9 +1103,9 @@ def gather_artifact_presence(
         "wp_lane_raw": wp_lane_raw,
         "wp_dependencies_present": wp_dependencies_present,
         "wp_dependency_records": tuple(wp_dependency_records),
-        "requirement_mapping_failures": tuple(_rb._check_requirement_mapping_ready(feature_dir)),
-        "bare_prose_requirement_failures": tuple(_rb._check_bare_prose_requirements_ready(feature_dir)),
-        "occurrence_gate_failures": tuple(_rb._occurrence_gate_failures(feature_dir)),
+        "requirement_mapping_failures": tuple(_rb._check_requirement_mapping_ready(planning_dir)),
+        "bare_prose_requirement_failures": tuple(_rb._check_bare_prose_requirements_ready(planning_dir)),
+        "occurrence_gate_failures": tuple(_rb._occurrence_gate_failures(planning_dir)),
         "source_documented_count": _rb._count_source_documented_events(feature_dir),
         "publication_approved": bool(_rb._publication_approved(feature_dir)),
         "has_generated_docs": has_generated_docs,
