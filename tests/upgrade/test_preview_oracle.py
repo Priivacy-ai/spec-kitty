@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from tests.upgrade.preview_support.process import child_environment, run_process
+from tests.upgrade.preview_support.fixtures import copy_case, prepare_case
 from tests.upgrade.preview_support.provenance import identify_source
 from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
@@ -103,10 +104,24 @@ def test_child_environment_seals_fixture_overrides(tmp_path: Path, monkeypatch: 
     assert env["SPEC_KITTY_ENABLE_SAAS_SYNC"] == "0"
     assert "GH_TOKEN" not in env and "PYTHONPATH" not in env
     assert "SPEC_KITTY_TEMPLATE_ROOT" not in env
-    roots = ["HOME", "USERPROFILE", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "APPDATA", "LOCALAPPDATA", "SPEC_KITTY_HOME", "TMPDIR", "TMP", "TEMP"]
+    roots = [
+        "HOME",
+        "USERPROFILE",
+        "XDG_CONFIG_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_DATA_HOME",
+        "XDG_STATE_HOME",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "SPEC_KITTY_HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+    ]
     assert all(Path(env[key]).is_relative_to(tmp_path) for key in roots)
     assert not (tmp_path / "home").exists()
-    result = run_process([str(LANE / ".venv/bin/python"), "-c", "import json, os; print(json.dumps(dict(os.environ)))"], tmp_path, env)
+    argv = [str(LANE / ".venv/bin/python"), "-c", "import json, os; print(json.dumps(dict(os.environ)))"]
+    result = run_process(argv, tmp_path, env)
     assert result.json()["HOME"] == env["HOME"]
 
 
@@ -132,3 +147,94 @@ def test_startup_failure_cannot_pass_purity(tmp_path: Path) -> None:
     result = run_process([str(LANE / ".venv/bin/python"), "-c", "raise RuntimeError('startup control')"], tmp_path, child_environment(tmp_path))
     with pytest.raises(AssertionError, match="Command failed"):
         result.require_success()
+
+
+@pytest.mark.parametrize("policy", ["record", "deny"])
+def test_transient_write_observer(tmp_path: Path, policy: str) -> None:
+    root = tmp_path / "measured"
+    root.mkdir()
+    before = snapshot({"project": root})
+    log = tmp_path / "observer.jsonl"
+    wrapper = Path(__file__).parent / "preview_support/write_observer.py"
+    env = child_environment(tmp_path / "environment")
+    result = run_process([str(LANE / ".venv/bin/python"), str(wrapper), str(log), policy, "probe", str(root / "transient")], root, env)
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert rows[0] == {"installed_before_cli": True}
+    assert rows[1]["event"] == "open"
+    assert rows[1]["denied"] == (policy == "deny")
+    if policy == "record":
+        result.require_success()
+        assert rows[2]["event"] == "os.remove"
+        # Restore incidental parent mtime so equality cannot reveal the write.
+        old = before[("project", ".")].mtime_ns
+        assert old is not None
+        os.utime(root, ns=(old, old))
+        assert_unchanged(before, snapshot({"project": root}))
+    else:
+        assert result.returncode != 0
+        assert "Observed write attempt: open" in result.stderr
+        assert_unchanged(before, snapshot({"project": root}))
+
+
+def test_observer_allows_real_read_only_version(tmp_path: Path) -> None:
+    log = tmp_path / "observer.jsonl"
+    wrapper = Path(__file__).parent / "preview_support/write_observer.py"
+    env = child_environment(tmp_path / "environment")
+    before = snapshot({"home": Path(env["HOME"])})
+    result = run_process([str(LANE / ".venv/bin/python"), str(wrapper), str(log), "deny", "cli", "--version"], tmp_path, env)
+    result.require_success()
+    assert "version" in result.stdout
+    assert [json.loads(line) for line in log.read_text().splitlines()] == [{"installed_before_cli": True}]
+    assert_unchanged(before, snapshot({"home": Path(env["HOME"])}))
+
+
+@pytest.mark.parametrize("event", ["os.mkdir", "os.remove", "os.rmdir", "os.rename", "os.chmod", "os.utime", "os.link", "os.symlink", "os.truncate"])
+def test_observer_rejects_each_covered_operation(tmp_path: Path, event: str) -> None:
+    root = tmp_path / "measured"
+    root.mkdir()
+    (root / "file").write_bytes(b"sentinel")
+    (root / "empty").mkdir()
+    before = snapshot({"project": root})
+    log = tmp_path / "observer.jsonl"
+    wrapper = Path(__file__).parent / "preview_support/write_observer.py"
+    env = child_environment(tmp_path / "environment")
+    argv = [str(LANE / ".venv/bin/python"), str(wrapper), str(log), "deny", "probe-event", event, str(root)]
+    result = run_process(argv, root, env)
+    assert result.returncode != 0 and f"Observed write attempt: {event}" in result.stderr
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert rows[1]["event"] == event and rows[1]["denied"] is True
+    assert_unchanged(before, snapshot({"project": root}))
+
+
+def test_non_ci_environment_and_sibling_isolation(tmp_path: Path) -> None:
+    first = child_environment(tmp_path / "first", {"CI": "", "TERM": "xterm"})
+    second = child_environment(tmp_path / "second")
+    assert "CI" not in first and second["CI"] == "true"
+    before = snapshot({"home": Path(second["HOME"])})
+    Path(first["HOME"]).mkdir()
+    (Path(first["HOME"]) / "sentinel").write_bytes(b"first only")
+    assert_unchanged(before, snapshot({"home": Path(second["HOME"])}))
+
+
+def test_canonical_setup_leaves_cold_home_untouched(tmp_path: Path) -> None:
+    case = prepare_case(tmp_path / "original", LANE, global_state="G0")
+    assert not Path(case.env["HOME"]).exists()
+    assert (case.project / ".kittify/metadata.yaml").is_file()
+    manifest = json.loads((case.project / ".kittify/command-skills-manifest.json").read_text())
+    assert manifest["entries"], "Canonical setup must establish real ownership"
+    cloned = copy_case(case, tmp_path / "copy")
+    before = cloned.observe()
+    (case.project / "only-original").write_bytes(b"sentinel")
+    assert_unchanged(before, cloned.observe())
+    assert not Path(cloned.env["HOME"]).exists()
+    (case.project / "link").symlink_to("only-original")
+    with pytest.raises(AssertionError, match="explicit symlink mapping"):
+        copy_case(case, tmp_path / "refused")
+
+
+def test_non_ci_real_tty_remains_available(tmp_path: Path) -> None:
+    env = child_environment(tmp_path, {"CI": "", "TERM": "xterm"})
+    argv = [str(LANE / ".venv/bin/python"), "-c", "import os,sys; print(sys.stdout.isatty(), 'CI' in os.environ)"]
+    result = run_process(argv, tmp_path, env, tty_output=True)
+    result.require_success()
+    assert result.stdout.strip() == "True False"
