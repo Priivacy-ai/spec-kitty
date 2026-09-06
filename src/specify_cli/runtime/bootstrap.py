@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 import shutil
 import sys
-import tempfile
 import warnings
 from pathlib import Path
 from typing import IO
@@ -22,7 +21,7 @@ from typing import IO
 import yaml
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
-from specify_cli.runtime.merge import merge_package_assets
+from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment, OwnerApplyResult
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +40,13 @@ def _get_cli_version() -> str:
         from specify_cli import __version__ as _version
     except Exception:  # noqa: BLE001
         logger.warning(
-            "Could not import specify_cli.__version__ during runtime bootstrap; "
-            "falling back to %s",
+            "Could not import specify_cli.__version__ during runtime bootstrap; falling back to %s",
             fallback,
         )
         return fallback
     if not isinstance(_version, str) or not _version:
         logger.warning(
-            "specify_cli.__version__ resolved to %r during runtime bootstrap; "
-            "falling back to %s",
+            "specify_cli.__version__ resolved to %r during runtime bootstrap; falling back to %s",
             _version,
             fallback,
         )
@@ -57,7 +54,7 @@ def _get_cli_version() -> str:
     return _version
 
 
-def _lock_exclusive(fd: IO[str]) -> None:
+def _lock_exclusive(fd: IO[str] | int) -> None:
     """Acquire an exclusive file lock, blocking if another process holds it.
 
     On Unix: uses ``fcntl.flock`` with a non-blocking attempt first.
@@ -71,7 +68,7 @@ def _lock_exclusive(fd: IO[str]) -> None:
     if sys.platform == "win32":
         import msvcrt
 
-        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1)
+        msvcrt.locking(fd if isinstance(fd, int) else fd.fileno(), msvcrt.LK_LOCK, 1)
     else:
         import fcntl
 
@@ -82,7 +79,12 @@ def _lock_exclusive(fd: IO[str]) -> None:
             fcntl.flock(fd, fcntl.LOCK_EX)
 
 
-def populate_from_package(target: Path) -> None:
+def populate_from_package(
+    target: Path,
+    *,
+    assessment: OwnerAssessment | None = None,
+    consent: ApplyConsent = ApplyConsent(),
+) -> OwnerApplyResult | None:
     """Copy all package-bundled assets to *target* directory.
 
     Creates a complete asset tree matching the ``~/.kittify/`` layout:
@@ -93,7 +95,17 @@ def populate_from_package(target: Path) -> None:
 
     Args:
         target: Destination directory (typically a temporary staging area).
+        assessment: Optional retained package batch. When supplied, never
+            recollect or copy source trees; delegate its exact bytes to merge.
+        consent: Explicit consent for a supplied retained batch.
     """
+    if assessment is not None:
+        # Checked apply supplies retained bytes. Assessment never calls this
+        # mutating entry point or stages package assets to discover effects.
+        from specify_cli.runtime.merge import merge_package_assets
+
+        return merge_package_assets(assessment, target, consent=consent)
+
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005,
     # N-03) relocated the missions data to packs/built-in/missions;
     # asset_root (via get_package_asset_root(), R-09) now resolves there
@@ -129,87 +141,66 @@ def populate_from_package(target: Path) -> None:
     agents_src = asset_root.parent / "AGENTS.md"
     if agents_src.is_file():
         shutil.copy2(agents_src, target / "AGENTS.md")
+    return None
 
 
 def _cleanup_orphaned_update_dirs(parent: Path) -> None:
-    """Remove stale ``.kittify_update_*`` directories left by crashed processes.
-
-    After an abnormal termination, orphaned staging directories may remain.
-    This function scans *parent* for any matching directories and removes
-    them unconditionally.  It is called **under the exclusive file lock**
-    so that it never deletes another process's active staging directory.
-
-    Errors during removal are silently ignored (best-effort cleanup).
-    """
+    """Report legacy staging candidates; their names do not prove ownership."""
     if not parent.is_dir():
         return
     for entry in parent.iterdir():
         if entry.is_dir() and entry.name.startswith(".kittify_update_"):
-            try:  # noqa: SIM105
-                shutil.rmtree(entry)
-            except OSError:
-                pass  # best-effort cleanup
+            logger.warning("Preserving unproven orphan staging directory: %s", entry)
+
+
+def assess_runtime(*, consent: ApplyConsent = ApplyConsent()) -> OwnerAssessment:
+    """Prepare managed package assets directly, without staging or bootstrap."""
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete
+    from specify_cli.runtime.merge import MANAGED_DIRS, MANAGED_FILES
+
+    home = get_kittify_home()
+    root = global_asset_root("runtime_bootstrap", (home,))
+    try:
+        prepared = AssetPreparation("runtime_bootstrap", root, home / "cache", ".update.lock", consent)
+        assets = get_package_asset_root()
+        if prepared.observe(assets, members=True).kind != "directory":
+            raise ValueError(f"Required package assets unavailable: {assets}")
+        for relative in MANAGED_DIRS:
+            source = assets / relative.removeprefix("missions/") if relative.startswith("missions/") else assets.parent / relative
+            state = prepared.observe(source)
+            if state.kind == "absent":
+                continue  # Existing populate/merge policy: optional absent trees.
+            prepared.tree(source, home / relative, managed_tree=True)
+            prepared.prune_missing(home / relative)
+        for relative in MANAGED_FILES:
+            source = assets.parent / relative
+            state = prepared.observe(source)
+            if state.kind != "absent":
+                prepared.asset(home / relative, prepared.source(source), state.mode or 0o644, managed_tree=True)
+        if home.parent.is_dir():
+            for candidate in home.parent.iterdir():
+                if candidate.name.startswith(".kittify_update_"):
+                    prepared.preserve(candidate, "Unproven orphan staging directory; preserved")
+        return prepared.finish(home / "cache/version.lock", _get_cli_version())
+    except (OSError, ValueError) as exc:
+        return incomplete("runtime_bootstrap", root, exc)
 
 
 def ensure_runtime() -> None:
-    """Ensure ``~/.kittify/`` global runtime is populated and current.
+    """Repair actual managed health; a version stamp alone is insufficient."""
+    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 
-    **Fast path** (<100 ms): If ``cache/version.lock`` matches the CLI
-    version, return immediately -- no lock acquired.
-
-    **Slow path**: Acquire an exclusive file lock, double-check the
-    version (another process may have finished the update while we
-    waited), build a fresh asset tree in a temporary directory, merge
-    managed assets into ``~/.kittify/``, and write ``version.lock``
-    **last** so that incomplete updates are always detectable.
-
-    The temporary staging directory is cleaned up in a ``finally``
-    block, even if an exception occurs during the update.
-    """
-    home = get_kittify_home()
-    home.mkdir(parents=True, exist_ok=True)
-
-    cache_dir = home / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-
-    version_file = cache_dir / "version.lock"
-    cli_version = _get_cli_version()
-
-    # Fast path: version matches -- no lock needed
-    if version_file.exists():
-        stored = version_file.read_text().strip()
-        if stored == cli_version:
-            return
-
-    # Slow path: acquire exclusive file lock
-    lock_path = cache_dir / ".update.lock"
-    lock_fd = open(lock_path, "w")  # noqa: SIM115 -- need fd for flock
-    try:
-        _lock_exclusive(lock_fd)
-
-        # Clean up orphaned staging dirs from crashed processes.
-        # Done under the lock so we never delete another process's
-        # active staging directory.
-        _cleanup_orphaned_update_dirs(home.parent)
-
-        # Double-check after lock acquired (another process may have finished)
-        if version_file.exists():
-            stored = version_file.read_text().strip()
-            if stored == cli_version:
-                return
-
-        # Build new asset tree in a unique temp directory
-        tmp_dir = Path(tempfile.mkdtemp(prefix=".kittify_update_", dir=home.parent))
-        try:
-            populate_from_package(tmp_dir)
-            merge_package_assets(source=tmp_dir, dest=home)
-            # Write version.lock LAST -- incomplete updates won't have this
-            version_file.write_text(cli_version)
-        finally:
-            if tmp_dir.exists():
-                shutil.rmtree(tmp_dir)
-    finally:
-        lock_fd.close()
+    assessment = assess_runtime()
+    if not assessment.complete:
+        raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
+    if not assessment.effects:
+        return
+    with recheck_assets(assessment) as diagnostics:
+        if diagnostics:
+            raise RuntimeError("; ".join(d.message for d in diagnostics))
+        result = apply_assets(assessment, ApplyConsent(automatic=True))
+    if result.outcome != "applied":
+        raise RuntimeError("; ".join(d.message for d in result.diagnostics))
 
 
 def check_version_pin(project_dir: Path) -> None:

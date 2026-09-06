@@ -6,15 +6,18 @@ import logging
 import shutil
 import stat
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
-from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
+from specify_cli.runtime.bootstrap import _get_cli_version
+from specify_cli.runtime.asset_preparation import AssetPreparation
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
-from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 from specify_cli.template import get_local_repo_root
+from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +56,7 @@ def _discover_registry() -> SkillRegistry | None:
         registry = SkillRegistry.from_package()
         if registry.discover_skills():
             return registry
-    except Exception:
+    except ModuleNotFoundError:
         logger.debug("Package skill registry unavailable", exc_info=True)
 
     local_repo = get_local_repo_root()
@@ -88,76 +91,122 @@ def _retired_skill_cleanup_needed() -> bool:
     return False
 
 
-def _sync_skill_root(root: Path, registry: SkillRegistry) -> None:
-    root.mkdir(parents=True, exist_ok=True)
-    skills = registry.discover_skills()
-    canonical_names = {skill.name for skill in skills}
+def _prepare_skill_tree(
+    prepared: AssetPreparation,
+    source: Path,
+    destination: Path,
+    skill_name: str,
+    *,
+    normalize_frontmatter: bool = True,
+) -> None:
+    state = prepared.observe(source, members=True)
+    if state.kind != "directory":
+        raise ValueError(f"Required skill directory unavailable: {source}")
+    if prepared.observe(destination).kind not in {"directory", "absent"}:
+        prepared.preserve(destination, "Unproven canonical skill path replacement")
+        return
+    prepared.asset(destination, None, state.mode or 0o755)
+    for child in sorted(source.iterdir()):
+        child_state = prepared.observe(child)
+        target = destination / child.name
+        if child_state.kind == "directory":
+            _prepare_skill_tree(prepared, child, target, skill_name, normalize_frontmatter=False)
+        elif child_state.kind == "file":
+            data = prepared.source(child)
+            if child.name == "SKILL.md" and normalize_frontmatter:
+                data = ensure_skill_frontmatter(data.decode("utf-8"), skill_name).encode("utf-8")
+            prepared.asset(target, data, (child_state.mode or 0o644) & ~0o222)
+        else:
+            raise ValueError(f"Unsupported canonical skill source: {child}")
 
-    retired_names = RETIRED_CANONICAL_SKILL_NAMES - canonical_names
-    for existing in root.iterdir():
-        if (
-            existing.name.startswith("spec-kitty-")
-            or existing.name in retired_names
-        ) and existing.name not in canonical_names:
-            if existing.is_symlink() or existing.is_file():
-                _safe_unlink(existing)
-            elif existing.is_dir():
-                _safe_rmtree(existing)
 
-    for skill in skills:
-        dest = root / skill.name
-        if dest.exists() or dest.is_symlink():
-            if dest.is_symlink() or dest.is_file():
-                _safe_unlink(dest)
-            else:
-                _safe_rmtree(dest)
-        shutil.copytree(skill.skill_dir, dest)
-        skill_md = dest / "SKILL.md"
-        if skill_md.is_file():
-            content = skill_md.read_text(encoding="utf-8")
-            normalized = ensure_skill_frontmatter(content, skill.name)
-            if normalized != content:
-                skill_md.write_text(normalized, encoding="utf-8")
-        for file_path in dest.rglob("*"):
-            if not file_path.is_file():
+def _observe_registry_catalog(prepared: AssetPreparation, skills: list[CanonicalSkill]) -> None:
+    """Retain catalog membership, including directories not yet valid skills."""
+    catalog_roots = {skill.skill_dir.parent for skill in skills}
+    if len(catalog_roots) != 1:
+        raise ValueError("Canonical skill registry must have one source root")
+    catalog_root = next(iter(catalog_roots))
+    if prepared.observe(catalog_root, members=True).kind != "directory":
+        raise ValueError("Canonical skill catalog is not a regular directory")
+    discovered = set()
+    for child in sorted(catalog_root.iterdir()):
+        state = prepared.observe(child, members=True)
+        if state.kind == "symlink":
+            raise ValueError(f"Unproven canonical skill source link: {child}")
+        if state.kind == "directory" and prepared.observe(child / "SKILL.md").kind == "file":
+            discovered.add(child.name)
+    if discovered != {skill.name for skill in skills}:
+        raise ValueError("Canonical skill catalog changed during discovery")
+
+
+def assess_global_agent_skills(
+    *,
+    consent: ApplyConsent = ApplyConsent(),
+) -> OwnerAssessment:
+    """Prepare complete global skill trees without writes or marker shortcuts.
+
+    Global callers, including project installers, must delegate this exact
+    assessment once; project copy/manifest/backup policy stays in the installer.
+    """
+    from specify_cli.runtime.asset_preparation import global_asset_root, incomplete
+
+    home = get_kittify_home()
+    roots = tuple(_unique_global_roots())
+    root = global_asset_root("global_skills", (home, *roots))
+    try:
+        prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent)
+        registry = _discover_registry()
+        if registry is None:
+            raise ValueError("Required canonical skill registry unavailable")
+        skills = registry.discover_skills()
+        if not skills:
+            raise ValueError("Required canonical skill registry is empty")
+        _observe_registry_catalog(prepared, skills)
+        for destination_root in roots:
+            state = prepared.observe(destination_root, members=True)
+            if state.kind not in {"directory", "absent"}:
+                prepared.preserve(destination_root, "Unproven global skill root replacement")
                 continue
-            mode = file_path.stat().st_mode
-            file_path.chmod(mode & ~0o222)
+            canonical = {skill.name for skill in skills}
+            for skill in skills:
+                prepared.source(skill.skill_md)
+                _prepare_skill_tree(prepared, skill.skill_dir, destination_root / skill.name, skill.name)
+                prepared.prune_missing(destination_root / skill.name)
+            if state.kind == "directory":
+                for existing in destination_root.iterdir():
+                    if existing.name not in canonical:
+                        if existing.name in RETIRED_CANONICAL_SKILL_NAMES:
+                            prepared.retire(existing)
+                        else:
+                            prepared.preserve(existing, "Unproven custom skill; preserve content and links")
+        assessment = prepared.finish(home / "cache" / _VERSION_FILENAME, _get_cli_version())
+        agents = tuple(iter_installable_agents())
+        effects = []
+        for effect in assessment.effects:
+            logical = tuple(
+                agent
+                for agent in agents
+                if (agent_root := get_primary_global_skill_root(agent)) is not None
+                and (agent_root == effect.destination or agent_root in effect.destination.parents)
+            )
+            effects.append(replace(effect, logical_owners=logical or agents))
+        return replace(assessment, effects=tuple(effects))
+    except (OSError, ValueError, UnicodeError) as exc:
+        return incomplete("global_skills", root, exc)
 
 
 def ensure_global_agent_skills() -> None:
-    """Ensure user-global canonical skill roots are populated for this CLI version."""
-    kittify_home = get_kittify_home()
-    kittify_home.mkdir(parents=True, exist_ok=True)
-    cache_dir = kittify_home / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    """Repair actual canonical skill health and retain unchanged assets."""
+    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 
-    version_file = cache_dir / _VERSION_FILENAME
-    cli_version = _get_cli_version()
-    if (
-        version_file.exists()
-        and version_file.read_text().strip() == cli_version
-        and not _retired_skill_cleanup_needed()
-    ):
+    assessment = assess_global_agent_skills()
+    if not assessment.complete:
+        raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
+    if not assessment.effects:
         return
-
-    registry = _discover_registry()
-    if registry is None:
-        return
-
-    lock_path = cache_dir / _LOCK_FILENAME
-    lock_fd = open(lock_path, "w")  # noqa: SIM115
-    try:
-        _lock_exclusive(lock_fd)
-        if (
-            version_file.exists()
-            and version_file.read_text().strip() == cli_version
-            and not _retired_skill_cleanup_needed()
-        ):
-            return
-
-        for root in _unique_global_roots():
-            _sync_skill_root(root, registry)
-        version_file.write_text(cli_version)
-    finally:
-        lock_fd.close()
+    with recheck_assets(assessment) as diagnostics:
+        if diagnostics:
+            raise RuntimeError("; ".join(d.message for d in diagnostics))
+        result = apply_assets(assessment, ApplyConsent(automatic=True))
+    if result.outcome != "applied":
+        raise RuntimeError("; ".join(d.message for d in result.diagnostics))
