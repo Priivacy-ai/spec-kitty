@@ -162,6 +162,86 @@ def _native_assessment(root: Path):
     )
 
 
+def test_wp07_cycle2_directory_chmod_failure_is_not_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+    import stat
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from tests.upgrade.preview_support.snapshot import net_delta, snapshot
+
+    assessment = _native_assessment(tmp_path)
+    assert assessment.complete and len(assessment.effects) == 2
+    original = os.fchmod
+
+    def fail_directory(fd: int, mode: int) -> None:
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("cycle2 directory fchmod fault")
+        original(fd, mode)
+
+    before = snapshot({"project": tmp_path})
+    monkeypatch.setattr(os, "fchmod", fail_directory)
+    previous = os.umask(0o077)
+    try:
+        result = NativeConfigProvider().apply(assessment, ApplyConsent(automatic=True))
+    finally:
+        os.umask(previous)
+    delta = net_delta(before, snapshot({"project": tmp_path}))
+    assert [(e.path, e.after.kind, e.after.mode) for e in delta] == [(".vibe", "directory", 0o700)]
+    directory = next(e for e in assessment.effects if e.path == ".vibe")
+    assert directory.after.mode == 0o755
+    assert directory.id not in result.succeeded
+    assert directory.id in result.failed and result.diagnostics
+
+
+@pytest.mark.parametrize("foreign", [b"threshold = nan\n", b"threshold = {nested = [nan, {negative = -nan, positive = +nan}]}\n"])
+def test_wp07_cycle2_legal_nan_preserves_foreign_bytes(tmp_path: Path, foreign: bytes) -> None:
+    import tomllib
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    (tmp_path / ".vibe").mkdir()
+    target = tmp_path / ".vibe/config.toml"
+    original = b'# keep\nskill_paths = ["custom"] # owned entry\n' + foreign
+    target.write_bytes(original)
+    tomllib.loads(original.decode())
+    before = snapshot({"project": tmp_path})
+    assessment = _native_assessment(tmp_path)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert assessment.complete and assessment.effects, assessment.diagnostics
+    result = NativeConfigProvider().apply(assessment, ApplyConsent(automatic=True))
+    assert result.succeeded and not result.failed
+    assert target.read_bytes() == original.replace(b'["custom"]', b'["custom", ".agents/skills"]')
+    assert len(net_delta(before, snapshot({"project": tmp_path}))) == 1
+    after = snapshot({"project": tmp_path})
+    again = _native_assessment(tmp_path)
+    assert again.complete and not again.effects
+    NativeConfigProvider().apply(again, ApplyConsent(automatic=True))
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("quote", ['"', "'"])
+@pytest.mark.parametrize("closing", [4, 5])
+def test_wp07_cycle2_multiline_closing_quotes(tmp_path: Path, quote: str, closing: int) -> None:
+    import json
+    import tomllib
+    from specify_cli.skills.vibe_config import ensure_project_skill_path
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    (tmp_path / ".vibe").mkdir()
+    target = tmp_path / ".vibe/config.toml"
+    scalar = quote * 3 + "custom" + quote * closing
+    prefix, suffix = "# keep\r\nskill_paths = ", " # keep too\r\n[tools]\nforeign = true\n"
+    original = prefix + scalar + suffix
+    target.write_bytes(original.encode())
+    value = tomllib.loads(original)["skill_paths"]
+    assert value == "custom" + quote * (closing - 3)
+    ensure_project_skill_path(tmp_path)
+    expected = prefix + json.dumps([value, ".agents/skills"]) + suffix
+    assert target.read_bytes() == expected.encode()
+    after = snapshot({"project": tmp_path})
+    ensure_project_skill_path(tmp_path)
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 def test_wp07_native_disabled_repair_is_skipped(tmp_path: Path) -> None:
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify/config.yaml").write_text("agents:\n  available: []\n")

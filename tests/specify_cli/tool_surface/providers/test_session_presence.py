@@ -31,6 +31,38 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+@pytest.mark.parametrize("existing_parent", [False, True])
+def test_wp07_cycle2_combined_native_session_dispatch(tmp_path: Path, existing_parent: bool) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, ApplyConsent, OperationRoot
+    from specify_cli.tool_surface.service import run_tool_surfaces, build_providers
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify/config.yaml").write_text("agents:\n  available: [vibe]\n")
+    if existing_parent:
+        (tmp_path / ".vibe").mkdir()
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent)
+    before = snapshot({"project": tmp_path})
+    assessed = run_tool_surfaces(tmp_path, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE], assessment_inputs=inputs)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert {a.owner_key for a in assessed.assessments} == {"native_config", "session_presence"}
+    assert all(a.complete and a.effects for a in assessed.assessments)
+    results = SurfaceRepairService(build_providers()).apply_assessments(assessed.assessments, consent)
+    assert all(r.outcome == "applied" for r in results), results
+    after = snapshot({"project": tmp_path})
+    assert {(e.path, e.action, e.after.kind, e.after.mode, e.after.sha256) for a in assessed.assessments for e in a.effects} == {
+        (e.path, e.action, e.after.kind, e.after.mode, e.after.sha256) for e in net_delta(before, after)
+    }
+    assert (tmp_path / "AGENTS.md").is_file() and (tmp_path / ".vibe/config.toml").is_file()
+    for _ in range(2):
+        again = run_tool_surfaces(tmp_path, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE], assessment_inputs=inputs)
+        assert all(a.complete and not a.effects for a in again.assessments)
+        SurfaceRepairService(build_providers()).apply_assessments(again.assessments, consent)
+        assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 @pytest.mark.parametrize("policy", ["optional", "required", "research_gap"])
 @pytest.mark.parametrize("owner", ["session", "native"])
 def test_wp07_nonrepairable_policy_never_becomes_automatic(tmp_path: Path, policy: str, owner: str) -> None:
