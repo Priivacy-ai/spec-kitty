@@ -119,11 +119,27 @@ def test_unchanged_outside_root_gitlink_passes_old_and_current_gate(archive_repo
     old = types.ModuleType("wp12_original_archive_gate")
     old.__file__ = gate.__file__
     exec(compile(old_source, old.__file__, "exec"), old.__dict__)
-    old.REPO_ROOT = archive_repo
+    old.__dict__["REPO_ROOT"] = archive_repo
     old.test_archive_baseline_is_non_empty()
     old.test_no_preexisting_archived_file_was_modified()
     gate.test_no_preexisting_archived_file_was_modified()
     gate.test_archive_baseline_is_non_empty()
+
+
+@pytest.mark.parametrize("root", gate._ARCHIVE_ROOTS)
+@pytest.mark.parametrize("at_root", [False, True])
+def test_protected_gitlink_remains_rejected(archive_repo: Path, root: str, at_root: bool) -> None:
+    head = git(archive_repo, "rev-parse", "HEAD").decode().strip()
+    path = root.rstrip("/") if at_root else root + "example"
+    if at_root:
+        git(archive_repo, "rm", "-r", "--cached", "--ignore-unmatch", "--", path)
+    git(archive_repo, "update-index", "--add", "--cacheinfo", f"160000,{head},{path}")
+    git(archive_repo, "commit", "-m", "Protected non-blob baseline")
+    git(archive_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    with pytest.raises(AssertionError, match="non-blob historical entry"):
+        gate.test_no_preexisting_archived_file_was_modified()
+    with pytest.raises(AssertionError, match="non-blob historical entry"):
+        gate.test_archive_baseline_is_non_empty()
 
 
 def run_gate(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:

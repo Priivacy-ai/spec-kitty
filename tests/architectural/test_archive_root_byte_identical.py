@@ -95,8 +95,10 @@ def _git_bytes(*args: str) -> bytes:
 class Blob:
     mode: str
     oid: str
+    kind: str = "blob"
 
     def read(self) -> bytes:
+        assert self.kind == "blob", f"{self.oid}: non-blob protected input"
         return _git_bytes("cat-file", "blob", self.oid)
 
 
@@ -106,8 +108,11 @@ def _tree(rev: str, *paths: str) -> dict[str, Blob]:
         if row:
             header, path = row.split(b"\t", 1)
             mode, kind, oid = header.decode("ascii").split()
-            assert kind == "blob", f"{os.fsdecode(path)}: non-blob historical entry"
-            result[os.fsdecode(path)] = Blob(mode, oid)
+            name = os.fsdecode(path)
+            if name.startswith(_ARCHIVE_ROOTS) or name in {root.rstrip("/") for root in _ARCHIVE_ROOTS}:
+                assert kind == "blob", f"{name}: non-blob historical entry"
+            # Keep unrelated Gitlinks visible without imposing archive policy.
+            result[name] = Blob(mode, oid, kind)
     return result
 
 
@@ -118,7 +123,7 @@ def _index() -> dict[str, Blob]:
             header, path = row.split(b"\t", 1)
             mode, oid, stage = header.decode("ascii").split()
             assert stage == "0", f"{os.fsdecode(path)}: unmerged index"
-            result[os.fsdecode(path)] = Blob(mode, oid)
+            result[os.fsdecode(path)] = Blob(mode, oid, "commit" if mode == "160000" else "blob")
     return result
 
 

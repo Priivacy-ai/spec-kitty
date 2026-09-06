@@ -12,6 +12,7 @@ import os
 import stat
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -95,8 +96,34 @@ def cli(repo: Path, *args: str) -> tuple[subprocess.CompletedProcess[bytes], dic
     return result, report
 
 
-def audit(repo: Path) -> tuple[subprocess.CompletedProcess[bytes], dict[str, Any]]:
-    return cli(repo, "doctor", "mission-state", "--audit", "--fail-on", "teamspace-blocker", "--json")
+def original_corpus_membership() -> frozenset[str]:
+    """Immediate directories from the immutable source, never scanner output."""
+    names = set()
+    for row in git(REPO_ROOT, "--no-replace-objects", "ls-tree", "-z", f"{gate.ORIGINAL}:kitty-specs").split(b"\0"):
+        if row:
+            header, name = row.split(b"\t", 1)
+            if header.split()[1] == b"tree":
+                names.add(os.fsdecode(name))
+    assert names, "empty pinned corpus membership"
+    return frozenset(names)
+
+
+def disk_corpus_membership(repo: Path) -> frozenset[str]:
+    return frozenset(p.name for p in (repo / "kitty-specs").iterdir() if stat.S_ISDIR(p.lstat().st_mode))
+
+
+def audit(repo: Path, expected_membership: frozenset[str]) -> tuple[subprocess.CompletedProcess[bytes], dict[str, Any]]:
+    physical = disk_corpus_membership(repo)
+    assert physical == expected_membership, f"disk corpus membership differs: {sorted(physical ^ expected_membership)}"
+    result, report = cli(repo, "doctor", "mission-state", "--audit", "--fail-on", "teamspace-blocker", "--json")
+    counts = Counter(mission["mission_slug"] for mission in report["missions"])
+    duplicates = sorted(name for name, count in counts.items() if count != 1)
+    assert not duplicates, f"duplicate corpus membership: {duplicates}"
+    assert counts.keys() == expected_membership, (
+        f"audit corpus membership differs: missing={sorted(expected_membership - counts.keys())}, unexpected={sorted(counts.keys() - expected_membership)}"
+    )
+    assert disk_corpus_membership(repo) == physical, "audit changed physical corpus membership"
+    return result, report
 
 
 def assert_zero(result: subprocess.CompletedProcess[bytes], report: dict[str, Any]) -> None:
@@ -129,7 +156,8 @@ def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
     repo = build_recovery_repo(tmp_path, full=True)
     (repo / ".kittify").mkdir(exist_ok=True)
     original_inventory = inventory(repo)
-    result, original = audit(repo)
+    original_membership = original_corpus_membership()
+    result, original = audit(repo, original_membership)
     with pytest.raises(AssertionError, match="full corpus TeamSpace blockers remain"):
         assert_zero(result, original)
     assert result.returncode == 1
@@ -157,15 +185,16 @@ def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
         gate.NEW_BUNDLE + "/README.md",
     }
     assert changed == expected_changed
-    final_result, final = audit(repo)
+    # The two approved document moves remove exactly this directory; restoring
+    # the cyclic dossier changes no membership because its schema was retained.
+    recovered_membership = original_membership - {Path(gate.OLD_BUNDLE).name}
+    final_result, final = audit(repo, recovered_membership)
     assert_zero(final_result, final)
-    membership = {m["mission_slug"] for m in final["missions"]}
-    assert membership == {m["mission_slug"] for m in original["missions"]} - {"R2-T1-local-legacy-removal"}
-    assert Path(gate.CYCLIC).name in membership
+    assert Path(gate.CYCLIC).name in recovered_membership
     run_gate(repo, monkeypatch)
     git(repo, "commit", "-m", "Land complete reviewed recovery")
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
-    landed_result, landed = audit(repo)
+    landed_result, landed = audit(repo, recovered_membership)
     assert_zero(landed_result, landed)
     run_gate(repo, monkeypatch)
     assert inventory(repo) == recovered_inventory
@@ -179,11 +208,11 @@ def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
         else:
             source = gate.SOURCE if path == gate.SNAPSHOTS[2] else gate.ORIGINAL
             target.write_bytes(git(REPO_ROOT, "show", f"{source}:{path}"))
-        bad_result, bad = audit(repo)
+        bad_result, bad = audit(repo, recovered_membership)
         with pytest.raises(AssertionError, match="full corpus TeamSpace blockers remain"):
             assert_zero(bad_result, bad)
         target.write_bytes(old)
-        control_result, control = audit(repo)
+        control_result, control = audit(repo, recovered_membership)
         assert_zero(control_result, control)
 
 
@@ -239,11 +268,13 @@ def test_full_corpus_audit_rejects_real_scanner_membership_faults(
     (repo / ".kittify").mkdir()
     recover(repo)
     monkeypatch.chdir(repo)
-    members = frozenset(p.name for p in (repo / "kitty-specs").iterdir() if stat.S_ISDIR(p.lstat().st_mode))
+    members = original_corpus_membership() - {Path(gate.OLD_BUNDLE).name}
+    assert disk_corpus_membership(repo) == members
     defects = {Path(gate.OLD_BUNDLE).name, *(Path(p).parent.name for p in gate.SNAPSHOTS)}
     omitted = sorted(members - defects)[0]
     real_scan = engine._scan_missions
     scans: list[tuple[str, ...]] = []
+    reports: list[dict[str, Any]] = []
 
     def changed_scan(
         scan_root: Path,
@@ -254,7 +285,7 @@ def test_full_corpus_audit_rejects_real_scanner_membership_faults(
         if attack == "duplicate":
             selected = members
         allowed = frozenset(scan_root / name for name in selected)
-        rows = real_scan(scan_root, allowed if allowed_dirs is None else allowed & allowed_dirs, identity_index)
+        rows: list[MissionAuditResult] = real_scan(scan_root, allowed if allowed_dirs is None else allowed & allowed_dirs, identity_index)
         if attack == "duplicate":
             rows.append(rows[0])
         scans.append(tuple(row.mission_slug for row in rows))
@@ -263,26 +294,42 @@ def test_full_corpus_audit_rejects_real_scanner_membership_faults(
     def actual_doctor_cli(root: Path, *args: str) -> tuple[subprocess.CompletedProcess[bytes], dict[str, Any]]:
         assert root == repo and args[0] == "doctor"
         result = CliRunner().invoke(app, list(args[1:]), env=isolated_env(tmp_path / "doctor-home"))
-        label = "mutant" if scans else "healthy"
+        label = str(len(reports))
         (tmp_path / f"{label}.stdout").write_text(result.stdout, encoding="utf-8")
         (tmp_path / f"{label}.stderr").write_text(result.stderr, encoding="utf-8")
         assert result.exit_code == 0, result.output
-        return subprocess.CompletedProcess(args, result.exit_code, result.stdout.encode(), result.stderr.encode()), json.loads(result.stdout)
+        report = json.loads(result.stdout)
+        reports.append(report)
+        return subprocess.CompletedProcess(args, result.exit_code, result.stdout.encode(), result.stderr.encode()), report
 
     monkeypatch.setattr(sys.modules[__name__], "cli", actual_doctor_cli)
-    healthy_result, healthy = audit(repo)
+    healthy_result, healthy = audit(repo, members)
     assert_zero(healthy_result, healthy)
     with monkeypatch.context() as fault:
         fault.setattr(engine, "_scan_missions", changed_scan)
         with pytest.raises(AssertionError, match="corpus membership"):
-            audit(repo)
+            audit(repo, members)
     assert scans
     if attack == "duplicate":
         assert len(scans[0]) > len(set(scans[0]))
     else:
         assert set(scans[0]) < members and omitted not in scans[0]
-    control_result, control = audit(repo)
+    control_result, control = audit(repo, members)
     assert_zero(control_result, control)
+
+
+def test_physical_omission_cannot_redefine_pinned_corpus(tmp_path: Path) -> None:
+    repo = build_recovery_repo(tmp_path, full=True)
+    members = original_corpus_membership()
+    assert disk_corpus_membership(repo) == members
+    defects = {Path(gate.OLD_BUNDLE).name, *(Path(p).parent.name for p in gate.SNAPSHOTS)}
+    missing = sorted(members - defects)[0]
+    directory = repo / "kitty-specs" / missing
+    directory.rename(repo / missing)
+    with pytest.raises(AssertionError, match="disk corpus membership differs"):
+        audit(repo, members)
+    (repo / missing).rename(directory)
+    assert disk_corpus_membership(repo) == members
 
 
 def test_repeat_real_restore_move_and_public_replay_has_no_churn(
