@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
 from specify_cli.invocation.org_profiles import (
     ResolvedOrgProfile,
     resolve_activated_org_profiles,
@@ -162,6 +163,37 @@ class TestThreeRegimeActivation:
 
 
 class TestFailClosed:
+    @pytest.mark.parametrize("activated", [None, [_ORG_ANALYST_ID], [_BUILTIN_ID], []])
+    def test_corrupt_sibling_diagnostics_survive_activation(
+        self, tmp_path: Path, activated: list[str] | None
+    ) -> None:
+        """The existing entrypoint must expose corruption even with no admission."""
+        pack_root = _write_org_pack(
+            tmp_path,
+            extra_files={
+                "orgzilla-broken.agent.yaml": "profile-id: orgzilla-broken\n: : : not valid yaml [\n",
+            },
+        )
+        _write_config(tmp_path, pack_root, activated=activated)
+        service = build_activation_aware_doctrine_service(tmp_path)
+        _ = service.agent_profiles
+        expected = tuple(
+            item for item in service.agent_profile_repository.skipped_profiles()
+            if item.layer == "org"
+        )
+        assert len(expected) == 1
+        assert expected[0].error_summary
+        assert Path(expected[0].path) == pack_root / "agent_profiles/orgzilla-broken.agent.yaml"
+
+        resolved = resolve_activated_org_profiles(tmp_path)
+
+        assert isinstance(resolved, list)
+        assert _ids(resolved) == (
+            [_ORG_ANALYST_ID] if activated is None or _ORG_ANALYST_ID in activated else []
+        )
+        # Missing diagnostics is the observed bug, not a new-API import failure.
+        assert getattr(resolved, "skipped_profiles", ()) == expected
+
     def test_malformed_pack_member_does_not_admit_excluded_profile(
         self, tmp_path: Path
     ) -> None:
