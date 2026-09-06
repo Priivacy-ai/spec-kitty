@@ -129,6 +129,9 @@
       "last_event_id": "01M1W0M05X358WKZC2YZ8GYF2J",
       "last_transition_at": "2026-09-06T18:45:16.605735+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 and separately authorized #3920 init-ordering Op delivered at 234a2b433a0c4bc621352ca55484cef3edc37f79. Original public witness unchanged; 967 subsystem, 12 public wiring, 1642 fast, 94 architecture tests pass. Independent full ownership and supporting-Op review required; seven broader CLI failures and formatter debt retained, not waived."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 26467,
