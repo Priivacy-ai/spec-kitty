@@ -23,6 +23,143 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+@pytest.mark.parametrize("enabled", [("codex",), ("codex", "vibe"), ()])
+@pytest.mark.parametrize("empty_catalog", [False, True])
+def test_wp04_dispatch_respects_disabled_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, enabled: tuple[str, ...], empty_catalog: bool
+) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.enums import ActivationMode
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.plan import SurfacePlanBuilder
+    from specify_cli.tool_surface.registry import ToolSurfaceRegistry
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+    from tests.specify_cli.skills.test_command_installer import _wp04_equal_effects
+
+    if empty_catalog:
+        for agent in ("codex", "vibe"):
+            rel = f".agents/skills/spec-kitty.old-{agent}/SKILL.md"
+            path = tmp_path / rel
+            path.parent.mkdir(parents=True)
+            path.write_bytes(agent.encode())
+            manifest = manifest_store.load(tmp_path)
+            manifest.upsert(manifest_store.ManifestEntry(rel, manifest_store.fingerprint_file(path), (agent,), "2026-09-06", "test"))
+            manifest_store.save(tmp_path, manifest)
+        monkeypatch.setattr(command_installer, "CANONICAL_COMMANDS", ())
+    provider = CommandSkillsProvider()
+    registry = ToolSurfaceRegistry()
+    for agent in ("codex", "vibe"):
+        definition = command_skill_definition()
+        if agent not in enabled:
+            definition = replace(definition, activation_mode=ActivationMode.DISABLED)
+        registry.register_definition(agent, definition)
+    consent = ApplyConsent(automatic=True)
+    before = snapshot({"project": tmp_path})
+    assessed = SurfacePlanBuilder(registry, [provider]).assess(
+        ("codex", "vibe"), AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent)
+    )
+    assessment, = assessed.assessments
+    assert assessment.complete, assessment.diagnostics
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    results = SurfaceRepairService([provider]).apply_assessments(assessed.assessments, consent)
+    assert all(result.outcome in {"applied", "skipped"} for result in results)
+    _wp04_equal_effects(assessment, before, snapshot({"project": tmp_path}))
+    entries = manifest_store.load(tmp_path).entries
+    if empty_catalog:
+        assert {entry.agents for entry in entries} == {(agent,) for agent in ("codex", "vibe") if agent not in enabled}
+    elif enabled:
+        assert len(entries) == len(command_installer.CANONICAL_COMMANDS)
+        assert all(entry.agents == enabled for entry in entries)
+        files = [effect for effect in assessment.effects if effect.path.endswith("/SKILL.md")]
+        assert len(files) == len(command_installer.CANONICAL_COMMANDS)
+        assert all(effect.logical_owners == enabled for effect in files)
+        assert all(len(effect.surface_ids) == len(enabled) for effect in files)
+    else:
+        assert not entries and not assessment.effects
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("config_kind", ["loop", "pointer-loop", "missing", "corrupt", "pointer", "regular-link"])
+def test_wp04_dispatch_config_observation_boundary(tmp_path: Path, config_kind: str) -> None:
+    import os
+    import sys
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.plan import SurfacePlanBuilder
+    from specify_cli.tool_surface.registry import ToolSurfaceRegistry
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+    from tests.upgrade.preview_support.write_observer import EVENTS
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    if config_kind == "loop":
+        config.symlink_to("config.yaml")
+    elif config_kind == "corrupt":
+        config.write_text("agents: [", encoding="utf-8")
+    elif config_kind in {"pointer", "pointer-loop"}:
+        config.write_text("agents:\n  available: [codex]\ncharter: .kittify/charter.yaml\n", encoding="utf-8")
+        target = config.parent / "charter.yaml"
+        if config_kind == "pointer-loop":
+            target.symlink_to("charter.yaml")
+        else:
+            target.write_text("activated_paradigms: []\n", encoding="utf-8")
+    elif config_kind == "regular-link":
+        target = tmp_path / "authored.yaml"
+        target.write_text("agents:\n  available: [codex]\n", encoding="utf-8")
+        config.symlink_to(target)
+    provider = CommandSkillsProvider()
+    registry = ToolSurfaceRegistry()
+    registry.register_definition("codex", command_skill_definition())
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent)
+    before = snapshot({"project": tmp_path})
+    events: list[str] = []
+    active = True
+
+    def observe(event: str, args: tuple[object, ...]) -> None:
+        write_open = event == "open" and isinstance(args[2], int) and args[2] & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC)
+        if active and (event in EVENTS or write_open):
+            events.append(event)
+
+    sys.addaudithook(observe)
+    try:
+        assessed = SurfacePlanBuilder(registry, [provider]).assess(("codex",), inputs)
+        assessment, = assessed.assessments
+        broken = config_kind in {"loop", "pointer-loop", "corrupt"}
+        assert assessment.complete is not broken, assessment.diagnostics
+        if broken:
+            assert assessment.diagnostics and not assessment.effects
+            result, = SurfaceRepairService([provider]).apply_assessments(assessed.assessments, consent)
+            assert result.outcome != "applied" and result.diagnostics
+        else:
+            assert assessment.effects and not assessment.diagnostics
+        assert not events
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+        control = tmp_path / "transient-control"
+        control.write_bytes(b"control")
+        control.unlink()
+        assert "open" in events and "os.remove" in events
+    finally:
+        active = False
+
+
+def test_wp04_dispatch_does_not_hide_programmer_runtime_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import command_renderer
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+
+    def broken_renderer(root: Path) -> tuple[Path, ...]:
+        raise RuntimeError("programmer defect, not a filesystem loop")
+
+    monkeypatch.setattr(command_renderer, "rendering_inputs", broken_renderer)
+    with pytest.raises(RuntimeError, match="programmer defect"):
+        CommandSkillsProvider().assess(
+            AssessmentInputs(OperationRoot("project", "project", tmp_path)),
+            (), selections=(SurfaceSelection("codex", command_skill_definition()),),
+        )
+
+
 def test_wp04_provider_retains_empty_expansion_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
