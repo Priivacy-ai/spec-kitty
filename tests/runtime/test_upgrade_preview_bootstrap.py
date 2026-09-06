@@ -12,6 +12,7 @@ import json
 import os
 import sys
 from typing import Any, cast
+from types import SimpleNamespace
 
 import click
 from typer.main import get_command
@@ -566,3 +567,50 @@ def test_installed_skill_catalog_prepares_under_write_denial(owner_home: Path, t
     assert assessment.complete and assessment.effects
     assert log.read_bytes() == b""
     assert_unchanged(before, snapshot({"home": owner_home}))
+
+
+def _global_dispatch(assessments: tuple[OwnerAssessment, ...]) -> tuple[Any, ...]:
+    from specify_cli.tool_surface.providers.protocol import AssessingSurfaceProvider
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+
+    def forbidden_reassessment(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("Dispatcher must not reassess retained global assets")
+
+    providers = tuple(
+        SimpleNamespace(provider_key=a.owner_key, assess=forbidden_reassessment, recheck=recheck_assets, apply=apply_assets)
+        for a in assessments
+    )
+    assert all(isinstance(provider, AssessingSurfaceProvider) for provider in providers)
+    return tuple(SurfaceRepairService(providers).apply_assessments(assessments, ApplyConsent(automatic=True)))
+
+
+def _global_preparation() -> tuple[OwnerAssessment, ...]:
+    return (bootstrap.assess_runtime(), agent_commands.assess_global_agent_commands(), agent_skills.assess_global_agent_skills())
+
+
+def test_real_cold_global_dispatch_exact_and_no_churn(owner_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in ("SPEC_KITTY_TEMPLATE_ROOT", "SPEC_KITTY_PACKS_ROOT"):
+        monkeypatch.delenv(key, raising=False)
+    for key, suffix in {"USERPROFILE": "", "XDG_CACHE_HOME": ".cache", "XDG_DATA_HOME": ".local/share", "XDG_STATE_HOME": ".local/state", "APPDATA": "appdata", "LOCALAPPDATA": "localappdata"}.items():
+        monkeypatch.setenv(key, str(owner_home / suffix))
+    roots = {"home": owner_home}
+    before = snapshot(roots)
+    log = tmp_path / "global-observer.log"
+    with _wp01_owner_observer(log):
+        assessments = _global_preparation()
+    assert all(a.complete and a.effects for a in assessments)
+    assert log.read_bytes() == b""
+    assert_unchanged(before, snapshot(roots))
+    results = _global_dispatch(assessments)
+    if not all(r.outcome == "applied" for r in results):
+        assert_unchanged(before, snapshot(roots))
+    assert all(r.outcome == "applied" for r in results), results
+    expected = {(str(e.destination.relative_to(owner_home)), e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for a in assessments for e in a.effects}
+    actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for e in net_delta(before, snapshot(roots))}
+    assert expected == actual
+    assert expected - {next(iter(expected))} != actual
+    after = snapshot(roots)
+    repeat = _global_preparation()
+    assert all(a.complete and not a.effects for a in repeat)
+    assert all(r.outcome == "skipped" for r in _global_dispatch(repeat))
+    assert_unchanged(after, snapshot(roots))
