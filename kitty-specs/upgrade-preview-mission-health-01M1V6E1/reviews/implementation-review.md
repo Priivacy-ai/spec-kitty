@@ -9,9 +9,10 @@ updated: 2026-09-06
 ## Current Status
 
 This summary supersedes historical readiness statements below. Eight WPs are
-approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05 is in its first
-independent review at implementation `5f271f07fde9d6efeb16661c00e2205a04816a13`;
-its caller-resolved global skill input extension is independently approved;
+approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05's first review
+rejected implementation `5f271f07fde9d6efeb16661c00e2205a04816a13`; its author
+is correcting two findings within the existing owned scope.
+Its caller-resolved global skill input extension is independently approved;
 supporting Op closure awaits actual WP05 consumer integration verification.
 WP08, WP10 and WP13
 remain pending dependencies. No mission acceptance or consolidation is complete.
@@ -22,6 +23,17 @@ remain identical to their approved versions. These are author results, not WP05
 approval. Canonical for-review event `01M1WB3STVDS6CPJHVEG5E504W` reports
 `no_coverage` because the injected scope has no configured test command; it does
 not independently run or certify these tests. Full integrated gates remain open.
+
+WP05 rejection `01M1WBYX5ZRF6KNR4RR85RZKSN` records F1: actual provider dispatch
+creates eight global paths before rejecting project config changed before apply;
+the direct paired apply control makes zero changes. F2 is source-level evidence
+that existing shared owners suppress newly selected logical owners in update and
+backup effects. Independent controls: two passed, one failed. Thirteen focused
+author checks passed; one further test hit a HOME/SPEC_KITTY_HOME fixture mismatch,
+retained separately from the genuine product failure. No supplier code reopened.
+Issue #3900 comment5562493948 links this in-flight implementation finding.
+Follow-up review is limited to these findings, corrective diff and adjacent risks;
+unchanged evidence is reused. Consumer Op remains open.
 
 WP03 approval `01M1W56TVQYABKXJD3VSEJYTT2` closes its coordinated-global-owner
 finding at `876a6f00ed1c32d67fabdb0573c5c3979a40108c`. Independent review ran
