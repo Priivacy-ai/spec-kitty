@@ -1,5 +1,0 @@
-# Global code owners
-# NOTE: this owner list needs operator confirmation (see PR that introduced it).
-# Replaces the stale `@localden` entry — the upstream github/spec-kit
-# maintainer, not a maintainer of this repository.
-* @stijn-dejongh @robertDouglass @LynnColeArt
