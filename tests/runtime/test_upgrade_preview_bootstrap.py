@@ -605,6 +605,56 @@ def _global_preparation() -> tuple[OwnerAssessment, ...]:
     return (assess_global_assets(),)
 
 
+def _caller_skill_assessment(registry: SkillRegistry, agents: list[str]) -> OwnerAssessment:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    # Existing public seam has only command-agent selection and loses the catalog.
+    return assess_global_assets(runtime=False, commands=False, agent_keys=agents)
+
+
+def test_caller_local_registry_selection_reaches_real_global_dispatch(
+    owner_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.skills.installer import install_all_skills
+
+    source = tmp_path / "local-catalog/caller-local/SKILL.md"
+    source.parent.mkdir(parents=True)
+    source.write_text("---\nname: caller-local\ndescription: Supplied catalog\n---\n# Caller source\n")
+    registry = SkillRegistry(source.parent.parent)
+    project = tmp_path / "project"
+    project.mkdir()
+    manifest = install_all_skills(project, ["claude"], registry)
+    assert len(manifest.entries) == 1
+    assert (owner_home / ".claude/skills/caller-local/SKILL.md").read_bytes() == source.read_bytes()
+
+    cold = tmp_path / "cold-home"
+    cold.mkdir()
+    monkeypatch.setenv("HOME", str(cold))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(cold / ".kittify"))
+    before = snapshot({"home": cold, "source": source.parent.parent})
+    log = tmp_path / "selection-observer.log"
+    with _wp01_owner_observer(log):
+        assessment = _caller_skill_assessment(registry, ["claude"])
+    assert assessment.complete, assessment.diagnostics
+    assert log.read_bytes() == b""
+    assert_unchanged(before, snapshot({"home": cold, "source": source.parent.parent}))
+    destination = cold / ".claude/skills/caller-local/SKILL.md"
+    matching = [effect for effect in assessment.effects if effect.destination == destination]
+    assert matching, "Existing global preparation omits the caller's canonical registry"
+    assert all(set(effect.logical_owners) <= {"claude"} for effect in assessment.effects)
+    assert all(result.outcome == "applied" for result in _global_dispatch((assessment,)))
+    assert destination.read_bytes() == source.read_bytes()
+    assert not (cold / ".agents").exists()
+    assert not (cold / ".kittify/cache/agent-skills.lock").exists()
+    expected = {(str(e.destination.relative_to(cold)), e.action, e.after.kind, e.after.sha256, e.after.mode) for e in assessment.effects}
+    actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in net_delta(before, snapshot({"home": cold, "source": source.parent.parent}))}
+    assert expected == actual
+    after = snapshot({"home": cold})
+    repeat = _caller_skill_assessment(registry, ["claude"])
+    assert repeat.complete and not repeat.effects
+    assert_unchanged(after, snapshot({"home": cold}))
+
+
 def test_real_cold_global_dispatch_exact_and_no_churn(owner_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     for key in ("SPEC_KITTY_TEMPLATE_ROOT", "SPEC_KITTY_PACKS_ROOT"):
         monkeypatch.delenv(key, raising=False)
