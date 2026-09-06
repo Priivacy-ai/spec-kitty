@@ -288,6 +288,19 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   follow-up review targets the corrective diff and adjacent path regressions.
   Report: `terminology-gate-independent-review.md`; #3919 comment5561704532.
 
+### Terminology Correction Approved And Integrated
+
+Independent cycle-two review approved `a00ab6aeb452a51de7b384d500c3a8a6867f9be7`:
+21 independent controls and 12 targeted repository tests passed. The original
+three real-Git symlink counterexamples fail on RED and pass GREEN. Frozen bytes,
+original test ASTs, scanner policy and baseline remain unchanged.
+Parent integrated all four RED/GREEN commits with provenance, ending at
+`cf2eaf1b1`; the complete 88-test terminology module passed in 49.84s on the
+target checkout. This closes the bounded #3919 repair, not mission acceptance.
+External reports: `terminology-gate-cycle2-independent-review.md` and
+`terminology-gate-evidence/parent-integration.log`. Exact isolated command:
+`terminology-parent-integration.sh`. Op completion follows this evidence record.
+
 ## Moments Literal-Output Test: Open
 
 - Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3924.
