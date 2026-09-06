@@ -16,10 +16,7 @@ _SRC = _REPO_ROOT / "src"
 # (src/doctrine.py — src/doctrine/ has 0 tracked files, so it scanned vacuously) and add the
 # real live top-level packages ``mission_runtime`` + ``glossary`` so the retired-import scan
 # covers every production root, not a stale subset.
-_PRODUCTION_ROOTS = tuple(
-    _SRC / name
-    for name in ("specify_cli", "runtime", "charter", "glossary", "kernel", "mission_runtime")
-)
+_PRODUCTION_ROOTS = tuple(_SRC / name for name in ("specify_cli", "runtime", "charter", "glossary", "kernel", "mission_runtime"))
 _TRACKER_PUBLIC_SURFACE = frozenset({"FieldOwner", "OwnershipMode", "OwnershipPolicy", "SyncEngine", "ExternalRef"})
 
 

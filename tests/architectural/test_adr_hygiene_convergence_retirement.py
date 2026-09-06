@@ -14,6 +14,7 @@ inversion. This gate keeps that decision record honest:
 
 Runs in well under the 5 s NFR-002 budget (parses ~6 small markdown headers).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -74,19 +75,13 @@ def _retired_adrs_not_superseded(headers: dict[str, dict[str, object]]) -> list[
 
 
 def _front_matter_for(rel_paths: tuple[str, ...]) -> dict[str, dict[str, object]]:
-    return {
-        rel: _parse_front_matter((_REPO_ROOT / rel).read_text(encoding="utf-8"))
-        for rel in rel_paths
-    }
+    return {rel: _parse_front_matter((_REPO_ROOT / rel).read_text(encoding="utf-8")) for rel in rel_paths}
 
 
 def test_retired_adrs_are_superseded_and_point_at_new_adr() -> None:
     headers = _front_matter_for(_SUPERSEDED_ADRS)
     offenders = _retired_adrs_not_superseded(headers)
-    assert not offenders, (
-        "these retired-subsystem ADRs are not marked Superseded with a pointer to "
-        f"{_NEW_ADR_BASENAME}: {offenders}"
-    )
+    assert not offenders, f"these retired-subsystem ADRs are not marked Superseded with a pointer to {_NEW_ADR_BASENAME}: {offenders}"
 
 
 def test_new_convergence_retirement_adr_shape() -> None:
@@ -106,16 +101,14 @@ def test_new_convergence_retirement_adr_shape() -> None:
     # Records the client-repo inversion, in prose.
     body = text.lower()
     assert "client" in body and "spec-kitty/zeitgeist" in body and "spec-kitty/saas" in body, (
-        "the new ADR must record the client-repo inversion naming the upstream "
-        "authoritative repos spec-kitty/zeitgeist and spec-kitty/saas"
+        "the new ADR must record the client-repo inversion naming the upstream authoritative repos spec-kitty/zeitgeist and spec-kitty/saas"
     )
 
 
 def test_shared_package_boundary_adr_stays_accepted() -> None:
     fm = _parse_front_matter((_REPO_ROOT / _STILL_ACCEPTED_ADR).read_text(encoding="utf-8"))
     assert fm.get("status") == "Accepted", (
-        "2026-04-25-1-shared-package-boundary.md must stay Accepted — it is the "
-        "precedent the client-repo inversion extends, not a reversal of it"
+        "2026-04-25-1-shared-package-boundary.md must stay Accepted — it is the precedent the client-repo inversion extends, not a reversal of it"
     )
 
 

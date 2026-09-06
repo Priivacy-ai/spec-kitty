@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import sys
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -101,11 +102,13 @@ _DEFINED_LAYERS: frozenset[str] = frozenset(
 # FUTURE mission (invert the dependency behind a port — infra/logic separation
 # epic #2173). This ledger is therefore bound as an outbound guard, not a purge.
 #
-# The ledger is SHRINK-ONLY by construction:
+# The ledger is bounded by import, stale-entry, and independent size checks:
 #   * ADDING a new ``specify_cli.<sub>`` edge outside this set MUST red the rule
 #     (loud additions — proven by ``test_rule_rejects_out_of_ledger_import``),
 #   * REMOVING an edge (future port work) must delete its entry here; a stale
 #     entry with no matching live import reds ``test_ledger_has_no_stale_entries``.
+#   * GROWING the ledger alongside an import fails its independent
+#     ``mission_runtime_allowed_specify_cli`` cap in ``_baselines.yaml``.
 #
 # Each entry is a first-level ``specify_cli.<subpackage>`` name, derived from a
 # live AST scan of ``src/mission_runtime/`` (do NOT hand-copy from the plan).
@@ -158,11 +161,14 @@ _MISSION_RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str] = frozenset(
 # PRE-DECIDED (mirrors the sibling ``mission_runtime`` ledger, research D6): the clean rule
 # ``runtime should_not access specify_cli`` would red on existing, working code, so these
 # edges are a DOCUMENTED allowed-exception set. Inverting them (behind ports) is carved-out
-# future work (infra/logic epic #2173; #3522). This ledger is SHRINK-ONLY by construction:
+# future work (infra/logic epic #2173; #3522). Independent checks bound this ledger:
 #   * ADDING a ``specify_cli.<sub>`` edge outside this set MUST red the rule
 #     (proven by ``test_rule_rejects_out_of_ledger_import``),
 #   * REMOVING an edge (future port work) must delete its entry; a stale entry with no
 #     matching live import reds ``test_runtime_ledger_has_no_stale_entries``.
+#   * GROWING the ledger alongside a new import fails the independent size cap in
+#     ``_baselines.yaml`` / ``test_ratchet_baselines.py``. A stale-entry check alone
+#     cannot prevent growth; raising the cap requires a justified baseline edit.
 #
 # ``specify_cli.cli`` / ``specify_cli.next`` are DELIBERATELY ABSENT — they stay
 # hard-forbidden by ``TestRuntimeBoundary``; if runtime ever imported them this ledger would
@@ -220,6 +226,8 @@ def _collect_specify_cli_imports(root: Path) -> list[tuple[str, str]]:
     Walks the full AST so *lazy, in-function* imports are included — the
     ``mission_runtime`` upward edges live inside functions, so a module-level
     scan would miss them and the rule would pass vacuously.
+    Root ``from`` imports resolve real submodules against the source tree without
+    executing them; root attributes/functions retain the bare-root classification.
     """
     found: list[tuple[str, str]] = []
     for path in sorted(root.rglob("*.py")):
@@ -228,9 +236,15 @@ def _collect_specify_cli_imports(root: Path) -> list[tuple[str, str]]:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         rel = str(path.relative_to(_SRC))
         for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom):
+            if isinstance(node, ast.ImportFrom) and node.level == 0:
                 if node.module and _is_specify_cli_module(node.module):
-                    found.append((rel, node.module))
+                    if node.module == "specify_cli":
+                        for alias in node.names:
+                            target = _SRC / "specify_cli" / alias.name
+                            module = f"specify_cli.{alias.name}" if target.is_dir() or target.with_suffix(".py").is_file() else node.module
+                            found.append((rel, module))
+                    else:
+                        found.append((rel, node.module))
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     if _is_specify_cli_module(alias.name):
@@ -381,18 +395,12 @@ class TestRuntimeBoundary:
     """runtime owns next-step decisions and must not import CLI presentation."""
 
     def test_runtime_does_not_import_cli_commands(self) -> None:
-        offenders: list[str] = []
-        runtime_root = _SRC / "runtime"
         forbidden_prefixes = ("specify_cli.cli", "specify_cli.next")
-        for path in runtime_root.rglob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        if alias.name.startswith(forbidden_prefixes):
-                            offenders.append(f"{path.relative_to(_SRC)} imports {alias.name}")
-                elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith(forbidden_prefixes):
-                    offenders.append(f"{path.relative_to(_SRC)} imports {node.module}")
+        offenders = [
+            f"{rel} imports {module}"
+            for rel, module in _collect_specify_cli_imports(_SRC / "runtime")
+            if any(module == prefix or module.startswith(prefix + ".") for prefix in forbidden_prefixes)
+        ]
         assert not offenders
 
 
@@ -614,8 +622,8 @@ class TestMissionRuntimeBoundary:
             "documented allowed-exception ledger "
             "(_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI):\n  "
             + "\n  ".join(offenders)
-            + "\nInvert the dependency (preferred) or, if the edge is sanctioned, "
-            "add the subpackage to the ledger with a rationale comment."
+            + "\nInvert the dependency (preferred). A sanctioned ledger expansion also "
+            "requires a justified independent _baselines.yaml update."
         )
 
     def test_rule_rejects_out_of_ledger_import(self) -> None:
@@ -638,12 +646,12 @@ class TestMissionRuntimeBoundary:
         ], "the outbound rule must reject a specify_cli subpackage outside the ledger"
 
     def test_ledger_has_no_stale_entries(self) -> None:
-        """Shrink-only guard: every ledger entry must match a live source edge.
+        """Stale-entry guard: every ledger entry must match a live source edge.
 
         When future port work removes an upward edge, its ledger entry must be
         deleted too. A stale entry (no matching import under
         ``src/mission_runtime/``) reds here, keeping the exception set honestly
-        minimal so the debt can only shrink.
+        minimal. Independent baseline comparisons enforce the size cap.
         """
         live_subpackages = {
             _specify_cli_subpackage(module)
@@ -652,7 +660,7 @@ class TestMissionRuntimeBoundary:
         stale = _MISSION_RUNTIME_ALLOWED_SPECIFY_CLI - live_subpackages
         assert not stale, (
             f"allowed-exception ledger has entries with no live edge: {sorted(stale)!r}. "
-            "Remove them — the ledger is shrink-only."
+            "Remove them and lower the independent _baselines.yaml cap."
         )
 
 
@@ -668,9 +676,84 @@ class TestRuntimeSpecifyCliLedger:
     real upward edges are pinned as a named allowed-exception ledger
     (:data:`_RUNTIME_ALLOWED_SPECIFY_CLI`). This class binds the previously-missing outbound
     rule (the #3522 hole: a new runtime->specify_cli edge used to land green) and proves it
-    is non-vacuous and shrink-only. Reuses the same pure matcher/collector helpers as the
+    is non-vacuous. Its size is independently capped by ``_baselines.yaml`` and
+    ``test_ratchet_baselines.py``. Reuses the same matcher/collector helpers as the
     mission_runtime ledger so the two boundaries stay behaviourally identical.
     """
+
+    @pytest.mark.parametrize("lazy", [False, True], ids=["top-level", "lazy"])
+    @pytest.mark.parametrize("subpackage", ["cli", "next", "saas_client"])
+    @pytest.mark.parametrize(
+        "form",
+        [
+            "import specify_cli.{subpackage}",
+            "import specify_cli.{subpackage} as imported",
+            "from specify_cli import {subpackage}",
+            "from specify_cli import {subpackage} as imported",
+            "from specify_cli.{subpackage} import member as imported",
+        ],
+    )
+    def test_source_import_forms_cannot_bypass_guards(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        lazy: bool,
+        subpackage: str,
+        form: str,
+    ) -> None:
+        """Real source must reach both guards through the shared collector."""
+        runtime = tmp_path / "runtime"
+        runtime.mkdir()
+        package = tmp_path / "specify_cli"
+        package.mkdir()
+        # Exercise both package directories and single-file modules.
+        (package / "cli").mkdir()
+        (package / "saas_client").mkdir()
+        (package / "next.py").write_text("", encoding="utf-8")
+        statement = form.format(subpackage=subpackage)
+        source = f"def load():\n    {statement}\n" if lazy else f"{statement}\n"
+        (runtime / "probe.py").write_text(source, encoding="utf-8")
+        monkeypatch.setattr(sys.modules[__name__], "_SRC", tmp_path)
+        imports = _collect_specify_cli_imports(runtime)
+        expected = f"runtime/probe.py imports specify_cli.{subpackage}"
+        assert _out_of_ledger_specify_cli_imports(imports, _RUNTIME_ALLOWED_SPECIFY_CLI) == [expected]
+        if subpackage in {"cli", "next"}:
+            with pytest.raises(AssertionError, match=f"specify_cli.{subpackage}"):
+                TestRuntimeBoundary().test_runtime_does_not_import_cli_commands()
+
+    @pytest.mark.parametrize("lazy", [False, True], ids=["top-level", "lazy"])
+    @pytest.mark.parametrize(
+        "statement, expected_modules",
+        [
+            ("import specify_cli", {"specify_cli"}),
+            ("import specify_cli as package", {"specify_cli"}),
+            (
+                "from specify_cli import main as run, __file__, __version__, app, core as c",
+                {"specify_cli", "specify_cli.core"},
+            ),
+        ],
+    )
+    def test_root_members_are_not_invented_subpackages(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        lazy: bool,
+        statement: str,
+        expected_modules: set[str],
+    ) -> None:
+        """Root functions and attributes retain the bare-root exception."""
+        runtime = tmp_path / "runtime"
+        runtime.mkdir()
+        package = tmp_path / "specify_cli"
+        package.mkdir()
+        (package / "core").mkdir()
+        (package / "__init__.py").write_text("__version__ = 'test'\napp = None\ndef main():\n    pass\n", encoding="utf-8")
+        source = f"def load():\n    {statement}\n" if lazy else f"{statement}\n"
+        (runtime / "probe.py").write_text(source, encoding="utf-8")
+        monkeypatch.setattr(sys.modules[__name__], "_SRC", tmp_path)
+        imports = _collect_specify_cli_imports(runtime)
+        assert {module for _, module in imports} == expected_modules
+        assert not _out_of_ledger_specify_cli_imports(imports, _RUNTIME_ALLOWED_SPECIFY_CLI)
 
     def test_runtime_specify_cli_imports_within_ledger(self) -> None:
         """Every runtime -> specify_cli edge must be in the named ledger.
@@ -687,8 +770,8 @@ class TestRuntimeSpecifyCliLedger:
             "runtime imports specify_cli subpackages outside the documented "
             "allowed-exception ledger (_RUNTIME_ALLOWED_SPECIFY_CLI):\n  "
             + "\n  ".join(offenders)
-            + "\nInvert the dependency (preferred) or, if the edge is sanctioned, add the "
-            "subpackage to the ledger with a rationale comment. Note: specify_cli.cli / "
+            + "\nInvert the dependency (preferred). A sanctioned ledger expansion also "
+            "requires a justified independent _baselines.yaml update. Note: specify_cli.cli / "
             "specify_cli.next are hard-forbidden (TestRuntimeBoundary) and must NOT be added."
         )
 
@@ -710,11 +793,11 @@ class TestRuntimeSpecifyCliLedger:
         ], "the outbound rule must reject a specify_cli subpackage outside the ledger"
 
     def test_runtime_ledger_has_no_stale_entries(self) -> None:
-        """Shrink-only guard: every ledger entry must match a live source edge.
+        """Stale-entry guard: every ledger entry must match a live source edge.
 
         When future port work removes an upward edge, its ledger entry must be deleted too.
         A stale entry (no matching import under ``src/runtime/``) reds here, keeping the
-        exception set honestly minimal so the debt can only shrink.
+        exception set minimal. Independent baseline comparisons enforce the size cap.
         """
         live_subpackages = {
             _specify_cli_subpackage(module)
@@ -723,5 +806,5 @@ class TestRuntimeSpecifyCliLedger:
         stale = _RUNTIME_ALLOWED_SPECIFY_CLI - live_subpackages
         assert not stale, (
             f"allowed-exception ledger has entries with no live edge: {sorted(stale)!r}. "
-            "Remove them — the ledger is shrink-only."
+            "Remove them and lower the independent _baselines.yaml cap."
         )
