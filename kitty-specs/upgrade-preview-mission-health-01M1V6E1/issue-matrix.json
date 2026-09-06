@@ -1,7 +1,43 @@
 {
   "rows": {
+    "#2446": {
+      "evidence_ref": "Follow-up: #2446 https://github.com/Priivacy-ai/spec-kitty/issues/2446; mixed prefix guard uses explicit scoped workaround, no guard rewrite.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2930": {
+      "evidence_ref": "Follow-up: #2930 https://github.com/Priivacy-ai/spec-kitty/issues/2930#issuecomment-5559582928; generated records preserved d7e948bea, commit-reporting repair remains external.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3458": {
+      "evidence_ref": "c3657a86a fixes observed pair-arity classification only; independent executable AST unchanged,33 tests and six negative controls passed. Broader policy remains https://github.com/Priivacy-ai/spec-kitty/issues/3458.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
+    },
     "#3888": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/pull/3888 merged c0054153b9bce0778cf41a85d11ecd4e9650031d at2026-09-06T10:09:16Z; #3522 closed one second later; baseline antecedent, not new mission work.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#3900": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 independent original G0/G1 RED retained; WP03/WP10 implement startup and preview purity; WP13 final matrix pending.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP13"
     },
     "#3901": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 independent P6 omission RED retained; WP02-WP10 owner assessment and CLI composition ongoing; WP13 physical parity gate pending.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP13"
     },
     "#3902": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 independently reproduced ALLOW for lower target; WP10 semantic parity and WP13 explicit metadata target matrix pending.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP13"
     },
     "#3903": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP11 recovery8e2d40bc0 reports full423mission zero-blocker audit; independent WP11 review, WP12 preservation tests and WP13 integrated gate pending.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +93,67 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
+      "wp": "WP13"
+    },
+    "#3908": {
+      "evidence_ref": "Follow-up: #3908 https://github.com/Priivacy-ai/spec-kitty/issues/3908; empty context uses disclosed explicit binding charter/profile fallback, not successful activation.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3909": {
+      "evidence_ref": "Follow-up: #3909 https://github.com/Priivacy-ai/spec-kitty/issues/3909; composition placeholder uses canonical pack prompt, tooling defect not fixed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3911": {
+      "evidence_ref": "WP12 owns exact evidence-bound archive preservation gate and counterfactual tests; observed baseline gate failures remain pending, no waiver.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP12"
+    },
+    "#3912": {
+      "evidence_ref": "be5a58f55 integrated independently reviewed planning-root ancestry fix;10 focused plus406 adjacent passes and actual E2E lifecycle1 passed333.98s; original RED71a76f497 retained.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#411": {
+      "evidence_ref": "Follow-up: https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/411 and PR414; correction50d47d6 tested/published, programme pass-two/remoteCI/merge pending. This row is E2E repo issue411, not core issue411.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
       "wp": null
     }
   },
