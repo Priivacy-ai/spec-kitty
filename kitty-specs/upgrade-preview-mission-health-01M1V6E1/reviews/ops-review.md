@@ -205,3 +205,19 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   provider-local schema validation may substitute for canonical diagnostics.
 - Require RED/GREEN controls and independent review before integration/closure.
   External reproduction: org-profile-diagnostic-probe.py beside this checkout.
+
+## Supporting Test Integration: Open
+
+- Supporting Op: `01M1VWE1HPYDDSHAAZ4Z1HYK83`; related #3910 and #3912.
+- Parent reproduced the live next-shard completeness failure: all 19 artifact
+  placement nodes lacked a shard marker, one failed gate in 54.89 seconds.
+  Ruff also required formatting the artifact-placement and planning-self-heal
+  test files. These are valid integration failures, not waived baseline debt.
+- Correction registers the new runtime test in the existing next-shard map
+  and formats only those two tests. Their complete location-independent ASTs
+  remain identical to HEAD. No assertion, gate exemption or runtime change.
+- Three-file Ruff, format and strict typing checks pass. Combined live next-shard
+  completeness and both affected test files passed: 26 tests in 334.32 seconds,
+  terminal exit 0. The process remained live briefly after printing its summary;
+  the parent waited for its actual exit, without restart or termination.
+- Independent review remains pending; operation stays open.

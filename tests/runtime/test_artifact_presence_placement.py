@@ -71,9 +71,7 @@ def _mission(tmp_path: Path, topology: str = "coord") -> tuple[Path, Path, Path]
 @pytest.mark.parametrize("topology", ["coord", "lanes_with_coord"])
 @pytest.mark.parametrize("artifact,step", [("spec.md", "specify"), ("plan.md", "plan")])
 @pytest.mark.parametrize("authoritative", [True, False], ids=["primary-only", "coord-decoy"])
-def test_split_artifact_guards(
-    tmp_path: Path, topology: str, artifact: str, step: str, authoritative: bool
-) -> None:
+def test_split_artifact_guards(tmp_path: Path, topology: str, artifact: str, step: str, authoritative: bool) -> None:
     repo, primary, status = _mission(tmp_path, topology)
     home = primary if authoritative else status
     (home / artifact).write_text("# Planning contract\n\nUse the declared artifact authority.\n", encoding="utf-8")
@@ -107,11 +105,20 @@ def test_planning_tasks_and_coord_lifecycle_facts(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (primary / "spec.md").write_text("# Spec\n\n- **FR-001**: Resolve planning authority.\n", encoding="utf-8")
-    append_event(status, StatusEvent(
-        event_id="test-WP01-for-review", mission_slug=MISSION_SLUG, wp_id="WP01",
-        from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW,
-        at="2026-09-06T00:00:00+00:00", actor="test", force=True, execution_mode="worktree",
-    ))
+    append_event(
+        status,
+        StatusEvent(
+            event_id="test-WP01-for-review",
+            mission_slug=MISSION_SLUG,
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-09-06T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
     (status / "mission-events.jsonl").write_text(
         '{"type":"source_documented"}\n{"type":"gate_passed","name":"publication_approved"}\n',
         encoding="utf-8",
@@ -149,9 +156,7 @@ def test_occurrence_guard_reads_primary_metadata(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("artifact,step", [("spec.md", "specify"), ("plan.md", "plan")])
 @pytest.mark.parametrize("authoritative", [True, False], ids=["owned-only", "root-decoy"])
-def test_owned_checkout_artifact_guards(
-    tmp_path: Path, artifact: str, step: str, authoritative: bool
-) -> None:
+def test_owned_checkout_artifact_guards(tmp_path: Path, artifact: str, step: str, authoritative: bool) -> None:
     repo, primary, _ = _mission(tmp_path, "single_branch")
     owned = tmp_path / "owned"
     _git(repo, "worktree", "add", "-q", "-b", "codex/owned", str(owned))
