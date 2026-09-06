@@ -1,0 +1,28 @@
+{
+  "event_count": 1,
+  "last_event_id": "01M1VEF17DDKXRJGWYFGG3G3MS",
+  "materialized_at": "2026-09-06T13:27:59.470016+00:00",
+  "mission_number": "",
+  "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M1VEF17DDKXRJGWYFGG3G3MS",
+      "last_transition_at": "2026-09-06T13:27:59.470016+00:00"
+    }
+  }
+}
