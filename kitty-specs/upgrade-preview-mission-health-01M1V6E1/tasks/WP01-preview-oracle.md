@@ -20,7 +20,7 @@ subtasks: [T001, T002, T003, T004, T005]
 
 # WP01: Independent Preview Oracle
 
-## Do This First: Load Agent Profile
+## ⚡ Do This First: Load Agent Profile
 
 Use `/ad-hoc-profile-load`, the compatibility alias for
 `spk-doctrine-profile-load`, before parsing the rest of this prompt.
