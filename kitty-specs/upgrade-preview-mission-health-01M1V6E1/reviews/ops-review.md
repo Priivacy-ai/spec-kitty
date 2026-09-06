@@ -279,3 +279,21 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   are required before closing this Op. No gate waiver is authorized.
 - Dispatch exited successfully; governance hash `da91c778426bd64d` still reports
   unresolved directives (#3908). This is not full governance-resolution success.
+
+## Moments Literal-Output Test: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3924.
+- Op: `01M1W32WPQW15E6YQXZDG91ZFA`, open. Normal Rich wrapping splits
+  the invalid-value diagnostic across lines under long isolated config paths;
+  the test incorrectly requires a contiguous substring. The literal markup
+  value and semantic diagnostic remain present in actual output.
+- Scope: `tests/cli/commands/test_moments_command.py` only. Preserve the
+  existing no-crash, diagnostic and literal-markup requirements. Add real
+  wrapping coverage and negative controls for lost/interpreted content.
+- No production changes, widened-console workaround, skip, xfail or assertion
+  deletion. RED-first proof, scoped static/full affected tests, canonical fast
+  verification and independent review are required before integration/closure.
+- The prior 1641-pass/one-failure fast run remains red. Source diagnosis and
+  evidence are retained externally in `moments-wrapping-issue.md` and
+  `terminology-gate-evidence/moments-probe.json`. Governance degradation #3908
+  remains explicit despite successful dispatch.
