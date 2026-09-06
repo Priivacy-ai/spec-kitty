@@ -10,7 +10,8 @@ updated: 2026-09-06
 
 This summary supersedes historical readiness statements below. Eight WPs are
 approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05 is implementing;
-its missing caller-resolved global skill input is routed through a supporting Op.
+its caller-resolved global skill input extension is independently approved;
+supporting Op closure awaits actual WP05 consumer integration verification.
 WP08, WP10 and WP13
 remain pending dependencies. No mission acceptance or consolidation is complete.
 
@@ -37,8 +38,8 @@ on further bounded correction. No automatic fourth retry or acceptance waiver.
 Already-observed YAML-directive compatibility failures remain unresolved too.
 
 Supporting #3918, #3919 and #3924 Ops are complete with independent review and
-target-checkout evidence in ops-review.md. #3920 remains under separate review
-for target integration after independent approval alongside WP04. Draft PR #3923
+target-checkout evidence in ops-review.md. #3920 awaits target integration
+after independent approval alongside WP04. Draft PR #3923
 does not yet contain every implementation lane.
 
 WP04 approval `01M1W6ZR5V2CKE8832QB8VKJAB` follows live independent F1/F2

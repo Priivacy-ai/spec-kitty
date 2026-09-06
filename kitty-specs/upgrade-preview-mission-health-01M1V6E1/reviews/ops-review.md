@@ -10,6 +10,22 @@ retained observations/bytes/owners and existing WP02 guards remain mandatory.
 Scoped runtime extension and independent review precede consumer integration.
 External reproduction and scope: wp05-interface-request.md.
 
+Independent verdict: APPROVE at `2b653bc511b81a1b4ccbf06d60f491b044831633`.
+Full dependency chain: RED `6650023b2eed23889637d35ecc99fabf00fdc188`,
+tidy `8a3f1b90207027d24cbedf75c0ffe41e150fae5d`, implementation
+`ea1f12e182753555bba17b6b30606e742ff4a774`, then the final test commit.
+Three changed paths: runtime agent_skills.py, asset_preparation.py and
+test_upgrade_preview_bootstrap.py. Fresh review: 37 focused plus six independent
+tests passed; Ruff, formatting and strict mypy passed. Actual coordinated
+dispatch retained 167 exact effects and 460 observations across three families;
+selected input does not authorize overwriting differing untracked content.
+Unchanged WP03 locking and owner evidence reused, not broad-suite rerun.
+Initial reviewer run had 37 setup errors from an external fixture-hook missing
+return; corrected externally without relaxing sandbox, fixtures or assertions.
+Original failure retained in global-skill-selection-independent-review.md.
+WP05 full-chain integration is authorized, not yet verified. Op remains open
+until real consumer integration evidence; WP05 is not approved by this verdict.
+
 Operator isolation incident F038 is disclosed in the external friction ledger
 and #3900 comment5561980379: earlier governance/parent CLI calls inherited live
 HOME; exact global changes are unknown without before snapshots. They are not
