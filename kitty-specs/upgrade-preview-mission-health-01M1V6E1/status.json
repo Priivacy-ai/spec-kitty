@@ -134,7 +134,8 @@
       "notes": [
         "WP04 and separately authorized #3920 init-ordering Op delivered at 234a2b433a0c4bc621352ca55484cef3edc37f79. Original public witness unchanged; 967 subsystem, 12 public wiring, 1642 fast, 94 architecture tests pass. Independent full ownership and supporting-Op review required; seven broader CLI failures and formatter debt retained, not waived.",
         "Independent request changes: mixed disabled selections acquire ownership; cyclic config symlink escapes incomplete-assessment boundary. Separate #3920 request changes: post-config interruption leaves zero commands and retry falsely reports initialized. Preserve final-config rendering, runtime-root protection and authored config; separate scoped corrections and independent re-review required.",
-        "WP04F1/F2fad0f8d08374d97b4b96f5d2c5cf4b5c986db896 and separate3920F3e9907343ba82782a91cb940df7c027d60dbdee9a delivered; targeted independent re-review pending. Original contracts and final gates unchanged."
+        "WP04F1/F2fad0f8d08374d97b4b96f5d2c5cf4b5c986db896 and separate3920F3e9907343ba82782a91cb940df7c027d60dbdee9a delivered; targeted independent re-review pending. Original contracts and final gates unchanged.",
+        "Independent focused cycle2APPROVE fad0f8d08374d97b4b96f5d2c5cf4b5c986db896; F1/F2 liveRED/GREEN resolved. Separate3920 e9907343ba82782a91cb940df7c027d60dbdee9a approvedpendingintegration. Reviewenv-i was notOSdenial; historicalisolationlimits explicit. Finalgates remainopen. wp04-cycle2-independent-review.md."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
