@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3888": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/pull/3888 merged c0054153b9bce0778cf41a85d11ecd4e9650031d at2026-09-06T10:09:16Z; #3522 closed one second later; baseline antecedent, not new mission work.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#3900": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 independent original G0/G1 RED retained; WP03/WP10 implement startup and preview purity; WP13 final matrix pending.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP13"
     },
     "#3901": {
       "evidence_ref": "<link or commit>",
