@@ -80,6 +80,21 @@ def test_existing_skills_repair_current_marker_missing_content(
     assert missing.is_file(), "Current stamp must not conceal missing required content"
 
 
+def test_existing_skills_writer_keeps_coordinated_scope_skills_only(owner_home: Path, skill_source: Path) -> None:
+    agent_skills.ensure_global_agent_skills()
+    assert (owner_home / ".agents/skills/spec-kitty/SKILL.md").is_file()
+    cache = owner_home / ".kittify/cache"
+    assert (cache / "global_skills-assets.json").is_file()
+    assert not (owner_home / ".kittify/missions").exists()
+    assert not (cache / "version.lock").exists()
+    assert not (cache / "runtime_bootstrap-assets.json").exists()
+    assert not (cache / "slash_commands-assets.json").exists()
+    assert not agent_commands.get_global_command_dir("claude").exists()
+    before = snapshot({"home": owner_home})
+    agent_skills.ensure_global_agent_skills()
+    assert_unchanged(before, snapshot({"home": owner_home}))
+
+
 def test_existing_commands_preserve_unknown_prefixed_link(owner_home: Path) -> None:
     output = agent_commands.get_global_command_dir("claude")
     output.mkdir(parents=True)
@@ -577,21 +592,30 @@ def _global_dispatch(assessments: tuple[OwnerAssessment, ...]) -> tuple[Any, ...
         raise AssertionError("Dispatcher must not reassess retained global assets")
 
     providers = tuple(
-        SimpleNamespace(provider_key=a.owner_key, assess=forbidden_reassessment, recheck=recheck_assets, apply=apply_assets)
-        for a in assessments
+        SimpleNamespace(provider_key=key, assess=forbidden_reassessment, recheck=recheck_assets, apply=apply_assets)
+        for key in dict.fromkeys(a.owner_key for a in assessments)
     )
     assert all(isinstance(provider, AssessingSurfaceProvider) for provider in providers)
     return tuple(SurfaceRepairService(providers).apply_assessments(assessments, ApplyConsent(automatic=True)))
 
 
 def _global_preparation() -> tuple[OwnerAssessment, ...]:
-    return (bootstrap.assess_runtime(), agent_commands.assess_global_agent_commands(), agent_skills.assess_global_agent_skills())
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    return (assess_global_assets(),)
 
 
 def test_real_cold_global_dispatch_exact_and_no_churn(owner_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     for key in ("SPEC_KITTY_TEMPLATE_ROOT", "SPEC_KITTY_PACKS_ROOT"):
         monkeypatch.delenv(key, raising=False)
-    for key, suffix in {"USERPROFILE": "", "XDG_CACHE_HOME": ".cache", "XDG_DATA_HOME": ".local/share", "XDG_STATE_HOME": ".local/state", "APPDATA": "appdata", "LOCALAPPDATA": "localappdata"}.items():
+    for key, suffix in {
+        "USERPROFILE": "",
+        "XDG_CACHE_HOME": ".cache",
+        "XDG_DATA_HOME": ".local/share",
+        "XDG_STATE_HOME": ".local/state",
+        "APPDATA": "appdata",
+        "LOCALAPPDATA": "localappdata",
+    }.items():
         monkeypatch.setenv(key, str(owner_home / suffix))
     roots = {"home": owner_home}
     before = snapshot(roots)
@@ -604,8 +628,10 @@ def test_real_cold_global_dispatch_exact_and_no_churn(owner_home: Path, tmp_path
     results = _global_dispatch(assessments)
     if not all(r.outcome == "applied" for r in results):
         assert_unchanged(before, snapshot(roots))
-    assert all(r.outcome == "applied" for r in results), results
-    expected = {(str(e.destination.relative_to(owner_home)), e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for a in assessments for e in a.effects}
+    assert all(r.outcome == "applied" for r in results), [(r.outcome, r.diagnostics) for r in results]
+    expected = {
+        (str(e.destination.relative_to(owner_home)), e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for a in assessments for e in a.effects
+    }
     actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for e in net_delta(before, snapshot(roots))}
     assert expected == actual
     assert expected - {next(iter(expected))} != actual
@@ -614,3 +640,160 @@ def test_real_cold_global_dispatch_exact_and_no_churn(owner_home: Path, tmp_path
     assert all(a.complete and not a.effects for a in repeat)
     assert all(r.outcome == "skipped" for r in _global_dispatch(repeat))
     assert_unchanged(after, snapshot(roots))
+
+
+@pytest.mark.parametrize("change", ["source", "destination", "parent", "environment", "inventory"])
+def test_coordinated_global_rechecks_every_family_before_writes(
+    owner_home: Path,
+    skill_source: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    assessment = assess_global_assets(agent_keys=["claude"])
+    assert assessment.complete and assessment.effects
+    if change == "source":
+        (skill_source / "spec-kitty/SKILL.md").write_text("changed source")
+    elif change == "destination":
+        target = owner_home / ".agents/skills/spec-kitty/SKILL.md"
+        target.parent.mkdir(parents=True)
+        target.write_text("custom occupant")
+    elif change == "parent":
+        external = owner_home / "external"
+        external.mkdir()
+        (owner_home / ".claude").symlink_to(external, target_is_directory=True)
+    elif change == "inventory":
+        cache = owner_home / ".kittify/cache"
+        cache.mkdir(parents=True)
+        (cache / "global_skills-assets.json").write_text("{}")
+    else:
+        monkeypatch.setenv("OPENCODE_CONFIG_DIR", str(owner_home / "changed-config"))
+    before = snapshot({"home": owner_home})
+    result = _global_dispatch((assessment,))[0]
+    assert result.outcome == "precondition_changed", result
+    assert not result.succeeded and result.diagnostics
+    assert_unchanged(before, snapshot({"home": owner_home}))
+
+
+def test_coordinated_global_retains_shared_ownership_and_duplicate_dispatch(owner_home: Path, skill_source: Path) -> None:
+    from specify_cli.runtime.asset_preparation import PreparedAssets, assess_global_assets
+
+    assessment = assess_global_assets(agent_keys=["claude"])
+    assert assessment.complete
+    prepared = assessment.prepared
+    assert isinstance(prepared, PreparedAssets)
+    assert len(prepared.lock_paths) == 3
+    assert len({e.destination for e in assessment.effects}) == len(assessment.effects)
+    assert {e.owner for e in assessment.effects} == {"global_assets"}
+    common = next(e for e in assessment.effects if e.destination == owner_home / ".kittify/cache")
+    assert {proof.reference.split(":")[0] for proof in common.ownership} == {"runtime_bootstrap", "slash_commands", "global_skills"}
+    assert {"runtime_bootstrap", "claude"} <= set(common.logical_owners)
+    assert {write.effect for write in prepared.writes} == set(assessment.effects)
+    results = _global_dispatch((assessment, assessment))
+    assert len(results) == 1 and results[0].outcome == "applied"
+    assert set(results[0].succeeded) == {e.id for e in assessment.effects}
+
+
+def test_separate_cold_global_batches_still_refuse(owner_home: Path, skill_source: Path) -> None:
+    batches = (bootstrap.assess_runtime(), agent_commands.assess_global_agent_commands(agent_keys=["claude"]), agent_skills.assess_global_agent_skills())
+    before = snapshot({"home": owner_home})
+    results = _global_dispatch(batches)
+    assert all(r.outcome == "failed" and r.diagnostics for r in results)
+    assert_unchanged(before, snapshot({"home": owner_home}))
+    assert apply_assets(batches[0], ApplyConsent(automatic=True)).outcome == "applied"
+    before = snapshot({"home": owner_home})
+    assert all(apply_assets(a, ApplyConsent(automatic=True)).outcome == "precondition_changed" for a in batches[1:])
+    assert_unchanged(before, snapshot({"home": owner_home}))
+
+
+def test_coordinated_global_source_failure_blocks_other_families(owner_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    monkeypatch.setattr(agent_skills, "_discover_registry", lambda: None)
+    before = snapshot({"home": owner_home})
+    assessment = assess_global_assets(agent_keys=["claude"])
+    assert not assessment.complete and assessment.diagnostics
+    assert _global_dispatch((assessment,))[0].outcome == "failed"
+    assert_unchanged(before, snapshot({"home": owner_home}))
+
+
+def test_coordinated_global_partial_failure_does_not_certify_any_family(
+    owner_home: Path,
+    skill_source: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.runtime import asset_preparation
+
+    assessment = asset_preparation.assess_global_assets(agent_keys=["claude"])
+    original = asset_preparation._write_asset
+
+    def fail_skill(write: Any) -> None:
+        if write.effect.destination.name == "SKILL.md":
+            raise OSError("deliberate skill write failure")
+        original(write)
+
+    monkeypatch.setattr(asset_preparation, "_write_asset", fail_skill)
+    result = _global_dispatch((assessment,))[0]
+    assert result.outcome == "partial" and result.succeeded and result.failed and result.skipped
+    assert set(result.succeeded + result.failed + result.skipped) == {e.id for e in assessment.effects}
+    assert not tuple((owner_home / ".kittify/cache").glob("*-assets.json"))
+    assert not (owner_home / ".kittify/cache/version.lock").exists()
+    assert not (owner_home / ".kittify/cache/agent-skills.lock").exists()
+    assert not (owner_home / ".kittify/cache/agent-commands.lock").exists()
+
+
+def test_coordinated_global_selection_is_explicit(owner_home: Path, skill_source: Path) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    selected = assess_global_assets(runtime=False, commands=True, skills=False, agent_keys=["claude"])
+    assert selected.complete and selected.effects
+    assert all(proof.reference.startswith("slash_commands") for e in selected.effects for proof in e.ownership)
+    assert all(e.destination != owner_home / ".kittify/cache/agent-commands.lock" for e in selected.effects)
+    assert not assess_global_assets(runtime=False, commands=False, skills=False).complete
+
+
+@pytest.mark.parametrize("conflict", ["bytes", "state", "membership", "environment"])
+def test_global_builder_refuses_contradictory_family_inputs(owner_home: Path, monkeypatch: pytest.MonkeyPatch, conflict: str) -> None:
+    from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation, global_asset_root
+
+    consent = ApplyConsent()
+    batch = _GlobalAssetPreparation(consent)
+    root = global_asset_root("runtime_bootstrap", (owner_home,))
+    first = AssetPreparation("runtime_bootstrap", root, owner_home / "cache", ".update.lock", consent)
+    first.observe(owner_home, members=True)
+    first.asset(owner_home / "shared", b"first", 0o444)
+    assessment = first.finish(None, "unused")
+    batch.include(first, assessment.effects)
+    if conflict == "environment":
+        monkeypatch.setenv("OPENCODE_CONFIG_DIR", str(owner_home / "changed"))
+    elif conflict == "state":
+        (owner_home / "shared").write_text("occupant")
+    elif conflict == "membership":
+        (owner_home / "unrelated").mkdir()
+    second = AssetPreparation("global_skills", root, owner_home / "cache", ".agent-skills.lock", consent)
+    second.observe(owner_home, members=True)
+    second.asset(owner_home / "shared", b"second" if conflict == "bytes" else b"first", 0o444)
+    assessment = second.finish(None, "unused")
+    before = snapshot({"home": owner_home})
+    with pytest.raises(ValueError, match="Global"):
+        batch.include(second, assessment.effects)
+    assert_unchanged(before, snapshot({"home": owner_home}))
+
+
+def test_coordinated_global_observes_healthy_family_locks(owner_home: Path, skill_source: Path) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    assert _global_dispatch((assess_global_assets(agent_keys=["claude"]),))[0].outcome == "applied"
+    command = next(agent_commands.get_global_command_dir("claude").glob("spec-kitty.*"))
+    command.unlink()
+    lock = owner_home / ".kittify/cache/.update.lock"
+    external = owner_home / "external-lock"
+    external.write_text("unowned lock target")
+    lock.unlink()
+    lock.symlink_to(external)
+    before = snapshot({"home": owner_home})
+    assessment = assess_global_assets(agent_keys=["claude"])
+    assert not assessment.complete and assessment.diagnostics
+    assert _global_dispatch((assessment,))[0].outcome == "failed"
+    assert_unchanged(before, snapshot({"home": owner_home}))

@@ -30,6 +30,7 @@ from specify_cli.tool_surface.operations import (
     OwnerAssessment,
     OwnershipProof,
     PhysicalEffect,
+    coalesce_effects,
 )
 
 
@@ -96,6 +97,11 @@ class PreparedAssets:
     lock_path: Path
     anchor: Path
     temporary_paths: tuple[Path, ...] = ()
+    additional_lock_paths: tuple[Path, ...] = ()
+
+    @property
+    def lock_paths(self) -> tuple[Path, ...]:
+        return tuple(sorted({self.lock_path, *self.additional_lock_paths}))
 
 
 _SOURCE_ENV = (
@@ -356,6 +362,107 @@ def incomplete(owner: str, root: OperationRoot, error: Exception) -> OwnerAssess
     return OwnerAssessment(owner, root, complete=False, diagnostics=(Diagnostic("global_assets_unavailable", owner, "error", str(error)),))
 
 
+class _GlobalAssetPreparation:
+    """One physical preparation built by the three runtime format owners.
+
+    Receives live owner-local builders, never opaque OwnerAssessment payloads.
+    Shared infrastructure is compared here before freezing one executable batch.
+    """
+
+    def __init__(self, consent: ApplyConsent) -> None:
+        self.consent = consent
+        self.environment = tuple((name, os.environ.get(name)) for name in _SOURCE_ENV)
+        self.writes: dict[Path, AssetWrite] = {}
+        self.observations: dict[Path, AssetObservation] = {}
+        self.locks: set[Path] = set()
+        self.anchors: set[Path] = set()
+        self.temporary_paths: set[Path] = set()
+
+    def include(self, builder: AssetPreparation, effects: tuple[PhysicalEffect, ...]) -> None:
+        if builder.environment != self.environment or builder.consent != self.consent:
+            raise ValueError("Global preparation inputs changed between families")
+        if builder.observe(builder.lock_path).kind not in {"absent", "file"}:
+            raise ValueError(f"Global family lock is not a regular file: {builder.lock_path}")
+        self.locks.add(builder.lock_path)
+        self.anchors.add(builder.root.path)
+        self.temporary_paths.update(builder.temporary_paths)
+        for observation in builder.observed.values():
+            previous = self.observations.get(observation.path)
+            if previous is not None:
+                if (previous.state, previous.identity) != (observation.state, observation.identity):
+                    raise ValueError(f"Global family observations disagree: {observation.path}")
+                if previous.children is not None:
+                    if observation.children is not None and previous.children != observation.children:
+                        raise ValueError(f"Global family membership changed: {observation.path}")
+                    observation = replace(observation, children=previous.children)
+            self.observations[observation.path] = observation
+        for effect in effects:
+            write = builder.writes[effect.destination]
+            effect = replace(effect, owner="global_assets")
+            previous_write = self.writes.get(effect.destination)
+            if previous_write is not None:
+                if previous_write.content != write.content:
+                    raise ValueError(f"Global family bytes conflict: {effect.destination}")
+                effect = coalesce_effects((previous_write.effect, effect))[0]
+            self.writes[effect.destination] = AssetWrite(effect, write.content)
+
+    def finish(self, families: tuple[OwnerAssessment, ...]) -> OwnerAssessment:
+        anchor = Path(os.path.commonpath(tuple(self.anchors))) if self.anchors else Path.home().parent
+        root = OperationRoot("global_assets", "global", anchor)
+        diagnostics = tuple(d for family in families for d in family.diagnostics)
+        dispositions = tuple(d for family in families for d in family.dispositions)
+        if not families or not all(family.complete for family in families):
+            return OwnerAssessment(
+                "global_assets",
+                root,
+                complete=False,
+                diagnostics=diagnostics or (Diagnostic("empty_global_selection", "global_assets", "error", "Select at least one global family"),),
+                dispositions=dispositions,
+            )
+        locks = tuple(sorted(self.locks))
+        writes = tuple(sorted(self.writes.values(), key=_write_order))
+        observations = tuple(sorted(self.observations.values(), key=lambda item: str(item.path)))
+        prepared = PreparedAssets(writes, observations, self.environment, locks[0], anchor, tuple(sorted(self.temporary_paths)), locks[1:])
+        return OwnerAssessment(
+            "global_assets",
+            root,
+            tuple(w.effect for w in writes),
+            dispositions,
+            diagnostics=diagnostics,
+            inputs_fingerprint=(InputObservation("assets", observations),),
+            prepared=prepared,
+            consent=self.consent,
+        )
+
+
+def assess_global_assets(
+    *,
+    runtime: bool = True,
+    commands: bool = True,
+    skills: bool = True,
+    agent_keys: list[str] | None = None,
+    consent: ApplyConsent = ApplyConsent(),
+) -> OwnerAssessment:
+    """Prepare selected global families once, with one executable owner.
+
+    Dispatch only this assessment (owner_key ``global_assets``), using
+    recheck_assets/apply_assets. Do not also dispatch separate family batches.
+    ``agent_keys`` narrows commands only; skills keep their canonical root policy.
+    No existing preparation is accepted, combined opaquely or reassessed on apply.
+    """
+    from specify_cli.runtime import bootstrap, agent_commands, agent_skills
+
+    batch = _GlobalAssetPreparation(consent)
+    families = []
+    if runtime:
+        families.append(bootstrap.assess_runtime(consent=consent, _batch=batch))
+    if commands:
+        families.append(agent_commands.assess_global_agent_commands(agent_keys=agent_keys, consent=consent, _batch=batch))
+    if skills:
+        families.append(agent_skills.assess_global_agent_skills(consent=consent, _batch=batch))
+    return batch.finish(tuple(families))
+
+
 def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
     """Compare the entire batch before opening any write-capable handle."""
     prepared = assessment.prepared
@@ -391,21 +498,22 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
     if diagnostics or not assessment.effects or not isinstance(prepared, PreparedAssets):
         yield diagnostics
         return
-    if prepared.lock_path in _HELD_LOCKS.get():
+    if set(prepared.lock_paths) <= _HELD_LOCKS.get():
         yield diagnostics
         return
     with ExitStack() as stack:
-        if prepared.lock_path.exists():
-            stream = stack.enter_context(prepared.lock_path.open("r"))
-            _lock_exclusive(stream)
-        elif os.name != "nt":
+        if any(not path.exists() for path in prepared.lock_paths) and os.name != "nt":
             # POSIX directories support flock without creating a lock artifact.
             # Serialize cold installers on the stable reporting anchor until
             # apply creates and acquires the existing owner-specific lock.
             descriptor = os.open(prepared.anchor, os.O_RDONLY)
             stack.callback(os.close, descriptor)
             _lock_exclusive(descriptor)
-        token = _HELD_LOCKS.set(_HELD_LOCKS.get() | {prepared.lock_path})
+        for path in prepared.lock_paths:
+            if path.exists():
+                stream = stack.enter_context(path.open("r"))
+                _lock_exclusive(stream)
+        token = _HELD_LOCKS.set(_HELD_LOCKS.get() | set(prepared.lock_paths))
         try:
             yield check_assets(assessment)
         finally:
@@ -494,9 +602,9 @@ def _apply_retained_assets(assessment: OwnerAssessment) -> OwnerApplyResult:
     with ExitStack() as locks:
         for index, write in enumerate(ordered):
             try:
-                if write.effect.destination == prepared.lock_path and write.effect.action == "create":
-                    stream = locks.enter_context(prepared.lock_path.open("x"))
-                    prepared.lock_path.chmod(write.effect.after.mode or 0o644)
+                if write.effect.destination in prepared.lock_paths and write.effect.action == "create":
+                    stream = locks.enter_context(write.effect.destination.open("x"))
+                    write.effect.destination.chmod(write.effect.after.mode or 0o644)
                     _lock_exclusive(stream)
                 else:
                     _write_asset(write)

@@ -30,6 +30,7 @@ from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version
 from specify_cli.runtime.home import get_kittify_home
+from specify_cli.runtime.asset_preparation import _GlobalAssetPreparation
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
 
 _VERSION_FILENAME = "agent-commands.lock"
@@ -287,6 +288,7 @@ def assess_global_agent_commands(
     consent: ApplyConsent = ApplyConsent(),
     templates_dir: Path | None = None,
     script_type: str | None = None,
+    _batch: _GlobalAssetPreparation | None = None,
 ) -> OwnerAssessment:
     """Read/render the entire selected agent bundle without installing sources.
 
@@ -333,10 +335,13 @@ def assess_global_agent_commands(
                         prepared.retire(existing)
         stamp = home / "cache" / _VERSION_FILENAME if agent_keys is None else None
         assessment = prepared.finish(stamp, _get_cli_version())
-        return replace(
+        assessment = replace(
             assessment,
             effects=tuple(replace(effect, logical_owners=_command_effect_owners(effect.destination, selected_roots)) for effect in assessment.effects),
         )
+        if _batch is not None:
+            _batch.include(prepared, assessment.effects)
+        return assessment
     except (OSError, ValueError, KeyError) as exc:
         return incomplete("slash_commands", root, exc)
 

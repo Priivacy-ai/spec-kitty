@@ -21,6 +21,7 @@ from typing import IO
 import yaml
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.asset_preparation import _GlobalAssetPreparation
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment, OwnerApplyResult
 
 logger = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ def _cleanup_orphaned_update_dirs(parent: Path) -> None:
             logger.warning("Preserving unproven orphan staging directory: %s", entry)
 
 
-def assess_runtime(*, consent: ApplyConsent = ApplyConsent()) -> OwnerAssessment:
+def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAssetPreparation | None = None) -> OwnerAssessment:
     """Prepare managed package assets directly, without staging or bootstrap."""
     from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete
     from specify_cli.runtime.merge import MANAGED_DIRS, MANAGED_FILES
@@ -181,7 +182,10 @@ def assess_runtime(*, consent: ApplyConsent = ApplyConsent()) -> OwnerAssessment
             for candidate in home.parent.iterdir():
                 if candidate.name.startswith(".kittify_update_"):
                     prepared.preserve(candidate, "Unproven orphan staging directory; preserved")
-        return prepared.finish(home / "cache/version.lock", _get_cli_version())
+        assessment = prepared.finish(home / "cache/version.lock", _get_cli_version())
+        if _batch is not None:
+            _batch.include(prepared, assessment.effects)
+        return assessment
     except (OSError, ValueError) as exc:
         return incomplete("runtime_bootstrap", root, exc)
 

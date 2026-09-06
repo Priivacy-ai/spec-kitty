@@ -10,7 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from specify_cli.runtime.bootstrap import _get_cli_version
-from specify_cli.runtime.asset_preparation import AssetPreparation
+from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
@@ -142,6 +142,7 @@ def _observe_registry_catalog(prepared: AssetPreparation, skills: list[Canonical
 def assess_global_agent_skills(
     *,
     consent: ApplyConsent = ApplyConsent(),
+    _batch: _GlobalAssetPreparation | None = None,
 ) -> OwnerAssessment:
     """Prepare complete global skill trees without writes or marker shortcuts.
 
@@ -190,16 +191,19 @@ def assess_global_agent_skills(
                 and (agent_root == effect.destination or agent_root in effect.destination.parents)
             )
             effects.append(replace(effect, logical_owners=logical or agents))
-        return replace(assessment, effects=tuple(effects))
+        assessment = replace(assessment, effects=tuple(effects))
+        if _batch is not None:
+            _batch.include(prepared, assessment.effects)
+        return assessment
     except (OSError, ValueError, UnicodeError) as exc:
         return incomplete("global_skills", root, exc)
 
 
 def ensure_global_agent_skills() -> None:
     """Repair actual canonical skill health and retain unchanged assets."""
-    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
+    from specify_cli.runtime.asset_preparation import apply_assets, assess_global_assets, recheck_assets
 
-    assessment = assess_global_agent_skills()
+    assessment = assess_global_assets(runtime=False, commands=False)
     if not assessment.complete:
         raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
     if not assessment.effects:
