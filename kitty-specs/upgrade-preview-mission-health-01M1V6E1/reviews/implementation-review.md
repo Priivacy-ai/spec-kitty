@@ -8,9 +8,9 @@ updated: 2026-09-06
 
 ## Current Status
 
-This summary supersedes historical readiness statements below. Six WPs are
-approved: WP01, WP02, WP03, WP06, WP07 and WP11. WP05 is implementing;
-WP04 and WP12 are undergoing focused corrective review. WP08, WP10 and WP13
+This summary supersedes historical readiness statements below. Seven WPs are
+approved: WP01, WP02, WP03, WP06, WP07, WP11 and WP12. WP05 is implementing;
+WP04 is undergoing focused corrective review. WP08, WP10 and WP13
 remain pending dependencies. No mission acceptance or consolidation is complete.
 
 WP03 approval `01M1W56TVQYABKXJD3VSEJYTT2` closes its coordinated-global-owner
@@ -22,6 +22,12 @@ WP06 approval `01M1W5N34C35V1989GAREFJ5ZS` closes all three prior findings at
 `11818b3379d9c23fd3be3b577fbbab00ba676ae2`. Fresh RED/GREEN controls and
 33 corrective plus 16 manifest tests support the focused verdict; valid unchanged
 prior evidence is retained. This is not public upgrade acceptance.
+
+WP12 approval `01M1W6AZT4M5M0HVT147V0JM9V` closes both prior findings at
+`d74cb9e1b76dd525a9c567acfc2b937f42e5ee92`. Independent review ran 21 targeted
+tests, killed the exact previously surviving scanner mutation, and verified
+eleven retained public audit reports against independently derived Git membership.
+Full integrated corpus/preservation and broader architectural gates remain open.
 
 WP09's third rejection `01M1W49A3D4SPR4SJVZ2XGCZAD` fixed prior findings but
 introduced comment loss when a loaded YAML document is reused across saves.
