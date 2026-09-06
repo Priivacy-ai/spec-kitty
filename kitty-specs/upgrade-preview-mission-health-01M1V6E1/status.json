@@ -141,13 +141,16 @@
     "WP11": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "for_review",
       "last_event_id": "01M1VKBZZTGQ3HX4YQFYF430XC",
       "last_transition_at": "2026-09-06T14:53:42.778556+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Recovery13e75ffd0/3cb4af0cc/8e2d40bc0; parent full423mission audit zero errors/blockers. 31restores/2moves/2original+1adjudicatedreplay,11verdicts; rawhistory and repeat no-churn preserved. wp11-handoff.md; archive gate #3911 ownedWP12,124redirect findings unchangedbaseline awaiting followup."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 26467,
