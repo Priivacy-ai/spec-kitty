@@ -714,6 +714,7 @@ def init(  # noqa: C901
 
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
+    command_skill_agents: list[str] = []
 
     with Live(tracker.render(), console=_console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
@@ -829,19 +830,12 @@ def init(  # noqa: C901
                         # WRAPPER agents have no installable root.
                         tracker.complete(f"{agent_key}-skills", "skipped (wrapper)")
                     elif agent_key in ("codex", "vibe", "pi", "letta"):
-                        # Command-skill agents receive Spec Kitty's slash
-                        # commands as Agent Skills packages rendered into
-                        # .agents/skills/.
-                        from specify_cli.skills import command_installer  # noqa: PLC0415
-                        from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
-
-                        report = command_installer.install(project_path, agent_key)
-                        if agent_key == "vibe":
-                            ensure_project_skill_path(project_path)
-                        installed = len(report.added) + len(report.reused_shared)
+                        # Render only after config is finalized: an absent config
+                        # intentionally has different REASONS activation semantics.
+                        command_skill_agents.append(agent_key)
                         tracker.complete(
                             f"{agent_key}-skills",
-                            f"{installed} command skills installed",
+                            "queued until project configuration is saved",
                         )
                     elif agent_skill_class == SKILL_CLASS_SHARED:
                         # Other SHARED-class agents install their canonical skills
@@ -1178,6 +1172,23 @@ def init(  # noqa: C901
     except Exception as e:
         # Don't fail init if agent config creation fails
         _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")
+
+    # Install each selected command-skill owner once, with final render inputs.
+    # Keep config creation after runtime-root protection (the resumability gate),
+    # and reuse the installer for shared-root ownership and collision protection.
+    for agent_key in command_skill_agents:
+        try:
+            from specify_cli.skills import command_installer  # noqa: PLC0415
+            from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
+
+            report = command_installer.install(project_path, agent_key)
+            if agent_key == "vibe":
+                ensure_project_skill_path(project_path)
+            installed = len(report.added) + len(report.reused_shared)
+            _console.print(f"[dim]{AI_CHOICES[agent_key]}: {installed} command skills installed[/dim]")
+        except Exception as exc:
+            # Preserve init's non-fatal per-agent installation contract.
+            _console.print(f"[yellow]Warning:[/yellow] Could not install skills for {AI_CHOICES[agent_key]}: {exc}")
 
     # Write session presence orientation for each configured agent (FR-003).
     try:
