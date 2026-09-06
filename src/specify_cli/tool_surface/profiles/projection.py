@@ -18,7 +18,7 @@ from pathlib import Path
 from dataclasses import dataclass, replace
 
 from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
-from charter.profiles import AgentProfile, AgentProfileRepository
+from charter.profiles import AgentProfile, AgentProfileRepository, SkippedProfile
 from charter.provenance import to_portable_source_path
 
 from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
@@ -130,7 +130,16 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     gate, so a *de-activated* org profile never reaches the host surface. A raw
     ``org_dirs=`` splice is intentionally NOT used here: it would bypass the gate
     and surface declared-but-de-activated profiles (C-008).
+
+    This compatibility API returns admission only. Assessments use
+    :meth:`ProfileProjector.from_project` to retain source health as well.
     """
+    repo, _ = _profile_repository_inputs(project_root)
+    return repo
+
+
+def _profile_repository_inputs(project_root: Path) -> tuple[AgentProfileRepository, tuple[SkippedProfile, ...]]:
+    """Load admission and canonical org failures together, without a rescan."""
     # ``org_roots=[]`` is load-bearing for C-008: the base repository must carry
     # NO org layer, because org profiles enter EXCLUSIVELY through the
     # activation-gated ``_merge_activated_org_profiles`` below. The public
@@ -146,13 +155,13 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
         org_roots=[],
         agent_profile_overlay_dir=project_root / _PROJECT_PROFILE_SUBDIR,
     ).agent_profile_repository
-    _merge_activated_org_profiles(repo, project_root)
-    return repo
+    skipped = _merge_activated_org_profiles(repo, project_root)
+    return repo, skipped
 
 
 def _merge_activated_org_profiles(
     repo: AgentProfileRepository, repo_root: Path
-) -> None:
+) -> tuple[SkippedProfile, ...]:
     """Merge WP02's activation-admitted org profiles onto ``repo`` in place.
 
     Consumes the provenance-preserving :class:`ResolvedOrgProfile` records so the
@@ -162,19 +171,32 @@ def _merge_activated_org_profiles(
     with no declared org packs the resolver returns an empty list and projection
     is byte-identical to the pre-mission output (NFR-001).
     """
-    for resolved in resolve_activated_org_profiles(repo_root):
+    resolution = resolve_activated_org_profiles(repo_root)
+    skipped: tuple[SkippedProfile, ...] = resolution.skipped_profiles
+    for resolved in resolution:
         repo.register_overlay(
             resolved.profile,
             layer=resolved.source_layer,
             source_path=resolved.source_path,
         )
+    return skipped
 
 
 class ProfileProjector:
     """Project agent profiles into native agent files for a tool."""
 
-    def __init__(self, profile_repo: AgentProfileRepository) -> None:
+    def __init__(self, profile_repo: AgentProfileRepository, *, org_load_failures: tuple[SkippedProfile, ...] = ()) -> None:
         self._repo = profile_repo
+        self._org_load_failures = org_load_failures
+
+    @classmethod
+    def from_project(cls, project_root: Path) -> ProfileProjector:
+        """Retain canonical source health independently of admitted profiles."""
+        repo, skipped = _profile_repository_inputs(project_root)
+        return cls(repo, org_load_failures=skipped)
+
+    def _skipped_profiles(self) -> tuple[SkippedProfile, ...]:
+        return (*self._repo.skipped_profiles(), *self._org_load_failures)
 
     def prepare(self, tool_key: str, project_root: Path) -> tuple[PreparedProjection, ...]:
         """Freeze real admitted projections and their exact renderer bytes for consumers."""
@@ -296,7 +318,7 @@ class ProfileProjector:
 
     def _source_invalid_findings(self, tool_key: str) -> list[SurfaceFinding]:
         out: list[SurfaceFinding] = []
-        for skip in self._repo.skipped_profiles():
+        for skip in self._skipped_profiles():
             label = skip.profile_id or skip.path
             out.append(
                 make_finding(
@@ -326,7 +348,7 @@ class ProfileProjector:
         conflicts = sorted(
             {
                 skip.profile_id
-                for skip in self._repo.skipped_profiles()
+                for skip in self._skipped_profiles()
                 if skip.profile_id and skip.profile_id in loaded
             }
         )

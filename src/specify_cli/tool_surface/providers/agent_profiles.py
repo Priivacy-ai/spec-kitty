@@ -69,7 +69,7 @@ from ..profiles._paths import confined_path, observe_node, observe_tree
 from ..profiles.amazon_q_renderer import FORMAT_AMAZON_Q_AGENT
 from ..profiles.capability_matrix import HARNESS_CAPABILITY_MATRIX, is_research_gap
 from ..profiles.manifest import ProfileManifest, hash_content, hash_file, manifest_path_for
-from ..profiles.projection import PreparedProfileBatch, PreparedProjection, ProfileProjector, default_profile_repository
+from ..profiles.projection import PreparedProfileBatch, PreparedProjection, ProfileProjector
 from ..profiles.renderers import get_renderer, native_name_violation
 from ..repair import RepairResult, _is_init_upgrade_auto_repairable
 from ..status import (
@@ -112,7 +112,7 @@ def agent_profile_definition() -> SurfaceDefinition:
 
 def _build_projector(project_root: Path) -> ProfileProjector:
     try:
-        return ProfileProjector(default_profile_repository(project_root))
+        return ProfileProjector.from_project(project_root)
     except (CharterPackConfigError, YAMLError, TypeError, KeyError) as exc:
         raise ValueError(f"Invalid required profile inputs: {exc}") from exc
 

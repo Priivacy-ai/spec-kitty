@@ -171,6 +171,8 @@ def test_profile_unreadable_required_input_is_not_empty_success(tmp_path: Path, 
     assessment = _assess_real(tmp_path)
     assert not assessment.complete and assessment.diagnostics
     assert not assessment.effects
+    if path == ".kittify/config.yaml":
+        assert all(d.code != "profile-source-invalid" for d in assessment.diagnostics)
     assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
@@ -235,9 +237,7 @@ def test_profile_source_update_distinguishes_installed_hash_from_drift(tmp_path:
 
 @pytest.mark.parametrize("activated", [None, ["orgzilla-org-analyst"], ["reviewer-renata"], []], ids=["absent", "include", "exclude", "empty"])
 @pytest.mark.parametrize("corrupt", [True, False], ids=["corrupt", "healthy"])
-def test_org_source_diagnostics_block_real_assessment_independent_of_admission(
-    tmp_path: Path, activated: list[str] | None, corrupt: bool
-) -> None:
+def test_org_source_diagnostics_block_real_assessment_independent_of_admission(tmp_path: Path, activated: list[str] | None, corrupt: bool) -> None:
     from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
     from .test_agent_profiles_prune import _write_config, _write_org_pack, _ORG_ANALYST_ID
@@ -261,10 +261,7 @@ def test_org_source_diagnostics_block_real_assessment_independent_of_admission(
     if corrupt:
         assert not assessment.complete, "canonical org source failure must block even falsey admission"
         assert not assessment.effects
-        assert any(
-            d.code == "profile-source-invalid" and d.severity == "error" and failures[0].error_summary in d.message
-            for d in assessment.diagnostics
-        )
+        assert any(d.code == "profile-source-invalid" and d.severity == "error" and failures[0].error_summary in d.message for d in assessment.diagnostics)
         assert not _apply_real(assessment).succeeded
         assert_unchanged(before, snapshot({"project": tmp_path}))
         bad.unlink()
@@ -279,7 +276,7 @@ def test_org_source_diagnostics_block_real_assessment_independent_of_admission(
     after = snapshot({"project": tmp_path})
     _assert_exact_delta(assessment, before, after)
     repeated = _assess_real(tmp_path)
-    assert repeated.complete and not repeated.effects
+    assert repeated.complete and not repeated.effects, repeated.diagnostics
     _apply_real(repeated)
     assert_unchanged(after, snapshot({"project": tmp_path}))
 
