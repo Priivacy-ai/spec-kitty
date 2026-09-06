@@ -36,6 +36,7 @@ from ..findings import (
 from ..model import SurfacePlan
 from .model import (
     TARGET_CLAUDE_CODE,
+    BundleEntry,
     BundleValidationResult,
     PluginBundle,
 )
@@ -90,6 +91,13 @@ class ClaudeCodeBundleProjector:
     # Manifest sits under ``.claude-plugin/`` for this target.
     manifest_relative_path = f"{_MANIFEST_DIR}/{_MANIFEST_NAME}"
 
+    def entries(self, plan: Sequence[SurfacePlan], project_root: Path) -> tuple[BundleEntry, ...]:
+        """Select the canonical members without writing the staging tree."""
+        return bundle_entries_for_plans(
+            plan, project_root, layout=_CLAUDE_LAYOUT,
+            agent_filename=_agent_filename, bundle_kinds=BUNDLE_SURFACE_KINDS,
+        )
+
     def project(
         self,
         plan: Sequence[SurfacePlan],
@@ -101,13 +109,7 @@ class ClaudeCodeBundleProjector:
         Writes staging files under ``output_dir`` and returns an inert
         :class:`PluginBundle` descriptor. No install/publish side effect occurs.
         """
-        entries = bundle_entries_for_plans(
-            plan,
-            project_root,
-            layout=_CLAUDE_LAYOUT,
-            agent_filename=_agent_filename,
-            bundle_kinds=BUNDLE_SURFACE_KINDS,
-        )
+        entries = self.entries(plan, project_root)
         manifest_rel = self.manifest_relative_path
         manifest = plugin_manifest_payload(self.distribution_target)
         write_bundle(output_dir, entries, manifest_rel, manifest)
