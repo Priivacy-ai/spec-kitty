@@ -72,11 +72,30 @@ gates must execute on the eventual integrated implementation.
   Parent preserved red-first history and committed/integrated unchanged code.
   Full final mission gates remain pending.
 
-## Open Prerequisite Operations
+## Real Contract-Drift Witness (E2E #411)
 
-- `01M1V9DM1GNCDPRJ9R9ADP1PCS`: E2E repository #411 contract-drift harness,
-  partial implementation passes its targeted scenario, but independent review
-  retains a nested-bootstrap environment question. Not approved or integrated.
-
-The E2E operation is not claimed complete. Final evidence and separate E2E PR
-link must be included in the publication handoff.
+- Op: `01M1V9DM1GNCDPRJ9R9ADP1PCS`.
+- Separate PR: https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/pull/414
+- Red commit: `5fbe20dfdb4b319f12b5a5de792e9a36630a933e`;
+  final fix: `24a72c2b43c0e89c4b0a1e05bc2f23fb72663e2b` in that repository.
+- Real locked events distribution replaces the incomplete synthetic package.
+  Unmodified envelope/consumer contracts run green, then only Event.event_id's
+  required default is mutated in an isolated installed copy. The witness
+  requires the exact intended assertion failure and restores original bytes.
+- Initial parent review found bootstrap still inherited host environment.
+  Distinct implementer completed explicit UV/stdlib environment forwarding,
+  isolated cache/config roots and exact interpreter binding. Parent did not
+  author code/tests; independent final inspection resolved this finding.
+- Changed-contract and helper blast-radius tests: 30 passed; independently
+  rerun by parent in0.09s. Real installed scenario:1 passed in23.08s, control
+  29 passed; drift exactly1 identified failure/28 passed/no errors or skips.
+  Parent independently checked XML identities and restored source SHA256.
+- Offline owning-subsystem gate:285 passed,2 failed,3 skipped,362 deselected
+  in113.05s. Both unrelated failures reproduced on untouched E2E baseline:
+  2 failed,2 passed in6.52s. Filed E2E#412 (inherited resolver environment)
+  and E2E#413 (unbounded raw-path expectation versus provenance byte cap).
+  No baseline green claim, skipped coverage claim or test weakening.
+- Optional Ruff advisories disclosed; mypy unavailable. Full CI and the single
+  programme squad review belong to the existing CI/merge agents after handoff.
+  PR is ready-for-squad, not locally squad-approved or merged. The current
+  core mission's final five-case E2E floor still requires integrated execution.
