@@ -88,6 +88,64 @@ def test_provision_preserves_complete_authored_bytes(tmp_path: Path, pointer: bo
 
 
 @pytest.mark.parametrize("pointer", [False, True])
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"",
+        b"# comment-only without newline",
+        b"# heading\n--- # start\n# before null\nNULL # rationale\n... # end\n",
+        b"--- ~ # rationale\n... # end\n",
+        b"%YAML 1.2\n---\n# empty document\n... # end\n",
+        b"!!null null # explicit tag\n",
+        b"!custom key: user-value\n.nan: nan-key\n",
+        b"42: user-value\n0x10: hexadecimal\ntrue: boolean\nnull: null-key\n2026-09-06: date\n? [one, two]\n: complex-key\n",
+        b"? {left: right}\n: complex-map-key\n",
+        b"--- # start\r\n~ # rationale\r\n... # end\r\n",
+        b"defaults: &defaults {label: authored}\nmetadata: *defaults\n",
+        b"defaults: &defaults {label: authored}\n<<: *defaults\n",
+        b"{42: user-value, metadata: {label: authored}} # flow tail\n",
+    ],
+)
+def test_provision_round_trip_input_classes(tmp_path: Path, pointer: bool, body: bytes) -> None:
+    from charter.activation.compiler import prepare_mission_type_activations, provision_mission_type_activations
+    from charter.activation.default_pack import load_default_mission_type_activations
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "authored.yaml" if pointer else config
+    if pointer:
+        config.write_bytes(b"charter: authored.yaml # selected target\n")
+    target.write_bytes(body)
+    before = snapshot({"project": tmp_path})
+    prepared = prepare_mission_type_activations(tmp_path)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert YAML().load(prepared.write.desired_bytes)["mission_type_activations"] == load_default_mission_type_activations()
+    assert provision_mission_type_activations(tmp_path)
+    assert target.read_bytes() == prepared.write.desired_bytes
+    original = YAML().load(body)
+    if isinstance(original, dict):
+        if not body.startswith(b"{"):
+            assert target.read_bytes().startswith(body)
+        else:
+            assert target.read_bytes().startswith(body.rsplit(b"}", 1)[0])
+            assert target.read_bytes().endswith(b" # flow tail\n")
+    else:
+        for line in body.splitlines():
+            if b"#" in line:
+                comment = line[line.index(b"#") :]
+                assert target.read_bytes().count(comment) == 1
+        if b"..." in body:
+            assert target.read_bytes().endswith(body[body.index(b"...") :])
+        if body.startswith(b"%YAML"):
+            assert target.read_bytes().startswith(b"%YAML 1.2\n---\n")
+    effects = net_delta(before, snapshot({"project": tmp_path}))
+    assert {(effect.root, effect.path, effect.action) for effect in effects} == {("project", "authored.yaml" if pointer else ".kittify/config.yaml", "update")}
+    after = snapshot({"project": tmp_path})
+    assert provision_mission_type_activations(tmp_path) is False
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("pointer", [False, True])
 @pytest.mark.parametrize("activation", [None, "[]", "[custom-mission, research]"])
 def test_prepared_provisioning_exact_delta_and_repeats(tmp_path: Path, pointer: bool, activation: str | None) -> None:
     from charter.activation.compiler import prepare_mission_type_activations

@@ -86,6 +86,7 @@ from charter.activation.charter_yaml_io import (
     prepare_charter_yaml_section,
     prepare_yaml_write,
     render_yaml_document,
+    yaml_documents_equal,
     update_charter_yaml_section,
 )
 from charter.activation.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
@@ -554,7 +555,7 @@ def prepare_activation_write(repo_root: Path, values: dict[str, Any]) -> Prepare
     inputs = tuple(observe_yaml_input(path) for path in (*reversed(config.parents), config))
     target, data, _save = resolve_activation_write_target(repo_root)
     before = observe_yaml_input(target)
-    if before.content is not None and (YAML().load(before.content) or {}) != data:
+    if before.content is not None and not yaml_documents_equal(YAML().load(before.content) or {}, data):
         raise ValueError(f"precondition_changed: {target}")
     if target != config:
         section = prepare_charter_yaml_section(target, "activation", values)

@@ -30,6 +30,7 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.nodes import MappingNode
+from ruamel.yaml.tokens import AliasToken
 
 __all__ = [
     "OWNED_SECTIONS",
@@ -43,6 +44,7 @@ __all__ = [
     "apply_yaml_write",
     "render_yaml_document",
     "prepare_charter_yaml_section",
+    "yaml_documents_equal",
 ]
 
 
@@ -121,6 +123,9 @@ def prepare_yaml_write(
     before = next(item for item in observations if item.path == target)
     if before.identity is not None and before.content is None:
         raise ValueError(f"YAML target must be a regular file: {target}")
+    decoded = _yaml_loader().load(desired)
+    if not isinstance(decoded, dict) and not (decoded is None and desired == before.content):
+        raise ValueError("YAML root must be a mapping")
     mode = stat.S_IMODE(before.identity[2]) if before.identity else 0o644
     prepared = PreparedYamlWrite(
         target,
@@ -160,36 +165,131 @@ def _dump_document(document: Any, yaml: YAML) -> str:
     return stream.getvalue()
 
 
+def _yaml_value_events(value: Any) -> tuple[tuple[Any, ...], ...]:
+    """Compare ruamel-constructed values, not object identity or lexical keys."""
+    rendered = _dump_document(value, _yaml_loader())
+    return tuple(
+        (type(event).__name__, getattr(event, "anchor", None), getattr(event, "tag", None), getattr(event, "value", None))
+        for event in _yaml_loader().parse(rendered)
+    )
+
+
+def yaml_documents_equal(left: Any, right: Any) -> bool:
+    """Compare supported YAML values, including opaque tagged round-trip keys.
+
+    Comments remain a raw-span preservation obligation, not a value comparison.
+    The existing ruamel representer normalizes constructed scalars before parsing.
+    """
+    return bool(left == right) or _yaml_value_events(left) == _yaml_value_events(right)
+
+
 def render_yaml_document(before: bytes | None, document: Any, yaml: YAML) -> bytes:
     """Render changed top-level entries, retaining every untouched source span."""
-    if before is None:
-        return _dump_document(document, yaml).encode("utf-8")
-    text = before.decode("utf-8")
-    original = _yaml_loader().load(text)
-    if original == document or (original is None and document == {}):
-        return before
-    if original is None:
-        return (text + ("\n" if text and not text.endswith("\n") else "") + _dump_document(document, yaml)).encode("utf-8")
-    node = _yaml_loader().compose(text)
-    if not isinstance(original, dict) or not isinstance(document, dict) or not isinstance(node, MappingNode):
+    if not isinstance(document, dict):
         raise ValueError("YAML root must be a mapping")
-    edits: list[tuple[int, int, str]] = []
+    if before is None:
+        text = _dump_document(document, yaml)
+    else:
+        text = before.decode("utf-8")
+        original = _yaml_loader().load(text)
+        if yaml_documents_equal(original, document) or (original is None and document == {}):
+            return before
+        text = _render_empty_document(text, document, yaml) if original is None else _render_mapping_document(text, original, document, yaml)
+    decoded = _yaml_loader().load(text)
+    if not isinstance(decoded, dict) or not yaml_documents_equal(decoded, document):
+        raise ValueError("Cannot preserve YAML aliases or section boundaries")
+    return text.encode("utf-8")
+
+
+def _render_empty_document(text: str, document: Any, yaml: YAML) -> str:
+    """Replace the parsed-null scalar, not its comments or document framing."""
+    node = _yaml_loader().compose(text)
+    start = end = len(text)
+    if node is not None:
+        start, end = node.start_mark.index, node.end_mark.index
+    insertion = end
+    if start != end:
+        # Keep the scalar's line comment before the new mapping. An empty
+        # explicit document has a zero-width node before its end marker.
+        newline = text.find("\n", end)
+        insertion = len(text) if newline < 0 else newline + 1
+    prefix = text[:start] + text[end:insertion]
+    if prefix and not prefix.endswith("\n"):
+        prefix += "\n"
+    return prefix + _dump_document(document, yaml) + text[insertion:]
+
+
+def _yaml_key_events(key: Any) -> tuple[tuple[Any, ...], ...]:
+    return _yaml_value_events(CommentedMap({key: None}))
+
+
+def _mapping_spans(text: str, document: Any, node: MappingNode) -> dict[Any, tuple[int, int]]:
+    # ruamel's constructed keys and their locations are the authority, including
+    # numeric/tagged/complex keys. Merge pseudo-keys have no authored map entry.
+    keys = {document.lc.key(key): key for key, _ in document.non_merged_items()}
+    aliases = [token for token in _yaml_loader().scan(text) if isinstance(token, AliasToken)]
+    spans = {}
     for key_node, value_node in node.value:
-        key = key_node.value
-        if key in document and original[key] == document[key]:
+        location = (key_node.start_mark.line, key_node.start_mark.column)
+        if location not in keys:
             continue
-        start, end = key_node.start_mark.index, value_node.end_mark.index
-        # Collection end marks include following blank/comment lines. They are
-        # authored separators, not part of the replaced section.
-        span = text[start:end]
-        lines = span.splitlines(keepends=True)
+        start, end_mark = key_node.start_mark.index, value_node.end_mark
+        if value_node.start_mark.index < key_node.end_mark.index:
+            # compose resolves aliases to the anchor node; scan retains the
+            # actual alias occurrence needed for a bounded replacement span.
+            end_mark = next(token.end_mark for token in aliases if token.start_mark.index >= key_node.end_mark.index)
+        end = end_mark.index
+        comment = document.ca.items.get(keys[location], [None, None, None, None])[2]
+        if comment is not None and comment.start_mark.line == end_mark.line and comment.start_mark.index >= end:
+            newline = text.find("\n", comment.start_mark.index)
+            end = len(text) if newline < 0 else newline
+            if end and text[end - 1] == "\r":
+                end -= 1
+        lines = text[start:end].splitlines(keepends=True)
         while lines and (not lines[-1].strip() or lines[-1].lstrip().startswith("#")):
             end -= len(lines.pop())
-        replacement = _render_entry(key, document, yaml, flow=bool(node.flow_style))
+        spans[_yaml_key_events(keys[location])] = (start, end)
+    return spans
+
+
+def _render_owned_entries(document: Any, original_spans: dict[Any, tuple[int, int]], yaml: YAML) -> str:
+    rendering_document = copy.deepcopy(document)
+    if isinstance(rendering_document, CommentedMap):
+        for key, comments in rendering_document.ca.items.items():
+            if _yaml_key_events(key) in original_spans and comments[2] is not None:
+                # Following separator comments remain in the untouched source.
+                comments[2].value = comments[2].value.splitlines(keepends=True)[0]
+    return _dump_document(rendering_document, yaml)
+
+
+def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML) -> str:
+    node = _yaml_loader().compose(text)
+    if not isinstance(original, dict) or not isinstance(node, MappingNode):
+        raise ValueError("YAML root must be a mapping")
+    # Render the actual round-trip document once, retaining key metadata.
+    original_spans = _mapping_spans(text, original, node)
+    rendered = _render_owned_entries(document, original_spans, yaml)
+    rendered_node = _yaml_loader().compose(rendered)
+    if not isinstance(rendered_node, MappingNode):
+        raise ValueError("YAML root must be a mapping")
+    replacements = _mapping_spans(rendered, _yaml_loader().load(rendered), rendered_node)
+    original_keys = {_yaml_key_events(key): key for key in original}
+    desired_keys = {_yaml_key_events(key): key for key in document}
+    edits: list[tuple[int, int, str]] = []
+    for key, (start, end) in original_spans.items():
+        if key in desired_keys and yaml_documents_equal(original[original_keys[key]], document[desired_keys[key]]):
+            continue
+        if key not in desired_keys and node.flow_style:
+            raise ValueError("Cannot preserve deletion from flow-style YAML root")
+        replacement = rendered[slice(*replacements[key])] if key in desired_keys else ""
         if end and text[end - 1] not in "\r\n":
             replacement = replacement.rstrip("\r\n")
         edits.append((start, end, replacement))
-    additions = CommentedMap({key: value for key, value in document.items() if key not in original})
+    additions = CommentedMap({desired_keys[key]: document[desired_keys[key]] for key in replacements if key not in original_spans})
+    if isinstance(document, CommentedMap):
+        for key in additions:
+            if key in document.ca.items:
+                additions.ca.items[key] = copy.deepcopy(document.ca.items[key])
     if additions:
         if node.flow_style:
             end = node.end_mark.index - 1
@@ -201,24 +301,13 @@ def render_yaml_document(before: bytes | None, document: Any, yaml: YAML) -> byt
         edits.append((end, end, addition))
     for start, end, replacement in sorted(edits, reverse=True):
         text = text[:start] + replacement + text[end:]
-    if _yaml_loader().load(text) != document:
-        raise ValueError("Cannot preserve YAML aliases or section boundaries")
-    return text.encode("utf-8")
+    return text
 
 
 def _dump_flow_entries(document: Any) -> str:
     yaml = _yaml_loader()
     yaml.default_flow_style = True
     return _dump_document(document, yaml).strip()[1:-1]
-
-
-def _render_entry(key: str, document: Any, yaml: YAML, *, flow: bool) -> str:
-    if key not in document:
-        if flow:
-            raise ValueError("Cannot preserve deletion from flow-style YAML root")
-        return ""
-    entry = CommentedMap({key: document[key]})
-    return _dump_flow_entries(entry) if flow else _dump_document(entry, yaml)
 
 
 #: The activation section is a LOGICAL grouping: on disk these flat keys are

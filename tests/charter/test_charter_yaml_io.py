@@ -38,6 +38,159 @@ def test_update_block_collection_retains_key_comment(tmp_path: Path) -> None:
     assert path.read_bytes().endswith(b"metadata: {}\n")
 
 
+@pytest.mark.parametrize(
+    "section,key,old,new",
+    [
+        ("activation", "activated_directives", "\n  - old", ["new"]),
+        ("activation", "activated_directives", " [old]", ["new"]),
+        ("metadata", "metadata", "\n  label: old", {"label": "new"}),
+        ("metadata", "metadata", " {label: old}", {"label": "new"}),
+    ],
+)
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_section_replacement_preserves_comment_framing(
+    tmp_path: Path,
+    section: str,
+    key: str,
+    old: str,
+    new: object,
+    newline: str,
+) -> None:
+    from charter.activation.charter_yaml_io import prepare_charter_yaml_section, apply_yaml_write
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    prefix = "--- # document\n# before key\n"
+    tail = '\n# separator\noverrides:\n  choices:\n    - "keep"\n... # end\n'
+    value = " # key rationale" + old if old.startswith("\n") else old + " # key rationale"
+    path.write_bytes((prefix + key + ":" + value + "\n" + tail).replace("\n", newline).encode())
+    values = {key: new} if section == "activation" else new
+    assert isinstance(values, dict)
+    before = snapshot({"project": tmp_path})
+    prepared = prepare_charter_yaml_section(path, section, values)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert apply_yaml_write(prepared)
+    raw = path.read_text()
+    assert raw.startswith(prefix) and raw.endswith(tail)
+    assert path.read_bytes().startswith(prefix.replace("\n", newline).encode())
+    assert path.read_bytes().endswith(tail.replace("\n", newline).encode())
+    assert raw.count("# key rationale") == 1
+    assert raw.count("# separator") == 1
+    assert raw.count("# before key") == 1
+    assert load_charter_yaml(path)[key] == new
+    after = snapshot({"project": tmp_path})
+    update_charter_yaml_section(path, section, values)
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("body", [b"", b"# only\n", b"null\n", b"~ # reason\n", b"---\n...\n"])
+def test_save_null_convention_and_mapping_readback(tmp_path: Path, body: bytes) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(body)
+    before = snapshot({"project": tmp_path})
+    document = load_charter_yaml(path)
+    save_charter_yaml(path, document)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    document["metadata"] = {"label": "new"}
+    save_charter_yaml(path, document)
+    assert load_charter_yaml(path) == {"metadata": {"label": "new"}}
+
+
+@pytest.mark.parametrize("body", [b"null\n", b"~\n", b"---\n...\n", b"[]\n", b"false\n", b"broken: [\n", b"{}\n---\n{}\n"])
+def test_prepared_bytes_refuse_nonmapping_before_any_write(tmp_path: Path, body: bytes) -> None:
+    from ruamel.yaml.error import YAMLError
+    from charter.activation.charter_yaml_io import prepare_yaml_write
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    before = snapshot({"project": tmp_path})
+    with pytest.raises((ValueError, YAMLError)):
+        prepare_yaml_write(tmp_path / "absent/charter.yaml", body, section="document")
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("present", [False, True])
+@pytest.mark.parametrize("document", [None, [], "scalar", False])
+def test_save_refuses_nonmapping_document(tmp_path: Path, present: bool, document: object) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    if present:
+        path.write_bytes(b"metadata: {}\n")
+    before = snapshot({"project": tmp_path})
+    with pytest.raises(ValueError, match="YAML root must be a mapping"):
+        save_charter_yaml(path, document)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+def test_inherited_activation_override_preserves_merge_source(tmp_path: Path) -> None:
+    path = tmp_path / "charter.yaml"
+    prefix = b"defaults: &defaults {activated_directives: [old]}\n<<: *defaults\n"
+    path.write_bytes(prefix)
+    update_charter_yaml_section(path, "activation", {"activated_directives": ["new"]})
+    assert path.read_bytes().startswith(prefix)
+    document = load_charter_yaml(path)
+    assert document["activated_directives"] == ["new"]
+    assert document["defaults"]["activated_directives"] == ["old"]
+
+
+def test_alias_replacement_preserves_unowned_anchor(tmp_path: Path) -> None:
+    path = tmp_path / "charter.yaml"
+    prefix = b"overrides: &authored {label: old}\n"
+    path.write_bytes(prefix + b"metadata: *authored\n")
+    update_charter_yaml_section(path, "metadata", {"label": "new"})
+    assert path.read_bytes().startswith(prefix)
+    assert load_charter_yaml(path)["overrides"] == {"label": "old"}
+    assert load_charter_yaml(path)["metadata"] == {"label": "new"}
+
+
+def test_flow_mapping_update_preserves_unowned_entry_and_tail(tmp_path: Path) -> None:
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(b'{metadata: {label: old}, 42: ["keep", spacing]} # tail\n')
+    update_charter_yaml_section(path, "metadata", {"label": "new"})
+    assert load_charter_yaml(path)["metadata"] == {"label": "new"}
+    assert path.read_bytes().endswith(b', 42: ["keep", spacing]} # tail\n')
+
+
+def test_save_added_key_retains_round_trip_comment(tmp_path: Path) -> None:
+    path = tmp_path / "charter.yaml"
+    prefix = b'overrides:\n  choices:\n    - "keep"\n'
+    path.write_bytes(prefix)
+    document = load_charter_yaml(path)
+    document["activated_directives"] = ["new"]
+    document.yaml_add_eol_comment("new rationale", key="activated_directives")
+    save_charter_yaml(path, document)
+    assert path.read_bytes().startswith(prefix)
+    assert path.read_bytes().count(b"# new rationale") == 1
+    assert load_charter_yaml(path)["activated_directives"] == ["new"]
+
+
+def test_owned_anchor_change_refuses_unowned_alias_drift(tmp_path: Path) -> None:
+    from ruamel.yaml.error import YAMLError
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(b"metadata: &owned {label: old}\noverrides: *owned\n")
+    before = snapshot({"project": tmp_path})
+    with pytest.raises((ValueError, YAMLError)):
+        update_charter_yaml_section(path, "metadata", {"label": "new"})
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+def test_flow_root_deletion_refuses_before_writing(tmp_path: Path) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(b"{metadata: {}, overrides: {label: keep}} # tail\n")
+    document = load_charter_yaml(path)
+    del document["metadata"]
+    before = snapshot({"project": tmp_path})
+    with pytest.raises(ValueError, match="deletion from flow-style"):
+        save_charter_yaml(path, document)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 def test_update_existing_activation_does_not_open_for_write(tmp_path: Path) -> None:
     import os
 
