@@ -17,6 +17,10 @@ import os
 from pathlib import Path
 import stat
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from specify_cli.runtime.agent_skills import GlobalSkillSelection
 
 from specify_cli.runtime.generated_writer import generated_temporary_path, write_generated_file
 from specify_cli.tool_surface.operations import (
@@ -441,17 +445,21 @@ def assess_global_assets(
     commands: bool = True,
     skills: bool = True,
     agent_keys: list[str] | None = None,
+    skill_selection: GlobalSkillSelection | None = None,
     consent: ApplyConsent = ApplyConsent(),
 ) -> OwnerAssessment:
     """Prepare selected global families once, with one executable owner.
 
     Dispatch only this assessment (owner_key ``global_assets``), using
     recheck_assets/apply_assets. Do not also dispatch separate family batches.
-    ``agent_keys`` narrows commands only; skills keep their canonical root policy.
+    ``agent_keys`` narrows commands only. ``skill_selection`` supplies immutable
+    caller-resolved skills/agents; None retains package/all-agent skill policy.
     No existing preparation is accepted, combined opaquely or reassessed on apply.
     """
     from specify_cli.runtime import bootstrap, agent_commands, agent_skills
 
+    if skill_selection is not None and not skills:
+        raise ValueError("skill_selection requires skills=True")
     batch = _GlobalAssetPreparation(consent)
     families = []
     if runtime:
@@ -459,7 +467,7 @@ def assess_global_assets(
     if commands:
         families.append(agent_commands.assess_global_agent_commands(agent_keys=agent_keys, consent=consent, _batch=batch))
     if skills:
-        families.append(agent_skills.assess_global_agent_skills(consent=consent, _batch=batch))
+        families.append(agent_skills.assess_global_agent_skills(consent=consent, selection=skill_selection, _batch=batch))
     return batch.finish(tuple(families))
 
 

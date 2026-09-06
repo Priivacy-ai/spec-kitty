@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 import shutil
 import stat
-from collections.abc import Callable
-from dataclasses import replace
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from specify_cli.runtime.bootstrap import _get_cli_version
 from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation
 from specify_cli.runtime.home import get_kittify_home
+from specify_cli.core.config import AGENT_SKILL_CONFIG
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
@@ -23,6 +24,39 @@ logger = logging.getLogger(__name__)
 
 _VERSION_FILENAME = "agent-skills.lock"
 _LOCK_FILENAME = ".agent-skills.lock"
+
+
+@dataclass(frozen=True, init=False)
+class GlobalSkillSelection:
+    """Immutable caller-resolved sources and agents, not a registry or replay token.
+
+    Snapshot only CanonicalSkill's name/directory/SKILL.md identity. Its mutable
+    auxiliary file lists are not retained: assessment observes the complete tree.
+    Construction performs no filesystem reads; source validity is checked during
+    preparation. Empty sources or agents mean no selected skill work.
+    """
+
+    _sources: tuple[tuple[str, Path, Path], ...]
+    agent_keys: tuple[str, ...]
+
+    def __init__(self, *, skills: Sequence[CanonicalSkill], agent_keys: Sequence[str]) -> None:
+        sources: dict[str, tuple[str, Path, Path]] = {}
+        for skill in skills:
+            name = skill.name
+            if not name or name in {".", ".."} or any(part in name for part in ("/", "\\", ":")):
+                raise ValueError(f"Unconfined selected skill name: {name!r}")
+            directory, markdown = skill.skill_dir.absolute(), skill.skill_md.absolute()
+            if markdown != directory / "SKILL.md":
+                raise ValueError(f"Selected SKILL.md differs from its source tree: {name}")
+            source = (name, directory, markdown)
+            if name in sources and sources[name] != source:
+                raise ValueError(f"Conflicting selected canonical skill: {name}")
+            sources[name] = source
+        agents = tuple(dict.fromkeys(agent_keys))
+        if any(agent not in AGENT_SKILL_CONFIG for agent in agents):
+            raise ValueError("Unknown selected skill agent")
+        object.__setattr__(self, "_sources", tuple(sorted(sources.values())))
+        object.__setattr__(self, "agent_keys", agents)
 
 
 def _make_path_writable(path: str | Path) -> None:
@@ -68,11 +102,11 @@ def _discover_registry() -> SkillRegistry | None:
     return None
 
 
-def _unique_global_roots() -> list[Path]:
+def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path]:
     roots: list[Path] = []
     seen: set[Path] = set()
 
-    for agent_key in iter_installable_agents():
+    for agent_key in iter_installable_agents() if agent_keys is None else agent_keys:
         root = get_primary_global_skill_root(agent_key)
         if root is None or root in seen:
             continue
@@ -143,7 +177,7 @@ def _load_registry_skills(prepared: AssetPreparation) -> list[CanonicalSkill]:
     registry = _discover_registry()
     if registry is None:
         raise ValueError("Required canonical skill registry unavailable")
-    skills = registry.discover_skills()
+    skills: list[CanonicalSkill] = registry.discover_skills()
     if not skills:
         raise ValueError("Required canonical skill registry is empty")
     _observe_registry_catalog(prepared, skills)
@@ -153,21 +187,33 @@ def _load_registry_skills(prepared: AssetPreparation) -> list[CanonicalSkill]:
 def assess_global_agent_skills(
     *,
     consent: ApplyConsent = ApplyConsent(),
+    selection: GlobalSkillSelection | None = None,
     _batch: _GlobalAssetPreparation | None = None,
 ) -> OwnerAssessment:
     """Prepare complete global skill trees without writes or marker shortcuts.
 
     Global callers, including project installers, must delegate this exact
     assessment once; project copy/manifest/backup policy stays in the installer.
+    None uses the package catalog and all agents. An explicit selection keeps
+    caller sources/agents and never stamps or retires unrelated global skills.
     """
     from specify_cli.runtime.asset_preparation import global_asset_root, incomplete
 
     home = get_kittify_home()
-    roots = tuple(_unique_global_roots())
+    agents = (
+        tuple(iter_installable_agents())
+        if selection is None
+        else tuple(agent for agent in selection.agent_keys if get_primary_global_skill_root(agent) is not None)
+    )
+    roots = tuple(_unique_global_roots(agents))
     root = global_asset_root("global_skills", (home, *roots))
     try:
         prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent)
-        skills = _load_registry_skills(prepared)
+        skills = (
+            _load_registry_skills(prepared)
+            if selection is None
+            else [CanonicalSkill(name, directory, markdown) for name, directory, markdown in selection._sources]
+        )
         for destination_root in roots:
             state = prepared.observe(destination_root, members=True)
             if state.kind not in {"directory", "absent"}:
@@ -181,12 +227,11 @@ def assess_global_agent_skills(
             if state.kind == "directory":
                 for existing in destination_root.iterdir():
                     if existing.name not in canonical:
-                        if existing.name in RETIRED_CANONICAL_SKILL_NAMES:
+                        if selection is None and existing.name in RETIRED_CANONICAL_SKILL_NAMES:
                             prepared.retire(existing)
                         else:
                             prepared.preserve(existing, "Unproven custom skill; preserve content and links")
-        assessment = prepared.finish(home / "cache" / _VERSION_FILENAME, _get_cli_version())
-        agents = tuple(iter_installable_agents())
+        assessment = prepared.finish(home / "cache" / _VERSION_FILENAME if selection is None else None, _get_cli_version())
         effects = []
         for effect in assessment.effects:
             logical = tuple(

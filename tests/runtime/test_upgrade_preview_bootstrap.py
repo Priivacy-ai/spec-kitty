@@ -608,13 +608,11 @@ def _global_preparation() -> tuple[OwnerAssessment, ...]:
 def _caller_skill_assessment(registry: SkillRegistry, agents: list[str]) -> OwnerAssessment:
     from specify_cli.runtime.asset_preparation import assess_global_assets
 
-    # Existing public seam has only command-agent selection and loses the catalog.
-    return assess_global_assets(runtime=False, commands=False, agent_keys=agents)
+    selection = agent_skills.GlobalSkillSelection(skills=registry.discover_skills(), agent_keys=agents)
+    return assess_global_assets(runtime=False, commands=False, skill_selection=selection)
 
 
-def test_caller_local_registry_selection_reaches_real_global_dispatch(
-    owner_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_caller_local_registry_selection_reaches_real_global_dispatch(owner_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.skills.installer import install_all_skills
 
     source = tmp_path / "local-catalog/caller-local/SKILL.md"
@@ -690,6 +688,224 @@ def test_real_cold_global_dispatch_exact_and_no_churn(owner_home: Path, tmp_path
     assert all(a.complete and not a.effects for a in repeat)
     assert all(r.outcome == "skipped" for r in _global_dispatch(repeat))
     assert_unchanged(after, snapshot(roots))
+
+
+def _selection_catalog(tmp_path: Path) -> SkillRegistry:
+    catalog = tmp_path / "caller-catalog"
+    for name in ("selected-local", "unselected-local"):
+        directory = catalog / name
+        directory.mkdir(parents=True)
+        (directory / "SKILL.md").write_text(f"---\nname: {name}\ndescription: Caller supplied\n---\n# Exact bytes\n")
+        (directory / "references").mkdir()
+        (directory / "references/guide.txt").write_bytes(b"nested source\r\n")
+        (directory / "empty").mkdir()
+    return SkillRegistry(catalog)
+
+
+@pytest.mark.parametrize("agents", [["claude"], ["codex", "vibe", "codex"]])
+def test_skill_selection_subset_and_shared_agent_dispatch(owner_home: Path, tmp_path: Path, agents: list[str]) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+    from specify_cli.skills.paths import get_primary_global_skill_root
+
+    catalog = _selection_catalog(tmp_path)
+    selected = catalog.discover_skills()[:1]
+    before = snapshot({"home": owner_home})
+    log = tmp_path / "subset-observer.log"
+    with _wp01_owner_observer(log):
+        selection = agent_skills.GlobalSkillSelection(skills=selected, agent_keys=agents)
+        assessment = assess_global_assets(runtime=False, commands=False, skill_selection=selection)
+    assert assessment.complete, assessment.diagnostics
+    assert log.read_bytes() == b""
+    assert_unchanged(before, snapshot({"home": owner_home}))
+    assert len({effect.destination for effect in assessment.effects}) == len(assessment.effects)
+    assert all(set(effect.logical_owners) == set(agents) for effect in assessment.effects)
+    assert all(result.outcome == "applied" for result in _global_dispatch((assessment,)))
+    destination = get_primary_global_skill_root(agents[0])
+    assert destination is not None
+    assert (destination / "selected-local/references/guide.txt").read_bytes() == b"nested source\r\n"
+    assert (destination / "selected-local/empty").is_dir()
+    assert not (destination / "unselected-local").exists()
+    expected = {(str(e.destination.relative_to(owner_home)), e.action, e.after.kind, e.after.sha256, e.after.mode) for e in assessment.effects}
+    actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in net_delta(before, snapshot({"home": owner_home}))}
+    assert expected == actual
+    assert not (owner_home / ".kittify/cache/agent-skills.lock").exists()
+
+
+def test_skill_selection_snapshots_mutable_caller_inputs(owner_home: Path, tmp_path: Path) -> None:
+    from dataclasses import FrozenInstanceError, fields
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    skills = _selection_catalog(tmp_path).discover_skills()[:1]
+    agents = ["claude"]
+    selection = agent_skills.GlobalSkillSelection(skills=skills, agent_keys=agents)
+    original_hash = hash(selection)
+    skills[0].references.append(tmp_path / "never-selected")
+    skills.clear()
+    agents[:] = ["codex"]
+    for field in fields(selection):
+        with pytest.raises(FrozenInstanceError):
+            setattr(selection, field.name, ())
+    assert hash(selection) == original_hash
+    assessment = assess_global_assets(runtime=False, commands=False, skill_selection=selection)
+    assert assessment.complete and assessment.effects
+    assert all(set(effect.logical_owners) == {"claude"} for effect in assessment.effects)
+    assert all("unselected-local" not in effect.path for effect in assessment.effects)
+
+
+@pytest.mark.parametrize("empty", ["skills", "agents", "wrapper-agent"])
+def test_skill_selection_explicit_empty_never_discovers_package(owner_home: Path, tmp_path: Path, empty: str) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    skills = [] if empty == "skills" else _selection_catalog(tmp_path).discover_skills()
+    agents = [] if empty == "agents" else ["q"] if empty == "wrapper-agent" else ["claude"]
+    before = snapshot({"home": owner_home})
+    selection = agent_skills.GlobalSkillSelection(skills=skills, agent_keys=agents)
+    assessment = assess_global_assets(runtime=False, commands=False, skill_selection=selection)
+    assert assessment.complete and not assessment.effects
+    assert all(result.outcome == "skipped" for result in _global_dispatch((assessment,)))
+    assert_unchanged(before, snapshot({"home": owner_home}))
+
+
+@pytest.mark.parametrize("change", ["source", "membership", "destination", "source-parent"])
+def test_skill_selection_source_change_refuses_whole_coordinated_batch(owner_home: Path, tmp_path: Path, change: str) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    skill = _selection_catalog(tmp_path).discover_skills()[0]
+    selection = agent_skills.GlobalSkillSelection(skills=[skill], agent_keys=["claude"])
+    assessment = assess_global_assets(agent_keys=["claude"], skill_selection=selection)
+    assert assessment.complete and assessment.effects
+    if change == "source":
+        skill.skill_md.write_text("Changed source\n")
+    elif change == "membership":
+        (skill.skill_dir / "new-file").write_text("late source\n")
+    elif change == "source-parent":
+        moved = tmp_path / "moved-source"
+        skill.skill_dir.rename(moved)
+        skill.skill_dir.symlink_to(moved, target_is_directory=True)
+    else:
+        destination = owner_home / ".claude/skills/selected-local/SKILL.md"
+        destination.parent.mkdir(parents=True)
+        destination.write_text("Concurrent user content\n")
+    before = snapshot({"home": owner_home, "source": skill.skill_dir.parent})
+    results = _global_dispatch((assessment,))
+    assert results and all(result.outcome == "precondition_changed" for result in results)
+    assert_unchanged(before, snapshot({"home": owner_home, "source": skill.skill_dir.parent}))
+
+
+@pytest.mark.parametrize("stale", ["missing-file", "missing-directory", "source-link"])
+def test_skill_selection_stale_sources_are_incomplete_without_fallback(owner_home: Path, tmp_path: Path, stale: str) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    skill = _selection_catalog(tmp_path).discover_skills()[0]
+    selection = agent_skills.GlobalSkillSelection(skills=[skill], agent_keys=["claude"])
+    if stale == "missing-file":
+        skill.skill_md.unlink()
+    else:
+        moved = tmp_path / "moved"
+        skill.skill_dir.rename(moved)
+        if stale == "source-link":
+            skill.skill_dir.symlink_to(moved, target_is_directory=True)
+    before = snapshot({"home": owner_home, "source": tmp_path / "caller-catalog"})
+    log = tmp_path / "stale-observer.log"
+    with _wp01_owner_observer(log):
+        assessment = assess_global_assets(runtime=False, commands=False, skill_selection=selection)
+    assert not assessment.complete and assessment.diagnostics and not assessment.effects
+    assert log.read_bytes() == b""
+    assert_unchanged(before, snapshot({"home": owner_home, "source": tmp_path / "caller-catalog"}))
+
+
+def test_skill_selection_adopts_equal_legacy_then_repairs_changed_source(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.skills.installer import install_all_skills
+
+    registry = _selection_catalog(tmp_path)
+    project = tmp_path / "legacy-project"
+    project.mkdir()
+    install_all_skills(project, ["claude"], registry)
+    adopted = _caller_skill_assessment(registry, ["claude"])
+    assert all(result.outcome == "applied" for result in _global_dispatch((adopted,)))
+    source = registry.discover_skills()[0].skill_md
+    source.write_bytes(source.read_bytes().replace(b"Exact bytes", b"Updated source"))
+    destination = owner_home / ".claude/skills/selected-local/SKILL.md"
+    assessment = _caller_skill_assessment(registry, ["claude"])
+    assert any(effect.destination == destination and effect.action == "update" for effect in assessment.effects)
+    assert all(result.outcome == "applied" for result in _global_dispatch((assessment,)))
+    assert destination.read_bytes() == source.read_bytes()
+    after = snapshot({"home": owner_home})
+    repeat = _caller_skill_assessment(registry, ["claude"])
+    assert repeat.complete and not repeat.effects
+    assert_unchanged(after, snapshot({"home": owner_home}))
+
+
+def test_skill_selection_does_not_authorize_differing_untracked_content(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.skills.installer import install_all_skills
+
+    registry = _selection_catalog(tmp_path)
+    project = tmp_path / "legacy-project"
+    project.mkdir()
+    install_all_skills(project, ["claude"], registry)
+    destination = owner_home / ".claude/skills/selected-local/SKILL.md"
+    before = snapshot({"legacy": destination})
+    registry.discover_skills()[0].skill_md.write_text("Different source, not ownership proof\n")
+    assessment = _caller_skill_assessment(registry, ["claude"])
+    assert assessment.complete
+    assert not any(effect.destination == destination for effect in assessment.effects)
+    assert all(result.outcome == "applied" for result in _global_dispatch((assessment,)))
+    assert_unchanged(before, snapshot({"legacy": destination}))
+
+
+def test_skill_selection_preserves_unselected_owned_retired_tree(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+    from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
+
+    catalog = _selection_catalog(tmp_path)
+    skills = catalog.discover_skills()
+    retired = sorted(RETIRED_CANONICAL_SKILL_NAMES)[0]
+    skills[1] = replace(skills[1], name=retired)
+    selection = agent_skills.GlobalSkillSelection(skills=skills, agent_keys=["claude"])
+    assessment = assess_global_assets(runtime=False, commands=False, skill_selection=selection)
+    assert all(result.outcome == "applied" for result in _global_dispatch((assessment,)))
+    preserved = owner_home / ".claude/skills" / retired
+    before = snapshot({"unselected": preserved})
+    subset = agent_skills.GlobalSkillSelection(skills=skills[:1], agent_keys=["claude"])
+    reduced = assess_global_assets(runtime=False, commands=False, skill_selection=subset)
+    assert reduced.complete and not reduced.effects
+    assert_unchanged(before, snapshot({"unselected": preserved}))
+
+
+def test_skill_selection_none_keeps_real_default_package_policy(owner_home: Path) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    default = assess_global_assets(runtime=False, commands=False)
+    explicit_none = assess_global_assets(runtime=False, commands=False, skill_selection=None)
+    assert default.complete and explicit_none.complete
+    assert default.effects == explicit_none.effects
+    assert len({owner for effect in default.effects for owner in effect.logical_owners}) > 1
+    assert any(effect.destination == owner_home / ".kittify/cache/agent-skills.lock" for effect in default.effects)
+
+
+@pytest.mark.parametrize("invalid", ["name", "markdown", "conflicting-source", "agent"])
+def test_skill_selection_invalid_input_is_not_silently_accepted(tmp_path: Path, invalid: str) -> None:
+    skill = _selection_catalog(tmp_path).discover_skills()[0]
+    skills = [skill]
+    agents = ["claude"]
+    if invalid == "name":
+        skills = [replace(skill, name="../escape")]
+    elif invalid == "markdown":
+        skills = [replace(skill, skill_md=tmp_path / "unrelated.md")]
+    elif invalid == "conflicting-source":
+        skills.append(replace(skill, skill_dir=tmp_path / "other", skill_md=tmp_path / "other/SKILL.md"))
+    else:
+        agents = ["not-an-agent"]
+    with pytest.raises(ValueError):
+        agent_skills.GlobalSkillSelection(skills=skills, agent_keys=agents)
+
+
+def test_skill_selection_requires_enabled_skill_family() -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    selection = agent_skills.GlobalSkillSelection(skills=[], agent_keys=[])
+    with pytest.raises(ValueError, match="requires skills=True"):
+        assess_global_assets(skills=False, skill_selection=selection)
 
 
 @pytest.mark.parametrize("change", ["source", "destination", "parent", "environment", "inventory"])
