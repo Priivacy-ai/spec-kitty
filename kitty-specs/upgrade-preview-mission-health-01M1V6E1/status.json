@@ -1,7 +1,7 @@
 {
-  "event_count": 57,
-  "last_event_id": "01M1VXZWGXY68P1XDJ98GH5WZM",
-  "materialized_at": "2026-09-06T17:59:20.349525+00:00",
+  "event_count": 66,
+  "last_event_id": "01M1VZ5QKVCG3SAS0WN68DYF1F",
+  "materialized_at": "2026-09-06T18:20:00.454120+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 5,
-    "in_review": 1,
+    "in_progress": 3,
+    "in_review": 3,
     "planned": 4
   },
   "work_packages": {
@@ -90,14 +90,26 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01M1VPTNG49XAQTG9YTNGDQ959",
-      "last_transition_at": "2026-09-06T15:54:09.248294+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M1VYPJA1J45DNAC6MCHV16TN",
+      "last_transition_at": "2026-09-06T18:11:43.553755+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Delivery047dc8a69b32c39aa4309a6dcefe3af53855b169; final96focused plus realcatalog observer control/staticpass. Earlier805runtime/1642fast predate final metadata correction; independent finalsource verification required. Two dead architecture gates await WP10 consumer, eightpublicRED unchanged. Real cross-owner cold-directory conflicts remain explicit in external wp03-interface-note.md, not aggregate startup acceptance. Independent full-contract review required."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464"
+      "shell_pid_created_at": "1788590156.364464",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "codex",
@@ -142,13 +154,14 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01M1VVZ2RC342TZ3M249GCZ4R8",
-      "last_transition_at": "2026-09-06T17:23:56.755488+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M1VYX87W3E2F3DX2190TQK06",
+      "last_transition_at": "2026-09-06T18:15:22.620744+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Owned delivery RED3f50b533e GREEN51bbf50f3,1289delivery1642fast/staticpass. Parent canonicalconfig [] gap unresolved/outsideownership; independentreview must retain it, nofullcontractapproval yet. wp07-handoff.md.",
-        "Independent review rejects four reproduced defects; separate #3917 remains unresolved."
+        "Independent review rejects four reproduced defects; separate #3917 remains unresolved.",
+        "Cycle2 GREEN6e866c2892fe52c08635ee2784466ed5519f7662 REDb0010430ced7cb37c4456b398d0ef9a18452de2e. Fourreviewdefects corrected,approved3917dependency integrated;1411scoped+1642fast+10raworacle records pass. Real48config consumer controls incomplete/noeffects preserved. Nestedroster canonicalTypeErrors and8publicRED remainunresolved; fullindependentre-review required. External wp07-handoff.md supersedescycle1."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -158,15 +171,15 @@
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464",
       "subtasks": {
-        "T034": "planned",
-        "T035": "planned",
-        "T036": "planned",
-        "T037": "planned",
-        "T038": "planned"
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
       }
     },
     "WP08": {
@@ -181,15 +194,16 @@
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01M1VXZWGXY68P1XDJ98GH5WZM",
-      "last_transition_at": "2026-09-06T17:59:20.349525+00:00",
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01M1VZ5QKVCG3SAS0WN68DYF1F",
+      "last_transition_at": "2026-09-06T18:20:00.454120+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "T043-T046 seven-file delivery through3ca087912; owning checks/static89architecture1642fast pass. Broad3877pass plus8retained publicRED, correctedPATHfailure and6skips; not broadgreen. wp09-handoff.md; independentreview required.",
         "Independent Renata/Heisenberg REJECT: R1 P1 null/explicitempty YAML invalidwrite; R2 block-listkeycommentloss; R3 numericunownedkeyrefusal. RealBASEcontrols pass/final9cells fail;276otherchecks pass notapproval.",
-        "Cycle2 correction4e72cedb49a13516fc1c0f12ff0a4d32b18d4c0d. Reviewer R1-R3 plus deactivation newline regression corrected with RED-first history; 324 owner/caller/architecture checks,1642 Make tests and both public P7 layouts passed. Eight public preview REDs remain WP10/WP13, not waived. Independent re-review required; external wp09-handoff.md supersedes cycle1."
+        "Cycle2 correction4e72cedb49a13516fc1c0f12ff0a4d32b18d4c0d. Reviewer R1-R3 plus deactivation newline regression corrected with RED-first history; 324 owner/caller/architecture checks,1642 Make tests and both public P7 layouts passed. Eight public preview REDs remain WP10/WP13, not waived. Independent re-review required; external wp09-handoff.md supersedes cycle1.",
+        "Cycle2 REJECT: multiline key comments deleted and valid explicit owned YAML keys break update/deactivation; exact BASE/current controls and both layouts reproduced. Original narrow R1-R3 pass but do not close defect class. Preserve full independent cycle2 report; no WP10 dependency waiver."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -199,14 +213,14 @@
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T043": "done",
-        "T044": "done",
-        "T045": "done",
-        "T046": "done"
+        "T043": "planned",
+        "T044": "planned",
+        "T045": "planned",
+        "T046": "planned"
       }
     },
     "WP10": {
@@ -255,14 +269,24 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01M1VN93X89HVQSTYD5PEKZT6W",
-      "last_transition_at": "2026-09-06T15:27:05.579053+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M1VY4W2MPBEV36AJ1FJH2WQ9",
+      "last_transition_at": "2026-09-06T18:02:03.733011+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Delivered ee431b2fc8cd3d334e70bc56de857cb62dc92402 with real RED-first archive gate evidence,187 committed-tree tests and static checks passing. Full corpus and owner witnesses in external wp12-handoff.md. Broader failures #3919 historical terminology,#3914 redirects and offline sync collection conflict remain unresolved; supporting shard/format defect corrected separately. Independent full-contract review required, no final architecture or mission acceptance claim."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464"
+      "shell_pid_created_at": "1788590156.364464",
+      "subtasks": {
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done",
+        "T064": "done"
+      }
     },
     "WP13": {
       "actor": "finalize-tasks",
