@@ -34,7 +34,6 @@ import contextlib
 import hashlib
 import importlib.resources
 import json
-import logging
 import os
 import warnings
 from dataclasses import dataclass, field
@@ -42,8 +41,6 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
-
-from kernel.clock import now_utc_iso
 
 from .manifest_errors import ManifestError
 
@@ -59,7 +56,6 @@ __all__ = [
     "save",
 ]
 
-logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 _MANIFEST_FILENAME = "command-skills-manifest.json"
@@ -257,6 +253,9 @@ def load(repo_root: Path) -> SkillsManifest:
             detail=str(exc),
         ) from exc
 
+    if not isinstance(data, dict):
+        raise ManifestError("schema_validation_failed", detail="Manifest root must be an object")
+
     # Check schema version before full schema validation so we emit a targeted
     # error message rather than a generic "const" failure from jsonschema.
     found_version = data.get("schema_version")
@@ -355,20 +354,34 @@ def serialize(manifest: SkillsManifest) -> bytes:
     return serialized.encode("utf-8")
 
 
-def _save_bytes(target: Path, encoded: bytes) -> None:
+def _save_bytes(target: Path, encoded: bytes, *, mode: int = 0o644) -> None:
     """Persist already rendered manifest bytes using the existing atomic writer."""
     tmp_path = target.with_suffix(".tmp")
+    created = False
     try:
-        with tmp_path.open("wb") as fh:
+        with tmp_path.open("xb") as fh:
+            created = True
             fh.write(encoded)
             fh.flush()
+            os.fchmod(fh.fileno(), mode)
             os.fsync(fh.fileno())
         os.replace(tmp_path, target)
     except Exception:
         # Best-effort cleanup of the temp file; do not mask the original error.
-        with contextlib.suppress(OSError):
-            tmp_path.unlink(missing_ok=True)
+        if created:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink(missing_ok=True)
         raise
+
+
+def save_prepared(repo_root: Path, encoded: bytes, *, mode: int = 0o644) -> None:
+    """Write assessment-time bytes without sampling time or rebuilding entries.
+
+    The command owner checks parent confinement and all inputs before this call.
+    Exclusive temporary creation refuses an unrelated occupant at the temp path.
+    """
+    target = repo_root / _KITTIFY_DIR / _MANIFEST_FILENAME
+    _save_bytes(target, encoded, mode=mode)
 
 
 # ---------------------------------------------------------------------------
@@ -400,13 +413,6 @@ def fingerprint_file(path: Path) -> str:
 # Manifest repair helpers (T028, T029, T030)
 # ---------------------------------------------------------------------------
 
-_SKILL_PATH_TEMPLATE = ".agents/skills/spec-kitty.{command}/SKILL.md"
-_SKILL_DIR_PREFIX = ".agents/skills/"
-_SPEC_KITTY_SKILL_PREFIX = "spec-kitty."
-# Placeholder agent key used when synthesizing repair entries with no known owner.
-# Must be a valid value in the JSON schema's agents enum.
-_REPAIR_PLACEHOLDER_AGENT = "codex"
-
 
 def repair_stale_manifest(
     project_root: Path,
@@ -414,119 +420,56 @@ def repair_stale_manifest(
     canonical_commands: list[str],
     spec_kitty_version: str = "unknown",
 ) -> ManifestRepairResult:
-    """Compare the manifest entry count against *canonical_commands*.
+    """Adopt only canonical retained bytes through the checked command owner.
 
-    If the manifest is stale (missing entries or has orphaned entries), add
-    the missing entries and remove the orphaned ones.  Returns a
-    :class:`ManifestRepairResult` describing what was added/removed.
-
-    Drifted files (on-disk content differs from manifest hash) are reported
-    in ``result.drifted`` but are **not** auto-repaired here — they must be
-    routed through ``run_surface_repair()`` by the caller (Rule 3 / prompt
-    policy from WP01).
-
-    This function is always auto-applied (Rule 2 — auto-repair); it never
-    prompts the user.  It is idempotent: re-running on an already-correct
-    manifest is a no-op.
-
-    Parameters
-    ----------
-    project_root:
-        Repository root containing ``.kittify/`` and ``.agents/``.
-    canonical_commands:
-        The authoritative list of command names that should be in the
-        manifest (e.g. from ``CANONICAL_COMMANDS`` in ``command_installer``).
-    spec_kitty_version:
-        Version string written into synthesized placeholder entries.
+    Normalization cannot guess an agent, synthesize missing-file ownership or
+    discard retired ownership before pruning. It never rewrites command bytes.
     """
+    from specify_cli.core.agent_config import get_configured_agents
+    from specify_cli.skills import command_installer
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+
+    del spec_kitty_version
     manifest = load(project_root)
     result = ManifestRepairResult()
-
-    canonical_paths = {_SKILL_PATH_TEMPLATE.format(command=cmd): cmd for cmd in canonical_commands}
-
-    existing_paths = {e.path for e in manifest.entries}
-
-    # --- 1. Add missing canonical entries -----------------------------------
-    for rel_path in sorted(canonical_paths):
-        if rel_path in existing_paths:
-            continue
-        abs_path = project_root / rel_path
-        # File absent or is a symlink — synthesize a placeholder hash so
-        # the manifest count is correct; the surface repair service will
-        # detect and address the underlying file issue.
-        content_hash = fingerprint_file(abs_path) if abs_path.exists() and not abs_path.is_symlink() else fingerprint(b"")
-        new_entry = ManifestEntry(
-            path=rel_path,
-            content_hash=content_hash,
-            # Schema requires agents to be non-empty; use placeholder until the
-            # real installer overwrites this entry with the actual agent set.
-            agents=(_REPAIR_PLACEHOLDER_AGENT,),
-            installed_at=now_utc_iso(),
-            spec_kitty_version=spec_kitty_version,
-        )
-        manifest.upsert(new_entry)
-        result.added.append(rel_path)
-        logger.debug("repair_stale_manifest: added missing entry %s", rel_path)
-
-    # --- 2. Remove orphaned entries -----------------------------------------
-    for entry in list(manifest.entries):
-        if entry.path not in canonical_paths:
-            manifest.remove_path(entry.path)
-            result.removed.append(entry.path)
-            logger.debug("repair_stale_manifest: removed orphaned entry %s", entry.path)
-
-    # --- 3. Detect drifted files (report only — no auto-repair) -------------
     for entry in manifest.entries:
-        abs_path = project_root / entry.path
-        if abs_path.exists() and not abs_path.is_symlink():
-            actual_hash = fingerprint_file(abs_path)
-            if actual_hash != entry.content_hash and entry.path not in result.added:
-                result.drifted.append(entry.path)
-                logger.debug(
-                    "repair_stale_manifest: drifted file detected %s (manifest=%s, disk=%s)",
-                    entry.path,
-                    entry.content_hash[:8],
-                    actual_hash[:8],
-                )
-
-    if result.changed:
-        save(project_root, manifest)
-
+        path = project_root / entry.path
+        if any(parent.is_symlink() for parent in path.parents if parent.is_relative_to(project_root)):
+            continue
+        if path.is_file() and not path.is_symlink() and fingerprint_file(path) != entry.content_hash:
+            result.drifted.append(entry.path)
+    agents = tuple(agent for agent in get_configured_agents(project_root) if agent in command_installer.SUPPORTED_AGENTS)
+    if agents and set(canonical_commands) == set(command_installer.CANONICAL_COMMANDS):
+        inputs = AssessmentInputs(OperationRoot("project", "project", project_root.absolute()), consent=ApplyConsent(automatic=True))
+        assessment = command_installer.prepare_commands(inputs, agents, adopt_only=True)
+        if not assessment.complete:
+            raise command_installer.InstallerError("manifest_preparation_failed", diagnostics=assessment.diagnostics)
+        if agents != tuple(agent for agent in get_configured_agents(project_root) if agent in command_installer.SUPPORTED_AGENTS):
+            raise command_installer.InstallerError("precondition_changed", detail="Configured command owners changed")
+        applied = command_installer.apply_commands(assessment, inputs.consent)
+        if applied.outcome != "applied":
+            raise command_installer.InstallerError(applied.outcome, diagnostics=applied.diagnostics)
+        payload = assessment.prepared
+        assert isinstance(payload, command_installer.PreparedCommands)
+        result.added.extend(command.path for command in payload.commands if manifest.find(command.path) is None)
     return result
 
 
 def remove_unsafe_symlinks(project_root: Path) -> ManifestRepairResult:
-    """Detect and remove unsafe symlink artifacts under ``.agents/skills/``.
+    """Unlink only exact manifest-owned package links; preserve unknown links.
 
-    A past migration bug created symlink directories such as
-    ``.agents/skills/spec-kitty`` pointing outside the project tree.
-    This function walks ``.agents/skills/`` and removes any entry whose name
-    is a Spec Kitty skill package name and is a symbolic link (rather than a
-    real directory containing ``SKILL.md``).
-
-    Only symlinks are removed — real directories are left untouched.
-
-    Returns a :class:`ManifestRepairResult` whose ``symlinks_removed`` field
-    lists the absolute paths of every symlink that was deleted.
+    No target is read or mutated. Command installation subsequently prepares
+    copy delivery. Prefix matching is never an ownership proof.
     """
     result = ManifestRepairResult()
-    skills_dir = project_root / _SKILL_DIR_PREFIX.rstrip("/")
-    if not skills_dir.is_dir():
+    skills_dir = project_root / ".agents/skills"
+    if (project_root / ".agents").is_symlink() or skills_dir.is_symlink() or not skills_dir.is_dir():
         return result
-
-    for child in sorted(skills_dir.iterdir()):
-        if child.name != "spec-kitty" and not child.name.startswith(_SPEC_KITTY_SKILL_PREFIX):
+    manifest = load(project_root)
+    owned = {project_root / Path(entry.path).parent for entry in manifest.entries}
+    for path in sorted(owned):
+        if path.parent != skills_dir or not path.is_symlink():
             continue
-        if child.is_symlink():
-            try:
-                child.unlink()
-                result.symlinks_removed.append(str(child))
-                logger.info("remove_unsafe_symlinks: removed symlink artifact %s", child)
-            except OSError as exc:
-                logger.warning(
-                    "remove_unsafe_symlinks: could not remove symlink %s: %s",
-                    child,
-                    exc,
-                )
-
+        path.unlink()
+        result.symlinks_removed.append(str(path))
     return result

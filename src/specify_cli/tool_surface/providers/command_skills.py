@@ -10,6 +10,8 @@ its results into surface contract types.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from contextlib import AbstractContextManager, nullcontext
+from dataclasses import replace
 from pathlib import Path
 
 from specify_cli.skills import command_installer, manifest_store
@@ -32,7 +34,16 @@ from ..findings import (
     UNSAFE_MANAGED_PATH,
     make_finding,
 )
-from ..model import SurfaceDefinition, SurfaceInstance
+from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
+from ..operations import (
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    InputObservation,
+    OperationRoot,
+    OwnerAssessment,
+    OwnerApplyResult,
+)
 from ..repair import RepairResult
 from ..status import (
     STATE_DRIFTED,
@@ -87,7 +98,35 @@ class CommandSkillsProvider:
         self._installer = installer if installer is not None else command_installer
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == ToolSurfaceKind.COMMAND_SKILL
+        return bool(definition.kind == ToolSurfaceKind.COMMAND_SKILL)
+
+    def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...]) -> OwnerAssessment:
+        """Prepare the full selected batch, including zero-expansion pruning."""
+        agents = tuple(sorted({selection.tool_key for selection in selections if self.can_handle(selection.definition)}))
+        assessment = command_installer.prepare_commands(inputs, agents, prune=True)
+        effects = tuple(
+            replace(effect, surface_ids=tuple(_surface_id(status.instance) for status in statuses if status.instance.path == effect.destination))
+            for effect in assessment.effects
+        )
+        return replace(
+            assessment,
+            effects=effects,
+            inputs_fingerprint=assessment.inputs_fingerprint
+            + (
+                # Findings are mutable reporting data retained by AssessedSurfaces.
+                InputObservation("instances", tuple(status.instance for status in statuses)),
+                InputObservation("states", tuple(status.state for status in statuses)),
+                InputObservation("selections", selections),
+            ),
+        )
+
+    def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
+        """No command-owner lock exists; retain the complete pre-write check."""
+        return nullcontext(command_installer.recheck_commands(assessment))
+
+    def apply(self, assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerApplyResult:
+        """Consume the command owner's exact preparation and truthful results."""
+        return command_installer.apply_commands(assessment, consent)
 
     def expand(
         self,
@@ -291,43 +330,27 @@ class CommandSkillsProvider:
         dry_run: bool = False,
     ) -> RepairResult:
         """Reinstall command skills for the affected agents via the installer."""
-        affected = {
-            s.instance.owner
-            for s in statuses
-            if s.state in (STATE_MISSING, STATE_DRIFTED)
-        }
+        affected = tuple(sorted({s.instance.owner for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED, STATE_STALE, STATE_ORPHANED, STATE_UNSAFE)}))
         if not affected:
             return RepairResult(dry_run=dry_run)
+        selections = tuple(SurfaceSelection(agent, next(s.instance.definition for s in statuses if s.instance.owner == agent)) for agent in affected)
+        inputs = AssessmentInputs(OperationRoot("project", "project", project_root.absolute()), consent=ApplyConsent(automatic=True))
+        assessment = self.assess(inputs, statuses, selections=selections)
+        if not assessment.complete:
+            return RepairResult(failed=tuple(d.message for d in assessment.diagnostics), dry_run=dry_run)
+        unresolved = {d.path for d in assessment.dispositions if d.state in {"preserve", "consent_required"}}
+        eligible = tuple(
+            _surface_id(s.instance) for s in statuses if s.instance.owner in affected and s.instance.path.relative_to(project_root).as_posix() not in unresolved
+        )
+        failed = tuple(sorted(path for path in unresolved if path is not None))
         if dry_run:
-            return RepairResult(
-                repaired=tuple(_surface_id(s.instance) for s in statuses),
-                dry_run=True,
-            )
-        repaired: list[str] = []
-        failed: list[str] = []
-        statuses_by_agent = _group_statuses_by_agent(statuses)
-        for agent in sorted(affected):
-            try:
-                command_installer.install(project_root, agent)
-                repaired.extend(statuses_by_agent.get(agent, ()))
-            except Exception as exc:  # surfaced as a failure, never swallowed
-                failed.append(f"{agent}: {exc}")
-        return RepairResult(
-            repaired=tuple(repaired),
-            failed=tuple(failed),
-            dry_run=False,
-        )
-
-
-def _group_statuses_by_agent(
-    statuses: Sequence[SurfaceStatus],
-) -> dict[str, list[str]]:
-    grouped: dict[str, list[str]] = {}
-    for status in statuses:
-        grouped.setdefault(status.instance.owner, []).append(
-            _surface_id(status.instance)
-        )
-    return grouped
+            return RepairResult(repaired=eligible, failed=failed, dry_run=True)
+        result = self.apply(assessment, inputs.consent)
+        if result.outcome != "applied":
+            successful_paths = {e.destination for e in assessment.effects if e.id in result.succeeded}
+            repaired = tuple(_surface_id(s.instance) for s in statuses if s.instance.path in successful_paths)
+            return RepairResult(repaired=repaired, failed=failed + tuple(d.message for d in result.diagnostics))
+        return RepairResult(repaired=eligible, failed=failed)
 
 
 def _project_root_and_rel(path: Path) -> tuple[Path | None, str | None]:
