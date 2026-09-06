@@ -15,6 +15,7 @@ turns that into a research-gap finding.
 from __future__ import annotations
 
 from pathlib import Path
+from dataclasses import dataclass, replace
 
 from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
 from charter.profiles import AgentProfile, AgentProfileRepository
@@ -32,7 +33,8 @@ from ..findings import (
     SurfaceFinding,
     make_finding,
 )
-from ..model import NativeAgentProfile
+from ..model import NativeAgentProfile, SurfaceSelection
+from ..operations import FileState
 from .manifest import PROJECTION_VERSION, hash_file as hash_source_file
 from .renderers import ProfileRenderer, get_renderer, native_name_violation
 
@@ -44,6 +46,24 @@ LAYER_PROJECT = "project"
 _PROJECT_PROFILE_SUBDIR = ".kittify/agent_profiles"
 
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind agent-profile --fix"
+
+
+@dataclass(frozen=True)
+class PreparedProfileBatch:
+    """Opaque owner payload with immutable native projections for bundle consumers.
+
+    Consumers read ``projections``; only the profile owner applies ``contents``
+    after checking the complete retained input and destination observations.
+    ``entries`` records original ownership, not speculative successful writes.
+    """
+
+    projections: tuple[PreparedProjection, ...]
+    contents: tuple[tuple[Path, bytes], ...]
+    entries: tuple[NativeAgentProfile, ...]
+    input_roots: tuple[Path, ...]
+    input_states: tuple[tuple[Path, FileState], ...]
+    destinations: tuple[tuple[Path, FileState], ...]
+    selections: tuple[SurfaceSelection, ...]
 
 
 def _profile_urn(profile: AgentProfile) -> str:
@@ -155,6 +175,22 @@ class ProfileProjector:
 
     def __init__(self, profile_repo: AgentProfileRepository) -> None:
         self._repo = profile_repo
+
+    def prepare(self, tool_key: str, project_root: Path) -> tuple[PreparedProjection, ...]:
+        """Freeze real admitted projections and their exact renderer bytes for consumers."""
+        result = []
+        for native in self.project(tool_key, project_root):
+            body = self.render(tool_key, native.profile_urn)
+            if body is None:
+                raise ValueError(f"Unable to render required profile: {native.profile_urn}")
+            from .manifest import hash_content
+
+            result.append(PreparedProjection(replace(native, file_hash=hash_content(body)), body.encode("utf-8")))
+        return tuple(result)
+
+    def source_paths(self) -> tuple[Path, ...]:
+        """Return source identities from the resolved repository, including sentinels."""
+        return tuple(sorted({p for profile in self._repo.list_all() if (p := self._repo.get_source_path(profile.profile_id)) is not None}))
 
     def project(
         self,
@@ -344,3 +380,11 @@ class ProfileProjector:
             for profile in self._repo.list_all()
             if profile.sentinel
         ]
+
+
+@dataclass(frozen=True)
+class PreparedProjection:
+    """Immutable bundle/owner input: original native provenance and exact UTF-8 bytes."""
+
+    native: NativeAgentProfile
+    content: bytes

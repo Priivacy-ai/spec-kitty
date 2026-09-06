@@ -112,9 +112,7 @@ def test_fix_prunes_deactivated_profile_file_and_manifest_entry(tmp_path: Path) 
     # The orphaned file AND its manifest entry are gone.
     assert not org_file.exists(), "the de-activated org agent file must be pruned"
     names_after = _manifest_output_names(tmp_path)
-    assert f"{_ORG_ANALYST_ID}.md" not in names_after, (
-        "the de-activated org agent manifest entry must be dropped"
-    )
+    assert f"{_ORG_ANALYST_ID}.md" not in names_after, "the de-activated org agent manifest entry must be dropped"
     # The still-projected built-in (and its entry) is untouched.
     assert unrelated_file.exists()
     assert f"{_UNRELATED_BUILTIN_ID}.md" in names_after
@@ -164,6 +162,35 @@ def test_fix_preserves_edited_orphan_and_discloses_drift(tmp_path: Path) -> None
     assert any("drift" in message.lower() for message in result.failed)
 
 
+def test_failed_orphan_unlink_preserves_ownership(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.tool_surface.providers.agent_profiles as module
+    from specify_cli.tool_surface.operations import PhysicalEffect
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from .test_agent_profiles import _assess_real, _apply_real
+
+    pack = _write_org_pack(tmp_path)
+    _write_config(tmp_path, pack, activated=None)
+    _run_fix(tmp_path)
+    _write_config(tmp_path, pack, activated=[_UNRELATED_BUILTIN_ID])
+    assessment = _assess_real(tmp_path)
+    deletion = next(e for e in assessment.effects if e.action == "delete")
+    original = ProfileManifest.load(tmp_path).all_entries()
+    writer = module._write_profile_effect
+
+    def refuse_unlink(effect: PhysicalEffect, content: bytes | None) -> None:
+        if effect.id == deletion.id:
+            raise PermissionError("injected orphan unlink refusal")
+        writer(effect, content)
+
+    monkeypatch.setattr(module, "_write_profile_effect", refuse_unlink)
+    before = snapshot({"project": tmp_path})
+    result = _apply_real(assessment)
+    assert result.outcome == "failed" and deletion.id in result.failed
+    assert not result.succeeded
+    assert ProfileManifest.load(tmp_path).all_entries() == original
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 def test_existing_dry_run_omits_statusless_orphan_effects(tmp_path: Path) -> None:
     """Historical reporting seam omits physical prune/manifest effects (WP10)."""
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
@@ -185,3 +212,69 @@ def test_existing_dry_run_omits_statusless_orphan_effects(tmp_path: Path) -> Non
     assert (f".claude/agents/{_ORG_ANALYST_ID}.md", "delete") in paths
     assert (".kittify/agent_profiles_manifest.json", "update") in paths
     print("original ID-only preview:", preview, "independent physical delta:", delta)
+
+
+@pytest.mark.parametrize("condition", ["unchanged", "absent", "edited", "dangling", "disabled", "unselected", "legacy_escape", "q"])
+def test_statusless_prune_preserves_policy_and_sentinels(tmp_path: Path, condition: str) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.enums import ActivationMode
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from .test_agent_profiles import _apply_real, _assert_exact_delta
+
+    pack = _write_org_pack(tmp_path)
+    _write_config(tmp_path, pack, activated=None)
+    _run_fix(tmp_path)
+    orphan = tmp_path / ".claude/agents" / f"{_ORG_ANALYST_ID}.md"
+    sentinel = tmp_path / "sentinel"
+    sentinel.write_text("outside ownership", encoding="utf-8")
+    custom = orphan.parent / "spec-kitty.custom"
+    custom.symlink_to(sentinel)
+    manifest = ProfileManifest.load(tmp_path)
+    entry = next(e for e in manifest.all_entries() if e.output_path == orphan)
+    definition = agent_profile_definition()
+    tool = "claude"
+    if condition == "absent":
+        orphan.unlink()
+    elif condition == "edited":
+        orphan.write_text("operator changes", encoding="utf-8")
+    elif condition == "dangling":
+        orphan.unlink()
+        orphan.symlink_to(tmp_path / "absent-target")
+    elif condition == "disabled":
+        definition = replace(definition, activation_mode=ActivationMode.DISABLED)
+    elif condition == "unselected":
+        tool = "vibe"
+    elif condition in {"legacy_escape", "q"}:
+        manifest.remove(orphan)
+        escaped = replace(entry, output_path=sentinel)
+        if condition == "q":
+            escaped = replace(escaped, tool_key="q", format="amazon-q-agent")
+        manifest.record(escaped)
+        manifest.save()
+    _write_config(tmp_path, pack, activated=[_UNRELATED_BUILTIN_ID])
+    before = snapshot({"project": tmp_path})
+    assessment = AgentProfilesProvider().assess(
+        AssessmentInputs(OperationRoot("project", "project", tmp_path)),
+        (),
+        selections=(SurfaceSelection(tool, definition),),
+    )
+    assert assessment.complete, assessment.diagnostics
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    deletes = [e for e in assessment.effects if e.action == "delete"]
+    assert bool(deletes) == (condition == "unchanged")
+    if condition == "unchanged":
+        assert deletes[0].destination == orphan
+    result = _apply_real(assessment)
+    assert not result.failed, result
+    after = snapshot({"project": tmp_path})
+    _assert_exact_delta(assessment, before, after)
+    assert sentinel.read_text() == "outside ownership"
+    assert custom.is_symlink()
+    if condition in {"edited", "dangling", "disabled", "unselected"}:
+        assert entry in ProfileManifest.load(tmp_path).all_entries()
+        assert_unchanged(before, after)
+    if deletes:
+        with pytest.raises(AssertionError):
+            _assert_exact_delta(replace(assessment, effects=tuple(e for e in assessment.effects if e not in deletes)), before, after)

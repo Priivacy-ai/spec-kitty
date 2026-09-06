@@ -62,12 +62,31 @@ class ProfileManifest:
         return manifest
 
     def _read(self) -> None:
-        if not self.manifest_path.exists():
+        from ._paths import observe_node
+
+        state = observe_node(self.manifest_path)
+        if state.kind == "absent":
             return
+        if state.kind != "file":
+            raise ValueError(f"Profile manifest is not a regular file: {self.manifest_path}")
         project_root = self.manifest_path.parent.parent
         data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(data, dict)
+            or type(data.get("schema_version")) is not int
+            or data.get("schema_version") != SCHEMA_VERSION
+            or not isinstance(data.get("entries"), list)
+        ):
+            raise ValueError("Invalid profile manifest schema or entries")
         for raw in data.get("entries", []):
-            entry = _entry_from_json(raw, project_root)
+            if not isinstance(raw, dict):
+                raise ValueError("Invalid profile manifest entry")
+            try:
+                entry = _entry_from_json(raw, project_root)
+            except (KeyError, TypeError, OverflowError) as exc:
+                raise ValueError(f"Invalid profile manifest entry: {exc}") from exc
+            if str(entry.output_path) in self._entries:
+                raise ValueError(f"Duplicate profile manifest output: {entry.output_path}")
             self._entries[str(entry.output_path)] = entry
 
     def record(self, profile: NativeAgentProfile) -> None:
@@ -87,18 +106,24 @@ class ProfileManifest:
         """Drop the entry for ``output_path`` if present (no-op otherwise)."""
         self._entries.pop(str(output_path), None)
 
-    def save(self) -> None:
+    def save(self, prepared: bytes | None = None, *, exclusive: bool = False) -> None:
         """Write the manifest to disk, creating ``.kittify/`` as needed."""
-        self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        content = self.render_bytes() if prepared is None else prepared
+        if not exclusive and self.manifest_path.is_file() and self.manifest_path.read_bytes() == content:
+            return
+        if not self.manifest_path.parent.is_dir():
+            self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.manifest_path.open("xb" if exclusive else "wb") as stream:
+            stream.write(content)
+
+    def render_bytes(self) -> bytes:
+        """Serialize the current entries without touching the filesystem."""
         project_root = self.manifest_path.parent.parent
         payload = {
             "schema_version": SCHEMA_VERSION,
             "entries": [_entry_to_json(e, project_root) for e in self.all_entries()],
         }
-        self.manifest_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
 def _entry_to_json(entry: NativeAgentProfile, project_root: Path) -> dict[str, object]:

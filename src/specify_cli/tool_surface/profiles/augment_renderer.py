@@ -15,6 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.profiles import AgentProfile
+from ._render_helpers import ProfilePathIdentity
 
 from ._render_helpers import render_markdown_agent as _render_markdown_agent
 
@@ -43,7 +44,7 @@ class AugmentProfileRenderer:
         return tool_key in {"auggie", "augment", FORMAT_AUGMENT_AGENT}
 
     def output_path(
-        self, tool_key: str, profile: AgentProfile, project_root: Path
+        self, tool_key: str, profile: ProfilePathIdentity, project_root: Path
     ) -> Path:
         """Return ``.augment/agents/<profile_id>.md`` under *project_root*."""
         _ = tool_key  # path is identical across the renderer's accepted tool keys
