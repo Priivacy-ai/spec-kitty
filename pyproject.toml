@@ -57,7 +57,6 @@ dependencies = [
     "httpx[socks]>=0.28.1",
     "platformdirs>=4.9.2",
     "readchar>=4.2.1",
-    "truststore>=0.10.4",
     "pyyaml>=6.0",
     "ruamel.yaml>=0.18.0",
     "pydantic>=2.0",
