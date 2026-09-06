@@ -259,6 +259,9 @@
       "last_event_id": "01M1VY4DD615HM8VH7BH4J4389",
       "last_transition_at": "2026-09-06T18:01:48.710551+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Delivered ee431b2fc8cd3d334e70bc56de857cb62dc92402 with real RED-first archive gate evidence,187 committed-tree tests and static checks passing. Full corpus and owner witnesses in external wp12-handoff.md. Broader failures #3919 historical terminology,#3914 redirects and offline sync collection conflict remain unresolved; supporting shard/format defect corrected separately. Independent full-contract review required, no final architecture or mission acceptance claim."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 26467,
