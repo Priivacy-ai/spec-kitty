@@ -97,7 +97,7 @@
       "wp": "WP13"
     },
     "#3908": {
-      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/issues/3908 tracks empty resolved governance context; explicit binding charter/profile fallback disclosed, no successful activation claim.",
+      "evidence_ref": "Follow-up: #3908 https://github.com/Priivacy-ai/spec-kitty/issues/3908; empty context uses disclosed explicit binding charter/profile fallback, not successful activation.",
       "fr": null,
       "nfr": null,
       "repo": null,
