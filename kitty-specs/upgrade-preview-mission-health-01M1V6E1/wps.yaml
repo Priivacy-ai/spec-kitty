@@ -1,0 +1,105 @@
+work_packages:
+  - id: "WP01"
+    title: "Independent preview oracle and baseline witnesses"
+    dependencies: []
+    owned_files: ["tests/upgrade/preview_support/**","tests/upgrade/test_preview_oracle.py"]
+    requirement_refs: ["FR-001","FR-003","FR-011","NFR-001","NFR-003","C-003"]
+    plan_concern_refs: ["IC-09"]
+    subtasks: ["T001","T002","T003","T004","T005"]
+    prompt_file: "tasks/WP01-preview-oracle.md"
+  - id: "WP02"
+    title: "Immutable owner operations and assessment dispatch"
+    dependencies: []
+    owned_files: ["src/specify_cli/tool_surface/operations.py","src/specify_cli/tool_surface/model.py","src/specify_cli/tool_surface/plan.py","src/specify_cli/tool_surface/repair.py","src/specify_cli/tool_surface/service.py","src/specify_cli/tool_surface/registry.py","src/specify_cli/tool_surface/providers/protocol.py","src/specify_cli/tool_surface/providers/_registry.py","src/specify_cli/tool_surface/providers/_discovery.py","tests/specify_cli/tool_surface/test_operations.py","tests/specify_cli/tool_surface/test_plan.py","tests/specify_cli/tool_surface/test_repair.py","tests/specify_cli/tool_surface/test_registry.py"]
+    requirement_refs: ["FR-002","FR-003","FR-004","C-001"]
+    plan_concern_refs: ["IC-01"]
+    subtasks: ["T006","T007","T008","T009","T010"]
+    prompt_file: "tasks/WP02-owner-assessment-contract.md"
+  - id: "WP03"
+    title: "Pure startup intent and global runtime assessment"
+    dependencies: ["WP01","WP02"]
+    owned_files: ["src/specify_cli/upgrade/intent.py","src/specify_cli/runtime/**","src/specify_cli/tool_surface/providers/slash_commands.py","tests/runtime/test_upgrade_preview_bootstrap.py","tests/runtime/test_bootstrap_unit.py","tests/runtime/test_agent_skills.py","tests/specify_cli/runtime/**"]
+    requirement_refs: ["FR-001","FR-002","FR-003","FR-004","NFR-001","NFR-004","C-001"]
+    plan_concern_refs: ["IC-02"]
+    subtasks: ["T011","T012","T013","T014","T015","T016","T017"]
+    prompt_file: "tasks/WP03-global-runtime-assessment.md"
+  - id: "WP04"
+    title: "Command skill ownership and physical effects"
+    dependencies: ["WP01","WP02"]
+    owned_files: ["src/specify_cli/skills/command_installer.py","src/specify_cli/skills/command_renderer.py","src/specify_cli/skills/manifest_store.py","src/specify_cli/tool_surface/providers/command_skills.py","tests/specify_cli/skills/test_command_installer.py","tests/specify_cli/skills/test_command_renderer.py","tests/specify_cli/skills/test_manifest_store.py","tests/specify_cli/tool_surface/providers/test_command_skills.py"]
+    requirement_refs: ["FR-002","FR-003","FR-004","NFR-004","C-001"]
+    plan_concern_refs: ["IC-03"]
+    subtasks: ["T018","T019","T020","T021","T022"]
+    prompt_file: "tasks/WP04-command-skill-effects.md"
+  - id: "WP05"
+    title: "Managed skill assessment and deterministic backups"
+    dependencies: ["WP01","WP02","WP03"]
+    owned_files: ["src/specify_cli/skills/installer.py","src/specify_cli/skills/manifest.py","src/specify_cli/skills/paths.py","src/specify_cli/skills/registry.py","src/specify_cli/skills/verifier.py","src/specify_cli/skills/retired.py","src/specify_cli/tool_surface/providers/managed_skills.py","tests/specify_cli/skills/test_installer.py","tests/specify_cli/skills/test_manifest.py","tests/specify_cli/skills/test_manifest_repair.py","tests/specify_cli/skills/test_verifier.py","tests/specify_cli/tool_surface/providers/test_managed_skills.py"]
+    requirement_refs: ["FR-002","FR-003","FR-004","NFR-004","C-001"]
+    plan_concern_refs: ["IC-04"]
+    subtasks: ["T023","T024","T025","T026","T027","T028"]
+    prompt_file: "tasks/WP05-managed-skill-assessment.md"
+  - id: "WP06"
+    title: "Profile projection and pruning assessment"
+    dependencies: ["WP01","WP02"]
+    owned_files: ["src/specify_cli/tool_surface/profiles/**","src/specify_cli/tool_surface/providers/agent_profiles.py","tests/specify_cli/tool_surface/profiles/**","tests/specify_cli/tool_surface/providers/test_agent_profiles.py","tests/specify_cli/tool_surface/providers/test_agent_profiles_prune.py"]
+    requirement_refs: ["FR-002","FR-003","FR-004","NFR-004","C-001"]
+    plan_concern_refs: ["IC-05"]
+    subtasks: ["T029","T030","T031","T032","T033"]
+    prompt_file: "tasks/WP06-profile-projection-assessment.md"
+  - id: "WP07"
+    title: "Native configuration and session presence assessment"
+    dependencies: ["WP01","WP02"]
+    owned_files: ["src/specify_cli/tool_surface/providers/native_config.py","src/specify_cli/tool_surface/providers/session_presence.py","src/specify_cli/session_presence/**","src/specify_cli/skills/vibe_config.py","tests/specify_cli/session_presence/**","tests/specify_cli/tool_surface/providers/test_native_config.py","tests/specify_cli/tool_surface/providers/test_session_presence.py"]
+    requirement_refs: ["FR-002","FR-003","FR-004","NFR-004","C-001"]
+    plan_concern_refs: ["IC-06"]
+    subtasks: ["T034","T035","T036","T037","T038"]
+    prompt_file: "tasks/WP07-native-session-assessment.md"
+  - id: "WP08"
+    title: "Staged plugin bundle assessment"
+    dependencies: ["WP02","WP04","WP05","WP06","WP07"]
+    owned_files: ["src/specify_cli/tool_surface/providers/plugin_bundle.py","src/specify_cli/tool_surface/bundles/**","tests/specify_cli/tool_surface/bundles/**","tests/specify_cli/tool_surface/providers/test_plugin_bundle.py","tests/specify_cli/tool_surface/test_plugin_build_codex.py","tests/specify_cli/tool_surface/test_plugin_build_claude.py"]
+    requirement_refs: ["FR-002","FR-003","FR-004","NFR-004","C-001"]
+    plan_concern_refs: ["IC-06"]
+    subtasks: ["T039","T040","T041","T042"]
+    prompt_file: "tasks/WP08-staged-bundle-assessment.md"
+  - id: "WP09"
+    title: "Charter-owned provisioning preparation"
+    dependencies: ["WP01"]
+    owned_files: ["src/charter/activation/compiler.py","src/charter/activation/pack_manager.py","src/charter/activation/charter_yaml_io.py","tests/charter/test_pack_manager.py","tests/charter/test_charter_yaml_io.py","tests/charter/test_compiler_charter_yaml.py","tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py"]
+    requirement_refs: ["FR-001","FR-002","FR-003","FR-004","NFR-004","C-001"]
+    plan_concern_refs: ["IC-07"]
+    subtasks: ["T043","T044","T045","T046"]
+    prompt_file: "tasks/WP09-charter-provisioning-preparation.md"
+  - id: "WP10"
+    title: "Upgrade composition and compatible CLI reporting"
+    dependencies: ["WP03","WP04","WP05","WP06","WP07","WP08","WP09"]
+    owned_files: ["src/specify_cli/__init__.py","src/specify_cli/cli/helpers.py","src/specify_cli/cli/commands/upgrade.py","src/specify_cli/upgrade/assessment.py","src/specify_cli/upgrade/runner.py","src/specify_cli/upgrade/finalize.py","src/specify_cli/upgrade/metadata.py","src/specify_cli/upgrade/outcome.py","src/specify_cli/upgrade/compat.py","src/specify_cli/upgrade/detector.py","src/specify_cli/upgrade/registry.py","src/specify_cli/upgrade/autocommit.py","src/specify_cli/compat/**","tests/specify_cli/compat/**","tests/upgrade/test_upgrade_assessment.py","tests/upgrade/test_upgrade_cli_contract.py","tests/upgrade/test_finalizer.py","tests/upgrade/test_upgrade_integration.py","tests/upgrade/test_upgrade_idempotency.py","tests/upgrade/test_teamspace_consent_scope.py","docs/guides/how-to/installation/upgrade-project.md","docs/guides/how-to/installation/upgrade-cli.md","docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md","docs/api/upgrade-lifecycle.md"]
+    requirement_refs: ["FR-001","FR-002","FR-003","FR-004","FR-005","FR-006","FR-010","NFR-002","C-001","C-002"]
+    plan_concern_refs: ["IC-02","IC-07"]
+    subtasks: ["T047","T048","T049","T050","T051","T052","T053"]
+    prompt_file: "tasks/WP10-upgrade-composition-reporting.md"
+  - id: "WP11"
+    title: "Provenance-preserving corpus recovery"
+    dependencies: []
+    owned_files: ["kitty-specs/R2-T1-local-legacy-removal/**","kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/**","kitty-specs/doctrine-drg-silent-drop-boundary-01M0PE7E/status.json","kitty-specs/symbolkey-source-module-01M0B0SF/status.json","docs/archive/program-evidence/R2-T1-local-legacy-removal/**","kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml","docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json"]
+    requirement_refs: ["FR-007","FR-008","FR-009","FR-010","FR-011","NFR-004","C-006"]
+    plan_concern_refs: ["IC-08"]
+    subtasks: ["T054","T055","T056","T057","T058","T059"]
+    prompt_file: "tasks/WP11-corpus-recovery.md"
+  - id: "WP12"
+    title: "Evidence-bound archive preservation gate"
+    dependencies: ["WP11"]
+    owned_files: ["tests/architectural/test_archive_root_byte_identical.py","tests/architectural/test_upgrade_recovery_preservation.py","tests/upgrade/test_mission_corpus_recovery.py"]
+    requirement_refs: ["FR-007","FR-008","FR-009","FR-010","FR-011","NFR-003","NFR-004","C-001","C-006"]
+    plan_concern_refs: ["IC-08","IC-10"]
+    subtasks: ["T060","T061","T062","T063","T064"]
+    prompt_file: "tasks/WP12-archive-preservation-gate.md"
+  - id: "WP13"
+    title: "Integrated preview acceptance and architecture witness"
+    dependencies: ["WP01","WP10","WP11","WP12"]
+    owned_files: ["tests/upgrade/test_upgrade_preview_acceptance.py","tests/architectural/test_upgrade_assessment_boundary.py","tests/upgrade/test_upgrade_installed_wheel.py"]
+    requirement_refs: ["FR-001","FR-002","FR-003","FR-004","FR-005","FR-006","FR-007","FR-008","FR-009","FR-010","FR-011","NFR-001","NFR-002","NFR-003","NFR-004","C-002","C-003","C-004","C-005","C-006"]
+    plan_concern_refs: ["IC-09"]
+    subtasks: ["T065","T066","T067","T068","T069","T070","T071"]
+    prompt_file: "tasks/WP13-integrated-preview-acceptance.md"
