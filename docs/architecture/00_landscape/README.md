@@ -281,6 +281,36 @@ flowchart TB
 7. **Orchestration does not bypass Kitty-core** — it executes the graph that Kitty-core produced; it does not construct planning artifacts.
 8. **Control Plane is the single user entry point** for mutations — Dashboard is read-only.
 
+## Modularity SSOT (enforced authority)
+
+The conceptual containers above are a *lens*, not the authority for module boundaries. The
+**canonical single source of truth for the module set and its import direction is the enforced
+pair** — the two surfaces CI actually defends, which agree with each other and with the code:
+
+- **Module inventory** — `pyproject.toml` `[tool.hatch.build.targets.wheel].packages`, enforced
+  by `tests/architectural/test_pyproject_shape.py`.
+- **Import direction (the layer chain)** — the `landscape` fixture in
+  `tests/architectural/conftest.py` + `tests/architectural/test_layer_rules.py`, enforced by
+  pytestarch `LayerRule`s, the `TestLayerCoverage` meta-tests, and the shrink-only
+  `mission_runtime` and `runtime` outbound ledgers.
+
+```
+kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli
+```
+
+Every other module map (this document, `04_implementation_mapping`, the `AGENTS.md` package
+lists, and the demoted `05_ownership_map.md`) is a **derived view** that must cite the enforced
+pair; on any conflict, the enforced pair wins. The former self-declared authority
+`05_ownership_manifest.yaml` was deleted (mission `post-convergence-governance-01M1TMPH`) after
+it drifted from reality.
+
+**Client-repo inversion.** `charter.offering` holds the doctrine code (the former top-level
+`src/doctrine/`; `src/doctrine.py` is a deprecation shim). `src/specify_cli/zeitgeist_client/`
+and `src/specify_cli/saas_client/` are **clients** of the upstream authoritative repos
+`spec-kitty/zeitgeist` and `spec-kitty/saas` — consumer code integrated here, not in-repo
+successor subsystems (the API is authored/published upstream). See ADR
+`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`.
+
 ## Traceability
 
 - System context (C4 Level 1): `../01_context/README.md`
