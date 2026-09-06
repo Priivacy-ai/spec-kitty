@@ -147,3 +147,31 @@ Final core mission E2E acceptance must bind the source and execute every
 required floor case rather than count a missing prerequisite as coverage.
 Evidence and follow-up:
 https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/416#issuecomment-5560076553.
+
+## Pre-review Identity Partition Repair
+
+- Supporting Op: `01M1VKFGEXZEZK9E4PRSGA8TJ2`; core issue #3915.
+- Exact independent worker RED646f7c488 and GREENdac638afe integrated as
+  402947d5a and ea6324cc8. Three-file scope; production changes only the
+  metadata-read directory in `_mt_resolve_active_gate_bindings`.
+- Identity reads use canonical PRIMARY_METADATA placement; COORD continues to
+  own status. Owned effective_root and activation operation-root policy remain
+  unchanged. No hardcoded software-dev fallback or activation bypass.
+- Independent Renata/Darwin APPROVE: 65 fresh checks, plus exact-baseline replay
+  with eight expected failures and five passing controls. Real declared failing
+  subprocess executes through the selected binding. Four linked-owned-worktree
+  controls retain correct identity; actual corrupt metadata keeps existing
+  visible unverified-error behavior. Ruff clean. Two strict mypy diagnostics
+  reproduce with byte-exact baseline shadow files; full-file mypy is not green.
+- Parent integrated suite: 32 passed in45.52s. Actual mission binding probe
+  resolves active/spec-kitty-pre-review despite absent coord metadata, using
+  the canonical PRIMARY directory. Both status file hashes remain unchanged.
+  This probe is resolution-only, not a live gate execution or transition.
+- Tests use disposable real Git topology and real gate subprocesses, but the
+  integration bookkeeping port records rather than persists transitions.
+  Live work-package coverage must still be inspected at the next real handoff;
+  previous NO_COVERAGE results are not retroactively converted to passes.
+- External evidence: `pre-review-identity-handoff.md` and independent
+  `pre-review-identity-independent-review.md` beside this checkout. Worker
+  process-tree readiness timing failure remains disclosed, not represented as
+  fresh reviewer reproduction. No source suppression or timeout extension.
