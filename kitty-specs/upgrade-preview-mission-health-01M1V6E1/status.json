@@ -146,6 +146,9 @@
       "last_event_id": "01M1VTZ12Z81EMSC5WAV5V84R9",
       "last_transition_at": "2026-09-06T17:06:26.528058+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Owned delivery RED3f50b533e GREEN51bbf50f3,1289delivery1642fast/staticpass. Parent canonicalconfig [] gap unresolved/outsideownership; independentreview must retain it, nofullcontractapproval yet. wp07-handoff.md."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 26467,
