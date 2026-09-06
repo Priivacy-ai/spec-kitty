@@ -214,6 +214,17 @@ Relocate R2-T1's two documents byte-for-byte to
 Materialize two snapshots through scoped canonical CLI, preserving event hashes
 and eight verdicts. Full gated corpus audit, no blanket doctor --fix.
 
+Task finalization requires confined planning ownership for kitty-specs data.
+WP11 therefore owns only the exact corpus/document changes and the receipt
+defined in contracts/corpus-recovery.md, using the canonical planning workspace.
+It retains the real pre-recovery CLI red, source-object verification, repeat
+no-churn controls, independent data review and full zero-blocker audit.
+WP12 owns the persistent corpus regression file as IC-08 verification alongside
+its IC-10 preservation-policy tests, and depends on WP11. It recreates original
+and corrupted counterfactual fixtures from pinned provenance; already-repaired
+data is not sufficient test evidence. This is a write-scope split, not a change
+to acceptance, issue scope, dependencies or the fail-closed code ownership ban.
+
 ## Project Structure
 
 Mission: plan.md; existing research.md (unchanged); data-model.md; quickstart.md;

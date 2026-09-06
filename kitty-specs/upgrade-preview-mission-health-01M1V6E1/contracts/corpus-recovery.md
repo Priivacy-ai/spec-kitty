@@ -131,6 +131,15 @@ this task. No reducer/audit source change is expected.
 
 ## Final Evidence
 
+The portable recovery receipt lives at
+`docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json`.
+WP11 produces it with the confined corpus/document changes; WP12 owns
+`tests/upgrade/test_mission_corpus_recovery.py` and independently validates the
+receipt and original/corrupted counterfactuals. Neither the receipt producer nor
+the preservation-gate implementer may approve its own evidence exemption.
+WP11 still demonstrates real CLI failure before recovery and exact provenance,
+no-churn and full-audit success before its independent data review.
+
 Run the real full-corpus gate in the repaired isolated checkout:
 
 ```sh
