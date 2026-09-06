@@ -172,7 +172,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation delivered at 1626c9fc4a9c52bfea6836ea325189346572cb0f; canonical org diagnostics consumed before admission filtering. Four real corrupt-org RED witnesses; 811 subsystem/architecture, 1642 fast, 22 caller tests pass. Independent review required; formatter exclusions and eight public integration REDs explicitly retained in external handoff.",
-        "Independent REJECT: structurally malformed manifest fields become complete assessments; late confinement ValueError loses actual partial writes; shared orphan deletion omits VS Code logical ownership. Preserve org diagnostic fix and exact supplier bytes. Correct with real RED-first controls within existing profile owner boundary."
+        "Independent REJECT: structurally malformed manifest fields become complete assessments; late confinement ValueError loses actual partial writes; shared orphan deletion omits VS Code logical ownership. Preserve org diagnostic fix and exact supplier bytes. Correct with real RED-first controls within existing profile owner boundary.",
+        "Correction delivered11818b3379d9c23fd3be3b577fbbab00ba676ae2; targeted independent prior-findings review pending, supplier unchanged, final integration gates remain open."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
