@@ -189,6 +189,12 @@ class DecisionGitLog:
     ) -> None:
         self._inner.emit_decision_timeout_expired(payload)
 
+    def seed_from_snapshot(self, snapshot: Any) -> None:
+        """Pass-through: seeding is the inner seam's concern; a sink without it is fine."""
+        seed = getattr(self._inner, "seed_from_snapshot", None)
+        if seed is not None:
+            seed(snapshot)
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
