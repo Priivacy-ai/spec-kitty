@@ -11,10 +11,15 @@ module so the test file does not flag itself.
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+
+_RECEIPT_PATH = "docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json"
+_RECEIPT_SHA256 = "f320ada834fbabcddd7186147d606551dcecf066dad4c4eef182eafcf0a7f4b8"
 
 # Architectural invariant scan that shells out to ``git grep`` over the live
 # repo, so it carries both the architectural-gate marker and ``git_repo``
@@ -116,10 +121,7 @@ def _grep_for(term: str) -> list[str]:
     if result.returncode == 1:
         return []
     if result.returncode != 0:
-        raise RuntimeError(
-            f"git grep failed for term {term!r}: exit={result.returncode} "
-            f"stderr={result.stderr!r}"
-        )
+        raise RuntimeError(f"git grep failed for term {term!r}: exit={result.returncode} stderr={result.stderr!r}")
     return [line for line in result.stdout.splitlines() if not _line_is_excluded(line)]
 
 
@@ -159,10 +161,7 @@ def test_docs_adr_exemption_is_narrow() -> None:
 
     # A hit inside docs/adr/ is treated as an immutable historical snapshot.
     adr_hit = f"docs/adr/3.x/2026-04-17-1-some-decision.md:103:No inheritance {forbidden}."
-    assert _line_is_excluded(adr_hit), (
-        "docs/adr/ hits must be exempt — historical decision records are "
-        "immutable snapshots (NFR-001/C-002)."
-    )
+    assert _line_is_excluded(adr_hit), "docs/adr/ hits must be exempt — historical decision records are immutable snapshots (NFR-001/C-002)."
 
     # The rest of docs/ must remain in scope: an exemption here would be a
     # blanket docs/ carve-out and a regression.
@@ -173,8 +172,7 @@ def test_docs_adr_exemption_is_narrow() -> None:
     )
     for hit in still_scanned:
         assert not _line_is_excluded(hit), (
-            f"Non-ADR docs path must still be scanned for legacy terms: {hit!r}. "
-            "The docs/adr/ exemption must not blanket-exempt all of docs/."
+            f"Non-ADR docs path must still be scanned for legacy terms: {hit!r}. The docs/adr/ exemption must not blanket-exempt all of docs/."
         )
 
 
@@ -265,10 +263,7 @@ def _grep_for_phrase_ci(phrase: str, *, roots: tuple[str, ...]) -> list[str]:
     if result.returncode == 1:
         return []
     if result.returncode != 0:
-        raise RuntimeError(
-            f"git grep failed for phrase {phrase!r}: exit={result.returncode} "
-            f"stderr={result.stderr!r}"
-        )
+        raise RuntimeError(f"git grep failed for phrase {phrase!r}: exit={result.returncode} stderr={result.stderr!r}")
     return [line for line in result.stdout.splitlines() if "docs/adr/" not in line.split(":", 1)[0]]
 
 
@@ -308,9 +303,7 @@ def test_lane_consolidation_phrasing_does_not_grow_beyond_baseline() -> None:
     """
     violations = _collect_lane_consolidation_phrase_violations()
     if violations:
-        formatted = "\n".join(
-            f"  {rel}:\n    " + "\n    ".join(hits) for rel, hits in sorted(violations.items())
-        )
+        formatted = "\n".join(f"  {rel}:\n    " + "\n    ".join(hits) for rel, hits in sorted(violations.items()))
         pytest.fail(
             "New lane-consolidation-sense 'merge' phrasing detected outside the "
             "grandfathered baseline. Canonical term is 'consolidate' / 'consolidation' "
@@ -348,8 +341,7 @@ def test_lane_consolidation_phrase_bite_fixture_fails_on_new_phrasing() -> None:
     synthetic_hits = ["src/mission_runtime/some_new_module.py:10:    # lane merge happens here"]
     violations = _hits_outside_baseline(synthetic_hits, _LANE_CONSOLIDATION_PHRASE_BASELINE)
     assert "src/mission_runtime/some_new_module.py" in violations, (
-        "The guard must flag a new forbidden phrasing in a file outside the baseline -- "
-        f"got violations={violations}"
+        f"The guard must flag a new forbidden phrasing in a file outside the baseline -- got violations={violations}"
     )
 
 
@@ -365,8 +357,8 @@ def test_lane_consolidation_guard_green_on_legit_uses() -> None:
     legit_lines = (
         "src/specify_cli/merge/executor.py:42:    subprocess.run(['git', 'merge', '--no-ff', branch])",
         "docs/guides/accept-and-merge.md:10:    Publish merged work to origin/main via a pull request.",
-        "src/specify_cli/cli/commands/merge.py:5:    \"\"\"Merge an accepted mission into the target branch.\"\"\"",
-        "docs/context/orchestration.md:568:    This is `merge` **Sense 1** -- the first of three distinct \"merge\" operations.",
+        'src/specify_cli/cli/commands/merge.py:5:    """Merge an accepted mission into the target branch."""',
+        'docs/context/orchestration.md:568:    This is `merge` **Sense 1** -- the first of three distinct "merge" operations.',
     )
     for line in legit_lines:
         content = line.split(":", 2)[-1].lower()
@@ -380,10 +372,7 @@ def test_lane_consolidation_guard_green_on_grandfathered_baseline() -> None:
     SC-011 "stays green on ... the grandfathered baseline" half of the bite
     proof.
     """
-    hits_from_baseline_files = [
-        f"{rel_path}:1:some lane merge related text"
-        for rel_path in sorted(_LANE_CONSOLIDATION_PHRASE_BASELINE)
-    ]
+    hits_from_baseline_files = [f"{rel_path}:1:some lane merge related text" for rel_path in sorted(_LANE_CONSOLIDATION_PHRASE_BASELINE)]
     violations = _hits_outside_baseline(hits_from_baseline_files, _LANE_CONSOLIDATION_PHRASE_BASELINE)
     assert violations == {}, f"Baseline files must be grandfathered, got violations: {violations}"
 
@@ -425,10 +414,7 @@ def test_glossary_pack_builtin_exemption_is_narrow() -> None:
     """
     forbidden = _FORBIDDEN_TERMS[0]
 
-    pack_hit = (
-        "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml:"
-        f"88:  surface: {forbidden} commit"
-    )
+    pack_hit = f"packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml:88:  surface: {forbidden} commit"
     assert _line_is_excluded(pack_hit), (
         "packs/built-in/glossary_packs/ hits must be exempt -- the pack "
         "faithfully documents the seed's deprecated/forbidden terminology "
@@ -448,3 +434,150 @@ def test_glossary_pack_builtin_exemption_is_narrow() -> None:
             f"{hit!r}. The packs/built-in/glossary_packs/ exemption must not "
             "blanket-exempt sibling pack subtrees or the rest of the tree."
         )
+
+
+@pytest.mark.parametrize("fragment", _EXCLUDED_PATH_FRAGMENTS)
+def test_exclusion_ignores_path_mentions_in_content(fragment: str) -> None:
+    assert not _line_is_excluded(f"docs/guides/current.md:7:Use {_FORBIDDEN_TERMS[0]}; see {fragment}")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "src/docs/adr/current.md",
+        "docs/adr-extra/current.md",
+        "src/notkitty-specs/current.py",
+        "docs/guides/notnode_modules/current.md",
+        "docs/guides/not.venv/current.md",
+        "tests/architectural/test_no_legacy_terminology.py.bak",
+        "tests/architectural/test_no_legacy_terminology.py/current.md",
+        "src/tests/architectural/test_no_legacy_terminology.py",
+        "docs/adr/../guides/current.md",
+        "docs//adr/current.md",
+        '"docs/adr/current.md:7:forged',
+        "docs\\adr\\current.md",
+    ],
+)
+def test_exclusion_respects_source_path_boundaries(path: str) -> None:
+    assert not _line_is_excluded(f"{path}:7:{_FORBIDDEN_TERMS[0]}")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "kitty-specs/history/spec.md",
+        "docs/adr/history.md",
+        "packs/built-in/glossary_packs/core.yaml",
+        ".worktrees/lane/src/file.py",
+        "src/node_modules/vendor.py",
+        "tests/.venv/vendor.py",
+        ".git/objects/file",
+        "tests/architectural/test_no_legacy_terminology.py",
+    ],
+)
+def test_exclusion_preserves_legitimate_paths(path: str) -> None:
+    assert _line_is_excluded(f"{path}:7:{_FORBIDDEN_TERMS[0]}")
+
+
+def _stage_scanner_fixture(root: Path, files: dict[str, str | bytes]) -> None:
+    subprocess.run(["git", "init", "--quiet", str(root)], check=True, capture_output=True)
+    for relative, content in files.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content.encode("utf-8") if isinstance(content, str) else content)
+    subprocess.run(["git", "-C", str(root), "add", "--", *files], check=True, capture_output=True)
+
+
+def test_real_term_scanner_keeps_active_hits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    term = _FORBIDDEN_TERMS[0]
+    active = [
+        "docs/current.md",
+        "src/docs/adr/current.md",
+        "tests/architectural/test_no_legacy_terminology.py.bak",
+        "docs/notnode_modules/current.md",
+        "docs/name:7:tail.md",
+        'docs/quoted"name.md',
+        "docs/nonascii-\u00e9.md",
+        "docs/line\nbreak.md",
+        "docs/back\\slash.md",
+    ]
+    _stage_scanner_fixture(
+        tmp_path,
+        {
+            **{path: f"Use {term}; see docs/adr/history.md\n" for path in active},
+            "docs/adr/history.md": f"Historical {term}\n",
+        },
+    )
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    hits = _grep_for(term)
+    assert len(hits) == len(active), hits
+    with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
+        test_forbidden_term_does_not_appear(term)
+
+
+def test_real_phrase_scanner_keeps_path_lookalikes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _stage_scanner_fixture(
+        tmp_path,
+        {
+            "src/docs/adr/current.md": "LANE MERGE\n",
+            "docs/current.md": "lane merge; see docs/adr/history.md\n",
+            "docs/name:7:tail.md": "lane merge\n",
+            "docs/line\nbreak.md": "lane merge\n",
+            "docs/adr/history.md": "lane merge\n",
+        },
+    )
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    hits = _grep_for_phrase_ci("lane merge", roots=("src", "docs"))
+    assert len(hits) == 4, hits
+    assert len(_hits_outside_baseline(hits, frozenset({"docs/name"}))) == 4
+    with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
+        test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
+
+
+def test_real_scanners_fail_closed_outside_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    with pytest.raises(RuntimeError, match="git grep failed for term"):
+        _grep_for(_FORBIDDEN_TERMS[0])
+    with pytest.raises(RuntimeError, match="git grep failed for phrase"):
+        _grep_for_phrase_ci("lane merge", roots=("docs",))
+
+
+def test_reviewed_receipt_bytes_are_preserved() -> None:
+    assert hashlib.sha256((_repo_root() / _RECEIPT_PATH).read_bytes()).hexdigest() == _RECEIPT_SHA256
+
+
+@pytest.mark.parametrize("mutation", ["none", "append", "replace", "alongside", "lookalike"])
+def test_real_scanner_receipt_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    receipt = (_repo_root() / _RECEIPT_PATH).read_bytes()
+    assert hashlib.sha256(receipt).hexdigest() == _RECEIPT_SHA256
+    term = _FORBIDDEN_TERMS[0]
+    prose = f"Use {term}; see docs/adr/history.md"
+    if mutation == "append":
+        receipt += f"\n{prose}\n".encode()
+    elif mutation == "replace":
+        receipt = receipt.replace(b'"rename-', f'"{prose} rename-'.encode(), 1)
+    files = {_RECEIPT_PATH: receipt}
+    if mutation == "alongside":
+        files[str(Path(_RECEIPT_PATH).with_name("current.md"))] = prose.encode()
+    elif mutation == "lookalike":
+        files = {_RECEIPT_PATH + ".bak": receipt}
+    _stage_scanner_fixture(tmp_path, files)
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    hits = _grep_for(term)
+    if mutation == "none":
+        assert hits == []
+        test_forbidden_term_does_not_appear(term)
+    else:
+        assert hits, mutation
+        if mutation in {"append", "replace", "alongside"}:
+            assert any(prose in hit for hit in hits), hits
+        if mutation == "alongside":
+            assert len(hits) == 1, hits
+        elif mutation == "lookalike":
+            assert len(hits) == 2, hits
+        with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
+            test_forbidden_term_does_not_appear(term)
