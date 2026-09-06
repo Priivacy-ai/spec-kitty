@@ -25,6 +25,35 @@ from charter.activation.interview import default_interview
 pytestmark = pytest.mark.fast
 
 
+@pytest.mark.parametrize("pointer", [False, True])
+def test_provision_preserves_complete_authored_bytes(tmp_path: Path, pointer: bool) -> None:
+    from charter.activation.compiler import provision_mission_type_activations
+    from charter.activation.default_pack import load_default_mission_type_activations
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "policy.yaml" if pointer else config
+    authored = (
+        b'# authored policy\nmetadata:\n  label: "keep quoted"\n'
+        b'  choices:\n    - first\n    - second\n\n'
+        b'overrides:\n  note: |\n    keep this text\n    and spacing\n'
+        b'catalog:\n  languages:\n    - python\n'
+        b'charter:\n  synthesis_inputs: [] # legacy namespace\n'
+    )
+    if pointer:
+        config.write_bytes(b'charter: policy.yaml # non-default target\n')
+    target.write_bytes(authored)
+    config_before = config.read_bytes(), config.stat()
+
+    assert provision_mission_type_activations(tmp_path) is True
+
+    raw = target.read_bytes()
+    assert YAML().load(raw)["mission_type_activations"] == load_default_mission_type_activations()
+    assert raw.startswith(authored), "Provisioning reformatted unowned authored spans"
+    if pointer:
+        assert (config.read_bytes(), config.stat()) == config_before
+
+
 _AUTHORED_FIXTURE = """\
 schema_version: "2.0.0"
 governance:

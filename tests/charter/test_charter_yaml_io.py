@@ -26,6 +26,20 @@ from charter.activation.charter_yaml_io import (
 pytestmark = [pytest.mark.unit]
 
 
+def test_update_existing_activation_does_not_open_for_write(tmp_path: Path) -> None:
+    import os
+
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(b'# authored\nmission_type_activations: [software-dev]\n')
+    path.chmod(0o640)
+    os.utime(path, ns=(1_000_000_000, 1_000_000_000))
+    before = path.read_bytes(), path.stat().st_mode, path.stat().st_mtime_ns
+
+    update_charter_yaml_section(path, "activation", {"mission_type_activations": ["software-dev"]})
+
+    assert (path.read_bytes(), path.stat().st_mode, path.stat().st_mtime_ns) == before
+
+
 _FIXTURE = """\
 schema_version: "2.0.0"
 governance:
