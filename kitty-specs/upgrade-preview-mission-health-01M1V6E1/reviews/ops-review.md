@@ -263,3 +263,19 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   explicit deactivation, authored configuration, unknown content and the original
   public regression test. Do not adopt historical variants without proof or
   change counts to hide the defect. RED/GREEN and independent review required.
+
+## Terminology Gate Path Boundary: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3919.
+- Op: `01M1VZW11T9T6YXGNKGZ5Q235W`, open. Existing gate matches excluded
+  path fragments against the entire hit, allowing active prose to suppress
+  violations merely by mentioning an excluded directory.
+- Repair actual source-path parsing and path boundaries. Preserve positive
+  historical exclusions and active-source negative controls, including content
+  injection and lookalike paths. Exercise the real scanner as well as pure seams.
+- Classify immutable recovery evidence narrowly without changing receipt bytes,
+  adding a broad archive exemption, or exempting arbitrary active prose.
+  RED-first regressions, independent review and postintegration verification
+  are required before closing this Op. No gate waiver is authorized.
+- Dispatch exited successfully; governance hash `da91c778426bd64d` still reports
+  unresolved directives (#3908). This is not full governance-resolution success.
