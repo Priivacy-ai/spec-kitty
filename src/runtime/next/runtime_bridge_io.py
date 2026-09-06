@@ -87,7 +87,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
-from mission_runtime import CommitTarget, kind_for_mission_file, placement_seam
+from mission_runtime import CommitTarget, MissionArtifactKind, kind_for_mission_file, placement_seam
 from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
@@ -1000,7 +1000,13 @@ def _artifact_presence_read_dir(feature_dir: Path, name: str, repo_root: Path | 
     kind = kind_for_mission_file(feature_dir / name)
     if repo_root is None or kind is None:
         return feature_dir
-    return placement_seam(repo_root, feature_dir.name).read_dir(kind)
+    seam = placement_seam(repo_root, feature_dir.name)
+    # Bootstrap supplies the resolved STATUS home. Preserve an explicit owned
+    # checkout when that home differs from the ordinary topology-aware result;
+    # a normal linked/coord caller still uses canonical placement.
+    if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() != feature_dir.resolve():
+        seam = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
+    return seam.read_dir(kind)
 
 
 def gather_artifact_presence(
