@@ -220,6 +220,11 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   provider-local schema validation may substitute for canonical diagnostics.
 - Require RED/GREEN controls and independent review before integration/closure.
   External reproduction: org-profile-diagnostic-probe.py beside this checkout.
+- Resolver implementation independently approved at 251c4a7f2dbe6d571cdc6a4d0d0ad6340521cdbc:
+  29 focused, 13 adversarial, 499 integration and 1642 fast-tier tests passed.
+  Parent integrated RED/GREEN as 79096a52a / 371bc7b83 and reran resolver plus
+  activation-gate tests: 29 passed, one legacy-config warning, terminal exit 0
+  in 57.61 seconds. WP06 consumer integration is running; Op remains open.
 
 ## Supporting Test Integration: Open
 
@@ -235,7 +240,16 @@ https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/
   completeness and both affected test files passed: 26 tests in 334.32 seconds,
   terminal exit 0. The process remained live briefly after printing its summary;
   the parent waited for its actual exit, without restart or termination.
-- Independent review remains pending; operation stays open.
+- Independent review APPROVE at 910940be0209d3115a0d1bf216e83e64a10cf0dc:
+  complete real collection has 1536 unique nodes and a total, disjoint partition;
+  exactly the 19 newly registered nodes change markers. Parent-map replay and
+  duplicate-marker negative control both reject through the unchanged gate.
+  Both formatted test modules independently passed 25 tests in 12 seconds,
+  terminal exit 0; full AST equality and Ruff checks passed.
+- Existing duplicate declaration for test_cli_guard_family.py is unchanged;
+  actual collection remains single-assignment. No claim that the entire source
+  registry is duplicate-free or that hosted CI/full architecture ran green.
+  Evidence: supporting-test-integration-independent-review.md beside checkout.
 
 ## Init Command Rendering Order: Open
 
