@@ -159,33 +159,35 @@
     "WP05": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01M1WBYX5ZRF6KNR4RR85RZKSN",
       "last_transition_at": "2026-09-06T22:03:28.319494+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Implementation committed at 5f271f07fde9d6efeb16661c00e2205a04816a13. Author reports 161 owned tests, all-12-path Ruff and strict mypy passing, real coordinated consumer evidence. First independent WP05 review pending; full integration gates remain required. Supplier dependency approved separately; Op closure pending consumer review."
+        "Implementation committed at 5f271f07fde9d6efeb16661c00e2205a04816a13. Author reports 161 owned tests, all-12-path Ruff and strict mypy passing, real coordinated consumer evidence. First independent WP05 review pending; full integration gates remain required. Supplier dependency approved separately; Op closure pending consumer review.",
+        "First independent review rejected F1 aggregate provider preflight and F2 shared logical-owner completeness. Corrective review limited to findings, changed diff and adjacent risk; supplier dependency remains approved. Supporting Op stays open."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP05-managed-skill-assessment/review-cycle-1.md",
         "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP05-managed-skill-assessment/review-cycle-1.md",
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T023": "done",
-        "T024": "done",
-        "T025": "done",
-        "T026": "done",
-        "T027": "done",
-        "T028": "done"
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned"
       }
     },
     "WP06": {
