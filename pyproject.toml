@@ -1207,7 +1207,6 @@ exclude = [
     "tests/architectural/test_wp_integrity_partition_call_shape.py",
     "tests/architectural/test_write_surface_placement_guard.py",
     "tests/architectural/untrusted_path_audit/audit.py",
-    "tests/architecture/test_ownership_manifest_schema.py",
     "tests/audit/test_audit_architecture.py",
     "tests/audit/test_audit_classifiers.py",
     "tests/audit/test_audit_cli.py",
