@@ -19,6 +19,9 @@ requirement_refs:
 planning_base_branch: feat/dead-port-disposition
 merge_target_branch: feat/dead-port-disposition
 branch_strategy: Planning artifacts for this mission were generated on feat/dead-port-disposition. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/dead-port-disposition unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-dead-port-disposition-01M1VRA2
+base_commit: 4987c711a535cf915d4023dac678aff665cf0235
+created_at: '2026-09-06T20:16:44.380920+00:00'
 subtasks:
 - T021
 - T022
