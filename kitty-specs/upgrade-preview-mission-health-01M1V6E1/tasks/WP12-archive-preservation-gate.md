@@ -259,6 +259,17 @@ for the complete suffix using invalid middle-row controls, not reader counts.
 
 ### Subtask T062: Persist corpus regressions and admit exact reviewed recovery evidence
 
+**Parent disposition, 2026-09-06:** Independently validate the additional cyclic
+replay pinned in contracts/corpus-recovery.md, "Separately Adjudicated
+Restored-Mission Replay". This explicitly supersedes two-snapshot/eight-verdict
+total counts below: two original repairs plus one restored-mission replay,
+eleven complete standing verdicts. Prove exact historical restoration before
+replay, then admit only the separately pinned cyclic status.json output; all
+other historical blobs remain exact. Bind reviewed input/output and current
+canonical computation; reject receipt/output forgery and fourth-path admission.
+The pre-replay historical snapshot pin must remain in provenance. No generic
+snapshot exemption or weakened no-churn, consent or full-audit requirement.
+
 **Purpose**: Admit only WP11's verified recovery operations while keeping the
 receipt subordinate to approved scope and independently checked provenance.
 

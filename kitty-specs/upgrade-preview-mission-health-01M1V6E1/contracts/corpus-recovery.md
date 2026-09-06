@@ -96,6 +96,39 @@ index if relocation changes their interpretation. No invented classification CLI
 
 ## Two Scoped Snapshot Repairs
 
+### Separately Adjudicated Restored-Mission Replay
+
+Parent disposition, 2026-09-06: exact restoration exposed the anticipated cyclic
+snapshot drift. Independent Debugger Debbie reproduced both pins and traced
+every changed field to unchanged historical metadata/annotations. Authorize one
+additional derived replay, only
+`kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/status.json`.
+This supersedes WP11/WP12 two-snapshot/eight-verdict total counts: two original
+repairs plus one separately recorded restored-mission replay, preserving eleven
+complete standing review_result objects (five plus three plus three).
+
+- Historical blob: `b1925001e8a3bed8d95b06e1c7c166a45d3e4db0`.
+- Historical SHA-256: `fd53f81b4d658491d9035c5cedad769055639d717ac7117e3afb1a7294ccd640`.
+- Reviewed canonical SHA-256: `b20f7ea141534ceccc7a761fcbf4df9ae8a46eb337a20e4da371da4b37ed15f8`.
+- Unchanged event SHA-256: `1502470338a65a478c8d04424b642552317eb95d1d96c526a8c2e444df456099`.
+- Unchanged metadata SHA-256: `287f11b13d075c89fea910db940c668ef697ba072578958ceab765cf9693f203`.
+
+Restore and replay remain separate operations. Prove all 31 restored blobs and
+retained schema match historical input before replay; afterward only this
+status.json differs, with historical blob proof retained. Verify the supported
+CLI partition, then use `agent status materialize --mission reject-cyclic-lane-graphs-01M0QCK4 --json`.
+Require exact reviewed output and current read-only canonical replay; unchanged
+raw files/IDs/three approvals, done lanes/force counts/transition markers; and
+second-pass byte/mode/mtime idempotence. Shell projections change to existing
+winning annotations; do not claim those derived values remain unchanged.
+
+WP12 independently binds this operation and pins, rejects forged receipt/output,
+altered history/verdict/identity, extra paths and post-landing mutations. No
+receipt-only authority, directory-wide exemption, raw-event repair or fourth
+snapshot admission. This disposition is not executed repair, WP approval or a
+waiver of the full zero-blocker audit. Independent external evidence:
+`cyclic-replay-adjudication.md` beside this checkout.
+
 Original evidence (recheck before mutation; divergence requires adjudication):
 
 | Mission | Event SHA-256 | Original verdict/done lanes |
