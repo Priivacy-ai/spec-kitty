@@ -24,6 +24,18 @@
       "verdict": "deferred-with-followup",
       "wp": null
     },
+    "#3458": {
+      "evidence_ref": "c3657a86a fixes observed pair-arity classification only; independent executable AST unchanged,33 tests and six negative controls passed. Broader policy remains https://github.com/Priivacy-ai/spec-kitty/issues/3458.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
+    },
     "#3888": {
       "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/pull/3888 merged c0054153b9bce0778cf41a85d11ecd4e9650031d at2026-09-06T10:09:16Z; #3522 closed one second later; baseline antecedent, not new mission work.",
       "fr": null,
