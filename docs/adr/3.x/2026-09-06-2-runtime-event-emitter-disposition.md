@@ -188,15 +188,16 @@ step must keep both classes momentarily, the concrete one is renamed
 
 #### Positive
 
-- The reserved E3 seam and its `for_feature`/`seed_from_snapshot` capability
+- The reserved E3 seam and its constructor (shipped as `for_mission`, per (b)) and
+  `seed_from_snapshot` capability
   survive; a future producer registers an adapter without re-threading the bridge.
 - One class named `RuntimeEventEmitter` remains; the duplication smell is gone.
 - The stale docstring is corrected to point at `status/adapters.py` (the real
   zeitgeist seam), so the next agent is not misdirected.
 - A latent correctness bug (strict-gated decision events skipping the git log) is
   fixed with a regression test instead of being silently frozen.
-- Net LOC still drops (~88 LOC of concrete class + collapsed threading), so the
-  census's simplification goal is largely met — just via merge, not deletion.
+- ~~Net LOC still drops (~88 LOC of concrete class + collapsed threading), so the
+  census's simplification goal is largely met — just via merge, not deletion.~~ **Amended 2026-09-06 after merge (PR #3921):** this estimate was wrong. The factory, registry, `for_mission`, and seam docstring the decision itself requires add +120 lines to `_internal_runtime/events.py`; the mission's net under `src/runtime/next/` is +161/−105 = +56. The structural goals (one seam class, no collision, no dead duplicate) are met; the LOC reduction is not, and E3 should not expect one from wiring (#3929).
 
 #### Negative
 
@@ -223,7 +224,7 @@ step must keep both classes momentarily, the concrete one is renamed
 
 - Delete `event_emitter.py` as a *pure port deletion* / "collapse onto NullEmitter
   and drop the seam."
-- Remove the `for_feature` / `seed_from_snapshot` capability.
+- Remove the constructor (`for_mission`) / `seed_from_snapshot` capability.
 - Change the buffer flush semantics without fixing the flush target (freezing the
   bug is prohibited).
 - Wire a live zeitgeist producer (that is E3, out of scope).
@@ -266,7 +267,7 @@ flush target, correct the docstring; defer the live producer.
 - Preserves a reserved, contract-backed seam and its identity-resolution surface.
 - Eliminates the name collision and the stale docstring.
 - Fixes the latent flush-target bug under test.
-- Still achieves most of the census's LOC reduction.
+- ~~Still achieves most of the census's LOC reduction.~~ (Amended 2026-09-06: it does not — see Consequences.)
 
 **Cons:**
 
@@ -339,7 +340,8 @@ Wire a live zeitgeist-moment producer at the seam immediately.
 - Consumed by: the planned Mission B `dead-port-disposition` (WP01; not yet minted).
   Sibling governance PR: #3888.
 - Accepted by the operator on 2026-09-06 (PR #3898): Option 1, rewire-ready consolidation.
-  Codemap retirement in the same PR confirmed. Amended the same day after a
+  Codemap retirement in the same PR confirmed. Consequences amended post-merge
+  (PR #3921): the net-LOC claim was withdrawn. Amended the same day after a
   pre-merge adversarial squad (architect / debugger / reviewer lenses): bug restated
   onto `decision_required` advances, confirmation test made satisfiable, composition
   path brought in scope, promoted constructor renamed `for_mission`.
