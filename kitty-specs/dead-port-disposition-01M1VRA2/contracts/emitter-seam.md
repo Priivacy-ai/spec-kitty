@@ -33,6 +33,14 @@ def reset_runtime_emitter_factory() -> None
 | S7 | Exactly one class named `RuntimeEventEmitter` exists under `src/runtime/next/`; `runtime.next.event_emitter` is not importable. | `tests/architectural/test_runtime_emitter_seam.py` (new) |
 | S8 | The bridge obtains the seam only by calling `runtime_emitter_for_mission` (imported by name), never by constructing a concrete class. | same guard (source grep) |
 
+## Product lifecycle rules (added 2026-09-06 after the pre-PR squad; binding on E3)
+
+| # | Rule |
+|---|---|
+| S9 | The factory is invoked **per bridge entry** (once per `decide_next_via_runtime`, once per `answer_decision_via_runtime`); the product is per-call and must not hold cross-call state. Correlate on payload `run_id` / `decision_id`, never on construction order. |
+| S10 | `seed_from_snapshot` may be called 0..n times per product, before or after the first emit, and may be skipped entirely by a tolerant caller; it must be idempotent (latest-wins) and side-effect-free. On the decide path today `MissionRunStarted` is emitted before the seed runs — a producer must bootstrap from that payload, not from seed order (follow-up #3929 item 2). |
+| S11 | Engine payloads may arrive without `mission_id` / `mission_slug`; a producer that needs identity on the wire resolves it in its factory (as `NullEmitter.for_mission` does) and stamps it itself. |
+
 ## Registration contract for a future producer (E3, out of scope here)
 
 A producer registers once at import tail, mirroring `status/adapters.py:364-365`:
