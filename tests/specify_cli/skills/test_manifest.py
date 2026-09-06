@@ -187,3 +187,29 @@ def test_compute_content_hash_deterministic(tmp_path: Path) -> None:
     f2.write_text(content, encoding="utf-8")
 
     assert compute_content_hash(f1) == compute_content_hash(f2)
+
+
+def test_wp05_save_consumes_prepared_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import manifest as owner
+
+    prepared = "2026-09-06T10:00:00+00:00"
+    manifest = ManagedSkillManifest(created_at=prepared, updated_at=prepared)
+    monkeypatch.setattr(owner, "now_utc_iso", lambda: "2026-09-07T10:00:00+00:00")
+    save_manifest(manifest, tmp_path)
+    loaded = load_manifest(tmp_path)
+    assert loaded is not None
+    assert loaded.updated_at == prepared
+    assert loaded.created_at == prepared
+
+
+def test_wp05_save_current_manifest_preserves_bytes_and_mtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import manifest as owner
+
+    monkeypatch.setattr(owner, "now_utc_iso", lambda: "2026-09-06T10:00:00+00:00")
+    manifest = ManagedSkillManifest(created_at="2025-01-01T00:00:00+00:00")
+    save_manifest(manifest, tmp_path)
+    target = tmp_path / ".kittify" / MANIFEST_FILENAME
+    before = target.read_bytes(), target.stat().st_mtime_ns
+    monkeypatch.setattr(owner, "now_utc_iso", lambda: "2026-09-07T10:00:00+00:00")
+    save_manifest(manifest, tmp_path)
+    assert (target.read_bytes(), target.stat().st_mtime_ns) == before

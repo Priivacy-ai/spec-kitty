@@ -700,3 +700,39 @@ class TestCopyDelivery:
 
         installed = project / ".agents" / "skills" / "my-skill" / "SKILL.md"
         assert not installed.stat().st_mode & stat.S_IWRITE
+
+
+def test_wp05_backup_identity_excludes_clock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+
+    roots = []
+    for label, clock in (("left", "20260906T100000Z"), ("right", "20260907T100000Z")):
+        project = tmp_path / label
+        dest = project / ".claude/skills/sample/SKILL.md"
+        dest.parent.mkdir(parents=True)
+        dest.write_bytes(b"previous managed content")
+        source = tmp_path / (label + "-source")
+        source.write_bytes(b"replacement content")
+        entry = ManagedFileEntry("sample", "SKILL.md", dest.relative_to(project).as_posix(),
+                                 SKILL_CLASS_NATIVE, "claude", compute_content_hash(dest), "2025-01-01")
+        save_manifest(ManagedSkillManifest(entries=[entry]), project)
+        monkeypatch.setattr(installer, "now_utc_compact_stamp", lambda: clock)
+        _, backup = installer._project_skill_file(source, dest, project)
+        assert backup is not None
+        assert (backup / dest.relative_to(project)).read_bytes() == b"previous managed content"
+        roots.append(backup.relative_to(project).as_posix())
+    assert roots[0] == roots[1], roots
+
+
+def test_wp05_installer_preserves_unknown_canonical_content(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    skill = _make_skill(tmp_path / "source", "sample", references=["independent.md"])
+    dest = project / ".claude/skills/sample/SKILL.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_text("user authored canonical-looking skill")
+    before = dest.read_bytes(), dest.stat().st_mtime_ns
+    entries = install_skills_for_agent(project, "claude", [skill])
+    assert (dest.read_bytes(), dest.stat().st_mtime_ns) == before
+    assert not any(entry.source_file == "SKILL.md" for entry in entries)
+    assert (dest.parent / "references/independent.md").is_file()
