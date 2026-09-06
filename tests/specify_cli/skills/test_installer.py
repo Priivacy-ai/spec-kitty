@@ -717,7 +717,7 @@ def test_wp05_backup_identity_excludes_clock(tmp_path: Path, monkeypatch: pytest
         entry = ManagedFileEntry("sample", "SKILL.md", dest.relative_to(project).as_posix(),
                                  SKILL_CLASS_NATIVE, "claude", compute_content_hash(dest), "2025-01-01")
         save_manifest(ManagedSkillManifest(entries=[entry]), project)
-        monkeypatch.setattr(installer, "now_utc_compact_stamp", lambda: clock)
+        monkeypatch.setattr(installer, "now_utc_compact_stamp", lambda clock=clock: clock)
         _, backup = installer._project_skill_file(source, dest, project)
         assert backup is not None
         assert (backup / dest.relative_to(project)).read_bytes() == b"previous managed content"
