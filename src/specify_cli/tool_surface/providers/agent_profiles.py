@@ -727,13 +727,17 @@ class _ProfileBatch:
             self.effect(
                 path,
                 FileState("absent"),
-                (entry.tool_key,),
+                self.entry_owners(entry),
                 OwnershipProof("manifest", f"{self.manifest.manifest_path.name}:{entry.profile_urn}"),
                 "Prune unchanged deactivated profile",
             )
             self.manifest.remove(path)
         else:
             self.preserve(path, "Orphan drift or custom link; retain ownership record", drift=True)
+
+    def entry_owners(self, entry: NativeAgentProfile) -> tuple[str, ...]:
+        """Recover selected aliases through the existing renderer/path authority."""
+        return tuple(tool for tool in self.tools if _valid_entry(replace(entry, tool_key=tool), self.inputs.root.path))
 
     def prepare_manifest(self) -> None:
         if tuple(self.manifest.all_entries()) == self.original:
@@ -742,11 +746,13 @@ class _ProfileBatch:
         state = self.observe(path)
         content = self.manifest.render_bytes()
         self.contents[path] = content
-        owners = tuple(sorted({e.tool_key for e in self.original + tuple(self.manifest.all_entries()) if e.format != FORMAT_AMAZON_Q_AGENT})) or self.tools
+        entries = self.original + tuple(self.manifest.all_entries())
+        owners = {e.tool_key for e in entries if e.format != FORMAT_AMAZON_Q_AGENT}
+        owners.update(tool for entry in entries for tool in self.entry_owners(entry))
         self.effect(
             path,
             FileState("file", sha256=str(fingerprint(content)), mode=state.mode if state.kind == "file" else 0o644),
-            owners,
+            tuple(sorted(owners)) or self.tools,
             OwnershipProof("managed_path", ".kittify/agent_profiles_manifest.json schema 1"),
             "Persist exact prepared profile ownership",
         )
@@ -834,7 +840,8 @@ def _apply_profile_batch(assessment: OwnerAssessment) -> OwnerApplyResult:
             continue
         try:
             _write_profile_effect(effect, contents.get(effect.destination))
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
+            # Confinement/node refusals can occur after earlier effects succeeded.
             failed.append(effect.id)
             diagnostics.append(Diagnostic("profile_apply_failed", PROVIDER_KEY, "error", f"{effect.path}: {exc}"))
         else:

@@ -145,6 +145,14 @@ def _entry_to_json(entry: NativeAgentProfile, project_root: Path) -> dict[str, o
     }
 
 
+def _required_str(raw: dict[str, object], key: str) -> str:
+    """Validate record structure, not whether a legacy identity authorizes writes."""
+    value = raw[key]
+    if not isinstance(value, str) or not value:
+        raise TypeError(f"manifest field {key!r} must be a nonempty string")
+    return value
+
+
 def _opt_str(raw: dict[str, object], key: str) -> str | None:
     """Read an optional string field, defaulting to ``None`` when absent.
 
@@ -152,7 +160,9 @@ def _opt_str(raw: dict[str, object], key: str) -> str | None:
     the provenance keys deserializes cleanly rather than raising ``KeyError``.
     """
     value = raw.get(key)
-    return str(value) if value is not None else None
+    if value is not None and not isinstance(value, str):
+        raise TypeError(f"manifest field {key!r} must be a string or null")
+    return value
 
 
 def _opt_int(raw: dict[str, object], key: str) -> int | None:
@@ -160,20 +170,18 @@ def _opt_int(raw: dict[str, object], key: str) -> int | None:
     value = raw.get(key)
     if value is None:
         return None
-    if isinstance(value, bool):  # bool is an int subclass; reject it explicitly
-        raise TypeError(f"manifest field {key!r} must be an int, got bool")
-    if isinstance(value, (int, str)):
-        return int(value)
-    raise TypeError(f"manifest field {key!r} must be an int, got {type(value)!r}")
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"manifest field {key!r} must be an int or null")
+    return value
 
 
 def _entry_from_json(raw: dict[str, object], project_root: Path) -> NativeAgentProfile:
     return NativeAgentProfile(
-        profile_urn=str(raw["profile_urn"]),
-        source_layer=str(raw["source_layer"]),
-        tool_key=str(raw["tool_key"]),
-        output_path=absolutize_from_root(str(raw["output_path"]), project_root),
-        format=str(raw["format"]),
+        profile_urn=_required_str(raw, "profile_urn"),
+        source_layer=_required_str(raw, "source_layer"),
+        tool_key=_required_str(raw, "tool_key"),
+        output_path=absolutize_from_root(_required_str(raw, "output_path"), project_root),
+        format=_required_str(raw, "format"),
         file_hash=_opt_str(raw, "file_hash"),
         source_path=_opt_str(raw, "source_path"),
         source_hash=_opt_str(raw, "source_hash"),

@@ -230,7 +230,7 @@ def test_manifest_field_classes_block_real_assessment(tmp_path: Path, field: str
         assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
-@pytest.mark.parametrize("race", ["parent_link", "parent_file", "target", "target_fifo", "permission", "io", "healthy"])
+@pytest.mark.parametrize("race", ["parent_link", "parent_file", "target", "node_refusal", "permission", "io", "healthy"])
 def test_late_profile_failure_retains_actual_partial_results(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str) -> None:
     from dataclasses import replace
     import specify_cli.tool_surface.providers.agent_profiles as module
@@ -260,10 +260,8 @@ def test_late_profile_failure_retains_actual_partial_results(tmp_path: Path, mon
                     effect.destination.parent.write_text("racing parent\n")
             elif race == "target":
                 effect.destination.write_text("racing occupant\n")
-            elif race == "target_fifo":
-                import os
-
-                os.mkfifo(effect.destination)
+            elif race == "node_refusal":
+                raise ValueError("late unsupported-node refusal")
             elif race == "permission":
                 raise PermissionError("late permission refusal")
             else:
@@ -291,7 +289,7 @@ def test_late_profile_failure_retains_actual_partial_results(tmp_path: Path, mon
         assert set(result.succeeded) | set(result.failed) == {e.id for e in assessment.effects}
         assert any(d.code == "profile_apply_failed" for d in result.diagnostics)
         assert not manifest_path_for(tmp_path).exists()
-        if race in {"permission", "io"}:
+        if race in {"permission", "io", "node_refusal"}:
             _assert_exact_delta(
                 replace(assessment, effects=tuple(e for e in assessment.effects if e.id in result.succeeded)), before, snapshot({"project": tmp_path})
             )
