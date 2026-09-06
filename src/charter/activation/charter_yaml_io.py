@@ -136,6 +136,16 @@ def save_charter_yaml(path: Path, document: Any) -> None:
         yaml.dump(document, fh)
 
 
+def _validate_section(section: str, values: dict[str, Any]) -> None:
+    """Validate ownership before loading or mutating the document."""
+    if section not in OWNED_SECTIONS:
+        raise UnknownCharterYamlSectionError(section)
+    if section == "activation":
+        unknown_keys = sorted(set(values) - set(_activation_keys()))
+        if unknown_keys:
+            raise ValueError(f"Unknown activation key(s): {unknown_keys}")
+
+
 def update_charter_yaml_section(
     path: Path, section: str, values: dict[str, Any]
 ) -> None:
@@ -173,13 +183,7 @@ def update_charter_yaml_section(
         ``section == "activation"`` and ``values`` contains a key outside
         :data:`_ACTIVATION_KEYS`.
     """
-    if section not in OWNED_SECTIONS:
-        raise UnknownCharterYamlSectionError(section)
-
-    if section == "activation":
-        unknown_keys = sorted(set(values) - set(_activation_keys()))
-        if unknown_keys:
-            raise ValueError(f"Unknown activation key(s): {unknown_keys}")
+    _validate_section(section, values)
 
     yaml = _yaml_loader()
     with path.open("r", encoding="utf-8") as fh:
