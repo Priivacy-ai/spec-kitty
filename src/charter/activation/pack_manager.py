@@ -66,7 +66,7 @@ import functools
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -78,7 +78,16 @@ from charter.activation.activation_engine import (
     plan_activation,
     plan_deactivation,
 )
-from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
+from charter.activation.charter_yaml_io import (
+    PreparedYamlWrite,
+    apply_yaml_write,
+    load_charter_yaml,
+    observe_yaml_input,
+    prepare_charter_yaml_section,
+    prepare_yaml_write,
+    render_yaml_document,
+    update_charter_yaml_section,
+)
 from charter.activation.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
 from charter.offering.missions.mission_type_repository import scan_mission_types_dir
 from charter.offering.missions.repository import MissionTemplateRepository
@@ -102,6 +111,7 @@ __all__ = [
     "MergeResult",
     "YAML_KEY_MAP",
     "resolve_activation_write_target",
+    "prepare_activation_write",
 ]
 # ``AvailableArtifact`` is exported now that ``charter list --all`` (WP16)
 # imports it as a live ``src/`` consumer (it is the per-layer value object
@@ -133,9 +143,7 @@ def _yaml_key_for_token(token: str) -> str:
 #:
 #: The ``mission-type`` → ``mission_type_activations`` mapping is the outlier;
 #: all other kinds follow the ``activated_<plural>`` pattern.
-YAML_KEY_MAP: dict[str, str] = {
-    token: _yaml_key_for_token(token) for token in CHARTER_KIND_TOKENS
-}
+YAML_KEY_MAP: dict[str, str] = {token: _yaml_key_for_token(token) for token in CHARTER_KIND_TOKENS}
 
 
 #: Cheap plain-tuple constant (WP05 / FR-010 / C4.1-C4.2): the single
@@ -250,7 +258,7 @@ def _resolve_org_layer_dir(root: Path, kind: ArtifactKind, base_dir: str) -> Pat
     """
     flat = root / kind.plural
     if flat.is_dir():
-        return flat
+        return cast(Path, flat)
     return root / base_dir / "org"
 
 
@@ -271,7 +279,7 @@ def _resolve_layer_candidate(
     """
     if layered and layer == "project" and kind is not None:
         kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
-        return root / "doctrine" / kind_dir
+        return cast(Path, root / "doctrine" / kind_dir)
     if layered and layer == "org" and kind is not None:
         return _resolve_org_layer_dir(root, kind, base_dir)
     if layered and layer == "built-in" and kind is not None:
@@ -290,7 +298,7 @@ def _resolve_layer_candidate(
         # ``layered=False``, so the ``layered`` guard above already
         # excludes it before ``built_in_dir(kind)`` is ever called --
         # this never raises ``BuiltInContentDirNotAvailable``.
-        return built_in_dir(kind)
+        return cast(Path, built_in_dir(kind))
     if layered:
         return root / base_dir / layer
     if layer == "built-in":
@@ -314,7 +322,7 @@ def _resolve_layer_candidate(
         # _scan_layout_for), so only its final segment is joined onto
         # the missions root. (`root` here is `_SRC_ROOT`, deliberately
         # unused in this branch.)
-        return MissionTemplateRepository.default_missions_root() / Path(base_dir).name
+        return cast(Path, MissionTemplateRepository.default_missions_root() / Path(base_dir).name)
     if kind is None and layer == "org":
         # FR-003: the org-layer mission-type roster is flat --
         # <pack_root>/mission_types/*.yaml (CL-005; see ADR
@@ -466,9 +474,9 @@ def _activation_list_or_error(data: Any, yaml_key: str) -> list[Any] | None:
 
 def _save_config(config_path: Path, data: Any, yaml: YAML) -> None:
     """Write data back to config_path, creating parent dirs as needed."""
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    with config_path.open("w", encoding="utf-8") as fh:
-        yaml.dump(data, fh)
+    before = observe_yaml_input(config_path)
+    desired = render_yaml_document(before.content, data, yaml)
+    apply_yaml_write(prepare_yaml_write(config_path, desired, section="activation", inputs=(before,)))
 
 
 def _save_charter_yaml_activation(charter_path: Path, data: dict[str, Any]) -> None:
@@ -531,8 +539,32 @@ def resolve_activation_write_target(
             f"migration (`spec-kitty upgrade`) to (re)generate it, or fix "
             f"the 'charter:' pointer."
         )
-    charter_data = dict(load_charter_yaml(charter_path))
+    charter_data = load_charter_yaml(charter_path)
+    if not isinstance(charter_data, dict):
+        raise CharterPackConfigError(f"{charter_path} root must be a mapping.")
     return charter_path, charter_data, _save_charter_yaml_activation
+
+
+def prepare_activation_write(repo_root: Path, values: dict[str, Any]) -> PreparedYamlWrite:
+    """Prepare the canonical activation target, retaining config/pointer identity."""
+    unknown = set(values) - set(ACTIVATION_YAML_KEYS)
+    if unknown:
+        raise ValueError(f"Unknown activation key(s): {sorted(unknown)}")
+    config = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
+    inputs = tuple(observe_yaml_input(path) for path in (*reversed(config.parents), config))
+    target, data, _save = resolve_activation_write_target(repo_root)
+    before = observe_yaml_input(target)
+    if before.content is not None and (YAML().load(before.content) or {}) != data:
+        raise ValueError(f"precondition_changed: {target}")
+    if target != config:
+        section = prepare_charter_yaml_section(target, "activation", values)
+        desired = section.desired_bytes
+    else:
+        for key, value in values.items():
+            if key not in data or data[key] != value:
+                data[key] = value
+        desired = render_yaml_document(before.content, data, YAML())
+    return prepare_yaml_write(target, desired, section="activation", inputs=inputs + (before,))
 
 
 def _load_default_pack() -> dict[str, list[str]]:
@@ -567,9 +599,7 @@ class CharterPackManager:
         message for tokens outside the charter kind universe.
         """
         if kind not in YAML_KEY_MAP:
-            raise ValueError(
-                f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}"
-            )
+            raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}")
         return _resolve_kind(kind)
 
     def activate(
@@ -866,9 +896,7 @@ class CharterPackManager:
             mt_entries: list[AvailableArtifact] = []
             for layer, scan_dir in self._scan_layer_dirs(kind, layer_roots=layer_roots):
                 for mission_type in scan_mission_types_dir(scan_dir):
-                    mt_entries.append(
-                        AvailableArtifact(artifact_id=mission_type.id, layer=layer)
-                    )
+                    mt_entries.append(AvailableArtifact(artifact_id=mission_type.id, layer=layer))
             return mt_entries
 
         entries: list[AvailableArtifact] = []
@@ -879,9 +907,7 @@ class CharterPackManager:
                 # config-stem ID that ``config.yaml`` activation lists use.
                 if _declared_id(yaml_file, kind_enum, yaml) is None:
                     continue
-                entries.append(
-                    AvailableArtifact(artifact_id=_config_stem(yaml_file), layer=layer)
-                )
+                entries.append(AvailableArtifact(artifact_id=_config_stem(yaml_file), layer=layer))
         return entries
 
     def list_available(
@@ -920,10 +946,7 @@ class CharterPackManager:
         ValueError
             If ``kind`` is not in the canonical charter kind universe.
         """
-        return frozenset(
-            entry.artifact_id
-            for entry in self.list_available_detailed(ctx, kind, layer_roots=layer_roots)
-        )
+        return frozenset(entry.artifact_id for entry in self.list_available_detailed(ctx, kind, layer_roots=layer_roots))
 
     def merge_defaults(
         self,

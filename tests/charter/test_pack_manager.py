@@ -33,6 +33,66 @@ from charter.activation.pack_manager import (
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize("pointer", [None, {}, [], 42, "relative", "absolute"])
+def test_preparation_preserves_target_policy(tmp_path: Path, pointer: object) -> None:
+    from charter.activation.pack_manager import prepare_activation_write
+    from charter.activation.charter_yaml_io import apply_yaml_write
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "policy.yaml" if isinstance(pointer, str) else config
+    value = str(target) if pointer == "absolute" else "policy.yaml" if pointer == "relative" else pointer
+    config.write_text(yaml.safe_dump({"charter": value, "unowned": ["preserve"]}), encoding="utf-8")
+    if target != config:
+        target.write_text('# policy\nmetadata: {label: "keep"}\n', encoding="utf-8")
+    before = snapshot({"project": tmp_path})
+    prepared = prepare_activation_write(tmp_path, {"mission_type_activations": ["research"]})
+    assert prepared.target == target
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert apply_yaml_write(prepared)
+    assert yaml.safe_load(target.read_bytes())["mission_type_activations"] == ["research"]
+    if target != config:
+        assert snapshot({"project": tmp_path})[("project", ".kittify/config.yaml")] == before[("project", ".kittify/config.yaml")]
+
+
+@pytest.mark.parametrize("problem", ["dangling", "malformed", "scalar", "unreadable", "config", "link"])
+def test_preparation_refuses_broken_required_inputs(tmp_path: Path, problem: str) -> None:
+    from ruamel.yaml.error import YAMLError
+    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_manager import prepare_activation_write
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text("charter: policy.yaml\n", encoding="utf-8")
+    target = tmp_path / "policy.yaml"
+    if problem != "dangling":
+        target.write_text("[broken" if problem == "malformed" else "scalar" if problem == "scalar" else "metadata: {}\n", encoding="utf-8")
+    if problem == "unreadable":
+        target.chmod(0)
+    elif problem == "config":
+        config.write_text("[broken", encoding="utf-8")
+    elif problem == "link":
+        target.rename(tmp_path / "sentinel.yaml")
+        target.symlink_to(tmp_path / "sentinel.yaml")
+    # The independent oracle needs read access to inventory the unreadable
+    # case; compare its sentinel/config and lstat separately in that cell.
+    if problem == "unreadable":
+        before_config = config.read_bytes()
+        before_stat = target.lstat()
+        with pytest.raises(PermissionError):
+            prepare_activation_write(tmp_path, {"mission_type_activations": ["research"]})
+        assert target.lstat() == before_stat and config.read_bytes() == before_config
+        target.chmod(0o600)
+    else:
+        before = snapshot({"project": tmp_path})
+        with pytest.raises((ValueError, OSError, YAMLError, CharterPackConfigError)) as caught:
+            prepare_activation_write(tmp_path, {"mission_type_activations": ["research"]})
+        assert str(caught.value)
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -481,9 +541,7 @@ class TestResolveLayerCandidateMissionTypeLayers:
     def test_org_layer_resolves_to_pack_root_mission_types(self, tmp_path: Path) -> None:
         from charter.activation.pack_manager import _resolve_layer_candidate
 
-        candidate = _resolve_layer_candidate(
-            "org", tmp_path, None, "missions/mission_types", layered=False
-        )
+        candidate = _resolve_layer_candidate("org", tmp_path, None, "missions/mission_types", layered=False)
         assert candidate == tmp_path / "mission_types"
 
     def test_project_layer_resolves_to_kittify_missions_mission_types(self, tmp_path: Path) -> None:
@@ -494,9 +552,7 @@ class TestResolveLayerCandidateMissionTypeLayers:
         """
         from charter.activation.pack_manager import _resolve_layer_candidate
 
-        candidate = _resolve_layer_candidate(
-            "project", tmp_path, None, "missions/mission_types", layered=False
-        )
+        candidate = _resolve_layer_candidate("project", tmp_path, None, "missions/mission_types", layered=False)
         assert candidate == tmp_path / "missions" / "mission_types"
 
     def test_built_in_layer_branch_is_unaffected(self, tmp_path: Path) -> None:
@@ -505,9 +561,7 @@ class TestResolveLayerCandidateMissionTypeLayers:
         from charter.activation.pack_manager import _resolve_layer_candidate
         from charter.offering.missions.repository import MissionTemplateRepository
 
-        candidate = _resolve_layer_candidate(
-            "built-in", tmp_path, None, "missions/mission_types", layered=False
-        )
+        candidate = _resolve_layer_candidate("built-in", tmp_path, None, "missions/mission_types", layered=False)
         assert candidate == MissionTemplateRepository.default_missions_root() / "mission_types"
 
 
@@ -515,9 +569,7 @@ class TestMissionTypeOrgLayerResolves:
     """FR-003: an org-tier pack's flat ``mission_types/`` directory (CL-005)
     makes a non-built-in mission-type id available."""
 
-    def test_org_pack_mission_type_id_is_available(
-        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
-    ) -> None:
+    def test_org_pack_mission_type_id_is_available(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
 
@@ -525,9 +577,7 @@ class TestMissionTypeOrgLayerResolves:
 
         assert "qa" in result
 
-    def test_org_pack_mission_type_id_reports_org_layer(
-        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
-    ) -> None:
+    def test_org_pack_mission_type_id_reports_org_layer(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
 
@@ -542,9 +592,7 @@ class TestMissionTypeProjectLayerResolves:
     ``.kittify/missions/mission_types/*.yaml`` -- and makes a project-declared
     mission-type id available."""
 
-    def test_project_pack_mission_type_id_is_available(
-        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
-    ) -> None:
+    def test_project_pack_mission_type_id_is_available(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         kittify = project_root / ".kittify"
         _write_mission_type(kittify / "missions" / "mission_types", "qa")
 
@@ -552,9 +600,7 @@ class TestMissionTypeProjectLayerResolves:
 
         assert "qa" in result
 
-    def test_project_pack_mission_type_id_reports_project_layer(
-        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
-    ) -> None:
+    def test_project_pack_mission_type_id_reports_project_layer(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         kittify = project_root / ".kittify"
         _write_mission_type(kittify / "missions" / "mission_types", "qa")
 
@@ -563,9 +609,7 @@ class TestMissionTypeProjectLayerResolves:
         qa_entries = [entry for entry in detailed if entry.artifact_id == "qa"]
         assert [entry.layer for entry in qa_entries] == ["project"]
 
-    def test_missing_project_mission_types_dir_yields_no_contributions(
-        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
-    ) -> None:
+    def test_missing_project_mission_types_dir_yields_no_contributions(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         """spec.md edge case: a project layer root is supplied but
         ``.kittify/missions/mission_types/`` does not exist at all (the
         ``project_root`` fixture's ``.kittify`` has no ``missions/`` dir).
@@ -584,17 +628,13 @@ class TestMissionTypeLayerPrecedenceOrder:
     """FR-003: the built-in -> org -> project precedence order must be
     explicit and tested, not incidental to a dict's iteration order."""
 
-    def test_scan_layer_dirs_order_is_built_in_org_project(
-        self, manager: CharterPackManager, tmp_path: Path
-    ) -> None:
+    def test_scan_layer_dirs_order_is_built_in_org_project(self, manager: CharterPackManager, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
         project_kittify = tmp_path / "proj" / ".kittify"
         _write_mission_type(project_kittify / "missions" / "mission_types", "qa")
 
-        dirs = manager._scan_layer_dirs(
-            "mission-type", layer_roots={"org": org_root, "project": project_kittify}
-        )
+        dirs = manager._scan_layer_dirs("mission-type", layer_roots={"org": org_root, "project": project_kittify})
 
         layers = [layer for layer, _dir in dirs]
         assert layers == ["built-in", "org", "project"]
@@ -616,9 +656,7 @@ class TestMissionTypeProjectLayerNonCollision:
     that check.
     """
 
-    def test_roster_and_mission_instance_coexist_without_collision(
-        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
-    ) -> None:
+    def test_roster_and_mission_instance_coexist_without_collision(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         from specify_cli.mission import _mission_dir_if_valid, list_available_missions
 
         kittify = project_root / ".kittify"
@@ -631,15 +669,11 @@ class TestMissionTypeProjectLayerNonCollision:
         # A real mission instance: a subdirectory containing mission.yaml.
         instance_dir = missions_dir / "some-mission-instance"
         instance_dir.mkdir(parents=True)
-        (instance_dir / "mission.yaml").write_text(
-            "name: some-mission-instance\n", encoding="utf-8"
-        )
+        (instance_dir / "mission.yaml").write_text("name: some-mission-instance\n", encoding="utf-8")
 
         # 1. The charter layer resolves "qa" as a mission-type roster entry
         #    -- never "some-mission-instance" or the bare filename "mission".
-        available = manager.list_available(
-            ctx, kind="mission-type", layer_roots={"project": kittify}
-        )
+        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
         assert "qa" in available
         assert "some-mission-instance" not in available
         assert "mission" not in available
@@ -657,9 +691,7 @@ class TestMissionTypeProjectLayerNonCollision:
         assert "some-mission-instance" in names
         assert "mission_types" not in names
 
-    def test_nested_per_type_subdirectory_no_longer_leaks(
-        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
-    ) -> None:
+    def test_nested_per_type_subdirectory_no_longer_leaks(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         """CL-005's *flat* layout trap, closed (PR-CONTRACT-002, pre-merge
         squad, mission up-mission-type-seam-01KZY1JB).
 
@@ -685,13 +717,9 @@ class TestMissionTypeProjectLayerNonCollision:
 
         nested_dir = roster_dir / "qa"
         nested_dir.mkdir(parents=True)
-        (nested_dir / "governance-profile.yaml").write_text(
-            "id: governance-profile\n", encoding="utf-8"
-        )
+        (nested_dir / "governance-profile.yaml").write_text("id: governance-profile\n", encoding="utf-8")
 
-        available = manager.list_available(
-            ctx, kind="mission-type", layer_roots={"project": kittify}
-        )
+        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
 
         assert "qa" in available
         assert "governance-profile" not in available
@@ -710,9 +738,7 @@ class TestMissionTypeProjectLayerNonCollision:
 
 
 class TestMissionTypeMalformedOrgLayerLoudFails:
-    def test_malformed_org_layer_yaml_is_not_silently_skipped(
-        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
-    ) -> None:
+    def test_malformed_org_layer_yaml_is_not_silently_skipped(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
         """A malformed org-layer mission-type YAML must raise from
         ``list_available_detailed``/``list_available`` -- not be silently
         dropped from the catalog and mistaken for "does not exist"."""
@@ -726,9 +752,7 @@ class TestMissionTypeMalformedOrgLayerLoudFails:
 
         assert str(bad_file) in str(exc_info.value)
 
-    def test_unreadable_org_layer_directory_raises_naming_the_directory(
-        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
-    ) -> None:
+    def test_unreadable_org_layer_directory_raises_naming_the_directory(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
         if os.geteuid() == 0:
             pytest.skip("root bypasses directory permission bits; chmod 000 is a no-op")
 
@@ -757,9 +781,7 @@ class TestMissionTypeMalformedOrgLayerLoudFails:
         bad_file.write_text("key: [unterminated\n  - a\n", encoding="utf-8")
 
         with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
-            manager.activate(
-                ctx, kind="mission-type", artifact_id="broken", layer_roots={"org": org_root}
-            )
+            manager.activate(ctx, kind="mission-type", artifact_id="broken", layer_roots={"org": org_root})
 
         assert not isinstance(exc_info.value, UnknownActivationIdError)
         assert str(bad_file) in str(exc_info.value)

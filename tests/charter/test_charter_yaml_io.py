@@ -8,6 +8,7 @@ MAJOR-3). These tests prove the byte-preservation guarantee: mutating one
 named section leaves every other section's formatting (including comments)
 untouched.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -30,7 +31,7 @@ def test_update_existing_activation_does_not_open_for_write(tmp_path: Path) -> N
     import os
 
     path = tmp_path / "charter.yaml"
-    path.write_bytes(b'# authored\nmission_type_activations: [software-dev]\n')
+    path.write_bytes(b"# authored\nmission_type_activations: [software-dev]\n")
     path.chmod(0o640)
     os.utime(path, ns=(1_000_000_000, 1_000_000_000))
     before = path.read_bytes(), path.stat().st_mode, path.stat().st_mtime_ns
@@ -38,6 +39,75 @@ def test_update_existing_activation_does_not_open_for_write(tmp_path: Path) -> N
     update_charter_yaml_section(path, "activation", {"mission_type_activations": ["software-dev"]})
 
     assert (path.read_bytes(), path.stat().st_mode, path.stat().st_mtime_ns) == before
+
+
+@pytest.mark.parametrize("suffix", ["", "...\n"])
+def test_section_change_preserves_unowned_spans(tmp_path: Path, suffix: str) -> None:
+    from charter.activation.charter_yaml_io import prepare_charter_yaml_section, apply_yaml_write
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    prefix = '# top\nmetadata:\n  labels:\n    - "quoted"\n\n'
+    tail = "# owned by user\noverrides:\n  text: |\n    first\n    second\n" + suffix
+    path.write_text(prefix + "mission_type_activations: [research] # selection\n" + tail, encoding="utf-8")
+    before = snapshot({"project": tmp_path})
+    prepared = prepare_charter_yaml_section(path, "activation", {"mission_type_activations": ["software-dev"]})
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert apply_yaml_write(prepared)
+    raw = path.read_text(encoding="utf-8")
+    assert raw.startswith(prefix) and raw.endswith(tail)
+    assert "# selection" in raw
+    after = snapshot({"project": tmp_path})
+    save_charter_yaml(path, load_charter_yaml(path))
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
+def test_prepared_writer_reports_absent_parents_and_actual_delta(tmp_path: Path) -> None:
+    from charter.activation.charter_yaml_io import prepare_yaml_write, apply_yaml_write
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    path = tmp_path / "new/nested/charter.yaml"
+    before = snapshot({"project": tmp_path})
+    prepared = prepare_yaml_write(path, b"mission_type_activations: []\n", section="activation")
+    assert prepared.absent_parents == (tmp_path / "new", tmp_path / "new/nested")
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    assert apply_yaml_write(prepared)
+    effects = net_delta(before, snapshot({"project": tmp_path}))
+    assert {(e.path, e.action, e.after.kind, e.after.mode) for e in effects} == {
+        ("new", "create", "directory", 0o755),
+        ("new/nested", "create", "directory", 0o755),
+        ("new/nested/charter.yaml", "create", "file", 0o644),
+    }
+
+
+def test_prepared_writer_propagates_io_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+    from charter.activation.charter_yaml_io import prepare_charter_yaml_section, apply_yaml_write
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(b"metadata: {}\n")
+    prepared = prepare_charter_yaml_section(path, "activation", {"mission_type_activations": ["research"]})
+
+    def fail_open(*_args: object, **_kwargs: object) -> int:
+        raise OSError("injected destination failure")
+
+    monkeypatch.setattr(os, "open", fail_open)
+    before = snapshot({"project": tmp_path})
+    with pytest.raises(OSError, match="injected destination failure"):
+        apply_yaml_write(prepared)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("body", [b"{}\n", b'{metadata: {tags: ["keep"]}} # tail\n'])
+def test_flow_root_provisioning_retains_unowned_text(tmp_path: Path, body: bytes) -> None:
+    path = tmp_path / "charter.yaml"
+    path.write_bytes(body)
+    update_charter_yaml_section(path, "activation", {"mission_type_activations": ["research"]})
+    assert load_charter_yaml(path)["mission_type_activations"] == ["research"]
+    if b"metadata" in body:
+        assert b'metadata: {tags: ["keep"]}' in path.read_bytes()
+        assert path.read_bytes().endswith(b" # tail\n")
 
 
 _FIXTURE = """\
