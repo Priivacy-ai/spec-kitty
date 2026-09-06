@@ -223,6 +223,68 @@ def test_historical_inventory_identity_schema_and_eleven_complete_verdicts(
     assert total == 11
 
 
+@pytest.mark.parametrize("attack", ["defect-only", "drop-unrelated", "duplicate"])
+def test_full_corpus_audit_rejects_real_scanner_membership_faults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    attack: str,
+) -> None:
+    """Mutate discovery, not the real CLI report, classifiers or aggregation."""
+    from typer.testing import CliRunner
+    from specify_cli.audit import engine
+    from specify_cli.audit.models import MissionAuditResult
+    from specify_cli.cli.commands.doctor import app
+
+    repo = build_recovery_repo(tmp_path, full=True)
+    (repo / ".kittify").mkdir()
+    recover(repo)
+    monkeypatch.chdir(repo)
+    members = frozenset(p.name for p in (repo / "kitty-specs").iterdir() if stat.S_ISDIR(p.lstat().st_mode))
+    defects = {Path(gate.OLD_BUNDLE).name, *(Path(p).parent.name for p in gate.SNAPSHOTS)}
+    omitted = sorted(members - defects)[0]
+    real_scan = engine._scan_missions
+    scans: list[tuple[str, ...]] = []
+
+    def changed_scan(
+        scan_root: Path,
+        allowed_dirs: frozenset[Path] | None,
+        identity_index: dict[str, Any],
+    ) -> list[MissionAuditResult]:
+        selected = members & defects if attack == "defect-only" else members - {omitted}
+        if attack == "duplicate":
+            selected = members
+        allowed = frozenset(scan_root / name for name in selected)
+        rows = real_scan(scan_root, allowed if allowed_dirs is None else allowed & allowed_dirs, identity_index)
+        if attack == "duplicate":
+            rows.append(rows[0])
+        scans.append(tuple(row.mission_slug for row in rows))
+        return rows
+
+    def actual_doctor_cli(root: Path, *args: str) -> tuple[subprocess.CompletedProcess[bytes], dict[str, Any]]:
+        assert root == repo and args[0] == "doctor"
+        result = CliRunner().invoke(app, list(args[1:]), env=isolated_env(tmp_path / "doctor-home"))
+        label = "mutant" if scans else "healthy"
+        (tmp_path / f"{label}.stdout").write_text(result.stdout, encoding="utf-8")
+        (tmp_path / f"{label}.stderr").write_text(result.stderr, encoding="utf-8")
+        assert result.exit_code == 0, result.output
+        return subprocess.CompletedProcess(args, result.exit_code, result.stdout.encode(), result.stderr.encode()), json.loads(result.stdout)
+
+    monkeypatch.setattr(sys.modules[__name__], "cli", actual_doctor_cli)
+    healthy_result, healthy = audit(repo)
+    assert_zero(healthy_result, healthy)
+    with monkeypatch.context() as fault:
+        fault.setattr(engine, "_scan_missions", changed_scan)
+        with pytest.raises(AssertionError, match="corpus membership"):
+            audit(repo)
+    assert scans
+    if attack == "duplicate":
+        assert len(scans[0]) > len(set(scans[0]))
+    else:
+        assert set(scans[0]) < members and omitted not in scans[0]
+    control_result, control = audit(repo)
+    assert_zero(control_result, control)
+
+
 def test_repeat_real_restore_move_and_public_replay_has_no_churn(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -103,6 +103,29 @@ def test_unchanged_nonempty_archive_passes(archive_repo: Path) -> None:
     gate.test_no_preexisting_archived_file_was_modified()
 
 
+def test_unchanged_outside_root_gitlink_passes_old_and_current_gate(archive_repo: Path) -> None:
+    """A real unrelated submodule is not an archive blob-kind violation."""
+    head = git(archive_repo, "rev-parse", "HEAD").decode().strip()
+    (archive_repo / "vendor/example").mkdir(parents=True)
+    git(archive_repo, "update-index", "--add", "--cacheinfo", f"160000,{head},vendor/example")
+    git(archive_repo, "commit", "-m", "Unchanged outside-root Gitlink baseline")
+    git(archive_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    assert git(archive_repo, "diff", "--name-only", "origin/main", "--", "vendor/example") == b""
+    old_source = git(
+        REPO_ROOT,
+        "show",
+        "6e60f8b42e783b2c8fb8dea237a7a5514854a8ec:tests/architectural/test_archive_root_byte_identical.py",
+    )
+    old = types.ModuleType("wp12_original_archive_gate")
+    old.__file__ = gate.__file__
+    exec(compile(old_source, old.__file__, "exec"), old.__dict__)
+    old.REPO_ROOT = archive_repo
+    old.test_archive_baseline_is_non_empty()
+    old.test_no_preexisting_archived_file_was_modified()
+    gate.test_no_preexisting_archived_file_was_modified()
+    gate.test_archive_baseline_is_non_empty()
+
+
 def run_gate(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gate, "REPO_ROOT", repo)
     gate.test_archive_baseline_is_non_empty()
