@@ -93,8 +93,10 @@ class SlashCommandsProvider:
                 dispositions=(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", "No enabled command-file adapter selected"),),
             )
         assessment = assess_global_agent_commands(agent_keys=keys, consent=inputs.consent)
-        surface_ids = tuple(_surface_id(s.instance) for s in statuses)
-        effects = tuple(replace(e, logical_owners=tuple(keys), surface_ids=surface_ids) for e in assessment.effects)
+        effects = tuple(
+            replace(effect, surface_ids=tuple(_surface_id(s.instance) for s in statuses if s.instance.owner in effect.logical_owners))
+            for effect in assessment.effects
+        )
         return replace(
             assessment,
             root=inputs.root,
@@ -103,6 +105,7 @@ class SlashCommandsProvider:
             + (
                 InputObservation("caller_inputs", inputs),
                 InputObservation("selections", selections),
+                InputObservation("provider_instances", tuple((s.instance, s.state) for s in statuses)),
             ),
         )
 

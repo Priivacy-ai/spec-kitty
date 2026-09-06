@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from dataclasses import replace
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -274,6 +275,12 @@ def _render_agent_commands(
     return tuple(rendered)
 
 
+def _command_effect_owners(path: Path, roots: dict[str, Path]) -> tuple[str, ...]:
+    """Attribute members/parents physically; shared cache supports the batch."""
+    owners = tuple(key for key, directory in roots.items() if path == directory or path.parent == directory or path in directory.parents)
+    return owners or tuple(roots)
+
+
 def assess_global_agent_commands(
     *,
     agent_keys: list[str] | None = None,
@@ -296,6 +303,7 @@ def assess_global_agent_commands(
     try:
         prepared = AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent)
         keys = tuple(sorted(set(AGENT_COMMAND_CONFIG if agent_keys is None else agent_keys)))
+        selected_roots: dict[str, Path] = {}
         templates = _get_command_templates_dir() if templates_dir is None else templates_dir
         prepared.observe(templates, members=True)
         for command in sorted(PROMPT_DRIVEN_COMMANDS):
@@ -304,6 +312,7 @@ def assess_global_agent_commands(
             if key not in AGENT_COMMAND_CONFIG:
                 raise ValueError(f"Unknown slash-command agent: {key}")
             output = get_global_command_dir(key)
+            selected_roots[key] = output
             state = prepared.observe(output, members=True)
             if state.kind not in {"directory", "absent"}:
                 prepared.preserve(output, "Unproven command directory replacement")
@@ -323,7 +332,11 @@ def assess_global_agent_commands(
                     if existing.name not in canonical:
                         prepared.retire(existing)
         stamp = home / "cache" / _VERSION_FILENAME if agent_keys is None else None
-        return prepared.finish(stamp, _get_cli_version())
+        assessment = prepared.finish(stamp, _get_cli_version())
+        return replace(
+            assessment,
+            effects=tuple(replace(effect, logical_owners=_command_effect_owners(effect.destination, selected_roots)) for effect in assessment.effects),
+        )
     except (OSError, ValueError, KeyError) as exc:
         return incomplete("slash_commands", root, exc)
 

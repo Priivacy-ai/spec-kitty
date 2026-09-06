@@ -529,9 +529,14 @@ def test_command_effects_retain_their_physical_agent_owners(owner_home: Path, tm
         project.mkdir()
         inputs = AssessmentInputs(OperationRoot("project", "project", project))
         definition = slash_command_definition()
-        service = SurfaceRepairService((SlashCommandsProvider(),))
+        provider = SlashCommandsProvider()
+        service = SurfaceRepairService((provider,))
         plans = tuple(SurfacePlan(key, (), "T1", (definition,)) for key in keys)
-        assessment = service.assess(inputs, (), plans=plans)[0]
+        statuses = tuple(provider.probe(provider.expand(definition, key, project)[0]) for key in keys)
+        assessment = service.assess(inputs, statuses, plans=plans)[0]
+        frames = next(observation.value for observation in assessment.inputs_fingerprint if observation.name == "provider_instances")
+        assert isinstance(frames, tuple) and frames == tuple((s.instance, s.state) for s in statuses)
+        assert frames[0][0] is statuses[0].instance
     else:
         assessment = agent_commands.assess_global_agent_commands(agent_keys=list(keys))
     assert assessment.complete
@@ -540,8 +545,24 @@ def test_command_effects_retain_their_physical_agent_owners(owner_home: Path, tm
         files = [effect for effect in assessment.effects if effect.destination.parent == directory and effect.after.kind == "file"]
         assert files
         assert all(effect.logical_owners == (key,) for effect in files)
+        if through_provider:
+            from specify_cli.tool_surface.status import _surface_id
+
+            expected_ids = tuple(_surface_id(status.instance) for status in statuses if status.instance.owner == key)
+            assert all(effect.surface_ids == expected_ids for effect in files)
     if through_provider:
         result = service.apply_assessments((assessment,), ApplyConsent(automatic=True))
         assert result[0].outcome == "applied"
     else:
         _apply_exact(assessment)
+
+
+def test_installed_skill_catalog_prepares_under_write_denial(owner_home: Path, tmp_path: Path) -> None:
+    """Real package/local resolver, not the fixture-selected registry seam."""
+    log = tmp_path / "installed-catalog-observer.log"
+    before = snapshot({"home": owner_home})
+    with _wp01_owner_observer(log):
+        assessment = agent_skills.assess_global_agent_skills()
+    assert assessment.complete and assessment.effects
+    assert log.read_bytes() == b""
+    assert_unchanged(before, snapshot({"home": owner_home}))
