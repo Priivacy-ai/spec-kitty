@@ -11,9 +11,12 @@ from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.implement_support import (
     check_claim_ancestry,
     create_lane_workspace,
+    reenter_lane_self_heal,
     resolve_claim_ancestry_gate,
 )
 from specify_cli.lanes.persistence import read_lanes_json
+from specify_cli.lanes.worktree_allocator import DirtyWorktreeError, DependencyLaneMergeConflictError
+from specify_cli.git.commit_helpers import ProtectedBranchCommitError
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 from specify_cli.status.models import Lane
 from specify_cli.workspace.context import ResolvedWorkspace
@@ -91,3 +94,74 @@ def test_planning_materialization_claim_merges_approved_dependency(tmp_path: Pat
     assert resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, root).ok
     assert _git(repo, "rev-parse", "HEAD") == head
     assert not (repo / ".worktrees" / workspace.workspace_name).exists()
+
+
+def test_protected_root_refused_without_mutation(tmp_path: Path) -> None:
+    repo, _tip = _planning_repo(tmp_path)
+    (repo / ".kittify" / "config.yaml").write_text(
+        "protection:\n  protected_branches: [feat/planning]\n"
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "protect target")
+    head = _git(repo, "rev-parse", "HEAD")
+    with pytest.raises(ProtectedBranchCommitError):
+        reenter_lane_self_heal(repo, _MISSION_SLUG, _WP_SELF)
+    assert _git(repo, "rev-parse", "HEAD") == head
+    assert not (repo / "lane_a_output.txt").exists()
+
+
+def test_dirty_root_refused_without_losing_work(tmp_path: Path) -> None:
+    repo, _tip = _planning_repo(tmp_path)
+    (repo / "seed.txt").write_text("uncommitted work\n")
+    head = _git(repo, "rev-parse", "HEAD")
+    with pytest.raises(DirtyWorktreeError):
+        reenter_lane_self_heal(repo, _MISSION_SLUG, _WP_SELF)
+    assert _git(repo, "rev-parse", "HEAD") == head
+    assert (repo / "seed.txt").read_text() == "uncommitted work\n"
+
+
+def test_unapproved_dependency_not_merged_into_root(tmp_path: Path) -> None:
+    repo, _tip = _planning_repo(tmp_path)
+    _seed_wp_lane(repo, _WP_DEP, Lane.IN_PROGRESS)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "dependency needs further work")
+    head = _git(repo, "rev-parse", "HEAD")
+    assert reenter_lane_self_heal(repo, _MISSION_SLUG, _WP_SELF) == repo
+    assert _git(repo, "rev-parse", "HEAD") == head
+    assert not (repo / "lane_a_output.txt").exists()
+
+
+def test_conflicting_dependency_refuses_claim_and_restores_root(tmp_path: Path) -> None:
+    repo, _tip = _planning_repo(tmp_path)
+    (repo / "lane_a_output.txt").write_text("independent root output\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "divergent root output")
+    head = _git(repo, "rev-parse", "HEAD")
+    with pytest.raises(DependencyLaneMergeConflictError):
+        resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo)
+    assert _git(repo, "rev-parse", "HEAD") == head
+    assert (repo / "lane_a_output.txt").read_text() == "independent root output\n"
+    assert not (repo / ".git" / "MERGE_HEAD").exists()
+
+
+def test_recorded_planning_commit_heals_without_pulling_unapproved_code(tmp_path: Path) -> None:
+    repo, _tip = _planning_repo(tmp_path)
+    _git(repo, "checkout", "-qb", "recorded-planning")
+    (repo / "plan.md").write_text("recorded plan\n")
+    _git(repo, "add", "plan.md")
+    _git(repo, "commit", "-qm", "recorded planning commit")
+    recorded = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "feat/planning")
+    lanes_path = _feature_dir(repo) / "lanes.json"
+    payload = json.loads(lanes_path.read_text())
+    payload["planning_commit_sha"] = recorded
+    lanes_path.write_text(json.dumps(payload))
+    _seed_wp_lane(repo, _WP_DEP, Lane.IN_PROGRESS)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "record frozen planning SHA and dependency status")
+
+    assert not check_claim_ancestry(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo).ok
+    assert resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo).ok
+    _git(repo, "merge-base", "--is-ancestor", recorded, "HEAD")
+    assert (repo / "plan.md").read_text() == "recorded plan\n"
+    assert not (repo / "lane_a_output.txt").exists()
