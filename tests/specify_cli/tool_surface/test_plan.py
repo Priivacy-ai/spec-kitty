@@ -193,3 +193,39 @@ def test_removing_real_required_provider_keeps_definition_coverage(tmp_path: Pat
     assert not assessments[0].complete
     assert assessments[0].owner_key == "command_skills"
     assert assessments[0].diagnostics[0].code == "missing_provider"
+
+
+@pytest.mark.parametrize("stage", ["expand", "probe"])
+@pytest.mark.parametrize("error_type", [OSError, ValueError])
+def test_service_assessment_guards_inventory_errors_without_changing_legacy_behavior(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str, error_type: type[Exception]
+) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers._registry import SurfaceProviderRegistry, SurfaceRegistration
+    from specify_cli.tool_surface.service import run_tool_surfaces
+
+    class BrokenInventory(_FakeProvider):
+        def __init__(self) -> None:
+            super().__init__(ToolSurfaceKind.COMMAND_SKILL)
+
+        def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
+            if stage == "expand":
+                raise error_type("required inventory unreadable")
+            return super().expand(definition, tool_key, project_root)
+
+        def probe(self, instance: SurfaceInstance) -> SurfaceStatus:
+            raise error_type("required inventory unreadable")
+
+    definition = _definition(ToolSurfaceKind.COMMAND_SKILL, "fake")
+    monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [SurfaceRegistration(BrokenInventory, (definition,), {})])
+    with pytest.raises(error_type, match="required inventory unreadable"):
+        run_tool_surfaces(tmp_path, ("codex",))
+    outcome = run_tool_surfaces(
+        tmp_path, ("codex",), assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path))
+    )
+    assert len(outcome.assessments) == 1
+    assert not outcome.assessments[0].complete
+    assert not outcome.assessments[0].effects
+    assert outcome.assessments[0].diagnostics[0].code == "inventory_unreadable"
+    assert not outcome.report.ok
+    assert outcome.report.configured_tools == ("codex",)

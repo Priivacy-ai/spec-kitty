@@ -5,6 +5,10 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from specify_cli.tool_surface.model import SurfaceSelection
 
 from specify_cli.tool_surface.enums import (
     ActivationMode,
@@ -431,3 +435,111 @@ def test_conflict_inside_single_owner_stays_incomplete_and_refuses_apply() -> No
     result = service.apply_assessments(assessments, ApplyConsent(automatic=True))[0]
     assert not result.succeeded
     assert provider.write_calls == 0
+
+
+@pytest.mark.parametrize("tool", ["codex", "vibe"])
+@pytest.mark.parametrize("kind", [ToolSurfaceKind.COMMAND_SKILL, ToolSurfaceKind.COMMAND_FILE])
+def test_empty_expansion_retains_canonical_selection_for_orphan_pruning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, tool: str, kind: ToolSurfaceKind
+) -> None:
+    from dataclasses import FrozenInstanceError
+    from specify_cli.tool_surface.operations import FileState, OperationRoot, OwnershipProof, PhysicalEffect
+    from specify_cli.tool_surface.providers._registry import SurfaceProviderRegistry, SurfaceRegistration
+    from specify_cli.tool_surface.service import run_tool_surfaces
+
+    definitions = (_definition(ToolSurfaceKind.COMMAND_SKILL), _definition(ToolSurfaceKind.COMMAND_FILE))
+    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path), projected=b"owner-manifest")
+    received: list[tuple[SurfaceSelection, ...]] = []
+    for owner in ("codex", "vibe"):
+        for definition in definitions:
+            (tmp_path / f"{owner}-{definition.kind}.orphan").write_bytes(b"orphan")
+
+    class EmptyOwner(_AssessmentProvider):
+        def can_handle(self, definition: SurfaceDefinition) -> bool:
+            return definition.provider_key == self.provider_key
+
+        def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
+            return []
+
+        def assess(
+            self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...] = ()
+        ) -> OwnerAssessment:
+            assert inputs.projected == b"owner-manifest"
+            assert not statuses
+            received.append(selections)
+            effects = tuple(
+                PhysicalEffect(
+                    "p", "surface_repair", inputs.root, f"{selection.tool_key}-{selection.definition.kind}.orphan",
+                    "delete", FileState("file", sha256="a" * 64, mode=0o644), FileState("absent"), "Owned orphan",
+                    (OwnershipProof("manifest", f"{selection.tool_key}:{selection.definition.path_pattern}"),),
+                    (selection.tool_key,),
+                )
+                for selection in selections
+            )
+            return OwnerAssessment("p", inputs.root, effects=effects)
+
+    monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [SurfaceRegistration(EmptyOwner, definitions, {})])
+    outcome = run_tool_surfaces(tmp_path, ("codex", "vibe"), tool_filter=tool, kinds=(kind,), assessment_inputs=inputs)
+    assert len(outcome.assessments) == 1
+    assessment = outcome.assessments[0]
+    assert assessment.complete
+    assert tuple(effect.path for effect in assessment.effects) == (f"{tool}-{kind}.orphan",)
+    assert len(received[0]) == 1
+    selection = received[0][0]
+    assert selection.tool_key == tool
+    assert selection.definition is next(d for d in definitions if d.kind == kind)
+    assert selection.definition.required_policy == RequiredPolicy.REPAIRABLE_REQUIRED
+    with pytest.raises(FrozenInstanceError):
+        setattr(selection, "tool_key", "different")
+    assert len(list(tmp_path.glob("*.orphan"))) == 4, "Assessment must not prune on disk"
+
+
+@pytest.mark.parametrize("failure_at", ["factory", "enter"])
+def test_later_prewrite_recheck_failure_retains_known_batch_success(tmp_path: Path, failure_at: str) -> None:
+    from contextlib import contextmanager
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import OperationRoot
+
+    class DiskOwner(_AssessmentProvider):
+        def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
+            @contextmanager
+            def unavailable() -> Iterator[tuple[Diagnostic, ...]]:
+                raise OSError("lock unavailable")
+                yield ()  # pragma: no cover - contextmanager must be a generator
+
+            if assessment.root.root_id == "second":
+                if failure_at == "factory":
+                    raise OSError("lock unavailable")
+                return unavailable()
+            return super().recheck(assessment)
+
+        def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+            result = super().apply(assessment, explicit_consent)
+            for effect in assessment.effects:
+                effect.destination.write_bytes(b"T1")
+            return result
+
+    owner = DiskOwner()
+    service, template, _ = _assess(owner, (_status(ToolSurfaceKind.COMMAND_SKILL, "a"),))
+    batches = []
+    for name in ("first", "second", "third"):
+        path = tmp_path / name
+        path.mkdir()
+        root = OperationRoot(name, "project", path)
+        batches.append(replace(template[0], root=root, effects=(replace(template[0].effects[0], root=root),)))
+    try:
+        results = service.apply_assessments(tuple(reversed(batches)), ApplyConsent(automatic=True))
+    finally:
+        assert (tmp_path / "first/a").read_bytes() == b"T1"
+        assert not (tmp_path / "second/a").exists()
+    assert len(results) == 3
+    assert results[0].succeeded == (batches[0].effects[0].id,)
+    assert results[1].outcome == "failed"
+    assert results[1].skipped == (batches[1].effects[0].id,)
+    assert not results[1].succeeded and not results[1].failed
+    assert results[1].diagnostics[0].code == "recheck_failed"
+    assert results[1].diagnostics[0].message == "lock unavailable"
+    assert results[2].succeeded == (batches[2].effects[0].id,)
+    assert (tmp_path / "third/a").read_bytes() == b"T1"
+    assert owner.write_calls == 2
+    assert not owner.locked
