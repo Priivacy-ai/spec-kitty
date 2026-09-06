@@ -143,6 +143,9 @@
       "last_event_id": "01M1VZP4J5M5EB0HHDHJ8XBSW6",
       "last_transition_at": "2026-09-06T18:28:58.053952+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation delivered at 1626c9fc4a9c52bfea6836ea325189346572cb0f; canonical org diagnostics consumed before admission filtering. Four real corrupt-org RED witnesses; 811 subsystem/architecture, 1642 fast, 22 caller tests pass. Independent review required; formatter exclusions and eight public integration REDs explicitly retained in external handoff."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 26467,
