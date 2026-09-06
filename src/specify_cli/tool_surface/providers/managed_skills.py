@@ -27,8 +27,9 @@ or conflict with that output.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import AbstractContextManager, contextmanager
+from contextvars import ContextVar
 from dataclasses import replace
 from pathlib import Path
 from typing import Protocol, cast
@@ -59,7 +60,7 @@ from ..findings import (
     make_finding,
 )
 from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
-from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment, OwnerApplyResult
+from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment, OwnerApplyResult, coalesce_effects
 from ..repair import RepairResult
 from ..status import (
     STATE_DRIFTED,
@@ -73,6 +74,7 @@ from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 PROVIDER_KEY = "managed_skills"
 _PATH_PATTERN = ".kittify/skills-manifest.json:{installed_path}"
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind doctrine-skill --fix"
+_PAIRED_GLOBAL: ContextVar[OwnerAssessment | None] = ContextVar("paired_skill_global", default=None)
 
 
 class _VerifyResultProto(Protocol):
@@ -178,6 +180,36 @@ class ManagedSkillsProvider:
 
     def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
         return skill_installer.apply_project_skills(assessment, explicit_consent)
+
+    def apply_installation(
+        self, installation: skill_installer.SkillInstallationAssessment, consent: ApplyConsent,
+    ) -> tuple[OwnerApplyResult, ...]:
+        """Hold paired preflight/locks around the existing per-owner dispatcher.
+
+        This is the provider composition boundary, not another global assessment.
+        Raw independent dispatch cannot establish this operation-wide guarantee.
+        """
+        from specify_cli.runtime.asset_preparation import recheck_assets
+        from ..repair import SurfaceRepairService
+
+        global_assets, project = installation.global_assets, installation.project_skills
+        with recheck_assets(global_assets) as global_errors, self.recheck(project) as project_errors:
+            errors = global_errors + project_errors
+            if not global_assets.complete or not project.complete or consent != global_assets.consent or consent != project.consent:
+                errors += (Diagnostic("skill_context_mismatch", PROVIDER_KEY, "error", "Complete paired assessments and exact consent required"),)
+            if errors:
+                return tuple(OwnerApplyResult(
+                    owner.owner_key, skipped=tuple(effect.id for effect in owner.effects),
+                    outcome="precondition_changed", diagnostics=errors,
+                ) for owner in (global_assets, project))
+            token = _PAIRED_GLOBAL.set(replace(global_assets, effects=coalesce_effects(global_assets.effects)))
+            try:
+                results: tuple[OwnerApplyResult, ...] = SurfaceRepairService([GlobalSkillAssetsProvider(), self]).apply_assessments(
+                    (global_assets, project), consent,
+                )
+                return results
+            finally:
+                _PAIRED_GLOBAL.reset(token)
 
     def expand(
         self,
@@ -439,7 +471,8 @@ class GlobalSkillAssetsProvider(ManagedSkillsProvider):
     """Dispatcher adapter for the separately retained coordinated global owner.
 
     It is intentionally not registered as another inventory provider. Composers
-    dispatch the existing global assessment, never assess a second cold batch.
+    dispatch the existing global assessment through apply_installation, never
+    assess a second cold batch or dispatch outside its paired guarded context.
     """
 
     provider_key = "global_assets"
@@ -454,14 +487,27 @@ class GlobalSkillAssetsProvider(ManagedSkillsProvider):
         _ = inputs, statuses, selections
         raise ValueError("Dispatch the existing coordinated global assessment; do not prepare another global batch")
 
-    def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
+    @contextmanager
+    def recheck(self, assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...]]:
         from specify_cli.runtime.asset_preparation import recheck_assets
 
-        return cast(AbstractContextManager[tuple[Diagnostic, ...]], recheck_assets(assessment))
+        # WP02 coalesces into an equal immutable value, not the same object.
+        if _PAIRED_GLOBAL.get() != assessment:
+            yield (Diagnostic("paired_skill_preflight_required", self.provider_key, "error",
+                              "Use ManagedSkillsProvider.apply_installation for paired preflight and dispatch"),)
+            return
+        with recheck_assets(assessment) as diagnostics:
+            yield diagnostics
 
     def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
         from specify_cli.runtime.asset_preparation import apply_assets
 
+        if _PAIRED_GLOBAL.get() != assessment:
+            return OwnerApplyResult(self.provider_key, skipped=tuple(effect.id for effect in assessment.effects),
+                                    outcome="precondition_changed", diagnostics=(
+                                        Diagnostic("paired_skill_preflight_required", self.provider_key, "error",
+                                                   "Global skill apply requires the paired guarded context"),
+                                    ))
         return apply_assets(assessment, explicit_consent)
 
 

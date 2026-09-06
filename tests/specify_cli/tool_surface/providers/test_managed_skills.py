@@ -130,7 +130,8 @@ def test_coordinated_provider_dispatch_keeps_both_owner_batches(
     from specify_cli.skills.installer import assess_skill_installation
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
-    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from collections.abc import Sequence
+    from specify_cli.tool_surface.operations import OwnerAssessment, OwnerApplyResult
     from specify_cli.tool_surface.repair import SurfaceRepairService
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
@@ -152,9 +153,22 @@ def test_coordinated_provider_dispatch_keeps_both_owner_batches(
                                  selections=(SurfaceSelection("codex", managed_skill_definition()),))
     assert assessment is installation.project_skills and assessment.complete
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
-    service = SurfaceRepairService([GlobalSkillAssetsProvider(), provider])
-    results = service.apply_assessments((installation.global_assets, assessment), consent)
-    assert all(result.outcome == "applied" for result in results), results
+    dispatched: list[tuple[OwnerAssessment, ...]] = []
+    real_dispatch = SurfaceRepairService.apply_assessments
+
+    def observe_dispatch(
+        service: SurfaceRepairService, assessments: Sequence[OwnerAssessment], explicit_consent: ApplyConsent,
+    ) -> tuple[OwnerApplyResult, ...]:
+        dispatched.append(tuple(assessments))
+        results: tuple[OwnerApplyResult, ...] = real_dispatch(service, assessments, explicit_consent)
+        return results
+
+    monkeypatch.setattr(SurfaceRepairService, "apply_assessments", observe_dispatch)
+    results = provider.apply_installation(installation, consent)
+    assert dispatched == [(installation.global_assets, assessment)]
+    assert all(result.outcome == "applied" for result in results), [
+        (result.owner_key, result.outcome, result.diagnostics) for result in results
+    ]
     effects = installation.global_assets.effects + assessment.effects
     assert {effect.id for effect in effects} == {effect_id for result in results for effect_id in result.succeeded}
     expected = {(effect.destination.relative_to(tmp_path).as_posix(), effect.action, effect.after.kind,
@@ -163,7 +177,7 @@ def test_coordinated_provider_dispatch_keeps_both_owner_batches(
             for effect in net_delta(before, snapshot({"sandbox": tmp_path}))} == expected
 
 
-@pytest.mark.parametrize("route", ["direct", "provider"])
+@pytest.mark.parametrize("route", ["direct", "provider", "paired-provider"])
 def test_paired_consumer_config_change_refuses_before_any_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str,
 ) -> None:
@@ -199,12 +213,98 @@ def test_paired_consumer_config_change_refuses_before_any_write(
             selections=(SurfaceSelection("codex", managed_skill_definition()),),
         )
         assert assessment is installation.project_skills
-        results = SurfaceRepairService([GlobalSkillAssetsProvider(), provider]).apply_assessments(
-            (installation.global_assets, assessment), consent,
+        results = (
+            provider.apply_installation(installation, consent) if route == "paired-provider"
+            else SurfaceRepairService([GlobalSkillAssetsProvider(), provider]).apply_assessments(
+                (installation.global_assets, assessment), consent,
+            )
         )
     changes = net_delta(before, snapshot({"sandbox": tmp_path}))
     assert not changes, [(effect.path, effect.action) for effect in changes]
     assert all(result.outcome == "precondition_changed" and not result.succeeded for result in results)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_paired_provider_global_change_refuses_project_and_context_does_not_leak(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    _canonical_skill(tmp_path / "source")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    installation = assess_skill_installation(inputs, registry, ("codex",))
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+    global_path = home / ".agents/skills/a/SKILL.md"
+    global_path.parent.mkdir(parents=True)
+    global_path.write_text("new unknown content")
+    before = snapshot({"sandbox": tmp_path})
+    results = provider.apply_installation(installation, consent)
+    assert len(results) == 2 and all(result.outcome == "precondition_changed" for result in results)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    fresh = assess_skill_installation(inputs, registry, ("codex",))
+    results = provider.apply_installation(fresh, consent)
+    assert all(result.outcome == "applied" for result in results)
+    after = snapshot({"sandbox": tmp_path})
+    adapter = GlobalSkillAssetsProvider()
+    with adapter.recheck(fresh.global_assets) as errors:
+        assert errors[0].code == "paired_skill_preflight_required"
+    assert adapter.apply(fresh.global_assets, consent).outcome == "precondition_changed"
+    assert_unchanged(after, snapshot({"sandbox": tmp_path}))
+
+
+@pytest.mark.parametrize("refusal", ["consent", "incomplete", "dispatch-error"])
+def test_paired_provider_refusal_and_exception_release_context(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, refusal: str,
+) -> None:
+    from dataclasses import replace
+    from collections.abc import Sequence
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot, OwnerAssessment, OwnerApplyResult
+    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    _canonical_skill(tmp_path / "source")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    installation = assess_skill_installation(
+        AssessmentInputs(OperationRoot("project", "project", project), consent=consent), registry, ("codex",),
+    )
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+    before = snapshot({"sandbox": tmp_path})
+    if refusal == "dispatch-error":
+        def fail_dispatch(
+            service: SurfaceRepairService, assessments: Sequence[OwnerAssessment], explicit_consent: ApplyConsent,
+        ) -> tuple[OwnerApplyResult, ...]:
+            _ = service, assessments, explicit_consent
+            raise RuntimeError("injected dispatch exception")
+
+        monkeypatch.setattr(SurfaceRepairService, "apply_assessments", fail_dispatch)
+        with pytest.raises(RuntimeError, match="injected dispatch exception"):
+            provider.apply_installation(installation, consent)
+    else:
+        changed = (replace(installation, project_skills=replace(installation.project_skills, complete=False))
+                   if refusal == "incomplete" else installation)
+        explicit = ApplyConsent(automatic=True, overwrite_paths=(".agents/skills/a/SKILL.md",)) if refusal == "consent" else consent
+        results = provider.apply_installation(changed, explicit)
+        assert all(result.outcome == "precondition_changed" for result in results)
+    adapter = GlobalSkillAssetsProvider()
+    with adapter.recheck(installation.global_assets) as errors:
+        assert errors[0].code == "paired_skill_preflight_required"
+    assert adapter.apply(installation.global_assets, consent).outcome == "precondition_changed"
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
 

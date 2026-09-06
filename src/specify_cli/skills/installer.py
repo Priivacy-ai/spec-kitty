@@ -467,6 +467,7 @@ class _ProjectSkillPreparation:
     def write(
         self, path: str, before: FileState, after: FileState, content: bytes | None,
         owners: tuple[ManagedFileEntry, ...], order: int, reason: str, proof_kind: str = "manifest",
+        *, consumers: tuple[ManagedFileEntry, ...] | None = None,
     ) -> None:
         if before.kind == "absent":
             action = "create"
@@ -488,10 +489,11 @@ class _ProjectSkillPreparation:
         )) for entry in owners)
         if not proofs:
             proofs = (OwnershipProof("managed_path", f"managed-skills:{path}"),)
+        affected = owners if consumers is None else consumers
         effect = PhysicalEffect(
             "managed_skills", "surface_repair", self.inputs.root, path, action, before, after, reason,
-            proofs, tuple(entry.agent_key for entry in owners) or ("managed_skills",),
-            tuple(f"{entry.agent_key}.doctrine_skill.{entry.skill_name}.{entry.source_file.replace('/', '.')}" for entry in owners),
+            proofs, tuple(entry.agent_key for entry in affected) or ("managed_skills",),
+            tuple(f"{entry.agent_key}.doctrine_skill.{entry.skill_name}.{entry.source_file.replace('/', '.')}" for entry in affected),
         )
         self.writes.append(PreparedProjectSkillWrite(effect, content, order))
 
@@ -615,7 +617,7 @@ def _prepare_project_skills(
     plan.observations.extend(catalog_inputs)
     now = now_utc_iso()
     expected = _expected_project_entries(skills, agents, now)
-    backups: list[tuple[SkillBackupReplacement, bytes | None, tuple[ManagedFileEntry, ...]]] = []
+    backups: list[tuple[SkillBackupReplacement, bytes | None, tuple[ManagedFileEntry, ...], tuple[ManagedFileEntry, ...]]] = []
     retired_entries: list[ManagedFileEntry] = []
     paths = set(expected)
     if selected_paths is not None:
@@ -641,11 +643,13 @@ def _prepare_project_skills(
         if _preserve_project_path(plan, path, before, managed, canonical, unchanged_owned):
             continue
         effect_owners = owners or tuple(new_owners)
+        # New consumers share the effect, but cannot fabricate prior manifest proof.
+        consumers = owners + tuple(new_owners)
         if before.kind in {"file", "symlink"} and not canonical and (after.kind != "absent" or not unchanged_owned):
             old_bytes = (project / path).read_bytes() if before.kind == "file" else None
-            backups.append((SkillBackupReplacement(path, before, after), old_bytes, effect_owners))
+            backups.append((SkillBackupReplacement(path, before, after), old_bytes, effect_owners, consumers))
         plan.write(path, before, after, content, effect_owners, 2, "Reconcile selected managed skill",
-                   "manifest" if owners else "canonical_content")
+                   "manifest" if owners else "canonical_content", consumers=consumers)
         if wanted is None:
             manifest.entries = [entry for entry in manifest.entries if entry.installed_path != path]
             retired_entries.extend(selected_owners)
@@ -661,9 +665,10 @@ def _prepare_project_skills(
     if backups:
         allocation = prepare_skill_backup(project, tuple(item[0] for item in backups))
         plan.observations.extend(allocation.observations)
-        for replacement, content, owners in backups:
+        for replacement, content, owners, consumers in backups:
             path = (allocation.root / replacement.path).relative_to(project).as_posix()
-            plan.write(path, FileState("absent"), replacement.before, content, owners, 1, "Retain managed skill before replacement")
+            plan.write(path, FileState("absent"), replacement.before, content, owners, 1,
+                       "Retain managed skill before replacement", consumers=consumers)
     plan.prune(tuple(retired_entries))
     return _finish_project_preparation(plan, manifest, previous, now, config)
 
