@@ -30,7 +30,7 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.nodes import MappingNode
-from ruamel.yaml.tokens import AliasToken
+from ruamel.yaml.tokens import AliasToken, KeyToken
 
 __all__ = [
     "OWNED_SECTIONS",
@@ -160,6 +160,15 @@ def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
 
 
 def _dump_document(document: Any, yaml: YAML) -> str:
+    document = copy.deepcopy(document)
+    if isinstance(document, CommentedMap):
+        for key, comments in document.ca.items.items():
+            if isinstance(key, str) and comments[0] is not None:
+                # The emitter simplifies explicit scalar keys. A key-line
+                # comment would then separate that implicit key from its colon.
+                # Use ruamel's pre-key comment slot instead, without losing it.
+                comments[1] = [*(comments[1] or []), comments[0]]
+                comments[0] = None
     stream = StringIO()
     yaml.dump(document, stream)
     return stream.getvalue()
@@ -167,6 +176,7 @@ def _dump_document(document: Any, yaml: YAML) -> str:
 
 def _yaml_value_events(value: Any) -> tuple[tuple[Any, ...], ...]:
     """Compare ruamel-constructed values, not object identity or lexical keys."""
+    # _dump_document isolates ruamel's mutable comment emission state.
     rendered = _dump_document(value, _yaml_loader())
     return tuple(
         (type(event).__name__, getattr(event, "anchor", None), getattr(event, "tag", None), getattr(event, "value", None))
@@ -223,17 +233,27 @@ def _yaml_key_events(key: Any) -> tuple[tuple[Any, ...], ...]:
     return _yaml_value_events(CommentedMap({key: None}))
 
 
-def _mapping_spans(text: str, document: Any, node: MappingNode) -> dict[Any, tuple[int, int]]:
+def _entry_comments(document: Any, key: Any) -> list[Any]:
+    comments = list(document.ca.items.get(key, ()))
+    if key == next(iter(document)):
+        comments.extend(document.ca.comment or ())
+    return [token for slot in comments if slot is not None for token in (slot if isinstance(slot, list) else [slot])]
+
+
+def _mapping_spans(text: str, document: Any, node: MappingNode, *, rendered_comments: bool = False) -> dict[Any, tuple[int, int]]:
     # ruamel's constructed keys and their locations are the authority, including
     # numeric/tagged/complex keys. Merge pseudo-keys have no authored map entry.
     keys = {document.lc.key(key): key for key, _ in document.non_merged_items()}
-    aliases = [token for token in _yaml_loader().scan(text) if isinstance(token, AliasToken)]
+    tokens = list(_yaml_loader().scan(text))
+    aliases = [token for token in tokens if isinstance(token, AliasToken)]
+    indicators = [token for token in tokens if isinstance(token, KeyToken)]
     spans = {}
     for key_node, value_node in node.value:
         location = (key_node.start_mark.line, key_node.start_mark.column)
         if location not in keys:
             continue
         start, end_mark = key_node.start_mark.index, value_node.end_mark
+        start = next(token.start_mark.index for token in reversed(indicators) if token.end_mark.index <= start)
         if value_node.start_mark.index < key_node.end_mark.index:
             # compose resolves aliases to the anchor node; scan retains the
             # actual alias occurrence needed for a bounded replacement span.
@@ -248,6 +268,10 @@ def _mapping_spans(text: str, document: Any, node: MappingNode) -> dict[Any, tup
         lines = text[start:end].splitlines(keepends=True)
         while lines and (not lines[-1].strip() or lines[-1].lstrip().startswith("#")):
             end -= len(lines.pop())
+        if rendered_comments:
+            for token in _entry_comments(document, keys[location]):
+                start = min(start, token.start_mark.index)
+                end = max(end, token.start_mark.index + len(token.value.lstrip("\r\n")))
         spans[_yaml_key_events(keys[location])] = (start, end)
     return spans
 
@@ -255,11 +279,30 @@ def _mapping_spans(text: str, document: Any, node: MappingNode) -> dict[Any, tup
 def _render_owned_entries(document: Any, original_spans: dict[Any, tuple[int, int]], yaml: YAML) -> str:
     rendering_document = copy.deepcopy(document)
     if isinstance(rendering_document, CommentedMap):
+        # Document-prefix comments stay in the untouched source. Any leading
+        # comments in the rendered document therefore belong to its first entry.
+        rendering_document.ca.comment = None
         for key, comments in rendering_document.ca.items.items():
-            if _yaml_key_events(key) in original_spans and comments[2] is not None:
-                # Following separator comments remain in the untouched source.
-                comments[2].value = comments[2].value.splitlines(keepends=True)[0]
+            bounds = original_spans.get(_yaml_key_events(key))
+            if bounds is None:
+                continue
+            for index, slot in enumerate(comments):
+                if isinstance(slot, list):
+                    comments[index] = [token for token in slot if _bound_entry_comment(token, *bounds)] or None
+                elif slot is not None and not _bound_entry_comment(slot, *bounds):
+                    comments[index] = None
     return _dump_document(rendering_document, yaml)
+
+
+def _bound_entry_comment(token: Any, start: int, end: int) -> bool:
+    # Keep only comments removed with this entry. Separators outside it remain
+    # in the original source; key continuations inside it must be rendered.
+    position = token.start_mark.index
+    if not start <= position < end:
+        return False
+    prefix = len(token.value) - len(token.value.lstrip("\r\n"))
+    token.value = token.value[: prefix + end - position]
+    return True
 
 
 def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML) -> str:
@@ -272,7 +315,7 @@ def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML
     rendered_node = _yaml_loader().compose(rendered)
     if not isinstance(rendered_node, MappingNode):
         raise ValueError("YAML root must be a mapping")
-    replacements = _mapping_spans(rendered, _yaml_loader().load(rendered), rendered_node)
+    replacements = _mapping_spans(rendered, _yaml_loader().load(rendered), rendered_node, rendered_comments=True)
     original_keys = {_yaml_key_events(key): key for key in original}
     desired_keys = {_yaml_key_events(key): key for key in document}
     edits: list[tuple[int, int, str]] = []

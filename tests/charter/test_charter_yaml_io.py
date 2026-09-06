@@ -159,6 +159,16 @@ def test_empty_collection_keeps_following_key_boundary(tmp_path: Path, newline: 
         ("metadata", "metadata", "metadata: # rationale\n# key detail\n  label: old\n"),
         ("activation", "activated_directives", "? activated_directives\n: [old]\n"),
         ("metadata", "metadata", "? metadata\n: {label: old}\n"),
+        ("activation", "activated_directives", "activated_directives:\n# key detail\n  - old\n"),
+        ("metadata", "metadata", "metadata:\n# key detail\n  label: old\n"),
+        ("activation", "activated_directives", "activated_directives: # rationale\n\n  # key detail\n  # continuation\n  - old\n"),
+        ("activation", "activated_directives", "? # indicator\n  activated_directives # key detail\n: # rationale\n  - old\n"),
+        ("metadata", "metadata", "? # indicator\n  metadata # key detail\n: # rationale\n  label: old\n"),
+        ("activation", "activated_directives", "? 'activated_directives'\n: [old]\n"),
+        ("activation", "activated_directives", "? >-\n  activated_directives\n: [old]\n"),
+        ("activation", "activated_directives", "?\n  activated_directives\n: [old]\n"),
+        ("activation", "activated_directives", "? activated_directives\n: # rationale\n# key detail\n  - old\n"),
+        ("activation", "activated_directives", "activated_directives: # rationale\n# key detail\n"),
     ],
 )
 def test_section_entry_source_boundaries(tmp_path: Path, newline: str, empty: bool, section: str, key: str, body: str) -> None:
@@ -175,7 +185,7 @@ def test_section_entry_source_boundaries(tmp_path: Path, newline: str, empty: bo
     assert load_charter_yaml(path)[key] == value
     raw = path.read_bytes()
     assert raw.startswith(prefix) and raw.endswith(tail)
-    for comment in (b"# rationale", b"# key detail"):
+    for comment in (b"# rationale", b"# key detail", b"# indicator", b"# continuation"):
         if comment in body.encode():
             assert raw.count(comment) == 1
     after = snapshot({"project": tmp_path})
