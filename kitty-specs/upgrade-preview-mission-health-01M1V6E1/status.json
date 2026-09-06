@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M1VEF1HYJ2ZM8Z62JW6NWN7B",
-  "materialized_at": "2026-09-06T13:27:59.806310+00:00",
+  "event_count": 3,
+  "last_event_id": "01M1VEF1XXZ0AQGY014STTKFPV",
+  "materialized_at": "2026-09-06T13:28:00.189162+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -30,6 +30,13 @@
       "lane": "planned",
       "last_event_id": "01M1VEF1HYJ2ZM8Z62JW6NWN7B",
       "last_transition_at": "2026-09-06T13:27:59.806310+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M1VEF1XXZ0AQGY014STTKFPV",
+      "last_transition_at": "2026-09-06T13:28:00.189162+00:00"
     }
   }
 }
