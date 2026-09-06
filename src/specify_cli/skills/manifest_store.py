@@ -325,6 +325,12 @@ def save(repo_root: Path, manifest: SkillsManifest) -> None:
     kittify_dir.mkdir(parents=True, exist_ok=True)
     target = kittify_dir / _MANIFEST_FILENAME
 
+    encoded = serialize(manifest)
+    _save_bytes(target, encoded)
+
+
+def serialize(manifest: SkillsManifest) -> bytes:
+    """Validate and render the existing manifest format without persistence."""
     # Sort entries deterministically before serialization.
     sorted_entries = sorted(manifest.entries, key=lambda e: e.path)
 
@@ -346,8 +352,11 @@ def save(repo_root: Path, manifest: SkillsManifest) -> None:
     _validate_against_schema(data)
 
     serialized = json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    encoded = serialized.encode("utf-8")
+    return serialized.encode("utf-8")
 
+
+def _save_bytes(target: Path, encoded: bytes) -> None:
+    """Persist already rendered manifest bytes using the existing atomic writer."""
     tmp_path = target.with_suffix(".tmp")
     try:
         with tmp_path.open("wb") as fh:
