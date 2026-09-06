@@ -43,6 +43,64 @@ from specify_cli.skills.manifest_store import ManifestEntry, SkillsManifest
 # ---------------------------------------------------------------------------
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+def test_wp04_normalization_does_not_adopt_unknown_content(repo: Path) -> None:
+    install(repo, "codex")
+    victim = _skill_path(repo, "plan")
+    missing = _skill_path(repo, "accept")
+    victim.write_bytes(b"operator custom canonical-path content\n")
+    missing.unlink()
+    manifest = manifest_store.load(repo)
+    manifest.remove_path(victim.relative_to(repo).as_posix())
+    manifest_store.save(repo, manifest)
+    manifest_store.repair_stale_manifest(repo, canonical_commands=list(CANONICAL_COMMANDS))
+    try:
+        install(repo, "codex")
+    except InstallerError:
+        pass
+    assert victim.read_bytes() == b"operator custom canonical-path content\n"
+    assert manifest_store.load(repo).find(victim.relative_to(repo).as_posix()) is None
+
+
+@pytest.mark.parametrize("name", ["spec-kitty.custom", "spec-kitty.plan", "spec-kitty"])
+def test_wp04_prefix_is_not_link_ownership(repo: Path, name: str) -> None:
+    install(repo, "codex")
+    target = repo / "sentinel"
+    target.mkdir()
+    (target / "keep").write_bytes(b"keep")
+    link = repo / ".agents/skills" / name
+    if link.exists():
+        (link / "SKILL.md").unlink()
+        link.rmdir()
+        manifest = manifest_store.load(repo)
+        manifest.remove_path(f".agents/skills/{name}/SKILL.md")
+        manifest_store.save(repo, manifest)
+    link.symlink_to(target, target_is_directory=True)
+    before = link.lstat()
+    manifest_store.remove_unsafe_symlinks(repo)
+    assert link.is_symlink(), "An unowned prefixed link was removed"
+    assert link.lstat().st_mtime_ns == before.st_mtime_ns
+    assert (target / "keep").read_bytes() == b"keep"
+
+
+def test_wp04_late_collision_rechecked_before_any_write(repo: Path) -> None:
+    install(repo, "codex")
+    missing = _skill_path(repo, CANONICAL_COMMANDS[0])
+    missing.unlink()
+    victim = _skill_path(repo, CANONICAL_COMMANDS[-1])
+    victim.write_bytes(b"edited owned content")
+    with pytest.raises(InstallerError):
+        install(repo, "codex")
+    assert not missing.exists(), "Installer wrote before checking the whole batch"
+
+
+def test_wp04_second_install_preserves_manifest_mtime(repo: Path) -> None:
+    install(repo, "codex")
+    path = repo / ".kittify/command-skills-manifest.json"
+    before = path.stat().st_mtime_ns
+    install(repo, "codex")
+    assert path.stat().st_mtime_ns == before
 _TEMPLATE_REPO_ROOT = (
     Path(__file__).parent.parent.parent.parent
 )  # tests/specify_cli/skills/../../.. → repo root
