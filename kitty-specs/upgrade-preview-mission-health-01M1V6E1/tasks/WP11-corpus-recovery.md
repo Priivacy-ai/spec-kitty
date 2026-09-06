@@ -320,6 +320,14 @@ an edited attribution sentence must fail even if corpus audit becomes green.
 
 ### Subtask T057: Scoped canonical materialization of two snapshots, preserve all eight verdicts
 
+**Parent disposition, 2026-09-06:** Apply the exact-path additional cyclic replay
+in contracts/corpus-recovery.md, "Separately Adjudicated Restored-Mission Replay".
+This explicitly supersedes two-snapshot/eight-verdict total counts below: two
+original repairs plus one separately recorded cyclic replay, eleven complete
+standing verdicts. Keep exact 31-file restoration proof before replay; only
+final cyclic status.json may differ from its historical blob. Raw history,
+identity, no-churn and zero-blocker gates remain binding. No fourth replay.
+
 **Purpose**: Correct derived snapshots through the event authority while proving
 review metadata and immutable history survive unchanged.
 
