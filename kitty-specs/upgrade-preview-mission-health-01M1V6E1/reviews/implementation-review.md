@@ -8,14 +8,15 @@ updated: 2026-09-06
 
 ## Current Status
 
-This summary supersedes historical readiness statements below. Eight WPs are
-approved: WP01, WP02, WP03, WP04, WP06, WP07, WP11 and WP12. WP05's first review
-rejected implementation `5f271f07fde9d6efeb16661c00e2205a04816a13`; corrections
-at `a458fc01fae48d80946f450ce90ab09ab19e8f1c` are now in focused second review.
-Its caller-resolved global skill input extension is independently approved;
-supporting Op closure awaits actual WP05 consumer integration verification.
-WP08, WP10 and WP13
-remain pending dependencies. No mission acceptance or consolidation is complete.
+This summary supersedes historical readiness statements below. Nine WPs are
+approved: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP11 and WP12. WP05 approval
+`01M1WDR51BWCKKKXGB3HGEY6VJ` follows focused independent review of
+`a458fc01fae48d80946f450ce90ab09ab19e8f1c`: both findings resolved, 11 focused
+tests and four independent controls passed, changed Ruff/strict mypy passed.
+Real paired provider dispatch matches 169 exact effects and refuses changed
+inputs before writes. Consumer input Op is complete at the owner boundary.
+WP08 is implementing with all five approved dependency lanes included; WP10 and
+WP13 remain pending. No mission acceptance or consolidation is complete.
 
 WP05 author reports 161 owned tests, all-12-path Ruff and strict mypy passing,
 plus real coordinated global/project consumer checks. Supplier dependency files
@@ -33,13 +34,14 @@ author checks passed; one further test hit a HOME/SPEC_KITTY_HOME fixture mismat
 retained separately from the genuine product failure. No supplier code reopened.
 Issue #3900 comment5562493948 links this in-flight implementation finding.
 Follow-up review is limited to these findings, corrective diff and adjacent risks;
-unchanged evidence is reused. Consumer Op remains open.
+unchanged evidence was reused. This historical rejection is resolved by the
+approval above; original failed evidence remains retained.
 
 Corrections follow committed RED `e81927a402a3c0341236d485c769b21a607fa7ad`.
 Four changed files add a paired provider boundary through the real dispatcher
 and separate affected-consumer metadata from prior ownership proof. Author
 reports 11 focused and 9 adjacent passing checks (three overlap), plus changed
-lint/types. These claims await the original reviewer's F1/F2 verification;
+lint/types. The original reviewer independently verified F1/F2 as recorded above;
 unchanged supplier/WP02/WP03 evidence is reused, not reopened. No broad-suite or
 public integration completion is claimed.
 

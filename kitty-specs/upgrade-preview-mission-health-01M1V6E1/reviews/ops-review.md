@@ -1,6 +1,6 @@
 # Supporting Operation Reviews
 
-## Caller-Resolved Global Skill Inputs: Open
+## Caller-Resolved Global Skill Inputs: Complete
 
 Op `01M1W6MA0EWJ38MJDQG2D50ZJ3` supplies the missing WP03 input needed by
 WP05's existing direct installers. Their caller-resolved registry, concrete
@@ -23,8 +23,15 @@ Unchanged WP03 locking and owner evidence reused, not broad-suite rerun.
 Initial reviewer run had 37 setup errors from an external fixture-hook missing
 return; corrected externally without relaxing sandbox, fixtures or assertions.
 Original failure retained in global-skill-selection-independent-review.md.
-WP05 full-chain integration is authorized, not yet verified. Op remains open
-until real consumer integration evidence; WP05 is not approved by this verdict.
+WP05 full-chain integration is verified with approved supplier bytes unchanged.
+The original consumer review rejected aggregate preflight and shared-owner
+metadata; correction `a458fc01fae48d80946f450ce90ab09ab19e8f1c` passed focused
+independent review: 11 targeted tests plus four independent controls, real
+169-effect provider dispatch and changed-input zero-write refusal. Separate
+consumer-seam verdict is closure-ready; parent completed this Op through the
+canonical CLI with that commit and wp05-cycle2-independent-review.md as evidence.
+This closes the owner/provider input extension, not WP10 root wiring or final
+public acceptance. Original failures and intermediate fixes remain recorded.
 
 Operator isolation incident F038 is disclosed in the external friction ledger
 and #3900 comment5561980379: earlier governance/parent CLI calls inherited live
