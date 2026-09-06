@@ -752,6 +752,29 @@ def test_skill_selection_snapshots_mutable_caller_inputs(owner_home: Path, tmp_p
     assert all("unselected-local" not in effect.path for effect in assessment.effects)
 
 
+def test_skill_selection_full_global_dispatch_retains_every_family(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    selection = agent_skills.GlobalSkillSelection(skills=_selection_catalog(tmp_path).discover_skills()[:1], agent_keys=["claude"])
+    before = snapshot({"home": owner_home})
+    log = tmp_path / "all-families-observer.log"
+    with _wp01_owner_observer(log):
+        assessment = assess_global_assets(agent_keys=["claude"], skill_selection=selection)
+    assert assessment.complete and assessment.effects
+    assert log.read_bytes() == b""
+    assert_unchanged(before, snapshot({"home": owner_home}))
+    assert {effect.root.root_id for effect in assessment.effects} == {"runtime_bootstrap", "slash_commands", "global_skills"}
+    assert all(result.outcome == "applied" for result in _global_dispatch((assessment,)))
+    expected = {(str(e.destination.relative_to(owner_home)), e.action, e.after.kind, e.after.sha256, e.after.mode) for e in assessment.effects}
+    actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in net_delta(before, snapshot({"home": owner_home}))}
+    assert expected == actual
+    after = snapshot({"home": owner_home})
+    repeat = assess_global_assets(agent_keys=["claude"], skill_selection=selection)
+    assert repeat.complete and not repeat.effects
+    assert all(result.outcome == "skipped" for result in _global_dispatch((repeat,)))
+    assert_unchanged(after, snapshot({"home": owner_home}))
+
+
 @pytest.mark.parametrize("empty", ["skills", "agents", "wrapper-agent"])
 def test_skill_selection_explicit_empty_never_discovers_package(owner_home: Path, tmp_path: Path, empty: str) -> None:
     from specify_cli.runtime.asset_preparation import assess_global_assets
