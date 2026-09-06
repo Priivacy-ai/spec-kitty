@@ -75,7 +75,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from mission_runtime import CommitTarget
 from kernel.paths import to_posix
@@ -489,7 +489,7 @@ def protected_branches(repo_path: Path) -> frozenset[str]:
     For production code that needs the full policy (including the hatch state),
     prefer :class:`ProtectionPolicy` directly.
     """
-    return ProtectionPolicy.resolve(repo_path).protected_branches
+    return cast(frozenset[str], ProtectionPolicy.resolve(repo_path).protected_branches)
 
 
 def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -> None:
