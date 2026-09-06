@@ -1,7 +1,7 @@
 ---
 title: 'ADR: RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement'
 description: 'Adjudicates the permanently-no-op runtime.next.event_emitter seam: keep it as the reserved E3 producer seam, merge the duplicate-named concrete class into the _internal_runtime Protocol/NullEmitter, fix the buffer flush-target bug, and defer live producer wiring — bounding what Mission B dead-port-disposition may touch.'
-status: Proposed
+status: Accepted
 date: '2026-09-06'
 ---
 
@@ -301,3 +301,5 @@ Wire a live zeitgeist-moment producer at the seam immediately.
   `tests/status/test_producer_conformance.py`,
   `tests/contract/test_identity_contract_matrix.py`.
 - Consumed by: Mission B `dead-port-disposition` (WP01). Sibling governance PR: #3888.
+- Accepted by the operator on 2026-09-06 (PR #3898): Option 1, rewire-ready consolidation.
+  Codemap retirement in the same PR confirmed.
