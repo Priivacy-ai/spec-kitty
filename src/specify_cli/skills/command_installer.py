@@ -26,13 +26,31 @@ module.  The only directory removal is a targeted
 from __future__ import annotations
 
 import contextlib
+import errno
 import os
-from dataclasses import dataclass, field
+import stat
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
+from specify_cli.core.agent_config import AgentConfigError
+
+from specify_cli.tool_surface.operations import (
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    Disposition,
+    FileState,
+    InputObservation,
+    OperationRoot,
+    OwnerApplyResult,
+    OwnerAssessment,
+    OwnershipProof,
+    PhysicalEffect,
+)
 
 from specify_cli.skills import manifest_store
 from specify_cli.skills.manifest_store import ManifestEntry
+from specify_cli.skills.manifest_errors import ManifestError
 from specify_cli.skills import command_renderer
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
@@ -74,13 +92,9 @@ CLI_WRAPPER_COMMANDS: tuple[str, ...] = (
 )
 
 #: The full consumer-facing command-skill set.
-CANONICAL_COMMANDS: tuple[str, ...] = tuple(
-    sorted((*PROMPT_BACKED_COMMANDS, *CLI_WRAPPER_COMMANDS))
-)
+CANONICAL_COMMANDS: tuple[str, ...] = tuple(sorted((*PROMPT_BACKED_COMMANDS, *CLI_WRAPPER_COMMANDS)))
 
-assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), (
-    "Command-skill installer must cover every consumer command"
-)
+assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), "Command-skill installer must cover every consumer command"
 
 _CLI_WRAPPER_DESCRIPTIONS: dict[str, str] = {
     "dashboard": "Open the mission dashboard",
@@ -93,6 +107,7 @@ _CLI_WRAPPER_COMMANDS: dict[str, str] = {
     "merge": "spec-kitty merge",
     "status": "spec-kitty agent tasks status",
 }
+
 
 def _package_templates_dir(mission_type: str = "software-dev") -> Path:
     """Return the directory containing canonical command step directories inside
@@ -261,9 +276,7 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
     """Return serialized SKILL.md bytes for a command skill."""
     if command in PROMPT_BACKED_COMMANDS:
         template = _resolve_template(repo_root, command)
-        rendered = command_renderer.render(
-            template, agent_key, version, repo_root=repo_root
-        )
+        rendered = command_renderer.render(template, agent_key, version, repo_root=repo_root)
         return rendered.to_skill_md().encode("utf-8")
 
     if command not in CLI_WRAPPER_COMMANDS:
@@ -293,33 +306,30 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
         "prints.\n"
     )
     body = prepend_agent_upgrade_check(body)
-    skill_md = (
-        "---\n"
-        f"name: spec-kitty.{command}\n"
-        f"description: {description}\n"
-        "user-invocable: true\n"
-        "---\n"
-        f"{body if body.startswith(chr(10)) else chr(10) + body}"
-    )
+    skill_md = f"---\nname: spec-kitty.{command}\ndescription: {description}\nuser-invocable: true\n---\n{body if body.startswith(chr(10)) else chr(10) + body}"
     return skill_md.encode("utf-8")
 
 
-def _atomic_write(path: Path, content: bytes) -> None:
+def _atomic_write(path: Path, content: bytes, *, mode: int = 0o644) -> None:
     """Write *content* to *path* atomically (temp-file + rename).
 
     Guarantees that a crashed write leaves at most a stale ``.tmp`` file
     behind, never a partially-written target.
     """
     tmp = path.with_suffix(path.suffix + ".tmp")
+    created = False
     try:
-        with tmp.open("wb") as fh:
+        with tmp.open("xb") as fh:
+            created = True
             fh.write(content)
             fh.flush()
+            os.fchmod(fh.fileno(), mode)
             os.fsync(fh.fileno())
         os.replace(tmp, path)
     except Exception:
-        with contextlib.suppress(OSError):
-            tmp.unlink(missing_ok=True)
+        if created:
+            with contextlib.suppress(OSError):
+                tmp.unlink(missing_ok=True)
         raise
 
 
@@ -353,15 +363,6 @@ def _is_canonical_rel_path(rel_path: str) -> bool:
     return command in CANONICAL_COMMANDS
 
 
-def _remove_empty_parent(path: Path) -> None:
-    parent = path.parent
-    try:
-        if parent.exists() and not any(parent.iterdir()):
-            parent.rmdir()
-    except OSError:
-        pass
-
-
 def _get_version() -> str:
     """Return the current Spec Kitty CLI version, or a dev fallback."""
     try:
@@ -376,242 +377,501 @@ def _get_version() -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+_OWNER = "command_skills"
+_MANIFEST = ".kittify/command-skills-manifest.json"
+
+
+@dataclass(frozen=True)
+class CommandInput:
+    """A command batch input observed without following destination links."""
+
+    path: Path
+    state: FileState
+    children: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
+class PreparedCommand:
+    """Retained command bytes and the corresponding exact manifest decision."""
+
+    path: str
+    content: bytes | None
+    entry: ManifestEntry | None
+    report_kind: str
+    proof: OwnershipProof | None = None
+
+
+@dataclass(frozen=True)
+class CommandExecutionArtifact:
+    """Bounded apply-only atomic replacement path; never a persistent effect."""
+
+    directory: str
+    name_pattern: str
+    purpose: str = "atomic_write"
+
+
+@dataclass(frozen=True)
+class PreparedCommands:
+    """Immutable command-owner payload, not a replayable filesystem plan."""
+
+    commands: tuple[PreparedCommand, ...]
+    original_entries: tuple[ManifestEntry, ...]
+    manifest_bytes: bytes
+    observations: tuple[CommandInput, ...]
+    catalog: tuple[str, ...]
+    version: str
+    execution_artifacts: tuple[CommandExecutionArtifact, ...]
+    template_paths: tuple[tuple[str, Path], ...]
+
+
+def _state(path: Path) -> FileState:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return FileState("absent")
+    mode = stat.S_IMODE(info.st_mode)
+    if stat.S_ISLNK(info.st_mode):
+        return FileState("symlink", target=os.readlink(path), mode=mode, mtime_ns=info.st_mtime_ns)
+    if stat.S_ISDIR(info.st_mode):
+        return FileState("directory", mode=mode, mtime_ns=info.st_mtime_ns)
+    if stat.S_ISREG(info.st_mode):
+        return FileState("file", sha256=manifest_store.fingerprint_file(path), mode=mode, mtime_ns=info.st_mtime_ns)
+    raise InstallerError("unsafe_path", path=str(path), detail="Unsupported node kind")
+
+
+class _CommandBatch:
+    """Collect command decisions and their physical supporting effects once."""
+
+    def __init__(self, inputs: AssessmentInputs, agents: tuple[str, ...]) -> None:
+        self.inputs = inputs
+        self.root = inputs.root.path
+        self.agents = agents
+        self.observations: dict[Path, CommandInput] = {}
+        self.effects: dict[str, PhysicalEffect] = {}
+        self.commands: list[PreparedCommand] = []
+        self.dispositions: list[Disposition] = []
+        self.artifacts: list[CommandExecutionArtifact] = []
+        self.template_paths: list[tuple[str, Path]] = []
+        if self.observe_destination(_MANIFEST).kind not in {"file", "absent"}:
+            raise InstallerError("manifest_parse_failed", detail="Manifest must be a regular file")
+        try:
+            self.manifest = manifest_store.load(self.root)
+        except ManifestError as exc:
+            raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
+        self.original_entries = tuple(self.manifest.entries)
+        self.version = _get_version()
+        self.time = now_utc_iso()
+
+    def observe(self, path: Path, *, children: bool = False) -> FileState:
+        state = _state(path)
+        names = tuple(sorted(p.name for p in path.iterdir())) if children and state.kind == "directory" else None
+        observation = CommandInput(path, state, names)
+        previous = self.observations.get(path)
+        if previous is not None and previous.state != state:
+            raise InstallerError("precondition_changed", path=str(path))
+        if previous is not None and previous.children is not None and names is None:
+            observation = previous
+        self.observations[path] = observation
+        return state
+
+    def observe_destination(self, rel: str) -> FileState:
+        path = self.root / rel
+        if not path.is_relative_to(self.root) or ".." in Path(rel).parts:
+            raise InstallerError("unsafe_path", path=rel)
+        for parent in reversed(path.parents):
+            if (parent == self.root or parent.is_relative_to(self.root)) and self.observe(parent).kind not in {"directory", "absent"}:
+                raise InstallerError("unsafe_path", path=rel, detail="Non-directory parent")
+        return self.observe(path)
+
+    def disposition(self, rel: str, state: str, reason: str) -> None:
+        self.dispositions.append(Disposition(_OWNER, self.inputs.root.root_id, rel, state, reason))
+
+    def effect(self, rel: str, after: FileState, owners: tuple[str, ...], proof: OwnershipProof) -> None:
+        before = self.observe_destination(rel)
+        if before.kind == "absent":
+            action = "create"
+        elif after.kind == "absent":
+            action = "delete"
+        elif before.kind != after.kind:
+            action = "replace"
+        elif before.sha256 != after.sha256:
+            action = "update"
+        elif before.mode != after.mode:
+            action = "chmod"
+        else:
+            return
+        effect = PhysicalEffect(
+            _OWNER,
+            "surface_repair",
+            self.inputs.root,
+            rel,
+            action,
+            before,
+            after,
+            "Reconcile command delivery and manifest ownership",
+            (proof,),
+            owners,
+        )
+        previous = self.effects.get(rel)
+        if previous is not None:
+            effect = replace(effect, logical_owners=previous.logical_owners + effect.logical_owners, ownership=previous.ownership + effect.ownership)
+        self.effects[rel] = effect
+
+    def parents(self, rel: str, owners: tuple[str, ...]) -> None:
+        for parent in reversed(Path(rel).parents):
+            if parent == Path("."):
+                continue
+            name = parent.as_posix()
+            if self.observe_destination(name).kind == "absent":
+                self.effect(name, FileState("directory", mode=0o755), owners, OwnershipProof("managed_path", f"parent:{rel}"))
+
+    def atomic_artifact(self, rel: str) -> None:
+        path = Path(rel)
+        temporary = path.with_suffix(".tmp") if rel == _MANIFEST else path.with_suffix(path.suffix + ".tmp")
+        if self.observe_destination(temporary.as_posix()).kind != "absent":
+            raise InstallerError("unexpected_collision", path=temporary.as_posix())
+        self.artifacts.append(CommandExecutionArtifact(temporary.parent.as_posix(), temporary.name))
+
+    def install_command(self, command: str, content: bytes, *, adopt_only: bool = False) -> None:
+        rel = f".agents/skills/spec-kitty.{command}/SKILL.md"
+        existing = self.manifest.find(rel)
+        parent = Path(rel).parent.as_posix()
+        try:
+            parent_state = self.observe_destination(parent)
+        except InstallerError as exc:
+            if exc.code != "unsafe_path":
+                raise
+            self.disposition(rel, "preserve", "Unsafe command parent retained")
+            return
+        package_link = parent_state.kind == "symlink"
+        if package_link and existing is None:
+            self.disposition(rel, "preserve", "Unknown package link is not command ownership")
+            return
+        before = FileState("absent") if package_link else self.observe_destination(rel)
+        digest = manifest_store.fingerprint(content)
+        if self.preserve(rel, before, existing, digest):
+            return
+        if adopt_only and (existing is not None or before.kind != "file" or before.sha256 != digest):
+            return
+        owners = tuple(sorted(set(existing.agents if existing else ()) | set(self.agents)))
+        entry = ManifestEntry(rel, digest, owners, existing.installed_at if existing else self.time, self.version)
+        same = before.kind == "file" and before.sha256 == digest
+        if same and existing is not None:
+            entry = existing
+            for agent in self.agents:
+                entry = entry.with_agent_added(agent)
+        kind = "already_installed" if same and existing == entry else "reused_shared" if same else "added"
+        proof = (
+            OwnershipProof("manifest", f"{_MANIFEST}#{rel}")
+            if existing
+            else OwnershipProof("canonical_content" if same else "managed_path", f"CANONICAL_COMMANDS:{command}:{digest}")
+        )
+        self.commands.append(PreparedCommand(rel, content, entry, kind, proof))
+        self.manifest.upsert(entry)
+        if package_link:
+            self.effect(parent, FileState("directory", mode=0o755), owners, proof)
+            self.effects[rel] = PhysicalEffect(
+                _OWNER,
+                "surface_repair",
+                self.inputs.root,
+                rel,
+                "create",
+                before,
+                FileState("file", sha256=digest, mode=0o644),
+                "Copy into the replaced owned package link",
+                (proof,),
+                owners,
+            )
+            self.artifacts.append(CommandExecutionArtifact(parent, "SKILL.md.tmp"))
+        elif not same:
+            self.parents(rel, owners)
+            self.effect(rel, FileState("file", sha256=digest, mode=before.mode if before.kind == "file" else 0o644), owners, proof)
+            self.atomic_artifact(rel)
+        else:
+            self.disposition(rel, "unchanged", "Canonical bytes retained; manifest owners assessed separately")
+
+    def preserve(self, rel: str, before: FileState, existing: ManifestEntry | None, digest: str) -> bool:
+        if before.kind == "directory" or (before.kind == "symlink" and existing is None):
+            self.disposition(rel, "preserve", "Unknown node is not command ownership")
+            return True
+        if before.kind != "file":
+            return False
+        if existing is not None and before.sha256 != existing.content_hash:
+            self.disposition(rel, "consent_required", "Managed command content has drifted")
+            return True
+        if existing is None and before.sha256 != digest:
+            self.disposition(rel, "preserve", "Unknown content does not equal canonical rendered bytes")
+            return True
+        return False
+
+    def remove_entry(self, entry: ManifestEntry, remaining: tuple[str, ...]) -> None:
+        before = self.observe_destination(entry.path)
+        if before.kind == "directory" or (before.kind == "file" and before.sha256 != entry.content_hash):
+            self.disposition(entry.path, "consent_required", "Edited owned prune/remove candidate retained")
+            return
+        if remaining:
+            updated = ManifestEntry(entry.path, entry.content_hash, remaining, entry.installed_at, entry.spec_kitty_version)
+            self.manifest.upsert(updated)
+            self.commands.append(PreparedCommand(entry.path, None, updated, "kept"))
+            return
+        proof = OwnershipProof("manifest", f"{_MANIFEST}#{entry.path}")
+        if before.kind != "absent":
+            self.effect(entry.path, FileState("absent"), entry.agents, proof)
+        parent = (self.root / entry.path).parent
+        state = self.observe(parent, children=True)
+        if state.kind == "directory" and self.observations[parent].children in {(), ("SKILL.md",)}:
+            self.effect(parent.relative_to(self.root).as_posix(), FileState("absent"), entry.agents, proof)
+        self.manifest.remove_path(entry.path)
+        self.commands.append(PreparedCommand(entry.path, None, None, "deleted"))
+
+    def finish(self) -> OwnerAssessment:
+        encoded = manifest_store.serialize(self.manifest)
+        owners = tuple(sorted(set(self.agents) | {a for e in self.original_entries for a in e.agents}))
+        if self.manifest.entries != list(self.original_entries):
+            # Ordering is not an effect; retain original bytes when entries agree.
+            original = manifest_store.serialize(manifest_store.SkillsManifest(entries=list(self.original_entries)))
+            if encoded != original:
+                self.parents(_MANIFEST, owners)
+                before = self.observe_destination(_MANIFEST)
+                self.effect(
+                    _MANIFEST,
+                    FileState("file", sha256=manifest_store.fingerprint(encoded), mode=before.mode if before.kind == "file" else 0o644),
+                    owners,
+                    OwnershipProof("managed_path", _MANIFEST),
+                )
+                self.effects[_MANIFEST] = replace(
+                    self.effects[_MANIFEST], ownership=(self.effects[_MANIFEST].ownership + tuple(c.proof for c in self.commands if c.proof is not None))
+                )
+                self.atomic_artifact(_MANIFEST)
+        payload = PreparedCommands(
+            tuple(self.commands),
+            self.original_entries,
+            encoded,
+            tuple(self.observations.values()),
+            CANONICAL_COMMANDS,
+            self.version,
+            tuple(self.artifacts),
+            tuple(self.template_paths),
+        )
+        return OwnerAssessment(
+            _OWNER,
+            self.inputs.root,
+            tuple(self.effects.values()),
+            tuple(self.dispositions),
+            inputs_fingerprint=(InputObservation("command_inputs", payload.observations), InputObservation("projected", self.inputs.projected)),
+            prepared=payload,
+            consent=self.inputs.consent,
+        )
+
+
+def _resolve_observed_input(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except RuntimeError as exc:
+        # Python 3.11 pathlib translates ELOOP into RuntimeError. Translate only
+        # that observation failure; programmer exceptions still escape.
+        cause = exc.__cause__ or exc.__context__
+        if isinstance(cause, OSError) and cause.errno == errno.ELOOP:
+            raise cause from exc
+        raise
+
+
+def prepare_commands(
+    inputs: AssessmentInputs,
+    agents: tuple[str, ...],
+    *,
+    prune: bool = False,
+    remove_agents: tuple[str, ...] = (),
+    adopt_only: bool = False,
+) -> OwnerAssessment:
+    """Prepare the complete selected command batch without writes or normalization.
+
+    Exact canonical bytes alone permit unowned regular-file adoption. Unknown
+    bytes and links are preserved; existing manifest owners survive shared reuse.
+    """
+    try:
+        if any(a not in SUPPORTED_AGENTS for a in agents + remove_agents):
+            raise InstallerError("unsupported_agent", agents=agents + remove_agents)
+        batch = _CommandBatch(inputs, agents)
+        for path in command_renderer.rendering_inputs(inputs.root.path):
+            batch.observe(path)
+            resolved = _resolve_observed_input(path)
+            if resolved != path:
+                batch.observe(resolved)
+        for command in CANONICAL_COMMANDS if agents else ():
+            if command in PROMPT_BACKED_COMMANDS:
+                template = _resolve_template(inputs.root.path, command)
+                batch.template_paths.append((command, template))
+                batch.observe(template)
+                batch.observe(_resolve_observed_input(template))
+            variants = tuple(_render_command_skill(inputs.root.path, command, agent, batch.version) for agent in agents)
+            if len(set(variants)) != 1:
+                raise InstallerError("shared_content_conflict", command=command)
+            batch.install_command(command, variants[0], adopt_only=adopt_only)
+        for entry in batch.original_entries:
+            if remove_agents or (prune and not _is_canonical_rel_path(entry.path)):
+                selected = set(remove_agents or agents or entry.agents)
+                if selected.intersection(entry.agents):
+                    batch.remove_entry(entry, tuple(a for a in entry.agents if a not in selected))
+        assessment = batch.finish()
+        diagnostics = recheck_commands(assessment)
+        return replace(assessment, complete=False, diagnostics=diagnostics) if diagnostics else assessment
+    except (OSError, ValueError, AgentConfigError, InstallerError, ManifestError, command_renderer.SkillRenderError) as exc:
+        return OwnerAssessment(
+            _OWNER,
+            inputs.root,
+            complete=False,
+            diagnostics=(Diagnostic(getattr(exc, "code", "command_input_unreadable"), _OWNER, "error", str(exc)),),
+            consent=inputs.consent,
+        )
+
+
+def recheck_commands(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
+    """Check the whole retained batch before its first write; never rerender."""
+    payload = assessment.prepared
+    if not assessment.complete or not isinstance(payload, PreparedCommands):
+        return (Diagnostic("incomplete_assessment", _OWNER, "error", "Command preparation is incomplete"),)
+    try:
+        if payload.catalog != CANONICAL_COMMANDS or payload.version != _get_version():
+            raise InstallerError("precondition_changed", detail="Command catalog/version changed")
+        if any(_resolve_template(assessment.root.path, command) != path for command, path in payload.template_paths):
+            raise InstallerError("precondition_changed", detail="Command source selection changed")
+        for item in payload.observations:
+            if _state(item.path) != item.state:
+                raise InstallerError("precondition_changed", path=str(item.path))
+            if item.children is not None and tuple(sorted(p.name for p in item.path.iterdir())) != item.children:
+                raise InstallerError("precondition_changed", path=str(item.path))
+    except (OSError, InstallerError) as exc:
+        return (Diagnostic("precondition_changed", _OWNER, "error", str(exc)),)
+    return ()
+
+
+def _apply_command_effect(effect: PhysicalEffect, payload: PreparedCommands) -> None:
+    path = effect.destination
+    if effect.after.kind == "directory":
+        if effect.before.kind == "symlink":
+            path.unlink()
+        path.mkdir(mode=0o755)
+        path.chmod(0o755)
+    elif effect.after.kind == "absent":
+        if effect.before.kind == "directory":
+            path.rmdir()
+        else:
+            path.unlink()
+    elif effect.path == _MANIFEST:
+        manifest_store.save_prepared(effect.root.path, payload.manifest_bytes, mode=effect.after.mode if effect.after.mode is not None else 0o644)
+    else:
+        command = next(c for c in payload.commands if c.path == effect.path)
+        assert command.content is not None
+        _atomic_write(path, command.content, mode=effect.after.mode if effect.after.mode is not None else 0o644)
+
+
+def _partial_manifest(assessment: OwnerAssessment, payload: PreparedCommands, succeeded: set[str]) -> None:
+    """Save only entries supported by completed writes, retaining prior owners."""
+    manifest = manifest_store.SkillsManifest(entries=list(payload.original_entries))
+    by_path = {effect.path: effect for effect in assessment.effects}
+    for command in payload.commands:
+        effect = by_path.get(command.path)
+        if effect is not None and effect.id not in succeeded:
+            continue
+        if command.entry is None:
+            manifest.remove_path(command.path)
+        else:
+            manifest.upsert(command.entry)
+    encoded = manifest_store.serialize(manifest)
+    original = manifest_store.serialize(manifest_store.SkillsManifest(entries=list(payload.original_entries)))
+    if encoded != original:
+        manifest_effect = by_path.get(_MANIFEST)
+        mode = manifest_effect.after.mode if manifest_effect is not None else None
+        manifest_store.save_prepared(assessment.root.path, encoded, mode=mode if mode is not None else 0o644)
+
+
+def apply_commands(assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerApplyResult:
+    """Apply exact prepared bytes after a full recheck; report actual partial I/O."""
+    ids = tuple(e.id for e in assessment.effects)
+    if not consent.automatic or consent != assessment.consent:
+        return OwnerApplyResult(_OWNER, skipped=ids, outcome="skipped")
+    diagnostics = recheck_commands(assessment)
+    if diagnostics:
+        return OwnerApplyResult(_OWNER, skipped=ids, diagnostics=diagnostics, outcome="precondition_changed")
+    payload = assessment.prepared
+    assert isinstance(payload, PreparedCommands)
+    effects = sorted(
+        assessment.effects,
+        key=lambda e: (
+            3 if e.path == _MANIFEST else 2 if e.after.kind == "absent" and e.before.kind == "directory" else 0 if e.after.kind == "directory" else 1,
+            len(Path(e.path).parts),
+            e.path,
+        ),
+    )
+    succeeded: list[str] = []
+    for effect in effects:
+        try:
+            _apply_command_effect(effect, payload)
+        except OSError as exc:
+            messages = [Diagnostic("command_apply_failed", _OWNER, "error", str(exc))]
+            try:
+                if effect.path != _MANIFEST:
+                    _partial_manifest(assessment, payload, set(succeeded))
+            except OSError as manifest_exc:
+                messages.append(Diagnostic("partial_manifest_failed", _OWNER, "error", str(manifest_exc)))
+            return OwnerApplyResult(
+                _OWNER,
+                tuple(succeeded),
+                (effect.id,),
+                tuple(i for i in ids if i not in succeeded and i != effect.id),
+                tuple(messages),
+                "partial" if succeeded else "failed",
+            )
+        succeeded.append(effect.id)
+    return OwnerApplyResult(_OWNER, tuple(succeeded))
+
+
+def _direct_assessment(repo_root: Path, agents: tuple[str, ...], *, prune: bool = False, remove_agents: tuple[str, ...] = ()) -> OwnerAssessment:
+    inputs = AssessmentInputs(OperationRoot("project", "project", repo_root.absolute()), consent=ApplyConsent(automatic=True))
+    assessment = prepare_commands(inputs, agents, prune=prune, remove_agents=remove_agents)
+    if not assessment.complete:
+        raise InstallerError(assessment.diagnostics[0].code, detail=assessment.diagnostics[0].message)
+    for disposition in assessment.dispositions:
+        if disposition.state in {"preserve", "consent_required"}:
+            if disposition.path is not None:
+                _ensure_project_confined(repo_root, disposition.path, repo_root / disposition.path)
+            raise InstallerError("file_mutation_detected" if remove_agents or prune else "unexpected_collision", path=disposition.path)
+    result = apply_commands(assessment, inputs.consent)
+    if result.outcome != "applied":
+        raise InstallerError(result.outcome, diagnostics=result.diagnostics)
+    return assessment
+
 
 def install(repo_root: Path, agent_key: str) -> InstallReport:
-    """Install all canonical command skills for *agent_key*.
-
-    This function is **idempotent**: running it twice for the same
-    ``agent_key`` produces identical on-disk state and an identical manifest.
-
-    It is also **additive**: third-party files under ``.agents/skills/`` are
-    never modified, renamed, or deleted.
-
-    Parameters
-    ----------
-    repo_root:
-        Absolute path to the project root (the directory that contains
-        ``.kittify/`` and ``.agents/``).
-    agent_key:
-        One of :data:`SUPPORTED_AGENTS`.
-
-    Returns
-    -------
-    InstallReport
-        Breakdown of added / already_installed / reused_shared paths.
-
-    Raises
-    ------
-    InstallerError("unsupported_agent")
-        *agent_key* is not in :data:`SUPPORTED_AGENTS`.
-    InstallerError("unexpected_collision")
-        A manifest entry's on-disk hash does not match the stored hash (drift
-        detected before we could safely proceed).
-    InstallerError("manifest_parse_failed")
-        The manifest file is corrupt and cannot be loaded.
-    command_renderer.SkillRenderError
-        Propagated from the renderer if a template is malformed or missing.
-    """
-    if agent_key not in SUPPORTED_AGENTS:
-        raise InstallerError("unsupported_agent", agent_key=agent_key)
-
-    try:
-        manifest = manifest_store.load(repo_root)
-    except Exception as exc:
-        raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
-
-    version = _get_version()
+    """Install the complete canonical batch; preserve the public logical report."""
+    assessment = _direct_assessment(repo_root, (agent_key,))
+    payload = assessment.prepared
+    assert isinstance(payload, PreparedCommands)
     report = InstallReport()
-
-    for command in CANONICAL_COMMANDS:
-        skill_md_bytes = _render_command_skill(repo_root, command, agent_key, version)
-        rel_path = f".agents/skills/spec-kitty.{command}/SKILL.md"
-        abs_path = repo_root / rel_path
-        _ensure_project_confined(repo_root, rel_path, abs_path)
-
-        existing = manifest.find(rel_path)
-
-        if existing is not None:
-            # Drift check: if the file exists, its hash must match the
-            # manifest record. A missing managed file is a repairable gap.
-            file_exists = abs_path.exists()
-            on_disk_hash = (
-                manifest_store.fingerprint_file(abs_path)
-                if file_exists
-                else None
-            )
-            if file_exists and on_disk_hash != existing.content_hash:
-                raise InstallerError("unexpected_collision", path=rel_path)
-
-            # Compute the hash we *would* write.
-            would_write_hash = manifest_store.fingerprint(skill_md_bytes)
-
-            if file_exists and existing.content_hash == would_write_hash:
-                # Same bytes — either already claimed by this agent or shared.
-                if agent_key in existing.agents:
-                    report.already_installed.append(rel_path)
-                else:
-                    manifest.upsert(existing.with_agent_added(agent_key))
-                    report.reused_shared.append(rel_path)
-                continue
-
-            # Template was updated this release — rewrite the file.
-            abs_path.parent.mkdir(parents=True, exist_ok=True)
-            _atomic_write(abs_path, skill_md_bytes)
-            manifest.upsert(
-                ManifestEntry(
-                    path=rel_path,
-                    content_hash=would_write_hash,
-                    agents=tuple(sorted(set(existing.agents) | {agent_key})),
-                    installed_at=existing.installed_at,
-                    spec_kitty_version=version,
-                )
-            )
-            report.added.append(rel_path)
-        else:
-            # New installation.
-            would_write_hash = manifest_store.fingerprint(skill_md_bytes)
-            if abs_path.exists():
-                on_disk_hash = manifest_store.fingerprint_file(abs_path)
-                if on_disk_hash != would_write_hash:
-                    raise InstallerError("unexpected_collision", path=rel_path)
-                manifest.upsert(
-                    ManifestEntry(
-                        path=rel_path,
-                        content_hash=would_write_hash,
-                        agents=(agent_key,),
-                        installed_at=now_utc_iso(),
-                        spec_kitty_version=version,
-                    )
-                )
-                report.reused_shared.append(rel_path)
-                continue
-
-            abs_path.parent.mkdir(parents=True, exist_ok=True)
-            _atomic_write(abs_path, skill_md_bytes)
-            manifest.upsert(
-                ManifestEntry(
-                    path=rel_path,
-                    content_hash=would_write_hash,
-                    agents=(agent_key,),
-                    installed_at=now_utc_iso(),
-                    spec_kitty_version=version,
-                )
-            )
-            report.added.append(rel_path)
-
-    manifest_store.save(repo_root, manifest)
+    for command in payload.commands:
+        getattr(report, command.report_kind).append(command.path)
     return report
 
 
 def remove(repo_root: Path, agent_key: str) -> RemoveReport:
-    """Remove *agent_key* from all manifest entries it owns.
-
-    Physical file deletion occurs only when the entry's ``agents`` list
-    becomes empty.  Files co-owned by other agents are left byte-identical
-    on disk; only the ``agents`` list in the manifest is updated.
-
-    The parent ``spec-kitty.<command>/`` directory is removed **only** when
-    it is empty after the file deletion, preserving any third-party files the
-    user may have placed there.
-
-    Parameters
-    ----------
-    repo_root:
-        Absolute path to the project root.
-    agent_key:
-        The supported command-skill agent to remove.
-
-    Returns
-    -------
-    RemoveReport
-        Breakdown of deref / deleted / kept paths.
-
-    Raises
-    ------
-    InstallerError("manifest_parse_failed")
-        The manifest file is corrupt.
-    InstallerError("file_mutation_detected")
-        A file's on-disk hash differs from the manifest hash.  Removal is
-        aborted for safety; the caller should run ``spec-kitty doctor`` to
-        resolve.
-    """
-    try:
-        manifest = manifest_store.load(repo_root)
-    except Exception as exc:
-        raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
-
+    """Release one owner's references; delete only the final proven owner."""
+    assessment = _direct_assessment(repo_root, (), remove_agents=(agent_key,))
+    payload = assessment.prepared
+    assert isinstance(payload, PreparedCommands)
     report = RemoveReport()
-
-    for entry in manifest.entries:
-        if agent_key not in entry.agents:
-            continue
-
-        abs_path = repo_root / entry.path
-        _ensure_project_confined(repo_root, entry.path, abs_path)
-
-        # Drift check before mutating disk.
-        if abs_path.exists():
-            on_disk_hash = manifest_store.fingerprint_file(abs_path)
-            if on_disk_hash != entry.content_hash:
-                raise InstallerError(
-                    "file_mutation_detected", path=entry.path
-                )
-
-        new_agents = tuple(a for a in entry.agents if a != agent_key)
-
-        if new_agents:
-            # Other agents still need this file — only update the manifest.
-            manifest.upsert(entry.with_agent_removed(agent_key))
-            report.deref.append(entry.path)
-            report.kept.append(entry.path)
-        else:
-            # We are the last agent — physically remove the file.
-            if abs_path.exists():
-                abs_path.unlink()
-
-            # Remove the parent dir only if it is empty after our deletion.
-            # This preserves any third-party files the user placed in the dir.
-            _remove_empty_parent(abs_path)
-
-            manifest.remove_path(entry.path)
-            report.deref.append(entry.path)
-            report.deleted.append(entry.path)
-
-    manifest_store.save(repo_root, manifest)
+    for command in payload.commands:
+        report.deref.append(command.path)
+        getattr(report, command.report_kind).append(command.path)
     return report
 
 
 def prune_stale(repo_root: Path) -> list[str]:
-    """Remove manifest entries whose command is no longer canonical.
-
-    Stale files are deleted only when their on-disk bytes still match the
-    manifest hash. Edited files fail closed.
-    """
-    try:
-        manifest = manifest_store.load(repo_root)
-    except Exception as exc:
-        raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
-
-    pruned: list[str] = []
-    for entry in manifest.entries.copy():
-        if _is_canonical_rel_path(entry.path):
-            continue
-
-        abs_path = repo_root / entry.path
-        _ensure_project_confined(repo_root, entry.path, abs_path)
-        if abs_path.exists():
-            on_disk_hash = manifest_store.fingerprint_file(abs_path)
-            if on_disk_hash != entry.content_hash:
-                raise InstallerError("file_mutation_detected", path=entry.path)
-            abs_path.unlink()
-            _remove_empty_parent(abs_path)
-
-        manifest.remove_path(entry.path)
-        pruned.append(entry.path)
-
-    if pruned:
-        manifest_store.save(repo_root, manifest)
-    return pruned
+    """Prune exact manifest-owned retired commands, preserving edited candidates."""
+    assessment = _direct_assessment(repo_root, (), prune=True, remove_agents=())
+    payload = assessment.prepared
+    assert isinstance(payload, PreparedCommands)
+    return [command.path for command in payload.commands if command.report_kind == "deleted"]
 
 
 def verify(repo_root: Path) -> VerifyReport:

@@ -140,6 +140,23 @@ _CANONICAL_SKILL_AGENT = "codex"
 _CANONICAL_SKILL_COMMAND = "specify"
 
 
+def test_wp04_rendering_inputs_preserve_pointer_identity(tmp_path: Path) -> None:
+    from specify_cli.skills.command_renderer import rendering_inputs
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "custom-charter.yaml"
+    target.write_text("activated_tactics: []\n", encoding="utf-8")
+    config.write_text("charter: custom-charter.yaml\nagents:\n  available: [codex]\n", encoding="utf-8")
+    before = snapshot({"project": tmp_path})
+    assert rendering_inputs(tmp_path) == (config, target)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    target.unlink()
+    with pytest.raises(ValueError, match="unreadable"):
+        rendering_inputs(tmp_path)
+
+
 def test_canonical_skill_snapshot() -> None:
     """The canonical (codex/specify) skill render is byte-stable.
 
@@ -153,14 +170,8 @@ def test_canonical_skill_snapshot() -> None:
 
 def test_only_canonical_snapshot_is_committed() -> None:
     """Post-narrowing, exactly one canonical skill snapshot is committed."""
-    committed = sorted(
-        p.relative_to(SNAPSHOTS_DIR).as_posix()
-        for p in SNAPSHOTS_DIR.rglob("*")
-        if p.is_file() and p.name != "__init__.py"
-    )
-    assert committed == ["codex/specify.SKILL.md"], (
-        f"Expected only the canonical codex/specify.SKILL.md snapshot, found: {committed}"
-    )
+    committed = sorted(p.relative_to(SNAPSHOTS_DIR).as_posix() for p in SNAPSHOTS_DIR.rglob("*") if p.is_file() and p.name != "__init__.py")
+    assert committed == ["codex/specify.SKILL.md"], f"Expected only the canonical codex/specify.SKILL.md snapshot, found: {committed}"
 
 
 # ---------------------------------------------------------------------------
