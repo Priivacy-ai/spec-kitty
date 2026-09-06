@@ -32,7 +32,7 @@
   "flattened": true,
   "friendly_name": "Dead-Port Disposition: RuntimeEventEmitter Seam Consolidation",
   "mission_id": "01M1VRA2VWSET7NAR2M5Z6TZ5M",
-  "mission_number": null,
+  "mission_number": 198,
   "mission_slug": "dead-port-disposition-01M1VRA2",
   "mission_type": "software-dev",
   "pr_bound": true,
