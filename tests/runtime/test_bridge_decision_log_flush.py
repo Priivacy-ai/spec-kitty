@@ -156,11 +156,7 @@ def _requested_payload(*, run_id: str = RUN_ID, decision_id: str = DECISION_ID) 
 def _count_requests(path: Path) -> int:
     if not path.exists():
         return 0
-    return sum(
-        1
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip() and json.loads(line)["event_type"] == REQUESTED_EVENT_TYPE
-    )
+    return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and json.loads(line)["event_type"] == REQUESTED_EVENT_TYPE)
 
 
 class _Harness:
@@ -343,7 +339,7 @@ def test_gated_flush_does_not_duplicate(monkeypatch: pytest.MonkeyPatch, tmp_pat
     rb._dn_decision_materialize(h.ctx)
 
     assert h.request_count() == 1
-    assert len(buffers) == 1
+    assert len(buffers) == 1  # golden-count: cardinality-is-contract (exactly one buffer per gated advance)
     buffers[0].flush(h.log)
     assert h.request_count() == 1, "re-flushing the one-shot buffer must not duplicate the entry"
     assert buffers[0].call_count() == 0
