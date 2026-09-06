@@ -233,6 +233,57 @@ def test_profile_source_update_distinguishes_installed_hash_from_drift(tmp_path:
         assert not _assess_real(tmp_path).effects
 
 
+@pytest.mark.parametrize("activated", [None, ["orgzilla-org-analyst"], ["reviewer-renata"], []], ids=["absent", "include", "exclude", "empty"])
+@pytest.mark.parametrize("corrupt", [True, False], ids=["corrupt", "healthy"])
+def test_org_source_diagnostics_block_real_assessment_independent_of_admission(
+    tmp_path: Path, activated: list[str] | None, corrupt: bool
+) -> None:
+    from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from .test_agent_profiles_prune import _write_config, _write_org_pack, _ORG_ANALYST_ID
+
+    pack = _write_org_pack(tmp_path)
+    bad = pack / "agent_profiles/broken.agent.yaml"
+    if corrupt:
+        bad.write_text("profile-id: broken\n: : : invalid yaml [\n", encoding="utf-8")
+    _write_config(tmp_path, pack, activated=activated)
+    resolved = resolve_activated_org_profiles(tmp_path)
+    failures = resolved.skipped_profiles  # Read health before inspecting list-compatible admission.
+    admitted = activated is None or _ORG_ANALYST_ID in activated
+    assert [r.profile.profile_id for r in resolved] == ([_ORG_ANALYST_ID] if admitted else [])
+    assert len(failures) == int(corrupt)
+    if corrupt:
+        assert failures[0].layer == "org" and Path(failures[0].path) == bad
+        assert failures[0].error_summary
+    before = snapshot({"project": tmp_path})
+    assessment = _assess_real(tmp_path)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    if corrupt:
+        assert not assessment.complete, "canonical org source failure must block even falsey admission"
+        assert not assessment.effects
+        assert any(
+            d.code == "profile-source-invalid" and d.severity == "error" and failures[0].error_summary in d.message
+            for d in assessment.diagnostics
+        )
+        assert not _apply_real(assessment).succeeded
+        assert_unchanged(before, snapshot({"project": tmp_path}))
+        bad.unlink()
+        before = snapshot({"project": tmp_path})
+        assessment = _assess_real(tmp_path)
+    assert assessment.complete and assessment.effects, assessment.diagnostics
+    assert not any(d.code == "profile-source-invalid" for d in assessment.diagnostics)
+    assert any(e.path == ".claude/agents/reviewer-renata.md" for e in assessment.effects)
+    org_output = f".claude/agents/{_ORG_ANALYST_ID}.md"
+    assert any(e.path == org_output for e in assessment.effects) == admitted
+    assert _apply_real(assessment).outcome == "applied"
+    after = snapshot({"project": tmp_path})
+    _assert_exact_delta(assessment, before, after)
+    repeated = _assess_real(tmp_path)
+    assert repeated.complete and not repeated.effects
+    _apply_real(repeated)
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 def test_profile_missing_required_org_root_blocks(tmp_path: Path) -> None:
     from .test_agent_profiles_prune import _write_config
     from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
@@ -242,6 +293,7 @@ def test_profile_missing_required_org_root_blocks(tmp_path: Path) -> None:
     assessment = _assess_real(tmp_path)
     assert not assessment.complete and assessment.diagnostics
     assert not assessment.effects
+    assert all(d.code != "profile-source-invalid" for d in assessment.diagnostics)
     assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
