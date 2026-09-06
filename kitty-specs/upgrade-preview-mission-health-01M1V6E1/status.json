@@ -1,19 +1,19 @@
 {
-  "event_count": 31,
-  "last_event_id": "01M1VM11Y7XK5TT74KWDMRN3G8",
-  "materialized_at": "2026-09-06T15:05:12.869272+00:00",
+  "event_count": 32,
+  "last_event_id": "01M1VMFHA7K9XJAK0Y2MJR6NRV",
+  "materialized_at": "2026-09-06T15:13:07.400177+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 2,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 9
   },
   "work_packages": {
@@ -149,17 +149,23 @@
     "WP11": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M1VKDA163TDAM1T8GTCY31ZF",
-      "last_transition_at": "2026-09-06T14:54:25.830862+00:00",
+      "lane": "approved",
+      "last_event_id": "01M1VMFHA7K9XJAK0Y2MJR6NRV",
+      "last_transition_at": "2026-09-06T15:13:07.400177+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Recovery13e75ffd0/3cb4af0cc/8e2d40bc0; parent full423mission audit zero errors/blockers. 31restores/2moves/2original+1adjudicatedreplay,11verdicts; rawhistory and repeat no-churn preserved. wp11-handoff.md; archive gate #3911 ownedWP12,124redirect findings unchangedbaseline awaiting followup."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP11-corpus-recovery/review-cycle-1.md",
+        "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP11-corpus-recovery/review-cycle-1.md",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 26467,
       "shell_pid_created_at": "1788590156.364464",
