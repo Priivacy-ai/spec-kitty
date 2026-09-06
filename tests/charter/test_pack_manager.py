@@ -33,6 +33,42 @@ from charter.activation.pack_manager import (
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize("pointer", [False, True])
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+@pytest.mark.parametrize(
+    "body",
+    [
+        "activated_directives: # rationale\n# key detail\n  - old\n",
+        "? activated_directives\n: [old]\n",
+    ],
+)
+def test_deactivate_preserves_entry_boundaries(tmp_path: Path, pointer: bool, newline: str, body: str) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "policy.yaml" if pointer else config
+    if pointer:
+        config.write_bytes(b"charter: policy.yaml\n")
+    tail = 'metadata: {label: "keep"}\n'.replace("\n", newline).encode()
+    target.write_bytes(body.replace("\n", newline).encode() + tail)
+    before = snapshot({"project": tmp_path})
+    manager = CharterPackManager()
+    context = ProjectContext(repo_root=tmp_path)
+    result = manager.deactivate(context, kind="directive", artifact_id="old")
+    assert result.deactivated == ["old"]
+    raw = target.read_bytes()
+    assert yaml.safe_load(raw)["activated_directives"] == []
+    assert raw.endswith(tail)
+    if "# key detail" in body:
+        assert raw.count(b"# rationale") == raw.count(b"# key detail") == 1
+    if pointer:
+        assert snapshot({"project": tmp_path})[("project", ".kittify/config.yaml")] == before[("project", ".kittify/config.yaml")]
+    after = snapshot({"project": tmp_path})
+    assert manager.deactivate(context, kind="directive", artifact_id="old").deactivated == []
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 @pytest.mark.parametrize("pointer", [None, {}, [], 42, "relative", "absolute"])
 def test_preparation_preserves_target_policy(tmp_path: Path, pointer: object) -> None:
     from charter.activation.pack_manager import prepare_activation_write

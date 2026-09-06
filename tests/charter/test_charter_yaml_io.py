@@ -150,6 +150,39 @@ def test_empty_collection_keeps_following_key_boundary(tmp_path: Path, newline: 
     assert_unchanged(after, snapshot({"project": tmp_path}))
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize(
+    "section,key,body",
+    [
+        ("activation", "activated_directives", "activated_directives: # rationale\n# key detail\n  - old\n"),
+        ("metadata", "metadata", "metadata: # rationale\n# key detail\n  label: old\n"),
+        ("activation", "activated_directives", "? activated_directives\n: [old]\n"),
+        ("metadata", "metadata", "? metadata\n: {label: old}\n"),
+    ],
+)
+def test_section_entry_source_boundaries(tmp_path: Path, newline: str, empty: bool, section: str, key: str, body: str) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    prefix = "--- # document\n# before entry\n".replace("\n", newline).encode()
+    tail = '\n# separator\noverrides: {label: "keep"}\n... # end\n'.replace("\n", newline).encode()
+    path.write_bytes(prefix + body.replace("\n", newline).encode() + tail)
+    value = ([] if empty else ["new"]) if section == "activation" else ({} if empty else {"label": "new"})
+    values = {key: value} if section == "activation" else value
+    assert isinstance(values, dict)
+    update_charter_yaml_section(path, section, values)
+    assert load_charter_yaml(path)[key] == value
+    raw = path.read_bytes()
+    assert raw.startswith(prefix) and raw.endswith(tail)
+    for comment in (b"# rationale", b"# key detail"):
+        if comment in body.encode():
+            assert raw.count(comment) == 1
+    after = snapshot({"project": tmp_path})
+    update_charter_yaml_section(path, section, values)
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 def test_inherited_activation_override_preserves_merge_source(tmp_path: Path) -> None:
     path = tmp_path / "charter.yaml"
     prefix = b"defaults: &defaults {activated_directives: [old]}\n<<: *defaults\n"
