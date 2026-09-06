@@ -36,7 +36,7 @@ docs change, because the non-gated path already behaved this way.
 | **Emitter seam** | The call surface through which the bridge reports runtime moments (run started, step issued, decision requested/answered, run completed) | "port deletion", "the sync emitter" |
 | **Null emitter** | The canonical no-op implementation of the seam; what the factory returns until a live producer registers | "stub", "mock" |
 | **Decision log** | The durable, coordination-branch record of decision requests and answers | "journal", "outbox" (retired sync vocabulary) |
-| **Strict retrospective gate** | The policy under which a terminal advance may be rolled back, so emissions are buffered until the gate passes | "the gate" without qualifier |
+| **Strict retrospective policy** | The policy (enabled, before-completion timing, block on failure) under which emissions are buffered so a terminal advance can be rolled back; "the terminal gate" is the check that runs under it | "strict gate", "the gate" without qualifier |
 | **Live producer (E3)** | A future adapter that forwards runtime moments to the hosted zeitgeist service | Out of scope; never "wire it while we're here" |
 
 ## User Scenarios & Testing *(mandatory)*
@@ -156,8 +156,9 @@ zeitgeist seam.
   target changes.
 - **Re-poll of an already-pending decision**: the engine emits a decision request
   only on first occurrence; the fix must not introduce a second append on re-poll.
-- **Decision answered on the gated path**: the answer event is a decision event
-  and must also reach the log through the same corrected flush.
+- **Decision answers are out of scope**: answers are recorded by the answer path
+  today and never traverse the strict-policy buffer; the gated flush carries only
+  requests. This mission does not change the answer path.
 - **Minimal-import environment**: the factory must not import any producer or
   hosted-client module; the null emitter is the only outcome.
 - **Snapshot seeding**: seeding the seam from a persisted snapshot remains a

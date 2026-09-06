@@ -127,25 +127,25 @@ Done means every rule F1–F7 in `contracts/decision-log-flush.md` holds:
   1. `_strict_policy()` → `SimpleNamespace(enabled=True, timing="before_completion", failure_policy="block")`. Assert once in a sanity test that `_retrospective_seam._retrospective_blocks_completion(_strict_policy()) is True`.
   2. `_mission(tmp_path, slug)` → creates `tmp_path/"kitty-specs"/slug/` with a coord-shaped `meta.json` (copy `_write_coord_meta`'s JSON shape), and `run_dir = tmp_path/"run"` containing a minimal `state.json` (`{}` is enough if you stub capture) and an empty `run.events.jsonl`. Returns `(feature_dir, run_dir)`.
   3. `_decision_log(tmp_path, slug)` → `DecisionGitLog(repo_root=tmp_path, worktree_root=tmp_path, destination_ref=f"kitty/mission-{slug}", mission_slug=slug, inner=NullEmitter())`. Patch `specify_cli.events.decision_log.safe_commit` for the whole module (autouse fixture) so no git runs.
-  4. `_ctx(tmp_path, slug, *, run_dir, feature_dir, log)` → `rb.DecideNextContext(agent="tester", mission_slug=slug, result="success", repo_root=tmp_path, feature_dir=feature_dir, now="2026-09-06T00:00:00Z", mission_type="software-dev", sync_emitter=NullEmitter(), emitter_for_engine=log, origin={}, progress=None, run_ref=SimpleNamespace(run_id="run-1", run_dir=str(run_dir)), run_dir=run_dir, current_step_id="plan")`. **`sync_emitter` is a distinct plain `NullEmitter`; `emitter_for_engine` is the log wrapping a different `NullEmitter`.** That asymmetry is what makes the bug observable.
+  4. `_ctx(tmp_path, slug, *, run_dir, feature_dir, log)` → `DecideNextContext` is `@dataclasses.dataclass(frozen=True)` (`runtime_bridge.py:1452`), so construct it by keyword: `rb.DecideNextContext(agent="tester", mission_slug=slug, result="success", repo_root=tmp_path, feature_dir=feature_dir, now="2026-09-06T00:00:00Z", mission_type="software-dev", sync_emitter=NullEmitter(), emitter_for_engine=log, origin={}, progress=None, run_ref=SimpleNamespace(run_id="run-1", run_dir=str(run_dir)), run_dir=run_dir, current_step_id="plan")`. **`sync_emitter` is a distinct plain `NullEmitter`; `emitter_for_engine` is the log wrapping a different `NullEmitter`.** That asymmetry is what makes the bug observable.
   5. `_requested_payload(...)` → build a `DecisionInputRequestedPayload` (import from `spec_kitty_events.mission_next`; copy the field set from `tests/specify_cli/events/test_decision_log.py`'s helper).
   6. `_count_requests(path)` → number of lines in `decisions.events.jsonl` whose `event_type` is `DecisionInputRequested` (0 if the file is absent).
   7. Bridge stubs (monkeypatch on `rb`): `_resolve_retrospective_policy_for_runtime` → `(policy, {}, None)`; `_dn_capture_pre_speculative_state` → `(b"{}", 0)`; `_resolve_mission_id_for_terminus` → `None`; `_run_retrospective_learning_capture` → no-op (or raising, for F3); `_materialize_decision` may stay real.
 - **Files**: `tests/runtime/test_bridge_decision_log_flush.py` (new)
 - **Parallel?**: No.
-- **Notes**: Import the bridge as `from runtime.next import runtime_bridge as rb` and the seam as `from runtime.next import runtime_bridge_retrospective as _retrospective_seam` to match sibling tests. `DecideNextContext` is a plain class with annotations; check whether it is a dataclass before constructing with keywords — if it is not, build it via `types.SimpleNamespace` with the same attribute names (the phases only read attributes).
+- **Notes**: Import the bridge as `from runtime.next import runtime_bridge as rb` and the seam as `from runtime.next import runtime_bridge_retrospective as _retrospective_seam` to match sibling tests. `run_ref` may be a `SimpleNamespace(run_id=..., run_dir=...)`; every other field is a plain value.
 
-### Subtask T008 – F1: strict-policy `decision_required` reaches the log (red first)
+### Subtask T008 – F1: strict-retrospective-policy `decision_required` reaches the log (red first)
 
 - **Purpose**: Prove the flush target bug on the exact path the ADR names.
 - **Steps**:
-  1. Stub `rb.runtime_next_step` with a fake that, given `emitter=`, calls `emitter.emit_decision_input_requested(_requested_payload(...))` and returns a `Decision`-shaped object with `kind == DecisionKind.decision_required` (import `DecisionKind` from `runtime.next.decision`; construct via the same helper `_dn_decision_materialize` expects — inspect what `_materialize_decision` reads and provide a minimal `_cores.DecisionEnvelope`-compatible object, or patch `_materialize_decision` to identity).
-  2. Build ctx with strict policy stubs; call `rb._dn_decision_materialize(ctx)`.
+  1. Stub `rb.runtime_next_step` with a fake that, given `emitter=`, calls `emitter.emit_decision_input_requested(_requested_payload(...))` and returns a **real `NextDecision`** (import from `runtime.next._internal_runtime.schema`) with `kind="decision_required"`, `decision_id="audit:review"`, `step_id="review"`, `question="…"`, `options=[...]`, `run_id`, `mission_key="software-dev"` (copy the constructor shape from `tests/runtime/test_bridge_engine.py:445` / `:494`). After the flush, `_dn_decision_materialize` hands that object to `rb._map_runtime_decision(...)` (`runtime_bridge.py:2199`), which reads the full `NextDecision` surface — a bare `.kind` stub will not survive the phase. If `_map_runtime_decision` still needs run-dir state you do not want to build, monkeypatch it to return a minimal `Decision` (the test's oracle is the log file, not the returned decision).
+  2. Build ctx with strict retrospective policy stubs; call `rb._dn_decision_materialize(ctx)`.
   3. Assert `_count_requests(_decisions_file(tmp_path, slug)) == 1`.
   4. Run it. **Expected before T010: 0 == 1 fails.** Copy the failure line into the Activity Log.
 - **Files**: `tests/runtime/test_bridge_decision_log_flush.py`
 - **Parallel?**: No.
-- **Notes**: The buffer captures the emit because `engine_emitter = buffer` under strict policy (`:2149-2150`); the flush at `:2187` then replays into `ctx.sync_emitter` (plain), so the log sees nothing. That is the red.
+- **Notes**: The buffer captures the emit because `engine_emitter = buffer` under strict retrospective policy (`:2149-2150`); the flush at `:2187` then replays into `ctx.sync_emitter` (plain), so the log sees nothing. That is the red.
 
 ### Subtask T009 – F2: composition dispatch reaches the log (red first)
 
@@ -220,7 +220,7 @@ Done means every rule F1–F7 in `contracts/decision-log-flush.md` holds:
 
 ## Risks & Mitigations
 
-- **`DecideNextContext` may not accept keyword construction** → use `SimpleNamespace` with identical attribute names; the phase functions only read attributes.
+- **`_map_runtime_decision` reads more than `.kind`** → return a real `NextDecision` from the fake engine step (T008 step 1), or monkeypatch the mapper.
 - **`_dn_composition_dispatch` pre-dispatch surface is wide** → fall back to the spy-on-`_advance_run_state_after_composition` shape in T009; the `is ctx.emitter_for_engine` assertion is the durable proof.
 - **Parity oracle expectations** — `tests/runtime/test_bridge_parity.py` asserts on the *answer-path* sync sink (`:1165-1166`), not on gated decide-next runs; if any parity test asserts gated-path events in the sync sink, report it in the Activity Log and stop; do not weaken the assertion.
 - **`safe_commit` firing in tests** → module-level autouse patch on `specify_cli.events.decision_log.safe_commit`.

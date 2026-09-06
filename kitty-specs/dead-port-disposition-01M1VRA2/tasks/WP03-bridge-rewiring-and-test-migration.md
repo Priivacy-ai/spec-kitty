@@ -89,13 +89,13 @@ Done means:
 
 - `grep -n "event_emitter" src/runtime/next/runtime_bridge.py src/runtime/next/runtime_bridge_engine.py` → no hits.
 - `runtime_bridge.py` constructs the seam only via `runtime_emitter_for_mission(...)` at both sites (`:1552`, `:2739`).
-- All fourteen test patch sites use `monkeypatch.setattr(rb, "runtime_emitter_for_mission", ...)` (or `patch.object(rb, "runtime_emitter_for_mission")`), and the oracle spy wraps the factory.
+- All fifteen test patch sites use `monkeypatch.setattr(rb, "runtime_emitter_for_mission", ...)` (or `patch.object(rb, "runtime_emitter_for_mission")`), and the oracle spy wraps the factory.
 - `pytest tests/runtime/ tests/next/ tests/specify_cli/next/ tests/specify_cli/events/` green (NFR-002).
 - Zero `feature*` identifiers in your added lines; the pre-existing `feature_dir` keyword may be passed through (NFR-006).
 
 ### Declared out-of-map edit (read this)
 
-`src/runtime/next/runtime_bridge.py` is owned by WP02 (this WP depends on it, so the two never run concurrently). This WP makes exactly **three** edits to that file — the import at `:195` and the two construction sites at `:1552` and `:2739` — and nothing else. Rationale: the factory binding is inseparable from the test-site migration (the tests patch the name the bridge calls), and splitting them would leave the suite red between WPs. Record the three-line edit with this rationale in your Activity Log. Do not touch `:1976` or `:2187` (WP02's fixes) or any other bridge line.
+`src/runtime/next/runtime_bridge.py` is owned by WP02 (this WP depends on it, so the two never run concurrently). This WP makes exactly **three** edits to that file — the import at `:195` and the two construction sites at `:1552` and `:2739` — and nothing else. Rationale: the factory binding is inseparable from the test-site migration (the tests patch the name the bridge calls); putting the three lines in WP02 instead would break the fifteen patch sites until this WP lands, and putting the migrations in WP02 would balloon it past ten subtasks. Record the three-line edit with this rationale in your Activity Log. Do not touch `:1976` or `:2187` (WP02's fixes) or any other bridge line.
 
 ## Context & Constraints
 
@@ -219,7 +219,7 @@ See T020. Also `ruff check` and `mypy` on the two source files. `make test-fast`
 
 ## Review Guidance
 
-- Verify the bridge diff is exactly the three declared lines plus import ordering.
+- **Bound the out-of-map edit mechanically**: run `git diff <WP02-merge-base>..HEAD -- src/runtime/next/runtime_bridge.py` and reject the WP if any hunk is outside `:195` (import), `:1552-1556`, `:2739-2743`, or ruff import re-ordering. `:1976` and `:2187` must be byte-identical to WP02's result.
 - Verify no test lost an assertion in migration (compare each site's before/after).
 - Verify the composition test's redundant subclass was removed, not left dead.
 - Run the T020 greps yourself.

@@ -8,7 +8,7 @@
 
 ## Summary
 
-Consolidate the duplicate concrete `RuntimeEventEmitter` (`src/runtime/next/event_emitter.py`, 88 lines, permanently no-op) into the canonical Protocol and `NullEmitter` in `src/runtime/next/_internal_runtime/events.py`, and replace the bridge's concrete-class binding with a named factory plus registry hook. While on that chain, fix the two paths on which decision-request events bypass the coordination-branch decision log: the strict-policy buffer flush (`runtime_bridge.py:2187`) and the composition dispatch emitter (`runtime_bridge.py:1976`). No live producer is wired.
+Consolidate the duplicate concrete `RuntimeEventEmitter` (`src/runtime/next/event_emitter.py`, 88 lines, permanently no-op) into the canonical Protocol and `NullEmitter` in `src/runtime/next/_internal_runtime/events.py`, and replace the bridge's concrete-class binding with a named factory plus registry hook. While on that chain, fix the two paths on which decision-request events bypass the coordination-branch decision log: the strict-retrospective-policy buffer flush (`runtime_bridge.py:2187`) and the composition dispatch emitter (`runtime_bridge.py:1976`). No live producer is wired.
 
 Planning answers (all resolved, no deferred decisions):
 
@@ -29,7 +29,7 @@ Planning answers (all resolved, no deferred decisions):
 **Project Type**: single Python package (`src/runtime/next/` + `src/specify_cli/events/`)
 **Performance Goals**: none new; emission remains fire-and-forget and must not add I/O on the null path
 **Constraints**: ADR-BLOCKED list is binding (C-001); no live producer (C-002); zeitgeist fan-out in `status/adapters.py` untouched (C-003); behavior preserved except the two flush fixes (C-004); complexity ≤ 15 per function; ruff + mypy clean; zero new `feature*` identifiers in added lines
-**Scale/Scope**: ~6 source files, ~16 test files (2 new, 14 mechanical rewrites), 1 CHANGELOG line; net LOC decreases (NFR-003)
+**Scale/Scope**: ~6 source files, ~16 test files (2 new, 15 mechanical patch-site rewrites across 5 files), 1 CHANGELOG line; net LOC decreases (NFR-003)
 
 ## Charter Check
 
@@ -109,7 +109,7 @@ In `src/runtime/next/_internal_runtime/events.py`:
 New file `tests/runtime/test_bridge_decision_log_flush.py` (markers `regression`, `unit`, `fast`):
 1. `test_strict_policy_decision_required_reaches_decision_log` — monkeypatch `_resolve_retrospective_policy_for_runtime` to a policy with `enabled=True, timing="before_completion", failure_policy="block"`; drive `_dn_decision_materialize` (or the smallest bridge entry that reaches it) with a run whose next decision is `decision_required`; assert exactly one `DecisionInputRequested` line in `decisions.events.jsonl`. Red before, green after.
 2. `test_composition_dispatch_decision_required_reaches_decision_log` — reuse the composition-path fixture shape from `tests/specify_cli/next/test_runtime_bridge_composition.py`; assert one request line. Red before, green after.
-3. `test_strict_policy_refused_terminal_gate_writes_nothing` — same strict policy, `_run_retrospective_learning_capture` raises; assert the decision log is unchanged and the buffer was discarded (no `MissionRunCompleted` reached the sink). Green before and after (regression guard for FR-007).
+3. `test_strict_policy_refused_terminal_gate_writes_nothing` — same strict retrospective policy, `_run_retrospective_learning_capture` raises; assert the decision log is unchanged and the buffer was discarded (no `MissionRunCompleted` reached the sink). Green before and after (regression guard for FR-007).
 4. `test_gated_flush_does_not_duplicate` — count entries after one gated `decision_required` advance == 1 (NFR-004).
 
 ### Consolidation tests + mechanical rewrites (Concern E)
@@ -228,7 +228,7 @@ Record commands and passed/failed counts in the PR body. Retired-surface scan: r
 
 | Risk | Mitigation |
 |---|---|
-| A test site patches the class in a way the grep missed | The arch guard's "no `runtime.next.event_emitter` import under `tests/`" assertion fails loudly at collection; fix in E. |
+| One of the fifteen patch sites is migrated incorrectly | The arch guard's "no `runtime.next.event_emitter` import under `tests/`" assertion fails loudly at collection; fix in E. |
 | `DecisionGitLog` gets `seed_from_snapshot` but a future wrapper does not | The composition path now calls it on the wrap; the guard test asserts the composition call receives `emitter_for_engine`, and `advance_run_state_after_composition`'s existing `_FakeSyncEmitter.seeded` assertion (`test_bridge_engine.py:425`) covers the seed contract. |
 | Fix one changes ordering of events observed by the oracle spies | The oracle records on `_wrap_with_decision_git_log`'s return; flushing into it means gated-path events now appear in `coord_commit_calls` where before they appeared in `sync_emitter_calls`. Parity tests that assert on the *sync* sink for gated runs must be updated in E; none currently exercise the strict gate through the oracle (verified: `grep block_on_retrospective tests/runtime/test_bridge_parity.py` → 0). |
 | Minimal-import gate read at call time vs import time | Read at call time in the factory (cheap `os.environ` lookup) so tests can toggle it without reloading the module; documented in `contracts/emitter-seam.md`. |

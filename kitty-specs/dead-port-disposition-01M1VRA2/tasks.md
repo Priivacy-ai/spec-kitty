@@ -62,7 +62,7 @@ T006 [P] Write the seam docstring naming `status/adapters.py` as the existing ze
 
 ## Work Package WP02: Flush-target fixes, red-first (Priority: P1) 🎯 MVP
 
-**Goal**: Make decision requests raised on a strict-policy `decision_required` advance and on composition dispatch reach the coordination-branch decision log, with regression tests that are demonstrably red before the fix and green after.
+**Goal**: Make decision requests raised on a strict-retrospective-policy `decision_required` advance and on composition dispatch reach the coordination-branch decision log, with regression tests that are demonstrably red before the fix and green after.
 **Independent Test**: `pytest tests/runtime/test_bridge_decision_log_flush.py` — tests F1/F2 fail on the pre-fix tree and pass after; F3/F4 pass; `pytest tests/specify_cli/events/` green; `pytest tests/runtime/test_bridge_retrospective.py tests/runtime/test_bridge_engine.py` unchanged and green.
 **Prompt**: `tasks/WP02-flush-target-fixes.md`
 **Requirement Refs**: FR-005, FR-006, FR-007, FR-008, NFR-001, NFR-004, C-004
@@ -101,7 +101,7 @@ T013 Record red→green evidence (commands + counts) in the WP Activity Log (WP0
 
 ## Work Package WP03: Bridge rewiring and test-site migration (Priority: P1)
 
-**Goal**: Bind the bridge to the factory instead of the concrete class, retype the engine adapter against the Protocol, and migrate every test that patched the class so the suite stays green.
+**Goal**: Bind the bridge to the factory instead of the concrete class, retype the engine adapter against the Protocol, and migrate all fifteen test patch sites so the suite stays green.
 **Independent Test**: `grep -n "event_emitter" src/runtime/next/runtime_bridge.py src/runtime/next/runtime_bridge_engine.py` → no hits; `pytest tests/runtime/ tests/next/ tests/specify_cli/next/` green.
 **Prompt**: `tasks/WP03-bridge-rewiring-and-test-migration.md`
 **Requirement Refs**: FR-002, FR-003, NFR-002, NFR-006
