@@ -95,6 +95,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "in-mission",
       "wp": "WP13"
+    },
+    "#3908": {
+      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/issues/3908 tracks empty resolved governance context; explicit binding charter/profile fallback disclosed, no successful activation claim.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
     }
   },
   "schema_version": 1
