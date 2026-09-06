@@ -112,7 +112,21 @@ def test_project_assessment_exposes_effects_but_blocks_uncoordinated_global_cont
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
 
-def test_coordinated_provider_dispatch_keeps_both_owner_batches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _bind_consumer_home(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for key, suffix in {
+        "HOME": "", "USERPROFILE": "", "SPEC_KITTY_HOME": ".kittify",
+        "XDG_CONFIG_HOME": ".config", "XDG_DATA_HOME": ".local/share",
+        "XDG_STATE_HOME": ".local/state", "XDG_CACHE_HOME": ".cache",
+        "APPDATA": "appdata", "LOCALAPPDATA": "localappdata",
+        "OPENCODE_CONFIG_DIR": ".config/opencode",
+    }.items():
+        monkeypatch.setenv(key, str(home / suffix))
+
+
+@pytest.mark.parametrize("all_families", [False, True])
+def test_coordinated_provider_dispatch_keeps_both_owner_batches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, all_families: bool,
+) -> None:
     from specify_cli.skills.installer import assess_skill_installation
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
@@ -123,13 +137,16 @@ def test_coordinated_provider_dispatch_keeps_both_owner_batches(tmp_path: Path, 
     home, project = tmp_path / "home", tmp_path / "project"
     home.mkdir()
     project.mkdir()
-    monkeypatch.setenv("HOME", str(home))
+    _bind_consumer_home(home, monkeypatch)
     _canonical_skill(tmp_path / "source")
     registry = SkillRegistry(tmp_path / "source")
     consent = ApplyConsent(automatic=True)
     root = OperationRoot("project", "project", project)
     before = snapshot({"sandbox": tmp_path})
-    installation = assess_skill_installation(AssessmentInputs(root, consent=consent), registry, ("codex",))
+    installation = assess_skill_installation(
+        AssessmentInputs(root, consent=consent), registry, ("codex",),
+        runtime=all_families, commands=all_families, command_agent_keys=["claude"],
+    )
     provider = ManagedSkillsProvider(registry_factory=lambda: registry)
     assessment = provider.assess(AssessmentInputs(root, projected=installation, consent=consent), (),
                                  selections=(SurfaceSelection("codex", managed_skill_definition()),))
@@ -144,6 +161,51 @@ def test_coordinated_provider_dispatch_keeps_both_owner_batches(tmp_path: Path, 
                  effect.after.sha256, effect.after.target, effect.after.mode) for effect in effects}
     assert {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)
             for effect in net_delta(before, snapshot({"sandbox": tmp_path}))} == expected
+
+
+@pytest.mark.parametrize("route", ["direct", "provider"])
+def test_paired_consumer_config_change_refuses_before_any_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str,
+) -> None:
+    from specify_cli.skills.installer import assess_skill_installation, apply_skill_installation
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    _canonical_skill(tmp_path / "source")
+    (project / ".kittify").mkdir()
+    config = project / ".kittify/config.yaml"
+    config.write_text("agents:\n  available: [codex]\n")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    installation = assess_skill_installation(inputs, registry, ("codex",))
+    assert installation.global_assets.complete and installation.project_skills.complete
+    assert installation.global_assets.effects and installation.project_skills.effects
+    config.write_text(config.read_text() + "review_change: true\n")
+    before = snapshot({"sandbox": tmp_path})
+    if route == "direct":
+        results = apply_skill_installation(installation, consent)
+    else:
+        provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+        assessment = provider.assess(
+            AssessmentInputs(inputs.root, projected=installation, consent=consent), (),
+            selections=(SurfaceSelection("codex", managed_skill_definition()),),
+        )
+        assert assessment is installation.project_skills
+        results = SurfaceRepairService([GlobalSkillAssetsProvider(), provider]).apply_assessments(
+            (installation.global_assets, assessment), consent,
+        )
+    changes = net_delta(before, snapshot({"sandbox": tmp_path}))
+    assert not changes, [(effect.path, effect.action) for effect in changes]
+    assert all(result.outcome == "precondition_changed" and not result.succeeded for result in results)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
 
 @pytest.mark.parametrize("dry_run", [True, False])

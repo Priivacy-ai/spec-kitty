@@ -1078,6 +1078,54 @@ def test_project_owner_one_backup_set_and_retained_clock(tmp_path: Path, monkeyp
     assert all((project / effect.path).read_bytes() for effect in backup_files)
 
 
+@pytest.mark.parametrize("selected", [("codex", "copilot"), ("copilot",)])
+def test_existing_shared_owner_update_retains_new_consumers_and_prior_proof(
+    tmp_path: Path, selected: tuple[str, ...],
+) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.skills.manifest import load_manifest
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot, OwnershipProof
+    from tests.upgrade.preview_support.snapshot import net_delta, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    skill = _make_skill(tmp_path / "source", "alpha")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    initial = installer.assess_project_skills(inputs, registry, ("codex",))
+    with installer.recheck_project_skills(initial) as errors:
+        assert not errors
+        assert installer.apply_project_skills(initial, consent).outcome == "applied"
+    path = ".agents/skills/alpha/SKILL.md"
+    original = (project / path).read_bytes()
+    skill.skill_md.write_bytes(b"---\nname: alpha\n---\nupdated canonical\n")
+    before = snapshot({"sandbox": tmp_path})
+    assessment = installer.assess_project_skills(inputs, registry, selected)
+    assert assessment.complete
+    updates = [effect for effect in assessment.effects if effect.path == path]
+    backups = [effect for effect in assessment.effects
+               if effect.path.startswith(".kittify/.migration-backup/") and effect.after.kind == "file"]
+    assert len(updates) == len(backups) == 1
+    with installer.recheck_project_skills(assessment) as errors:
+        assert not errors
+        result = installer.apply_project_skills(assessment, consent)
+    assert result.outcome == "applied"
+    assert (project / path).read_bytes() == skill.skill_md.read_bytes()
+    assert backups[0].destination.read_bytes() == original
+    manifest = load_manifest(project)
+    assert manifest is not None and {entry.agent_key for entry in manifest.entries} == {"codex", "copilot"}
+    for effect in (*updates, *backups):
+        assert effect.logical_owners == ("codex", "copilot")
+        assert set(effect.surface_ids) == {"codex.doctrine_skill.alpha.SKILL.md", "copilot.doctrine_skill.alpha.SKILL.md"}
+        assert effect.ownership == (OwnershipProof("manifest", f".kittify/skills-manifest.json:codex:{path}"),)
+    assert {effect.id for effect in assessment.effects} == set(result.succeeded)
+    expected = {(effect.destination.relative_to(tmp_path).as_posix(), effect.action, effect.after.kind,
+                 effect.after.sha256, effect.after.target, effect.after.mode) for effect in assessment.effects}
+    assert {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)
+            for effect in net_delta(before, snapshot({"sandbox": tmp_path}))} == expected
+
+
 def test_project_owner_drift_consent_does_not_block_independent_missing_file(tmp_path: Path) -> None:
     from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
     from specify_cli.skills.manifest import load_manifest
