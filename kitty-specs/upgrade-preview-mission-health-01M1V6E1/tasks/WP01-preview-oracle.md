@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: codex/upgrade-preview-mission-health
 merge_target_branch: codex/upgrade-preview-mission-health
 branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-upgrade-preview-mission-health-01M1V6E1
+base_commit: 29d30bc030f12feeafd452879d756bcf054833e1
+created_at: '2026-09-06T13:45:42.654752+00:00'
 subtasks:
 - T001
 - T002
