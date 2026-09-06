@@ -800,3 +800,51 @@ def test_real_census_phrase_prose_remains_visible(name: str, tmp_path: Path, mon
     assert any("lane merge; see docs/adr/history.md" in hit for hit in hits)
     with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
         test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
+
+
+@pytest.mark.parametrize("relative", [_RECEIPT_PATH, *_CENSUS_SHA256])
+@pytest.mark.parametrize("replacement", ["leaf-symlink", "parent-symlink", "directory"])
+def test_real_git_frozen_evidence_requires_regular_path(
+    relative: str, replacement: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = (_repo_root() / relative).read_bytes()
+    _stage_scanner_fixture(tmp_path, {relative: source})
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+
+    def assert_integrity() -> None:
+        if relative == _RECEIPT_PATH:
+            test_reviewed_receipt_bytes_are_preserved()
+        else:
+            test_frozen_census_bytes(Path(relative).name.removesuffix("-census.json"))
+
+    assert_integrity()
+    assert _git_grep_hits(_FORBIDDEN_TERMS[0], ("docs",), kind="term")
+    path = tmp_path / relative
+    target = tmp_path / "outside-scan"
+    if replacement == "parent-symlink":
+        path.parent.rename(target)
+        path.parent.symlink_to(target, target_is_directory=True)
+        staged_path = str(Path(relative).parent)
+    else:
+        path.rename(target)
+        if replacement == "leaf-symlink":
+            path.symlink_to(target)
+        else:
+            path.mkdir()
+            (path / "placeholder").write_text("No legacy terms here.\n", encoding="utf-8")
+        staged_path = relative
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A", "--", "docs"], check=True, capture_output=True)
+    if replacement != "directory":
+        index = subprocess.run(
+            ["git", "-C", str(tmp_path), "ls-files", "--stage", "--", staged_path],
+            check=True,
+            capture_output=True,
+        )
+        assert index.stdout.split()[0] == b"120000"
+        assert path.read_bytes() == source
+    # No fabricated hits: Git skips the symlink, so the byte gate must reject it.
+    for term in _FORBIDDEN_TERMS:
+        assert _git_grep_hits(term, ("docs",), kind="term") == []
+        test_forbidden_term_does_not_appear(term)
+    with pytest.raises(AssertionError, match="Frozen evidence must be a regular file without symlinks"):
+        assert_integrity()
