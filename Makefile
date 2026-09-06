@@ -25,7 +25,9 @@ convergence-census: ## Fetch upstream and report convergence dispositions
 	uv run --frozen python scripts/convergence/census_status.py
 
 typecheck: ## Run targeted mypy strict type checking
-	uv run --frozen mypy --strict src/specify_cli/runtime/agent_commands.py
+	uv run --frozen mypy --strict \
+	  src/specify_cli/runtime/agent_commands.py \
+	  src/specify_cli/git/commit_helpers.py
 
 # The subsystem directories an implementer's blast radius typically covers
 # (see AGENTS.md "Test policy"). `make test-fast` is a baseline, not a
