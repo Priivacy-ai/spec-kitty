@@ -42,7 +42,7 @@ Canonical rejection event `01M1VKZ7C2K7Z0AWFEJBP3490V` is durable. WP02 was
 reclaimed for scoped correction; dependent owner packages remain unstarted.
 Full external findings: `wp02-independent-review.md` beside this checkout.
 
-## WP11: Recovered Corpus, Independent Review Pending
+## WP11: Recovered Corpus Independently Approved
 
 Author commits13e75ffd0,3cb4af0cc,8e2d40bc0; parent exact replay amendment
 b735feecc. Preserve31 historical restores and retained schema before the
@@ -55,7 +55,14 @@ Parent independently executed the full public mission-state audit after final
 recovery: exit0,423 missions,0 errors,0 blockers,3760 warnings,22595 info.
 Raw output: external `wp11-parent-audit.json`. No warning-free corpus claim.
 Worker final committed audit and38 focused checks are separate evidence.
-Canonical independent review claimed; no WP11 approval or final mission gate.
+Independent Renata/Boyle review APPROVED the exact three author commits and
+receipt f320ada834fbabcddd7186147d606551dcecf066dad4c4eef182eafcf0a7f4b8.
+Reviewer freshly ran 38 tests, 26 paired corruption controls, full 423-mission
+zero-blocker audit, original 424-mission/four-blocker baseline, and scoped
+repeat-materialization checks. Original blobs and all eleven complete approvals
+were independently checked. Canonical approval event
+`01M1VMFHA7K9XJAK0Y2MJR6NRV` is durably persisted in coordination status.
+External report: `wp11-independent-review.md`. This is not final mission approval.
 
 Strict rename reconciliation still exits1 with124 historical redirect findings.
 Parent compared complete violation arrays against original occurrence map:
