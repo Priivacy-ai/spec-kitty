@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError, dataclass, replace
-from hashlib import sha256
+from hashlib import sha256  # noqa: TID251 - exact file-byte integrity fixtures, not charter semantic hashes.
 from pathlib import Path
 import subprocess
 import sys
@@ -32,16 +32,22 @@ def _file(content: bytes = b"prepared", mode: int = 0o644) -> FileState:
     return FileState("file", sha256=sha256(content).hexdigest(), mode=mode)
 
 
-def _effect(**changes: object) -> PhysicalEffect:
-    effect = PhysicalEffect(
-        owner="commands", phase="surface_repair",
+def _effect(
+    *, path: str = ".agents/skills/a/SKILL.md", action: str = "create", before: FileState = FileState("absent"), after: FileState | None = None
+) -> PhysicalEffect:
+    return PhysicalEffect(
+        owner="commands",
+        phase="surface_repair",
         root=OperationRoot("project", "project", Path("/project")),
-        path=".agents/skills/a/SKILL.md", action="create",
-        before=FileState("absent"), after=_file(), reason="Missing managed command",
+        path=path,
+        action=action,
+        before=before,
+        after=after if after is not None else _file(),
+        reason="Missing managed command",
         ownership=(OwnershipProof("managed_path", "command catalog: exact a/SKILL.md"),),
-        logical_owners=("codex",), surface_ids=("codex.a",),
+        logical_owners=("codex",),
+        surface_ids=("codex.a",),
     )
-    return replace(effect, **changes)
 
 
 @pytest.mark.parametrize("path", ["", ".", "..", "../a", "a/../b", "/a", "C:/a", r"a\b", "a//b", "a/./b"])
@@ -50,44 +56,53 @@ def test_effect_rejects_non_normal_or_escaping_path(path: str) -> None:
         _effect(path=path)
 
 
-@pytest.mark.parametrize("action,before,after", [
-    ("create", _file(), _file()),
-    ("update", _file(), _file()),
-    ("update", FileState("absent"), _file()),
-    ("delete", FileState("absent"), FileState("absent")),
-    ("replace", _file(), _file(b"other")),
-    ("retarget", _file(), _file(b"other")),
-    ("chmod", _file(), _file(b"other", 0o755)),
-])
+@pytest.mark.parametrize(
+    "action,before,after",
+    [
+        ("create", _file(), _file()),
+        ("update", _file(), _file()),
+        ("update", FileState("absent"), _file()),
+        ("delete", FileState("absent"), FileState("absent")),
+        ("replace", _file(), _file(b"other")),
+        ("retarget", _file(), _file(b"other")),
+        ("chmod", _file(), _file(b"other", 0o755)),
+    ],
+)
 def test_action_requires_its_observable_transition(action: str, before: FileState, after: FileState) -> None:
     with pytest.raises(ValueError, match="action"):
         _effect(action=action, before=before, after=after)
 
 
-@pytest.mark.parametrize("action,before,after", [
-    ("create", FileState("absent"), _file(mode=0o755)),
-    ("create", FileState("absent"), FileState("directory", mode=0o755)),
-    ("update", _file(), _file(b"other", 0o755)),
-    ("delete", _file(), FileState("absent")),
-    ("replace", FileState("symlink", target="../sentinel", mode=0o777), _file()),
-    ("retarget", FileState("symlink", target="a", mode=0o777), FileState("symlink", target="b", mode=0o777)),
-    ("chmod", _file(), _file(mode=0o755)),
-])
+@pytest.mark.parametrize(
+    "action,before,after",
+    [
+        ("create", FileState("absent"), _file(mode=0o755)),
+        ("create", FileState("absent"), FileState("directory", mode=0o755)),
+        ("update", _file(), _file(b"other", 0o755)),
+        ("delete", _file(), FileState("absent")),
+        ("replace", FileState("symlink", target="../sentinel", mode=0o777), _file()),
+        ("retarget", FileState("symlink", target="a", mode=0o777), FileState("symlink", target="b", mode=0o777)),
+        ("chmod", _file(), _file(mode=0o755)),
+    ],
+)
 def test_action_captures_one_net_transition(action: str, before: FileState, after: FileState) -> None:
     assert _effect(action=action, before=before, after=after).after == after
 
 
-@pytest.mark.parametrize("state", [
-    {"kind": "absent", "mode": 0o644},
-    {"kind": "file", "sha256": "not-a-hash", "mode": 0o644},
-    {"kind": "file", "sha256": "a" * 64, "target": "other", "mode": 0o644},
-    {"kind": "symlink", "mode": 0o777},
-    {"kind": "directory", "mode": 4096},
-    {"kind": "unknown"},
-])
-def test_invalid_node_states_are_refused(state: dict[str, object]) -> None:
+@pytest.mark.parametrize(
+    "kind,digest,target,mode",
+    [
+        ("absent", None, None, 0o644),
+        ("file", "not-a-hash", None, 0o644),
+        ("file", "a" * 64, "other", 0o644),
+        ("symlink", None, None, 0o777),
+        ("directory", None, None, 4096),
+        ("unknown", None, None, None),
+    ],
+)
+def test_invalid_node_states_are_refused(kind: str, digest: str | None, target: str | None, mode: int | None) -> None:
     with pytest.raises(ValueError):
-        FileState(**state)
+        FileState(kind, digest, target, mode)
 
 
 @dataclass(frozen=True)
@@ -100,14 +115,15 @@ def test_assessment_retains_exact_preparation_and_observation() -> None:
     prepared = _Prepared(b'{"updated_at":"T1"}', "T1")
     observation = InputObservation("manifest", ("a" * 64, 123, "literal-link"))
     effect = _effect(after=_file(prepared.rendered))
-    assessment = OwnerAssessment("commands", effect.root, effects=(effect,), prepared=prepared,
-                                 inputs_fingerprint=(observation,))
+    assessment = OwnerAssessment("commands", effect.root, effects=(effect,), prepared=prepared, inputs_fingerprint=(observation,))
     assert assessment.prepared is prepared
     assert assessment.inputs_fingerprint == (observation,)
     with pytest.raises(FrozenInstanceError):
-        setattr(assessment, "complete", False)
+        field_name = "complete"
+        setattr(assessment, field_name, False)
     with pytest.raises(FrozenInstanceError):
-        setattr(prepared, "sampled_at", "T2")
+        field_name = "sampled_at"
+        setattr(prepared, field_name, "T2")
 
 
 @pytest.mark.parametrize("payload", [[b"live"], {"config": []}, ([],), lambda: None])
@@ -137,8 +153,7 @@ def test_empty_incomplete_assessment_is_not_successful_noop() -> None:
 
 def test_dedup_retains_all_owners_surfaces_and_proofs_under_permutation() -> None:
     codex = _effect()
-    vibe = replace(codex, logical_owners=("vibe",), surface_ids=("vibe.a",),
-                   ownership=(OwnershipProof("manifest", "manifest:vibe:a"),))
+    vibe = replace(codex, logical_owners=("vibe",), surface_ids=("vibe.a",), ownership=(OwnershipProof("manifest", "manifest:vibe:a"),))
     first = coalesce_effects((codex, vibe))
     assert first == coalesce_effects((vibe, codex))
     assert len(first) == 1
@@ -166,11 +181,11 @@ def test_alias_dedup_uses_supplied_root_identity_without_following_links(tmp_pat
     assert len(coalesce_effects((left, alias))) == 1
 
 
-@pytest.mark.parametrize("changes", [{"after": _file(b"contradictory")}, {"after": _file(mode=0o755)}, {"owner": "other"}])
-def test_conflicting_destination_has_no_last_writer_wins(changes: dict[str, object]) -> None:
+@pytest.mark.parametrize("after,owner", [(_file(b"contradictory"), "commands"), (_file(mode=0o755), "commands"), (_file(), "other")])
+def test_conflicting_destination_has_no_last_writer_wins(after: FileState, owner: str) -> None:
     effect = _effect()
     with pytest.raises(ValueError, match="conflict"):
-        coalesce_effects((effect, replace(effect, **changes)))
+        coalesce_effects((effect, replace(effect, after=after, owner=owner)))
 
 
 def test_mode_kind_link_and_mtime_observations_remain_distinct() -> None:
@@ -179,6 +194,13 @@ def test_mode_kind_link_and_mtime_observations_remain_distinct() -> None:
     assert state != replace(state, mode=0o755)
     assert state != replace(state, mtime_ns=101)
     assert state != _file()
+
+
+def test_root_identity_cannot_hide_distinct_physical_destinations() -> None:
+    effect = _effect()
+    other = replace(effect, root=replace(effect.root, path=Path("/another-project")))
+    with pytest.raises(ValueError, match="Root identity conflict"):
+        coalesce_effects((effect, other))
 
 
 def test_result_refuses_overlapping_or_false_precondition_success() -> None:
@@ -193,6 +215,19 @@ def test_dispositions_and_consent_are_not_effects() -> None:
     assessment = OwnerAssessment("commands", _effect().root, dispositions=(disposition,))
     assert not assessment.effects
     assert not ApplyConsent().automatic
+
+
+@pytest.mark.parametrize(
+    "outcome,succeeded,failed",
+    [
+        ("applied", (), ("a",)),
+        ("failed", ("a",), ()),
+        ("skipped", ("a",), ()),
+    ],
+)
+def test_result_outcome_cannot_disagree_with_actual_ids(outcome: str, succeeded: tuple[str, ...], failed: tuple[str, ...]) -> None:
+    with pytest.raises(ValueError):
+        OwnerApplyResult("commands", succeeded=succeeded, failed=failed, outcome=outcome)
 
 
 def test_value_import_does_not_discover_or_bootstrap_providers() -> None:

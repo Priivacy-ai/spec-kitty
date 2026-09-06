@@ -119,6 +119,77 @@ def test_required_definition_cannot_disappear_from_existing_builder(tmp_path: Pa
     registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "missing"))
     assert registry.get_definitions("codex")
     plan = SurfacePlanBuilder(registry, []).build(["codex"], tmp_path)[0]
-    assert plan.instances or getattr(plan, "diagnostics", ()), (
-        "A selected required definition vanished without an instance or diagnostic"
+    assert plan.instances or getattr(plan, "diagnostics", ()), "A selected required definition vanished without an instance or diagnostic"
+
+
+@pytest.mark.parametrize("registered", [False, True])
+def test_required_missing_or_legacy_owner_is_explicitly_incomplete(tmp_path: Path, registered: bool) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+
+    registry = ToolSurfaceRegistry()
+    registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "fake"))
+    providers = [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)] if registered else []
+    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path))
+    assessments = SurfacePlanBuilder(registry, providers).assess(["codex"], inputs)
+    assert len(assessments) == 1
+    assert not assessments[0].complete
+    expected = "assessment_unsupported" if registered else "missing_provider"
+    assert assessments[0].diagnostics[0].code == expected
+
+
+@pytest.mark.parametrize(
+    "policy,activation",
+    [
+        (RequiredPolicy.OPTIONAL, ActivationMode.MANUAL),
+        (RequiredPolicy.RESEARCH_GAP, ActivationMode.MANUAL),
+        (RequiredPolicy.REPAIRABLE_REQUIRED, ActivationMode.DISABLED),
+    ],
+)
+def test_advisory_or_disabled_absent_owner_is_a_disposition(tmp_path: Path, policy: RequiredPolicy, activation: ActivationMode) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+
+    registry = ToolSurfaceRegistry()
+    definition = replace(_definition(ToolSurfaceKind.COMMAND_SKILL, "fake"), required_policy=policy, activation_mode=activation)
+    registry.register_definition("codex", definition)
+    assessments = SurfacePlanBuilder(registry, []).assess(
+        ["codex"],
+        AssessmentInputs(OperationRoot("project", "project", tmp_path)),
     )
+    assert assessments[0].complete
+    assert not assessments[0].effects
+    assert assessments[0].dispositions[0].state == "not_applicable"
+
+
+def test_unreadable_inventory_is_incomplete_not_empty_success(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+
+    class BrokenSource(_FakeProvider):
+        def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
+            raise OSError("Required source unavailable")
+
+    registry = ToolSurfaceRegistry()
+    registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "fake"))
+    builder = SurfacePlanBuilder(registry, [BrokenSource(ToolSurfaceKind.COMMAND_SKILL)])
+    assessments = builder.assess(("codex",), AssessmentInputs(OperationRoot("project", "project", tmp_path)))
+    assert not assessments[0].complete
+    assert assessments[0].diagnostics[0].code == "inventory_unreadable"
+
+
+def test_removing_real_required_provider_keeps_definition_coverage(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.service import build_providers, build_registry
+
+    registry = build_registry(("codex",))
+    providers = build_providers()
+    assert any(p.provider_key == "command_skills" for p in providers)
+    providers = [p for p in providers if p.provider_key != "command_skills"]
+    assessments = SurfacePlanBuilder(registry, providers).assess(
+        ("codex",),
+        AssessmentInputs(OperationRoot("project", "project", tmp_path)),
+        ToolSurfaceKind.COMMAND_SKILL,
+    )
+    assert len(assessments) == 1
+    assert not assessments[0].complete
+    assert assessments[0].owner_key == "command_skills"
+    assert assessments[0].diagnostics[0].code == "missing_provider"

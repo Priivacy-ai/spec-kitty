@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .operations import Diagnostic
+
 from .enums import (
     ActivationMode,
     InstallScope,
@@ -56,6 +58,8 @@ class SurfacePlan:
     tool_key: str
     instances: tuple[SurfaceInstance, ...]
     computed_at: str
+    definitions: tuple[SurfaceDefinition, ...] = ()
+    diagnostics: tuple[Diagnostic, ...] = ()
 
 
 @dataclass(frozen=True)

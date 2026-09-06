@@ -13,12 +13,22 @@ and returns a structured :class:`DriftPolicySummary`.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .enums import ActivationMode, RequiredPolicy, ToolSurfaceKind
 from .findings import SurfaceFinding
-from .providers.protocol import ReportingSurfaceProvider
+from .model import SurfaceDefinition, SurfacePlan
+from .operations import (
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    Disposition,
+    OwnerApplyResult,
+    OwnerAssessment,
+    coalesce_effects,
+)
+from .providers.protocol import AssessingSurfaceProvider, ReportingSurfaceProvider
 from .status import (
     STATE_DRIFTED,
     STATE_MISSING,
@@ -65,13 +75,66 @@ class SurfaceRepairService:
     def __init__(self, providers: Sequence[ReportingSurfaceProvider]) -> None:
         self._providers = list(providers)
 
-    def _provider_for(
-        self, status: SurfaceStatus
-    ) -> ReportingSurfaceProvider | None:
+    def _provider_for(self, status: SurfaceStatus) -> ReportingSurfaceProvider | None:
         for provider in self._providers:
             if provider.can_handle(status.instance.definition):
                 return provider
         return None
+
+    def assess(
+        self,
+        inputs: AssessmentInputs,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        plans: Sequence[SurfacePlan],
+    ) -> tuple[OwnerAssessment, ...]:
+        """Assess the existing inventory, including definitions that expanded to nothing.
+
+        Group by executable owner for this resolved root. Original statuses are
+        passed intact, including drift and source/manifest context. Owners handle
+        their own projected inputs and pruning beyond expanded instances.
+        """
+        definitions: dict[str, list[SurfaceDefinition]] = {}
+        selected: dict[str, ReportingSurfaceProvider | None] = {}
+        for plan in plans:
+            for definition in plan.definitions:
+                provider = next((p for p in self._providers if p.can_handle(definition)), None)
+                key = provider.provider_key if provider is not None else definition.provider_key
+                definitions.setdefault(key, []).append(definition)
+                selected[key] = provider
+        # Accept original hand-built plans too, without inventing a second catalog.
+        for status in statuses:
+            provider = self._provider_for(status)
+            key = provider.provider_key if provider is not None else status.instance.definition.provider_key
+            selected[key] = provider
+            definitions.setdefault(key, []).append(status.instance.definition)
+        assessments = []
+        for key, provider in sorted(selected.items()):
+            owned = tuple(s for s in statuses if self._provider_for(s) is provider and (provider is not None or s.instance.definition.provider_key == key))
+            assessments.append(_assess_owner(key, provider, inputs, owned, definitions[key]))
+        return tuple(assessments)
+
+    def apply_assessments(
+        self,
+        assessments: Sequence[OwnerAssessment],
+        explicit_consent: ApplyConsent,
+    ) -> tuple[OwnerApplyResult, ...]:
+        """Dispatch whole owner batches with obligatory locked recheck; never retry.
+
+        A duplicate prepared batch is executed once. Different opaque preparations
+        for one owner/root cannot be merged by this service. No cross-owner rollback
+        is promised, and owners must return actual outcomes on partial I/O failure.
+        """
+        try:
+            batches = _assessment_batches(assessments)
+        except ValueError as exc:
+            return tuple(_refused(a, "owner_conflict", str(exc)) for a in assessments)
+        results = []
+        for assessment in batches:
+            providers = [p for p in self._providers if p.provider_key == assessment.owner_key]
+            provider = providers[0] if len(providers) == 1 else None
+            results.append(_apply_assessment(provider, assessment, explicit_consent))
+        return tuple(results)
 
     def repair(
         self,
@@ -141,6 +204,113 @@ class SurfaceRepairService:
 # Drift-policy public interface (contract drift-policy-01)
 # ---------------------------------------------------------------------------
 
+
+def _assess_owner(
+    key: str,
+    provider: ReportingSurfaceProvider | None,
+    inputs: AssessmentInputs,
+    statuses: tuple[SurfaceStatus, ...],
+    definitions: Sequence[SurfaceDefinition],
+) -> OwnerAssessment:
+    enabled = [d for d in definitions if d.activation_mode != ActivationMode.DISABLED]
+    required = any(d.required_policy in {RequiredPolicy.REQUIRED, RequiredPolicy.REPAIRABLE_REQUIRED} for d in enabled)
+    if enabled and isinstance(provider, AssessingSurfaceProvider):
+        try:
+            assessment = provider.assess(inputs, statuses)
+        except (OSError, ValueError) as exc:
+            return OwnerAssessment(key, inputs.root, complete=False, diagnostics=(Diagnostic("assessment_failed", key, "error", str(exc)),))
+        if assessment.owner_key != key or assessment.root != inputs.root:
+            raise ValueError("Owner assessment must retain selected owner and resolved root")
+        try:
+            return replace(assessment, effects=coalesce_effects(assessment.effects))
+        except ValueError as exc:
+            return replace(assessment, complete=False, diagnostics=assessment.diagnostics + (Diagnostic("owner_conflict", key, "error", str(exc)),))
+    if required:
+        code = "missing_provider" if provider is None else "assessment_unsupported"
+        return OwnerAssessment(key, inputs.root, complete=False, diagnostics=(Diagnostic(code, key, "error", "Selected required owner lacks assessment support"),))
+    reason = "Disabled surface selection" if not enabled else "Optional/advisory owner lacks assessment support"
+    return OwnerAssessment(key, inputs.root, dispositions=(Disposition(key, inputs.root.root_id, None, "not_applicable", reason),))
+
+
+def _assessment_batches(assessments: Sequence[OwnerAssessment]) -> tuple[OwnerAssessment, ...]:
+    batches: dict[tuple[str, Path], OwnerAssessment] = {}
+    # Detect cross-owner contradictions before the first writer is called.
+    coalesce_effects(tuple(e for a in assessments for e in a.effects))
+    for assessment in assessments:
+        key = assessment.owner_key, assessment.root.path
+        previous = batches.get(key)
+        if previous is not None:
+            if (previous.prepared, previous.inputs_fingerprint, previous.consent) != (assessment.prepared, assessment.inputs_fingerprint, assessment.consent):
+                raise ValueError("Owner conflict: distinct preparations require fresh whole-root assessment")
+            assessment = replace(
+                previous,
+                root=min((previous.root, assessment.root), key=lambda r: r.root_id),
+                effects=previous.effects + assessment.effects,
+                dispositions=previous.dispositions + assessment.dispositions,
+                diagnostics=previous.diagnostics + assessment.diagnostics,
+                complete=previous.complete and assessment.complete,
+            )
+        batches[key] = replace(assessment, effects=coalesce_effects(assessment.effects))
+    destinations: set[Path] = set()
+    for batch in batches.values():
+        paths = {effect.destination for effect in batch.effects}
+        if destinations & paths:
+            raise ValueError("Owner conflict: overlapping roots require one whole-root preparation")
+        destinations.update(paths)
+    return tuple(
+        sorted(
+            batches.values(),
+            key=lambda a: (
+                min((e.sort_key[0] for e in a.effects), default=-1),
+                a.owner_key,
+                a.root.root_id,
+            ),
+        )
+    )
+
+
+def _refused(assessment: OwnerAssessment, code: str, message: str) -> OwnerApplyResult:
+    return OwnerApplyResult(
+        assessment.owner_key,
+        skipped=tuple(dict.fromkeys(e.id for e in assessment.effects)),
+        outcome="failed",
+        diagnostics=assessment.diagnostics + (Diagnostic(code, assessment.owner_key, "error", message),),
+    )
+
+
+def _apply_assessment(
+    provider: ReportingSurfaceProvider | None,
+    assessment: OwnerAssessment,
+    consent: ApplyConsent,
+) -> OwnerApplyResult:
+    if not assessment.complete or any(d.severity == "error" for d in assessment.diagnostics):
+        return _refused(assessment, "incomplete_assessment", "Fresh complete owner assessment required")
+    ids = tuple(e.id for e in assessment.effects)
+    if not consent.automatic or not ids:
+        return OwnerApplyResult(assessment.owner_key, skipped=ids, outcome="skipped")
+    if set(consent.overwrite_paths) != set(assessment.consent.overwrite_paths):
+        return _refused(assessment, "consent_changed", "Drift consent requires fresh exact-path assessment")
+    if not isinstance(provider, AssessingSurfaceProvider):
+        return _refused(assessment, "assessment_unsupported", "Selected owner unavailable for checked application")
+    with provider.recheck(assessment) as diagnostics:
+        if any(d.severity == "error" or d.code == "precondition_changed" for d in diagnostics):
+            return OwnerApplyResult(assessment.owner_key, skipped=ids, diagnostics=diagnostics, outcome="precondition_changed")
+        result = provider.apply(assessment, consent)
+    reported = set(result.succeeded + result.failed + result.skipped)
+    if result.owner_key != assessment.owner_key or reported - set(ids):
+        raise ValueError("Owner returned application IDs outside its assessed batch")
+    missing = tuple(effect_id for effect_id in ids if effect_id not in reported)
+    if missing:
+        return replace(
+            result,
+            skipped=result.skipped + missing,
+            outcome="partial" if result.succeeded else "failed",
+            diagnostics=result.diagnostics
+            + (Diagnostic("unreported_effects", assessment.owner_key, "error", "Owner did not report every assessed effect outcome"),),
+        )
+    return result
+
+
 _DRIFT_PROMPT = "Drifted: {path}. Overwrite? [y/N] "
 _AMAZON_Q_TOOL_KEYS = frozenset({"q", "amazon-q", "amazon-q-agent"})
 
@@ -177,22 +347,13 @@ def render_surface_summary_lines(summary: DriftPolicySummary) -> list[str]:
     if summary.created:
         lines.append(f"[dim]Created {len(summary.created)} tool surface(s)[/dim]")
     if summary.repaired:
-        lines.append(
-            f"[dim]Repaired {len(summary.repaired)} stale tool surface(s)[/dim]"
-        )
+        lines.append(f"[dim]Repaired {len(summary.repaired)} stale tool surface(s)[/dim]")
     if summary.drifted_overwritten:
-        lines.append(
-            f"[dim]Overwrote {len(summary.drifted_overwritten)} drifted tool surface(s)[/dim]"
-        )
+        lines.append(f"[dim]Overwrote {len(summary.drifted_overwritten)} drifted tool surface(s)[/dim]")
     if summary.drifted_reported:
-        lines.append(
-            f"[dim]Note: {len(summary.drifted_reported)} tool surface(s) have local edits "
-            f"— run 'spec-kitty doctor tool-surfaces' to review[/dim]"
-        )
+        lines.append(f"[dim]Note: {len(summary.drifted_reported)} tool surface(s) have local edits — run 'spec-kitty doctor tool-surfaces' to review[/dim]")
     if summary.skipped:
-        lines.append(
-            f"  {len(summary.skipped)} surface(s) not applicable, skipped."
-        )
+        lines.append(f"  {len(summary.skipped)} surface(s) not applicable, skipped.")
     return lines
 
 
@@ -234,11 +395,7 @@ def _apply_auto_repairs(
     summary: DriftPolicySummary,
 ) -> None:
     """Apply Rules 1 and 2 (auto-create missing, auto-repair stale)."""
-    auto_repair_statuses = [
-        status
-        for status in (*missing_statuses, *stale_statuses)
-        if _is_init_upgrade_auto_repairable(status)
-    ]
+    auto_repair_statuses = [status for status in (*missing_statuses, *stale_statuses) if _is_init_upgrade_auto_repairable(status)]
     if not auto_repair_statuses:
         return
     service = SurfaceRepairService(providers)
@@ -263,10 +420,7 @@ def _is_init_upgrade_auto_repairable(status: SurfaceStatus) -> bool:
         return False
     if definition.activation_mode == ActivationMode.DISABLED:
         return False
-    return not (
-        definition.kind == ToolSurfaceKind.AGENT_PROFILE
-        and status.instance.owner in _AMAZON_Q_TOOL_KEYS
-    )
+    return not (definition.kind == ToolSurfaceKind.AGENT_PROFILE and status.instance.owner in _AMAZON_Q_TOOL_KEYS)
 
 
 def run_surface_repair(
@@ -317,9 +471,7 @@ def run_surface_repair(
     registry = build_registry(configured_tools)
     builder = SurfacePlanBuilder(registry, providers)
     plans = builder.build(configured_tools, project_root)
-    report = SurfaceStatusService(providers).collect(
-        project_root, plans, configured_tools=configured_tools
-    )
+    report = SurfaceStatusService(providers).collect(project_root, plans, configured_tools=configured_tools)
 
     summary = DriftPolicySummary()
     missing_statuses: list[SurfaceStatus] = []

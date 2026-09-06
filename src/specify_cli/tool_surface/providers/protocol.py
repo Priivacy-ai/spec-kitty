@@ -19,9 +19,11 @@ from ..model import SurfaceDefinition, SurfaceInstance
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from contextlib import AbstractContextManager
 
     from ..repair import RepairResult
     from ..status import SurfaceStatus
+    from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OwnerApplyResult, OwnerAssessment
 
 
 @runtime_checkable
@@ -55,4 +57,30 @@ class ReportingSurfaceProvider(Protocol):
         dry_run: bool = False,
     ) -> RepairResult:
         """Repair the supplied statuses and return a :class:`RepairResult`."""
+        ...
+
+
+@runtime_checkable
+class AssessingSurfaceProvider(Protocol):
+    """Separate upgrade-capable contract; legacy reporting providers need not implement it.
+
+    ``recheck`` acquires the owner's existing lock and compares the WHOLE batch's
+    source/input/destination/parent observations before yielding diagnostics.
+    The context remains held through ``apply``. Errors prohibit that batch's
+    writer. ``apply`` consumes exact prepared bytes and reports actual IDs; it
+    must never rerender/resample clocks or retry changed preconditions.
+    """
+
+    provider_key: str
+
+    def assess(self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus]) -> OwnerAssessment:
+        """Prepare exact owner effects without writing, prompting or installing."""
+        ...
+
+    def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
+        """Hold the owner lock while rechecking the complete batch and applying."""
+        ...
+
+    def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+        """Apply a rechecked, consent-permitted preparation using existing writers."""
         ...

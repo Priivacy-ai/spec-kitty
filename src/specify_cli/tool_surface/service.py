@@ -15,6 +15,7 @@ from pathlib import Path
 from .docs import DocsLinter, DocsLintFinding
 from .enums import ToolSurfaceKind
 from .model import SurfacePlan
+from .operations import AssessmentInputs, OwnerAssessment
 from .plan import SurfacePlanBuilder
 from .providers._discovery import _PROVIDERS  # noqa: F401 — imported for side-effects (registration)
 from .providers._registry import SurfaceProviderRegistry
@@ -59,9 +60,7 @@ def surface_kind_from_token(token: str) -> ToolSurfaceKind:
         return _KIND_TOKENS[token]
     except KeyError as exc:
         known = ", ".join(sorted(_KIND_TOKENS))
-        raise UnknownSurfaceKind(
-            f"Unknown surface kind '{token}'. Known kinds: {known}."
-        ) from exc
+        raise UnknownSurfaceKind(f"Unknown surface kind '{token}'. Known kinds: {known}.") from exc
 
 
 @dataclass(frozen=True)
@@ -70,6 +69,7 @@ class ToolSurfaceOutcome:
 
     report: SurfaceReport
     repair: RepairResult | None = None
+    assessments: tuple[OwnerAssessment, ...] = ()
 
     def to_json(self) -> dict[str, object]:
         payload: dict[str, object] = self.report.to_json()
@@ -80,7 +80,8 @@ class ToolSurfaceOutcome:
 
 def build_providers() -> list[ReportingSurfaceProvider]:
     """Return all providers available at this work package."""
-    return SurfaceProviderRegistry.build_providers()
+    providers: list[ReportingSurfaceProvider] = SurfaceProviderRegistry.build_providers()
+    return providers
 
 
 def build_registry(tool_keys: Sequence[str]) -> ToolSurfaceRegistry:
@@ -111,11 +112,10 @@ def build_docs_linter() -> DocsLinter:
     return DocsLinter(build_registry((_DOCS_INDEX_TOOL_KEY,)))
 
 
-def lint_docs_directory(
-    docs_dir: Path, patterns: list[str] | None = None
-) -> list[DocsLintFinding]:
+def lint_docs_directory(docs_dir: Path, patterns: list[str] | None = None) -> list[DocsLintFinding]:
     """Lint a docs directory against the tool surface contract (FR-017)."""
-    return build_docs_linter().lint_directory(docs_dir, patterns)
+    findings: list[DocsLintFinding] = build_docs_linter().lint_directory(docs_dir, patterns)
+    return findings
 
 
 def run_tool_surfaces(
@@ -125,8 +125,16 @@ def run_tool_surfaces(
     tool_filter: str | None = None,
     kinds: Sequence[ToolSurfaceKind] | None = None,
     fix: bool = False,
+    assessment_inputs: AssessmentInputs | None = None,
 ) -> ToolSurfaceOutcome:
-    """Build a plan, collect status, and optionally repair."""
+    """Build/collect once, optionally repair or prepare immutable owner assessments.
+
+    ``assessment_inputs`` opts into preparation without changing legacy report
+    JSON or requiring old reporting/repair consumers to support the new protocol.
+    It cannot be combined with ``fix``: apply uses the separate checked boundary.
+    """
+    if assessment_inputs is not None and (fix or assessment_inputs.root.path != project_root):
+        raise ValueError("Assessment requires the selected root and cannot be combined with fix")
     tools = _selected_tools(configured_tools, tool_filter)
     providers = build_providers()
     registry = build_registry(tools)
@@ -138,52 +146,41 @@ def run_tool_surfaces(
     # the operator-facing tool roster stays accurate. Skip it when a ``--tool``
     # filter is active (the operator asked for one specific tool) or when no
     # tools are configured (a bundle has nothing to aggregate).
-    plan_tools = (
-        [*tools, PLUGIN_BUNDLE_TOOL_KEY]
-        if tools and tool_filter is None
-        else list(tools)
-    )
+    plan_tools = [*tools, PLUGIN_BUNDLE_TOOL_KEY] if tools and tool_filter is None else list(tools)
     plans = builder.build(plan_tools, project_root)
     if kind_set is not None:
         plans = _filter_plans_by_kinds(plans, kind_set)
-    report = SurfaceStatusService(providers).collect(
-        project_root, plans, configured_tools=tools
-    )
+    report = SurfaceStatusService(providers).collect(project_root, plans, configured_tools=tools)
+    if assessment_inputs is not None:
+        assessments = SurfaceRepairService(providers).assess(assessment_inputs, report.surfaces, plans=plans)
+        return ToolSurfaceOutcome(report=report, assessments=assessments)
     if not fix:
         return ToolSurfaceOutcome(report=report)
-    repair = SurfaceRepairService(providers).repair(
-        project_root, report.surfaces, kinds=kind_set
-    )
+    repair = SurfaceRepairService(providers).repair(project_root, report.surfaces, kinds=kind_set)
     plans = builder.build(plan_tools, project_root)
     if kind_set is not None:
         plans = _filter_plans_by_kinds(plans, kind_set)
-    refreshed = SurfaceStatusService(providers).collect(
-        project_root, plans, configured_tools=tools
-    )
+    refreshed = SurfaceStatusService(providers).collect(project_root, plans, configured_tools=tools)
     return ToolSurfaceOutcome(report=refreshed, repair=repair)
 
 
-def _selected_tools(
-    configured_tools: Sequence[str], tool_filter: str | None
-) -> list[str]:
+def _selected_tools(configured_tools: Sequence[str], tool_filter: str | None) -> list[str]:
     if tool_filter is None:
         return list(configured_tools)
     return [t for t in configured_tools if t == tool_filter]
 
 
-def _filter_plans_by_kinds(
-    plans: Sequence[SurfacePlan], kind_set: set[ToolSurfaceKind]
-) -> list[SurfacePlan]:
+def _filter_plans_by_kinds(plans: Sequence[SurfacePlan], kind_set: set[ToolSurfaceKind]) -> list[SurfacePlan]:
     filtered: list[SurfacePlan] = []
     for plan in plans:
-        instances = tuple(
-            inst for inst in plan.instances if inst.definition.kind in kind_set
-        )
+        instances = tuple(inst for inst in plan.instances if inst.definition.kind in kind_set)
         filtered.append(
             SurfacePlan(
                 tool_key=plan.tool_key,
                 instances=instances,
                 computed_at=plan.computed_at,
+                definitions=tuple(d for d in plan.definitions if d.kind in kind_set),
+                diagnostics=plan.diagnostics,
             )
         )
     return filtered
