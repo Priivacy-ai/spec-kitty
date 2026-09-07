@@ -9,6 +9,7 @@ boundary around the repair step.
 from __future__ import annotations
 
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -222,9 +223,72 @@ def test_activation_errors_and_surface_drift_feed_effective_success() -> None:
         should_commit=False,
     )
     assert result.activation_errors == ["mission-type X activation failed"]
-    assert result.surface_drift_failed is True
+    assert result.surface_drift_failed is False
     assert result.effective_success is False
     assert result.exit_code == 1
+
+
+def test_provisioning_refusal_prevents_dependent_writes_and_commit(tmp_path: Path) -> None:
+    """A failed prerequisite cannot fall through to the surface writer."""
+    output = tmp_path / "surface.txt"
+    commits: list[str] = []
+
+    def repair_surface() -> bool:
+        output.write_text("dependent output\n")
+        return False
+
+    def commit() -> bool:
+        commits.append("commit")
+        return True
+
+    outcome = finalize_upgrade(
+        UpgradeOutcome(result=_synthesized_result()),
+        provision_activations=lambda: ["Provisioning inputs changed"],
+        run_surface_repair=repair_surface,
+        offer_repair=lambda: RepairOutcome(pending=True),
+        commit_churn=commit,
+        should_commit=True,
+    )
+    assert not output.exists()
+    assert commits == []
+    assert outcome.activation_errors == ["Provisioning inputs changed"]
+    assert outcome.exit_code == 1
+
+
+def test_finalizer_keeps_preflight_around_writes_not_commit_or_mission_repair() -> None:
+    calls: list[str] = []
+
+    @contextmanager
+    def preflight():
+        calls.append("preflight")
+        try:
+            yield ()
+        finally:
+            calls.append("release")
+
+    def provision() -> list[str]:
+        calls.append("provision")
+        return []
+
+    def surfaces() -> bool:
+        calls.append("surfaces")
+        return False
+
+    def commit() -> bool:
+        calls.append("commit")
+        return True
+
+    def repair() -> RepairOutcome:
+        calls.append("mission")
+        return RepairOutcome()
+
+    result = finalize_upgrade(
+        UpgradeOutcome(result=_synthesized_result()), provision_activations=provision,
+        run_surface_repair=surfaces, commit_churn=commit, offer_repair=repair,
+        should_commit=True, repair_preflight=preflight(),
+    )
+    assert result.exit_code == 0
+    assert calls == ["preflight", "provision", "surfaces", "release", "commit", "mission"]
 
 
 # ---------------------------------------------------------------------------

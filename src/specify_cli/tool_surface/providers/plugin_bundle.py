@@ -14,12 +14,19 @@ staging files only; it does not enable or ship anything.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Protocol, runtime_checkable
+from specify_cli.core.agent_config import AgentConfigError
 
 from ..bundles.claude import ClaudeCodeBundleProjector
 from ..bundles.copilot import CopilotBundleProjector
-from ..bundles.model import BundleValidationResult, PluginBundle
+from ..bundles.model import BundleEntry, BundleSources, BundleValidationResult, PluginBundle, StagedFile
+from ..bundles.projection import (
+    BUNDLE_SURFACE_KINDS, apply_staging, files_for_entries, json_bytes,
+    observe_confined, plugin_manifest_payload, prepare_staging, staging_guard,
+    supplied_entries,
+)
 from ..bundles.vscode import VsCodeBundleProjector
 from ..enums import (
     ActivationMode,
@@ -36,7 +43,11 @@ from ..findings import (
     SurfaceFinding,
     make_finding,
 )
-from ..model import SurfaceDefinition, SurfaceInstance, SurfacePlan
+from ..model import SurfaceDefinition, SurfaceInstance, SurfacePlan, SurfaceSelection
+from ..operations import (
+    ApplyConsent, AssessmentInputs, Diagnostic, Disposition, OperationRoot,
+    OwnerApplyResult, OwnerAssessment,
+)
 from ..repair import RepairResult
 from ..status import (
     STATE_MISSING,
@@ -70,6 +81,8 @@ class BundleProjector(Protocol):
 
     distribution_target: str
     manifest_relative_path: str
+
+    def entries(self, plan: Sequence[SurfacePlan], project_root: Path) -> tuple[BundleEntry, ...]: ...
 
     def project(
         self,
@@ -124,7 +137,7 @@ class PluginBundleProvider:
         self._output_subdir = output_subdir
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == ToolSurfaceKind.PLUGIN_MANIFEST
+        return bool(definition.kind == ToolSurfaceKind.PLUGIN_MANIFEST)
 
     def _output_dir(self, project_root: Path, target: str) -> Path:
         return project_root / self._output_subdir / target
@@ -174,21 +187,96 @@ class PluginBundleProvider:
             return self._stale_status(instance)
         if not instance.path.exists():
             return SurfaceStatus(instance=instance, state=STATE_MISSING)
-        bundle = self._reproject(instance, projector)
-        result = projector.validate(bundle)
-        if not result.passed:
-            return self._incomplete_status(instance, result.missing_surfaces)
-        return SurfaceStatus(instance=instance, state=STATE_PRESENT)
+        output = self._staged_output_dir(instance.path)
+        root = output.parent
+        for _part in Path(self._output_subdir).parts:
+            root = root.parent
+        assessment = self.assess(
+            AssessmentInputs(OperationRoot("project", "project", root),
+                             projected=BundleSources(selected_targets=(target,))),
+            (), selections=(),
+        )
+        if assessment.complete and not assessment.effects and all(d.state == "unchanged" for d in assessment.dispositions):
+            return SurfaceStatus(instance=instance, state=STATE_PRESENT)
+        finding = make_finding(BUNDLE_COMPONENT_MISSING, SEVERITY_ERROR,
+                               "Selected staged bundle has missing, drifted, or unavailable members.",
+                               path=instance.path)
+        return self._incomplete_status(instance, (finding,))
 
-    def _reproject(
-        self, instance: SurfaceInstance, projector: BundleProjector
-    ) -> PluginBundle:
-        """Re-derive the bundle descriptor for validation without re-writing."""
-        # The staged output dir is the manifest's parent (or grandparent for the
-        # Claude Code ``.claude-plugin/`` layout). We rebuild the descriptor from
-        # the staged tree by listing it; projection is delegated, never inlined.
-        output_dir = self._staged_output_dir(instance.path)
-        return _descriptor_from_staged(output_dir, projector.distribution_target)
+    def assess(
+        self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *,
+        selections: tuple[SurfaceSelection, ...],
+    ) -> OwnerAssessment:
+        """Prepare explicitly selected staging, never enable an advisory bundle."""
+        _ = statuses
+        sources = inputs.projected if isinstance(inputs.projected, BundleSources) else BundleSources()
+        selected = sources.selected_targets
+        if not selected and any(self.can_handle(s.definition) and s.definition.activation_mode != ActivationMode.DISABLED for s in selections):
+            selected = tuple(p.distribution_target for p in self._projectors)
+        if not selected:
+            return OwnerAssessment(PROVIDER_KEY, inputs.root, consent=inputs.consent,
+                                   dispositions=(Disposition(PROVIDER_KEY, inputs.root.root_id, self._output_subdir,
+                                                             "not_applicable", "Optional disabled staging was not selected"),))
+        try:
+            observations = list(observe_confined(inputs.root.path, inputs.root.path / ".kittify/config.yaml"))
+            if observations[-1].state.kind not in {"file", "absent"}:
+                raise ValueError("Bundle source configuration is not a regular file")
+            plans = self._plans_for_projection(inputs.root.path)
+            if any(d.severity == "error" for plan in plans for d in plan.diagnostics):
+                raise ValueError("; ".join(d.message for plan in plans for d in plan.diagnostics if d.severity == "error"))
+            suppliers = sources.assessments or self._source_assessments(inputs, plans)
+            files: list[StagedFile] = []
+            directories: list[Path] = []
+            for target in sorted(set(selected)):
+                projector = self._projector_for(target)
+                if projector is None:
+                    raise ValueError(f"Unknown bundle target: {target}")
+                directory = self._output_dir(inputs.root.path, target)
+                entries = supplied_entries(projector.entries(plans, inputs.root.path), suppliers)
+                files.extend(files_for_entries(entries, directory, inputs.root, observations))
+                manifest = (directory / projector.manifest_relative_path).relative_to(inputs.root.path).as_posix()
+                files.append(StagedFile(manifest, json_bytes(plugin_manifest_payload(target)), manifest=True))
+                directories.append(directory)
+            return prepare_staging(inputs, tuple(files), tuple(directories), tuple(observations), suppliers=suppliers)
+        except (OSError, ValueError, TypeError, AgentConfigError) as exc:
+            return OwnerAssessment(PROVIDER_KEY, inputs.root, complete=False, consent=inputs.consent,
+                                   diagnostics=(Diagnostic("bundle_input_invalid", PROVIDER_KEY, "error", str(exc)),))
+
+    def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
+        return staging_guard(assessment)
+
+    def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+        return apply_staging(assessment, explicit_consent)
+
+    @staticmethod
+    def _source_assessments(inputs: AssessmentInputs, plans: Sequence[SurfacePlan]) -> tuple[OwnerAssessment, ...]:
+        """Ask the selected registered owners for their concrete desired outputs."""
+        from specify_cli.skills.installer import assess_skill_installation
+        from specify_cli.skills.registry import SkillRegistry
+        from ..providers.protocol import AssessingSurfaceProvider
+        from ..service import build_providers
+
+        selected = tuple(dict.fromkeys(
+            SurfaceSelection(plan.tool_key, instance.definition) for plan in plans for instance in plan.instances
+            if instance.path.is_absolute() and instance.path != inputs.root.path and instance.path.is_relative_to(inputs.root.path)
+            and instance.definition.kind in BUNDLE_SURFACE_KINDS and instance.definition.activation_mode != ActivationMode.DISABLED
+        ))
+        result = []
+        for provider in build_providers():
+            selections = tuple(s for s in selected if s.definition.provider_key == provider.provider_key and provider.can_handle(s.definition))
+            if not selections or not isinstance(provider, AssessingSurfaceProvider):
+                continue
+            owner_inputs = AssessmentInputs(inputs.root, consent=inputs.consent)
+            if provider.provider_key == "managed_skills":
+                installation = assess_skill_installation(owner_inputs, SkillRegistry.from_package(),
+                                                        tuple(sorted({s.tool_key for s in selections})))
+                owner_inputs = AssessmentInputs(inputs.root, projected=installation, consent=inputs.consent)
+            assessment = provider.assess(owner_inputs, (), selections=selections)
+            if not assessment.complete:
+                raise ValueError(f"{provider.provider_key}: " + "; ".join(d.message for d in assessment.diagnostics))
+            if assessment.prepared is not None:
+                result.append(assessment)
+        return tuple(result)
 
     @staticmethod
     def _staged_output_dir(manifest_path: Path) -> Path:
@@ -251,47 +339,24 @@ class PluginBundleProvider:
         ]
         if not actionable:
             return RepairResult(dry_run=dry_run)
-        if dry_run:
-            return RepairResult(
-                repaired=tuple(_surface_id(s.instance) for s in actionable),
-                dry_run=True,
-            )
-        return self._project_all(project_root, actionable)
-
-    def _project_all(
-        self,
-        project_root: Path,
-        actionable: Sequence[SurfaceStatus],
-    ) -> RepairResult:
-        repaired: list[str] = []
-        failed: list[str] = []
-        plans = self._plans_for_projection(project_root)
-        for status in actionable:
-            self._project_one(project_root, plans, status, repaired, failed)
-        return RepairResult(
-            repaired=tuple(repaired), failed=tuple(failed), dry_run=False
+        consent = ApplyConsent(automatic=True)
+        assessment = self.assess(
+            AssessmentInputs(OperationRoot("project", "project", project_root.resolve()),
+                             projected=BundleSources(selected_targets=tuple(s.instance.owner for s in actionable)),
+                             consent=consent), actionable, selections=(),
         )
-
-    def _project_one(
-        self,
-        project_root: Path,
-        plans: Sequence[SurfacePlan],
-        status: SurfaceStatus,
-        repaired: list[str],
-        failed: list[str],
-    ) -> None:
-        surface_id = _surface_id(status.instance)
-        projector = self._projector_for(status.instance.owner)
-        if projector is None:
-            failed.append(f"{surface_id}: unknown target {status.instance.owner}")
-            return
-        output_dir = self._output_dir(project_root, projector.distribution_target)
-        try:
-            projector.project(plans, project_root, output_dir)
-        except OSError as exc:  # surfaced as a failure, never swallowed
-            failed.append(f"{surface_id}: {exc}")
-            return
-        repaired.append(surface_id)
+        if not assessment.complete:
+            return RepairResult(failed=tuple(_surface_id(s.instance) for s in actionable), dry_run=dry_run,
+                                findings_after=tuple(make_finding(BUNDLE_COMPONENT_MISSING, SEVERITY_ERROR, d.message)
+                                                     for d in assessment.diagnostics))
+        if dry_run:
+            return RepairResult(repaired=tuple(e.id for e in assessment.effects), dry_run=True)
+        result = self.apply(assessment, consent)
+        messages = tuple(d.message for d in result.diagnostics) + tuple(
+            d.reason for d in assessment.dispositions if d.state in {"preserve", "consent_required"})
+        return RepairResult(repaired=result.succeeded, failed=result.failed, skipped=result.skipped,
+                            findings_after=tuple(make_finding(BUNDLE_COMPONENT_MISSING, SEVERITY_ERROR, message)
+                                                 for message in messages))
 
     @staticmethod
     def _plans_for_projection(project_root: Path) -> list[SurfacePlan]:
@@ -299,61 +364,12 @@ class PluginBundleProvider:
 
         Imported lazily to avoid a provider <-> service import cycle.
         """
+        from specify_cli.core.agent_config import load_agent_config
         from ..service import build_plans_for_bundles
 
-        return build_plans_for_bundles(project_root)
-
-
-def _descriptor_from_staged(output_dir: Path, target: str) -> PluginBundle:
-    """Reconstruct a :class:`PluginBundle` descriptor from a staged tree.
-
-    Reads only the staged directory layout to decide which surface kinds are
-    present; performs no projection or mutation.
-    """
-    from ..bundles.model import BundleEntry
-
-    entries: list[BundleEntry] = []
-    skills_dir = output_dir / "skills"
-    if skills_dir.is_dir() and any(skills_dir.rglob("SKILL.md")):
-        for skill in sorted(skills_dir.rglob("SKILL.md")):
-            entries.append(
-                BundleEntry(
-                    surface_kind=ToolSurfaceKind.COMMAND_SKILL,
-                    source_path=skill,
-                    bundle_relative_path=str(skill.relative_to(output_dir)),
-                )
-            )
-        # Treat staged skills as covering the doctrine-skill kind too: both land
-        # under ``skills/`` in every supported layout.
-        entries.append(
-            BundleEntry(
-                surface_kind=ToolSurfaceKind.DOCTRINE_SKILL,
-                source_path=skills_dir,
-                bundle_relative_path="skills",
-            )
-        )
-    agents_dir = output_dir / "agents"
-    if agents_dir.is_dir() and any(agents_dir.iterdir()):
-        entries.append(
-            BundleEntry(
-                surface_kind=ToolSurfaceKind.AGENT_PROFILE,
-                source_path=agents_dir,
-                bundle_relative_path="agents",
-            )
-        )
-    manifest_path = _staged_manifest_path(output_dir)
-    return PluginBundle(
-        distribution_target=target,
-        entries=tuple(entries),
-        manifest_path=manifest_path if manifest_path.exists() else None,
-    )
-
-
-def _staged_manifest_path(output_dir: Path) -> Path:
-    claude_manifest = output_dir / ".claude-plugin" / "plugin.json"
-    if claude_manifest.exists():
-        return claude_manifest
-    return output_dir / "plugin.json"
+        agents = load_agent_config(project_root).available
+        plans: list[SurfacePlan] = build_plans_for_bundles(project_root, tool_keys=agents)
+        return plans
 
 
 # ---------------------------------------------------------------------------

@@ -39,6 +39,13 @@ from pathlib import Path
 from uuid import uuid4
 
 from specify_cli.core.utils import write_text_within_directory
+from ..writers.markdown_rules import (
+    PreparedPresenceFile,
+    _atomic_write,
+    observe_presence_path,
+    presence_state,
+    read_presence_bytes,
+)
 
 __all__ = ["ClaudeCodeHookRegistrar", "SESSION_START_EVENT", "STOP_EVENT"]
 
@@ -60,6 +67,43 @@ class ClaudeCodeHookRegistrar:
 
     def __init__(self, event_key: str = SESSION_START_EVENT) -> None:
         self._event_key = event_key
+
+    @property
+    def settings_relative_path(self) -> str:
+        """Canonical physical settings path shared by lifecycle events."""
+        return _SETTINGS_PATH
+
+    def prepare_commands(self, project_root: Path, commands: tuple[tuple[str, str], ...]) -> PreparedPresenceFile:
+        """Validate and merge the complete automatic hook batch without recovery."""
+        observations = observe_presence_path(project_root, _SETTINGS_PATH)
+        state = presence_state(observations[-1])
+        if state.kind not in ("file", "absent"):
+            raise ValueError("Claude settings destination is not a regular file")
+        raw = read_presence_bytes(project_root / _SETTINGS_PATH) if state.kind == "file" else b""
+        data = json.loads(raw) if state.kind == "file" else {}
+        if not isinstance(data, dict):
+            raise ValueError("Expected Claude settings JSON object")
+        hooks = data.setdefault("hooks", {})
+        if not isinstance(hooks, dict):
+            raise ValueError("Expected Claude hooks object")
+        changed = False
+        for event, command in commands:
+            entries = hooks.setdefault(event, [])
+            _validate_hook_entries(entries)
+            registrar = ClaudeCodeHookRegistrar(event)
+            present = any(hook.get("type") == "command" and hook.get("command") == command for hook in registrar._iter_command_hooks(entries))
+            if not present:
+                entries.append({"hooks": [{"type": "command", "command": command}]})
+                changed = True
+        desired = (json.dumps(data, indent=2) + "\n").encode() if changed else raw
+        return PreparedPresenceFile(_SETTINGS_PATH, state, desired, reason="Prepare lifecycle hooks")
+
+    def apply_prepared(self, project_root: Path, prepared: PreparedPresenceFile) -> None:
+        """Write the previously validated final settings bytes once."""
+        if prepared.path != _SETTINGS_PATH:
+            raise ValueError("Prepared settings belong to another owner")
+        if prepared.changed:
+            _atomic_write(project_root / prepared.path, prepared.content.decode("utf-8"), root=project_root, expected=prepared.before)
 
     def _settings_path(self, project_root: Path) -> Path:
         root = project_root.expanduser().resolve()
@@ -88,9 +132,7 @@ class ClaudeCodeHookRegistrar:
             entry_hooks = entry.get("hooks")
             if not isinstance(entry_hooks, list):
                 continue
-            command_hooks.extend(
-                hook for hook in entry_hooks if isinstance(hook, dict)
-            )
+            command_hooks.extend(hook for hook in entry_hooks if isinstance(hook, dict))
         return command_hooks
 
     def _load(self, path: Path, *, preserve_invalid: bool = False) -> dict[str, object]:
@@ -138,10 +180,7 @@ class ClaudeCodeHookRegistrar:
         entries = self._event_entries(data)
         if entries is None:
             return False
-        return any(
-            hook.get("type") == "command" and hook.get("command") == command
-            for hook in self._iter_command_hooks(entries)
-        )
+        return any(hook.get("type") == "command" and hook.get("command") == command for hook in self._iter_command_hooks(entries))
 
     def register(self, project_root: Path, command: str, matcher: str | None = None) -> None:
         """Add *command* as a hook entry for the configured event (idempotent).
@@ -196,15 +235,7 @@ class ClaudeCodeHookRegistrar:
                 new_entries.append(entry)
                 continue
             # Filter out the specific command hook from this entry's hooks list.
-            filtered: list[object] = [
-                h
-                for h in entry_hooks
-                if not (
-                    isinstance(h, dict)
-                    and h.get("type") == "command"
-                    and h.get("command") == command
-                )
-            ]
+            filtered: list[object] = [h for h in entry_hooks if not (isinstance(h, dict) and h.get("type") == "command" and h.get("command") == command)]
             if len(filtered) < len(entry_hooks):
                 found = True
             new_entry: dict[str, object] = {**entry, "hooks": filtered}
@@ -220,3 +251,16 @@ class ClaudeCodeHookRegistrar:
             raise TypeError(msg)
         hooks_section[self._event_key] = new_entries
         self._save(path, data)
+
+
+def _validate_hook_entries(entries: object) -> None:
+    if not isinstance(entries, list):
+        raise ValueError("Expected Claude event entries list")
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
+            raise ValueError("Expected Claude event entry with hooks list")
+        for hook in entry["hooks"]:
+            if not isinstance(hook, dict) or not isinstance(hook.get("type"), str):
+                raise ValueError("Expected typed Claude hook object")
+            if hook["type"] == "command" and not isinstance(hook.get("command"), str):
+                raise ValueError("Expected Claude command string")

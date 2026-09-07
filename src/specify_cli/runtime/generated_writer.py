@@ -20,12 +20,9 @@ This module owns that lifecycle for those consumers, so it cannot be
 forgotten again at their call sites.
 
 Not every generated-file writer in the codebase routes through here.
-:mod:`specify_cli.runtime.agent_skills` and :mod:`specify_cli.skills.installer`
-manage their own read-only regime independently: both delete and recreate
-their whole target tree on every run rather than overwriting an existing
-read-only file in place, so the restore-before-write hazard this module
-guards against does not apply to them. That is a deliberate, separate
-design, not a gap in this module's coverage.
+:mod:`specify_cli.skills.installer` retains its separate project-copy policy.
+Global runtime and skill preparations use this writer for retained file bytes,
+then apply their explicitly assessed final mode.
 
 Only stdlib is used here: :mod:`specify_cli.upgrade` depends on
 :mod:`specify_cli.runtime`, never the reverse, so a runtime-layer module must
@@ -43,9 +40,14 @@ from pathlib import Path
 _WRITE_BITS = 0o222
 
 
+def generated_temporary_path(path: Path) -> Path:
+    """Return the existing atomic writer's bounded sibling artifact path."""
+    return path.with_name(f".{path.name}.tmp{os.getpid()}")
+
+
 def write_generated_file(
     path: Path,
-    content: str,
+    content: str | bytes,
     *,
     read_only: bool = True,
     encoding: str = "utf-8",
@@ -90,7 +92,7 @@ def write_generated_file(
     Args:
         path: Destination file. May or may not exist; if it exists it may
             be read-only. Must not be a symlink.
-        content: Text to write.
+        content: Text or exact retained bytes to write.
         read_only: When ``True`` (default), the file is left read-only after
             writing. When ``False``, it is left writable.
         encoding: Text encoding used for the write.
@@ -105,15 +107,21 @@ def write_generated_file(
             "regular files; replace or remove the symlink before writing)"
         )
 
+    tmp_path = generated_temporary_path(path)
+    if tmp_path.exists() or tmp_path.is_symlink():
+        raise ValueError(f"Refusing to replace an unproven atomic writer artifact: {tmp_path}")
+
     existing_mode: int | None = None
     if path.exists():
         existing_mode = path.stat().st_mode
         if existing_mode & _WRITE_BITS == 0:
             path.chmod(existing_mode | _WRITE_BITS)
 
-    tmp_path = path.with_name(f".{path.name}.tmp{os.getpid()}")
     try:
-        tmp_path.write_text(content, encoding=encoding)
+        if isinstance(content, bytes):
+            tmp_path.write_bytes(content)
+        else:
+            tmp_path.write_text(content, encoding=encoding)
         os.replace(tmp_path, path)
     except BaseException:
         tmp_path.unlink(missing_ok=True)

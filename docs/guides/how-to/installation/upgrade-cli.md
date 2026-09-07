@@ -34,6 +34,12 @@ spec-kitty upgrade --cli
 
 This prints the right upgrade command for your detected install method without touching any project state.
 
+Guidance and preview intent is resolved before hidden agent preference
+operations. Hidden `--agent-check`, `--agent-choice`, and `--agent-latest`
+operations remain standalone; combining them with `--cli`, `--project --json`,
+`--dry-run`, or `--plan-json` is rejected before preference state can change.
+`--plan-json` and `--cli` are mutually exclusive.
+
 ## pipx
 
 ```bash

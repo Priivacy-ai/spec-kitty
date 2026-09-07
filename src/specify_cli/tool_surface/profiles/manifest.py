@@ -62,12 +62,31 @@ class ProfileManifest:
         return manifest
 
     def _read(self) -> None:
-        if not self.manifest_path.exists():
+        from ._paths import observe_node
+
+        state = observe_node(self.manifest_path)
+        if state.kind == "absent":
             return
+        if state.kind != "file":
+            raise ValueError(f"Profile manifest is not a regular file: {self.manifest_path}")
         project_root = self.manifest_path.parent.parent
         data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(data, dict)
+            or type(data.get("schema_version")) is not int
+            or data.get("schema_version") != SCHEMA_VERSION
+            or not isinstance(data.get("entries"), list)
+        ):
+            raise ValueError("Invalid profile manifest schema or entries")
         for raw in data.get("entries", []):
-            entry = _entry_from_json(raw, project_root)
+            if not isinstance(raw, dict):
+                raise ValueError("Invalid profile manifest entry")
+            try:
+                entry = _entry_from_json(raw, project_root)
+            except (KeyError, TypeError, OverflowError) as exc:
+                raise ValueError(f"Invalid profile manifest entry: {exc}") from exc
+            if str(entry.output_path) in self._entries:
+                raise ValueError(f"Duplicate profile manifest output: {entry.output_path}")
             self._entries[str(entry.output_path)] = entry
 
     def record(self, profile: NativeAgentProfile) -> None:
@@ -87,18 +106,24 @@ class ProfileManifest:
         """Drop the entry for ``output_path`` if present (no-op otherwise)."""
         self._entries.pop(str(output_path), None)
 
-    def save(self) -> None:
+    def save(self, prepared: bytes | None = None, *, exclusive: bool = False) -> None:
         """Write the manifest to disk, creating ``.kittify/`` as needed."""
-        self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        content = self.render_bytes() if prepared is None else prepared
+        if not exclusive and self.manifest_path.is_file() and self.manifest_path.read_bytes() == content:
+            return
+        if not self.manifest_path.parent.is_dir():
+            self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.manifest_path.open("xb" if exclusive else "wb") as stream:
+            stream.write(content)
+
+    def render_bytes(self) -> bytes:
+        """Serialize the current entries without touching the filesystem."""
         project_root = self.manifest_path.parent.parent
         payload = {
             "schema_version": SCHEMA_VERSION,
             "entries": [_entry_to_json(e, project_root) for e in self.all_entries()],
         }
-        self.manifest_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
 def _entry_to_json(entry: NativeAgentProfile, project_root: Path) -> dict[str, object]:
@@ -120,6 +145,14 @@ def _entry_to_json(entry: NativeAgentProfile, project_root: Path) -> dict[str, o
     }
 
 
+def _required_str(raw: dict[str, object], key: str) -> str:
+    """Validate record structure, not whether a legacy identity authorizes writes."""
+    value = raw[key]
+    if not isinstance(value, str) or not value:
+        raise TypeError(f"manifest field {key!r} must be a nonempty string")
+    return value
+
+
 def _opt_str(raw: dict[str, object], key: str) -> str | None:
     """Read an optional string field, defaulting to ``None`` when absent.
 
@@ -127,7 +160,9 @@ def _opt_str(raw: dict[str, object], key: str) -> str | None:
     the provenance keys deserializes cleanly rather than raising ``KeyError``.
     """
     value = raw.get(key)
-    return str(value) if value is not None else None
+    if value is not None and not isinstance(value, str):
+        raise TypeError(f"manifest field {key!r} must be a string or null")
+    return value
 
 
 def _opt_int(raw: dict[str, object], key: str) -> int | None:
@@ -135,20 +170,18 @@ def _opt_int(raw: dict[str, object], key: str) -> int | None:
     value = raw.get(key)
     if value is None:
         return None
-    if isinstance(value, bool):  # bool is an int subclass; reject it explicitly
-        raise TypeError(f"manifest field {key!r} must be an int, got bool")
-    if isinstance(value, (int, str)):
-        return int(value)
-    raise TypeError(f"manifest field {key!r} must be an int, got {type(value)!r}")
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"manifest field {key!r} must be an int or null")
+    return value
 
 
 def _entry_from_json(raw: dict[str, object], project_root: Path) -> NativeAgentProfile:
     return NativeAgentProfile(
-        profile_urn=str(raw["profile_urn"]),
-        source_layer=str(raw["source_layer"]),
-        tool_key=str(raw["tool_key"]),
-        output_path=absolutize_from_root(str(raw["output_path"]), project_root),
-        format=str(raw["format"]),
+        profile_urn=_required_str(raw, "profile_urn"),
+        source_layer=_required_str(raw, "source_layer"),
+        tool_key=_required_str(raw, "tool_key"),
+        output_path=absolutize_from_root(_required_str(raw, "output_path"), project_root),
+        format=_required_str(raw, "format"),
         file_hash=_opt_str(raw, "file_hash"),
         source_path=_opt_str(raw, "source_path"),
         source_hash=_opt_str(raw, "source_hash"),
