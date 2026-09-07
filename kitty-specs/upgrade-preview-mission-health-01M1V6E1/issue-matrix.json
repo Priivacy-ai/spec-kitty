@@ -61,7 +61,7 @@
       "wp": "WP13"
     },
     "#3901": {
-      "evidence_ref": "WP01 independent P6 omission RED retained; WP02-WP10 owner assessment and CLI composition ongoing; WP13 physical parity gate pending.",
+      "evidence_ref": "WP13 P6 full plan/apply/repeat passed after composed parent recheck fix 3d55d896d; declared project effects applied and repeat was byte/mtime quiet.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,7 +69,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP13"
     },
     "#3902": {
