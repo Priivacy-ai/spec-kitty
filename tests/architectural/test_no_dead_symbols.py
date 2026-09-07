@@ -1837,6 +1837,47 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 )
 
 
+# ---------- C. fsm-write-path-integrity-01M1TZV6 WP03 raw-append door (FR-010) ----------
+# ``specify_cli.status._unsafe`` is the enumerated, gate-facing door for the
+# raw ``status.events.jsonl`` append primitives (they left the ``status``
+# facade so no runtime module can reach them without appearing in the
+# shrink-only ``ALLOWED_CALLERS`` census). Two of its public names have no
+# cross-file ``src/`` caller BY DESIGN:
+#
+# * ``specify_cli.status._unsafe::ALLOWED_CALLERS`` -- consumed only by the
+#   architectural gate ``tests/architectural/test_status_unsafe_allowlist.py``
+#   (every door importer must be in it; it must stay a subset of the test's
+#   committed BASELINE). A runtime caller would defeat its purpose.
+# * ``specify_cli.status._unsafe::append_event`` -- the unverified single-row
+#   primitive, re-exported because the write-gates contract names every raw
+#   primitive on this door; production writers use the ``_verified`` /
+#   ``_atomic`` variants, so its only importers are tests (14 files) that
+#   seed event logs through the sanctioned door. Module-path tier: the alias
+#   text collides with ``glossary``'s unrelated ``append_event`` re-export.
+#
+# Tracked with the mission's census-gate-rule note (#3895); drop these
+# entries if the door is ever folded back or ``append_event`` retired.
+_CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.status._unsafe::ALLOWED_CALLERS
+        # Content-tier hash re-minted in WP07 (census addendum: family 8,
+        # ``specify_cli.decisions.emit``, joined the shrink-only set).
+        SymbolKey(
+            "ALLOWED_CALLERS",
+            "8419d05d86c58956c1edd363cecf32d9ec625c9e070948dc6f30f7e0c54baa8b",
+            source_module="specify_cli.status._unsafe",
+        ),
+        # specify_cli.status._unsafe::append_event (escalated module_path tier)
+        SymbolKey(
+            "append_event",
+            "75b185cd85c790dec2eb8133e573be117c82d6ea8f0f158b3984ee524e7d5dc1",
+            module_path="specify_cli.status._unsafe",
+            source_module="specify_cli.status._unsafe",
+        ),
+    }
+)
+
+
 # ---------- D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664) ----------
 # Three symbols surfaced by the src/doctrine/ -> src/charter/offering/
 # package relocation (mission ``charter-code-topology-01M152G1``, PR #3664).
@@ -1948,6 +1989,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
     | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
+    | _CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
     | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
 )

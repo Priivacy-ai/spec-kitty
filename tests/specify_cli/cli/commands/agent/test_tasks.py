@@ -430,7 +430,8 @@ class TestGetLatestReviewCycleVerdict:
 
     def test_reads_verdict_from_single_cycle(self, tmp_path: Path) -> None:
         """A single review_result-carrying event resolves that verdict."""
-        from specify_cli.status import append_event, event_sourced_review_result
+        from specify_cli.status import event_sourced_review_result
+        from specify_cli.status._unsafe import append_event
 
         append_event(
             tmp_path,
@@ -456,7 +457,8 @@ class TestGetLatestReviewCycleVerdict:
     def test_picks_highest_numbered_cycle(self, tmp_path: Path) -> None:
         """The MOST RECENT review_result-carrying event wins -- the
         event-sourced successor of "the highest-numbered cycle wins"."""
-        from specify_cli.status import append_event, event_sourced_review_result
+        from specify_cli.status import event_sourced_review_result
+        from specify_cli.status._unsafe import append_event
 
         append_event(
             tmp_path,

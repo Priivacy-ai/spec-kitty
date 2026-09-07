@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import specify_cli.status.emit as emit_module
+import specify_cli.status.transition_pipeline as _pipeline_module
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status import adapters
 from specify_cli.status.wp_metadata import WPMetadata
@@ -38,8 +41,9 @@ from specify_cli.status.models import (
     ReviewResult,
     StatusEvent,
     TransitionRequest,
+    WPInnerStateDelta,
 )
-from specify_cli.status.store import EVENTS_FILENAME, append_event, read_events
+from specify_cli.status.store import EVENTS_FILENAME, append_event, read_event_stream, read_events
 
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
@@ -1891,3 +1895,244 @@ class TestGenesisSaasFanOutCompatibilityGate:
             )
         finally:
             _adapters.reset_handlers()
+
+
+# ── WP02 (fsm-write-path-integrity): flat/primary shell composition pins ─────
+#
+# The shells compose ``status/transition_pipeline.py::prepare_transition``
+# (contract ``emit-pipeline.md`` §2). These tests pin the shell contract:
+# the fan-out seam, the FR-004 lock key, exactly one ``validate_transition``
+# per emit, and the batch door's single lock acquisition (FR-018) with its
+# all-or-nothing failure policy.
+
+
+def _wp02_request(feature_dir: Path, to_lane: str, **overrides: Any) -> TransitionRequest:
+    base: dict[str, Any] = {
+        "feature_dir": feature_dir,
+        "mission_slug": "034-test-feature",
+        "wp_id": "WP01",
+        "to_lane": to_lane,
+        "actor": "agent-1",
+    }
+    base.update(overrides)
+    return TransitionRequest(**base)
+
+
+@contextmanager
+def _recording_lock(record: dict[str, object]) -> Iterator[Path]:
+    """Stand-in ``feature_status_lock`` that records its key and hold state."""
+    record["held"] = True
+    yield Path("/nonexistent.lock")
+    record["held"] = False
+
+
+class TestFlatShellFanOutSeam:
+    """``fan_out=False`` skips step 7 entirely; persistence is unchanged.
+
+    ``tests/status/conftest.py`` neuters ``_saas_fan_out`` for this file, so
+    these pins observe the seam at the shell's own call sites; the adapter-
+    registry (zero handler calls) proof lives in
+    ``tests/status/test_emit_fanout_after_adapter.py``.
+    """
+
+    def test_single_fan_out_false_skips_both_fan_out_calls(self, feature_dir: Path) -> None:
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with (
+            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
+        ):
+            event = emit_status_transition(
+                _wp02_request(
+                    feature_dir,
+                    "claimed",
+                    annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                ),
+                fan_out=False,
+            )
+        assert event.to_lane == Lane.CLAIMED
+        saas_fan_out.assert_not_called()
+        binding_fan_out.assert_not_called()
+        # Persistence is untouched by the seam: transition + annotation landed.
+        stream = read_event_stream(feature_dir)
+        assert stream.transitions[-1].event_id == event.event_id
+        assert len(stream.annotations) == 1
+
+    def test_single_fan_out_default_fires_after_release(self, feature_dir: Path) -> None:
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with (
+            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
+        ):
+            event = emit_status_transition(
+                _wp02_request(
+                    feature_dir,
+                    "claimed",
+                    annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                ),
+            )
+        saas_fan_out.assert_called_once()
+        assert saas_fan_out.call_args.args[0] is event
+        binding_fan_out.assert_called_once()
+
+    def test_batch_fan_out_false_skips_both_fan_out_calls(self, feature_dir: Path) -> None:
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with (
+            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
+        ):
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(
+                        feature_dir,
+                        "claimed",
+                        annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                    ),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
+                ],
+                fan_out=False,
+            )
+        assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+        saas_fan_out.assert_not_called()
+        binding_fan_out.assert_not_called()
+        assert len(read_event_stream(feature_dir).annotations) == 1
+
+
+class TestFlatShellLockAndValidation:
+    def test_single_lock_is_keyed_on_feature_dir_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """FR-004: the lock key is the mission directory NAME, not the slug."""
+        feature_dir = tmp_path / "kitty-specs" / "demo-mission-01ABCDEF"
+        feature_dir.mkdir(parents=True)
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        keys: list[str] = []
+
+        @contextmanager
+        def recording_lock(repo_root: Path, key: str) -> Iterator[Path]:
+            keys.append(key)
+            yield repo_root / key
+
+        monkeypatch.setattr(emit_module, "feature_status_lock", recording_lock)
+        with patch.object(emit_module, "_saas_fan_out"):
+            emit_status_transition(_wp02_request(feature_dir, "claimed"))
+        assert keys == ["demo-mission-01ABCDEF"]
+
+    def test_validate_transition_runs_exactly_once_per_emit(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """P-2: the shell never validates itself; the pipeline validates once."""
+        calls: list[tuple[object, ...]] = []
+        real = _pipeline_module.validate_transition
+
+        def counting(*args: object, **kwargs: object) -> object:
+            calls.append(args)
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(_pipeline_module, "validate_transition", counting)
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with patch.object(emit_module, "_saas_fan_out"):
+            emit_status_transition(_wp02_request(feature_dir, "claimed"))
+        assert len(calls) == 1
+        assert calls[0][:2] == (Lane.PLANNED, Lane.CLAIMED)
+
+
+class TestBatchShellLock:
+    def test_batch_holds_feature_lock_across_derive_prepare_and_append(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """FR-018: ONE acquisition covers derive, prepare, append, materialize, mirror."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        state: dict[str, object] = {"held": False}
+        acquisitions: list[tuple[Path, str]] = []
+        observed: list[str] = []
+
+        @contextmanager
+        def tracking_lock(repo_root: Path, key: str) -> Iterator[Path]:
+            acquisitions.append((repo_root, key))
+            with _recording_lock(state):
+                yield repo_root / key
+
+        real_derive = emit_module._derive_from_lane
+        real_prepare = emit_module.prepare_transition
+        real_append = emit_module._store.append_event_stream_atomic_verified
+        real_materialize = emit_module._reducer.materialize
+        real_mirror = emit_module._mirror_phase1_frontmatter_lane
+
+        def spy(name: str, real: Callable[..., object]) -> Callable[..., object]:
+            def wrapped(*args: object, **kwargs: object) -> object:
+                assert state["held"] is True, f"{name} ran outside the lock"
+                observed.append(name)
+                return real(*args, **kwargs)
+
+            return wrapped
+
+        monkeypatch.setattr(emit_module, "feature_status_lock", tracking_lock)
+        monkeypatch.setattr(emit_module, "_derive_from_lane", spy("derive", real_derive))
+        monkeypatch.setattr(emit_module, "prepare_transition", spy("prepare", real_prepare))
+        monkeypatch.setattr(emit_module._store, "append_event_stream_atomic_verified", spy("append", real_append))
+        monkeypatch.setattr(emit_module._reducer, "materialize", spy("materialize", real_materialize))
+        monkeypatch.setattr(emit_module, "_mirror_phase1_frontmatter_lane", spy("mirror", real_mirror))
+
+        with patch.object(emit_module, "_saas_fan_out") as fan_out:
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
+                ]
+            )
+
+        assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+        assert acquisitions == [(feature_dir.parent.parent, feature_dir.name)]
+        assert observed == ["derive", "prepare", "prepare", "append", "materialize", "mirror", "mirror"]
+        # Fan-out fires after release, once per event.
+        assert fan_out.call_count == 2
+        assert state["held"] is False
+
+    def test_batch_mid_sequence_refusal_persists_nothing(self, feature_dir: Path) -> None:
+        """Failure policy (C-007): a refused member aborts before ANY append."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        before = read_events(feature_dir)
+        with pytest.raises(TransitionError, match="Illegal transition"):
+            emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "done", actor="reviewer"),
+                ]
+            )
+        assert read_events(feature_dir) == before
+
+    def test_batch_claimed_to_in_progress_defaults_workspace_context_like_every_other_door(self, feature_dir: Path) -> None:
+        """Parity pin (FR-007 / D-2 in design-notes/WP02-pipeline.md).
+
+        Before the promotion the plain batch door alone skipped the
+        ``<execution_mode>:<root>`` workspace-context default on
+        ``claimed -> in_progress`` (#946); ``_prepare_event`` (and therefore
+        the transactional batch) always applied it. Composing the one pipeline
+        makes the batch door behave like the single door and the transactional
+        batch. Production callers always supply ``workspace_context`` for this
+        edge (``status/work_package_lifecycle.py``), so only direct callers
+        that omitted it observe the change.
+        """
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with patch.object(emit_module, "_saas_fan_out"):
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "in_progress"),
+                ]
+            )
+        assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+
+    def test_batch_annotation_shares_its_transition_timestamp(self, feature_dir: Path) -> None:
+        """D-3: a batch annotation is stamped with its own transition's ``at``."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with patch.object(emit_module, "_saas_fan_out"), patch.object(emit_module, "_resolved_binding_fan_out"):
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(
+                        feature_dir,
+                        "claimed",
+                        annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                    ),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
+                ]
+            )
+        stream = read_event_stream(feature_dir)
+        assert len(stream.annotations) == 1
+        assert stream.annotations[0].at == events[0].at
+        snapshot = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
+        assert snapshot["work_packages"]["WP01"]["lane"] == "in_progress"

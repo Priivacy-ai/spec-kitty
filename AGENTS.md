@@ -410,7 +410,7 @@ Append-only event log (`status.events.jsonl`) is the **sole authority** for WP l
 
 | Function | Module | Purpose |
 |----------|--------|---------|
-| `emit_status_transition()` | `status.emit` | Single entry point: validate → persist → materialize → views → SaaS |
+| `emit_status_transition()` | `status.emit` | Flat/primary shell over the status-owned `transition_pipeline` (validation runs once there); the transactional shell lives in `coordination/status_transition.py` |
 | `reduce()` | `status.reducer` | Deterministic event → snapshot |
 | `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
 | `validate_transition()` | `status.transitions` | Check (from, to) against matrix + guards |

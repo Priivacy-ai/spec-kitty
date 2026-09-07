@@ -25,7 +25,7 @@ Harden the mission status write path without redesign. Every writer of `status.e
 
 **Deferred decisions (markers, implementation detail only — do not block planning):**
 
-- [NEEDS CLARIFICATION: Q9 — run-index migration shape (in-place rekey on first touch vs one-shot migrate) and the legacy key for missions without `mission_id`; precedent is `legacy-<slug>` at `coordination/status_transition.py:1360/:1543/:1606` (transaction lock key in all three transactional doors)] <!-- decision_id: 01M1V8J842E7CJR6MGZ0MW3DQF -->
+- [NEEDS CLARIFICATION: Q6 — landing spot for the five `_emit` privates (`_derive_from_lane`, `_generate_ulid`, `_mirror_phase1_frontmatter_lane`, `build_status_event`, `_infer_subtasks_complete`): pipeline-internal vs narrow public helpers; hard constraint: the frontmatter `lane` mirror remains the tree's only `write_frontmatter` of `lane`] <!-- decision_id: 01M1V8J667A286GPHKTWYB1WCS -->
 
 ## Charter Check
 

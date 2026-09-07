@@ -717,8 +717,9 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.mission_state == "done"
         assert decision.is_query is True
 
-    def test_existing_run_ref_returns_none_when_state_json_missing(self, tmp_path: Path) -> None:
+    def test_existing_run_ref_raises_when_state_json_missing(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import _existing_run_ref
+        from runtime.next.runtime_bridge_io import RunStateMissing
 
         index = {
             "069-test": {
@@ -727,12 +728,16 @@ class TestQueryCurrentStateErrorPaths:
                 "mission_type": "software-dev",
             }
         }
-        # The directory exists but state.json is missing → contract returns None
-        # so the caller will fall back to bootstrapping a fresh ephemeral run.
+        # The directory exists but state.json is missing. WP05 / FR-016: this is
+        # a loud structured error -- returning None here used to let query mode
+        # preview a phantom fresh ephemeral run over the orphaned history.
         (tmp_path / "stale_run").mkdir()
 
-        with patch("runtime.next.runtime_bridge_io.load_feature_runs", return_value=index):
-            assert _existing_run_ref("069-test", tmp_path, "software-dev") is None
+        with (
+            patch("runtime.next.runtime_bridge_io.load_feature_runs", return_value=index),
+            pytest.raises(RunStateMissing),
+        ):
+            _existing_run_ref("069-test", tmp_path, "software-dev")
 
     def test_start_ephemeral_query_run_cleans_up_on_bootstrap_failure(self, tmp_path: Path) -> None:
         """If start_mission_run raises, the freshly created temp dir is removed."""

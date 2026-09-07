@@ -36,13 +36,15 @@ from mission_runtime import MissionArtifactKind, placement_seam
 import json
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import ulid as _ulid_mod
 
 from kernel.clock import now_utc
 from specify_cli.decisions.models import IndexEntry
-from specify_cli.events import sanitize_event_for_log
+from specify_cli.status import feature_status_lock
+from specify_cli.status._unsafe import append_raw_rows_atomic
+from specify_cli.workspace.root_resolver import resolve_status_lock_root
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
@@ -97,21 +99,43 @@ def _events_path(repo_root: Path, mission_slug: str) -> Path:
     return _mission_dir(repo_root, mission_slug) / _EVENTS_FILENAME
 
 
-def _append_raw_event(events_path: Path, event_dict: dict) -> int:  # type: ignore[type-arg]
-    """Append *event_dict* as a JSON line to the events file.
-
-    Creates parent directories if needed.
-    PII fields are stripped via :func:`sanitize_event_for_log` before serialization.
-    Returns the 1-based line count after the append (lamport proxy).
-    """
-    events_path.parent.mkdir(parents=True, exist_ok=True)
-    sanitized = sanitize_event_for_log(event_dict)
-    line = json.dumps(sanitized, sort_keys=True)
-    with events_path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
-    # Count non-empty lines (proxy for Lamport clock value)
+def _count_rows(events_path: Path) -> int:
+    """Non-empty line count of the log (the Lamport-clock proxy)."""
     with events_path.open("r", encoding="utf-8") as fh:
         return sum(1 for ln in fh if ln.strip())
+
+
+def _append_raw_event(events_path: Path, event_dict: dict[str, Any]) -> int:
+    """Append *event_dict* as one JSON line to the mission status log.
+
+    Family 8 of the writer census (mission ``fsm-write-path-integrity-01M1TZV6``
+    WP07, ``design-notes/WP01-lock-rules.md`` addendum): the row lands through
+    ``append_raw_rows_atomic`` (write-ahead temp file + ``os.replace``, PII
+    stripped via ``sanitize_event_for_log`` inside the primitive) while the
+    mission status lock (L1) keyed on the mission directory name is held, so a
+    concurrent ``BookkeepingTransaction`` rollback truncate can never erase it
+    (FR-002). The Lamport-proxy readback runs under the same acquisition so
+    the count is this row's line number, not a later writer's.
+
+    * No ``nullcontext()`` degrade (conscious per-site choice):
+      ``resolve_status_lock_root`` never raises and the lock itself degrades to
+      a deterministic per-tree file, so there is no case in which skipping
+      the lock is safer.
+    * Lock timeout: the lock's default (unbounded). Decision emission is
+      reached only from the planning interviews, the ``decision`` CLI, the
+      widen flows and the orchestrator API -- none of which holds the
+      verdict-save queue (rule a) or the merge sentinel (rule b), so neither
+      bounded-take rule applies; a finite default is the #3893 follow-up.
+    * Nothing inside the critical section spawns git (NFR-001).
+
+    Creates parent directories if needed. Returns the 1-based line count
+    after the append.
+    """
+    feature_dir = events_path.parent
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+        append_raw_rows_atomic(events_path, [event_dict])
+        return _count_rows(events_path)
 
 
 def _queue_decision_fanout(

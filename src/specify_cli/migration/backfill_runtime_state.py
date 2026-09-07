@@ -48,7 +48,7 @@ Backfill (:func:`backfill_runtime_state`)
     mints a *random* ULID, which cannot satisfy the deterministic-idempotent seed
     contract. The backfill therefore reuses the exact internals that API is built
     on — the sanctioned ``wp_state.annotate()`` non-transition seam plus the
-    durability-verified store append (:func:`append_annotations_atomic_verified`)
+    durability-verified store append (:func:`append_event_stream_atomic_verified`)
     — but supplies its own deterministic ``event_id``. The seeds are ordinary
     WP01 events: the reducer folds them into the snapshot with no special-casing.
 
@@ -103,13 +103,14 @@ from specify_cli.status import (
     StoreError,
     WPInnerStateDelta,
     annotate,
-    append_annotations_atomic_verified,
-    append_events_atomic_verified,
+    feature_status_lock,
     materialize_snapshot,
     read_event_stream,
     reduce,
 )
+from specify_cli.status._unsafe import append_event_stream_atomic_verified
 from specify_cli.workspace import canonicalize_feature_dir
+from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 from .mission_state import deterministic_ulid
 
@@ -1485,6 +1486,22 @@ def backfill_runtime_state(
     if not (read_dir / "tasks").is_dir():
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="skip", reason="no tasks/ directory")
 
+    # fsm-write-path-integrity WP01 (FR-002, writer family 7): the claim-anchor
+    # read, the idempotency read (``read_event_stream``) and the seed append all
+    # run under ONE acquisition of the mission status lock keyed on
+    # ``feature_dir.name`` -- the former read-outside/append-twice shape was a
+    # TOCTOU window plus a two-append window. No ``nullcontext()`` degrade at
+    # this site (conscious choice): the lock root resolver never fails. No git
+    # subprocess runs inside the section (NFR-001); the ``dry_run`` early
+    # return inside the lock is fine.
+    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+        return _backfill_runtime_state_locked(feature_dir, read_dir, slug, dry_run=dry_run)
+
+
+def _backfill_runtime_state_locked(
+    feature_dir: Path, read_dir: Path, slug: str, *, dry_run: bool,
+) -> BackfillResult:
+    """Read legacy state + the event log and append the seeds; caller holds the lock."""
     warnings: list[str] = []
     try:
         legacy = read_legacy_runtime(read_dir)
@@ -1529,11 +1546,11 @@ def backfill_runtime_state(
     if dry_run:
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, reason="dry-run (no write)", warnings=warnings)
 
-    if new_transitions:
-        append_events_atomic_verified(feature_dir, new_transitions)
-    if new_annotations:
-        append_annotations_atomic_verified(feature_dir, new_annotations)
-
+    # One atomic write for the transition + annotation pair (a single
+    # ``os.replace``), replacing the former two-append window.
+    append_event_stream_atomic_verified(
+        feature_dir, list(_combined_events(new_transitions, new_annotations)),
+    )
 
     logger.info("Backfilled %d runtime seed event(s) for %s", seeded_count, slug)
     return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, warnings=warnings)

@@ -27,7 +27,8 @@ from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
     populate_criteria_from_review_evidence,
 )
-from specify_cli.status import Lane, ReviewResult, StatusEvent, append_event
+from specify_cli.status import Lane, ReviewResult, StatusEvent
+from specify_cli.status._unsafe import append_event
 
 pytestmark = pytest.mark.fast
 
