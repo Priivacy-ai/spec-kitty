@@ -218,9 +218,22 @@ def register_runtime_emitter_factory(factory: RuntimeEmitterFactory) -> None:
 
     The callable must accept ``feature_dir``, ``mission_slug`` and
     ``mission_type`` as keywords and return an object satisfying
-    :class:`RuntimeEventEmitter`. Registering replaces any prior factory.
+    :class:`RuntimeEventEmitter`. Mirrors the in-repo precedent for this
+    exact registry shape, ``kernel.glossary_runner.register`` (module-level
+    registry slot, idempotent-on-same-object, reject-on-conflict): calling
+    this more than once with the same factory object (e.g. a re-import) is a
+    no-op; calling it with a *different* factory while one is already
+    registered raises ``RuntimeError`` to catch accidental
+    double-registration; a non-callable argument raises ``TypeError``.
     """
     global _registered_factory
+    if not callable(factory):
+        raise TypeError(f"factory must be callable, got {type(factory)!r}")
+    if _registered_factory is factory:
+        # Idempotent: same factory registered twice (e.g. re-import) is fine.
+        return
+    if _registered_factory is not None:
+        raise RuntimeError(f"A different runtime emitter factory is already registered: {_registered_factory!r}. Cannot register {factory!r}.")
     _registered_factory = factory
 
 
@@ -243,15 +256,33 @@ def runtime_emitter_for_mission(
     the registered factory wins (S3); with none registered the null seam is
     returned (S1). The env gate is read at call time so tests can toggle it
     without reloading this module.
+
+    A registered factory that raises degrades to the null seam rather than
+    propagating: ``NullEmitter``'s own docstring rule -- "Nothing here may
+    raise: emission is fire-and-forget instrumentation, never control flow"
+    -- applies to the seam as a whole, and an uncaught factory-constructor
+    exception would otherwise kill the caller (e.g. ``spec-kitty next``)
+    instead of degrading gracefully. The failure is logged at WARNING, not
+    silent.
     """
     if is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
         return NullEmitter.for_mission(
             feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
         )
     if _registered_factory is not None:
-        return _registered_factory(
-            feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
-        )
+        try:
+            return _registered_factory(
+                feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+            )
+        except Exception:
+            logger.warning(
+                "runtime_emitter_for_mission: registered factory %r raised; degrading to NullEmitter",
+                _registered_factory,
+                exc_info=True,
+            )
+            return NullEmitter.for_mission(
+                feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+            )
     return NullEmitter.for_mission(
         feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
     )
