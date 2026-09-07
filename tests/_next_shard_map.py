@@ -91,6 +91,10 @@ _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # (test_next_shard_marker_completeness.py) still sees a total, disjoint
 # partition of every test under `tests/runtime`.
 _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
+    # 2026-09-07 (#3981 landing): mission runtime-advance-guard-topology-wp-
+    # completion-01M1W6VZ added three tests/runtime/next files; registered here
+    # so the GC-1 completeness guard keeps a disjoint partition of tests/runtime.
+    "tests/runtime/next/test_coord_topology_fixture.py",
     "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/next/test_import_paths.py",
     "tests/runtime/next/test_runtime_bridge_cancel_provenance.py",
@@ -110,6 +114,7 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_workspace_context_unit.py",
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
+    "tests/runtime/next/test_advance_guard_uninitialized_wp.py",  # 2026-09-07 (#3981 landing)
     "tests/runtime/next/test_pertype_presence_gate.py",
     "tests/runtime/next/test_composed_guard_launder.py",
     "tests/runtime/test_banner_visibility.py",
@@ -130,6 +135,7 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     # 2026-09-03 (PR #1066 convergence port): upstream's next-committed-state
     # authority WP01 landed here without its conflicted WP02 sibling, so the
     # new test file registers now, mirroring upstream's own shard-3 row.
+    "tests/runtime/next/test_advance_guard_coord_reachability.py",  # 2026-09-07 (#3981 landing)
     "tests/runtime/next/test_committed_authority.py",
     "tests/runtime/next/test_presence_filenames.py",
     "tests/runtime/next/test_merged_mission_terminal.py",
