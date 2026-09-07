@@ -1070,6 +1070,61 @@ def test_project_owner_exact_effects_shared_and_idempotent(tmp_path: Path) -> No
     assert_unchanged(current, snapshot({"sandbox": tmp_path}))
 
 
+@pytest.mark.parametrize("file_present", [False, True])
+@pytest.mark.parametrize("unselected_owner", [False, True])
+def test_retirement_reconciles_absent_file_manifest_without_phantom_effect(
+    tmp_path: Path, file_present: bool, unselected_owner: bool,
+) -> None:
+    from specify_cli.skills import installer
+    from specify_cli.skills.manifest import load_manifest
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "alpha")
+    _make_skill(tmp_path / "source", "beta")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+    initial = installer.assess_project_skills(inputs, registry, ("codex", "copilot"))
+    with installer.recheck_project_skills(initial) as errors:
+        assert not errors
+        assert installer.apply_project_skills(initial, consent).outcome == "applied"
+    shutil.rmtree(tmp_path / "source/alpha")
+    retired = project / ".agents/skills/alpha/SKILL.md"
+    if not file_present:
+        retired.unlink()
+    agents = ("codex",) if unselected_owner else ("codex", "copilot")
+    before = snapshot({"project": project})
+    assessment = installer.assess_project_skills(inputs, registry, agents)
+    assert assessment.complete, assessment.diagnostics
+    assert_unchanged(before, snapshot({"project": project}))
+    path_effects = [e for e in assessment.effects if e.destination == retired]
+    assert [e.action for e in path_effects] == (["delete"] if file_present and not unselected_owner else [])
+    assert all(not (e.before.kind == e.after.kind == "absent") for e in assessment.effects)
+    with installer.recheck_project_skills(assessment) as errors:
+        assert not errors, errors
+        result = installer.apply_project_skills(assessment, consent)
+    assert result.outcome == "applied", result
+    assert set(result.succeeded) == {e.id for e in assessment.effects}
+    manifest = load_manifest(project, strict=True)
+    assert manifest is not None
+    assert [e.agent_key for e in manifest.find_by_skill("alpha")] == (["copilot"] if unselected_owner else [])
+    assert retired.exists() is (file_present and unselected_owner)
+    expected = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for e in assessment.effects}
+    actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode)
+              for e in net_delta(before, snapshot({"project": project}))}
+    assert actual == expected
+    settled = snapshot({"project": project})
+    again = installer.assess_project_skills(inputs, registry, agents)
+    assert again.complete and not again.effects
+    with installer.recheck_project_skills(again) as errors:
+        assert not errors
+        assert installer.apply_project_skills(again, consent).outcome == "applied"
+    assert_unchanged(settled, snapshot({"project": project}))
+
+
 @pytest.mark.parametrize("change", ["source", "mode", "mtime", "catalog", "config", "manifest", "destination", "parent"])
 def test_project_owner_rechecks_whole_batch_before_writes(tmp_path: Path, change: str) -> None:
     import os
