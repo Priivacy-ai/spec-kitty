@@ -12,6 +12,8 @@ logic. Doctrine skills must surface as
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager
 from pathlib import Path
 from charter.activation.compiler import _PreparedMissionTypeActivations, prepare_mission_type_activations
 from specify_cli.skills.installer import SkillInstallationAssessment, assess_skill_installation
@@ -37,6 +39,8 @@ from specify_cli.tool_surface.status import (
     STATE_MISSING,
     STATE_PRESENT,
 )
+from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment, OwnerApplyResult
+from tests.upgrade.preview_support.snapshot import Snapshot
 
 import pytest
 
@@ -460,7 +464,6 @@ def test_coordinated_provider_dispatch_keeps_both_owner_batches(
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
     from collections.abc import Sequence
-    from specify_cli.tool_surface.operations import OwnerAssessment, OwnerApplyResult
     from specify_cli.tool_surface.repair import SurfaceRepairService
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
@@ -533,6 +536,7 @@ def test_paired_consumer_config_change_refuses_before_any_write(
     assert installation.global_assets.effects and installation.project_skills.effects
     config.write_text(config.read_text() + "review_change: true\n")
     before = snapshot({"sandbox": tmp_path})
+    results: tuple[OwnerApplyResult, ...]
     if route == "direct":
         results = apply_skill_installation(installation, consent)
     else:
@@ -597,7 +601,7 @@ def test_paired_provider_refusal_and_exception_release_context(
     from dataclasses import replace
     from collections.abc import Sequence
     from specify_cli.skills.installer import assess_skill_installation
-    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot, OwnerAssessment, OwnerApplyResult
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
     from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
     from specify_cli.tool_surface.repair import SurfaceRepairService
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
@@ -1128,3 +1132,332 @@ def test_run_tool_surfaces_kind_filter_doctrine_only(
     outcome = run_tool_surfaces(tmp_path, ["codex"], kinds=[kind])
     kinds = {s.instance.definition.kind for s in outcome.report.surfaces}
     assert kinds == {ToolSurfaceKind.DOCTRINE_SKILL}
+
+
+def _shared_parent_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    parents: bool = False,
+    pointer: bool = False,
+    empty: bool = False,
+) -> tuple[dict[str, Path], Snapshot, _PreparedMissionTypeActivations, ApplyConsent, SkillInstallationAssessment, OwnerAssessment, ManagedSkillsProvider]:
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.skills.registry import SkillRegistry
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.plan import SurfacePlanBuilder
+    from specify_cli.tool_surface.service import build_providers, build_registry
+    from tests.upgrade.preview_support.snapshot import snapshot
+
+    home = tmp_path / "home"
+    home.mkdir()
+    for key in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(key, str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    project = tmp_path / "project"
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text("agents:\n  available: [codex]\n")
+    target = config
+    if pointer:
+        target = project / "authored.yaml"
+        target.write_text("custom: preserved\n")
+        config.write_text(config.read_text() + "charter: authored.yaml\n")
+    if empty:
+        target.write_text(target.read_text() + "mission_type_activations: []\n")
+    if parents:
+        (project / ".agents/skills").mkdir(parents=True)
+    roots = {"project": project, "home": home}
+    before = snapshot(roots)
+    provisioning = prepare_mission_type_activations(project)
+    consent = ApplyConsent(automatic=True)
+    root = OperationRoot("project", "project", project)
+    registry = SkillRegistry.from_package()
+    slash_agents = [key for key in ("codex",) if key in AGENT_COMMAND_CONFIG]
+    assert slash_agents == []
+    installation = assess_skill_installation(
+        AssessmentInputs(root, projected=provisioning, consent=consent),
+        registry,
+        ("codex",),
+        runtime=True,
+        commands=True,
+        command_agent_keys=slash_agents,
+    )
+    providers = build_providers()
+    builder = SurfacePlanBuilder(build_registry(("codex",)), providers)
+    commands = builder.assess(
+        ("codex",),
+        AssessmentInputs(root, projected=provisioning, consent=consent),
+        kinds=(ToolSurfaceKind.COMMAND_SKILL,),
+    ).assessments[0]
+    managed = builder.assess(
+        ("codex",),
+        AssessmentInputs(root, projected=installation, consent=consent),
+        kinds=(ToolSurfaceKind.DOCTRINE_SKILL,),
+    ).assessments[0]
+    assert managed == installation.project_skills
+    assert all(a.complete for a in (installation.global_assets, managed, commands))
+    provider = next(p for p in providers if isinstance(p, ManagedSkillsProvider))
+    return roots, before, provisioning, consent, installation, commands, provider
+
+
+def _shared_write_observer() -> AbstractContextManager[list[str]]:
+    from contextlib import contextmanager
+    import os
+    import sys
+    from tests.upgrade.preview_support.write_observer import EVENTS
+
+    @contextmanager
+    def observing() -> Iterator[list[str]]:
+        events: list[str] = []
+        active = True
+
+        def observe(event: str, args: tuple[object, ...]) -> None:
+            write_open = event == "open" and isinstance(args[2], int) and bool(args[2] & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND))
+            if active and (event in EVENTS or write_open):
+                events.append(event)
+
+        sys.addaudithook(observe)
+        try:
+            yield events
+        finally:
+            active = False
+
+    return observing()
+
+
+@pytest.mark.parametrize("parents,pointer,empty", [(False, False, False), (True, False, False), (False, True, False), (False, True, True)])
+def test_shared_parent_composition_cold_real_owners(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[[str, object], None],
+    parents: bool,
+    pointer: bool,
+    empty: bool,
+) -> None:
+    from dataclasses import asdict
+    from specify_cli.tool_surface.operations import coalesce_effects
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(
+        tmp_path,
+        monkeypatch,
+        parents=parents,
+        pointer=pointer,
+        empty=empty,
+    )
+    owners = (installation.global_assets, installation.project_skills, commands)
+    effects = tuple(e for a in owners for e in a.effects)
+    # Ordinary coalescing must still reject unrelated executable owners.
+    if parents:
+        coalesce_effects(effects)
+    else:
+        with pytest.raises(ValueError, match="Owner effect conflict"):
+            coalesce_effects(effects)
+    with _shared_write_observer() as writes:
+        composition = provider.compose_installation(installation, commands)
+    assert not writes
+    assert_unchanged(before, snapshot(roots))
+    shared = {e.destination for e in installation.project_skills.effects} & {e.destination for e in commands.effects}
+    assert shared == (set() if parents else {roots["project"] / ".agents", roots["project"] / ".agents/skills"})
+    for path in shared:
+        claims = [e for e in effects if e.destination == path]
+        combined = [e for e in composition.effects if e.destination == path]
+        assert len(claims) == 2 and len(combined) == 1
+        assert combined[0].owner == commands.owner_key
+        assert set(combined[0].ownership) == {p for e in claims for p in e.ownership}
+        assert set(combined[0].surface_ids) == {s for e in claims for s in e.surface_ids}
+    mkdir = Path.mkdir
+    physical_creations: list[Path] = []
+
+    def observed_mkdir(path: Path, mode: int = 0o777, parents: bool = False, exist_ok: bool = False) -> None:
+        if path in shared:
+            physical_creations.append(path)
+        mkdir(path, mode=mode, parents=parents, exist_ok=exist_ok)
+
+    monkeypatch.setattr(Path, "mkdir", observed_mkdir)
+    with provider.preflight_composition(composition, consent) as errors:
+        assert not errors, errors
+        assert_unchanged(before, snapshot(roots))
+        assert provisioning.apply() is not empty
+        after_provision = snapshot(roots)
+        results = provider.apply_composition(composition, consent)
+    assert all(r.outcome in {"applied", "skipped"} for r in results), results
+    assert sorted(physical_creations) == sorted(shared)
+    assert {i for r in results for i in r.succeeded} == {e.id for e in composition.effects}
+    actual = {(d.root, d.path, d.action, d.after.kind, d.after.sha256, d.after.target, d.after.mode) for d in net_delta(after_provision, snapshot(roots))}
+    expected = {
+        (name, e.destination.relative_to(root).as_posix(), e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode)
+        for e in composition.effects
+        for name, root in roots.items()
+        if e.destination.is_relative_to(root)
+    }
+    assert actual == expected
+    record_property(
+        "shared_parent_receipt",
+        json.dumps(
+            {
+                "effects": [asdict(e) for e in composition.effects],
+                "results": [asdict(r) for r in results],
+                "delta": [asdict(d) for d in net_delta(after_provision, snapshot(roots))],
+                "provision_delta": [asdict(d) for d in net_delta(before, after_provision)],
+                "mkdirs": sorted(map(str, physical_creations)),
+            },
+            default=str,
+        ),
+    )
+    settled = snapshot(roots)
+    assert all(r.outcome == "precondition_changed" for r in provider.apply_composition(composition, consent))
+    assert_unchanged(settled, snapshot(roots))
+    # New ordinary preparation after success must be a true no-op.
+    from specify_cli.skills.command_installer import prepare_commands
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.skills.registry import SkillRegistry
+    from specify_cli.tool_surface.operations import AssessmentInputs
+
+    ordinary = AssessmentInputs(commands.root, consent=consent)
+    next_pair = assess_skill_installation(ordinary, SkillRegistry.from_package(), ("codex",), runtime=True, commands=True, command_agent_keys=[])
+    next_commands = prepare_commands(ordinary, ("codex",), prune=True)
+    repeat = provider.compose_installation(next_pair, next_commands)
+    assert not repeat.effects
+    with provider.preflight_composition(repeat, consent) as errors:
+        assert not errors, errors
+        assert all(r.outcome == "skipped" for r in provider.apply_composition(repeat, consent))
+    assert_unchanged(settled, snapshot(roots))
+
+
+@pytest.mark.parametrize("change", ["prestate", "premature", "parent-replaced", "mode", "content", "pointer", "consent"])
+def test_shared_parent_composition_refuses_before_writes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str) -> None:
+    from dataclasses import replace
+    import os
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(
+        tmp_path,
+        monkeypatch,
+        parents=True,
+        pointer=True,
+    )
+    composition = provider.compose_installation(installation, commands)
+    if change == "prestate":
+        (roots["project"] / "unrelated").write_text("foreign")
+    elif change == "premature":
+        provisioning.apply()
+    elif change == "parent-replaced":
+        parent = roots["project"] / ".agents/skills"
+        old = parent.stat()
+        parent.rename(parent.with_name("retained"))
+        parent.mkdir(mode=old.st_mode & 0o777)
+        os.utime(parent, ns=(old.st_atime_ns, old.st_mtime_ns))
+    poisoned = snapshot(roots)
+    with provider.preflight_composition(composition, consent) as errors:
+        if change in {"prestate", "premature", "parent-replaced"}:
+            assert errors
+        else:
+            assert not errors, errors
+            provisioning.apply()
+            if change == "mode":
+                (roots["project"] / ".agents/skills").chmod(0o700)
+            elif change == "content":
+                (roots["project"] / ".agents/skills/foreign").write_text("unknown")
+            elif change == "pointer":
+                config = roots["project"] / ".kittify/config.yaml"
+                config.write_text(config.read_text() + "# unrelated pointer drift\n")
+            poisoned = snapshot(roots)
+        with _shared_write_observer() as writes:
+            results = provider.apply_composition(composition, replace(consent, automatic=False) if change == "consent" else consent)
+        assert all(r.outcome == "precondition_changed" for r in results), results
+        assert not writes
+        assert_unchanged(poisoned, snapshot(roots))
+    with _shared_write_observer() as writes:
+        transient = roots["project"] / "observer-control"
+        transient.write_bytes(b"transient")
+        transient.unlink()
+    assert "open" in writes and "os.remove" in writes
+
+
+@pytest.mark.parametrize("change", ["parent-replaced", "mode", "content", "unrelated"])
+def test_shared_parent_composition_refuses_after_command_writer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str) -> None:
+    from specify_cli.skills import command_installer
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(tmp_path, monkeypatch)
+    composition = provider.compose_installation(installation, commands)
+    original = command_installer.apply_commands
+    poisoned: Snapshot | None = None
+
+    def tampering_apply(assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+        nonlocal poisoned
+        result = original(assessment, explicit_consent)
+        assert result.outcome == "applied"
+        parent = roots["project"] / ".agents/skills"
+        if change == "parent-replaced":
+            parent.rename(parent.with_name("retained"))
+            parent.mkdir(mode=0o755)
+        elif change == "mode":
+            parent.chmod(0o700)
+        elif change == "content":
+            next(parent.glob("*/SKILL.md")).write_text("foreign")
+        else:
+            (roots["project"] / "foreign").write_text("unknown")
+        poisoned = snapshot(roots)
+        return result
+
+    monkeypatch.setattr(command_installer, "apply_commands", tampering_apply)
+    with provider.preflight_composition(composition, consent) as errors:
+        assert not errors
+        provisioning.apply()
+        results = provider.apply_composition(composition, consent)
+    assert results[0].outcome == "applied"
+    assert all(r.outcome == "precondition_changed" for r in results[1:]), results
+    assert poisoned is not None
+    assert_unchanged(poisoned, snapshot(roots))
+
+
+def test_shared_parent_composition_mutated_receipt_is_detected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import installer
+
+    # Restoring independent-owner absence checks makes the real success contract fail.
+    monkeypatch.setattr(installer, "_command_parent_receipts", lambda assessment: {})
+    with pytest.raises(AssertionError):
+        test_shared_parent_composition_cold_real_owners(tmp_path, monkeypatch, lambda key, value: None, False, False, False)
+
+
+def test_shared_parent_composition_rejects_unsupported_overlap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import FileState
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(tmp_path, monkeypatch)
+    project = installation.project_skills
+    shared = roots["project"] / ".agents"
+    altered = replace(project, effects=tuple(replace(e, after=FileState("directory", mode=0o700)) if e.destination == shared else e for e in project.effects))
+    with pytest.raises(ValueError, match="Unsupported shared skill effect"):
+        provider.compose_installation(replace(installation, project_skills=altered), commands)
+    with pytest.raises(ValueError, match="Complete commands"):
+        provider.compose_installation(installation, replace(commands, complete=False))
+    assert_unchanged(before, snapshot(roots))
+
+
+@pytest.mark.parametrize("route", ["factory", "replace"])
+def test_shared_parent_composition_rejects_error_bearing_complete_owner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    route: str,
+) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import Diagnostic
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(tmp_path, monkeypatch)
+    composition = provider.compose_installation(installation, commands)
+    invalid = replace(commands, diagnostics=(Diagnostic("required_input_failed", commands.owner_key, "error", "Known input failure"),))
+    with _shared_write_observer() as writes, pytest.raises(ValueError, match="Complete commands"):
+        if route == "factory":
+            provider.compose_installation(installation, invalid)
+        else:
+            replace(composition, commands=invalid)
+    assert not writes
+    assert_unchanged(before, snapshot(roots))

@@ -475,6 +475,36 @@ def _recheck_skill_provisioning(
 
 _PROJECT_SKILL_LOCK = RLock()
 _RECHECKED_PROJECT: ContextVar[OwnerAssessment | None] = ContextVar("rechecked_project_skills", default=None)
+_COMMAND_PARENTS: ContextVar[tuple[OwnerAssessment, tuple[SkillPathObservation, ...]] | None] = ContextVar(
+    "managed_skill_command_parents",
+    default=None,
+)
+
+
+@contextmanager
+def _completed_command_parents(
+    assessment: OwnerAssessment,
+    created: tuple[SkillPathObservation, ...],
+) -> Iterator[None]:
+    """Scope actual command-writer parent receipts to one retained project batch."""
+    token = _COMMAND_PARENTS.set((assessment, created))
+    try:
+        yield
+    finally:
+        _COMMAND_PARENTS.reset(token)
+
+
+def _command_parent_receipts(assessment: OwnerAssessment) -> dict[Path, SkillPathObservation]:
+    admitted = _COMMAND_PARENTS.get()
+    if admitted is None or admitted[0] != assessment:
+        return {}
+    receipts = {item.path: item for item in admitted[1]}
+    for path, item in receipts.items():
+        matches = [e for e in assessment.effects if e.destination == path]
+        if len(matches) != 1 or matches[0].before.kind != "absent" or matches[0].after != item.state or item.identity is None or item.state.kind != "directory":
+            raise ValueError(f"Invalid command-created skill parent: {path}")
+    recheck_skill_paths(tuple(receipts.values()))
+    return receipts
 
 
 def _agent_config_identity() -> str:
@@ -535,6 +565,8 @@ class _ProjectSkillPreparation:
         owners: tuple[ManagedFileEntry, ...], order: int, reason: str, proof_kind: str = "manifest",
         *, consumers: tuple[ManagedFileEntry, ...] | None = None,
     ) -> None:
+        if before.kind == after.kind == "absent":
+            return
         if before.kind == "absent":
             action = "create"
         elif after.kind == "absent":
@@ -825,10 +857,11 @@ def recheck_project_skills(
             ):
                 raise ValueError("Project skill inputs differ from retained preparation")
             transitioned = _recheck_skill_provisioning(prepared, provisioning_applied=provisioning_applied)
+            command_parents = _command_parent_receipts(assessment)
             changed_config: Path | None = prepared.root.path / ".kittify/config.yaml"
             if transitioned != prepared.root.path.resolve() / ".kittify/config.yaml":
                 changed_config = None
-            recheck_skill_paths(tuple(item for item in prepared.observations
+            recheck_skill_paths(tuple(command_parents.get(item.path, item) for item in prepared.observations
                                      if item.path != changed_config))
             if prepared.agent_config != _agent_config_identity():
                 raise ValueError("Agent skill configuration changed")
@@ -882,23 +915,45 @@ def apply_project_skills(assessment: OwnerAssessment, explicit_consent: ApplyCon
     ids = tuple(effect.id for effect in assessment.effects)
     guarded = _RECHECKED_PROJECT.get()
     if guarded is None or guarded is not assessment or not isinstance(prepared, PreparedProjectSkills) or not assessment.complete:
-        return OwnerApplyResult("managed_skills", skipped=ids, outcome="precondition_changed",
-                                diagnostics=(Diagnostic("precondition_changed", "managed_skills", "error", "Project skill batch was not successfully rechecked"),))
+        return OwnerApplyResult(
+            "managed_skills",
+            skipped=ids,
+            outcome="precondition_changed",
+            diagnostics=(Diagnostic("precondition_changed", "managed_skills", "error", "Project skill batch was not successfully rechecked"),),
+        )
     _RECHECKED_PROJECT.set(None)
     if not explicit_consent.automatic or explicit_consent != assessment.consent:
-        return OwnerApplyResult("managed_skills", skipped=ids, outcome="skipped",
-                                diagnostics=(Diagnostic("consent_required", "managed_skills", "error", "Apply requires the exact prepared consent"),))
+        return OwnerApplyResult(
+            "managed_skills",
+            skipped=ids,
+            outcome="skipped",
+            diagnostics=(Diagnostic("consent_required", "managed_skills", "error", "Apply requires the exact prepared consent"),),
+        )
     succeeded: list[str] = []
+    try:
+        delegated = _command_parent_receipts(assessment)
+    except (OSError, ValueError) as exc:
+        return OwnerApplyResult(
+            "managed_skills", skipped=ids, outcome="precondition_changed", diagnostics=(Diagnostic("precondition_changed", "managed_skills", "error", str(exc)),)
+        )
+    skipped: list[str] = []
     for index, write in enumerate(prepared.writes):
+        if write.effect.destination in delegated:
+            skipped.append(write.effect.id)
+            continue
         try:
             _apply_project_skill_write(write)
         except (OSError, ValueError) as exc:
-            return OwnerApplyResult("managed_skills", tuple(succeeded), (write.effect.id,),
-                                    tuple(item.effect.id for item in prepared.writes[index + 1:]),
-                                    (Diagnostic("skill_write_failed", "managed_skills", "error", str(exc)),),
-                                    "partial" if succeeded else "failed")
+            return OwnerApplyResult(
+                "managed_skills",
+                tuple(succeeded),
+                (write.effect.id,),
+                tuple(skipped) + tuple(item.effect.id for item in prepared.writes[index + 1 :]),
+                (Diagnostic("skill_write_failed", "managed_skills", "error", str(exc)),),
+                "partial" if succeeded else "failed",
+            )
         succeeded.append(write.effect.id)
-    return OwnerApplyResult("managed_skills", tuple(succeeded))
+    return OwnerApplyResult("managed_skills", tuple(succeeded), skipped=tuple(skipped))
 
 
 class _CapturedSkillRegistry(SkillRegistry):
