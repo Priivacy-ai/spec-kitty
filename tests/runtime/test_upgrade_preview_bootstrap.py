@@ -190,11 +190,8 @@ def test_intent_hidden_conflicts_cover_implicit_preview(hidden: list[str]) -> No
         assert result.conflicts
 
 
-def test_intent_full_plan_precedence_is_semantic_not_public_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_intent_full_plan_precedence_uses_public_registration() -> None:
     command = _actual_upgrade_command()
-    # WP10 owns registration. Extend the actual definition locally to exercise
-    # only the future semantic value; this is deliberately not CLI acceptance.
-    monkeypatch.setattr(command, "params", [*command.params, click.Option(["--plan-json"], is_flag=True)])
     result = parse_upgrade_intent(command, ["--plan-json", "--json", "--dry-run", "--cli"], project_available=True)
     assert result.representation == "full"
     assert result.conflicts == ("--plan-json and --cli are mutually exclusive",)

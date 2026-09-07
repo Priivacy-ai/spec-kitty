@@ -8,12 +8,23 @@ from pathlib import Path
 
 import jsonschema
 import pytest
+from referencing import Registry, Resource
 
 from tests.upgrade.preview_support.fixtures import prepare_case
 from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta
 
 pytestmark = pytest.mark.integration
 CHECKOUT = Path(__file__).resolve().parents[2]
+
+
+def _validate_full_plan(payload: dict[str, object]) -> None:
+    schema = json.loads((CHECKOUT / "kitty-specs/upgrade-preview-mission-health-01M1V6E1/contracts/upgrade-plan.schema.json").read_text())
+    legacy = json.loads((CHECKOUT / "kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/contracts/compat-planner.json").read_text())
+    registry = Registry().with_resource(
+        "https://spec-kitty.dev/contracts/cli-upgrade-nag-lazy-project-migrations/compat-planner.json",
+        Resource.from_contents(legacy),
+    )
+    jsonschema.Draft202012Validator(schema, registry=registry).validate(payload)
 
 
 @pytest.mark.parametrize(
@@ -96,3 +107,29 @@ def test_cold_preview_and_valid_actual_apply_share_complete_preparation(tmp_path
     case.retain(evidence / "cold-repeat", repeated, after_apply, after_repeat)
     assert repeated.returncode == 0, repeated
     assert_unchanged(after_apply, after_repeat)
+
+
+def test_full_plan_is_complete_write_free_and_target_refusals_keep_its_shape(tmp_path: Path) -> None:
+    case = prepare_case(tmp_path / "case", CHECKOUT, global_state="G0")
+    before = case.observe()
+
+    ready = case.run("upgrade", "--plan-json", "--no-worktrees")
+    after_ready = case.observe()
+    assert ready.returncode == 0, ready
+    ready_payload = ready.json()
+    _validate_full_plan(ready_payload)
+    assert ready_payload["decision"] == "ready"
+    assert ready_payload["complete"] is True
+    assert ready_payload["effects"], "Cold-home full plan must expose owner work"
+    assert ready_payload["commit_policy"]["mission_repair_included"] is False
+    assert_unchanged(before, after_ready)
+
+    blocked = case.run("upgrade", "--plan-json", "--target=not-a-version", "--no-worktrees")
+    after_blocked = case.observe()
+    assert blocked.returncode == 2, blocked
+    blocked_payload = blocked.json()
+    _validate_full_plan(blocked_payload)
+    assert blocked_payload["decision"] == "blocked"
+    assert blocked_payload["target"]["relation"] == "invalid"
+    assert any(item["code"] == "invalid_target" for item in blocked_payload["diagnostics"])
+    assert_unchanged(after_ready, after_blocked)

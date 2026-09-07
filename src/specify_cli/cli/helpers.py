@@ -47,7 +47,7 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
     if argv is None:
         argv = sys.argv[1:]
 
-    suppress_flags = frozenset({"--no-nag", "--json", "--quiet", "--help", "-h", "--version", "-v"})
+    suppress_flags = frozenset({"--no-nag", "--json", "--plan-json", "--quiet", "--help", "-h", "--version", "-v"})
     if any(tok in suppress_flags for tok in argv):
         return True
 
