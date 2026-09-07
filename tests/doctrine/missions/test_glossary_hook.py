@@ -214,7 +214,7 @@ class TestSelfBootstrapContract:
         assert runner.__module__ == "glossary.attachment"
 
     def test_execute_with_glossary_degrades_only_when_attachment_unimportable(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Degradation rule: direct execution only when ``import_module`` raises ``ImportError``."""
+        """Degradation rule: direct execution only when the bootstrap fails (here: ``import_module`` raises ``ImportError``)."""
         (tmp_path / ".kittify").mkdir()
         assert get_runner() is None
         # A ``None`` entry in ``sys.modules`` makes ``import_module`` raise ImportError
