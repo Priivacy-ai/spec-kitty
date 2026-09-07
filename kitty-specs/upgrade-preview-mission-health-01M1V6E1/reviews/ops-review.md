@@ -9,7 +9,7 @@ both owners before writes. The actual projected compiler result is currently
 rejected as unsupported. Real-conftest reproduction: one failed, three passed
 in 38.60 seconds; pointer and explicit-empty controls apply 315 effects.
 
-The original managed-skill owner is extending admission and exact-transition
+The original managed-skill owner extended admission and exact-transition
 checks in a separate worktree. Strict original paired preflight, retained bytes,
 caller registry/selection, locks, consent and unrelated-change refusal remain
 mandatory. The reviewed command supplier stays unchanged. Supplier and actual
@@ -19,6 +19,26 @@ and wp10-evidence/test_managed_provisioning_composition.py.
 WP10 also committed public JSON downgrade RED `dd83882a826190f42dea09d89acd611c731e3087`
 and separate formatting-only `18aca7992798effddfeb7d249cfc9139e7c46ee0` on its
 lane. No production composition or public GREEN is claimed yet.
+
+Supplier RED `250662c11c3086925222200bb639f684adaa01a2` precedes candidate
+`7bd158a2ed105e18f6e53a19ced2e23f1dad4eca`, changing only the managed installer,
+provider and their two existing test files. Final frozen targeted verification:
+51 passed, 83 deselected in 77.91 seconds; Ruff and strict mypy passed.
+Intermediate failures remain recorded rather than relabeled as passing runs.
+Command and global supplier dependencies remain byte-identical.
+
+The actual compiler descriptor is admitted during preparation. The caller must
+hold `preflight_installation(installation, consent)` across provisioning and
+paired apply, aborting on original-state diagnostics before any write. The
+provider accepts only the bounded exact expected transition afterward, retaining
+the existing paired global locks and project lock. This is not a transaction,
+rollback guarantee, cross-process project lock or causal-writer authentication.
+
+Independent review is in progress, scoped to this new boundary, actual consumer
+effects and adjacent refusal controls. Existing broad WP05 evidence is reused.
+Supplier approval and actual WP10 composer review are still pending; the Op
+remains open. Reported commits are lane-local until mission consolidation.
+External handoff: managed-provisioning-projection-handoff.md.
 
 ## Command Provisioning Projection: Open
 
