@@ -70,12 +70,23 @@ documented layer chain is
 - `kernel` — zero-dependency shared primitives; the true root layer
 - `charter` — governance/doctrine authority (`charter.offering` holds the
   doctrine code); depends only on `kernel`
+- `glossary` — terminology / semantic-integrity pipeline + DRG glossary
+  bridge, in `src/glossary/`
+- `runtime` — canonical mission control loop, in
+  `src/runtime/next/_internal_runtime/`
+- `mission_runtime` — artifact-placement seam (`PlacementSeam`, resolver
+  port, identity, lifecycle_phase), in `src/mission_runtime/`
 - `specify_cli` — control plane, lifecycle, and orchestration; the top adapter
   layer, depends downward on the rest
 
-Lower-layer boundaries (`kernel`/`charter`/`glossary`) are gate-enforced
-LayerRules; the remaining container boundaries are module-level conventions
-enforced by architectural gates and code review.
+`kernel`, `charter`, and `glossary` are gate-enforced by `tests/architectural/test_layer_rules.py`
+pytestarch `LayerRule`s. `mission_runtime` and `runtime` are gate-enforced by that same suite's
+shrink-only outbound-import ledgers (`TestMissionRuntimeBoundary` /
+`_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI`, `TestRuntimeSpecifyCliLedger` /
+`_RUNTIME_ALLOWED_SPECIFY_CLI`) rather than a clean `LayerRule`, since a strict
+"should not access specify_cli" rule would red on existing, working code — new
+imports outside the named ledger still red the gate. Only the remaining container boundaries
+are module-level conventions enforced by architectural gates and code review.
 
 ### Ephemeral status transport (Zeitgeist) and the SaaS client
 
