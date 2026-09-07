@@ -62,6 +62,38 @@ def test_full_codex_build_preserves_all_node_mtimes(tmp_path: Path) -> None:
     assert_unchanged(before, snapshot({"stage": tmp_path}))
 
 
+@pytest.mark.parametrize("directory_mode,empty_mode", [(0o755, 0o755), (0o700, 0o700), (0o700, 0o710)])
+def test_codex_build_preserves_source_directory_modes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, directory_mode: int, empty_mode: int,
+) -> None:
+    import stat
+    import charter.offering as offering
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    source = tmp_path / "source"
+    hooks = source / "hooks"
+    empty = hooks / "private-empty"
+    empty.mkdir(parents=True)
+    hooks.chmod(directory_mode)
+    empty.chmod(empty_mode)
+    script = hooks / "run.sh"
+    script.write_bytes(b"#!/bin/sh\nexit 0\n")
+    script.chmod(0o750)
+    monkeypatch.setattr(offering, "__file__", str(source / "__init__.py"))
+
+    projector = CodexBundleProjector(tmp_path / "dist")
+    directory = projector.build()
+    assert (directory / ".codex-plugin/plugin.json").is_file()
+    assert (directory / "hooks/run.sh").read_bytes() == script.read_bytes()
+    assert stat.S_IMODE((directory / "hooks/run.sh").stat().st_mode) == 0o750
+    assert stat.S_IMODE((directory / "hooks").stat().st_mode) == directory_mode
+    assert stat.S_IMODE((directory / "hooks/private-empty").stat().st_mode) == empty_mode
+    assert list((directory / "hooks/private-empty").iterdir()) == []
+    settled = snapshot({"stage": tmp_path})
+    projector.build()
+    assert_unchanged(settled, snapshot({"stage": tmp_path}))
+
+
 def test_codex_hook_copy_preserves_unknown_descendant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import charter.offering as offering
 
