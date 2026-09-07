@@ -69,7 +69,11 @@ COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True,
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
     )
 
 
@@ -125,15 +129,12 @@ def _acquire(repo: Path) -> Any:
 
 
 def _event_ids(events_path: Path) -> list[str]:
-    return [
-        json.loads(line)["event_id"]
-        for line in events_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    return [json.loads(line)["event_id"] for line in events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def test_retro_append_waits_for_rollback_and_lands_after_truncate(
-    repo: Path, monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A retrospective lifecycle append never lands inside the rollback window.
 
@@ -239,9 +240,7 @@ class _HeldLocksAtWrite:
         assert writes, f"no store write observed for {feature_dir}"
         expected_name = f"{feature_dir.name}.status.lock"
         for held in writes:
-            assert any(Path(lock).name == expected_name for lock in held), (
-                f"store wrote {feature_dir} without holding {expected_name}; held={sorted(held)}"
-            )
+            assert any(Path(lock).name == expected_name for lock in held), f"store wrote {feature_dir} without holding {expected_name}; held={sorted(held)}"
 
 
 def _git_sandbox(tmp_path: Path) -> Path:
@@ -262,9 +261,7 @@ def _flat_mission(tmp_path: Path, name: str = "family-pin-01AAAAAA") -> Path:
 
 def _family_1_emit_single(tmp_path: Path) -> Path:
     fd = _flat_mission(tmp_path)
-    emit_status_transition(
-        TransitionRequest(feature_dir=fd, mission_slug=fd.name, wp_id="WP01", to_lane="claimed", actor="pin")
-    )
+    emit_status_transition(TransitionRequest(feature_dir=fd, mission_slug=fd.name, wp_id="WP01", to_lane="claimed", actor="pin"))
     return fd
 
 
@@ -316,7 +313,11 @@ def _family_6_verdict_backfill(tmp_path: Path) -> Path:
     fd.mkdir(parents=True)
     path = fd / "tasks" / "WP01-pin" / "review-cycle-1.md"
     ReviewCycleArtifact(
-        cycle_number=1, wp_id="WP01", mission_slug=fd.name, reviewer_agent="r", reviewed_at="2026-01-01T00:00:00+00:00",
+        cycle_number=1,
+        wp_id="WP01",
+        mission_slug=fd.name,
+        reviewer_agent="r",
+        reviewed_at="2026-01-01T00:00:00+00:00",
     ).write(path)
     text = path.read_text(encoding="utf-8")
     path.write_text(f"---\nverdict: rejected\n{text[4:]}", encoding="utf-8")
@@ -380,7 +381,9 @@ def _family_9_rebuild_state(tmp_path: Path) -> Path:
     ],
 )
 def test_family_writes_only_while_holding_its_mission_lock(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, family: Any,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    family: Any,
 ) -> None:
     recorder = _HeldLocksAtWrite(monkeypatch)
     feature_dir = family(tmp_path)
@@ -388,7 +391,8 @@ def test_family_writes_only_while_holding_its_mission_lock(
 
 
 def test_family_3_transaction_writes_only_while_holding_its_mission_lock(
-    repo: Path, monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     recorder = _HeldLocksAtWrite(monkeypatch)
     with _acquire(repo) as txn:
@@ -398,11 +402,10 @@ def test_family_3_transaction_writes_only_while_holding_its_mission_lock(
 
 
 def test_batch_door_writes_only_while_holding_its_mission_lock(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     recorder = _HeldLocksAtWrite(monkeypatch)
     fd = _flat_mission(tmp_path)
-    emit_status_transition_batch(
-        [TransitionRequest(feature_dir=fd, mission_slug=fd.name, wp_id="WP01", to_lane="claimed", actor="pin")]
-    )
+    emit_status_transition_batch([TransitionRequest(feature_dir=fd, mission_slug=fd.name, wp_id="WP01", to_lane="claimed", actor="pin")])
     recorder.assert_locked_for(fd)

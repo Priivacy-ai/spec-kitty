@@ -91,9 +91,7 @@ def _emit_failed(feature_dir: Path, **overrides: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def test_public_appender_writes_while_mission_lock_is_held(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_public_appender_writes_while_mission_lock_is_held(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     recorder = _WriteRecorder(monkeypatch)
     event = _emit_failed(feature_dir)
     assert len(recorder.held_at_write) == 1
@@ -101,9 +99,7 @@ def test_public_appender_writes_while_mission_lock_is_held(
     assert [row["event_id"] for row in _rows(feature_dir)] == [event.event_id]
 
 
-def test_raw_append_helper_writes_while_mission_lock_is_held(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_raw_append_helper_writes_while_mission_lock_is_held(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     recorder = _WriteRecorder(monkeypatch)
     _append_retro_lifecycle_event(feature_dir, {"type": "X", "event_id": "E1", "lamport": 1})
     assert len(recorder.held_at_write) == 1

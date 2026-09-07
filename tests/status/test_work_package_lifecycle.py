@@ -37,6 +37,8 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+
+
 def _feature_dir(tmp_path: Path) -> Path:
     feature_dir = tmp_path / "kitty-specs" / "099-lifecycle-test"
     feature_dir.mkdir(parents=True)
@@ -65,9 +67,7 @@ def _event(
     )
 
 
-def _seed_reviewer_role_annotation(
-    feature_dir: Path, *, actor: str, event_id: str, wp_id: str = "WP01"
-) -> None:
+def _seed_reviewer_role_annotation(feature_dir: Path, *, actor: str, event_id: str, wp_id: str = "WP01") -> None:
     """Fold ``role="reviewer"`` onto ``wp_id`` (the resolved-binding review claim).
 
     The role-aware collision predicate keys off the reduced ``role`` slot, which
@@ -115,9 +115,7 @@ def test_genesis_unseeded_wp_is_rejected_with_actionable_message(tmp_path: Path)
     assert "finalize-tasks" in str(exc_info.value)
 
 
-def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     """Genesis rejection fires even when other WPs in the same mission have events."""
     feature_dir = _feature_dir(tmp_path)
     # WP02 is seeded, but WP01 is not.
@@ -135,9 +133,7 @@ def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(
         )
 
 
-def test_seeded_wp_happy_path_unaffected_by_genesis_check(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_seeded_wp_happy_path_unaffected_by_genesis_check(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     """After finalize-tasks seeds genesis→planned, the WP proceeds normally."""
     feature_dir = _feature_dir(tmp_path)
     seed_to_planned(feature_dir, "WP01", slug=_SLUG)
@@ -162,9 +158,7 @@ def test_seeded_wp_happy_path_unaffected_by_genesis_check(
 # ---------------------------------------------------------------------------
 
 
-def test_start_implementation_batches_planned_to_in_progress(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_start_implementation_batches_planned_to_in_progress(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     feature_dir = _feature_dir(tmp_path)
     seed_to_planned(feature_dir, "WP01", slug=_SLUG)
 
@@ -193,9 +187,7 @@ def test_start_implementation_batches_planned_to_in_progress(
     assert snapshot.work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
 
 
-def test_backgrounded_implementation_start_does_not_strand_claimed(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_backgrounded_implementation_start_does_not_strand_claimed(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     """A normal start writes claim and progress evidence as one durable batch."""
     feature_dir = _feature_dir(tmp_path)
     seed_to_planned(feature_dir, "WP01", slug=_SLUG)
@@ -711,11 +703,15 @@ def test_start_implementation_resume_is_not_regated_when_dependency_regresses(tm
         ),
         strict=True,
     ):
-        append_event(feature_dir, _event(event_id, from_lane=src, to_lane=dst, wp_id="WP01"))
-    append_event(feature_dir, _event("01BBBB000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, wp_id="WP02"))
-    append_event(feature_dir, _event("01BBBB000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, wp_id="WP02"))
+        # ``at=now_utc_iso()`` keeps this setup on the same clock as the
+        # ``start_implementation_status`` call below -- avoids mixing an absolute
+        # hard-coded event timestamp with a live-clock production call
+        # (tests/architectural/test_no_absolute_event_timestamp_mixture.py).
+        append_event(feature_dir, _event(event_id, from_lane=src, to_lane=dst, wp_id="WP01", at=now_utc_iso()))
+    append_event(feature_dir, _event("01BBBB000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, wp_id="WP02", at=now_utc_iso()))
+    append_event(feature_dir, _event("01BBBB000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, wp_id="WP02", at=now_utc_iso()))
     # The dependency regresses to in_progress afterwards (rework).
-    append_event(feature_dir, _event("01CCCC000000000000000001A", from_lane=Lane.APPROVED, to_lane=Lane.IN_PROGRESS, wp_id="WP01"))
+    append_event(feature_dir, _event("01CCCC000000000000000001A", from_lane=Lane.APPROVED, to_lane=Lane.IN_PROGRESS, wp_id="WP01", at=now_utc_iso()))
 
     result = start_implementation_status(
         feature_dir=feature_dir,

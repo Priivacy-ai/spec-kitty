@@ -82,4 +82,7 @@ def unresolvable_readiness(wp_id: str, reason: str) -> DependencyReadiness:
     return DependencyReadiness(wp_id=wp_id, dependencies=(), unsatisfied=(f"{UNRESOLVABLE_MARKER} {reason}",))
 
 
-__all__ = ["UNRESOLVABLE_MARKER", "readiness_from_snapshot", "unresolvable_readiness", "wp_lanes_from_snapshot"]
+# ``UNRESOLVABLE_MARKER`` and ``wp_lanes_from_snapshot`` stay module-level (tests pin
+# them) but are not part of the public surface: no src/ caller outside this module
+# (dead-symbol gate, #470).
+__all__ = ["readiness_from_snapshot", "unresolvable_readiness"]

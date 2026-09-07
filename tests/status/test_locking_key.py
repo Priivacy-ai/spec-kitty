@@ -74,9 +74,7 @@ def test_colliding_slugs_resolve_distinct_lock_files(repo: Path) -> None:
     assert lock_a.parent == lock_b.parent
 
 
-def test_legacy_bare_slug_dir_writers_share_one_lock_file(
-    repo: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_legacy_bare_slug_dir_writers_share_one_lock_file(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A bare legacy dir's retro writer and emit path lock the same file (L-2)."""
     fd = _mission_dir(repo, "017-foo", "017-foo")
     seed_wp_to_planned(fd, "WP01", slug="017-foo")
@@ -88,18 +86,14 @@ def test_legacy_bare_slug_dir_writers_share_one_lock_file(
         return original(root, key, **kwargs)
 
     monkeypatch.setattr(emit_module, "feature_status_lock", _recording)
-    emit_status_transition(
-        TransitionRequest(feature_dir=fd, mission_slug="017-foo", wp_id="WP01", to_lane="claimed", actor="t")
-    )
+    emit_status_transition(TransitionRequest(feature_dir=fd, mission_slug="017-foo", wp_id="WP01", to_lane="claimed", actor="t"))
     with retro_status_lock(fd) as retro_lock:
         pass
     assert taken and all(path == retro_lock for path in taken)
     assert retro_lock.name == "017-foo.status.lock"
 
 
-def test_emit_lock_key_is_the_directory_name_not_the_slug(
-    repo: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_emit_lock_key_is_the_directory_name_not_the_slug(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The flat shell keys on ``feature_dir.name`` even when the slug differs."""
     fd = _mission_dir(repo, "foo-01AAAAAA", "foo")
     seed_wp_to_planned(fd, "WP01", slug="foo")
@@ -111,9 +105,7 @@ def test_emit_lock_key_is_the_directory_name_not_the_slug(
         return original(root, key, **kwargs)
 
     monkeypatch.setattr(emit_module, "feature_status_lock", _recording)
-    emit_status_transition(
-        TransitionRequest(feature_dir=fd, mission_slug="foo", wp_id="WP01", to_lane="claimed", actor="t")
-    )
+    emit_status_transition(TransitionRequest(feature_dir=fd, mission_slug="foo", wp_id="WP01", to_lane="claimed", actor="t"))
     assert keys == ["foo-01AAAAAA"]
 
 
