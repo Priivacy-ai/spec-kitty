@@ -333,9 +333,14 @@ Cross-cutting infrastructure used by all artifact subpackages:
 1. **Shipped artifacts** are bundled as pack content under `packs/built-in/`
    (resolved through the `charter.offering` chain). These are the defaults that
    come with Spec Kitty.
-2. **Project artifacts** live in the user's project (e.g.,
-   `.kittify/charter/directives/`). They can override shipped artifacts via
-   field-level merge or add entirely new ones.
+2. **Project artifacts** live in the user's project under the canonical
+   `.kittify/charter-packs/` tree (e.g., `.kittify/charter-packs/directives/`);
+   the legacy `.kittify/doctrine/` location is still read as a fallback until
+   the M3 on-disk data move lands (`src/kernel/doctrine_root.py`,
+   `resolve_doctrine_read_root`, CR-07). Project artifacts can override
+   shipped artifacts via field-level merge or add entirely new ones. (`.kittify/charter/`
+   is a distinct tree — the compiled Charter Bundle output, not the
+   project-layer artifact source.)
 
 The `DoctrineService` (`src/charter/offering/service.py`) is the aggregation facade —
 it lazily instantiates all per-type repositories and is the single entry point
