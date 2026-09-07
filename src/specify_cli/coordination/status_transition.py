@@ -56,7 +56,10 @@ from specify_cli.lanes.branch_naming import (
     worktree_dir_name,
 )
 from specify_cli.status import emit as _emit
-from specify_cli.status.locking import feature_status_lock
+from specify_cli.status.locking import (
+    BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    feature_status_lock,
+)
 from specify_cli.status.models import (
     CurrentWpState,
     EventStream,
@@ -461,8 +464,22 @@ def _emit_on_coord_then_commit(
     """
     coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
     # The flat shell re-enters the same L1. Keep it through commit/rollback:
-    # otherwise rollback may erase another writer's successful append.
-    with feature_status_lock(identity.repo_root, coord_fd.name):
+    # otherwise rollback may erase another writer's successful append. This
+    # take spans safe_commit (~9 git subprocesses), so -- unlike the plain
+    # single-writer L1 takes elsewhere -- it is deliberately bounded rather
+    # than left at the lock's unbounded (-1) default: a stalled sibling
+    # writer (blocked pre-commit hook, held .git/index.lock, credential
+    # prompt) must surface as a structured FeatureStatusLockTimeoutError,
+    # not wedge every status writer for this mission forever. See
+    # NFR-001's dated amendment in
+    # kitty-specs/fsm-write-path-integrity-01M1TZV6/spec.md and
+    # design-notes/WP01-lock-rules.md for why this L1-across-git take is
+    # accepted (rollback-safety) and bounded instead of eliminated.
+    with feature_status_lock(
+        identity.repo_root,
+        coord_fd.name,
+        timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    ):
         pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
         committed = False
         try:
