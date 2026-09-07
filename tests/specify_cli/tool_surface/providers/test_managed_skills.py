@@ -112,6 +112,44 @@ def test_project_assessment_exposes_effects_but_blocks_uncoordinated_global_cont
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
 
+@pytest.mark.parametrize("pointer", [False, True], ids=["legacy", "pointer"])
+@pytest.mark.parametrize("missing", [True, False], ids=["missing-key", "explicit-empty"])
+def test_managed_provisioning_descriptor_admission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, pointer: bool, missing: bool,
+) -> None:
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    home, project = tmp_path / "home", tmp_path / "project"
+    home.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text("agents:\n  available: [codex, copilot]\n")
+    target = config
+    if pointer:
+        config.write_text(config.read_text() + "charter: authored.yaml\n")
+        target = project / "authored.yaml"
+        target.write_text("# authored\nactivated_paradigms: []\n")
+    if not missing:
+        target.write_text(target.read_text() + "mission_type_activations: []\n")
+    _canonical_skill(tmp_path / "source")
+    registry = SkillRegistry(tmp_path / "source")
+    before = snapshot({"sandbox": tmp_path})
+    provisioning = prepare_mission_type_activations(project)
+    consent = ApplyConsent(automatic=True)
+    installation = assess_skill_installation(
+        AssessmentInputs(OperationRoot("project", "project", project), projected=provisioning, consent=consent),
+        registry, ("codex", "copilot"),
+    )
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    assert installation.global_assets.complete, installation.global_assets.diagnostics
+    assert installation.project_skills.complete, installation.project_skills.diagnostics
+    assert installation.global_assets.effects and installation.project_skills.effects
+
+
 def _bind_consumer_home(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     for key, suffix in {
         "HOME": "", "USERPROFILE": "", "SPEC_KITTY_HOME": ".kittify",
