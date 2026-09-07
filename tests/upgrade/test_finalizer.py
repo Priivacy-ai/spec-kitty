@@ -9,6 +9,7 @@ boundary around the repair step.
 from __future__ import annotations
 
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -252,6 +253,42 @@ def test_provisioning_refusal_prevents_dependent_writes_and_commit(tmp_path: Pat
     assert commits == []
     assert outcome.activation_errors == ["Provisioning inputs changed"]
     assert outcome.exit_code == 1
+
+
+def test_finalizer_keeps_preflight_around_writes_not_commit_or_mission_repair() -> None:
+    calls: list[str] = []
+
+    @contextmanager
+    def preflight():
+        calls.append("preflight")
+        try:
+            yield ()
+        finally:
+            calls.append("release")
+
+    def provision() -> list[str]:
+        calls.append("provision")
+        return []
+
+    def surfaces() -> bool:
+        calls.append("surfaces")
+        return False
+
+    def commit() -> bool:
+        calls.append("commit")
+        return True
+
+    def repair() -> RepairOutcome:
+        calls.append("mission")
+        return RepairOutcome()
+
+    result = finalize_upgrade(
+        UpgradeOutcome(result=_synthesized_result()), provision_activations=provision,
+        run_surface_repair=surfaces, commit_churn=commit, offer_repair=repair,
+        should_commit=True, repair_preflight=preflight(),
+    )
+    assert result.exit_code == 0
+    assert calls == ["preflight", "provision", "surfaces", "release", "commit", "mission"]
 
 
 # ---------------------------------------------------------------------------

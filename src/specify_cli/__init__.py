@@ -120,6 +120,11 @@ def main_callback(
     """Main callback for root CLI setup."""
     import sys
 
+    if "upgrade_intent" in ctx.meta:
+        # The actual upgrade tail performs validated, configured global repair.
+        # Even apply intent must not bootstrap before target/schema admission.
+        return
+
     next_fast_path = _is_next_invocation(sys.argv)
     if not next_fast_path:
         root_callback(ctx)

@@ -42,14 +42,17 @@ import functools
 import json
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from kernel.clock import now_utc
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
+import click
 
 if TYPE_CHECKING:
+    from specify_cli.upgrade.assessment import PreparedUpgradeRepairs
     from specify_cli.tool_surface.repair import DriftPolicySummary
     from specify_cli.upgrade.migrations.base import BaseMigration
 from rich.panel import Panel
@@ -136,7 +139,7 @@ def _run_cli_mode(
     if latest_version_provider is not None:
         kwargs["latest_version_provider"] = latest_version_provider
 
-    result = plan(invocation, **kwargs)  # type: ignore[arg-type]
+    result = plan(invocation, read_only=True, **kwargs)  # type: ignore[arg-type]
 
     if json_output:
         exit_code = 0 if dry_run else result.exit_code
@@ -1021,11 +1024,41 @@ class _FinalizerRenderContext:
         self.surface_repair_summary: DriftPolicySummary | None = None
         self.commit_paths: list[str] = []
         self.commit_warning: str | None = None
+        self.prepared_repairs: PreparedUpgradeRepairs | None = None
 
 
-def _finalizer_step_provision(project_path: Path, *, dry_run: bool) -> list[str]:
+def _finalizer_step_provision(project_path: Path, *, dry_run: bool, prepared: PreparedUpgradeRepairs | None = None) -> list[str]:
     """Injected ``provision_activations`` step (C4 order position 1)."""
-    return _provision_missing_mission_type_activations(project_path, dry_run=dry_run)
+    if prepared is None:
+        return _provision_missing_mission_type_activations(project_path, dry_run=dry_run)
+    try:
+        prepared.provisioning.apply()
+    except (OSError, ValueError) as exc:
+        return [str(exc)]
+    return []
+
+
+def _prepare_finalizer_repairs(project_path: Path, ctx: _FinalizerRenderContext) -> tuple[str, ...]:
+    from specify_cli.upgrade.assessment import prepare_upgrade_repairs
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from specify_cli.core.agent_config import AgentConfigError
+
+    try:
+        ctx.prepared_repairs = prepare_upgrade_repairs(project_path, consent=ApplyConsent(automatic=True))
+    except (OSError, ValueError, AgentConfigError) as exc:
+        return (str(exc),)
+    return ()
+
+
+@contextmanager
+def _finalizer_repair_preflight(prepared: PreparedUpgradeRepairs | None, errors: tuple[str, ...]) -> Iterator[tuple[str, ...]]:
+    if prepared is None:
+        yield errors
+        return
+    from specify_cli.upgrade.assessment import preflight_upgrade_repairs
+
+    with preflight_upgrade_repairs(prepared) as diagnostics:
+        yield errors + tuple(d.message for d in diagnostics)
 
 
 def _finalizer_step_surface_repair(
@@ -1045,6 +1078,25 @@ def _finalizer_step_surface_repair(
     """
     if not outcome.result.success:
         return False
+    if ctx.prepared_repairs is not None:
+        from specify_cli.upgrade.assessment import apply_upgrade_repairs
+        from specify_cli.tool_surface.repair import DriftPolicySummary
+
+        prepared = ctx.prepared_repairs
+        results = apply_upgrade_repairs(prepared)
+        succeeded = {effect_id for result in results for effect_id in result.succeeded}
+        summary = DriftPolicySummary()
+        for effect in prepared.effects:
+            if effect.id in succeeded:
+                (summary.created if effect.action == "create" else summary.repaired).append(effect.destination)
+        for owner in prepared.owners:
+            summary.drifted_reported.extend(
+                owner.root.path / disposition.path for disposition in owner.dispositions
+                if disposition.state == "consent_required" and disposition.path is not None
+            )
+        ctx.surface_repair_summary = summary
+        outcome.result.errors.extend(d.message for result in results for d in result.diagnostics if d.severity == "error")
+        return bool(summary.drifted_reported) or any(result.outcome not in {"applied", "skipped"} for result in results)
     ctx.surface_repair_summary = _run_upgrade_surface_repair(
         project_path,
         confirm=confirm,
@@ -1213,6 +1265,21 @@ def upgrade(
         spec-kitty upgrade --yes        # Non-interactive (same as --force)
         spec-kitty upgrade --dry-run --json  # Machine-readable plan
     """
+    current_context = click.get_current_context(silent=True)
+    intent = current_context.meta.get("upgrade_intent") if current_context is not None else None
+    if intent is not None and intent.conflicts:
+        message = "\n".join(intent.conflicts)
+        if json_output:
+            from specify_cli.compat.planner import Invocation, plan
+
+            payload = dict(plan(Invocation(command_path=("upgrade",), raw_args=("--cli", "--project")), read_only=True,
+                                project_root_resolver=lambda _path: None, include_migrations=False).rendered_json)
+            payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, pending_migrations=[], rendered_human=message[:1024])
+            print(json.dumps(payload))
+        else:
+            console.print(message, markup=False)
+        raise typer.Exit(2)
+
     _dispatch_agent_flags(
         agent_check=agent_check,
         agent_choice=agent_choice,
@@ -1364,12 +1431,15 @@ def upgrade(
         project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths)
     )
     render_ctx = _FinalizerRenderContext()
+    preparation_errors: tuple[str, ...] = ()
+    if not dry_run and outcome.result.success:
+        preparation_errors = _prepare_finalizer_repairs(project_path, render_ctx)
 
     from specify_cli.upgrade.finalize import finalize_upgrade
 
     outcome = finalize_upgrade(
         outcome,
-        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run),
+        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run, prepared=render_ctx.prepared_repairs),
         run_surface_repair=functools.partial(
             _finalizer_step_surface_repair,
             outcome,
@@ -1395,6 +1465,7 @@ def upgrade(
             json_output=json_output,
         ),
         should_commit=should_commit_main,
+        repair_preflight=_finalizer_repair_preflight(render_ctx.prepared_repairs, preparation_errors),
     )
 
     surface_repair_summary = render_ctx.surface_repair_summary

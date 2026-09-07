@@ -72,6 +72,19 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        remaining = super().parse_args(ctx, args)
+        command_args = [*ctx.protected_args, *ctx.args]
+        if command_args:
+            name, command, upgrade_args = self.resolve_command(ctx, command_args)
+            if name == "upgrade" and command is not None:
+                from specify_cli.upgrade.intent import parse_upgrade_intent
+
+                ctx.meta["upgrade_intent"] = parse_upgrade_intent(
+                    command, upgrade_args, project_available=(Path.cwd() / ".kittify").is_dir()
+                )
+        return remaining
+
     def list_commands(self, ctx: click.Context) -> list[str]:
         return sorted(super().list_commands(ctx))
 

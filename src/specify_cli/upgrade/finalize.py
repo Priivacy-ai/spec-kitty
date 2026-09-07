@@ -19,6 +19,7 @@ branch on which case it received.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from contextlib import AbstractContextManager, nullcontext
 
 from .outcome import RepairOutcome, UpgradeOutcome
 
@@ -31,6 +32,7 @@ def finalize_upgrade(
     offer_repair: Callable[[], RepairOutcome],
     commit_churn: Callable[[], bool],
     should_commit: bool,
+    repair_preflight: AbstractContextManager[Sequence[str]] | None = None,
 ) -> UpgradeOutcome:
     """Sequence the shared post-migration tail and derive the exit code once.
 
@@ -52,11 +54,14 @@ def finalize_upgrade(
     The exit code is derived exactly once, at the end, from ``outcome``
     (D-5) — no other site in the upgrade flow may compute it independently.
     """
-    outcome.activation_errors = list(provision_activations())
-    # Surface preparations depend on successful activation provisioning.
-    # A refusal must not write dependent output or commit partial preparation.
-    if not outcome.activation_errors:
-        outcome.surface_drift_failed = bool(run_surface_repair())
+    # Keep owner locks around only the two dependent write phases, never Git
+    # commits or the independently consented mission-state repair prompt.
+    with repair_preflight if repair_preflight is not None else nullcontext(()) as errors:
+        outcome.activation_errors = list(errors)
+        if not outcome.activation_errors:
+            outcome.activation_errors = list(provision_activations())
+        if not outcome.activation_errors:
+            outcome.surface_drift_failed = bool(run_surface_repair())
 
     if should_commit and not outcome.activation_errors:
         outcome.committed = bool(commit_churn())
