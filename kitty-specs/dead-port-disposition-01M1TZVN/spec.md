@@ -12,6 +12,19 @@
 2. **SATISFIED as of 2026-09-06.** The `test_layer_rules.py` residue item (FR-013) was gated on PR #3888 (which modifies `test_layer_rules.py` and `test_runtime_charter_doctrine_boundary.py`); #3888 merged 2026-09-06. FR-013/C-002 may proceed.
 3. **SATISFIED as of 2026-09-06.** The RuntimeEventEmitter disposition ADR was an INPUT DEPENDENCY on PR #3898 — `docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md`. #3898 merged 2026-09-06 and the ADR now carries `status: Accepted`. The WP03 gate is OPEN: FR-012/US4 execute per the ADR's chosen option (rewire-ready consolidation, which deletes `event_emitter.py`) rather than shipping the shrunk residue-only variant.
 
+## Ground-Truth Errata
+
+This mission's citations were re-verified against `main` at `3b38073a32` during the 2026-09-07 landing pass (PR #3904). The dossier (`research/29-missionB-research-dossier.md`) carries the same drifted or imprecise values for every row below and is left unmodified — it is an immutable evidence snapshot anchored at `e721763759` — but **for the entries in this table, the spec (as corrected here) overrides the dossier**, notwithstanding the general "where this spec and the dossier disagree, the dossier wins" rule.
+
+| Dossier/spec said | Actually true (verified `3b38073a32`) | Why it changed |
+|---|---|---|
+| `pyproject.toml:82` is the `transitions>=0.9.2` entry (throughout the spec) | `transitions>=0.9.2` is now at line 81; line 82 is `jsonschema>=4.0` — mission-config validation's dependency, not part of this retirement. Every citation now names the entry, not a line number, so it cannot rot again | Drifted since `e721763759`; PR #3899 (merged 2026-09-06) removed `truststore>=0.10.4` above it and shifted the block |
+| `test_layer_rules.py:65-73` is the `constitution` exclusion (US3, FR-013) | The `_EXCLUDED_FROM_LAYER_ENFORCEMENT` frozenset holding the `constitution` entry now spans `:66-74` | Drifted since `e721763759` |
+| `test_no_dead_symbols.py:718-727` holds the three dead-symbol pins (US1-AS5, C-005, SC-006) | The three pins are at `:719-727`; line `:718` closes the unrelated `clear_mission_brief` pin — deleting it would leave the `SymbolKey(` opened at `:716` unterminated (`SyntaxError`) | Drifted since `e721763759` |
+| "engine ×16" names the engine in the 29-occurrence `sync_emitter` map (US4) | `_internal_runtime/engine.py` has zero `sync_emitter` sites; the 16 are in `runtime_bridge_engine.py` (the 13 in `runtime_bridge.py` were already named correctly) | Wrong from the start; ambiguous engine reference |
+| `glossary_hook.py:16-17` is "contradicted eleven lines above its own bootstrap" (US2) | The bootstrap is at `:127`, which is 111 lines below `:16`, not eleven | Wrong from the start |
+| Sequencing pins 2 and 3 (header block): PR #3888 open; PR #3898 open with the ADR `status: Proposed` | #3888 merged 2026-09-06; #3898 merged 2026-09-06 and the ADR now carries `status: Accepted` — both gates are OPEN (see Sequencing pins above, FR-012, C-003, Open Decision 7) | Resolved after the dossier's `e721763759` snapshot |
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - `spec-kitty next` stops paying an import tax for a DSL nothing uses (Priority: P1)

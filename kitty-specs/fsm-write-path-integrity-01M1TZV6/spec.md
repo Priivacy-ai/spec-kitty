@@ -7,6 +7,18 @@
 
 The status event log (`status.events.jsonl`) is the FSM's sole authority for WP lane state, yet today it has 3 locked and 4 unlocked writer families plus a lockless batch door, THREE parallel emit orchestrations, a phantom fan-out defect (an event announced to the outside world before the coord commit that a rollback then truncates), dependency gating that lives outside the FSM guard, and a slug-keyed, non-atomic run-state store. This mission closes those defects by hardening and deletion — one locked, validated write door with dependency gating inside it, raw appends gated, and a crash-safe, identity-correct run-state store. **No redesign.**
 
+## Ground-Truth Errata
+
+This mission's citations were re-verified against `main` at `3b38073a32` during the 2026-09-07 landing pass (PR #3904). The dossier (`research/28-missionA-research-dossier.md`) carries the same drifted or imprecise values for every row below and is left unmodified — it is an immutable evidence snapshot anchored at `e721763759` — but **for the entries in this table, the spec (as corrected here) overrides the dossier**, notwithstanding the general "where this spec and the dossier disagree, the dossier wins" rule.
+
+| Dossier/spec said | Actually true (verified `3b38073a32`) | Why it changed |
+|---|---|---|
+| `status/__init__.py:518-537` is the `append_event*` export block (US3-AS1, FR-010) | The seven `append_*` entries in `__all__` are at lines 394, 518, 533, 536, 537, 538, 539; lines 519-532 are 14 unrelated exports; `:394` (`append_annotations_atomic_verified`) — the exact symbol `migration/backfill_runtime_state.py:1535` calls — was missing entirely | Wrong from the start; never a contiguous block |
+| `docs/architecture/status-model.md:393` carries the stale "single entry point" sentence (FR-009, Doc contention) | No such sentence exists there (the file is byte-identical to `e721763759`); the real site is `docs/architecture/04_implementation_mapping/README.md`'s Command-Surface Mapping table (Lifecycle Command Gateway row, currently line 223 — this file churns, re-verify before use) | Wrong from the start; `CLAUDE.md:409` was already correct as cited |
+| `status/aggregate.py:623` is the coordination lazy-import precedent (C-006) | Line `:623` is a `status.models` import; the `coordination.status_transition` import is at `:624` | Off-by-one, wrong from the start |
+| `_internal_runtime/engine.py:191-795` covers the four `emitter or NullEmitter()` sites (Interference Map) | The four sites are at `:198`, `:259`, `:522`, `:795` | Imprecise range, wrong from the start |
+| `decision.py:194-235` covers the two dead DSL readers (Interference Map) | `derive_mission_state` spans ~187-210 and `evaluate_guards` spans ~218-273; `:194-235` starts mid-docstring and covers neither cleanly | Imprecise range, wrong from the start |
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Serialized Out-of-Pipeline Writers (Priority: P1)
