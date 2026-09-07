@@ -123,6 +123,73 @@ def _emit_batch(repo_root: Path) -> None:
     st.emit_status_transition_batch_transactional(_batch(repo_root), ensure_sync_daemon=False)
 
 
+def test_coord_fallback_announces_only_its_own_rows_when_writer_interleaves(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A writer finishing after this commit must not enter this call's fan-out."""
+    _seed_planned_on_coord(repo)
+    _force_fallback_path(monkeypatch)
+    real_commit = st._commit_status_artifacts_to_coord
+    injected = False
+    seen: list[str] = []
+
+    def interleaved_commit(**kwargs: Any) -> None:
+        nonlocal injected
+        real_commit(**kwargs)
+        if not injected:
+            injected = True
+            other = _request(repo)
+            other.to_lane = "in_progress"
+            other.workspace_context = "worktree:/test/parallel"
+            st.emit_status_transition_transactional(other, ensure_sync_daemon=False)
+
+    monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", interleaved_commit)
+    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda event, *a, **k: seen.append(event.event_id))
+    _emit_single(repo)
+    assert len(seen) == len(set(seen)) == 2
+
+
+@pytest.mark.parametrize("commit_fails", [False, True])
+def test_coord_fallback_holds_lock_through_commit_and_restore_but_not_fanout(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, commit_fails: bool,
+) -> None:
+    from specify_cli.status.locking import _get_thread_locks, feature_status_lock_path
+
+    _seed_planned_on_coord(repo)
+    _force_fallback_path(monkeypatch)
+    key = str(feature_status_lock_path(repo, MISSION_DIRNAME))
+    real_commit = st._commit_status_artifacts_to_coord
+    real_restore = st._restore_coord_status_artifacts
+    restored: list[bool] = []
+    announced: list[bool] = []
+
+    def commit(**kwargs: Any) -> None:
+        assert key in _get_thread_locks(), "commit escaped the mission status lock"
+        if commit_fails:
+            raise RuntimeError("injected commit failure")
+        real_commit(**kwargs)
+
+    def restore(*args: Any, **kwargs: Any) -> None:
+        assert key in _get_thread_locks(), "rollback escaped the mission status lock"
+        restored.append(True)
+        real_restore(*args, **kwargs)
+
+    def fanout(*args: Any, **kwargs: Any) -> None:
+        assert key not in _get_thread_locks(), "outbound I/O holds the mission status lock"
+        announced.append(True)
+
+    monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", commit)
+    monkeypatch.setattr(st, "_restore_coord_status_artifacts", restore)
+    monkeypatch.setattr(st._emit, "_saas_fan_out", fanout)
+    if commit_fails:
+        with pytest.raises(RuntimeError, match="injected commit failure"):
+            _emit_single(repo)
+        assert restored == [True] and announced == []
+    else:
+        _emit_single(repo)
+        assert restored == [] and announced == [True]
+
+
 # ---------------------------------------------------------------------------
 # SC-002: commit failure => truncated back AND zero fan-out (single + batch).
 # ---------------------------------------------------------------------------

@@ -151,6 +151,8 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         "specify_cli.status.lifecycle_events",
         # Family 3 BookkeepingTransaction (lock held for the txn lifetime).
         "specify_cli.coordination.transaction",
+        # Coord fallback: L1 covers snapshot, emit, commit and rollback.
+        "specify_cli.coordination.status_transition",
         # Family 5 retro_status_lock helper (family 4 composes through it).
         "specify_cli.retrospective.lifecycle_events",
         # Family 6 verdict-provenance backfill (one-shot migration).

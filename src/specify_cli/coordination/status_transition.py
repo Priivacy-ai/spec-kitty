@@ -55,6 +55,7 @@ from specify_cli.lanes.branch_naming import (
     worktree_dir_name,
 )
 from specify_cli.status import emit as _emit
+from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import (
     CurrentWpState,
     EventStream,
@@ -400,34 +401,30 @@ def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Pa
     return feature_dir
 
 
+def _capture_coord_tail(coord_feature_dir: Path, pre_emit_event_size: int) -> EventStream:
+    """Read this operation's appended rows while its status lock is held."""
+    events_path = coord_feature_dir / _EVENTS_FILENAME
+    if not events_path.exists():
+        return EventStream()
+    with events_path.open("rb") as fh:
+        fh.seek(pre_emit_event_size)
+        tail = fh.read().decode("utf-8")
+    return _read_event_stream_from_text(coord_feature_dir, tail)
+
+
 def _fan_out_committed_coord_tail(
-    coord_feature_dir: Path,
+    stream: EventStream,
     *,
-    pre_emit_event_size: int,
     mission_slug: str,
     repo_root: Path | None,
     ensure_sync_daemon: bool,
 ) -> None:
-    """Announce exactly the rows the coord commit made durable (FR-008 / SC-002).
+    """Announce only the rows captured for the successful coord commit.
 
-    The coord fallback arms call the flat shell with ``fan_out=False`` and
-    commit first; this is their deferred step 7 (contract §2). It reads only
-    the bytes appended past the pre-emit snapshot -- never the whole log
-    (NFR-004) -- so an alias-collapse no-op (nothing appended) announces
-    nothing, and a persisted claim announces its lane event AND its
-    resolved-binding annotation, exactly as the flat shell would have.
-    ``policy_metadata`` rides on the persisted event (the pipeline stamps
-    ``request.policy_metadata`` onto it), so no request is needed here.
+    The stream is captured under L1 before the commit. Fan-out happens after
+    commit and lock release, so another writer cannot enter this operation's
+    announcements and outbound I/O cannot hold the status lock.
     """
-    events_path = coord_feature_dir / _EVENTS_FILENAME
-    if not events_path.exists():
-        return
-    with events_path.open("rb") as fh:
-        fh.seek(pre_emit_event_size)
-        tail = fh.read().decode("utf-8")
-    if not tail.strip():
-        return
-    stream = _read_event_stream_from_text(coord_feature_dir, tail)
     for event in stream.transitions:
         _emit._saas_fan_out(
             event,
@@ -462,27 +459,30 @@ def _emit_on_coord_then_commit(
     Returns the emit result and the coord feature dir the write landed on.
     """
     coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
-    pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
-    result = emit(coord_fd)
-    committed = False
-    try:
-        _commit_status_artifacts_to_coord(
-            repo_root=identity.repo_root,
-            mission_slug=mission_slug,
-            coord_worktree=coord_worktree,
-            coord_feature_dir=coord_fd,
-        )
-        committed = True
-    finally:
-        if not committed:
-            _restore_coord_status_artifacts(
-                coord_fd,
-                pre_emit_event_size=pre_size,
-                pre_emit_status_bytes=pre_status,
+    # The flat shell re-enters the same L1. Keep it through commit/rollback:
+    # otherwise rollback may erase another writer's successful append.
+    with feature_status_lock(identity.repo_root, coord_fd.name):
+        pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
+        committed = False
+        try:
+            result = emit(coord_fd)
+            stream = _capture_coord_tail(coord_fd, pre_size)
+            _commit_status_artifacts_to_coord(
+                repo_root=identity.repo_root,
+                mission_slug=mission_slug,
+                coord_worktree=coord_worktree,
+                coord_feature_dir=coord_fd,
             )
+            committed = True
+        finally:
+            if not committed:
+                _restore_coord_status_artifacts(
+                    coord_fd,
+                    pre_emit_event_size=pre_size,
+                    pre_emit_status_bytes=pre_status,
+                )
     _fan_out_committed_coord_tail(
-        coord_fd,
-        pre_emit_event_size=pre_size,
+        stream,
         mission_slug=mission_slug,
         repo_root=repo_root,
         ensure_sync_daemon=ensure_sync_daemon,

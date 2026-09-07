@@ -125,3 +125,13 @@ None. No `xfail`/red-first markers exist in the WP03 files; the WP01 strict `xfa
 ## Closure (WP07)
 
 The two FINDING sites in §4/§5 (`decisions/emit.py:100-112`, `migration/rebuild_state.py:758-766`) were hardened by WP07 (families ⑧/⑨; lock + atomic primitive; ledger entries removed/relabelled; per-key counts added to the writes-gate ledger). See `WP01-lock-rules.md` addendum.
+
+## PR3922 adversarial follow-up — coord fallback composition
+
+`specify_cli.coordination.status_transition` now holds the same mission-directory
+L1 around fallback snapshot, flat-shell emit, tail capture, commit and rollback.
+The flat shell re-enters L1. This prevents rollback from truncating another
+writer's rows and freezes each operation's outbound rows before releasing the
+lock. Fan-out consumes the captured stream after commit and lock release. The
+lock-composition census adds this existing fallback shell; the write allowlist
+and its shrink-only bounds are unchanged.
