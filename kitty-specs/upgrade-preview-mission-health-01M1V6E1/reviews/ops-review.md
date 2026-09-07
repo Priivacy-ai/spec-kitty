@@ -1,5 +1,31 @@
 # Supporting Operation Reviews
 
+## Migration Follow-Through: Open
+
+Issue #3985 records two distinct failures diagnosed through exact existing
+migration nodes after correcting external fixture namespace isolation. The
+relinking fixture supplies differing bytes without prior manifest ownership;
+preservation is correct. Its legacy caller treats the empty manifest as failure
+and loses the global-change disposition. The retirement path separately emits
+an invalid `create` effect for absent-to-absent and cannot finish stale manifest
+entry removal. No shared-parent or namespace explanation substitutes for these
+observed mechanisms. Diagnosis: managed-migration-diagnosis.md and #3985
+comment5569908298; no historical baseline PASS is claimed.
+
+Op `01M1XSSJ92CX6AX0D54AVM3Z5H` routes the retirement no-op guard to the active
+installer owner, with a separate RED/GREEN change. PhysicalEffect invariants and
+the original migration witness stay intact; absent-file retirement bookkeeping
+must still execute. This avoids concurrent edits to the same installer file.
+
+Test-only Op `01M1XSWCBB4APC84TS8Z8XTTYA` establishes real prior ownership for
+the intended managed-snapshot fixture and adds an untracked-content preservation
+control. It also reconciles #3986's orientation-refresh wording assertions with
+verified current usage semantics, preserving refresh/custom-content regressions
+and adding meaningful negative controls. Only the two existing test modules may
+change; no producer/policy relaxation. Legacy all-preserved caller-reporting
+policy remains explicitly separate. Independent bounded review precedes either
+Op closure; these records do not imply WP10 or full issue completion.
+
 ## Shared Skill Parent Composition: Open
 
 Op `01M1XREZBGQTCZWW1X1WB8EBHR` addresses the next concrete WP10 boundary.
