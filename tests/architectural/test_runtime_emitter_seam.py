@@ -17,7 +17,9 @@ The guard reads source text only; it must never import the runtime.
 
 from __future__ import annotations
 
+import ast
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -62,7 +64,23 @@ def _deleted_module_importers(*roots: Path) -> list[str]:
 
 
 def _bridge_bypass_hits(bridge_source: str, needle: str) -> list[int]:
-    return [number for number, line in enumerate(bridge_source.splitlines(), start=1) if needle in line]
+    calls = [node for node in ast.walk(ast.parse(bridge_source)) if isinstance(node, ast.Call)]
+    if needle.startswith("flush"):
+        return [
+            call.lineno
+            for call in calls
+            if isinstance(call.func, ast.Attribute)
+            and call.func.attr == "flush"
+            and any(ast.unparse(arg) == "ctx.sync_emitter" for arg in [*call.args, *(kw.value for kw in call.keywords if kw.arg == "target")])
+        ]
+    return [call.lineno for call in calls if any(kw.arg == "sync_emitter" and ast.unparse(kw.value) == "ctx.sync_emitter" for kw in call.keywords)]
+
+
+def _bridge_function(source: str, name: str) -> ast.FunctionDef:
+    """Require the production entry point, rather than matching its mention."""
+    functions = [node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == name]
+    assert [node.name for node in functions] == [name], f"missing or duplicate bridge function {name}; see {_ADR}"
+    return functions[0]
 
 
 def test_exactly_one_runtime_event_emitter_class() -> None:
@@ -79,14 +97,47 @@ def test_deleted_event_emitter_module_is_not_imported() -> None:
 def test_bridge_obtains_seam_only_through_factory() -> None:
     """S8: the bridge imports ``runtime_emitter_for_mission`` by name and never constructs a concrete class."""
     source = _BRIDGE.read_text(encoding="utf-8")
-    assert "runtime_emitter_for_mission" in source, f"bridge must obtain the seam via runtime_emitter_for_mission; see {_ADR}"
-    assert "RuntimeEventEmitter(" not in source, f"bridge must not construct a concrete RuntimeEventEmitter; see {_ADR}"
+    tree = ast.parse(source)
+    assert any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "runtime.next._internal_runtime.events"
+        and any(alias.name == "runtime_emitter_for_mission" and alias.asname is None for alias in node.names)
+        for node in tree.body
+    ), f"bridge must import the canonical factory by name; see {_ADR}"
+    for name in ("_dn_bootstrap", "answer_decision_via_runtime"):
+        assignments = [
+            node
+            for node in ast.walk(_bridge_function(source, name))
+            if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "sync_emitter" for target in node.targets)
+        ]
+        assert [ast.unparse(node.value.func) if isinstance(node.value, ast.Call) else None for node in assignments] == ["runtime_emitter_for_mission"], (
+            f"{name} must construct its seam once through the factory; see {_ADR}"
+        )
+    assert not any(isinstance(node, ast.Call) and ast.unparse(node.func) == "RuntimeEventEmitter" for node in ast.walk(tree)), (
+        f"bridge must not construct the Protocol; see {_ADR}"
+    )
 
 
 @pytest.mark.parametrize("needle", _BRIDGE_BYPASS_NEEDLES)
 def test_bridge_never_hands_engine_paths_the_plain_seam(needle: str) -> None:
     """F7: no engine-facing bridge call site receives the plain ``ctx.sync_emitter``."""
-    hits = _bridge_bypass_hits(_BRIDGE.read_text(encoding="utf-8"), needle)
+    source = _BRIDGE.read_text(encoding="utf-8")
+    function_name = "_dn_decision_materialize" if needle.startswith("flush") else "_dn_composition_dispatch"
+    calls = [node for node in ast.walk(_bridge_function(source, function_name)) if isinstance(node, ast.Call)]
+    if needle.startswith("flush"):
+        targets = [
+            ast.unparse(call.args[0]) if call.args else next((ast.unparse(kw.value) for kw in call.keywords if kw.arg == "target"), None)
+            for call in calls
+            if isinstance(call.func, ast.Attribute) and call.func.attr == "flush"
+        ]
+    else:
+        targets = [
+            next((ast.unparse(kw.value) for kw in call.keywords if kw.arg == "sync_emitter"), None)
+            for call in calls
+            if isinstance(call.func, ast.Name) and call.func.id == "_advance_run_state_after_composition"
+        ]
+    assert targets == ["ctx.emitter_for_engine"], f"{function_name} must pass the wrapped emitter exactly once; see {_ADR}"
+    hits = _bridge_bypass_hits(source, needle)
     assert hits == [], (
         f"{needle!r} at {_relative(_BRIDGE)}:{hits} reintroduces the decision-log bypass fixed by {_ADR}; engine-facing calls must use ctx.emitter_for_engine"
     )
@@ -133,23 +184,36 @@ def test_bridge_bypass_scan_locates_reintroduced_lines(needle: str) -> None:
         ("sync_emitter = runtime_emitter_for_mission(", "unrelated = runtime_emitter_for_mission(", "factory"),
         ("buffer.flush(ctx.emitter_for_engine)", "buffer.flush(\n            ctx.sync_emitter\n        )", "flush"),
         ("buffer.flush(ctx.emitter_for_engine)", "buffer.discard()", "flush"),
+        ("buffer.flush(ctx.emitter_for_engine)", "buffer.flush(target=ctx.sync_emitter)", "flush"),
+        ("buffer.flush(ctx.emitter_for_engine)", "buffer.flush(ctx.emitter_for_engine); buffer.flush(ctx.emitter_for_engine)", "flush"),
         ("sync_emitter=ctx.emitter_for_engine", "sync_emitter = ctx.sync_emitter", "composition"),
         ("_advance_run_state_after_composition(\n", "replacement_advance(\n", "composition"),
     ],
 )
-def test_bridge_guards_reject_semantic_mutations(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before: str, after: str, guard: str
-) -> None:
+def test_bridge_guards_reject_semantic_mutations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before: str, after: str, guard: str) -> None:
     """Mutate real call sites: imports/comments cannot substitute for a call."""
     source = _BRIDGE.read_text(encoding="utf-8")
     assert before in source
     mutant = tmp_path / "runtime_bridge.py"
     mutant.write_text(source.replace(before, after), encoding="utf-8")
-    monkeypatch.setattr(__import__(__name__, fromlist=["_BRIDGE"]), "_BRIDGE", mutant)
+    monkeypatch.setattr(sys.modules[__name__], "_BRIDGE", mutant)
     with pytest.raises(AssertionError):
         if guard == "factory":
             test_bridge_obtains_seam_only_through_factory()
         else:
-            test_bridge_never_hands_engine_paths_the_plain_seam(
-                "flush(ctx.sync_emitter)" if guard == "flush" else "sync_emitter=ctx.sync_emitter"
-            )
+            test_bridge_never_hands_engine_paths_the_plain_seam("flush(ctx.sync_emitter)" if guard == "flush" else "sync_emitter=ctx.sync_emitter")
+
+
+@pytest.mark.parametrize("target", ["\n            ctx.emitter_for_engine,\n        ", "target=ctx.emitter_for_engine"])
+def test_bridge_guards_accept_equivalent_call_formatting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str) -> None:
+    """Formatting and positional-to-keyword changes preserve the seam contract."""
+    source = _BRIDGE.read_text(encoding="utf-8")
+    rewritten = source.replace("buffer.flush(ctx.emitter_for_engine)", f"buffer.flush({target})").replace(
+        "sync_emitter=ctx.emitter_for_engine", "sync_emitter = ctx.emitter_for_engine"
+    )
+    bridge = tmp_path / "runtime_bridge.py"
+    bridge.write_text(rewritten, encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "_BRIDGE", bridge)
+    test_bridge_obtains_seam_only_through_factory()
+    for needle in _BRIDGE_BYPASS_NEEDLES:
+        test_bridge_never_hands_engine_paths_the_plain_seam(needle)
