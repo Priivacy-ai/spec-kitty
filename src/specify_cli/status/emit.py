@@ -353,9 +353,7 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
             pass
         else:
             if planning_feature_dir.parent.parent.resolve() != primary_root.resolve():
-                planning_feature_dir = resolve_planning_read_dir(
-                    primary_root, planning_feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-                )
+                planning_feature_dir = resolve_planning_read_dir(primary_root, planning_feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     wp_file = _find_wp_file(planning_feature_dir, wp_id)
     if wp_file is None:
         return ()

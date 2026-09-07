@@ -218,9 +218,7 @@ def test_annotation_waits_for_transition_directory_lock(repo: Path, monkeypatch:
 
     def _write() -> None:
         try:
-            emit_module.emit_inner_state_changed(
-                fd, "WP01", WPInnerStateDelta(note="annotation"), actor="test", mission_slug="foo", repo_root=repo
-            )
+            emit_module.emit_inner_state_changed(fd, "WP01", WPInnerStateDelta(note="annotation"), actor="test", mission_slug="foo", repo_root=repo)
         except BaseException as exc:
             errors.append(exc)
         finally:
