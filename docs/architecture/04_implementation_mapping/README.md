@@ -55,7 +55,7 @@ as Python modules within a single-process CLI application.
 | **Orchestration** | `src/specify_cli/orchestrator_api/`, `merge/`, `post_merge/`, `lanes/`, `workspace/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, merge execution, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
 | **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Playwright-based local browser kanban. Read-only against Event Store. |
 | **Agent Tool Connectors** | `packs/built-in/missions/mission-steps/*/*/prompt.md` (source) → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `charter` (offering source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent. Source templates live under `packs/built-in/missions/`; doctrine code lives at `src/charter/offering/`. |
-| **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in feature 055. `SkillRegistry` discovers canonical skills from `src/charter/offering/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
+| **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in mission 055. `SkillRegistry` discovers canonical skills from `src/charter/offering/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
 | **Doctrine (offering)** | doctrine code at `src/charter/offering/` (models/repository/validation per kind, `drg/`, `artifact_kinds.py`, `schemas/`) + `src/charter/offering/skills/` (canonical skill packs); pack content at `packs/built-in/` | `charter` (the former standalone `doctrine` package was absorbed here in the convergence) | JSON Schema validation, Pydantic models, repository pattern. Skill packs deployed from `src/charter/offering/skills/`. |
 | **Charter** | `src/charter/` | `charter` (standalone package) | Interview flow, compiler, action context resolver with depth semantics and action index intersection. Produces `.kittify/charter/` bundles. Context bootstrap injects governance at every execution boundary. |
 
@@ -138,7 +138,7 @@ User runs: spec-kitty specify / plan / tasks
   → src/specify_cli/cli/commands/ (Control Plane)
   → src/specify_cli/core/ + mission.py (Kitty-core; the next-action loop is src/runtime/next/_internal_runtime/)
   → src/specify_cli/status/emit.py (Event Store write)
-  → kitty-specs/<feature>/ artifacts written to filesystem
+  → kitty-specs/<mission>/ artifacts written to filesystem
 ```
 
 ### Loop B: Execution Coordination (Orchestration ↔ Event Store → Connectors)
@@ -232,7 +232,7 @@ Orchestration lifecycle event triggers:
 | **Charter Compiler** | `charter/activation/compiler.py` | Doctrine→charter bundle compilation |
 | **`Action Context Resolver`** | `charter/activation/context.py`, `charter/activation/resolver.py`, `charter/activation/reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
 | **Action Index** | `packs/built-in/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `src/charter/offering/missions/action_index.py` |
-| **Execution Dispatch** | `packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054; content now ships from `packs/built-in/`, not `src/charter/offering/`) |
+| **Execution Dispatch** | `packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in mission 054; content now ships from `packs/built-in/`, not `src/charter/offering/`) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |
 | **Path Resolver** | `src/kernel/paths.py` | `get_kittify_home()`, `get_package_asset_root()` — zero-dependency path resolution shared across all packages (moved from `specify_cli.runtime.home` in WP09, 2026-03-25; re-export shim at `specify_cli/runtime/home.py` preserves backward compatibility). **Dependency note (Windows):** `kernel` is stdlib-only on Linux/macOS. On Windows, `platformdirs` is imported lazily in `kernel/paths.py` for platform-appropriate home directory resolution. This is the only sanctioned third-party import in `kernel/`. |
 | **Glossary Runner Registry** | `src/kernel/glossary_runner.py` | `GlossaryRunnerProtocol`, `register()`, `get_runner()` — plugin registry allowing `doctrine` to register its runner without creating a `specify_cli` import dependency. Resolves DIV-5 (docs/adr/2.x/2026-03-25-1-glossary-type-ownership.md). |
@@ -397,13 +397,13 @@ update and a valid fixture update.
 | `DoctrineService` aggregation facade | ✅ Complete | `src/charter/offering/service.py` |
 | Charter compiler consumes Doctrine | ✅ Complete | `src/charter/activation/compiler.py` |
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
-| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/activation/reference_resolver.py` (feature 054) |
-| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/activation/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (feature 054) |
-| Per-action guidelines extraction from templates | ✅ Complete | `packs/built-in/missions/software-dev/actions/*/guidelines.md` (feature 054) |
-| ArtifactKind canonical enum | ✅ Complete | `src/charter/offering/artifact_kinds.py` (feature 054, WP09-WP10) |
+| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/activation/reference_resolver.py` (mission 054) |
+| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/activation/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (mission 054) |
+| Per-action guidelines extraction from templates | ✅ Complete | `packs/built-in/missions/software-dev/actions/*/guidelines.md` (mission 054) |
+| ArtifactKind canonical enum | ✅ Complete | `src/charter/offering/artifact_kinds.py` (mission 054, WP09-WP10) |
 | MissionRepository package relocation | ✅ Complete | `packs/built-in/missions/` is the authoritative source for all shipped mission assets (YAML, mission-step prompt templates, content templates, expected-artifacts); `src/charter/offering/missions/` holds only the Python repository/loader code that reads them. `src/specify_cli/missions/` survives only as a stale legacy asset tree the resolver deliberately no longer falls back to (`src/kernel/paths.py`, DR-2); its Python mission code moved to `src/charter/offering/missions/` (`primitives.py`, `glossary_hook.py`). |
-| Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 55 canonical skill packs in `src/charter/offering/skills/`. Deployed to agent directories during `spec-kitty init` (feature 055). |
-| Agent Profile shaping connector behavior | ✅ Complete | Models, repository, schema, profile-aware resolution wired in `resolver.py`; workflow profile injection at execution boundary enabled (feature 055). |
+| Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 55 canonical skill packs in `src/charter/offering/skills/`. Deployed to agent directories during `spec-kitty init` (mission 055). |
+| Agent Profile shaping connector behavior | ✅ Complete | Models, repository, schema, profile-aware resolution wired in `resolver.py`; workflow profile injection at execution boundary enabled (mission 055). |
 | `kernel` zero-dependency floor (`paths`, `glossary_runner`, `glossary_types`) | ✅ Complete | `src/kernel/` — `paths.py`, `glossary_runner.py`, `glossary_types.py`. Backward-compat re-export shim at `specify_cli/runtime/home.py`. DIV-5 (glossary runner boundary) resolved. ADR: `2026-03-25-1-glossary-type-ownership`. |
 | `--mission-type` flag on type-selection commands | ✅ Complete | 5 commands renamed from `--mission` to `--mission-type` (2026-03-25). Old `--mission` alias on those commands raises `typer.Exit(1)`. `--mission` (slug selector) and `--feature` (hidden deprecated alias) unchanged on all other commands. |
 
@@ -413,7 +413,7 @@ update and a valid fixture update.
 |---|---|---|
 | Glossary integration at execution boundary | 🟡 Partial | `glossary_hook.py` exists; full Glossary Hook Coordinator loop is early-stage |
 | Slimmed agent templates (governance-free) | 🟡 Partial | Bootstrap section added to templates. Residual inline governance prose not yet stripped. Migration `m_2_0_2` pending. |
-| Mission templates as first-class doctrine artifacts | 🟡 Partial | Templates relocated to `packs/built-in/missions/` (feature 054; loader code at `src/charter/offering/missions/`). Action indexes operational. Formal `MissionTemplateRepository` deferred. |
+| Mission templates as first-class doctrine artifacts | 🟡 Partial | Templates relocated to `packs/built-in/missions/` (mission 054; loader code at `src/charter/offering/missions/`). Action indexes operational. Formal `MissionTemplateRepository` deferred. |
 | Explicit per-agent connector adapters | 🟡 Partial | 12-agent command template system is the seed. Architecture envisions SDK/shell/remote adapters (Phase 2). |
 | Non-software-dev mission parity | 🟡 Partial | `documentation`, `plan`, `research` missions have action directories but thinner indexes than `software-dev`. |
 | Event Store behind interface contract | 🟡 Partial | `store.py`/`reducer.py` provide the interface pattern. Not yet formally abstracted for alternative backends (Phase 3). |
