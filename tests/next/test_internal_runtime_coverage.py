@@ -169,23 +169,28 @@ def _make_simple_template() -> MissionTemplate:
 
 
 def test_emitter_module_re_exports() -> None:
+    """``emitter.py`` is a frozen-contract re-export shim (Category 6,
+    ``tests/architectural/test_no_dead_modules.py``) for ``NullEmitter`` /
+    ``RuntimeEventEmitter`` only -- the names frozen in
+    ``contracts/internal_runtime_surface.md``. The runtime emitter seam
+    (``runtime_emitter_for_mission`` and its factory registry) has no
+    production consumer through this shim -- the bridge imports it from
+    ``events.py`` directly -- so it is exercised there, not re-exported
+    here."""
     assert emitter_mod.NullEmitter is events_mod.NullEmitter
     assert emitter_mod.RuntimeEventEmitter is events_mod.RuntimeEventEmitter
-    assert emitter_mod.runtime_emitter_for_mission is events_mod.runtime_emitter_for_mission
-    assert (
-        emitter_mod.register_runtime_emitter_factory
-        is events_mod.register_runtime_emitter_factory
-    )
-    assert emitter_mod.reset_runtime_emitter_factory is events_mod.reset_runtime_emitter_factory
-    assert set(emitter_mod.__all__) == {
-        "NullEmitter",
-        "RuntimeEventEmitter",
-        "runtime_emitter_for_mission",
-        "register_runtime_emitter_factory",
-        "reset_runtime_emitter_factory",
-    }
+    assert set(emitter_mod.__all__) == {"NullEmitter", "RuntimeEventEmitter"}
     for name in emitter_mod.__all__:
         assert name in events_mod.__all__, name
+
+
+def test_runtime_emitter_seam_functions_are_defined_on_events_not_emitter() -> None:
+    """The seam functions live on ``events.py`` and are exercised through
+    that module in the tests above (S1-S4); ``emitter.py`` does not carry
+    them (see ``test_emitter_module_re_exports``)."""
+    for name in ("runtime_emitter_for_mission", "register_runtime_emitter_factory", "reset_runtime_emitter_factory", "seed_emitter_if_supported"):
+        assert hasattr(events_mod, name), name
+        assert not hasattr(emitter_mod, name), name
 
 
 # ---------------------------------------------------------------------------
