@@ -26,6 +26,8 @@ module.  The only directory removal is a targeted
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Iterator
+from contextvars import ContextVar
 import errno
 import os
 import stat
@@ -52,6 +54,7 @@ from specify_cli.skills import manifest_store
 from specify_cli.skills.manifest_store import ManifestEntry
 from specify_cli.skills.manifest_errors import ManifestError
 from specify_cli.skills import command_renderer
+from specify_cli.skills.paths import SkillPathObservation, observe_skill_path
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from kernel.clock import now_utc_iso
@@ -426,6 +429,23 @@ class PreparedCommands:
     execution_artifacts: tuple[CommandExecutionArtifact, ...]
     template_paths: tuple[tuple[str, Path], ...]
     provisioning: _PreparedMissionTypeActivations | None = None
+
+
+_PARENT_CREATIONS: ContextVar[dict[Path, SkillPathObservation] | None] = ContextVar(
+    "command_parent_creations",
+    default=None,
+)
+
+
+@contextlib.contextmanager
+def _record_command_parent_creations() -> Iterator[dict[Path, SkillPathObservation]]:
+    """Record identities at actual mkdir, for the bounded paired skill owner."""
+    created: dict[Path, SkillPathObservation] = {}
+    token = _PARENT_CREATIONS.set(created)
+    try:
+        yield created
+    finally:
+        _PARENT_CREATIONS.reset(token)
 
 
 def _state(path: Path) -> FileState:
@@ -832,6 +852,9 @@ def _apply_command_effect(effect: PhysicalEffect, payload: PreparedCommands) -> 
             path.unlink()
         path.mkdir(mode=0o755)
         path.chmod(0o755)
+        created = _PARENT_CREATIONS.get()
+        if created is not None and effect.before.kind == "absent":
+            created[path] = observe_skill_path(path)
     elif effect.after.kind == "absent":
         if effect.before.kind == "directory":
             path.rmdir()

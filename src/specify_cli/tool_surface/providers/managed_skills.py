@@ -30,19 +30,20 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from contextvars import ContextVar
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol, cast
 
 from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER
 from specify_cli.skills import installer as skill_installer
+from specify_cli.skills import command_installer
 from specify_cli.skills import verifier as skill_verifier
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     compute_content_hash,
     load_manifest,
 )
-from specify_cli.skills.paths import get_primary_project_skill_root
+from specify_cli.skills.paths import SkillPathObservation, get_primary_project_skill_root, observe_skill_path, recheck_skill_paths
 from specify_cli.skills.registry import SkillRegistry
 
 from ..enums import (
@@ -60,7 +61,7 @@ from ..findings import (
     make_finding,
 )
 from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
-from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment, OwnerApplyResult, coalesce_effects
+from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, FileState, OperationRoot, OwnerAssessment, OwnerApplyResult, PhysicalEffect, coalesce_effects
 from ..repair import RepairResult
 from ..status import (
     STATE_DRIFTED,
@@ -78,6 +79,92 @@ _PAIRED_GLOBAL: ContextVar[OwnerAssessment | None] = ContextVar("paired_skill_gl
 _PROVISIONING_PAIR: ContextVar[skill_installer.SkillInstallationAssessment | None] = ContextVar(
     "provisioning_skill_pair", default=None,
 )
+_COMPOSITION: ContextVar[SkillCommandComposition | None] = ContextVar("skill_command_composition", default=None)
+
+
+@dataclass(frozen=True)
+class SkillCommandComposition:
+    """Exact paired installation plus commands; shared parents have one writer."""
+
+    installation: skill_installer.SkillInstallationAssessment
+    commands: OwnerAssessment
+    parents: tuple[SkillPathObservation, ...]
+
+    @property
+    def effects(self) -> tuple[PhysicalEffect, ...]:
+        """Unique physical effects, retaining both owners' logical claims."""
+        project = self.installation.project_skills
+        commands = {e.destination: e for e in self.commands.effects}
+        effects = list(self.installation.global_assets.effects)
+        for effect in project.effects:
+            command = commands.get(effect.destination)
+            if command is None:
+                effects.append(effect)
+                continue
+            if (command.action, command.before, command.after, command.phase) != (
+                "create",
+                FileState("absent"),
+                FileState("directory", mode=0o755),
+                effect.phase,
+            ) or (effect.action, effect.before, effect.after) != (command.action, command.before, command.after):
+                raise ValueError(f"Unsupported shared skill effect: {effect.destination}")
+            commands[effect.destination] = replace(
+                command,
+                ownership=command.ownership + effect.ownership,
+                logical_owners=command.logical_owners + effect.logical_owners,
+                surface_ids=command.surface_ids + effect.surface_ids,
+            )
+        combined: tuple[PhysicalEffect, ...] = coalesce_effects(tuple(effects) + tuple(commands.values()))
+        return combined
+
+
+def _composition_parents(installation: skill_installer.SkillInstallationAssessment, commands: OwnerAssessment) -> tuple[Path, ...]:
+    root = commands.root.path
+
+    def ancestors(owner: OwnerAssessment) -> set[Path]:
+        return {p for e in owner.effects for p in e.destination.parents if p == root or p.is_relative_to(root)}
+
+    return tuple(sorted(ancestors(installation.project_skills) & ancestors(commands)))
+
+
+def _composition_refused(composition: SkillCommandComposition, errors: tuple[Diagnostic, ...]) -> tuple[OwnerApplyResult, ...]:
+    return tuple(
+        OwnerApplyResult(
+            owner,
+            skipped=tuple(e.id for e in composition.effects if e.owner == owner),
+            outcome="precondition_changed",
+            diagnostics=errors,
+        )
+        for owner in (composition.commands.owner_key, composition.installation.global_assets.owner_key, PROVIDER_KEY)
+    )
+
+
+def _recheck_command_completion(
+    composition: SkillCommandComposition,
+    created: dict[Path, SkillPathObservation],
+) -> tuple[SkillPathObservation, ...]:
+    """Check concrete command output and exact common-parent membership/identity."""
+    command_effects = composition.commands.effects
+    for effect in command_effects:
+        state = observe_skill_path(effect.destination).state
+        if replace(state, mtime_ns=effect.after.mtime_ns) != effect.after:
+            raise ValueError(f"Completed command output changed: {effect.destination}")
+    for before in composition.parents:
+        current = observe_skill_path(before.path, members=True)
+        expected = created.get(before.path, before)
+        names = set(before.children or ())
+        for effect in command_effects:
+            if effect.destination.parent == before.path:
+                if effect.after.kind == "absent":
+                    names.discard(effect.destination.name)
+                else:
+                    names.add(effect.destination.name)
+        if (current.state, current.identity, current.children) != (expected.state, expected.identity, tuple(sorted(names))):
+            raise ValueError(f"Shared skill parent changed: {before.path}")
+    shared = {e.destination for e in composition.installation.project_skills.effects} & {e.destination for e in command_effects}
+    receipts = tuple(created[path] for path in sorted(shared))
+    recheck_skill_paths(receipts)
+    return receipts
 
 
 class _VerifyResultProto(Protocol):
@@ -155,6 +242,88 @@ class ManagedSkillsProvider:
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
         return definition.kind is ToolSurfaceKind.DOCTRINE_SKILL
+
+    def compose_installation(
+        self,
+        installation: skill_installer.SkillInstallationAssessment,
+        commands: OwnerAssessment,
+    ) -> SkillCommandComposition:
+        """Admit the original command/managed pair, without reassessment or writes."""
+        project = installation.project_skills
+        payload = commands.prepared
+        if (
+            commands.owner_key != "command_skills"
+            or commands.root != project.root
+            or commands.consent != project.consent
+            or not isinstance(payload, command_installer.PreparedCommands)
+            or not isinstance(project.prepared, skill_installer.PreparedProjectSkills)
+            or payload.provisioning is not project.prepared.provisioning
+            or not all(a.complete for a in (commands, project, installation.global_assets))
+        ):
+            raise ValueError("Complete commands and the exact paired provisioning input required")
+        composition = SkillCommandComposition(
+            installation,
+            commands,
+            tuple(observe_skill_path(path, members=True) for path in _composition_parents(installation, commands)),
+        )
+        _ = composition.effects  # Static conflicts abort before provisioning.
+        return composition
+
+    @contextmanager
+    def preflight_composition(
+        self,
+        composition: SkillCommandComposition,
+        consent: ApplyConsent,
+    ) -> Iterator[tuple[Diagnostic, ...]]:
+        """Hold existing three global locks and project lock across provisioning."""
+        with self.preflight_installation(composition.installation, consent) as errors:
+            errors += command_installer.recheck_commands(composition.commands, phase="preflight")
+            try:
+                _ = composition.effects
+                if tuple(p.path for p in composition.parents) != _composition_parents(composition.installation, composition.commands):
+                    raise ValueError("Shared parent inventory differs")
+                recheck_skill_paths(composition.parents)
+            except (OSError, ValueError) as exc:
+                errors += (Diagnostic("shared_parent_changed", PROVIDER_KEY, "error", str(exc)),)
+            token = _COMPOSITION.set(None if errors else composition)
+            try:
+                yield errors
+            finally:
+                _COMPOSITION.reset(token)
+
+    def apply_composition(
+        self,
+        composition: SkillCommandComposition,
+        consent: ApplyConsent,
+    ) -> tuple[OwnerApplyResult, ...]:
+        """Commands first, then paired global/managed apply, with one shared mkdir."""
+        from specify_cli.runtime.asset_preparation import recheck_assets
+        from .command_skills import CommandSkillsProvider
+        from ..repair import SurfaceRepairService
+
+        installation, commands = composition.installation, composition.commands
+        if _COMPOSITION.get() is not composition or consent != commands.consent or not consent.automatic:
+            return _composition_refused(
+                composition, (Diagnostic("skill_composition_preflight_required", PROVIDER_KEY, "error", "Exact active composition and consent required"),)
+            )
+        with recheck_assets(installation.global_assets) as global_errors, self.recheck(installation.project_skills) as project_errors:
+            errors = global_errors + project_errors + command_installer.recheck_commands(commands, phase="apply")
+            if errors:
+                return _composition_refused(composition, errors)
+            _COMPOSITION.set(None)  # Single consumption, including partial failure.
+            with command_installer._record_command_parent_creations() as created:
+                command_results: tuple[OwnerApplyResult, ...] = SurfaceRepairService([CommandSkillsProvider()]).apply_assessments((commands,), consent)
+            if any(r.outcome not in {"applied", "skipped"} for r in command_results):
+                return command_results + _composition_refused(composition, command_results[0].diagnostics)[1:]
+            try:
+                receipts = _recheck_command_completion(composition, created)
+            except (OSError, ValueError, KeyError) as exc:
+                errors = (Diagnostic("shared_parent_changed", PROVIDER_KEY, "error", str(exc)),)
+                return command_results + _composition_refused(composition, errors)[1:]
+            with skill_installer._completed_command_parents(installation.project_skills, receipts):
+                results = self.apply_installation(installation, consent)
+            delegated = {e.id for e in installation.project_skills.effects if e.destination in {p.path for p in receipts}}
+            return command_results + tuple(replace(r, skipped=tuple(i for i in r.skipped if i not in delegated)) for r in results)
 
     def assess(
         self, inputs: AssessmentInputs, statuses: Sequence[SurfaceStatus], *, selections: tuple[SurfaceSelection, ...]
