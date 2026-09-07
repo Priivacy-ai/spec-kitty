@@ -27,6 +27,68 @@ from charter.activation.charter_yaml_io import (
 pytestmark = [pytest.mark.unit]
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+@pytest.mark.parametrize("reload_document", [False, True])
+@pytest.mark.parametrize(
+    "body",
+    [
+        "metadata: {}\nactivated_directives: # keep-rationale\n  - old\n",
+        "? activated_directives # keep-rationale\n: [old]\nmetadata: {}\n",
+    ],
+)
+def test_reused_document_preserves_key_comments(tmp_path: Path, newline: str, reload_document: bool, body: str) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    path = tmp_path / "charter.yaml"
+    tail = '# outside\noverrides: {keep: "raw"}\n'.replace("\n", newline).encode()
+    path.write_bytes(body.replace("\n", newline).encode() + tail)
+    document = load_charter_yaml(path)
+    document["metadata"] = {"long-entry": "x" * 100}
+    save_charter_yaml(path, document)
+    for value in ([], ["new"], [], ["final"]):
+        if reload_document:
+            document = load_charter_yaml(path)
+        document["activated_directives"] = value
+        save_charter_yaml(path, document)
+        assert load_charter_yaml(path)["activated_directives"] == value
+        assert path.read_bytes().count(b"# keep-rationale") == 1
+        assert path.read_bytes().endswith(tail)
+    before = snapshot({"project": tmp_path})
+    save_charter_yaml(path, document)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+@pytest.mark.parametrize("pointer", [False, True])
+@pytest.mark.parametrize("body", ["null\n", "metadata: {}\n"])
+def test_version_directive_saver_preserves_document_frame(tmp_path: Path, newline: str, pointer: bool, body: str) -> None:
+    from charter.activation.pack_manager import resolve_activation_write_target
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "policy.yaml" if pointer else config
+    if pointer:
+        config.write_bytes(b"charter: policy.yaml\n")
+    prefix = "%YAML 1.2\n---\n".replace("\n", newline).encode()
+    suffix = "... # end\n".replace("\n", newline).encode()
+    target.write_bytes(prefix + body.replace("\n", newline).encode() + suffix)
+    path, document, save = resolve_activation_write_target(tmp_path)
+    assert path == target
+    document["activated_directives"] = ["new"]
+    save(path, document)
+    assert load_charter_yaml(path)["activated_directives"] == ["new"]
+    assert path.read_bytes().startswith(prefix)
+    assert path.read_bytes().endswith(suffix)
+    if body.startswith("metadata"):
+        assert body.replace("\n", newline).encode() in path.read_bytes()
+    if pointer:
+        assert config.read_bytes() == b"charter: policy.yaml\n"
+    before = snapshot({"project": tmp_path})
+    save(path, document)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 def test_update_block_collection_retains_key_comment(tmp_path: Path) -> None:
     path = tmp_path / "charter.yaml"
     path.write_bytes(b"activated_directives: # keep this rationale\n  - old\nmetadata: {}\n")
