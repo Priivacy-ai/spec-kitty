@@ -102,6 +102,14 @@ _BANNED_IMPORT_PREFIXES = (
     _SPECIFY_CLI + "core.batch_partition",
     _SPECIFY_CLI + "migration.envelope_seam",
     "websockets",
+    # Mission dead-port-disposition-01M1TZVN (FR-004): the mission-DSL v1 runtime and
+    # its state-machine library are retired everywhere, not only on the mission_v1
+    # import path pinned by tests/specify_cli/mission_v1/test_import_hygiene.py.
+    "transitions",
+    _SPECIFY_CLI + "mission_v1.compat",
+    _SPECIFY_CLI + "mission_v1.runner",
+    _SPECIFY_CLI + "mission_v1.guards",
+    _SPECIFY_CLI + "mission_v1.schema",
 )
 
 _MANIFEST_PATH = _REPO_ROOT / "src/specify_cli/_completion_manifest.json"
