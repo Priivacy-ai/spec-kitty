@@ -1039,6 +1039,29 @@ def test_coordinated_global_selection_is_explicit(owner_home: Path, skill_source
     assert not assess_global_assets(runtime=False, commands=False, skills=False).complete
 
 
+def test_managed_tree_uses_portable_directory_mode(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root
+
+    source = tmp_path / "readonly-package-tree"
+    source.mkdir()
+    (source / "asset.txt").write_text("asset")
+    source.chmod(0o555)
+    destination = owner_home / "missions/software-dev"
+    prepared = AssetPreparation(
+        "runtime_bootstrap",
+        global_asset_root("runtime_bootstrap", (owner_home,)),
+        owner_home / "cache",
+        ".update.lock",
+        ApplyConsent(),
+    )
+
+    prepared.tree(source, destination, managed_tree=True)
+
+    write = prepared.writes[destination]
+    assert write.effect.before.kind == "absent"
+    assert write.effect.after.mode == 0o755
+
+
 @pytest.mark.parametrize("conflict", ["bytes", "state", "membership", "environment"])
 def test_global_builder_refuses_contradictory_family_inputs(owner_home: Path, monkeypatch: pytest.MonkeyPatch, conflict: str) -> None:
     from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation, global_asset_root
