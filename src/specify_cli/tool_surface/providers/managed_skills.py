@@ -75,6 +75,9 @@ PROVIDER_KEY = "managed_skills"
 _PATH_PATTERN = ".kittify/skills-manifest.json:{installed_path}"
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind doctrine-skill --fix"
 _PAIRED_GLOBAL: ContextVar[OwnerAssessment | None] = ContextVar("paired_skill_global", default=None)
+_PROVISIONING_PAIR: ContextVar[skill_installer.SkillInstallationAssessment | None] = ContextVar(
+    "provisioning_skill_pair", default=None,
+)
 
 
 class _VerifyResultProto(Protocol):
@@ -176,10 +179,36 @@ class ManagedSkillsProvider:
         ))
 
     def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
-        return skill_installer.recheck_project_skills(assessment)
+        pair = _PROVISIONING_PAIR.get()
+        return skill_installer.recheck_project_skills(
+            assessment, provisioning_applied=pair is not None and assessment == pair.project_skills,
+        )
 
     def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
         return skill_installer.apply_project_skills(assessment, explicit_consent)
+
+    @contextmanager
+    def preflight_installation(
+        self, installation: skill_installer.SkillInstallationAssessment, consent: ApplyConsent,
+    ) -> Iterator[tuple[Diagnostic, ...]]:
+        """Check BOTH original owners before provisioning; hold locks through apply.
+
+        Only after an empty diagnostic tuple may the caller apply its retained
+        compiler descriptor, then call apply_installation inside this context.
+        """
+        from specify_cli.runtime.asset_preparation import recheck_assets
+
+        global_assets, project = installation.global_assets, installation.project_skills
+        with recheck_assets(global_assets) as global_errors, skill_installer.recheck_project_skills(project) as project_errors:
+            errors = global_errors + project_errors
+            if not consent.automatic or not global_assets.complete or not project.complete or consent != global_assets.consent or consent != project.consent:
+                errors += (Diagnostic("skill_context_mismatch", PROVIDER_KEY, "error", "Complete paired assessments and exact consent required"),)
+            pair = replace(installation, project_skills=replace(project, effects=coalesce_effects(project.effects)))
+            token = _PROVISIONING_PAIR.set(None if errors else pair)
+            try:
+                yield errors
+            finally:
+                _PROVISIONING_PAIR.reset(token)
 
     def apply_installation(
         self, installation: skill_installer.SkillInstallationAssessment, consent: ApplyConsent,
@@ -193,6 +222,16 @@ class ManagedSkillsProvider:
         from ..repair import SurfaceRepairService
 
         global_assets, project = installation.global_assets, installation.project_skills
+        prepared = project.prepared
+        if isinstance(prepared, skill_installer.PreparedProjectSkills) and prepared.provisioning is not None:
+            pair = replace(installation, project_skills=replace(project, effects=coalesce_effects(project.effects)))
+            if _PROVISIONING_PAIR.get() != pair:
+                errors = (Diagnostic("paired_skill_preflight_required", PROVIDER_KEY, "error",
+                                     "Canonical provisioning requires original paired preflight before any writes"),)
+                return tuple(OwnerApplyResult(
+                    owner.owner_key, skipped=tuple(effect.id for effect in owner.effects),
+                    outcome="precondition_changed", diagnostics=errors,
+                ) for owner in (global_assets, project))
         with recheck_assets(global_assets) as global_errors, self.recheck(project) as project_errors:
             errors = global_errors + project_errors
             if not global_assets.complete or not project.complete or consent != global_assets.consent or consent != project.consent:

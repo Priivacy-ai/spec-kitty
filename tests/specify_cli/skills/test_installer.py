@@ -69,6 +69,73 @@ def _make_skill(
     )
 
 
+@pytest.mark.parametrize("tamper", ["opaque", "tuple", "bytes", "reason", "values", "observations", "target", "hardlink", "absent"])
+def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: Path, tamper: str) -> None:
+    from dataclasses import replace
+    import os
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.skills.installer import assess_project_skills
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir(parents=True)
+    if tamper != "absent":
+        config.write_text("agents:\n  available: [codex]\n")
+    if tamper == "hardlink":
+        os.link(config, tmp_path / "alias")
+    descriptor = prepare_mission_type_activations(project)
+    projected: object = descriptor
+    if tamper == "opaque":
+        with pytest.raises(TypeError, match="deeply immutable"):
+            AssessmentInputs(OperationRoot("project", "project", project), projected=object())
+        projected = descriptor.write.desired_sha256
+    elif tamper == "tuple":
+        projected = (descriptor,)
+    elif tamper == "bytes":
+        projected = replace(descriptor, write=replace(descriptor.write, desired_bytes=b"arbitrary: true\n"))
+    elif tamper == "reason":
+        projected = replace(descriptor, reason="invented")
+    elif tamper == "values":
+        projected = replace(descriptor, mission_type_activations=("invented",))
+    elif tamper == "observations":
+        projected = replace(descriptor, write=replace(descriptor.write, observations=()))
+    elif tamper == "target":
+        projected = replace(descriptor, write=replace(descriptor.write, target=tmp_path / "elsewhere"))
+    _make_skill(tmp_path / "source", "a")
+    before = snapshot({"sandbox": tmp_path})
+    assessment = assess_project_skills(
+        AssessmentInputs(OperationRoot("project", "project", project), projected=projected),
+        SkillRegistry(tmp_path / "source"), ("codex",),
+    )
+    assert not assessment.complete and assessment.diagnostics and not assessment.effects
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_skill_provisioning_retained_descriptor_cannot_be_removed(tmp_path: Path) -> None:
+    from dataclasses import replace
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.skills.installer import PreparedProjectSkills, assess_project_skills, recheck_project_skills
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+
+    project = tmp_path / "project"
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text("agents:\n  available: [codex]\n")
+    _make_skill(tmp_path / "source", "a")
+    descriptor = prepare_mission_type_activations(project)
+    assessment = assess_project_skills(
+        AssessmentInputs(OperationRoot("project", "project", project), projected=descriptor),
+        SkillRegistry(tmp_path / "source"), ("codex",),
+    )
+    assert assessment.complete
+    assert isinstance(assessment.prepared, PreparedProjectSkills)
+    tampered = replace(assessment, prepared=replace(assessment.prepared, provisioning=None))
+    with recheck_project_skills(tampered) as errors:
+        assert errors
+
+
 # ── T014 / T017: install_skills_for_agent ────────────────────────────
 
 

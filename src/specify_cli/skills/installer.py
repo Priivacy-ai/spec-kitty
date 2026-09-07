@@ -14,6 +14,10 @@ from dataclasses import dataclass, replace
 from threading import RLock
 from kernel.clock import now_utc_iso
 from pathlib import Path
+from typing import cast
+from charter.activation.compiler import _PreparedMissionTypeActivations, prepare_mission_type_activations
+from charter.activation.charter_yaml_io import observe_yaml_input, yaml_documents_equal
+from ruamel.yaml import YAML
 
 from specify_cli.core.config import (
     AGENT_SKILL_CONFIG,
@@ -406,6 +410,67 @@ class PreparedProjectSkills:
     agent_config: str
     writes: tuple[PreparedProjectSkillWrite, ...]
     manifest_content: bytes
+    provisioning: _PreparedMissionTypeActivations | None = None
+
+
+def _prepare_skill_provisioning(root: Path, projected: object) -> _PreparedMissionTypeActivations | None:
+    """Admit only the actual compiler descriptor, without changing skill selection."""
+    if projected is None:
+        return None
+    if type(projected) is not _PreparedMissionTypeActivations:
+        raise ValueError("Managed skills require the canonical mission provisioning descriptor")
+    descriptor = cast(_PreparedMissionTypeActivations, projected)
+    descriptor.write.recheck()
+    if descriptor != prepare_mission_type_activations(root):
+        raise ValueError("Managed skill provisioning differs from the canonical compiler")
+    write = descriptor.write
+    if write.before_bytes is None or write.absent_parents:
+        raise ValueError("Managed skill provisioning requires an existing authority")
+    original = next(item for item in write.observations if item.path == write.target)
+    if write.changed and (original.identity is None or original.identity[-1] != 1):
+        raise ValueError("Managed skill provisioning cannot rewrite a hardlinked authority")
+    # Skills render solely from the retained catalog and selected agents. The
+    # compiler's mission-type field cannot alter agent/config selection policy.
+    documents = tuple(YAML(typ="rt").load(content) for content in (write.before_bytes, write.desired_bytes))
+    if any(document is not None and not isinstance(document, dict) for document in documents):
+        raise ValueError("Managed skill provisioning requires mapping inputs")
+    before, after = (document if document is not None else {} for document in documents)
+    before.pop("mission_type_activations", None)
+    after.pop("mission_type_activations", None)
+    if not yaml_documents_equal(before, after):
+        raise ValueError("Provisioning changes skill-relevant configuration")
+    return descriptor
+
+
+def _recheck_skill_provisioning(
+    prepared: PreparedProjectSkills, *, provisioning_applied: bool,
+) -> Path | None:
+    """Allow only the retained compiler's direct-file transition, never a hash waiver."""
+    provisioning = prepared.provisioning
+    if provisioning is None:
+        return None
+    write = provisioning.write
+    if not provisioning_applied or not write.changed:
+        write.recheck()
+        return None
+    if _skill_bytes_state(write.desired_bytes, write.mode).sha256 != write.desired_sha256:
+        raise ValueError("Managed skill provisioning bytes changed")
+    original = next(item for item in write.observations if item.path == write.target)
+    current = observe_yaml_input(write.target)
+    prior, actual = original.identity, current.identity
+    if (
+        current.content != write.desired_bytes or prior is None or actual is None
+        or len(prior) != 7 or len(actual) != 7 or actual[:3] != prior[:3]
+        or prior[-1] != 1 or actual[-1] != 1
+        or actual[5] != len(write.desired_bytes)
+        or actual[3] < prior[3] or actual[4] < prior[4]
+    ):
+        raise ValueError("Managed skill provisioning has not completed its exact retained transition")
+    for observation in write.observations:
+        if observation.path != write.target and observe_yaml_input(observation.path) != observation:
+            raise ValueError(f"Managed skill provisioning input changed: {observation.path}")
+    target: Path = write.target
+    return target
 
 
 _PROJECT_SKILL_LOCK = RLock()
@@ -448,6 +513,7 @@ class _ProjectSkillPreparation:
         self.observations: list[SkillPathObservation] = []
         self.writes: list[PreparedProjectSkillWrite] = []
         self.dispositions: list[Disposition] = []
+        self.provisioning: _PreparedMissionTypeActivations | None = None
 
     def observe(self, path: str) -> FileState:
         observations = skill_path_observations(self.inputs.root.path, self.inputs.root.path / path)
@@ -561,8 +627,9 @@ def assess_project_skills(
     """
     plan = _ProjectSkillPreparation(inputs, persist_manifest)
     try:
-        if inputs.root.scope == "global" or inputs.projected is not None:
+        if inputs.root.scope == "global":
             raise ValueError("Project skill assessment requires concrete project inputs")
+        plan.provisioning = _prepare_skill_provisioning(inputs.root.path, inputs.projected)
         return _prepare_project_skills(plan, registry, tuple(sorted(set(agent_keys))), selected_paths, retire)
     except (OSError, ValueError, TypeError, AgentConfigError) as exc:
         return OwnerAssessment("managed_skills", inputs.root, complete=False, consent=inputs.consent,
@@ -601,6 +668,15 @@ def _expected_project_entries(
     return expected
 
 
+def _reject_provisioning_source_overlap(
+    provisioning: _PreparedMissionTypeActivations | None, skills: tuple[CanonicalSkill, ...],
+) -> None:
+    if provisioning is not None and any(
+        source.resolve() == provisioning.write.target for skill in skills for source in skill.all_files
+    ):
+        raise ValueError("Mission provisioning overlaps canonical skill input")
+
+
 def _prepare_project_skills(
     plan: _ProjectSkillPreparation, registry: SkillRegistry, agents: tuple[str, ...],
     selected_paths: tuple[str, ...] | None, retire: bool,
@@ -614,6 +690,7 @@ def _prepare_project_skills(
     if any(not _valid_skill_entry(entry) for entry in manifest.entries):
         raise ValueError("Skills manifest contains an invalid ownership path")
     skills, catalog_inputs = registry.snapshot_catalog()
+    _reject_provisioning_source_overlap(plan.provisioning, skills)
     plan.observations.extend(catalog_inputs)
     now = now_utc_iso()
     expected = _expected_project_entries(skills, agents, now)
@@ -691,10 +768,19 @@ def _finish_project_preparation(
     by_path = {effect.path: effect for effect in effects}
     writes = tuple(sorted((replace(write, effect=by_path[write.effect.path]) for write in plan.writes),
                           key=_project_write_sort_key))
-    prepared = PreparedProjectSkills(plan.inputs.root, plan.inputs.consent, tuple(plan.observations), config, writes, prepared_manifest.content)
+    prepared = PreparedProjectSkills(plan.inputs.root, plan.inputs.consent, tuple(plan.observations), config, writes, prepared_manifest.content,
+                                     plan.provisioning)
+    if plan.provisioning is not None and any(
+        item.path != plan.inputs.root.path / ".kittify/config.yaml"
+        and item.state.kind == "file" and item.path.resolve() == plan.provisioning.write.target
+        for item in plan.observations
+    ):
+        raise ValueError("Mission provisioning overlaps managed skill state")
+    _recheck_skill_provisioning(prepared, provisioning_applied=False)
     return OwnerAssessment("managed_skills", plan.inputs.root, effects, tuple(plan.dispositions),
                            inputs_fingerprint=(InputObservation("project_skill_inputs", prepared.observations),
-                                               InputObservation("agent_skill_config", config)),
+                                               InputObservation("agent_skill_config", config),
+                                               InputObservation("skill_provisioning", prepared.provisioning)),
                            prepared=prepared, consent=plan.inputs.consent)
 
 
@@ -719,7 +805,9 @@ def _project_write_sort_key(write: PreparedProjectSkillWrite) -> tuple[int, int,
 
 
 @contextmanager
-def recheck_project_skills(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...]]:
+def recheck_project_skills(
+    assessment: OwnerAssessment, *, provisioning_applied: bool = False,
+) -> Iterator[tuple[Diagnostic, ...]]:
     """Hold the process-local owner boundary; no pre-existing skill lock file exists."""
     with _PROJECT_SKILL_LOCK:
         prepared = assessment.prepared
@@ -730,13 +818,24 @@ def recheck_project_skills(assessment: OwnerAssessment) -> Iterator[tuple[Diagno
                 prepared.root, prepared.consent, coalesce_effects(tuple(write.effect for write in prepared.writes)),
             ) or any(item.severity == "error" for item in assessment.diagnostics):
                 raise ValueError("Project skill assessment does not match its retained preparation")
-            recheck_skill_paths(prepared.observations)
+            if assessment.inputs_fingerprint != (
+                InputObservation("project_skill_inputs", prepared.observations),
+                InputObservation("agent_skill_config", prepared.agent_config),
+                InputObservation("skill_provisioning", prepared.provisioning),
+            ):
+                raise ValueError("Project skill inputs differ from retained preparation")
+            transitioned = _recheck_skill_provisioning(prepared, provisioning_applied=provisioning_applied)
+            changed_config: Path | None = prepared.root.path / ".kittify/config.yaml"
+            if transitioned != prepared.root.path.resolve() / ".kittify/config.yaml":
+                changed_config = None
+            recheck_skill_paths(tuple(item for item in prepared.observations
+                                     if item.path != changed_config))
             if prepared.agent_config != _agent_config_identity():
                 raise ValueError("Agent skill configuration changed")
         except (OSError, ValueError) as exc:
             yield (Diagnostic("precondition_changed", "managed_skills", "error", str(exc)),)
             return
-        token = _RECHECKED_PROJECT.set(assessment)
+        token = _RECHECKED_PROJECT.set(assessment if prepared.provisioning is None or provisioning_applied else None)
         try:
             yield ()
         finally:
@@ -871,6 +970,10 @@ def apply_skill_installation(
     from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 
     global_assets, project = installation.global_assets, installation.project_skills
+    if isinstance(project.prepared, PreparedProjectSkills) and project.prepared.provisioning is not None:
+        errors = (Diagnostic("paired_skill_preflight_required", "managed_skills", "error",
+                             "Provisioning requires the provider's paired preflight_installation boundary"),)
+        return _refuse_skill_owner(global_assets, errors), _refuse_skill_owner(project, errors)
     if not global_assets.complete or not project.complete:
         return _refuse_skill_owner(global_assets, global_assets.diagnostics), _refuse_skill_owner(project, project.diagnostics)
     with recheck_assets(global_assets) as global_errors, recheck_project_skills(project) as project_errors:
