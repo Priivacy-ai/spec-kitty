@@ -797,8 +797,10 @@ def _should_advance_wp_step(
         try:
             state = wp_state_for(ending.lane)
         except ValueError:
-            # Unknown lane (e.g. "uninitialized" before status bootstrap) — treat as
-            # not-yet-handed-off, so this WP blocks advancement.
+            # A lane string outside _STATE_MAP (a genuinely-unknown / malformed
+            # value -- note "uninitialized" and "genesis" ARE in _STATE_MAP and
+            # are handled by _wp_blocks_step's disjunct, not here). Treat an
+            # unknown lane as not-yet-handed-off, so this WP blocks advancement.
             return False
         has_provenance = ending.reason_source == OPERATOR_REASON_SOURCE
         if _wp_blocks_step(step_id, state, has_provenance=has_provenance):
@@ -830,12 +832,15 @@ def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> b
         # (for_review or approved) or reaches an acceptable ending.
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
-        # FR-004 (#3884): Lane.UNINITIALIZED is neither is_blocked nor
-        # is_run_affecting (it never entered an active lane) -- it fell
-        # through both disjuncts and silently did not block. A never-claimed
-        # WP must not be conflated with a genuinely-exempt state.
+        # FR-004 (#3884): the two NON_DISPLAY_LANES -- Lane.UNINITIALIZED and
+        # Lane.GENESIS -- are neither is_blocked nor is_run_affecting (neither
+        # ever entered an active lane), so both fell through the run-affecting
+        # disjunct and silently did not block. A WP that was never claimed
+        # (UNINITIALIZED) or never lifecycled past creation (GENESIS) must not
+        # be conflated with a genuinely-exempt handed-off state -- either one
+        # is pending work that has to block the implement -> review advance.
         return (
-            lane is Lane.UNINITIALIZED
+            lane in (Lane.UNINITIALIZED, Lane.GENESIS)
             or state.is_blocked
             or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
         )
