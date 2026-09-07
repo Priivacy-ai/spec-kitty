@@ -178,6 +178,7 @@ from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import get_all_wp_snapshots
@@ -192,7 +193,7 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
 )
-from runtime.next.event_emitter import RuntimeEventEmitter
+from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
 from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
@@ -735,7 +736,13 @@ def _count_wp_endings(
             acceptable_endings += 1
     return done_endings, acceptable_endings
 
-def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
+def _should_advance_wp_step(
+    step_id: str,
+    feature_dir: Path,
+    *,
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
+) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
     For implement: all WPs must be handed off, accepted, done, or reach an
@@ -749,8 +756,41 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     ``get_wp_lane`` used (C-003/D6): a genuinely-absent committed status log
     still raises ``CanonicalStatusNotFoundError`` here, never a silent
     ``False``.
+
+    FR-009 (#3884): when the caller opts in by supplying ``repo_root`` (no
+    separate flag, mirroring the #3704 precedent), the ``tasks/`` directory
+    this function reads is anchored via ``mission_runtime.placement_seam``'s
+    PRIMARY-partition resolution for ``MissionArtifactKind.WORK_PACKAGE_TASK``
+    instead of the raw ``feature_dir`` -- a coord-topology mission's
+    coordination-worktree ``feature_dir`` never receives ``tasks/WP*.md``
+    (a PRIMARY-partition artifact), so the unanchored read hit this
+    function's own no-``tasks/``-dir early return below and skipped the
+    per-WP loop entirely, regardless of whether FR-004's disjunct exists. Any
+    coord-less topology (``SINGLE_BRANCH``/``LANES``) -- where ``feature_dir``
+    already IS the primary directory -- sees no behavior change: the anchor
+    resolves to the same directory for both. May raise ``MissionSelectorAmbiguous`` for a genuinely
+    ambiguous ``mission_slug`` handle -- caught at this function's one real
+    call site (``_dn_dependency_gate``, FR-010).
     """
-    tasks_dir = feature_dir / "tasks"
+    anchor_dir = feature_dir
+    if repo_root is not None:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
+        # Fail closed on a missing handle rather than silently falling back to
+        # ``feature_dir.name`` (#3981): at this call ``feature_dir`` is a
+        # coord-worktree / status dir whose ``.name`` is NOT a kitty-specs
+        # mission handle, so the old fallback would feed a wrong (and possibly
+        # ambiguous) handle into ``placement_seam``. Matches this function's own
+        # no-silent-fallback stance on ``MissionSelectorAmbiguous`` (C-009): a
+        # caller that anchors (``repo_root=``) must name the mission explicitly.
+        if mission_slug is None:
+            raise ValueError(
+                "_should_advance_wp_step: mission_slug is required when repo_root "
+                "is supplied (anchoring); feature_dir.name is not a mission handle."
+            )
+        anchor_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+
+    tasks_dir = anchor_dir / "tasks"
     if not tasks_dir.is_dir():
         return True  # no WPs to iterate over
 
@@ -768,8 +808,10 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
         try:
             state = wp_state_for(ending.lane)
         except ValueError:
-            # Unknown lane (e.g. "uninitialized" before status bootstrap) — treat as
-            # not-yet-handed-off, so this WP blocks advancement.
+            # A lane string outside _STATE_MAP (a genuinely-unknown / malformed
+            # value -- note "uninitialized" and "genesis" ARE in _STATE_MAP and
+            # are handled by _wp_blocks_step's disjunct, not here). Treat an
+            # unknown lane as not-yet-handed-off, so this WP blocks advancement.
             return False
         has_provenance = ending.reason_source == OPERATOR_REASON_SOURCE
         if _wp_blocks_step(step_id, state, has_provenance=has_provenance):
@@ -801,8 +843,16 @@ def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> b
         # (for_review or approved) or reaches an acceptable ending.
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
+        # FR-004 (#3884): the two NON_DISPLAY_LANES -- Lane.UNINITIALIZED and
+        # Lane.GENESIS -- are neither is_blocked nor is_run_affecting (neither
+        # ever entered an active lane), so both fell through the run-affecting
+        # disjunct and silently did not block. A WP that was never claimed
+        # (UNINITIALIZED) or never lifecycled past creation (GENESIS) must not
+        # be conflated with a genuinely-exempt handed-off state -- either one
+        # is pending work that has to block the implement -> review advance.
         return (
-            state.is_blocked
+            lane in (Lane.UNINITIALIZED, Lane.GENESIS)
+            or state.is_blocked
             or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
         )
     if step_id == "review":
@@ -855,6 +905,16 @@ def _check_cli_guards(
         repo_root=repo_root,
     )
     if step_id in ("implement", "review"):
+        # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
+        # though repo_root is in scope above for gather_artifact_presence: this call
+        # is reachable only from _dn_dependency_gate's WP-iteration branch (#3884
+        # INT-001), and only AFTER that branch's own anchored _should_advance_wp_step
+        # call (repo_root=repo_root, mission_slug=mission_slug) already returned
+        # True for the identical (step_id, feature_dir) — see the "All WPs done for
+        # this step" comment at its call site. Do not "fix" this by anchoring it; if
+        # phase ordering ever changes so this can be reached with WPs still pending,
+        # this needs a repo_root=/mission_slug= forward of its own, mirroring
+        # _dn_dependency_gate's call, not a silent carry-forward assumption.
         snapshot = dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir))
     return _cores.evaluate_guards_strict(snapshot)
 
@@ -1549,7 +1609,7 @@ def _dn_bootstrap(
                 reason="Mission is already completed",
             )
         )
-    sync_emitter = RuntimeEventEmitter.for_feature(
+    sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
@@ -1611,9 +1671,10 @@ def _dn_bootstrap(
     try:
         snapshot = _engine_adapter._read_snapshot(run_dir)
         current_step_id = snapshot.issued_step_id
-        sync_emitter.seed_from_snapshot(snapshot)
     except Exception:
         current_step_id = None
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
 
     # FR-017: populate the runtime OperationalContext at the `next` decision
     # boundary via the extracted helper (keeps the bootstrap phase flat). The
@@ -1677,8 +1738,27 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if ctx.result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
-            should_advance = _should_advance_wp_step(current_step_id, feature_dir)
+            should_advance = _should_advance_wp_step(
+                current_step_id, feature_dir, repo_root=repo_root, mission_slug=mission_slug
+            )
         except CanonicalStatusNotFoundError as exc:
+            return _materialize_decision(
+                _cores.DecisionEnvelope(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=str(exc),
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                ),
+                [str(exc)],
+            )
+        except MissionSelectorAmbiguous as exc:  # NEW — FR-010 (#3884)
             return _materialize_decision(
                 _cores.DecisionEnvelope(
                     kind=DecisionKind.blocked,
@@ -1958,10 +2038,12 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
         # Composition succeeded; advance run state via the
         # composition-specific advancement helper and short-circuit the
         # legacy ``runtime_next_step`` fall-through (FR-001/FR-002). The
-        # helper emits the same lane / state events the legacy path emits;
-        # any error from it surfaces through the existing ``Decision``
-        # ``blocked`` shape (EDGE-003) — the legacy DAG dispatch handler is
-        # **not** entered as a fallback.
+        # helper emits the same lane / state events the legacy path emits,
+        # through the decision-log-wrapped engine emitter so a
+        # ``DecisionInputRequested`` it raises is durably recorded
+        # (ADR 2026-09-06-2 (c)); any error from it surfaces through the
+        # existing ``Decision`` ``blocked`` shape (EDGE-003) — the legacy
+        # DAG dispatch handler is **not** entered as a fallback.
         try:
             return _advance_run_state_after_composition(
                 run_ref=run_ref,
@@ -1973,7 +2055,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                 timestamp=now,
                 progress=progress,
                 origin=origin,
-                sync_emitter=ctx.sync_emitter,
+                sync_emitter=ctx.emitter_for_engine,
             )
         except Exception as exc:  # noqa: BLE001 — EDGE-003 contract: any
             # advancement-helper failure must surface as a structured
@@ -2181,10 +2263,11 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
             return gate_decision
 
     # Gate either passed (terminal allow) or never ran (non-terminal /
-    # not opted in): flush any buffered emit calls into the real sync
-    # emitter so observers receive them in original order.
+    # not opted in): flush any buffered emit calls into the decision-log-
+    # wrapped engine emitter so decision events are durably recorded and
+    # observers receive them in original order (ADR 2026-09-06-2 (c)).
     if buffer is not None:
-        buffer.flush(ctx.sync_emitter)
+        buffer.flush(ctx.emitter_for_engine)
 
     if retrospective_enabled and not block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
         mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
@@ -2736,19 +2819,21 @@ def answer_decision_via_runtime(
         raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
-    sync_emitter = RuntimeEventEmitter.for_feature(
+    sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
     )
     try:
-        sync_emitter.seed_from_snapshot(_engine_adapter._read_snapshot(Path(run_ref.run_dir)))
+        snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
     except Exception as exc:
         logger.warning(
             "answer_decision_via_runtime: failed to seed emitter from snapshot for run %r: %s",
             run_ref.run_dir,
             exc,
         )
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
     answer_emitter: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)

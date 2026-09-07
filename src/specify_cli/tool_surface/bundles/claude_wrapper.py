@@ -23,11 +23,9 @@ registers, enables, or publishes the bundle.
 
 from __future__ import annotations
 
-import os
 import stat
 from pathlib import Path
 
-from specify_cli.core.utils import ensure_within_directory
 
 # Placeholder that is substituted at build time with the real package version.
 _VERSION_PLACEHOLDER = "__SPEC_KITTY_VERSION__"
@@ -90,21 +88,12 @@ EXIT /B 1
 _EXECUTABLE_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
 
 
-def _write_owner_only_executable(path: Path, content: str) -> None:
-    """Write *content* to *path* via a fresh owner-only executable temp file."""
-    temp_path = path.parent / f".{path.name}.tmp"
-    temp_path.unlink(missing_ok=True)
-    fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, _EXECUTABLE_MODE)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
-            handle.write(content)
-        temp_path.replace(path)
-    except Exception:
-        temp_path.unlink(missing_ok=True)
-        raise
-
-
-def write_wrappers(bundle_dir: Path, version: str) -> None:
+def write_wrappers(
+    bundle_dir: Path,
+    version: str | None = None,
+    *,
+    prepared: tuple[Path, bytes, int] | None = None,
+) -> None:
     """Write ``bin/spec-kitty-wrapper`` and ``bin/spec-kitty-wrapper.cmd``.
 
     Both files are generated under ``bundle_dir / "bin"`` with ``version``
@@ -124,23 +113,33 @@ def write_wrappers(bundle_dir: Path, version: str) -> None:
     ValueError
         When *version* is empty.
     """
+    if prepared is not None:
+        from .projection import observe_confined, write_staged_file
+
+        path, content, mode = prepared
+        if path not in {bundle_dir / "bin/spec-kitty-wrapper", bundle_dir / "bin/spec-kitty-wrapper.cmd"}:
+            raise ValueError("Prepared wrapper destination is outside the wrapper layout")
+        observe_confined(bundle_dir, path)
+        write_staged_file(path, content, mode)
+        return
     if not version:
         raise ValueError("version must be a non-empty string")
 
-    bin_dir = bundle_dir / "bin"
-    bin_dir.mkdir(parents=True, exist_ok=True)
+    from ..operations import ApplyConsent, AssessmentInputs
+    from ._builder import finish_build
+    from .model import StagedFile
+    from .projection import confined_output, prepare_staging, staging_root
 
-    bash_path = ensure_within_directory(bin_dir / "spec-kitty-wrapper", bundle_dir)
-    _write_owner_only_executable(
-        bash_path,
-        _BASH_WRAPPER_TEMPLATE.format(version=version),
+    root = staging_root(bundle_dir)
+    directory = confined_output(bundle_dir, root)
+    inputs = AssessmentInputs(root, consent=ApplyConsent(automatic=True))
+    files = (
+        StagedFile(
+            (directory / "bin/spec-kitty-wrapper").relative_to(root.path).as_posix(), wrapper_bash_content(version).encode("utf-8"), _EXECUTABLE_MODE, wrapper=True
+        ),
+        StagedFile((directory / "bin/spec-kitty-wrapper.cmd").relative_to(root.path).as_posix(), wrapper_cmd_content(version).encode("utf-8"), wrapper=True),
     )
-
-    cmd_path = ensure_within_directory(bin_dir / "spec-kitty-wrapper.cmd", bundle_dir)
-    cmd_path.write_text(
-        _CMD_WRAPPER_TEMPLATE.format(version=version),
-        encoding="utf-8",
-    )
+    finish_build(prepare_staging(inputs, files, ()))
 
 
 def wrapper_bash_content(version: str) -> str:
@@ -159,9 +158,8 @@ def wrapper_cmd_content(version: str) -> str:
     return _CMD_WRAPPER_TEMPLATE.format(version=version)
 
 
-# NOTE: wrapper_bash_content / wrapper_cmd_content are public helpers consumed
-# only by tests (filesystem-free inspection). They remain importable by name but
-# are intentionally NOT in __all__ so the no-dead-symbols gate stays green.
+# Content helpers are consumed during preparation; write_wrappers also accepts
+# one retained member during guarded batch application without rendering again.
 __all__ = [
     "write_wrappers",
 ]

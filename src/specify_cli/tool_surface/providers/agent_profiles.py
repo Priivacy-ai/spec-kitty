@@ -23,8 +23,15 @@ Behavioural contract (FR-012/013/014):
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from pathlib import Path
+from charter.activation.pack_context import CharterPackConfigError
+from ruamel.yaml.error import YAMLError
+
+from specify_cli.core.agent_config import AgentConfigError, load_agent_config
+from specify_cli.skills.manifest_store import fingerprint
 
 from ..enums import (
     ActivationMode,
@@ -43,12 +50,28 @@ from ..findings import (
     SEVERITY_WARNING,
     make_finding,
 )
-from ..model import NativeAgentProfile, SurfaceDefinition, SurfaceInstance
+from ..model import NativeAgentProfile, SurfaceDefinition, SurfaceInstance, SurfaceSelection
+from ..operations import (
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    Disposition,
+    FileState,
+    InputObservation,
+    OperationRoot,
+    OwnerApplyResult,
+    OwnerAssessment,
+    OwnershipProof,
+    PhysicalEffect,
+    coalesce_effects,
+)
+from ..profiles._paths import confined_path, observe_node, observe_tree
 from ..profiles.amazon_q_renderer import FORMAT_AMAZON_Q_AGENT
 from ..profiles.capability_matrix import HARNESS_CAPABILITY_MATRIX, is_research_gap
-from ..profiles.manifest import ProfileManifest, hash_content, hash_file
-from ..profiles.projection import ProfileProjector, default_profile_repository
-from ..repair import RepairResult
+from ..profiles.manifest import ProfileManifest, hash_content, hash_file, manifest_path_for
+from ..profiles.projection import PreparedProfileBatch, PreparedProjection, ProfileProjector
+from ..profiles.renderers import get_renderer, native_name_violation
+from ..repair import RepairResult, _is_init_upgrade_auto_repairable
 from ..status import (
     STATE_DRIFTED,
     STATE_MISSING,
@@ -88,7 +111,10 @@ def agent_profile_definition() -> SurfaceDefinition:
 
 
 def _build_projector(project_root: Path) -> ProfileProjector:
-    return ProfileProjector(default_profile_repository(project_root))
+    try:
+        return ProfileProjector.from_project(project_root)
+    except (CharterPackConfigError, YAMLError, TypeError, KeyError) as exc:
+        raise ValueError(f"Invalid required profile inputs: {exc}") from exc
 
 
 class AgentProfilesProvider:
@@ -115,6 +141,101 @@ class AgentProfilesProvider:
 
     def _manifest_for(self, project_root: Path) -> ProfileManifest:
         return self._manifest or ProfileManifest.load(project_root)
+
+    def assess(
+        self,
+        inputs: AssessmentInputs,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        selections: tuple[SurfaceSelection, ...],
+    ) -> OwnerAssessment:
+        """Prepare the selected whole profile batch, including status-less pruning."""
+        _ = statuses  # Inventory cannot supply status-less orphan ownership.
+        return self._assess(inputs, selections)
+
+    def _assess(
+        self,
+        inputs: AssessmentInputs,
+        selections: tuple[SurfaceSelection, ...],
+        only_paths: frozenset[Path] | None = None,
+    ) -> OwnerAssessment:
+        try:
+            confined_path(manifest_path_for(inputs.root.path), inputs.root.path)
+            manifest_before = observe_node(manifest_path_for(inputs.root.path))
+            load_agent_config(inputs.root.path)
+            batch = _ProfileBatch(inputs, selections, self._manifest_for(inputs.root.path))
+            if observe_node(manifest_path_for(inputs.root.path)) != manifest_before:
+                raise ValueError("Profile manifest changed while loading")
+            eligible = batch.selected_tools()
+            if not eligible:
+                return batch.finish((), ())
+            roots = _profile_input_roots(inputs.root.path)
+            before = _input_states(roots)
+            if any(state.kind == "symlink" and "agent_profiles" in path.parts for path, state in before):
+                raise ValueError("Required profile source trees contain a symlink")
+            projector = self._projector_for(inputs.root.path)
+            for tool in eligible:
+                batch.diagnostics.extend(Diagnostic(f.code, PROVIDER_KEY, f.severity, f.message) for f in projector.diagnose(tool, inputs.root.path))
+            if any(d.severity == "error" for d in batch.diagnostics):
+                return batch.finish((), ())
+            projected = tuple(p for tool in eligible for p in projector.prepare(tool, inputs.root.path))
+            sources = projector.source_paths()
+            source_roots = tuple(sorted({p.parent for p in sources}))
+            for source in sources:
+                boundaries = [r for r in (inputs.root.path, *roots) if source != r and source.is_relative_to(r)]
+                if not boundaries:
+                    raise ValueError(f"Required profile source is outside observed input roots: {source}")
+                confined_path(source, min(boundaries, key=lambda r: len(r.parts)))
+                if observe_node(source).kind != "file":
+                    raise ValueError(f"Required profile source unavailable: {source}")
+            batch.prepare(projected, only_paths)
+            assessment = batch.finish(projected, tuple(sorted(set(roots + source_roots + sources))))
+            if before != _input_states(roots) or observe_node(manifest_path_for(inputs.root.path)) != manifest_before:
+                raise ValueError("Profile inputs changed during preparation")
+            return assessment
+        except (OSError, ValueError, TypeError, KeyError, AgentConfigError, CharterPackConfigError, YAMLError) as exc:
+            return OwnerAssessment(
+                PROVIDER_KEY,
+                inputs.root,
+                complete=False,
+                diagnostics=(Diagnostic("profile_input_invalid", PROVIDER_KEY, "error", str(exc)),),
+                consent=inputs.consent,
+            )
+
+    @contextmanager
+    def recheck(self, assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...]]:
+        """Recheck every retained input before apply; this owner has no existing lock."""
+        prepared = _prepared(assessment)
+        try:
+            current = _input_states(prepared.input_roots)
+            for path, state in prepared.destinations:
+                confined_path(path, assessment.root.path)
+                observed = observe_node(path)
+                # Sibling owners may create files in a retained parent during
+                # the same guarded composition. Directory mtime is not an
+                # ownership or confinement identity; kind/mode still are.
+                if state.kind == "directory" and observed.kind == "directory":
+                    observed = replace(observed, mtime_ns=state.mtime_ns)
+                if observed != state:
+                    raise ValueError(f"Profile destination changed: {path}")
+            if current != prepared.input_states:
+                raise ValueError("Profile source/config input root changed")
+            diagnostics: tuple[Diagnostic, ...] = ()
+        except (OSError, ValueError) as exc:
+            diagnostics = (Diagnostic("precondition_changed", PROVIDER_KEY, "error", str(exc)),)
+        yield diagnostics
+
+    def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+        """Apply retained bytes after a fresh whole-batch check; report actual effects."""
+        ids = tuple(e.id for e in assessment.effects)
+        if not assessment.complete or not explicit_consent.automatic or explicit_consent.overwrite_paths != assessment.consent.overwrite_paths:
+            return OwnerApplyResult(PROVIDER_KEY, skipped=ids, outcome="skipped")
+        if not ids:
+            return OwnerApplyResult(PROVIDER_KEY, outcome="skipped")
+        with self.recheck(assessment) as diagnostics:
+            if diagnostics:
+                return OwnerApplyResult(PROVIDER_KEY, skipped=ids, diagnostics=diagnostics, outcome="precondition_changed")
+            return _apply_profile_batch(assessment)
 
     def expand(
         self,
@@ -148,13 +269,8 @@ class AgentProfilesProvider:
                 return [self._research_gap_instance(definition, tool_key)]
             return [self._research_gap_instance(definition, tool_key)]
         manifest = self._manifest_for(project_root)
-        instances = [
-            self._instance_from_projection(definition, native, manifest)
-            for native in projected
-        ]
-        instances.append(
-            self._diagnostics_instance(definition, tool_key, project_root)
-        )
+        instances = [self._instance_from_projection(definition, native, manifest) for native in projected]
+        instances.append(self._diagnostics_instance(definition, tool_key, project_root))
         return instances
 
     @staticmethod
@@ -176,9 +292,7 @@ class AgentProfilesProvider:
         )
 
     @staticmethod
-    def _not_applicable_instance(
-        definition: SurfaceDefinition, tool_key: str
-    ) -> SurfaceInstance:
+    def _not_applicable_instance(definition: SurfaceDefinition, tool_key: str) -> SurfaceInstance:
         """Return a sentinel instance representing a ``not_applicable`` harness."""
         return SurfaceInstance(
             definition=definition,
@@ -189,9 +303,7 @@ class AgentProfilesProvider:
         )
 
     @staticmethod
-    def _research_gap_instance(
-        definition: SurfaceDefinition, tool_key: str
-    ) -> SurfaceInstance:
+    def _research_gap_instance(definition: SurfaceDefinition, tool_key: str) -> SurfaceInstance:
         return SurfaceInstance(
             definition=definition,
             path=Path(_RESEARCH_GAP_SENTINEL),
@@ -248,11 +360,7 @@ class AgentProfilesProvider:
                 make_finding(
                     PROFILE_PROJECTION_UNSUPPORTED,
                     SEVERITY_INFO,
-                    (
-                        f"{instance.owner} does not support native agent profile "
-                        "projection; profiles are exposed through other surfaces "
-                        f"instead. Reason: {reason}"
-                    ),
+                    (f"{instance.owner} does not support native agent profile projection; profiles are exposed through other surfaces instead. Reason: {reason}"),
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
                     details={"status": "not_applicable", "reason": reason},
@@ -289,10 +397,7 @@ class AgentProfilesProvider:
                 make_finding(
                     RESEARCH_GAP_SURFACE,
                     SEVERITY_INFO,
-                    (
-                        "No verified native agent-profile primitive for "
-                        f"{instance.owner}; profiles are not projected."
-                    ),
+                    (f"No verified native agent-profile primitive for {instance.owner}; profiles are not projected."),
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
                     details={"status": "research_gap"},
@@ -352,89 +457,42 @@ class AgentProfilesProvider:
         dropped (R8). Pruning runs even when nothing is missing/drifted, since a
         de-activated profile produces no status at all.
         """
-        actionable = [
-            s for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED)
-        ]
-        skipped = tuple(
-            _surface_id(s.instance)
-            for s in statuses
-            if s.state in (STATE_NOT_APPLICABLE, STATE_UNSUPPORTED)
-        )
+        actionable = [s for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED)]
+        skipped = tuple(_surface_id(s.instance) for s in statuses if s.state in (STATE_NOT_APPLICABLE, STATE_UNSUPPORTED))
         if dry_run:
             return RepairResult(
                 repaired=tuple(_surface_id(s.instance) for s in actionable),
                 skipped=skipped,
                 dry_run=True,
             )
-        return self._write_all(project_root, actionable, skipped)
-
-    def _write_all(
-        self,
-        project_root: Path,
-        actionable: Sequence[SurfaceStatus],
-        skipped: tuple[str, ...],
-    ) -> RepairResult:
-        projector = self._projector_for(project_root)
-        manifest = self._manifest_for(project_root)
-        index = self._project_index(projector, project_root, actionable)
+        # Explicit doctor Q repair retains its existing user-global writer.
+        q_statuses = [s for s in actionable if s.instance.owner in {"q", "amazon-q", FORMAT_AMAZON_Q_AGENT}]
         repaired: list[str] = []
         failed: list[str] = []
-        for status in actionable:
-            self._repair_one(status, projector, index, manifest, repaired, failed)
-        pruned = self._prune_orphans(projector, project_root, manifest)
-        # Preserve the historical no-op contract: only touch the manifest on
-        # disk when something was actually written or pruned.
-        if actionable or pruned:
-            manifest.save()
-        return RepairResult(
-            repaired=tuple(repaired),
-            skipped=skipped,
-            failed=tuple(failed),
-            dry_run=False,
+        if q_statuses:
+            projector = self._projector_for(project_root)
+            index = self._project_index(projector, project_root, q_statuses)
+            manifest = self._manifest_for(project_root)
+            for status in q_statuses:
+                self._repair_one(status, projector, index, manifest, repaired, failed)
+        selections = tuple(dict.fromkeys(SurfaceSelection(s.instance.owner, s.instance.definition) for s in statuses))
+        consent = ApplyConsent(
+            automatic=True,
+            overwrite_paths=tuple(
+                sorted(s.instance.path.relative_to(project_root).as_posix() for s in actionable if s.state == STATE_DRIFTED and s not in q_statuses)
+            ),
         )
-
-    @staticmethod
-    def _prune_orphans(
-        projector: ProfileProjector,
-        project_root: Path,
-        manifest: ProfileManifest,
-    ) -> list[str]:
-        """Delete manifest-tracked files no longer in the admitted projection set.
-
-        The admitted set is recomputed per tracked tool key via
-        :meth:`ProfileProjector.project`, which applies the charter activation
-        gate (``default_profile_repository``). Any project-local manifest entry
-        whose output path is absent from that set is an orphan: its file is
-        deleted and the entry dropped. Only manifest-tracked entries are
-        touched — unrelated user files under ``.claude/agents/`` are never
-        removed. User-global (Amazon Q) entries are not project-managed and are
-        left untouched.
-        """
-        tracked = [
-            e for e in manifest.all_entries() if e.format != FORMAT_AMAZON_Q_AGENT
-        ]
-        if not tracked:
-            return []
-        admitted: set[str] = set()
-        for tool_key in sorted({e.tool_key for e in tracked}):
-            for native in projector.project(tool_key, project_root):
-                admitted.add(str(native.output_path))
-        pruned: list[str] = []
-        for entry in tracked:
-            output = str(entry.output_path)
-            if output in admitted:
-                continue
-            path = entry.output_path
-            try:
-                if path.exists():
-                    path.unlink()
-            except OSError:
-                # Keep the entry consistent with the on-disk file: if the file
-                # cannot be removed, leave the manifest entry recorded.
-                continue
-            manifest.remove(path)
-            pruned.append(output)
-        return pruned
+        assessment = self._assess(
+            AssessmentInputs(OperationRoot("project", "project", project_root), consent=consent),
+            selections,
+            frozenset(s.instance.path for s in actionable if s not in q_statuses),
+        )
+        result = self.apply(assessment, consent)
+        succeeded = {e.destination for e in assessment.effects if e.id in result.succeeded}
+        repaired.extend(_surface_id(s.instance) for s in actionable if s.instance.path in succeeded)
+        failed.extend(d.message for d in assessment.diagnostics + result.diagnostics if d.severity == "error")
+        failed.extend(f"profile drift: {d.path}" for d in assessment.dispositions if d.state == "consent_required")
+        return RepairResult(repaired=tuple(repaired), failed=tuple(failed), skipped=skipped)
 
     @staticmethod
     def _project_index(
@@ -483,9 +541,322 @@ class AgentProfilesProvider:
         repaired.append(surface_id)
 
 
-# ---------------------------------------------------------------------------
-# Self-registration (fires at import time via providers._discovery)
-# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class _ProfileName:
+    profile_id: str
+
+
+def _prepared(assessment: OwnerAssessment) -> PreparedProfileBatch:
+    prepared = assessment.prepared
+    if not isinstance(prepared, PreparedProfileBatch):
+        raise ValueError("Assessment does not contain prepared profiles")
+    return prepared
+
+
+def _input_states(roots: tuple[Path, ...]) -> tuple[tuple[Path, FileState], ...]:
+    return tuple(item for root in roots for item in observe_tree(root))
+
+
+def _profile_input_roots(root: Path) -> tuple[Path, ...]:
+    from charter.activation.pack_context import PackContext, resolve_charter_yaml_pointer
+    from charter.drg import resolve_org_roots
+    from charter.pack_paths import built_in_root
+    from ruamel.yaml import YAML
+
+    PackContext.from_config(root)
+    package = built_in_root()
+    if not (package / "agent_profiles").is_dir():
+        raise ValueError(f"Required built-in profile sources unavailable: {package}")
+    org_roots = tuple(resolve_org_roots(root))
+    for org in org_roots:
+        if observe_node(org).kind != "directory":
+            raise ValueError(f"Required org profile root unavailable: {org}")
+    paths = [package, Path(__file__).parent.parent / "profiles", *org_roots]
+    paths.extend(root / p for p in (".kittify/config.yaml", ".kittify/charter", ".kittify/agent_profiles", ".kittify/doctrine", "doctrine", "pyproject.toml"))
+    paths.append(manifest_path_for(root))
+    config = root / ".kittify/config.yaml"
+    if observe_node(config).kind == "file":
+        data = YAML(typ="safe").load(config.read_text(encoding="utf-8")) or {}
+        pointer = resolve_charter_yaml_pointer(root, data)
+        if pointer is not None:
+            paths.append(pointer)
+    return tuple(sorted(set(paths)))
+
+
+class _ProfileBatch:
+    """Owner-local mutable preparation; only frozen values leave this builder."""
+
+    def __init__(self, inputs: AssessmentInputs, selections: tuple[SurfaceSelection, ...], manifest: ProfileManifest):
+        self.inputs = inputs
+        self.selections = selections
+        self.manifest = ProfileManifest(manifest.manifest_path)
+        self.original = tuple(manifest.all_entries())
+        for entry in self.original:
+            self.manifest.record(entry)
+        self.effects: list[PhysicalEffect] = []
+        self.dispositions: list[Disposition] = []
+        self.diagnostics: list[Diagnostic] = []
+        self.contents: dict[Path, bytes] = {}
+        self.destinations: dict[Path, FileState] = {}
+        self.tools: tuple[str, ...] = ()
+
+    def selected_tools(self) -> tuple[str, ...]:
+        selected = []
+        for selection in self.selections:
+            status = SurfaceStatus(SurfaceInstance(selection.definition, self.inputs.root.path, False, None, selection.tool_key), STATE_MISSING)
+            renderer = get_renderer(selection.tool_key)
+            if not _is_init_upgrade_auto_repairable(status) or renderer is None:
+                self.dispositions.append(
+                    Disposition(PROVIDER_KEY, self.inputs.root.root_id, None, "not_applicable", f"Profile policy excludes {selection.tool_key}")
+                )
+            else:
+                selected.append(selection.tool_key)
+        self.tools = tuple(sorted(set(selected)))
+        return self.tools
+
+    def preserve(self, path: Path, reason: str, *, drift: bool = False) -> None:
+        relative: str | None
+        try:
+            relative = path.relative_to(self.inputs.root.path).as_posix()
+            if ".." in Path(relative).parts:
+                relative = None
+        except ValueError:
+            relative = None
+        self.dispositions.append(Disposition(PROVIDER_KEY, self.inputs.root.root_id, relative, "consent_required" if drift else "preserve", reason))
+
+    def observe(self, path: Path) -> FileState:
+        confined_path(path, self.inputs.root.path)
+        parent = path.parent
+        while parent != self.inputs.root.path:
+            if parent not in self.destinations:
+                self.destinations[parent] = observe_node(parent)
+            parent = parent.parent
+        if path not in self.destinations:
+            self.destinations[path] = observe_node(path)
+        return self.destinations[path]
+
+    def effect(self, path: Path, after: FileState, owners: tuple[str, ...], proof: OwnershipProof, reason: str) -> None:
+        before = self.observe(path)
+        if before.kind == "absent":
+            action = "create"
+        elif after.kind == "absent":
+            action = "delete"
+        elif before.sha256 != after.sha256:
+            action = "update"
+        else:
+            return
+        self.effects.append(
+            PhysicalEffect(
+                PROVIDER_KEY,
+                "surface_repair",
+                self.inputs.root,
+                path.relative_to(self.inputs.root.path).as_posix(),
+                action,
+                before,
+                after,
+                reason,
+                (proof,),
+                owners,
+                tuple(_surface_id(SurfaceInstance(agent_profile_definition(), path, False, None, owner)) for owner in owners),
+            )
+        )
+
+    def prepare(self, projected: tuple[PreparedProjection, ...], only_paths: frozenset[Path] | None) -> None:
+        grouped: dict[Path, list[PreparedProjection]] = {}
+        for projection in projected:
+            grouped.setdefault(projection.native.output_path, []).append(projection)
+        for path, group in grouped.items():
+            if len({p.content for p in group}) != 1:
+                raise ValueError(f"Conflicting profile projections: {path}")
+            self.prepare_output(group, only_paths)
+        for entry in self.original:
+            if entry.output_path not in grouped and entry.tool_key in self.tools:
+                self.prepare_orphan(entry)
+        self.prepare_manifest()
+        self.prepare_parents()
+
+    def prepare_output(self, group: list[PreparedProjection], only_paths: frozenset[Path] | None) -> None:
+        item = group[0]
+        path = item.native.output_path
+        try:
+            state = self.observe(path)
+        except ValueError as exc:
+            self.preserve(path, str(exc))
+            return
+        if only_paths is not None and path not in only_paths:
+            return
+        original = next((e for e in self.original if e.output_path == path), None)
+        proof = OwnershipProof("managed_path", f"profile renderer:{item.native.tool_key}:{item.native.profile_urn}")
+        if state.kind not in {"file", "absent"}:
+            self.preserve(path, "Profile destination is a custom link or unsupported node")
+            return
+        if original is not None and not _valid_entry(original, self.inputs.root.path):
+            self.preserve(path, "Profile manifest identity does not authorize this path")
+            return
+        if state.kind == "file":
+            if original is None and state.sha256 != item.native.file_hash:
+                self.preserve(path, "Unknown profile content; no adoption authority")
+                return
+            if original is not None and state.sha256 != original.file_hash:
+                relative = path.relative_to(self.inputs.root.path).as_posix()
+                if relative not in self.inputs.consent.overwrite_paths:
+                    self.preserve(path, "Managed profile drift requires exact-path consent", drift=True)
+                    return
+            proof = OwnershipProof("manifest" if original else "canonical_content", f"{self.manifest.manifest_path.name}:{path.relative_to(self.inputs.root.path)}")
+        owners = tuple(p.native.tool_key for p in group)
+        mode = state.mode if state.kind == "file" else 0o644
+        after = FileState("file", sha256=item.native.file_hash, mode=mode)
+        if state.kind == "absent" or state.sha256 != after.sha256:
+            self.contents[path] = item.content
+            self.effect(path, after, owners, proof, "Install prepared native profile")
+        else:
+            self.dispositions.append(
+                Disposition(PROVIDER_KEY, self.inputs.root.root_id, path.relative_to(self.inputs.root.path).as_posix(), "unchanged", "Native profile bytes match")
+            )
+        # A shared alias must not replace a retained logical manifest owner.
+        native = replace(item.native, tool_key=original.tool_key) if original and original.tool_key not in owners else item.native
+        self.manifest.record(native)
+
+    def prepare_orphan(self, entry: NativeAgentProfile) -> None:
+        path = entry.output_path
+        if not _valid_entry(entry, self.inputs.root.path):
+            self.preserve(path, "Unconfined or unsupported orphan manifest identity")
+            return
+        try:
+            state = self.observe(path)
+        except ValueError as exc:
+            self.preserve(path, str(exc))
+            return
+        if state.kind == "absent":
+            self.manifest.remove(path)
+        elif state.kind == "file" and state.sha256 == entry.file_hash:
+            self.effect(
+                path,
+                FileState("absent"),
+                self.entry_owners(entry),
+                OwnershipProof("manifest", f"{self.manifest.manifest_path.name}:{entry.profile_urn}"),
+                "Prune unchanged deactivated profile",
+            )
+            self.manifest.remove(path)
+        else:
+            self.preserve(path, "Orphan drift or custom link; retain ownership record", drift=True)
+
+    def entry_owners(self, entry: NativeAgentProfile) -> tuple[str, ...]:
+        """Recover selected aliases through the existing renderer/path authority."""
+        return tuple(tool for tool in self.tools if _valid_entry(replace(entry, tool_key=tool), self.inputs.root.path))
+
+    def prepare_manifest(self) -> None:
+        if tuple(self.manifest.all_entries()) == self.original:
+            return
+        path = self.manifest.manifest_path
+        state = self.observe(path)
+        content = self.manifest.render_bytes()
+        self.contents[path] = content
+        entries = self.original + tuple(self.manifest.all_entries())
+        owners = {e.tool_key for e in entries if e.format != FORMAT_AMAZON_Q_AGENT}
+        owners.update(tool for entry in entries for tool in self.entry_owners(entry))
+        self.effect(
+            path,
+            FileState("file", sha256=str(fingerprint(content)), mode=state.mode if state.kind == "file" else 0o644),
+            tuple(sorted(owners)) or self.tools,
+            OwnershipProof("managed_path", ".kittify/agent_profiles_manifest.json schema 1"),
+            "Persist exact prepared profile ownership",
+        )
+
+    def prepare_parents(self) -> None:
+        children = tuple(self.effects)
+        for child in children:
+            if child.action == "delete":
+                continue
+            parent = child.destination.parent
+            while parent != self.inputs.root.path:
+                if self.observe(parent).kind == "absent":
+                    self.effect(parent, FileState("directory", mode=0o755), child.logical_owners, child.ownership[0], "Create profile supporting directory")
+                parent = parent.parent
+
+    def finish(self, projections: tuple[PreparedProjection, ...], roots: tuple[Path, ...]) -> OwnerAssessment:
+        complete = not any(d.severity == "error" for d in self.diagnostics)
+        self.observe(self.manifest.manifest_path)
+        states = _input_states(roots)
+        prepared = PreparedProfileBatch(
+            projections, tuple(sorted(self.contents.items())), self.original, roots, states, tuple(sorted(self.destinations.items())), self.selections
+        )
+        return OwnerAssessment(
+            PROVIDER_KEY,
+            self.inputs.root,
+            coalesce_effects(tuple(self.effects)) if complete else (),
+            tuple(self.dispositions),
+            tuple(self.diagnostics),
+            complete,
+            (InputObservation("profile_inputs", states),),
+            prepared,
+            self.inputs.consent,
+        )
+
+
+def _valid_entry(entry: NativeAgentProfile, root: Path) -> bool:
+    if entry.format == FORMAT_AMAZON_Q_AGENT or entry.tool_key in {"q", "amazon-q", FORMAT_AMAZON_Q_AGENT}:
+        return False
+    if not entry.profile_urn.startswith("agent_profile:"):
+        return False
+    name = entry.profile_urn.split(":", 1)[1]
+    renderer = get_renderer(entry.tool_key)
+    if native_name_violation(name) or renderer is None or renderer.format_key != entry.format:
+        return False
+    return bool(renderer.output_path(entry.tool_key, _ProfileName(name), root) == entry.output_path)
+
+
+def _write_profile_effect(effect: PhysicalEffect, content: bytes | None) -> None:
+    import os
+
+    path = effect.destination
+    confined_path(path, effect.root.path)
+    if observe_node(path) != effect.before:
+        raise FileExistsError(f"Prepared profile destination changed before write: {path}")
+    if effect.after.kind == "directory":
+        path.mkdir(mode=effect.after.mode or 0o755)
+        path.chmod(effect.after.mode or 0o755)
+    elif effect.action == "delete":
+        path.unlink()
+    else:
+        assert content is not None
+        if path == manifest_path_for(effect.root.path):
+            ProfileManifest(path).save(content, exclusive=effect.action == "create")
+            if effect.action == "create":
+                path.chmod(effect.after.mode or 0o644)
+        else:
+            with path.open("xb" if effect.action == "create" else "wb") as stream:
+                stream.write(content)
+                if effect.action == "create":
+                    os.fchmod(stream.fileno(), effect.after.mode or 0o644)
+
+
+def _apply_profile_batch(assessment: OwnerAssessment) -> OwnerApplyResult:
+    prepared = _prepared(assessment)
+    contents = dict(prepared.contents)
+    succeeded: list[str] = []
+    failed: list[str] = []
+    diagnostics: list[Diagnostic] = []
+    manifest_path = manifest_path_for(assessment.root.path)
+    ordered = sorted(assessment.effects, key=lambda e: (e.destination == manifest_path, e.after.kind != "directory", len(e.destination.parts), e.path))
+    for effect in ordered:
+        if effect.destination == manifest_path and failed:
+            failed.append(effect.id)
+            diagnostics.append(Diagnostic("profile_manifest_not_applied", PROVIDER_KEY, "error", "Partial file failure; original ownership records retained"))
+            continue
+        try:
+            _write_profile_effect(effect, contents.get(effect.destination))
+        except (OSError, ValueError) as exc:
+            # Confinement/node refusals can occur after earlier effects succeeded.
+            failed.append(effect.id)
+            diagnostics.append(Diagnostic("profile_apply_failed", PROVIDER_KEY, "error", f"{effect.path}: {exc}"))
+        else:
+            succeeded.append(effect.id)
+    outcome = "partial" if failed and succeeded else "failed" if failed else "applied"
+    return OwnerApplyResult(PROVIDER_KEY, tuple(succeeded), tuple(failed), diagnostics=tuple(diagnostics), outcome=outcome)
+
+
+# Self-registration (fires at import time via providers._discovery).
 SurfaceProviderRegistry.register(
     SurfaceRegistration(
         provider_class=AgentProfilesProvider,

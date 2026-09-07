@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from charter.profiles import AgentProfile
+from ._render_helpers import ProfilePathIdentity
 
 from specify_cli.tool_surface.profiles._render_helpers import (
     _body_lines,
@@ -114,7 +115,7 @@ class ProfileRenderer(Protocol):
         ...
 
     def output_path(
-        self, tool_key: str, profile: AgentProfile, project_root: Path
+        self, tool_key: str, profile: ProfilePathIdentity, project_root: Path
     ) -> Path:
         """Return the absolute output path for ``profile`` under ``project_root``."""
         ...
@@ -133,7 +134,7 @@ class ClaudeCodeProfileRenderer:
         return tool_key == "claude"
 
     def output_path(
-        self, tool_key: str, profile: AgentProfile, project_root: Path
+        self, tool_key: str, profile: ProfilePathIdentity, project_root: Path
     ) -> Path:
         _ = tool_key  # path is identical across the renderer's accepted tool keys
         return (
@@ -156,7 +157,7 @@ class CopilotProfileRenderer:
         return tool_key in ("copilot", "vscode")
 
     def output_path(
-        self, tool_key: str, profile: AgentProfile, project_root: Path
+        self, tool_key: str, profile: ProfilePathIdentity, project_root: Path
     ) -> Path:
         _ = tool_key  # path is identical across the renderer's accepted tool keys
         return (

@@ -142,10 +142,10 @@ Three independent axes make the numbers diverge:
    the New Code Period baseline is therefore frozen. So today `new_coverage`
    (~50%) is effectively *another whole-repo number*, not a per-PR one — which is
    why it sits right next to the overall `coverage`, nowhere near 90%. (See
-   [Known caveats](#known-caveats-and-follow-ups) — a separate change wires
-   `projectVersion` from `pyproject.toml` so this baseline resets per release
-   cycle. Even after that fix, `new_coverage` becomes a *per-release-cycle*
-   number, still not a *per-PR* one.)
+   [Known caveats](#known-caveats-and-follow-ups) — resetting this baseline
+   per release cycle is part of the pending Sonar decision. Even after such a
+   fix, `new_coverage` becomes a *per-release-cycle* number, still not a
+   *per-PR* one.)
 
 ## The verdict: file-set **and** philosophy differ — but nothing is misconfigured
 
@@ -228,10 +228,12 @@ the PR so the next reader does not re-litigate it.
 
 - **`projectVersion` baseline is frozen.** Every recent nightly reports
   `projectVersion = "not provided"`, so SonarCloud's New Code Period never resets
-  and `new_coverage` currently behaves like a whole-repo metric. A companion
-  change in this same mission wires `sonar.projectVersion` from `pyproject.toml`
-  so the baseline resets per release cycle; the effect lands on the **next
-  nightly run after that change merges**, not on merge itself.
+  and `new_coverage` currently behaves like a whole-repo metric. The
+  `projectVersion` wiring that once addressed this (`scripts/ci/sonar_project_version.py`,
+  driven by the retired sonarcloud CI job) has been retired with that job;
+  resetting the baseline per release cycle is part of the operator's pending
+  Sonar decision, and any fix takes effect on the **next nightly run after it
+  merges**, not on merge itself.
 - **Internal allowlist entry repointed.** The critical-path `--include` list
   references `src/specify_cli/lanes/branch_naming.py`
   (`parse_mission_slug_from_branch`) — the real defining home of the

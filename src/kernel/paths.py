@@ -500,12 +500,15 @@ __all__ = [
     "get_built_in_pack_root",
     "get_kittify_home",
     "get_package_asset_root",
-    "get_packs_root_default",
     "get_runtime_state_root",
     "render_runtime_path",
     "repo_tree_path",
     "to_posix",
 ]
+# ``get_packs_root_default`` is intentionally NOT exported: its only caller is
+# in-package (``kernel.env_expand``'s default-injection registry), which imports
+# it by module path (demoted, never deleted -- dead-port-disposition-01M1TZVN,
+# FR-014).
 # ``posix_tree_path`` is intentionally NOT exported: it is the internal
 # forward-slash-join primitive behind ``repo_tree_path`` (the public seam other
 # layers consume). It stays a module-level function so the #2836 regression

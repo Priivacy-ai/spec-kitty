@@ -1,0 +1,21 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: Verified plan.md:1177-1186 states the reviewable-in-one-sitting claim as two independent hunks, and grep confirms WP01's Context/Risks sections and tasks.md/wps.yaml never re-assert it at the merged-WP granularity.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: Independently confirmed via `gh pr view 3923` (OPEN, isDraft=true, baseRefName=main) and `gh pr diff 3923` — the PR rewrites the identical gather_artifact_presence named-artifact loop, tasks_dir computation, and three status_facts helper calls via a genuinely different mechanism (_artifact_presence_read_dir/placement_seam/kind_for_mission_file, no new exception) than WP01's T008/T009 (resolve_primary_anchor_dir/PrimaryPlacementResolutionError, gated on repo_root).
+  - id: TASKS-SEQ-002
+    verdict: confirmed
+    reason: WP01's frontmatter subtasks list runs T008 through T019 with no T014a entry, yet a "## Subtask T014a" heading exists in the body and the real `mark-status` CLI keys off registered Txxx ids, so the collision risk is real.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: plan.md's Baseline (NFR-001) section instructs running the three exact invocations FIRST before any production change, but WP02 has no such subtask and WP01's only invocation (T019 step 4) runs after T008-T018's fix lands, matching the finding exactly.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: spec.md's Acceptance Scenario 2 requires the WP-lane read to stay coord-anchored, but WP01's T009 step 4 only instructs "leave UNCHANGED" and T018's four listed unit tests (verified by reading the subtask) target anchoring/exception paths, not a primary-vs-coord WP-lane discriminating assertion.

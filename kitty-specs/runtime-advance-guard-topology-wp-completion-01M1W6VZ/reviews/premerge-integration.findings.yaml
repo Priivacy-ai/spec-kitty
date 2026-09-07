@@ -1,0 +1,175 @@
+schema: review-findings/v1
+complete: true
+phase: pre-merge
+lens_group: integration
+lens: R2-integration
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+issue: 3884
+branch: fix/runtime-advance-guard-3883
+commit: dad509538
+findings:
+  - id: INT-001
+    lens: integration
+    severity: 3
+    title: >-
+      Two duplicate, unanchored copies of the "is this WP-iteration step
+      ready to advance" read exist alongside the fixed one; both have
+      `repo_root` in scope and silently do not forward it to
+      `_should_advance_wp_step`.
+    evidence:
+      - code: >-
+          src/runtime/next/runtime_bridge.py:857-893 (`_check_cli_guards`,
+          unchanged by this diff) takes `repo_root: Path | None = None` as a
+          parameter (forwarded to `gather_artifact_presence(..., repo_root=
+          repo_root)` at :885-890), but its own
+          `wp_advance_ready=_should_advance_wp_step(step_id, feature_dir)`
+          call at :892 omits `repo_root=`/`mission_slug=` entirely.
+      - code: >-
+          src/runtime/next/runtime_bridge_composition.py:551-561
+          (`_check_composed_action_guard`, unchanged by this diff) likewise
+          takes `repo_root` as a parameter and forwards it to
+          `gather_artifact_presence` (:543-549), but its own
+          `wp_advance_ready=_rb._should_advance_wp_step(action, feature_dir)`
+          call at :557-559 also omits `repo_root=`/`mission_slug=`.
+      - code: >-
+          src/runtime/next/runtime_bridge.py:2401 — phase order in
+          `decide_next_via_runtime`: `for phase in (_dn_dependency_gate,
+          _dn_composition_dispatch, _dn_decision_materialize): ... if
+          decision is not None: return decision`. `_dn_dependency_gate`
+          (line 1693) runs first and contains the FIXED, anchored
+          `_should_advance_wp_step` call (line 1714) inside the
+          WP-iteration branch; the two unanchored copies above are reached
+          ONLY downstream of that anchored call already having returned
+          `True` (`_check_cli_guards` at :1782, inside the same branch
+          after the anchored check passed; `_check_composed_action_guard`
+          via `_dn_composition_dispatch`, the next phase, which only runs
+          when `_dn_dependency_gate` returned `None`).
+    claim: >-
+      This is the exact bug pattern #3884 exists to fix (an unanchored
+      `_should_advance_wp_step` call short-circuiting True on coord
+      topology because `feature_dir/tasks` never exists there), reproduced
+      verbatim in two more call sites that were not touched. In the current
+      `next` decision flow they are provably inert: `_dn_dependency_gate`'s
+      own anchored check is phase-ordered first and returns a Decision
+      immediately when it finds a blocking WP, so neither unanchored copy
+      is ever reached with a real "should NOT advance" answer to get wrong
+      — I verified this by tracing `decide_next_via_runtime`'s phase loop
+      and confirming both call sites are downstream-only. But this is an
+      accident of call order, not a contract: both functions already
+      receive `repo_root` as a parameter for a different purpose (org-tier
+      artifact-presence resolution) and silently do not extend that to the
+      one line that matters for FR-009's fix. Nothing in either function's
+      signature, docstring, or a test pins "caller must have already run
+      the anchored check first" as an invariant. A future direct caller of
+      `_check_cli_guards` or `_check_composed_action_guard` (a status/dry-run
+      command, a refactor that reorders `decide_next_via_runtime`'s phases,
+      or a new composition entry point) would silently reintroduce the
+      never-claimed-WP-on-coord-topology bug this mission fixes, with no
+      test to catch it — neither function has a coord-topology regression
+      pin of its own; only `_should_advance_wp_step` and
+      `_dn_dependency_gate` do.
+    remediation: >-
+      Forward `repo_root=repo_root, mission_slug=<resolved slug>` from both
+      `_check_cli_guards` and `_check_composed_action_guard` into their
+      internal `_should_advance_wp_step` calls (mirroring FR-009's own
+      call site), or add an explicit comment + a coord-topology regression
+      pin at each site recording the "only ever reached after
+      `_dn_dependency_gate`'s anchored check already passed" invariant this
+      review had to reconstruct from phase-ordering, so a later change that
+      breaks that ordering fails loudly instead of silently.
+
+  - id: INT-002
+    lens: integration
+    severity: 3
+    title: >-
+      Draft PR #3923 lands a second, independently-designed anchoring
+      mechanism for the same `tasks/` concept in adjacent code
+      (`gather_artifact_presence`), with the opposite failure contract for
+      the identical `MissionSelectorAmbiguous` exception FR-010 hard-blocks
+      on.
+    evidence:
+      - code: >-
+          #3923 patch to `src/runtime/next/runtime_bridge_io.py` (fetched
+          via `gh api "repos/Priivacy-ai/spec-kitty/pulls/3923/files
+          ?per_page=100" --paginate`, 132 files total): adds
+          `_PRESENCE_SEAM_DEGRADES = (ActionContextError,
+          StatusReadPathNotFound, MissionSelectorAmbiguous)` and
+          `_artifact_presence_seam`/`_ArtifactPresenceHomes`, which catch
+          all three and degrade to the supplied `feature_dir` (logged at
+          DEBUG, never raised) whenever the STATUS_STATE-verified seam
+          lookup fails — including `MissionSelectorAmbiguous`.
+      - code: >-
+          This branch's `src/runtime/next/runtime_bridge.py` FR-010 catch
+          (`_dn_dependency_gate`, lines 1731-1748 of the diff): the SAME
+          `MissionSelectorAmbiguous`, raised from the SAME
+          `placement_seam(repo_root, mission_slug).read_dir(...)` call
+          shape, is caught and converted into a hard `Decision(kind=
+          blocked, ...)` — never silently degraded.
+      - code: >-
+          `git diff main..dad509538 --stat` / this branch's own file list
+          confirms `src/runtime/next/runtime_bridge_io.py` is untouched by
+          this branch — the two mechanisms exist side by side in the same
+          module family with no shared contract or cross-reference between
+          them.
+    claim: >-
+      Today, if both land, there is no functional collision I could find:
+      `_dn_dependency_gate` (this branch's anchored, fail-loud
+      `_should_advance_wp_step`) runs before any guard evaluation that
+      would consume `gather_artifact_presence`'s own (soft-degrading)
+      `tasks_dir` fact, so for an ambiguous-slug coord-topology mission at
+      implement/review, this branch's hard block fires first and
+      `gather_artifact_presence` is never reached with the ambiguous
+      input in that path. But the two PRs have made opposite design
+      decisions for the identical exception on the identical underlying
+      read (raise-and-block vs. catch-and-degrade), authored independently,
+      with neither branch's tests aware of the other's contract. That is a
+      real, currently-latent hazard: a plausible future "harmonize the two
+      anchoring mechanisms" cleanup could pick #3923's softer contract and
+      silently revert FR-010 (this mission's own explicit new behavior),
+      or could plumb `gather_artifact_presence`'s tasks_dir fact into the
+      `wp_advance_ready` computation later and inherit its silent-degrade
+      semantics without anyone re-deciding the raise-vs-degrade question on
+      purpose.
+    remediation: >-
+      Not this PR's fix to make (#3923 is independent, in-flight, draft).
+      Flag to both PR owners as a coordination note: reconcile whether
+      `MissionSelectorAmbiguous` on a WP-iteration/tasks-dir read should
+      fail loud (this mission's FR-010 answer) or degrade soft (#3923's
+      answer) as a single documented policy before whichever lands
+      second, rather than leaving two contradictory precedents live in the
+      same guard-evaluation neighborhood.
+
+  - id: INT-003
+    lens: integration
+    severity: 1
+    title: >-
+      FR-009's docstring claims "no behavior change" only for
+      flattened/single_branch missions; the same no-op guarantee actually
+      also holds for LANES topology, which the docstring doesn't mention.
+    evidence:
+      - code: >-
+          src/runtime/next/runtime_bridge.py:770-772 (this diff's
+          docstring): "A `flattened`/`single_branch` mission where
+          `feature_dir` already IS primary sees no behavior change."
+      - code: >-
+          src/mission_runtime/context.py:95-121 —
+          `_COORD_ROUTING_TOPOLOGIES = frozenset({MissionTopology.COORD,
+          MissionTopology.LANES_WITH_COORD})`; `routes_through_coordination`
+          is `False` for both `SINGLE_BRANCH` and `LANES` (no coord ref for
+          either), and `WORK_PACKAGE_TASK` is a PRIMARY-partition kind
+          (`_PLACEMENT_ARTIFACT_KINDS`/`_COORD_RESIDUE_DIRS["tasks"]` in
+          `src/mission_runtime/artifacts.py`) — so `PlacementSeam.read_dir`
+          resolves to `feature_dir` itself for LANES exactly as it does for
+          SINGLE_BRANCH.
+    claim: >-
+      Purely a documentation completeness nit, not a behavior gap: the
+      anchoring is in fact a no-op for both coord-less topologies
+      (SINGLE_BRANCH and LANES), but the docstring and the T012 no-op
+      regression pin only name/exercise single_branch. Nothing is broken;
+      a reader auditing "which topologies are unaffected" from the
+      docstring alone would not learn that LANES is included too.
+    remediation: >-
+      Optional: broaden the docstring's claim to "any coord-less topology
+      (`SINGLE_BRANCH`/`LANES`)" and, if a LANES-topology fixture is cheap
+      to build, add a parallel no-op pin alongside
+      `test_single_branch_topology_anchored_call_is_a_no_op`.

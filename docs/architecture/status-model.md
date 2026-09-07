@@ -208,7 +208,7 @@ spec-kitty agent status migrate --all --dry-run
 - Idempotent: features with existing non-empty `status.events.jsonl` are skipped
 - Verification: reads back persisted events and confirms count matches
 
-**For new features (3.0+)**: `finalize-tasks` bootstraps WP definitions. All subsequent status transitions are emitted directly to the event log via `emit_status_transition()`. No frontmatter lane is written.
+**For new features (3.0+)**: `finalize-tasks` bootstraps WP definitions. All subsequent status transitions are validated once in the status-owned `transition_pipeline` and appended to the event log by one of its two shells — the flat/primary `emit_status_transition()` or the transactional shell in `coordination/status_transition.py`. No frontmatter lane is written.
 
 ### Legacy Compatibility
 

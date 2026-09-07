@@ -30,6 +30,7 @@ from pathlib import Path
 import mission_runtime
 import pytest
 from mission_runtime import MissionArtifactKind, TopologySurface
+from mission_runtime.resolution import ResolvedSurface
 
 from specify_cli.cli.commands import accept
 
@@ -68,9 +69,9 @@ def _install_seam(
 
     def _fake_resolve(
         _repo_root: Path, _mission_slug: str, kind: MissionArtifactKind
-    ) -> mission_runtime.ResolvedSurface:
+    ) -> ResolvedSurface:
         resolved_kinds.append(kind)
-        return mission_runtime.ResolvedSurface(path=seam_dir, surface_kind=surface_kind)
+        return ResolvedSurface(path=seam_dir, surface_kind=surface_kind)
 
     monkeypatch.setattr(mission_runtime, "resolve_artifact_surface", _fake_resolve)
     monkeypatch.setattr(mission_runtime, "placement_seam", lambda *_args: seam)

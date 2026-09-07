@@ -1,0 +1,188 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+- id: SPEC-GOV-001
+  lens: guard-path scope correctness (mission-derived) / C-003 verification
+  severity: 4
+  title: 'C-003/US1''s claim that _check_cli_guards is ''scoped away'' from the reported #3883 scenario
+    is contradicted by the actual dispatch code, for the exact fixture (mission="software-dev") the spec
+    itself specifies'
+  evidence:
+  - artifact: "spec.md \xA7 User Story 1 (lines 12-14, 31); \xA7 C-003"
+  - code: src/runtime/next/runtime_bridge.py:1677-1735 (_dn_dependency_gate, WP-iteration branch), :1712-1723,
+      :1729, :1773
+  - code: src/runtime/next/runtime_bridge_cores.py:689-693 (_GUARD_TABLES includes "software-dev")
+  claim: "_check_cli_guards is NOT scoped away from the software-dev/implement fixture the spec's own\
+    \ Independent Test and SC-001 use \u2014 _dn_dependency_gate calls it directly for every _GUARD_TABLES-registered\
+    \ family (software-dev included) at the implement/review WP-iteration steps, ahead of composition\
+    \ dispatch. _check_composed_action_guard is the sole authority only for a truly unregistered custom\
+    \ family. C-003 conflates \"custom mission type\" with \"software-dev\" in the same fixture, risking\
+    \ a red-first test that misses the real first-hit entry point.\n"
+  remediation: 'Correct C-003/US1 to state precisely which callers are live for which families at implement/review:
+    _check_cli_guards via _dn_dependency_gate is live (and hit first) for every _GUARD_TABLES-registered
+    family including software-dev; _check_composed_action_guard is sole authority only for a genuinely
+    unregistered family. Require plan/implement''s red-first test to add a reproduction through decide_next_via_runtime
+    -> _dn_dependency_gate -> _check_cli_guards for mission="software-dev" (matching the spec''s own fixture),
+    in addition to any direct _check_composed_action_guard unit call.
+
+    '
+- id: SPEC-ARCH-001
+  lens: Mixed-kind fidelity (merged with SPEC-VERIFY-002)
+  severity: 4
+  title: "FR-002/US1 mischaracterize the tasks_dir/WP-file-glob read as COORD-partition when the canonical\
+    \ classifier (and glossary) say WORK_PACKAGE_TASK is PRIMARY \u2014 and US1's fixture (WP files present\
+    \ in coord worktree, tasks.md absent) may not be structurally reachable at all"
+  evidence:
+  - artifact: "spec.md \xA7 FR-002; \xA7 C-001; \xA7 User Story 1 Acceptance Scenario 1 and Independent\
+      \ Test"
+  - code: src/runtime/next/runtime_bridge_io.py:1045-1049, :1086 (tasks_dir/wp_files/_has_raw_dependencies_field
+      reads)
+  - code: src/mission_runtime/artifacts.py:147-172 (WORK_PACKAGE_TASK in _PRIMARY_ARTIFACT_KINDS), :261
+      (_COORD_RESIDUE_DIRS["tasks"]), :296-300 (artifact_home_for routes PRIMARY kinds to TopologySurface.PRIMARY)
+  - code: docs/context/orchestration.md:542 (PRIMARY includes work-package outlines), :608 (COORD list
+      excludes them)
+  - code: src/mission_runtime/resolution.py:1108 (is_primary_artifact_kind routes WORK_PACKAGE_TASK writes
+      to target_branch)
+  - code: src/specify_cli/missions/_create.py:195-247 (coordination branch minted off target_branch before
+      WP files exist)
+  claim: "FR-002 groups the tasks_dir-derived WP-file glob (feeding tasks_wp_files presence and _has_raw_dependencies_field)\
+    \ together with get_wp_lane/status.events.jsonl as \"COORD-partition, must stay on feature_dir\" \u2014\
+    \ but WORK_PACKAGE_TASK is a member of _PRIMARY_ARTIFACT_KINDS, same partition as spec.md/tasks.md,\
+    \ and the canonical glossary agrees (work-package outlines are PRIMARY; the COORD list does not include\
+    \ them). Two consequences: (1) a coord-topology mission whose tasks/WP*.md content is not identically\
+    \ materialized on the raw feature_dir can still see the tasks_wp_files presence flag disagree between\
+    \ primary-anchored query mode and un-anchored advance mode after this ships \u2014 the same query/advance\
+    \ disagreement class (#3883, FR-007) left open under a mistaken COORD label; (2) because the coordination\
+    \ branch is minted off target_branch before any WP files exist, there may be no structural mechanism\
+    \ by which tasks/WP*.md ever lands on the coord worktree in a real mission \u2014 meaning US1's own\
+    \ fixture (WP files present in coord worktree, tasks.md absent) may be unreachable in practice, and\
+    \ FR-002's choice to leave tasks_dir anchored on feature_dir could mean _should_advance_wp_step finds\
+    \ wp_files == [] for a real coord mission and takes the early \"no WPs\" bypass, never reaching the\
+    \ FR-004 (#3884) fix for the exact topology #3883 targets.\n"
+  remediation: 'Before the plan phase locks scope: (1) empirically verify (via a real coord-topology mission
+    create+finalize-tasks trace, or an existing integration test) whether tasks/WP*.md is ever materialized
+    under a real coordination worktree at guard-evaluation time. (2) Split FR-002 into two FRs: one for
+    the genuinely COORD-kind get_wp_lane/status.events.jsonl reads (unchanged), and one that either folds
+    the tasks_dir WP-file-glob into FR-001''s primary-anchoring scope (consistent with WORK_PACKAGE_TASK''s
+    own PRIMARY classification and C-001''s "read AND write full symmetry" framing), or explicitly documents
+    why WP-file enumeration is deliberately left on feature_dir with a cited reason. (3) Correct US1''s
+    Acceptance Scenario 1 / Independent Test fixture to match whichever answer (1) produces. (4) Update
+    C-001''s constraint text to stop citing tasks_dir as an example of a COORD-partition read.
+
+    '
+- id: SPEC-ARCH-002
+  lens: Mixed-kind fidelity
+  severity: 4
+  title: FR-001/FR-002's two-bucket split omits a third class of PRIMARY-partition status_facts reads
+    that silently pass when feature_dir lacks primary files
+  evidence:
+  - artifact: "spec.md \xA7 FR-001; \xA7 FR-002; \xA7 FR-006 / NFR-002"
+  - code: src/runtime/next/runtime_bridge_io.py:1075-1085 (status_facts wiring)
+  - code: src/runtime/next/runtime_bridge.py:923,943-944 (_check_requirement_mapping_ready returns []
+      when spec.md absent)
+  - code: src/runtime/next/runtime_bridge.py:989,1012-1013 (_check_bare_prose_requirements_ready same
+      pattern)
+  - code: src/specify_cli/bulk_edit/gate.py:75-86 (ensure_occurrence_classification_ready returns passed=True
+      when meta.json absent)
+  - code: src/runtime/next/runtime_bridge.py:1530 (meta.json excluded from coord worktree sparse policy)
+  claim: "Neither FR-001 nor FR-002 covers _check_requirement_mapping_ready, _check_bare_prose_requirements_ready,\
+    \ or _occurrence_gate_failures, all invoked unconditionally inside gather_artifact_presence. All three\
+    \ read PRIMARY-partition artifacts (spec.md, meta.json) off the raw feature_dir and fail SILENTLY-CLEAN\
+    \ when absent (return [] / passed=True) \u2014 exactly the silent-success failure mode the spec itself\
+    \ singles out (US1 AC3, FR-006, NFR-002) as this repo's dominant risk, occurring in three call sites\
+    \ the spec never names or scopes.\n"
+  remediation: 'Add an FR (or extend FR-006) that explicitly enumerates _check_requirement_mapping_ready,
+    _check_bare_prose_requirements_ready, and _occurrence_gate_failures as PRIMARY-partition-reading helpers
+    inside gather_artifact_presence, and states one of: (a) re-anchor them onto the same primary placement
+    seam as FR-001, or (b) explicitly name them in C-004''s exclusion list as out of scope with a tracked
+    follow-up.
+
+    '
+- id: SPEC-ARCH-003
+  lens: Reflexivity
+  severity: 3
+  title: Spec does not address the mid-flight state-transition impact of previously-blocked coord-topology
+    missions becoming unblocked once this ships
+  evidence:
+  - artifact: "spec.md \xA7 Edge Cases; \xA7 User Story 1 (Why this priority)"
+  claim: "Once this fix ships, the next advance call against a real coord-topology mission that is today\
+    \ incorrectly blocked will flip it to unblocked (and #3884's fix may newly re-block never-claimed\
+    \ WPs) \u2014 a real operational discontinuity the Edge Cases section never addresses, versus the\
+    \ three narrower technical edge cases it does cover.\n"
+  remediation: 'Add an edge case / short rollout-impact note stating this fix is expected to change the
+    blocked/unblocked verdict for real in-flight coord-topology missions on their next advance call, and
+    recommend a spot-check of currently-blocked coord-topology missions once this ships.
+
+    '
+- id: SPEC-VERIFY-001
+  lens: byte-exact-regression-bar
+  severity: 4
+  title: C-002's 'byte-exact guard_failures' test citation set is materially incomplete
+  evidence:
+  - artifact: "spec.md \xA7 C-002; \xA7 SC-004"
+  - code: tests/runtime/test_bridge_decision_builder.py:109,123,139,215,378
+  - code: tests/runtime/test_bridge_decide_next.py:467,509,538,561,595,649
+  - code: tests/next/test_runtime_bridge_blocked_paths.py:105,234,290,340,386
+  - code: tests/runtime/test_bridge_parity.py:1089-1100
+  - code: tests/integration/test_documentation_runtime_walk.py:494-500
+  - code: tests/integration/test_research_runtime_walk.py:390-392
+  - code: tests/specify_cli/next/test_runtime_bridge_composition.py:1953-1956
+  claim: 'C-002 names only two tests as the "currently-passing" byte-exact set, but a repo-wide grep finds
+    a dozen-plus additional guard_failures content assertions across 7+ files, several exercising the
+    exact code paths this mission touches (test_bridge_parity.py''s cross-run stability check, both *_runtime_walk.py
+    integration tests asserting "spec.md" is named, and test_runtime_bridge_composition.py''s org-tier
+    "qa-coverage.json" assertion). A plan/implement agent treating C-002''s 2-test list as exhaustive
+    could silently break these without recognizing it as a C-002 violation.
+
+    '
+  remediation: "Either broaden C-002/NFR-002 to state that byte-exact protection covers every existing\
+    \ guard_failures-content assertion in the blast radius of gather_artifact_presence/evaluate_guards_strict/_check_composed_action_guard,\
+    \ and list the 4 highest-risk additional tests by name alongside the two already named \u2014 or narrow\
+    \ C-002's wording so it does not imply exhaustiveness, and require the plan phase to run a full guard_failures\
+    \ grep across tests/ as an explicit task before locking the implementation approach.\n"
+- id: SPEC-VERIFY-003
+  lens: uninitialized-wp-fix-testability
+  severity: 1
+  title: _wp_blocks_step line-range citation (781-800) undershoots the actual function by 10 lines
+  evidence:
+  - artifact: "spec.md \xA7 User Story 2 intro paragraph"
+  - code: src/runtime/next/runtime_bridge.py:781-810
+  claim: 'The function runs through line 810 (review branch + terminal fallback return False), not 800
+    as cited; the omitted tail is the same class of unguarded fall-through FR-004 must reason about.
+
+    '
+  remediation: 'Correct the citation to "runtime_bridge.py:781-810".
+
+    '
+- id: SPEC-VERIFY-004
+  lens: silent-success
+  severity: 2
+  title: FR-006's failure-surfacing requirement is stated too loosely to be a single testable contract
+  evidence:
+  - artifact: "spec.md \xA7 FR-006; \xA7 User Story 1 Acceptance Scenario 3"
+  claim: "FR-006's \"raise or otherwise surface as a reportable error\" disjunction leaves open whether\
+    \ the contract is a raised exception (matching every other fail-loud precedent in this codebase, e.g.\
+    \ CoordWorktreeResolutionError) or a structured return value \u2014 materially different, differently-testable\
+    \ contracts.\n"
+  remediation: 'Pick one contract explicitly: either "must raise" (matching existing fail-loud precedents),
+    or name the exact non-raising mechanism (e.g. a new ArtifactPresenceSnapshot field distinct from guard_failures)
+    so C-008''s red-first test has an unambiguous target.
+
+    '
+- id: SPEC-VERIFY-005
+  lens: baseline-honesty
+  severity: 2
+  title: NFR-001's 'tests/runtime root' phrasing is ambiguous and could trigger a false regression alarm
+  evidence:
+  - artifact: "spec.md \xA7 NFR-001; \xA7 SC-005"
+  claim: "\"tests/runtime root full continues to report 672 passed, 1 skipped\" only holds when tests/runtime/next\
+    \ is excluded from the run; a naive `pytest tests/runtime -q` collects 746 tests (745 passed, 1 skipped)\
+    \ \u2014 a different number that could read as a false regression to an implementer who runs the naive\
+    \ invocation.\n"
+  remediation: 'Reword NFR-001''s third clause to state the exact invocation, e.g. "pytest tests/runtime
+    --ignore=tests/runtime/next continues to report 672 passed, 1 skipped".
+
+    '

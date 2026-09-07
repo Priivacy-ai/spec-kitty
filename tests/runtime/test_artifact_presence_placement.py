@@ -71,9 +71,7 @@ def _mission(tmp_path: Path, topology: str = "coord") -> tuple[Path, Path, Path]
 @pytest.mark.parametrize("topology", ["coord", "lanes_with_coord"])
 @pytest.mark.parametrize("artifact,step", [("spec.md", "specify"), ("plan.md", "plan")])
 @pytest.mark.parametrize("authoritative", [True, False], ids=["primary-only", "coord-decoy"])
-def test_split_artifact_guards(
-    tmp_path: Path, topology: str, artifact: str, step: str, authoritative: bool
-) -> None:
+def test_split_artifact_guards(tmp_path: Path, topology: str, artifact: str, step: str, authoritative: bool) -> None:
     repo, primary, status = _mission(tmp_path, topology)
     home = primary if authoritative else status
     (home / artifact).write_text("# Planning contract\n\nUse the declared artifact authority.\n", encoding="utf-8")
@@ -107,11 +105,20 @@ def test_planning_tasks_and_coord_lifecycle_facts(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (primary / "spec.md").write_text("# Spec\n\n- **FR-001**: Resolve planning authority.\n", encoding="utf-8")
-    append_event(status, StatusEvent(
-        event_id="test-WP01-for-review", mission_slug=MISSION_SLUG, wp_id="WP01",
-        from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW,
-        at="2026-09-06T00:00:00+00:00", actor="test", force=True, execution_mode="worktree",
-    ))
+    append_event(
+        status,
+        StatusEvent(
+            event_id="test-WP01-for-review",
+            mission_slug=MISSION_SLUG,
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-09-06T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
     (status / "mission-events.jsonl").write_text(
         '{"type":"source_documented"}\n{"type":"gate_passed","name":"publication_approved"}\n',
         encoding="utf-8",
@@ -149,9 +156,7 @@ def test_occurrence_guard_reads_primary_metadata(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("artifact,step", [("spec.md", "specify"), ("plan.md", "plan")])
 @pytest.mark.parametrize("authoritative", [True, False], ids=["owned-only", "root-decoy"])
-def test_owned_checkout_artifact_guards(
-    tmp_path: Path, artifact: str, step: str, authoritative: bool
-) -> None:
+def test_owned_checkout_artifact_guards(tmp_path: Path, artifact: str, step: str, authoritative: bool) -> None:
     repo, primary, _ = _mission(tmp_path, "single_branch")
     owned = tmp_path / "owned"
     _git(repo, "worktree", "add", "-q", "-b", "codex/owned", str(owned))
@@ -184,3 +189,51 @@ def test_normal_linked_caller_keeps_canonical_status_authority(tmp_path: Path, t
     assert bridge._check_cli_guards("specify", status, mission_family="software-dev", repo_root=linked) == []
     assert composition._check_composed_action_guard("specify", status, repo_root=linked) == []
     assert not (linked / "kitty-specs" / MISSION_SLUG / "spec.md").exists()
+
+
+# --- Total-function contract: presence gathering never raises out of the seam ---
+#
+# ``gather_artifact_presence`` is a fact port; both production callers invoke
+# it OUTSIDE their ``try`` (tests/runtime/next/test_composed_guard_launder.py).
+# The owned-checkout re-seam is a *verified* fallback: a caller whose directory
+# is not a recognised STATUS home keeps its supplied directory (the pre-#3910
+# behaviour) instead of a guessed placement, and a PRIMARY-artifact question
+# is never turned into a coordination-branch liveness failure.
+
+
+def test_coord_mission_called_from_primary_dir_keeps_supplied_directory(tmp_path: Path) -> None:
+    repo, primary, _status = _mission(tmp_path, "coord")
+    (primary / "spec.md").write_text("# Canonical planning contract\n", encoding="utf-8")
+
+    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo)
+
+    assert "spec.md" in snapshot.present_artifacts
+    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo) == []
+    assert composition._check_composed_action_guard("specify", primary, repo_root=repo) == []
+
+
+def test_deleted_coordination_branch_does_not_fail_primary_presence(tmp_path: Path) -> None:
+    repo, primary, status = _mission(tmp_path, "coord")
+    (primary / "spec.md").write_text("# Canonical planning contract\n", encoding="utf-8")
+    coord_root = status.parent.parent
+    _git(repo, "worktree", "remove", "--force", str(coord_root))
+    _git(repo, "branch", "-D", COORD_BRANCH)
+
+    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo)
+
+    assert "spec.md" in snapshot.present_artifacts
+    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo) == []
+
+
+def test_owned_checkout_under_coord_topology_keeps_supplied_directory(tmp_path: Path) -> None:
+    """Explicit placement is only legal for ``single_branch``; a coord-topology owned
+    checkout must degrade to its supplied directory rather than raise."""
+    repo, _primary, _status = _mission(tmp_path, "coord")
+    owned = tmp_path / "owned"
+    _git(repo, "worktree", "add", "-q", "-b", "codex/owned", str(owned))
+    owned_mission = owned / "kitty-specs" / MISSION_SLUG
+    (owned_mission / "spec.md").write_text("# Owned planning contract\n", encoding="utf-8")
+
+    snapshot = gather_artifact_presence(owned_mission, mission_family="software-dev", step_id="specify", repo_root=owned)
+
+    assert "spec.md" in snapshot.present_artifacts

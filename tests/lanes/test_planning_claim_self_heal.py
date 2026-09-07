@@ -78,8 +78,14 @@ def test_planning_materialization_claim_merges_approved_dependency(tmp_path: Pat
         context=None,
     )
     materialized = create_lane_workspace(
-        repo, _MISSION_SLUG, _WP_SELF, _feature_dir(repo) / "tasks" / "WP02.md",
-        workspace, read_lanes_json(_feature_dir(repo)), [_WP_DEP], "git",
+        repo,
+        _MISSION_SLUG,
+        _WP_SELF,
+        _feature_dir(repo) / "tasks" / "WP02.md",
+        workspace,
+        read_lanes_json(_feature_dir(repo)),
+        [_WP_DEP],
+        "git",
     )
     assert materialized.workspace_path == repo
     assert not (repo / ".worktrees" / workspace.workspace_name).exists()
@@ -98,9 +104,7 @@ def test_planning_materialization_claim_merges_approved_dependency(tmp_path: Pat
 
 def test_protected_root_refused_without_mutation(tmp_path: Path) -> None:
     repo, _tip = _planning_repo(tmp_path)
-    (repo / ".kittify" / "config.yaml").write_text(
-        "protection:\n  protected_branches: [feat/planning]\n"
-    )
+    (repo / ".kittify" / "config.yaml").write_text("protection:\n  protected_branches: [feat/planning]\n")
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "protect target")
     head = _git(repo, "rev-parse", "HEAD")

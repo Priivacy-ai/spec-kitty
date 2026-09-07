@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-FIT-001
+    verdict: confirmed
+    reason: Traced end-to-end live - _resolve_runtime_feature_dir yields the coord worktree for real coord-topology missions, _should_advance_wp_step (runtime_bridge.py:753-755) reads its own unanchored tasks_dir off that raw feature_dir at all three call sites (:858, :1680, runtime_bridge_composition.py:557), returns True before the per-WP loop reaching _wp_blocks_step ever runs, and plan.md:469-471 itself admits this early return is untouched by FR-001/004/005.
+  - id: PLAN-FIT-002
+    verdict: confirmed
+    reason: runtime_bridge_composition.py lines 672-682 are verified live to be the invocation_id/logger.info forwarding block, not the except Exception handler (which actually starts at line 650), so both plan.md citations (lines 258, 344) point at the wrong code.
+  - id: PLAN-FIT-003
+    verdict: confirmed
+    reason: "wp_state.py's `\"uninitialized\": UninitializedState,` entry is confirmed live at line 673, not the 672 plan.md line 433 cites."
+  - id: PLAN-SEQ-001
+    verdict: confirmed
+    reason: plan.md's Test Strategy section confirms all three C-008 reproductions, including the self-contained US2/#3884 reproduction #3, are written in WP1 alongside the risky US1 empirical spike, with no dependency reason for the coupling.
+  - id: PLAN-SEQ-002
+    verdict: confirmed
+    reason: plan.md's Project Structure table confirms WP2 (FR-004/005) and WP3 (FR-003/006) both annotate edits to the same runtime_bridge.py file, and no dependencies/write-scope-coordination statement appears anywhere in the document.
+  - id: PLAN-SEQ-003
+    verdict: confirmed
+    reason: plan.md contains zero 'chokepoint'/'serializ' hits and NFR-003's test-venv-lock mention is confirmed to be framed only as a pass/fail-classification note, never as a WP-scheduling concern, unlike the explicit "no campsite-clean" and "explicitly not touched" statements elsewhere in the same document.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: test_cli_guard_family.py:487-544 (the plan's own cited "pattern to follow") is confirmed to build a DecideNextContext by hand and call rb._dn_dependency_gate(ctx) directly, never invoking decide_next_via_runtime as plan.md's Call (b) prose claims, and test_bridge_decide_next.py:158-166 confirms a materially different third pattern exists in the repo.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: plan.md's Gate Set row cites "CLAUDE.md's Sonar Expectations" (confirmed to state only qualitative rules, no percentage) while charter.md:262 confirms a concrete binding "90%+ test coverage for new code" floor that the plan never cites or arithmetically demonstrates against.

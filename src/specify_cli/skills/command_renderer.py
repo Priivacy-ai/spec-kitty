@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
-from specify_cli.skills._agent_roster import SUPPORTED_AGENTS
+from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 
 # ---------------------------------------------------------------------------
@@ -492,3 +492,53 @@ def render(
         agent_key=agent_key,
         spec_kitty_version=spec_kitty_version,
     )
+
+
+def rendering_inputs(repo_root: Path) -> tuple[Path, ...]:
+    """Return configuration sources used by command rendering, without writes.
+
+    Pointer identity comes from the existing charter resolver. Render still owns
+    activation semantics; observing both files lets apply detect changed inputs.
+    """
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
+    from ruamel.yaml import YAML
+    from specify_cli.core.agent_config import load_agent_config
+
+    config = repo_root / ".kittify/config.yaml"
+    try:
+        load_agent_config(repo_root)
+    except (AttributeError, TypeError) as exc:
+        raise ValueError("Command rendering agent configuration has an invalid shape") from exc
+    if not config.exists():
+        return (config,)
+    data = YAML(typ="safe").load(config.read_text(encoding="utf-8"))
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        raise ValueError("Command rendering configuration must be a mapping")
+    target = resolve_charter_yaml_pointer(repo_root, data)
+    if target is not None and not target.is_file():
+        raise ValueError(f"Command rendering charter is unreadable: {target}")
+    return (config, target) if target is not None else (config,)
+
+
+def validate_mission_provisioning(repo_root: Path, before: bytes, after: bytes, target: Path) -> None:
+    """Prove ordinary command rendering is equivalent across mission provisioning.
+
+    This is not an activation resolver. The compiler alone authorizes the write;
+    only its mission-type field may differ, on the existing rendering authority.
+    All selectors, agent configuration and pointer values remain unchanged.
+    """
+    from charter.activation.charter_yaml_io import yaml_documents_equal
+    from ruamel.yaml import YAML
+
+    if target != rendering_inputs(repo_root)[-1].resolve():
+        raise ValueError("Command provisioning must target the existing rendering authority")
+    documents = tuple(YAML(typ="rt").load(content) for content in (before, after))
+    if any(document is not None and not isinstance(document, dict) for document in documents):
+        raise ValueError("Command provisioning requires mapping rendering inputs")
+    original, desired = (document if document is not None else {} for document in documents)
+    original.pop("mission_type_activations", None)
+    desired.pop("mission_type_activations", None)
+    if not yaml_documents_equal(original, desired):
+        raise ValueError("Provisioning changes command-relevant rendering inputs")

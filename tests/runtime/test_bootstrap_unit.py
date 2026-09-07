@@ -147,7 +147,7 @@ class TestPopulateFromPackage:
 
 
 class TestEnsureRuntimeFastPath:
-    """Fast path: version.lock matches CLI version -- return immediately."""
+    """Healthy content and marker: no writes or lock acquisition."""
 
     def test_fast_path_version_matches(
         self,
@@ -155,7 +155,7 @@ class TestEnsureRuntimeFastPath:
         fake_assets: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """When version.lock matches, no populate/merge occurs."""
+        """When content and marker match, no populate/merge occurs."""
         monkeypatch.setattr(
             "specify_cli.runtime.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
@@ -166,7 +166,8 @@ class TestEnsureRuntimeFastPath:
         cache_dir.mkdir(parents=True)
         (cache_dir / "version.lock").write_text(FAKE_VERSION)
 
-        # Track whether populate_from_package is called
+        ensure_runtime()
+        # Track whether the retained writer boundary is called on a healthy home.
         with patch("specify_cli.runtime.bootstrap.populate_from_package") as mock_pop:
             ensure_runtime()
             mock_pop.assert_not_called()
@@ -177,7 +178,7 @@ class TestEnsureRuntimeFastPath:
         fake_assets: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Fast path does not acquire the file lock."""
+        """A complete healthy installation does not acquire the file lock."""
         monkeypatch.setattr(
             "specify_cli.runtime.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
@@ -187,6 +188,7 @@ class TestEnsureRuntimeFastPath:
         cache_dir.mkdir(parents=True)
         (cache_dir / "version.lock").write_text(FAKE_VERSION)
 
+        ensure_runtime()
         with patch("specify_cli.runtime.bootstrap._lock_exclusive") as mock_lock:
             ensure_runtime()
             mock_lock.assert_not_called()
@@ -267,14 +269,13 @@ class TestEnsureRuntimeSlowPath:
         assert (fake_home / "missions" / "software-dev" / "mission.yaml").exists()
         assert (fake_home / "missions" / "research" / "mission.yaml").exists()
 
-    def test_slow_path_double_check_after_lock(
+    def test_slow_path_refuses_changed_batch_after_lock(
         self,
         fake_home: Path,
         fake_assets: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """If another process wrote version.lock while we waited for lock,
-        the double-check avoids redundant work."""
+        """A concurrent stamp cannot certify the previously assessed batch."""
         monkeypatch.setattr(
             "specify_cli.runtime.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
@@ -299,9 +300,10 @@ class TestEnsureRuntimeSlowPath:
         )
 
         with patch("specify_cli.runtime.bootstrap.populate_from_package") as mock_pop:
-            ensure_runtime()
-            # populate_from_package should NOT be called -- double-check caught it
+            with pytest.raises(RuntimeError, match="Global asset input changed"):
+                ensure_runtime()
             mock_pop.assert_not_called()
+        assert not (fake_home / "missions").exists()
 
 
 class TestEnsureRuntimeTempDirCleanup:
@@ -338,13 +340,11 @@ class TestEnsureRuntimeTempDirCleanup:
             lambda: FAKE_VERSION,
         )
 
-        def exploding_populate(target: Path) -> None:
-            target.mkdir(parents=True, exist_ok=True)
-            (target / "partial-file.txt").write_text("partial")
-            raise RuntimeError("Simulated failure during populate")
+        def exploding_populate(*args: object, **kwargs: object) -> None:
+            raise OSError("Simulated failure during source preparation")
 
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap.populate_from_package",
+            "specify_cli.runtime.asset_preparation.AssetPreparation.source",
             exploding_populate,
         )
 
@@ -373,23 +373,26 @@ class TestEnsureRuntimeVersionLockWrittenLast:
         )
 
         write_order: list[str] = []
-        original_merge = __import__("specify_cli.runtime.merge", fromlist=["merge_package_assets"]).merge_package_assets
+        from specify_cli.runtime import asset_preparation
 
-        def tracking_merge(source: Path, dest: Path) -> None:
-            original_merge(source, dest)
-            write_order.append("merge")
+        original_write = asset_preparation._write_asset
+
+        def tracking_merge(write: asset_preparation.AssetWrite) -> None:
+            original_write(write)
+            write_order.append(write.effect.destination.name)
             # At this point version.lock should NOT exist yet
             version_file = fake_home / "cache" / "version.lock"
-            assert not version_file.exists(), "version.lock written before merge completed"
+            if write.effect.destination != version_file:
+                assert not version_file.exists(), "version.lock written before asset work completed"
 
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap.merge_package_assets",
+            "specify_cli.runtime.asset_preparation._write_asset",
             tracking_merge,
         )
 
         ensure_runtime()
 
-        assert "merge" in write_order
+        assert write_order[-1] == "version.lock"
         # Now version.lock should exist
         assert (fake_home / "cache" / "version.lock").exists()
 
@@ -495,8 +498,8 @@ class TestCleanupOrphanedUpdateDirs:
 
         _cleanup_orphaned_update_dirs(tmp_path)
 
-        assert not orphan1.exists()
-        assert not orphan2.exists()
+        assert (orphan1 / "missions/stale.yaml").read_text() == "stale"
+        assert orphan2.is_dir()
 
     def test_leaves_non_update_dirs_alone(self, tmp_path: Path) -> None:
         """Directories not matching .kittify_update_* are untouched."""
@@ -538,7 +541,7 @@ class TestCleanupOrphanedUpdateDirs:
         ensure_runtime()
 
         # Orphan should be cleaned up
-        assert not orphan.exists()
+        assert (orphan / "leftover.txt").read_text() == "crash artifact"
         # And the runtime should be functional
         assert (fake_home / "cache" / "version.lock").exists()
 
@@ -713,9 +716,7 @@ class TestCheckVersionPin:
 class TestVersionPinWiredIntoCallback:
     """Verify check_version_pin is called from the root CLI callback."""
 
-    def test_main_callback_calls_check_version_pin_when_project_found(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_main_callback_calls_check_version_pin_when_project_found(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """main_callback() calls check_version_pin when locate_project_root finds a project."""
         mock_pin = MagicMock()
 
@@ -737,9 +738,7 @@ class TestVersionPinWiredIntoCallback:
 
         mock_pin.assert_called_once_with(tmp_path)
 
-    def test_main_callback_skips_check_version_pin_outside_project(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_main_callback_skips_check_version_pin_outside_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """main_callback() skips check_version_pin when not inside a spec-kitty project."""
         mock_pin = MagicMock()
 
@@ -761,9 +760,25 @@ class TestVersionPinWiredIntoCallback:
 
         mock_pin.assert_not_called()
 
-    def test_main_callback_skips_runtime_bootstrap_for_next(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_main_callback_skips_bootstrap_before_migrate(self) -> None:
+        """The migrate command must relocate legacy state before global reads."""
+        root_callback_mock = MagicMock()
+
+        with (
+            patch("specify_cli.root_callback", root_callback_mock),
+            patch("specify_cli._run_startup_project_gates") as startup_gates_mock,
+        ):
+            from specify_cli import main_callback
+
+            main_callback(
+                MagicMock(meta={"defer_root_bootstrap": True}),
+                version=False,
+            )
+
+        root_callback_mock.assert_not_called()
+        startup_gates_mock.assert_not_called()
+
+    def test_main_callback_skips_runtime_bootstrap_for_next(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """next is startup-sensitive but still runs project safety gates."""
         ensure_runtime_mock = MagicMock()
         ensure_skills_mock = MagicMock()

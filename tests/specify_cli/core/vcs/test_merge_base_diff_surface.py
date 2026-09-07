@@ -18,6 +18,7 @@ import pytest
 from specify_cli.core.vcs.git import (
     git_diff_names,
     git_diff_names_checked,
+    git_ls_tree_names_checked,
     git_merge_base,
     merge_base_changed_files,
 )
@@ -205,10 +206,60 @@ class TestMergeBaseChangedFiles:
         _commit(repo, "src/other.py", "other\n", "other change")
 
         result = merge_base_changed_files(
-            repo, "base-branch", pathspec=".github/workflows", diff_filter="AMR",
+            repo,
+            "base-branch",
+            pathspec=".github/workflows",
+            diff_filter="AMR",
         )
 
         assert result == (".github/workflows/ci.yml",)
+
+
+class TestGitLsTreeNamesChecked:
+    """Fail-distinguishing base-tree listing: ``None`` on git failure vs ``()`` on nothing recorded."""
+
+    def test_non_zero_exit_returns_none(self, tmp_path):
+        fake = MagicMock(returncode=128, stdout="")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
+            assert git_ls_tree_names_checked(tmp_path, "0" * 40, "kitty-specs/x/") is None
+
+    def test_nothing_recorded_returns_empty_tuple_not_none(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
+            assert git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/") == ()
+
+    def test_success_returns_names(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="kitty-specs/x/a.md\nkitty-specs/x/sub/meta.json\n")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
+            assert git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/") == (
+                "kitty-specs/x/a.md",
+                "kitty-specs/x/sub/meta.json",
+            )
+
+    def test_timeout_is_passed_through(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
+            git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/", timeout=7)
+        assert mock_run.call_args.kwargs["timeout"] == 7
+        assert mock_run.call_args.args[0][:4] == ["git", "ls-tree", "-r", "--name-only"]
+
+    def test_real_repo_lists_recursively_and_scopes_to_path(self, tmp_path):
+        _run(["git", "init", "-q", "-b", "main"], tmp_path)
+        _run(["git", "config", "user.email", "t@example.com"], tmp_path)
+        _run(["git", "config", "user.name", "t"], tmp_path)
+        (tmp_path / "kitty-specs" / "x" / "sub").mkdir(parents=True)
+        (tmp_path / "kitty-specs" / "x" / "a.md").write_text("a\n")
+        (tmp_path / "kitty-specs" / "x" / "sub" / "meta.json").write_text("{}\n")
+        (tmp_path / "kitty-specs" / "y.md").write_text("y\n")
+        _run(["git", "add", "-A"], tmp_path)
+        _run(["git", "commit", "-q", "-m", "base"], tmp_path)
+
+        assert git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/") == (
+            "kitty-specs/x/a.md",
+            "kitty-specs/x/sub/meta.json",
+        )
+        assert git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/nope/") == ()
+        assert git_ls_tree_names_checked(tmp_path, "0" * 40, "kitty-specs/x/") is None
 
 
 class TestGitDiffNamesChecked:
@@ -233,12 +284,8 @@ class TestGitDiffNamesChecked:
 
     def test_pathspec_and_diff_filter_passthrough(self, tmp_path):
         fake = MagicMock(returncode=0, stdout="")
-        with patch(
-            "specify_cli.core.vcs.git.subprocess.run", return_value=fake
-        ) as mock_run:
-            git_diff_names_checked(
-                tmp_path, "base", "head", pathspec="x/", diff_filter="AMR"
-            )
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
+            git_diff_names_checked(tmp_path, "base", "head", pathspec="x/", diff_filter="AMR")
         cmd = mock_run.call_args.args[0]
         assert "--diff-filter=AMR" in cmd
         assert cmd[-2:] == ["--", "x/"]
@@ -252,8 +299,6 @@ class TestGitDiffNamesChecked:
 
     def test_timeout_is_passed_through(self, tmp_path):
         fake = MagicMock(returncode=0, stdout="")
-        with patch(
-            "specify_cli.core.vcs.git.subprocess.run", return_value=fake
-        ) as mock_run:
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
             git_diff_names(tmp_path, "base", "head", timeout=10)
         assert mock_run.call_args.kwargs["timeout"] == 10

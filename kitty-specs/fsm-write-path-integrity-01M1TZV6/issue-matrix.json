@@ -1,0 +1,161 @@
+{
+  "rows": {
+    "#1666": {
+      "evidence_ref": "Follow-up: none required \u2014 #1666 is status-authority lineage cited as context; the Q4 ADR-amendment note in design-notes/WP06-convergence.md records the relationship.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#1667": {
+      "evidence_ref": "Accepted ADR chain #1667 / C-004 (MissionStatus as intended write facade) is preserved; decision Q4 records the amendment (pipeline = validation/build authority) without re-opening #1667.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#1775": {
+      "evidence_ref": "#1775 review M2 rule (guards never consult ctx.force) is preserved by WP04's guard clause; pinned by the existing wp_state tests.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#1848": {
+      "evidence_ref": "Fail-closed transactional policy pinned by test_transactional_emit_fails_closed_when_coordination_branch_missing (C-007)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    },
+    "#1868": {
+      "evidence_ref": "Follow-up: Mission B WP02 (FR-010) drafts the FR-020 glossary enforcement-honesty note; the operator posts it on #1868.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2173": {
+      "evidence_ref": "Non-goal 1: StatusReader/StatusWriter ports NOT built; the pipeline shapes the StatusWriter seam. Follow-up: StatusReader de-serialization note to be posted on #2173 by the operator (spec References).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3460": {
+      "evidence_ref": "Inner-state degrade policy preserved; pinned by test_inner_state_annotation_degrades_when_coordination_branch_missing and test_tasks_move_task_degod.py::test_runtime_state_persistence_error_propagates (C-007)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    },
+    "#3773": {
+      "evidence_ref": "L3->L1 deadlock class: WP01 FR-003(a) keeps every L3-reachable L1 take bounded (_in_queue_status_lock_timeout pattern); NFR-003 timeout tests",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3885": {
+      "evidence_ref": "PR #3885 (docs alignment) is a doc-contention peer, not an issue; WP06 FR-009 makes the minimal stale-sentence hunk only; Mission C owns final text",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3888": {
+      "evidence_ref": "PR #3888 merged into main (c0054153b) and into this branch at ba58652f0 before implementation; interference map item resolved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3893": {
+      "evidence_ref": "Follow-up: operator posts on #3893 the event-log compaction / snapshot-anchored read item (non-goal 3, O(n^2) evidence) and the NFR-006 finite default L1 timeout item (R9, decision Q2).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3895": {
+      "evidence_ref": "Census-gate rule first instance: WP03 drafts the #3895 note in design-notes/WP03-gates.md; the operator posts it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    },
+    "#3904": {
+      "evidence_ref": "Follow-up: PR #3904 is this branch's own pull request (spec-level precursor); the implementation PR supersedes/extends it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

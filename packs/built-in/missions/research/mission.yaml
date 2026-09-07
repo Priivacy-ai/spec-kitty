@@ -6,56 +6,6 @@ mission:
 
 initial: scoping
 
-states:
-  - name: scoping
-    display_name: "Research Scoping"
-    on_enter: [on_enter_state]
-  - name: methodology
-    display_name: "Methodology Design"
-    on_enter: [on_enter_state]
-  - name: gathering
-    display_name: "Data Gathering"
-    on_enter: [on_enter_state]
-  - name: synthesis
-    display_name: "Analysis & Synthesis"
-    on_enter: [on_enter_state]
-  - name: output
-    display_name: "Output & Publication"
-    on_enter: [on_enter_state]
-  - name: done
-    display_name: "Complete"
-    on_enter: [on_enter_state]
-
-transitions:
-  - trigger: advance
-    source: scoping
-    dest: methodology
-    conditions:
-      - 'artifact_exists("spec.md")'
-  - trigger: advance
-    source: methodology
-    dest: gathering
-    conditions:
-      - 'artifact_exists("plan.md")'
-  - trigger: advance
-    source: gathering
-    dest: synthesis
-    conditions:
-      - 'event_count("source_documented", 3)'
-  - trigger: advance
-    source: synthesis
-    dest: output
-    conditions:
-      - 'artifact_exists("findings.md")'
-  - trigger: advance
-    source: output
-    dest: done
-    conditions:
-      - 'gate_passed("publication_approved")'
-  - trigger: gather_more
-    source: synthesis
-    dest: gathering
-
 guards:
   has_scope:
     description: "Research scope must be defined"

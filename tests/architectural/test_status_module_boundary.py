@@ -86,6 +86,12 @@ pytestmark = pytest.mark.architectural
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
 
+# The one status submodule an outside caller MAY import: the enumerated raw
+# append door (fsm-write-path-integrity-01M1TZV6 WP03, FR-010). Its importers
+# are gated by tests/architectural/test_status_unsafe_allowlist.py, not here.
+_UNSAFE_DOOR_NAME = "_unsafe"
+_UNSAFE_DOOR_MODULE = f"specify_cli.status.{_UNSAFE_DOOR_NAME}"
+
 # ---------------------------------------------------------------------------
 # Exemption documentation (C-004 — permanent plumbing exemptions)
 # ---------------------------------------------------------------------------
@@ -315,7 +321,7 @@ def _is_status_submodule_name(name: str) -> bool:
     ``__init__`` is excluded explicitly: it is the package's own module file,
     never a submodule alias a caller would import by that name.
     """
-    if name == "__init__":
+    if name in {"__init__", _UNSAFE_DOOR_NAME}:
         return False
     return (_SRC / "specify_cli" / "status" / f"{name}.py").is_file()
 
@@ -341,10 +347,19 @@ def _collect_type_checking_linenos(tree: ast.AST) -> set[int]:
 
 
 def _is_bypass_import(module_name: str) -> bool:
-    """Return True if the module is a direct status submodule import (bypass)."""
+    """Return True if the module is a direct status submodule import (bypass).
+
+    ``specify_cli.status._unsafe`` is NOT a bypass: it is the sanctioned,
+    enumerated door for the raw append primitives (fsm-write-path-integrity
+    WP03, FR-010), gated separately by
+    ``tests/architectural/test_status_unsafe_allowlist.py`` (every importer
+    must be in ``_unsafe.ALLOWED_CALLERS``, shrink-only). Treating it as a
+    bypass here would force each allowed writer onto ``_ALL_EXEMPT_FILES``
+    and widen THIS gate's exemption ledger for a door another gate owns.
+    """
     return (
         module_name.startswith("specify_cli.status.")
-        and module_name != "specify_cli.status"
+        and module_name not in {"specify_cli.status", _UNSAFE_DOOR_MODULE}
     )
 
 
@@ -505,6 +520,31 @@ def test_ast_scan_does_not_flag_facade_symbol_import(tmp_path: pathlib.Path) -> 
     violations = scan_for_bypass_imports([good_file], exempt_files=set())
     assert not violations, (
         f"Facade-symbol import must not be flagged as a bypass, got: {violations}"
+    )
+
+
+def test_ast_scan_does_not_flag_the_sanctioned_unsafe_door(tmp_path: pathlib.Path) -> None:
+    """The ``status._unsafe`` door is gated elsewhere, not a bypass here.
+
+    fsm-write-path-integrity-01M1TZV6 WP03 (FR-010): the raw append
+    primitives left the facade for ``specify_cli.status._unsafe``. Both import
+    shapes of that door must pass SR-2 unflagged -- its importers are
+    enumerated and shrink-only under ``test_status_unsafe_allowlist.py``.
+    """
+    door_file = tmp_path / "allowed_unsafe_door_import.py"
+    door_file.write_text(
+        textwrap.dedent(
+            """
+            from specify_cli.status._unsafe import append_raw_rows_atomic  # noqa: F401
+            from specify_cli.status import _unsafe  # noqa: F401
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    violations = scan_for_bypass_imports([door_file], exempt_files=set())
+    assert not violations, (
+        f"The sanctioned _unsafe door must not be flagged as a bypass, got: {violations}"
     )
 
 

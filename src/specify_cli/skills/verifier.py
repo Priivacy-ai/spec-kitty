@@ -4,24 +4,21 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
-    ManagedSkillManifest,
     compute_content_hash,
     load_manifest,
-    save_manifest,
 )
-from specify_cli.skills.paths import get_primary_global_skill_root
+from specify_cli.skills.paths import get_primary_global_skill_root as get_primary_global_skill_root
+from specify_cli.skills.paths import skill_path_observations
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.template import get_local_repo_root
-from specify_cli.upgrade.skill_update import is_external_symlink
-from specify_cli.core.utils import ensure_within_directory
+from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +46,10 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
     If no manifest exists, returns ``VerifyResult(ok=True)`` — nothing to check.
     Otherwise, checks each manifest entry for existence and content hash match.
     """
-    manifest = load_manifest(project_path)
+    try:
+        manifest = load_manifest(project_path, strict=True)
+    except ValueError as exc:
+        return VerifyResult(ok=False, errors=[str(exc)])
     if manifest is None:
         return VerifyResult(ok=True)
 
@@ -59,19 +59,22 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
     registry = _discover_registry()
 
     for entry in manifest.entries:
-        installed = _project_managed_path(project_path, entry.installed_path)
-        # Guard against path traversal — installed path must stay within project
-        if not installed.is_relative_to(project_path.resolve()):
-            errors.append(f"Unsafe path {entry.installed_path}: escapes project root")
+        installed = project_path / entry.installed_path
+        try:
+            observed = skill_path_observations(project_path, installed)[-1].state
+        except (OSError, ValueError) as exc:
+            errors.append(f"Unsafe path {entry.installed_path}: {exc}")
             continue
-        if not installed.exists():
+        if observed.kind == "absent":
             missing.append(entry)
             continue
-        try:
-            actual_hash = compute_content_hash(installed)
-        except OSError as exc:
-            errors.append(f"Cannot read {entry.installed_path}: {exc}")
+        if observed.kind == "symlink":
+            drifted.append((entry, f"symlink:{observed.target}"))
             continue
+        if observed.kind != "file":
+            errors.append(f"Cannot read {entry.installed_path}: not a regular skill file")
+            continue
+        actual_hash = f"sha256:{observed.sha256}"
         expected_hash = _expected_hash(entry, registry) or entry.content_hash
         if actual_hash != expected_hash:
             drifted.append((entry, actual_hash))
@@ -80,243 +83,48 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
     return VerifyResult(ok=ok, missing=missing, drifted=drifted, errors=errors)
 
 
-def _retire_unregistered_skills(
-    project_path: Path,
-    manifest: ManagedSkillManifest,
-    registry: SkillRegistry,
-) -> tuple[int, set[str]]:
-    """Drain manifest entries whose skill no longer exists in the registry (#2409).
-
-    A skill retired from the registry/packs used to leave its projected files
-    orphaned forever: repair could not reconcile an entry with no canonical
-    source, warned ``skill not found in registry`` on every upgrade, and the
-    files stayed on disk (committed, where the repo tracks skill surfaces).
-
-    Manifest-driven by design: only paths the install ledger records as
-    projected by spec-kitty are touched — a user-authored skill sharing the
-    projection root is never scanned or removed. Per file:
-
-    * symlinks (delivery_mode ``symlink`` — broken or not, they point at the
-      machine-local global root) are unlinked;
-    * a regular file whose content still matches the recorded install hash is
-      removed;
-    * a user-MODIFIED file is archived to the installer's backup root
-      (``.kittify/.migration-backup/agent-skills/<ts>/``) instead of deleted.
-
-    Emptied skill directories are pruned. Returns
-    ``(retired_file_count, retired_skill_names)``.
-    """
-    # Safety valve: an EMPTY registry means the canonical source is missing or
-    # broken, not that every skill was retired — never mass-drain the manifest
-    # (and delete projected files) on that signal. Retirement requires a live
-    # registry that positively lacks the specific skill.
-    if not registry.discover_skills():
-        return 0, set()
-
-    retired_entries = [
-        entry
-        for entry in manifest.entries
-        if registry.get_skill(entry.skill_name) is None
-    ]
-    if not retired_entries:
-        return 0, set()
-
-    backup_root: Path | None = None
-    retired = 0
-    retired_names: set[str] = set()
-    kept: list[ManagedFileEntry] = []
-
-    for entry in manifest.entries:
-        if registry.get_skill(entry.skill_name) is not None:
-            kept.append(entry)
-            continue
-
-        dest = _project_managed_path(project_path, entry.installed_path)
-        if not dest.is_relative_to(project_path.resolve()):
-            logger.warning("Unsafe path %s: escapes project root", entry.installed_path)
-            kept.append(entry)
-            continue
-
-        try:
-            backup_root = _dispose_retired_file(
-                dest, entry, project_path, backup_root
-            )
-        except OSError as exc:
-            logger.warning(
-                "Could not remove retired skill file %s: %s", entry.installed_path, exc
-            )
-            kept.append(entry)
-            continue
-
-        _prune_empty_skill_dirs(dest, project_path)
-        retired += 1
-        retired_names.add(entry.skill_name)
-        logger.info(
-            "Retired skill %r: reconciled %s", entry.skill_name, entry.installed_path
-        )
-
-    manifest.entries = kept
-    return retired, retired_names
-
-
-def _dispose_retired_file(
-    dest: Path,
-    entry: ManagedFileEntry,
-    project_path: Path,
-    backup_root: Path | None,
-) -> Path | None:
-    """Remove one retired projected file, archiving user-modified content."""
-    from specify_cli.skills.installer import _archive_existing_path
-
-    if dest.is_symlink():
-        # Projection symlink into the (machine-local) global root — broken by
-        # the retirement or not, there is nothing user-authored to preserve.
-        dest.unlink(missing_ok=True)
-        return backup_root
-    if not dest.is_file():
-        return backup_root  # already gone (or a dir we do not own) — just drop the entry
-    if compute_content_hash(dest) == entry.content_hash:
-        dest.unlink()
-        return backup_root
-    # User-modified copy: archive instead of delete.
-    archived_root: Path = _archive_existing_path(dest, project_path, backup_root)
-    return archived_root
-
-
-def _prune_empty_skill_dirs(dest: Path, project_path: Path) -> None:
-    """Remove now-empty skill directories left by a retirement (max 2 levels)."""
-    current = dest.parent
-    for _ in range(2):
-        if current == project_path or not current.is_dir():
-            return
-        try:
-            next(current.iterdir())
-            return  # not empty
-        except StopIteration:
-            pass
-        except OSError:
-            return
-        try:
-            current.rmdir()
-        except OSError:
-            return
-        current = current.parent
-
-
 def repair_skills(
     project_path: Path,
     verify_result: VerifyResult,
     registry: SkillRegistry,
+    *,
+    consent: ApplyConsent = ApplyConsent(automatic=True),
 ) -> tuple[int, int]:
-    """Repair missing and drifted skill files from the canonical registry.
+    """Apply one project-only preparation; drift needs exact-path consent."""
+    from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
 
-    Entries whose skill has been *retired* from the registry are reconciled by
-    removal (see ``_retire_unregistered_skills``) rather than warned about —
-    a retired skill is not repairable by construction (#2409).
-
-    Returns ``(repaired_count, failed_count)``; retirements count as repairs.
-    """
-    from specify_cli.skills.installer import _safe_unlink
-
-    manifest = load_manifest(project_path)
-    if manifest is None:
-        manifest = ManagedSkillManifest()
-
-    retired, retired_names = _retire_unregistered_skills(
-        project_path, manifest, registry
-    )
-    repaired = retired
-    failed = 0
-
-    entries_to_repair: list[ManagedFileEntry] = list(verify_result.missing)
-    entries_to_repair.extend(entry for entry, _hash in verify_result.drifted)
-
-    for entry in entries_to_repair:
-        if entry.skill_name in retired_names:
-            # Already reconciled as a retirement above — nothing to repair,
-            # and nothing to warn about (#2409).
-            continue
-
-        # Guard against path traversal in installed_path
-        dest = _project_managed_path(project_path, entry.installed_path)
-        if not dest.is_relative_to(project_path.resolve()):
-            logger.warning("Unsafe path %s: escapes project root", entry.installed_path)
-            failed += 1
-            continue
-
-        skill = registry.get_skill(entry.skill_name)
-        if skill is None:
-            logger.warning(
-                "Cannot repair %s: skill %r not found in registry",
-                entry.installed_path,
-                entry.skill_name,
-            )
-            failed += 1
-            continue
-
-        # Find matching source file within the skill directory — must stay inside skill_dir
-        source_path = _find_source_file(skill.skill_dir, entry.source_file)
-        if source_path is None:
-            logger.warning(
-                "Cannot repair %s: source file %r not found in skill %r",
-                entry.installed_path,
-                entry.source_file,
-                entry.skill_name,
-            )
-            failed += 1
-            continue
-        try:
-            # An ancestor directory that is a symlink escaping the project
-            # root would make every operation below act on out-of-repo
-            # paths — refuse before touching anything.
-            if is_external_symlink(dest.parent, project_path):
-                raise OSError(
-                    f"Refusing to repair through out-of-repo symlinked directory: {dest.parent}"
-                )
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            # Repairs always land a copy (#2412) — a symlink into the
-            # machine-local global root dangles in dev-containers and is
-            # unreadable to sandboxed agent harnesses. Clear any existing
-            # destination first: unlinking a symlink at dest removes only
-            # the link inode (its target is never written), a pre-#2412
-            # projection symlink would make _copy_skill_file refuse the
-            # write, and an installer-delivered copy may carry the
-            # canonical root's read-only mode.
-            if dest.exists() or dest.is_symlink():
-                if dest.is_symlink() or dest.is_file():
-                    _safe_unlink(dest)
-                else:
-                    shutil.rmtree(dest)
-            _copy_skill_file(
-                source_path,
-                dest,
-                project_path,
-                entry.skill_name,
-                entry.source_file,
-            )
-            new_hash = compute_content_hash(dest)
-            # Update the manifest entry with the new hash
-            manifest.add_entry(
-                ManagedFileEntry(
-                    skill_name=entry.skill_name,
-                    source_file=entry.source_file,
-                    installed_path=entry.installed_path,
-                    installation_class=entry.installation_class,
-                    agent_key=entry.agent_key,
-                    content_hash=new_hash,
-                    installed_at=entry.installed_at,
-                    delivery_mode="copy",
-                )
-            )
-            repaired += 1
-        except (OSError, ValueError) as exc:
-            logger.warning("Failed to repair %s: %s", entry.installed_path, exc)
-            failed += 1
-
-    if repaired > 0:
-        save_manifest(manifest, project_path)
-
-    return repaired, failed
+    requested = tuple(verify_result.missing) + tuple(entry for entry, _ in verify_result.drifted)
+    try:
+        manifest = load_manifest(project_path, strict=True)
+    except ValueError as exc:
+        logger.warning("Cannot repair skills: %s", exc)
+        return 0, max(1, len(requested))
+    recorded = manifest.entries if manifest is not None else []
+    agents = tuple(sorted({entry.agent_key for entry in (*requested, *recorded)}))
+    inputs = AssessmentInputs(OperationRoot("project", "project", project_path.absolute()), consent=consent)
+    assessment = assess_project_skills(inputs, registry, agents,
+                                       selected_paths=tuple(entry.installed_path for entry in requested))
+    if not assessment.complete:
+        for diagnostic in assessment.diagnostics:
+            logger.warning("Cannot repair skills: %s", diagnostic.message)
+        return 0, max(1, len(requested))
+    with recheck_project_skills(assessment) as diagnostics:
+        if diagnostics:
+            return 0, max(1, len(requested))
+        result = apply_project_skills(assessment, consent)
+    file_effects = {effect.id: effect for effect in assessment.effects if
+                    effect.path != ".kittify/skills-manifest.json" and
+                    not effect.path.startswith(".kittify/.migration-backup/") and
+                    effect.before.kind != "directory" and effect.after.kind != "directory"}
+    repaired = sum(effect_id in file_effects for effect_id in result.succeeded)
+    failed_paths = {item.path for item in assessment.dispositions if item.state in {"preserve", "consent_required"}}
+    failed = len(failed_paths) + len(result.failed) + sum(effect_id in file_effects for effect_id in result.skipped)
+    if result.outcome in {"skipped", "precondition_changed"}:
+        failed = max(1, len(requested))
+    unresolved = {entry.installed_path for entry in requested} - {
+        effect.path for effect in file_effects.values()
+    } - {item.path for item in assessment.dispositions}
+    return repaired, failed + len(unresolved)
 
 
 def _find_source_file(skill_dir: Path, source_file: str) -> Path | None:
@@ -326,13 +134,12 @@ def _find_source_file(skill_dir: Path, source_file: str) -> Path | None:
     ``"references/agent-path-matrix.md"``).  The resolved path must remain
     within *skill_dir* to prevent path traversal.
     """
-    candidate = (skill_dir / source_file).resolve()
-    # Guard against path traversal — source must stay inside skill directory
-    if not candidate.is_relative_to(skill_dir.resolve()):
+    candidate = skill_dir / source_file
+    try:
+        state = skill_path_observations(skill_dir, candidate)[-1].state
+    except (OSError, ValueError):
         return None
-    if candidate.is_file():
-        return candidate
-    return None
+    return candidate if state.kind == "file" else None
 
 
 def _discover_registry() -> SkillRegistry | None:
@@ -355,15 +162,6 @@ def _discover_registry() -> SkillRegistry | None:
 
 def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> str | None:
     """Return the current canonical hash for an entry when available."""
-    if entry.delivery_mode == "symlink":
-        global_root = get_primary_global_skill_root(entry.agent_key)
-        if global_root is not None:
-            global_source = global_root / entry.skill_name / entry.source_file
-            if global_source.is_file():
-                return _expected_content_hash(
-                    global_source, entry.skill_name, entry.source_file
-                )
-
     if registry is None:
         return None
 
@@ -384,24 +182,6 @@ def _project_managed_path(project_path: Path, installed_path: str) -> Path:
     if not normalized.is_absolute():
         normalized = (project_path / normalized).absolute()
     return normalized
-
-
-def _copy_skill_file(
-    source: Path,
-    dest: Path,
-    project_root: Path,
-    skill_name: str,
-    source_file: str,
-) -> None:
-    """Copy a managed skill file, normalizing SKILL.md frontmatter if needed."""
-    if is_external_symlink(dest, project_root):
-        raise OSError(f"Refusing to write managed skill outside project root via symlink: {dest}")
-    safe_dest = ensure_within_directory(dest, project_root)
-    if source_file == SKILL_MANIFEST_FILENAME:
-        content = source.read_text(encoding="utf-8")
-        safe_dest.write_text(ensure_skill_frontmatter(content, skill_name), encoding="utf-8")
-        return
-    shutil.copy2(source, safe_dest)
 
 
 def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> str:

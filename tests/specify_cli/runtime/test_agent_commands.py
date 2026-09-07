@@ -57,9 +57,7 @@ class TestGetCommandTemplatesDir:
         mission_steps.mkdir(parents=True)
         return fake_offering_init
 
-    def test_returns_correct_doctrine_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_correct_doctrine_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Resolver returns <packs/built-in>/missions/mission-steps/software-dev.
 
         RED in lane-d (buggy resolver uses get_package_asset_root / kittify_home);
@@ -76,9 +74,7 @@ class TestGetCommandTemplatesDir:
         expected = tmp_path / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
         assert result == expected
 
-    def test_return_type_is_path_not_none(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_return_type_is_path_not_none(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Return type is Path, never None.
 
         RED in lane-d (buggy resolver can return None); GREEN after WP01.
@@ -92,9 +88,7 @@ class TestGetCommandTemplatesDir:
         result = _get_command_templates_dir()
         assert isinstance(result, Path)
 
-    def test_resolver_with_sys_modules_monkeypatch(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_resolver_with_sys_modules_monkeypatch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """T022: Resolver uses charter.offering.__file__ as its anchor (sys.modules approach).
 
         RED in lane-d; GREEN after WP01 merges.
@@ -123,9 +117,7 @@ class TestGetCommandTemplatesDir:
 class TestSyncAgentCommandsIntegration:
     """FR-002/FR-003: _sync_agent_commands() must use per-step subdirectory layout."""
 
-    def test_all_prompt_driven_commands_written(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_all_prompt_driven_commands_written(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """_sync_agent_commands writes one file per PROMPT_DRIVEN step-dir.
 
         RED in lane-d (buggy renderer uses flat glob, never finds per-step
@@ -150,16 +142,10 @@ class TestSyncAgentCommandsIntegration:
 
         _sync_agent_commands("claude", templates_dir, "sh")
 
-        written_prompt_commands = {
-            p.stem.split(".")[1]
-            for p in output_dir.glob("spec-kitty.*.md")
-            if p.stem.split(".")[1] in PROMPT_DRIVEN_COMMANDS
-        }
+        written_prompt_commands = {p.stem.split(".")[1] for p in output_dir.glob("spec-kitty.*.md") if p.stem.split(".")[1] in PROMPT_DRIVEN_COMMANDS}
         assert written_prompt_commands == set(PROMPT_DRIVEN_COMMANDS)
 
-    def test_missing_prompt_md_skipped_without_raising(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_missing_required_prompt_refuses_before_writes(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """T006: Step dirs without prompt.md are skipped without raising.
 
         In the FIXED code (WP01), when step dirs exist but have no prompt.md,
@@ -189,14 +175,13 @@ class TestSyncAgentCommandsIntegration:
             lambda _: output_dir,
         )
 
-        # Must not raise
-        _sync_agent_commands("claude", templates_dir, "sh")
+        # Required source failure must not certify a partial bundle.
+        with pytest.raises(RuntimeError, match="Required asset source"):
+            _sync_agent_commands("claude", templates_dir, "sh")
 
         # No prompt-driven command files should be written (they all lack prompt.md)
         for cmd in PROMPT_DRIVEN_COMMANDS:
-            assert not (output_dir / f"spec-kitty.{cmd}.md").exists(), (
-                f"spec-kitty.{cmd}.md should not be written without prompt.md"
-            )
+            assert not (output_dir / f"spec-kitty.{cmd}.md").exists(), f"spec-kitty.{cmd}.md should not be written without prompt.md"
 
 
 # ---------------------------------------------------------------------------
@@ -207,9 +192,7 @@ class TestSyncAgentCommandsIntegration:
 class TestRendererStaleRemoval:
     """FR-002: Stale spec-kitty.* files are removed after sync."""
 
-    def test_stale_files_removed(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unproven_stale_files_preserved(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Files not in the canonical set are removed.
 
         RED in lane-d when the stale check runs before prompt files are written
@@ -219,10 +202,9 @@ class TestRendererStaleRemoval:
         and new code, so this test is GREEN in both lanes — but it exercises the
         contract that matters after WP01.
         """
-        from specify_cli.runtime.agent_commands import _sync_agent_commands
+        from specify_cli.runtime.agent_commands import _get_command_templates_dir, _sync_agent_commands
 
-        templates_dir = tmp_path / "steps"
-        templates_dir.mkdir(parents=True)
+        templates_dir = _get_command_templates_dir()
 
         output_dir = tmp_path / "out"
         output_dir.mkdir()
@@ -236,7 +218,7 @@ class TestRendererStaleRemoval:
 
         _sync_agent_commands("claude", templates_dir, "sh")
 
-        assert not stale.exists(), "Stale file should have been removed"
+        assert stale.read_text() == "stale content", "A prefix does not prove ownership"
 
 
 # ---------------------------------------------------------------------------
@@ -247,9 +229,7 @@ class TestRendererStaleRemoval:
 class TestVersionLockTiming:
     """FR-004: Version lock must NOT be written if sync fails."""
 
-    def test_lock_not_written_when_sync_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_lock_not_written_when_sync_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """If _sync_agent_commands raises, the lock must not be updated.
 
         The fixed ensure_global_agent_commands() catches the exception, logs it,
@@ -267,6 +247,11 @@ class TestVersionLockTiming:
 
         fake_templates_dir = tmp_path / "fake_templates"
         fake_templates_dir.mkdir()
+        from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
+
+        for command in PROMPT_DRIVEN_COMMANDS:
+            (fake_templates_dir / command).mkdir()
+            (fake_templates_dir / command / "prompt.md").write_text(f"# {command}\n")
 
         monkeypatch.setattr(
             ac,
@@ -277,7 +262,7 @@ class TestVersionLockTiming:
         def boom(agent_key: str, templates_dir: Path, script_type: str) -> None:
             raise RuntimeError("simulated sync failure")
 
-        monkeypatch.setattr(ac, "_sync_agent_commands", boom)
+        monkeypatch.setattr(ac, "_render_agent_commands", boom)
 
         kittify_home = tmp_path / "kittify"
         monkeypatch.setenv("SPEC_KITTY_HOME", str(kittify_home))

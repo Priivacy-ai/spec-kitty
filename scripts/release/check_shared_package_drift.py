@@ -33,7 +33,6 @@ def parse_args() -> argparse.Namespace:
         default=".kittify/release/shared-package-compatibility.json",
         help="Machine-readable release authority for shared package ranges and locks.",
     )
-    parser.add_argument("--saas-pyproject")
     parser.add_argument("--runtime-pyproject")
     parser.add_argument(
         "--check-installed",
@@ -396,33 +395,6 @@ def main() -> int:
             summary.append(
                 f"installed {package}: {installed_version} (uv.lock {lock_versions[package]})"
             )
-
-    saas_pyproject = load_toml(args.saas_pyproject)
-    if saas_pyproject is not None:
-        saas_constraints = extract_constraints(
-            extract_dependencies(saas_pyproject),
-            packages=("spec-kitty-events", "spec-kitty-tracker"),
-            exact_required=True,
-        )
-        summary.append(
-            f"saas spec-kitty-events: {saas_constraints['spec-kitty-events']}"
-        )
-        summary.append(
-            f"saas spec-kitty-tracker: {saas_constraints['spec-kitty-tracker']}"
-        )
-        for package, saas_constraint in saas_constraints.items():
-            saas_pin = exact_pin(saas_constraint)
-            assert saas_pin is not None
-            if not requirement_contains_version(cli_constraints[package], saas_pin):
-                issues.append(
-                    f"{package} SaaS pin {saas_pin} is outside CLI constraint "
-                    f"{cli_constraints[package]}"
-                )
-            if saas_pin != lock_versions[package]:
-                issues.append(
-                    f"{package} pin mismatch between SaaS and CLI uv.lock: "
-                    f"{saas_pin} vs {lock_versions[package]}"
-                )
 
     runtime_pyproject = load_toml(args.runtime_pyproject)
     if runtime_pyproject is not None:

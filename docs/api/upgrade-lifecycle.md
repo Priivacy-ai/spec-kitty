@@ -40,6 +40,7 @@ spec-kitty upgrade [OPTIONS]
 | `--no-nag` | Suppress the upgrade-nag banner for this invocation only. |
 | `--target <version>` | Migrate to a specific intermediate schema version (rare; debugging only). |
 | `--json` | Emit a machine-readable plan / result. |
+| `--plan-json` | Emit the complete preview-only owner plan. Never applies changes. |
 
 `--cli` and `--project` together exit with code 2 (mutually exclusive).
 
@@ -54,6 +55,12 @@ Project upgrade walks pending migrations in version order. For each migration, i
 5. **Leave user data alone** — `kitty-specs/`, `architecture/`, `docs/`, `src/`, and anything else you author is untouched.
 
 Migrations are idempotent: re-running `spec-kitty upgrade` is a no-op when the schema is current.
+
+After migration selection, one guarded finalizer orders activation provisioning,
+managed-surface repair, and the generated-churn commit. The independently
+consented mission-state repair runs last and is never included in that commit.
+Owner preconditions are rechecked immediately before writes; a changed input
+requires reassessment rather than replaying stale prepared bytes.
 
 ## What does **not** get modified
 
@@ -157,6 +164,12 @@ spec-kitty upgrade --dry-run --json | jq '.pending_migrations | length'
 ```
 
 Schema is stable across patch releases.
+
+`--plan-json` uses
+`kitty-specs/upgrade-preview-mission-health-01M1V6E1/contracts/upgrade-plan.schema.json`.
+It retains the full envelope for refusals and exposes `complete`, diagnostics,
+effects, dispositions, execution artifacts, and commit policy. The report is
+informational, not an apply token. Legacy `--json` shapes remain unchanged.
 
 ## Examples
 

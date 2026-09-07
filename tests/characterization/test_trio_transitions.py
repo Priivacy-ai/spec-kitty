@@ -33,7 +33,8 @@ import pytest
 
 from specify_cli.acceptance import AcceptanceError, _collect_snapshot_wps, _status_read_feature_dir
 from specify_cli.cli.commands.agent.workflow import _canonical_status_feature_dir
-from specify_cli.status import EVENTS_FILENAME, Lane, StatusEvent, append_event
+from specify_cli.status import EVENTS_FILENAME, Lane, StatusEvent
+from specify_cli.status._unsafe import append_event
 
 pytestmark = [pytest.mark.unit]
 

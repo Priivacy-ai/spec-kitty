@@ -47,7 +47,7 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
     if argv is None:
         argv = sys.argv[1:]
 
-    suppress_flags = frozenset({"--no-nag", "--json", "--quiet", "--help", "-h", "--version", "-v"})
+    suppress_flags = frozenset({"--no-nag", "--json", "--plan-json", "--quiet", "--help", "-h", "--version", "-v"})
     if any(tok in suppress_flags for tok in argv):
         return True
 
@@ -71,6 +71,19 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
 
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        command_args = list(args)
+        remaining = super().parse_args(ctx, args)
+        if command_args:
+            name, command, upgrade_args = self.resolve_command(ctx, command_args)
+            if name == "migrate":
+                ctx.meta["defer_root_bootstrap"] = True
+            if name == "upgrade" and command is not None:
+                from specify_cli.upgrade.intent import parse_upgrade_intent
+
+                ctx.meta["upgrade_intent"] = parse_upgrade_intent(command, upgrade_args, project_available=(Path.cwd() / ".kittify").is_dir())
+        return remaining
 
     def list_commands(self, ctx: click.Context) -> list[str]:
         return sorted(super().list_commands(ctx))
@@ -286,6 +299,7 @@ def callback(ctx: typer.Context) -> None:
             from specify_cli.core.version_checker import (  # noqa: PLC0415 — deferred import
                 maybe_emit_no_upgrade_notice,
             )
+
             maybe_emit_no_upgrade_notice(command_name)
     except Exception:  # noqa: BLE001 — notifier must never block the CLI
         pass

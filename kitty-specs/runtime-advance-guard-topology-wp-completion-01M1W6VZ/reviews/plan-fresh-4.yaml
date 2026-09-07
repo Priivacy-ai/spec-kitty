@@ -1,0 +1,142 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh4
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-FRESH4-001
+    lens: debugger-debbie/dual-system-divergence-mapping
+    severity: 3
+    title: >
+      Gate Set's "patch() target validation" row was never updated to list
+      `_should_advance_wp_step` as a patch target, even though round 4's own
+      new (b-ii) design requires patching exactly that name at module level
+      — the omission spans the one gate whose entire purpose is to catch
+      this class of mistake
+    evidence:
+      - artifact: "plan.md § Gate Set table, line 782 (\"`patch()` target validation | **Yes** | New tests will monkeypatch/patch `gather_artifact_presence`, `_check_cli_guards`, `_check_composed_action_guard`, and possibly `placement_seam`\")"
+      - artifact: "plan.md § Test Strategy, reproduction #2 Call (b-ii), line 899-901 (\"patch `_should_advance_wp_step` (module-level, so both its direct `:1680` call site and `_check_cli_guards`'s own live-lookup `:858` call site observe the same patch) to return `True` unconditionally\")"
+      - code: "src/runtime/next/runtime_bridge_composition.py:549-551 (existing comment: \"reached via a live lookup so a monkeypatch on runtime_bridge._should_advance_wp_step is still observed from here\" — confirms `_should_advance_wp_step` is already a live, load-bearing monkeypatch target in this exact call graph, pre-dating this plan)"
+      - code: "tests/runtime/test_bridge_composition.py:962 (`monkeypatch.setattr(rb, \"_should_advance_wp_step\", lambda step_id, feature_dir: True)`) and tests/runtime/test_bridge_decide_next.py:460,473,494,515 — established codebase precedent for patching this exact name at module level on `runtime_bridge` (aliased `rb`)"
+    claim: >
+      The round-4 diff (bf793ec4d) introduces (b-ii), whose entire mechanism
+      is patching `_should_advance_wp_step` module-level so two different
+      call sites (`_dn_dependency_gate`'s direct `:1680` call and
+      `_check_cli_guards`'s live-lookup `:858` call) both observe it. This is
+      precisely the "which module's reference to the name gets patched"
+      question the charter's `patch() target validation` gate exists to
+      police (the row's own reason text calls out "target-validity matters
+      for these new patches"). Yet that row's enumerated target list — never
+      touched by the round-4 diff — still reads `gather_artifact_presence`,
+      `_check_cli_guards`, `_check_composed_action_guard`, "and possibly
+      `placement_seam`" with no mention of `_should_advance_wp_step`, despite
+      it being the load-bearing patch target for the round's own headline
+      fix. This isn't a hypothetical gap either: the plan never states WHICH
+      module path the (b-ii) patch is applied to (e.g.
+      `runtime.next.runtime_bridge._should_advance_wp_step` vs. patching it
+      where `runtime_bridge_composition.py` re-imports it locally at line
+      551's `from runtime.next import runtime_bridge as _rb`) — an
+      implementer who patches the wrong reference (say, a name imported
+      directly into the test module via `from runtime.next.runtime_bridge
+      import _should_advance_wp_step`, which would NOT be observed by either
+      call site's live global lookup) would silently fail to isolate the
+      `:1729` arm, producing a false-green test. The Gate Set row is the
+      designated mechanism for catching exactly this failure mode and does
+      not cover it.
+    remediation: >
+      Add `_should_advance_wp_step` to the Gate Set's `patch() target
+      validation` row's target list, and state explicitly in (b-ii)'s own
+      Test Strategy text which fully-qualified attribute the patch targets
+      (`runtime.next.runtime_bridge._should_advance_wp_step`, matching the
+      existing `tests/runtime/test_bridge_composition.py:962` /
+      `tests/runtime/test_bridge_decide_next.py` precedent) so the patch is
+      pinned rather than left to the implementer's inference.
+
+  - id: PLAN-FRESH4-002
+    lens: debugger-debbie/dual-system-divergence-mapping
+    severity: 4
+    title: >
+      Round 4's new "precedent" claim that Call (c)/(d) already uses "an
+      asymmetric mock" is unsupported by (c)/(d)'s own Test Strategy text
+      (which only ever calls it "a fixture") — and a real, non-mocked
+      fixture cannot actually produce (c)/(d)'s described asymmetry, since
+      both calls resolve the IDENTICAL (feature_dir, repo_root, mission_slug)
+      triple through the same pure `resolve_primary_anchor_dir` helper with
+      no mutation in between, the exact "share fate" defect class round 4
+      just fixed for Call (b)
+    evidence:
+      - artifact: "plan.md § Test Strategy, reproduction #2 Call (c), line 913-915 (\"a fixture where `gather_artifact_presence` itself succeeds but the SEPARATE, later `_should_advance_wp_step(action, feature_dir, repo_root=repo_root, mission_slug=mission_slug)` call inside `_check_composed_action_guard` (`runtime_bridge_composition.py:557`) is the one that fails to resolve\") — no mention of mock/patch/monkeypatch anywhere in (c)'s or (d)'s own definition"
+      - artifact: "plan.md § Fifth round, PLAN-FRESH3-001 entry, line 1558-1561 (\"the plan's own Call (c)/(d) fixtures already establish, as precedent, that isolating one `resolve_primary_anchor_dir`-reaching call from a sibling call sharing the identical inputs is done via an asymmetric mock\") — new in round 4's diff, asserting a mechanism the cited section never states"
+      - artifact: "plan.md § Test Strategy, Call (b-ii), line 900 (\"Test it with an asymmetric fixture, the same technique already used for (c)/(d) below\") — cites (c)/(d) as precedent for (b-ii)'s explicit mock, while (c)/(d)'s own text still calls itself merely \"a fixture\""
+      - artifact: "reviews/plan-fresh-3.yaml PLAN-FRESH3-001 remediation (option 1): \"e.g. by patching `resolve_primary_anchor_dir` with a `side_effect` list so the first invocation returns a valid dir and only the SECOND ... raises\" — the round-3 reviewer themselves inferred a mock-based mechanism for (c)/(d) that the plan's own prose never states"
+      - code: "src/runtime/next/runtime_bridge_composition.py:543-557 (both the `gather_artifact_presence` call and, per the plan's Seam-2 extension, the `_should_advance_wp_step` call receive the SAME local `feature_dir`/`repo_root`/`mission_slug` — no filesystem write occurs between the two lines)"
+      - code: "plan.md § Seam 1 Design decision, line 290-312 (`resolve_primary_anchor_dir(feature_dir, repo_root, mission_slug)` is a pure function of its three arguments — deterministic `placement_seam(...).read_dir(...)` — so two calls with identical inputs and no intervening mutation must produce the same outcome)"
+      - code: "tests/runtime/test_bridge_composition.py:930-965 (`test_check_composed_action_guard_...`, the existing precedent for this exact call graph) mocks `gather_artifact_presence` AND `_should_advance_wp_step` independently rather than relying on any differentiated real fixture — supporting that mocking, not fixture differentiation, is how this codebase actually isolates these two calls"
+    claim: >
+      For (c)/(d) to work as literally described — `gather_artifact_presence`
+      succeeding while the SEPARATE, later `_should_advance_wp_step` call
+      inside the SAME function invocation fails to resolve — both calls must
+      route through `resolve_primary_anchor_dir(feature_dir, repo_root,
+      mission_slug)` with byte-identical arguments (verified: both are fed
+      the same locals bound once in `_check_composed_action_guard`), and
+      that helper is a deterministic pure function reading `placement_seam`
+      with no state mutated between the two call sites. A genuinely
+      differentiated real-file fixture — corrupt for one call, intact for
+      the other — is therefore structurally impossible here, exactly the
+      "two calls always share fate outside of an artificial mock" problem
+      round 4 diagnosed and fixed for Call (b)'s WP-iteration half
+      (PLAN-FRESH3-001). (c)/(d) has this SAME problem and was never fixed
+      for it, because (c)/(d)'s own Test Strategy definition was never
+      updated to state that a mock (not a fixture) is required — it still
+      reads "a fixture" throughout, both at its original definition and at
+      the "fails-at-`_should_advance_wp_step` fixture" phrase reused for (d).
+      Round 4 makes this worse, not better: the newly-added PLAN-FRESH3-001
+      entry asserts, for the first time in the document, that (c)/(d)
+      "already establish[es], as precedent... an asymmetric mock" — manufacturing
+      confidence in an unpinned mechanism to justify (b-ii)'s own new mock,
+      without ever going back to actually state that mechanism in (c)/(d)'s
+      own bullets. This is precisely the "exact construction method, pinned…
+      not a paraphrase" rigor PLAN-VERIFY-001 (round 2) demanded for
+      reproduction #1's Call (b) — never applied here, across four rounds,
+      for (c)/(d), even though two separate rounds (3 and 4) now reason
+      about and depend on an assumed mock-based construction for it.
+    remediation: >
+      Update (c) and (d)'s Test Strategy bullets to state the actual
+      mechanism explicitly — e.g. "patch `resolve_primary_anchor_dir` (or
+      `placement_seam`) with an ordered `side_effect` so the first
+      invocation (inside `gather_artifact_presence`) succeeds and the
+      second (inside `_should_advance_wp_step`) raises
+      `PrimaryPlacementResolutionError`" — mirroring the rigor already
+      applied to (b-ii). Only after that mechanism is pinned does the
+      PLAN-FRESH3-001 "already establishes, as precedent" claim actually
+      hold; as written, round 4 cites an unstated mechanism as validated
+      precedent for a new one.
+
+  - id: PLAN-FRESH4-003
+    lens: debugger-debbie/five-whys-cartographer
+    severity: 1
+    title: >
+      PLAN-FRESH3-002's own remediation claims the reproduction-number
+      disambiguation was applied to "every 'Call (' reference... grepped
+      exhaustively," but multiple bare "Call (" references remain outside
+      their defining bullet
+    evidence:
+      - artifact: "plan.md § Fifth round, PLAN-FRESH3-002 entry, line 1589-1590 (\"every 'Call (' reference in the document (grepped exhaustively) is now prefixed with its owning reproduction number\")"
+      - artifact: "plan.md lines 1093, 1247, 1249, 1271-1272, 1518, 1533, 1548, 1558, 1564, 1584, 1587 — bare 'Call (a)' / 'Call (b)' / 'Call (e)' / 'Calls (c)/(d)' references with no reproduction-number prefix on the individual reference (each relies on an antecedent established earlier in the same paragraph, not a per-occurrence prefix)"
+    claim: >
+      A literal grep for `Call (` with no `reproduction` qualifier on the
+      same line still returns over a dozen hits after round 4's fix. None of
+      these currently create real ambiguity — each sits close enough to a
+      "reproduction #N's Call (...)" antecedent earlier in the same paragraph
+      or bullet to resolve unambiguously in context — but the finding's own
+      remediation text overclaims literal exhaustiveness ("grepped
+      exhaustively... every... reference"), which is not accurate as a
+      description of the diff. This is the same class of unverified-claim
+      risk this document's own culture flags elsewhere (e.g. PLAN-FIT-002/003:
+      "this plan's earlier claim... did not, in fact, hold").
+    remediation: >
+      Soften PLAN-FRESH3-002's remediation text to describe what was
+      actually done — reproduction-number-qualified the first/defining
+      occurrence of each Call in every section, not every individual bare
+      reference — or, if true exhaustiveness is wanted, finish prefixing the
+      remaining within-paragraph continuation references too.

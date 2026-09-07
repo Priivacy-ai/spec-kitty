@@ -1,0 +1,104 @@
+schema: review-findings/v1
+complete: true
+phase: pre-merge
+lens_group: correspondence
+lens: R1-correspondence
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+issue: 3884
+branch: fix/runtime-advance-guard-3883
+commit: dad509538
+findings:
+  - id: CORR-001
+    lens: correspondence
+    severity: 3
+    title: >-
+      The new noqa comment's own line-number citation for "this module's
+      existing deferred-import idiom" does not resolve to an import, or to
+      any noqa, at either cited location.
+    evidence:
+      - code: >-
+          src/runtime/next/runtime_bridge.py:777 —
+          `from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415 —
+          matches this module's existing deferred-import idiom at :265-275/:1529-1537`
+      - code: >-
+          Actual content at runtime_bridge.py:265-275 is a comment block (the
+          "Anchor the stored-topology read..." rationale) with no import
+          statement in range — the nearby deferred import it might mean is
+          three lines earlier, at :262, and carries no noqa.
+      - code: >-
+          Actual content at runtime_bridge.py:1529-1537 is the tail of
+          `_dn_bootstrap`'s docstring plus the `if effective_root is None:` /
+          `_resolve_runtime_feature_dir(...)` branch open — no import
+          statement anywhere in that range. The real precedent this comment
+          appears to be pointing at (`from mission_runtime import
+          MissionArtifactKind, placement_seam  # noqa: PLC0415`, unmodified
+          from `main`) is 32-40 lines further down, at line 1569.
+    claim: >-
+      The inline citation asserts that lines 265-275 and 1529-1537 already
+      carry the same "deferred import + `# noqa: PLC0415`" idiom this new
+      import is said to mirror. Neither range contains an import statement,
+      let alone a noqa comment; a maintainer following the citation to verify
+      the "matches an existing idiom" justification lands on prose instead
+      and will not find what the comment promises. (The idiom does exist
+      in the file — at line 1569, pre-existing on `main` — so the underlying
+      claim that a precedent exists is true; only the pointer to it is wrong.)
+      Note also that this project's own `pyproject.toml`
+      `[tool.ruff.lint].select` list (confirmed by running
+      `.venv/bin/ruff check src/runtime/next/runtime_bridge.py`, which passes
+      clean) does not include `PLC0415` or any bare `C`/`PLC` category, so the
+      suppression itself is currently inert under this repo's lint gate —
+      not something this finding requires fixing, but it means the citation
+      error costs a maintainer real time for a check that isn't even live.
+    recommendation: >-
+      Delete the ":265-275/:1529-1537" pointer (non-load-bearing prose) or
+      correct it to ":1569" — the actual matching noqa comment.
+
+  - id: CORR-002
+    lens: correspondence
+    severity: 2
+    title: >-
+      A WP02 test docstring's "no repo_root/mission_slug keywords exist ...
+      yet" framing was accurate when WP02 was authored standalone against
+      unmodified production code, but is false on the consolidated branch,
+      where WP01's fix (already merged onto this same branch) added exactly
+      those keyword parameters to `_should_advance_wp_step`.
+    evidence:
+      - code: >-
+          tests/runtime/next/test_coord_topology_fixture.py:311-314 —
+          `"""RED, pre-fix (unmodified production code, plain 2-arg call --
+          no \`repo_root\`/\`mission_slug\` keywords exist on
+          \`_should_advance_wp_step\` yet). ...`
+      - code: >-
+          src/runtime/next/runtime_bridge.py:736-742 (this diff) — the
+          function signature now reads `def _should_advance_wp_step(step_id:
+          str, feature_dir: Path, *, repo_root: Path | None = None,
+          mission_slug: str | None = None) -> bool:` on this same branch.
+    claim: >-
+      On the branch under review, `_should_advance_wp_step` already has the
+      `repo_root`/`mission_slug` keyword-only parameters WP01 added. The
+      docstring's present-tense "yet" reads as a claim about the current
+      state of the shipped function, but that state is now false — the
+      keywords exist. The test itself is unaffected (it deliberately omits
+      them to exercise the un-anchored 2-arg path, and still passes), so this
+      is not load-bearing; it is a factual claim in shipped test prose that a
+      maintainer reading it post-merge would take at face value and be
+      briefly misled by.
+    recommendation: >-
+      Either delete the "yet" qualifier (state only that this test uses the
+      plain 2-arg signature deliberately, not that the extended signature
+      doesn't exist) or reword to past tense referencing WP02's original,
+      pre-consolidation authoring context.
+
+coverage:
+  claims_identified: 34
+  claims_verified: 32
+  claims_unresolvable: 0
+  notes: >-
+    "Identified" counts distinct checkable citations/assertions in the diff:
+    file:line pointers, function/class/constant names, cross-test-module
+    import claims, AST-count assertions, FR/#3704/#3884 cross-references,
+    and factual claims about production code paths. Both findings above are
+    counted as verified-and-flagged (their falsity is itself the verified
+    fact), not as unresolvable. Every citation checked did resolve to some
+    real location; CORR-001 is a citation resolving to the wrong location
+    rather than to nothing.

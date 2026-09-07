@@ -108,7 +108,8 @@ def _write_meta(
 
 
 def _mission_context_for_coord(mission_slug: str, coord_dir: Path, mission_type: str = "software-dev"):
-    from mission_runtime import MissionArtifactContext, MissionArtifactKind, MissionContext, MissionTopology
+    from mission_runtime import MissionArtifactKind, MissionContext, MissionTopology
+    from mission_runtime.context import MissionArtifactContext
 
     return MissionContext(
         mission_slug=mission_slug,

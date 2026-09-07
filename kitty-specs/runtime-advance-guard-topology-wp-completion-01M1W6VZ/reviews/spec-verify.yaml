@@ -1,0 +1,30 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: unresolved
+    remaining_severity: 4
+    reason: "The caller-liveness correction (_check_cli_guards live via _dn_dependency_gate for every _GUARD_TABLES-registered family incl. software-dev) is accurate and its line citations (runtime_bridge.py:823,1678-1756,1729,1774; runtime_bridge_cores.py:689-693) all verify exactly, but the same fix's new Independent Test/C-003 prose asserts required_artifacts_for('implement','software-dev') 'names tasks.md as blocking' when packs/built-in/missions/software-dev/expected-artifacts.yaml literally has `implement: []` (no blocking artifacts, comment confirms '_evaluate_wp_iteration_guard only checks WP status') and _evaluate_wp_iteration_guard/wp_advance_ready never inspects filenames at this step, so 'both calls return [\"tasks.md\", ...]' before the fix is not what the real code produces at the implement WP-iteration guard, risking a red-first test built on a false premise."
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: "WORK_PACKAGE_TASK's PRIMARY membership (artifacts.py:147-155) and the coordination-branch-minting/lane-backfill mechanism (missions/_create.py:195 ensure_coordination_branch mints off target_branch, mission_creation.py:772 call site, worktree_allocator.py:576 _merge_recorded_planning_commit called only from lane-worktree paths, never for the coordination worktree itself) all verify exactly against the real code, and FR-001/FR-002/C-001 now make a real scope decision folding the WP-file glob into FR-001."
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: "New FR-008 explicitly names all three helpers with accurate citations (runtime_bridge.py:923/944-945, 989/1013-1014, 862; bulk_edit/gate.py:75-82) and makes a concrete scope decision (re-anchor all three onto FR-001's primary-anchored directory), not just an acknowledgement."
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: "Edge Cases now includes a 'Rollout impact on real in-flight missions' entry addressing the mid-flight state-transition/unblocking discontinuity for in-flight coord-topology missions once the fix ships."
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: "C-002 is broadened to cover the full blast radius and names 4 additional highest-risk tests plus the original two; every citation verified exactly (test_bridge_cores.py:832, tests/runtime/next/test_cli_guard_family.py:378 with the non-matching tests/runtime/test_cli_guard_family.py confirmed to exist and lack the assertion, test_bridge_parity.py:1089-1100, both *_runtime_walk.py tests, test_runtime_bridge_composition.py:1953-1956)."
+  - id: SPEC-VERIFY-003
+    status: unresolved
+    remaining_severity: 1
+    reason: "The citation was moved from 781-800 to 781-809, but _wp_blocks_step's real body runs through line 810 (the final `return False` fallback, confirmed by direct file read) — still off by one and still omitting exactly the unguarded-fallthrough tail line the original finding flagged."
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: "FR-006 now states a single unambiguous contract (must raise, explicitly ruling out a structured return value) with an accurate CoordWorktreeResolutionError citation (commit_router.py:48 verified)."
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: "NFR-001 now gives the exact invocation and both counts were independently reproduced via pytest --collect-only: `pytest tests/runtime --ignore=tests/runtime/next` collects 673 tests, and the naive `pytest tests/runtime -q` collects 746, matching the fix's claims precisely."

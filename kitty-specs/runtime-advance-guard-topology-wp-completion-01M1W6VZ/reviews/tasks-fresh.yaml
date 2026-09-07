@@ -1,0 +1,74 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: TASKS-FRESH-001
+    lens: cross-reference-integrity
+    severity: 3
+    title: '"T014a" is used six more times after the fix round deleted its only defining heading'
+    evidence:
+      - artifact: "tasks/WP01-merged-production-fix.md \xA7 heading (post-fix): \"## The three ORIGINAL FR-006 catch sites (part of T014's scope)\""
+      - artifact: "tasks/WP01-merged-production-fix.md \xA7 Subtask T015 (Purpose line, and Steps 2(b-i)/2(b-ii)/4)"
+      - artifact: "tasks/WP01-merged-production-fix.md \xA7 Definition of Done (\"before their respective catch-arm commits (T014a)\")"
+      - artifact: "tasks/WP01-merged-production-fix.md \xA7 Risks (\"Polarity inversion risk in the catch-site arms (T014a item 3, T014 item 2)\")"
+    claim: >
+      The fix round resolved TASKS-SEQ-002 (a phantom "Subtask T014a" heading with no
+      matching frontmatter subtask ID) by renaming ONLY the heading itself — from
+      "## Subtask T014a (folded into T014's scope): the three ORIGINAL FR-006 catch
+      sites" to "## The three ORIGINAL FR-006 catch sites (part of T014's scope)" — per
+      the diff (89550f775..267f99148). It did not touch the six other places in the
+      same file that still say "T014a": T015's own Purpose line and two of its Steps
+      ("green once T014a item 2's :1774 catch arm lands", "green once T014a item 1's
+      :1729 catch arm lands", "RED until the :543-549 try/except lands (T014a item 3)"),
+      the Definition of Done, and the Risks section. A fresh reader now hits "T014a" as
+      an apparently load-bearing identifier with no heading, frontmatter entry, or prose
+      anywhere in the document that ever defines what "T014a" is — the fix removed the
+      one place that used to gloss it. The "item N" numbering still lines up with the
+      renamed section's three numbered list items, so the content is recoverable, but
+      the label itself is now an undefined dangling reference, and its Txxx shape
+      invites exactly the "is this a registered subtask?" confusion the original
+      finding was raised to prevent.
+    remediation: >
+      Replace all six remaining "T014a" occurrences (WP01 §Subtask T015 Purpose/Steps,
+      §Definition of Done, §Risks) with a plain descriptive reference to the renamed
+      section, e.g. "the three ORIGINAL FR-006 catch sites' item N" or "the catch-site
+      list above, item N" — consistent with the heading's own new wording — so no Txxx
+      token remains anywhere in the file except the 12 real registered subtask IDs
+      (T008-T019).
+
+  - id: TASKS-FRESH-002
+    lens: cross-WP-contract-consistency
+    severity: 3
+    title: WP02's new NFR-001 pre-change baseline entry makes a promise about WP03's T021 that WP03's own (unchanged) text does not keep
+    evidence:
+      - artifact: "tasks/WP02-coord-topology-fixture-repro1.md \xA7 Subtask T007 step 4: \"this entry is the mission's own 'before' data point that WP03's T021 re-verification diffs its 'after' counts against\""
+      - artifact: "tasks/WP03-regression-sweep-baseline-reverify.md \xA7 Subtask T021 Steps 1-3 (compares only against \"plan.md's Baseline (NFR-001) section, cited verbatim, not re-derived\" — no mention of tracer-design-decisions.md or WP02's captured entry)"
+      - artifact: "tasks/WP03-regression-sweep-baseline-reverify.md \xA7 Subtask T022 step 2 (lists what to confirm is present in tracer-design-decisions.md: \"WP02's two empirical-spike entries and any WP01 implementation-time notes\" — the new NFR-001 baseline entry is not mentioned)"
+    claim: >
+      The fix round resolved TASKS-VERIFY-001 (no subtask ever captured the NFR-001
+      "run FIRST, before any production-code change" baseline) by adding WP02 Subtask
+      T007 step 4, which runs the three exact invocations and records the observed
+      counts in tracer-design-decisions.md as "the mission's own 'before' data point
+      that WP03's T021 re-verification diffs its 'after' counts against." But WP03 was
+      not touched by this fix round (confirmed via `git diff 89550f775 267f99148`) and
+      its T021 still instructs comparing the post-fix counts only against "plan.md's
+      Baseline (NFR-001) section, cited verbatim" — never against the newly-created
+      tracer-design-decisions.md entry WP02 now produces. T022 (tracer close-out) also
+      never lists the new baseline entry among what it confirms is present. In the
+      normal case this is harmless (WP02's freshly-observed counts should equal
+      plan.md's cited numbers exactly, and WP03's T021 step 4 already has its own
+      independent main-vs-branch classification fallback for any deviation), but the
+      claim in WP02 T007 is not actually true of WP03's contract as written: nothing in
+      WP03 reads or diffs against WP02's entry, so if the two ever diverge (e.g. a new
+      pre-existing red lands on main between plan-authoring and WP02's execution),
+      WP03 has no instruction to reconcile against the mission's own live "before"
+      number specifically, only against the static plan.md citation.
+    remediation: >
+      Either (a) add one step to WP03's T021 instructing it to read WP02's T007-step-4
+      entry from tracer-design-decisions.md and diff its "after" counts against those
+      recorded "before" counts (not only against plan.md's static citation), and add the
+      new baseline entry to T022 step 2's list of entries to confirm are present; or (b)
+      soften WP02 T007's claim so it no longer asserts WP03's T021 "diffs its after
+      counts against" this entry, since WP03's contract does not actually do that.

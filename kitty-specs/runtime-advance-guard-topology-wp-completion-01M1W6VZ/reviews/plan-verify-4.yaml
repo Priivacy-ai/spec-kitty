@@ -1,0 +1,32 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: >
+      plan.md now splits reproduction #2's Call (b) into (b-i) (non-WP-iteration
+      branch :1774, uniform fixture — verified live that _check_cli_guards's
+      :858 _should_advance_wp_step call is gated to step_id in
+      ("implement","review") and can't fire on this branch) and (b-ii)
+      (WP-iteration branch :1729, asymmetric fixture patching
+      _should_advance_wp_step to unconditionally return True while the real
+      corrupt fixture still governs gather_artifact_presence); tracing
+      runtime_bridge.py confirms the WP-iteration branch calls
+      _should_advance_wp_step at :1680 before _check_cli_guards at :1729, and
+      since both :1680 and _check_cli_guards's own :858 call reference the
+      bare module-level name _should_advance_wp_step in the same module,
+      patching it (e.g. via monkeypatch.setattr on the module attribute)
+      is observed at both call sites, letting execution reach
+      gather_artifact_presence's real (unpatched) :851 call with the corrupt
+      fixture still in effect at :1729 — the design is sound.
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: >
+      Every "Call (" reference in plan.md's Test Strategy coverage-arithmetic
+      sentence and the WP2 commit-ordering bullets now leads with an explicit
+      "reproduction #1's"/"reproduction #2's" prefix on first mention per
+      bullet/paragraph (verified by grep across the whole document), with
+      only same-paragraph bare follow-on mentions reusing an already-
+      established antecedent — no remaining ambiguous out-of-context "Call
+      (a)"/"Call (b)" reference in the live (non-revision-history) sections.

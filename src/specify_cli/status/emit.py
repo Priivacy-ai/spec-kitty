@@ -27,14 +27,16 @@ event-log``) so two concurrent distinct verdicts union rather than clobber
 authoritative act -- it stays a hard-error, best-effort-in-name-only render
 until WP05's reader flip demotes it (D-PLAN-11).
 
-Pipeline order (critical -- do not reorder):
-    1. resolve_lane_alias(to_lane)
-    2. Derive from_lane from last event for this WP (or "genesis" for unseeded WPs)
-    3. validate_transition(from_lane, resolved_lane, ...)
-    4. Create StatusEvent with ULID event_id
-    5. store.append_event(feature_dir, event)
-    6. reducer.materialize(feature_dir)
-    7. _saas_fan_out(event, mission_slug, repo_root)
+Shell order (critical -- do not reorder; contract ``emit-pipeline.md`` §2,
+flat/primary column). This module is the flat/primary composition shell;
+validation and event construction are NOT here but in the status-owned
+pipeline ``status/transition_pipeline.py::prepare_transition`` (FR-005):
+    1. feature_status_lock(resolve_status_lock_root(...), feature_dir.name)
+    2. Derive from_lane from the reduced log for this WP -- once (NFR-004)
+    4. prepare_transition(...)  (alias-resolve, gates, validate, build)
+    5. store.append_event_stream_atomic_verified -> reducer.materialize -> lane mirror
+    6. Release the lock
+    7. _saas_fan_out(event, mission_slug, repo_root)  (skipped when fan_out=False)
     8. Return the event
 """
 
@@ -44,40 +46,44 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import ulid as _ulid_mod
 from pydantic import ValidationError
 
 from kernel.clock import now_utc, now_utc_iso, timedelta
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 from specify_cli.workspace import canonicalize_feature_dir
-from .wp_metadata import read_wp_frontmatter
+from .wp_metadata import coerce_legacy_dependencies, read_wp_frontmatter
 
 from .models import (
     ActorField,
     DoneEvidence,
     EventStream,
-    GuardContext,
     InnerStateChanged,
     Lane,
     RepoEvidence,
     ReviewApproval,
     ReviewResult,
     StatusEvent,
+    StatusSnapshot,
     TransitionRequest,
     VerificationResult,
     WPInnerStateDelta,
-    actor_identity_str,
 )
+from .dependency_verdict import readiness_from_snapshot, unresolvable_readiness
 from .resolved_binding import ResolvedBinding
-from .transitions import resolve_lane_alias, validate_transition
 from .wp_state import annotate
 from . import store as _store
 from . import reducer as _reducer
 from .adapters import fire_resolved_binding_fanout, fire_saas_fanout
 from .locking import feature_status_lock
+from .transition_pipeline import PreparedTransition, prepare_transition
+
+if TYPE_CHECKING:
+    from specify_cli.core.dependency_graph import DependencyReadiness
 
 logger = logging.getLogger(__name__)
 
@@ -264,27 +270,40 @@ def build_claim_policy_metadata(
     }
 
 
-def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
+def _reduce_write_surface(feature_dir: Path) -> StatusSnapshot:
+    """Read and reduce the full event log of a shell's write surface -- once.
+
+    This is the shell's ONE full-log read per emit (NFR-004). The returned
+    snapshot serves both the WP's ``from_lane`` (:func:`_derive_from_lane`)
+    and the dependency verdict (:func:`_resolve_dependency_readiness`), so
+    wiring the guard added no second read.
+    """
+    # follow_imports=skip makes _store.read_events/_reducer.reduce return Any
+    # (specify_cli.* boundary); the real signatures return list[StatusEvent]
+    # and StatusSnapshot. The annotation below is type-only.
+    events = _store.read_events(feature_dir)
+    snapshot: StatusSnapshot = _reducer.reduce(events)
+    return snapshot
+
+
+def _derive_from_lane(feature_dir: Path, wp_id: str, *, snapshot: StatusSnapshot | None = None) -> str:
     """Derive the current lane for a WP from canonical reduced state.
 
     The event log may not be append-ordered by logical transition time,
     so we must reduce the full log to determine the current lane
-    deterministically.
+    deterministically. A shell that has already reduced its write surface
+    passes that ``snapshot`` so the lane is taken from the same single read
+    (NFR-004); without one, this helper performs the read itself.
 
     A WP with no lane-state events yet (created but not seeded) is reported as
     ``GENESIS`` — distinct from ``PLANNED`` — so the bootstrap seed is an
     explicit ``genesis -> planned`` transition rather than a dropped
     ``planned -> planned`` self-transition.
     """
-    # cast: follow_imports=skip makes _store.read_events/_reducer.reduce return Any
-    # (specify_cli.* boundary); the real signatures return list[StatusEvent] and
-    # StatusSnapshot respectively. Lane(…).value is str but Lane itself is not str —
-    # all casts below are type-only with no behaviour change.
-    events = _store.read_events(feature_dir)
-    if not events:
-        return cast(str, Lane.GENESIS)
-
-    snapshot = _reducer.reduce(events)
+    # Lane(…).value is str but Lane itself is not str — the casts below are
+    # type-only with no behaviour change.
+    if snapshot is None:
+        snapshot = _reduce_write_surface(feature_dir)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
         return cast(str, Lane.GENESIS)
@@ -293,6 +312,121 @@ def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     if lane_raw is not None:
         return cast(str, Lane(lane_raw))
     return cast(str, Lane.GENESIS)
+
+
+def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str, ...]:
+    """The ``dependencies`` a WP prompt file declares on the PRIMARY planning surface.
+
+    WP files are authored on the primary checkout (``cli/commands/implement.py::
+    find_wp_file``), never on the coordination write surface. Resolve that
+    planning surface even when a flat caller supplies a coord write dir.
+    A WP without a prompt file declares nothing.
+
+    Only the ``dependencies`` key is read, from the raw frontmatter: the typed
+    ``read_wp_frontmatter`` re-points runtime fields from a reduced snapshot
+    (a second full-log read on the emit path, NFR-004), and whole-model
+    ``WPMetadata`` validation would refuse status writes for defects unrelated
+    to dependencies. The value is normalised with the same legacy coercion
+    ``WPMetadata`` applies (:func:`wp_metadata.coerce_legacy_dependencies`), so
+    the shells accept exactly the files the pre-flight sites accept (FR-014).
+
+    Raises ``TransitionError`` when the frontmatter cannot be parsed, the
+    ``dependencies`` value is one ``WPMetadata`` would also refuse, or MORE
+    THAN ONE ``tasks/`` file matches ``wp_id`` (a rename leftover: the
+    declarations are unresolvable, not absent -- distinct from the
+    genuinely-absent case of zero matches, which still declares nothing).
+    The shells do not let that raise escape: :func:`_resolve_dependency_readiness`
+    maps it to an *unsatisfied* verdict, so only the guarded entry edges are
+    refused (fail-closed where the guard has an opinion, ``force`` bypassable)
+    and every other edge is unaffected.
+    """
+    # The plain door can also write a registered coord surface (the
+    # transactional fallback). WP prompts remain PRIMARY artifacts there;
+    # reading the coord copy would treat an absent prompt as no dependencies.
+    from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+    from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root  # noqa: PLC0415
+
+    # Preserve the plain door's explicit ad-hoc dirs and primary bootstrap
+    # surfaces. Only a kitty-specs dir names the durable primary planning home
+    # this re-anchor exists to protect; an ad-hoc caller-supplied dir (outside
+    # kitty-specs) is left untouched.
+    #
+    # No hand-rolled root-walk comparison here (the prior `parent.parent`
+    # equality gate a write-side gate correctly flags as re-derivation):
+    # WORK_PACKAGE_TASK is a PRIMARY-partition kind (mission_runtime.artifacts),
+    # so `PlacementSeam.read_dir` resolves the primary mission dir for EVERY
+    # topology and coord state (it never transits coord, never raises
+    # CoordinationBranchDeleted) -- calling it unconditionally is idempotent
+    # when `planning_feature_dir` already IS the canonical primary dir (the
+    # canonicalizer's `meta.json`-exists short-circuit returns the handle
+    # unchanged), so dropping the "already anchored" fast path costs nothing
+    # beyond a redundant resolve.
+    if planning_feature_dir.parent.name == KITTY_SPECS_DIR:
+        try:
+            primary_root = resolve_canonical_root(planning_feature_dir)
+        except WorkspaceRootNotFound:
+            pass
+        else:
+            planning_feature_dir = placement_seam(primary_root, planning_feature_dir.name).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    matches = _match_wp_files(planning_feature_dir, wp_id)
+    if len(matches) > 1:
+        names = ", ".join(sorted(path.name for path in matches))
+        logger.warning(
+            "Multiple work package files matched %s in %s; dependency declarations are ambiguous",
+            wp_id,
+            planning_feature_dir,
+        )
+        raise TransitionError(
+            f"Cannot resolve the declared dependencies of {wp_id}: ambiguous match ({len(matches)} files in {planning_feature_dir / 'tasks'}: {names})"
+        )
+    if not matches:
+        return ()
+    wp_file = matches[0]
+    try:
+        frontmatter, _body = read_frontmatter(wp_file)
+    except FrontmatterError as exc:
+        raise TransitionError(f"Cannot resolve the declared dependencies of {wp_id}: {wp_file} is unreadable ({exc})") from exc
+    return _coerce_declared_dependencies(frontmatter.get("dependencies"), wp_id=wp_id, wp_file=wp_file)
+
+
+def _coerce_declared_dependencies(raw: object, *, wp_id: str, wp_file: Path) -> tuple[str, ...]:
+    """Normalize a frontmatter ``dependencies`` value to a tuple of WP ids (pure).
+
+    Legacy string forms (``"[]"``, ``"WP01, WP02"``, bare ``"WP01"``) go
+    through ``WPMetadata``'s own coercion first; only a value that
+    ``WPMetadata`` would also reject stays fail-closed.
+    """
+    if raw is None:
+        return ()
+    coerced = coerce_legacy_dependencies(raw)
+    if isinstance(coerced, list) and all(isinstance(dep, str) for dep in coerced):
+        return tuple(dep.strip() for dep in coerced if dep.strip())
+    raise TransitionError(f"Cannot resolve the declared dependencies of {wp_id}: {wp_file} declares a malformed `dependencies` value ({raw!r})")
+
+
+def _resolve_dependency_readiness(planning_feature_dir: Path, wp_id: str, snapshot: StatusSnapshot) -> DependencyReadiness:
+    """The shells' dependency verdict (FR-013): declared deps x reduced write surface.
+
+    Called INSIDE the lock/transaction with the snapshot the shell already
+    reduced for ``from_lane``, so the verdict reflects the post-lock state of
+    the write surface (never the pre-lock TOCTOU the guard exists to close)
+    and costs no additional log read. Always returns a verdict -- a WP with no
+    declared dependencies is *satisfied*, not ``None`` (C-004 reserves ``None``
+    for direct guard-level callers).
+
+    A WP file whose declared dependencies cannot be resolved (unparseable
+    frontmatter, or a ``dependencies`` value ``WPMetadata`` would also refuse)
+    yields an *unsatisfied* verdict rather than an error: the guard then
+    refuses only ``planned -> claimed`` / ``claimed -> in_progress``, ``force``
+    + actor + reason still overrides, and ``-> blocked``, ``-> canceled`` and
+    the review edges are never affected by a corrupt planning artifact.
+    """
+    try:
+        declared = _declared_dependencies(planning_feature_dir, wp_id)
+    except TransitionError as exc:
+        logger.warning("Dependency readiness of %s is unresolvable; refusing the guarded entry edges: %s", wp_id, exc)
+        return unresolvable_readiness(wp_id, str(exc))
+    return readiness_from_snapshot(snapshot, wp_id, declared)
 
 
 def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
@@ -425,14 +559,34 @@ def _legacy_lane_mirror_enabled(feature_dir: Path) -> bool:
     return phase is not None and phase >= 1
 
 
-def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
-    """Locate the canonical WP markdown file for *wp_id* under tasks/."""
+def _match_wp_files(feature_dir: Path, wp_id: str) -> list[Path]:
+    """Every ``tasks/`` markdown file whose name matches *wp_id* (pure, no logging).
+
+    Zero matches means genuinely no WP file (case (a)); more than one means
+    the canonical file is ambiguous, e.g. a rename leftover such as
+    ``WP03.md`` alongside a surviving ``WP03-run-state.md`` (case (b)). The
+    two cases carry different meaning to different callers -- :func:`_find_wp_file`
+    collapses both to "no lane mirror to touch", while the dependency-guard
+    read in :func:`_declared_dependencies` must not collapse them, since case
+    (b) means the declarations are unresolvable, not absent.
+    """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
-        return None
+        return []
 
     wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
-    matches = [path for path in tasks_dir.glob("*.md") if path.name.lower() != "readme.md" and wp_pattern.match(path.name)]
+    return [path for path in tasks_dir.glob("*.md") if path.name.lower() != "readme.md" and wp_pattern.match(path.name)]
+
+
+def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
+    """Locate the canonical WP markdown file for *wp_id* under tasks/.
+
+    Used only by the phase-1 lane mirror: both zero matches and multiple
+    matches collapse to ``None`` there (skip quietly) -- unlike the
+    dependency-guard read, which must distinguish the two (see
+    :func:`_match_wp_files`).
+    """
+    matches = _match_wp_files(feature_dir, wp_id)
     if len(matches) != 1:
         if len(matches) > 1:
             logger.warning(
@@ -502,7 +656,128 @@ def _feature_status_lock_root(feature_dir: Path, repo_root: Path | None) -> Path
     """
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    return resolve_status_lock_root(feature_dir, repo_root)
+    # Local annotation re-narrows the cross-module (``Any``) result to ``Path``.
+    lock_root: Path = resolve_status_lock_root(feature_dir, repo_root)
+    return lock_root
+
+
+def _flat_subtasks_dir_resolver(
+    feature_dir: Path,
+    repo_root: Path | None,
+    mission_slug: str,
+    *,
+    effective_root: Path | None = None,  # noqa: ARG001 -- deliberately dropped; see D-1 in design-notes/WP02-pipeline.md
+) -> Path:
+    """The flat shell's subtask-gate resolver: today's observable behaviour.
+
+    Before the pipeline promotion the flat/primary shells never passed
+    ``request.effective_root`` to ``resolve_subtasks_gate_dir`` while the
+    transactional ``_prepare_event`` did. The pipeline threads it; this
+    adapter preserves the flat shell's behaviour verbatim (D-1 in
+    ``design-notes/WP02-pipeline.md``) until WP06 adjudicates the parity.
+    """
+    from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
+
+    resolved: Path = resolve_subtasks_gate_dir(feature_dir, repo_root, mission_slug)
+    return resolved
+
+
+def _has_legacy_overrides(legacy: dict[str, Any]) -> bool:
+    """True when any legacy positional/keyword transition argument was supplied."""
+    if any(value is not None for key, value in legacy.items() if key not in ("force", "execution_mode")):
+        return True
+    return bool(legacy["force"]) or legacy["execution_mode"] != "worktree"
+
+
+def _coerce_transition_request(
+    feature_dir: TransitionRequest | Path | None,
+    legacy: dict[str, Any],
+) -> TransitionRequest:
+    """Normalise the two call shapes of ``emit_status_transition`` to one request.
+
+    A ``TransitionRequest`` in the first position is used as-is (mixing it
+    with legacy arguments is a ``TypeError``); otherwise the legacy arguments
+    are packed into a fresh request. ``legacy`` keys are ``TransitionRequest``
+    field names.
+    """
+    if isinstance(feature_dir, TransitionRequest):
+        if _has_legacy_overrides(legacy):
+            raise TypeError("emit_status_transition accepts either a TransitionRequest or legacy transition arguments, not both")
+        return feature_dir
+    return TransitionRequest(feature_dir=feature_dir, **legacy)
+
+
+def _collapse_alias_in_place(
+    feature_dir: Path,
+    request: TransitionRequest,
+    *,
+    mission_slug: str,
+    mission_id: str | None,
+    from_lane: str,
+    resolved_lane: str,
+) -> StatusEvent:
+    """Alias-collapse no-op arm of the flat shell: mirror only, nothing appended.
+
+    Returns the same unpersisted synthetic ``StatusEvent`` the shell always
+    returned for this arm (``evidence=None``), so callers see a lane-shaped
+    result without a duplicate self-transition on the log.
+    """
+    wp_id = request.wp_id
+    if wp_id is None or request.actor is None:  # guarded by the pipeline; keeps the type invariant explicit
+        raise TypeError("emit_status_transition requires wp_id and actor")
+    logger.info(
+        "Collapsing legacy alias %s to existing lane %s for %s/%s",
+        request.to_lane,
+        resolved_lane,
+        mission_slug,
+        wp_id,
+    )
+    _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
+    return build_status_event(
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        from_lane=from_lane,
+        to_lane=resolved_lane,
+        actor=request.actor,
+        mission_id=mission_id,
+        force=request.force,
+        execution_mode=request.execution_mode,
+        reason=request.reason,
+        reason_source=request.reason_source,
+        review_ref=request.review_ref,
+        evidence=None,
+        review_result=request.review_result,
+        policy_metadata=request.policy_metadata,
+    )
+
+
+def _persist_prepared(feature_dir: Path, prepared: PreparedTransition, event: StatusEvent) -> None:
+    """Step 5 of the flat shell: atomic append -> materialize -> lane mirror.
+
+    Runs under the shell's ``feature_status_lock``. The transition and its
+    claim annotation are persisted as one unit: a resolved binding must never
+    lag behind the claim it describes.
+
+    WP03/FR-008/contract-G1: when ``event.review_result`` is set (any
+    outbound-from-``in_review`` transition), THIS append is the single
+    authoritative durability write for the recorded verdict -- see the module
+    docstring. Reused unconditionally for every transition (C-001); no
+    second, bespoke persistence path exists for verdicts.
+    """
+    annotation = prepared.annotation
+    _store.append_event_stream_atomic_verified(
+        feature_dir,
+        [event, *([annotation] if annotation is not None else [])],
+    )
+    try:
+        _reducer.materialize(feature_dir)
+    except Exception:
+        logger.warning(
+            "Materialization failed after event %s was persisted; run 'status materialize' to recover",
+            event.event_id,
+        )
+    if prepared.mirror_frontmatter_lane:
+        _mirror_phase1_frontmatter_lane(feature_dir, event.wp_id, prepared.resolved_lane)
 
 
 def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 params are optional with stable defaults; refactor tracked separately
@@ -528,19 +803,24 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     review_result: Any = None,
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,  # noqa: ARG001 -- 3.2.6 compatibility; fan-out retired by #677
+    fan_out: bool = True,
 ) -> StatusEvent:
-    """Central orchestration function for all status state changes.
+    """Flat/primary composition shell over :func:`prepare_transition`.
 
-    Performs the entire pipeline: validate, persist event, materialize
-    snapshot, update legacy views, and emit SaaS telemetry.
+    Performs the whole write path for a flat / ``SINGLE_BRANCH`` / ``LANES``
+    mission (contract ``emit-pipeline.md`` §2, flat column): acquire the
+    mission status lock, derive ``from_lane`` once, run the status-owned
+    pipeline, persist atomically, materialize, mirror, release, then fan out.
+    Validation and event construction live in the pipeline -- this shell
+    never calls ``validate_transition`` itself (P-2).
 
     Validation failures raise TransitionError BEFORE any data is
     persisted. SaaS failures never block canonical persistence.
 
     Args:
-        feature_dir: Path to the kitty-specs feature directory, or a
+        feature_dir: Path to the kitty-specs mission directory, or a
             ``TransitionRequest`` for the request-object call path.
-        mission_slug: Feature identifier (e.g. "034-feature-name").
+        mission_slug: Mission identifier (e.g. "034-mission-name").
         wp_id: Work package identifier (e.g. "WP01").
         to_lane: Target lane (canonical or alias).
         actor: Identity of the actor performing the transition.
@@ -559,6 +839,10 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         sync_dossier: Deprecated 3.2.6 compatibility keyword. Accepted as a
             no-op because the permanently-empty dossier fan-out registry was
             retired by issue #677.
+        fan_out: When False, step 7 (SaaS + resolved-binding fan-out) is
+            skipped and the persisted event is returned as-is. The coord
+            fallback arm uses this to fan out only after its commit succeeds
+            (FR-008 / SC-002); the default preserves immediate fan-out.
 
     Returns:
         The persisted StatusEvent.
@@ -567,393 +851,252 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         TransitionError: If the transition is invalid.
         specify_cli.status.store.StoreError: If the event log is corrupted.
     """
-    current_actor = None
-    annotation_delta: WPInnerStateDelta | None = None
-    if isinstance(feature_dir, TransitionRequest):
-        request = feature_dir
-        mixed_legacy_args = (
-            any(
-                value is not None
-                for value in (
-                    _legacy_mission_slug,
-                    wp_id,
-                    to_lane,
-                    actor,
-                    mission_dir,
-                    mission_slug,
-                    reason,
-                    reason_source,
-                    evidence,
-                    review_ref,
-                    workspace_context,
-                    subtasks_complete,
-                    implementation_evidence_present,
-                    repo_root,
-                    policy_metadata,
-                    review_result,
-                )
-            )
-            or force
-            or execution_mode != "worktree"
-        )
-        if mixed_legacy_args:
-            raise TypeError("emit_status_transition accepts either a TransitionRequest or legacy transition arguments, not both")
-        feature_dir = request.feature_dir or request.mission_dir
-        mission_slug = request.mission_slug or request._legacy_mission_slug
-        wp_id = request.wp_id
-        to_lane = request.to_lane
-        actor = request.actor
-        force = request.force
-        reason = request.reason
-        reason_source = request.reason_source
-        evidence = request.evidence
-        review_ref = request.review_ref
-        workspace_context = request.workspace_context
-        subtasks_complete = request.subtasks_complete
-        implementation_evidence_present = request.implementation_evidence_present
-        current_actor = request.current_actor
-        execution_mode = request.execution_mode
-        repo_root = request.repo_root
-        policy_metadata = request.policy_metadata
-        review_result = request.review_result
-        annotation_delta = request.annotation_delta
-    else:
-        feature_dir = feature_dir or mission_dir
-        mission_slug = mission_slug or _legacy_mission_slug
-
-    if feature_dir is None or mission_slug is None or wp_id is None or to_lane is None or actor is None:
+    request = _coerce_transition_request(
+        feature_dir,
+        {
+            "_legacy_mission_slug": _legacy_mission_slug,
+            "wp_id": wp_id,
+            "to_lane": to_lane,
+            "actor": actor,
+            "mission_dir": mission_dir,
+            "mission_slug": mission_slug,
+            "force": force,
+            "reason": reason,
+            "reason_source": reason_source,
+            "evidence": evidence,
+            "review_ref": review_ref,
+            "workspace_context": workspace_context,
+            "subtasks_complete": subtasks_complete,
+            "implementation_evidence_present": implementation_evidence_present,
+            "execution_mode": execution_mode,
+            "repo_root": repo_root,
+            "policy_metadata": policy_metadata,
+            "review_result": review_result,
+        },
+    )
+    request_feature_dir = request.feature_dir or request.mission_dir
+    request_mission_slug = request.mission_slug or request._legacy_mission_slug
+    if request_feature_dir is None or request_mission_slug is None or request.wp_id is None or request.to_lane is None or request.actor is None:
         raise TypeError("emit_status_transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
 
     # WP03/T014/FR-013: route the feature_dir through the canonical-root
     # resolver. When the caller hands us a worktree-rooted path, this
     # rewrites it to the main repo's kitty-specs/<slug>/ so the event log
     # never lands in a stale worktree-local copy.
-    canonical_feature_dir: Path = canonicalize_feature_dir(feature_dir)
+    canonical_feature_dir: Path = canonicalize_feature_dir(request_feature_dir)
 
-    lock_root = _feature_status_lock_root(canonical_feature_dir, repo_root)
-    with feature_status_lock(lock_root, mission_slug):
-        # T023: Load mission_id (ULID) from meta.json to use as the canonical
-        # machine-facing identity for new events.  None for legacy/pre-3.1.1 missions.
+    # Step 1: acquire. The lock is keyed on the mission directory NAME
+    # (FR-004): colliding slugs no longer over-serialize and a bare legacy
+    # slug serializes against its ordinary writers.
+    lock_root = _feature_status_lock_root(canonical_feature_dir, request.repo_root)
+    with feature_status_lock(lock_root, canonical_feature_dir.name):
+        # T023: mission_id (ULID) from meta.json is the canonical machine-facing
+        # identity for new events; None for legacy/pre-3.1.1 missions.
         mission_id = _load_mission_id(canonical_feature_dir)
 
-        raw_to_lane = to_lane.strip().lower()
+        # Step 2: reduce the write surface once (NFR-004: the only full-log
+        # read); ``from_lane`` and the dependency verdict both come from it.
+        snapshot = _reduce_write_surface(canonical_feature_dir)
+        from_lane = _derive_from_lane(canonical_feature_dir, request.wp_id, snapshot=snapshot)
 
-        # Step 1: Resolve alias
-        resolved_lane = resolve_lane_alias(to_lane)
+        # Step 3: the dependency verdict, in-lock, against the write surface
+        # (FR-013). The declaration reader resolves PRIMARY WP prompts even
+        # when this flat shell writes a coord fallback surface.
+        readiness = _resolve_dependency_readiness(canonical_feature_dir, request.wp_id, snapshot)
 
-        # Step 2: Derive from_lane from last event for this WP
-        from_lane = _derive_from_lane(canonical_feature_dir, wp_id)
-
-        if workspace_context is None:
-            context_root = repo_root if repo_root is not None else canonical_feature_dir
-            workspace_context = f"{execution_mode}:{context_root}"
-        if not force and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
-
-            primary_subtasks_dir = resolve_subtasks_gate_dir(
-                canonical_feature_dir,
-                repo_root,
-                mission_slug,
-            )
-            subtasks_complete = _infer_subtasks_complete(
-                primary_subtasks_dir,
-                wp_id,
-                status_dir=canonical_feature_dir,
-            )
-        if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            implementation_evidence_present = _infer_implementation_evidence(
-                canonical_feature_dir,
-                wp_id,
-            )
-
-        if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
-            logger.info(
-                "Collapsing legacy alias %s to existing lane %s for %s/%s",
-                to_lane,
-                resolved_lane,
-                mission_slug,
-                wp_id,
-            )
-            _mirror_phase1_frontmatter_lane(
-                canonical_feature_dir,
-                wp_id,
-                resolved_lane,
-            )
-            return StatusEvent(
-                event_id=_generate_ulid(),
-                mission_slug=mission_slug,
-                wp_id=wp_id,
-                from_lane=Lane(from_lane),
-                to_lane=Lane(resolved_lane),
-                at=now_utc_iso(),
-                actor=actor,
-                force=force,
-                execution_mode=execution_mode,
-                reason=reason,
-                reason_source=reason_source,
-                review_ref=review_ref,
-                evidence=None,
-                review_result=review_result,
-                policy_metadata=policy_metadata,
-                mission_id=mission_id,
-            )
-
-        # Step 3: Validate the transition
-        # Build DoneEvidence early so we can pass it to validate_transition
-        done_evidence: DoneEvidence | None = None
-        if evidence is not None:
-            done_evidence = _build_done_evidence(evidence)
-
-        ok, error_msg = validate_transition(
-            from_lane,
-            resolved_lane,
-            GuardContext(
-                force=force,
-                # Guards do string ops on the actor (``.strip()`` truthiness);
-                # project a structured resolved-binding actor to its string
-                # identity here. The dict form is preserved on the StatusEvent
-                # below so it still reaches ``_saas_fan_out`` (FR-015 / IC-09).
-                actor=actor_identity_str(actor),
-                workspace_context=workspace_context,
-                subtasks_complete=subtasks_complete,
-                implementation_evidence_present=implementation_evidence_present,
-                reason=reason,
-                review_ref=review_ref,
-                evidence=done_evidence,
-                review_result=review_result,
-                current_actor=current_actor,
-            ),
-        )
-        if not ok:
-            raise TransitionError(error_msg)
-
-        # Step 4: Create StatusEvent with ULID event_id.
-        # mission_id is the canonical machine-facing identity (ULID from meta.json).
-        # T023: New events carry mission_id alongside mission_slug.
-        event = StatusEvent(
-            event_id=_generate_ulid(),
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            from_lane=Lane(from_lane),
-            to_lane=Lane(resolved_lane),
-            at=now_utc_iso(),
-            actor=actor,
-            force=force,
-            execution_mode=execution_mode,
-            reason=reason,
-            reason_source=reason_source,
-            review_ref=review_ref,
-            evidence=done_evidence,
-            review_result=review_result,
-            policy_metadata=policy_metadata,
+        # Step 4: the status-owned pipeline (validate + build; pure).
+        prepared = prepare_transition(
+            request=request,
+            feature_dir=canonical_feature_dir,
+            mission_slug=request_mission_slug,
             mission_id=mission_id,
+            from_lane=from_lane,
+            readiness=readiness,
+            resolve_subtasks_dir=_flat_subtasks_dir_resolver,
         )
-
-        annotation = (
-            annotate(
-                wp_id,
-                annotation_delta,
-                actor=actor,
-                at=now_utc_iso(),
-                event_id=_generate_ulid(),
-            )
-            if annotation_delta is not None
-            else None
-        )
-
-        # Persist the transition and its claim annotation as one unit. A
-        # resolved binding must never lag behind the claim it describes.
-        #
-        # WP03/FR-008/contract-G1: when `event.review_result` is set (any
-        # outbound-from-`in_review` transition), THIS call is the single
-        # authoritative durability write for the recorded verdict -- see the
-        # module docstring for the full contract. Reused unconditionally for
-        # every transition (C-001); no second, bespoke persistence path is
-        # added here for verdicts specifically.
-        _store.append_event_stream_atomic_verified(
-            canonical_feature_dir,
-            [event, *([annotation] if annotation is not None else [])],
-        )
-
-        # Step 6: Materialize snapshot from event log
-        try:
-            _reducer.materialize(canonical_feature_dir)
-        except Exception:
-            logger.warning(
-                "Materialization failed after event %s was persisted; run 'status materialize' to recover",
-                event.event_id,
+        if prepared.event is None:
+            return _collapse_alias_in_place(
+                canonical_feature_dir,
+                request,
+                mission_slug=request_mission_slug,
+                mission_id=mission_id,
+                from_lane=from_lane,
+                resolved_lane=prepared.resolved_lane,
             )
 
-        _mirror_phase1_frontmatter_lane(
-            canonical_feature_dir,
-            wp_id,
-            resolved_lane,
+        # Step 5: persist -> materialize -> mirror, still under the lock.
+        _persist_prepared(canonical_feature_dir, prepared, prepared.event)
+
+    # Step 7: fan-out after release (never blocks canonical persistence).
+    if fan_out:
+        _saas_fan_out(
+            prepared.event,
+            request_mission_slug,
+            request.repo_root,
+            policy_metadata=request.policy_metadata,
+            ensure_sync_daemon=ensure_sync_daemon,
         )
+        if prepared.annotation is not None:
+            _resolved_binding_fan_out(prepared.annotation, request_mission_slug)
 
-    # Step 7: SaaS fan-out (never blocks canonical persistence)
-    _saas_fan_out(
-        event,
-        mission_slug,
-        repo_root,
-        policy_metadata=policy_metadata,
-        ensure_sync_daemon=ensure_sync_daemon,
-    )
-    if annotation is not None:
-        _resolved_binding_fan_out(annotation, mission_slug)
-
-    # Step 9: Return the event
-    return event
+    return prepared.event
 
 
-def emit_status_transition_batch(  # noqa: C901 — composite transition orchestration mirrors the single-event pipeline
-    requests: list[TransitionRequest],
-    *,
-    ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,  # noqa: ARG001 -- 3.2.6 compatibility; fan-out retired by #677
-) -> list[StatusEvent]:
-    """Validate and persist a same-WP transition sequence atomically.
-
-    Composite operations such as implementation start have multiple legal lane
-    edges but one user-visible lifecycle action. This helper validates the full
-    sequence before any write, appends all events via ``append_events_atomic``,
-    materializes once, and then performs best-effort fan-out. ``sync_dossier``
-    remains an accepted no-op keyword for 3.2.6 callers after retirement of the
-    permanently-empty dossier fan-out registry in issue #677.
-    """
-    if not requests:
-        return []
-
-    first = requests[0]
+def _batch_request_identity(first: TransitionRequest) -> tuple[Path, str, str]:
+    """Resolve the batch's shared (feature_dir, mission_slug, wp_id) from its first request."""
     feature_dir = first.feature_dir or first.mission_dir
     mission_slug = first.mission_slug or first._legacy_mission_slug
     wp_id = first.wp_id
     if feature_dir is None or mission_slug is None or wp_id is None:
         raise TypeError("emit_status_transition_batch requires feature_dir/mission_dir, mission_slug, and wp_id")
+    return canonicalize_feature_dir(feature_dir), mission_slug, wp_id
 
-    feature_dir = canonicalize_feature_dir(feature_dir)
-    mission_id = _load_mission_id(feature_dir)
-    from_lane: str = str(_derive_from_lane(feature_dir, wp_id))
-    built: list[tuple[StatusEvent, TransitionRequest]] = []
+
+def _check_batch_request_identity(
+    request: TransitionRequest,
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+) -> None:
+    """Refuse a batch member that is incomplete or targets another mission/WP.
+
+    Runs BEFORE the lock is acquired: ``canonicalize_feature_dir`` consults
+    the git worktree registry and no lock may be held across git (NFR-001).
+    """
+    request_feature_dir = request.feature_dir or request.mission_dir
+    request_mission_slug = request.mission_slug or request._legacy_mission_slug
+    if request_feature_dir is None or request_mission_slug is None or request.wp_id is None or request.to_lane is None or request.actor is None:
+        raise TypeError("Each batch transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
+    if canonicalize_feature_dir(request_feature_dir) != feature_dir or request_mission_slug != mission_slug or request.wp_id != wp_id:
+        raise TypeError("emit_status_transition_batch only supports one feature/mission/wp per batch")
+
+
+def _prepare_batch(
+    requests: list[TransitionRequest],
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    mission_id: str | None,
+    from_lane: str,
+    readiness: DependencyReadiness,
+) -> list[tuple[StatusEvent, PreparedTransition, TransitionRequest]]:
+    """Run the pipeline per request, chaining ``from_lane`` in memory.
+
+    ``from_lane`` advances from each prepared event's ``resolved_lane`` so the
+    batch never re-reads the log (NFR-004). Alias-collapse members are skipped
+    exactly as before the promotion (no event, no mirror). Any refusal raises
+    before the caller appends anything: the batch is all-or-nothing.
+
+    ``readiness`` is the in-lock verdict for the batch's single WP. A batch
+    only ever moves that one WP, and a WP's verdict depends on its
+    *dependencies'* lanes, which the batch cannot change -- so the verdict
+    resolved against the write surface at acquisition is the verdict for every
+    member, including those reached through the accumulated in-memory state.
+
+    Fail-closed on a missing workspace (#946): this door alone passes
+    ``default_workspace_context=False``, so a member that omits
+    ``workspace_context`` on ``claimed -> in_progress`` is refused by the
+    pipeline's guard ("requires workspace context") instead of being handed a
+    synthetic ``<execution_mode>:<root>``. WP02 of mission
+    ``fsm-write-path-integrity-01M1TZV6`` dropped that skip for door parity
+    (D-2); operator decision 2026-09-07 reinstated it (mission-review
+    DRIFT-3). The rule lives in the pipeline as a policy knob, not here.
+    """
+    built: list[tuple[StatusEvent, PreparedTransition, TransitionRequest]] = []
     batch_started_at = now_utc()
-
     for request in requests:
-        request_feature_dir = request.feature_dir or request.mission_dir
-        request_mission_slug = request.mission_slug or request._legacy_mission_slug
-        if request_feature_dir is None or request_mission_slug is None or request.wp_id is None or request.to_lane is None or request.actor is None:
-            raise TypeError("Each batch transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
-        if canonicalize_feature_dir(request_feature_dir) != feature_dir or request_mission_slug != mission_slug or request.wp_id != wp_id:
-            raise TypeError("emit_status_transition_batch only supports one feature/mission/wp per batch")
-
-        raw_to_lane = str(request.to_lane).strip().lower()
-        resolved_lane = resolve_lane_alias(str(request.to_lane))
-
-        workspace_context = request.workspace_context
-        if workspace_context is None and not (from_lane == Lane.CLAIMED and resolved_lane == Lane.IN_PROGRESS):
-            context_root = request.repo_root if request.repo_root is not None else feature_dir
-            workspace_context = f"{request.execution_mode}:{context_root}"
-        subtasks_complete = request.subtasks_complete
-        implementation_evidence_present = request.implementation_evidence_present
-        if not request.force and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
-
-            primary_subtasks_dir = resolve_subtasks_gate_dir(feature_dir, request.repo_root, mission_slug)
-            subtasks_complete = _infer_subtasks_complete(
-                primary_subtasks_dir,
-                wp_id,
-                status_dir=feature_dir,
-            )
-        if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
-
-        if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
-            continue
-
-        done_evidence: DoneEvidence | None = None
-        if request.evidence is not None:
-            done_evidence = _build_done_evidence(request.evidence)
-
-        ok, error_msg = validate_transition(
-            from_lane,
-            resolved_lane,
-            GuardContext(
-                force=request.force,
-                actor=actor_identity_str(request.actor),
-                workspace_context=workspace_context,
-                subtasks_complete=subtasks_complete,
-                implementation_evidence_present=implementation_evidence_present,
-                reason=request.reason,
-                review_ref=request.review_ref,
-                evidence=done_evidence,
-                review_result=request.review_result,
-                current_actor=request.current_actor,
-            ),
-        )
-        if not ok:
-            raise TransitionError(error_msg)
-
-        event = StatusEvent(
-            event_id=_generate_ulid(),
+        prepared = prepare_transition(
+            request=request,
+            feature_dir=feature_dir,
             mission_slug=mission_slug,
-            wp_id=wp_id,
-            from_lane=Lane(from_lane),
-            to_lane=Lane(resolved_lane),
-            at=(batch_started_at + timedelta(microseconds=len(built))).isoformat(),
-            actor=request.actor,
-            force=request.force,
-            execution_mode=request.execution_mode,
-            reason=request.reason,
-            reason_source=request.reason_source,
-            review_ref=request.review_ref,
-            evidence=done_evidence,
-            review_result=request.review_result,
-            policy_metadata=request.policy_metadata,
             mission_id=mission_id,
+            from_lane=from_lane,
+            readiness=readiness,
+            at=(batch_started_at + timedelta(microseconds=len(built))).isoformat(),
+            resolve_subtasks_dir=_flat_subtasks_dir_resolver,
+            default_workspace_context=False,
         )
-        built.append((event, request))
-        from_lane = resolved_lane
+        if prepared.event is None:
+            continue
+        built.append((prepared.event, prepared, request))
+        from_lane = prepared.resolved_lane
+    return built
 
-    if not built:
+
+def emit_status_transition_batch(
+    requests: list[TransitionRequest],
+    *,
+    ensure_sync_daemon: bool = True,
+    sync_dossier: bool = True,  # noqa: ARG001 -- 3.2.6 compatibility; fan-out retired by #677
+    fan_out: bool = True,
+) -> list[StatusEvent]:
+    """Validate and persist a same-WP transition sequence atomically.
+
+    Composite operations such as implementation start have multiple legal lane
+    edges but one user-visible lifecycle action. This is the batch variant of
+    the flat/primary shell (contract ``emit-pipeline.md`` §2): ONE
+    ``feature_status_lock`` acquisition (FR-018) covers the single from-lane
+    derivation, every per-request :func:`prepare_transition`, the single
+    atomic append, the materialize and the lane mirrors; fan-out follows the
+    release. The full sequence is validated before any write -- a refused
+    member persists nothing. ``sync_dossier`` remains an accepted no-op
+    keyword for 3.2.6 callers after retirement of the permanently-empty
+    dossier fan-out registry in issue #677; ``fan_out=False`` skips step 7 for
+    the coord fallback arm (FR-008).
+    """
+    if not requests:
         return []
 
-    events = [event for event, _request in built]
-    annotations: list[InnerStateChanged] = []
-    for index, (_event, request) in enumerate(built):
-        if request.annotation_delta is None:
-            continue
-        if request.actor is None:  # guarded while building; keeps the type invariant explicit
-            raise TypeError("Batch claim annotations require an actor")
-        annotations.append(
-            annotate(
-                wp_id,
-                request.annotation_delta,
-                actor=request.actor,
-                at=(batch_started_at + timedelta(microseconds=len(built) + index)).isoformat(),
-                event_id=_generate_ulid(),
+    feature_dir, mission_slug, wp_id = _batch_request_identity(requests[0])
+    for request in requests:
+        _check_batch_request_identity(request, feature_dir=feature_dir, mission_slug=mission_slug, wp_id=wp_id)
+
+    lock_root = _feature_status_lock_root(feature_dir, requests[0].repo_root)
+    with feature_status_lock(lock_root, feature_dir.name):
+        mission_id = _load_mission_id(feature_dir)
+        # One reduce of the write surface (NFR-004) feeds both the batch's
+        # starting ``from_lane`` and its in-lock dependency verdict (FR-013).
+        snapshot = _reduce_write_surface(feature_dir)
+        from_lane: str = str(_derive_from_lane(feature_dir, wp_id, snapshot=snapshot))
+        readiness = _resolve_dependency_readiness(feature_dir, wp_id, snapshot)
+        built = _prepare_batch(
+            requests,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            from_lane=from_lane,
+            readiness=readiness,
+        )
+        if not built:
+            return []
+
+        events = [event for event, _prepared, _request in built]
+        annotations: list[InnerStateChanged] = [prepared.annotation for _event, prepared, _request in built if prepared.annotation is not None]
+        _store.append_event_stream_atomic_verified(feature_dir, [*events, *annotations])
+
+        try:
+            _reducer.materialize(feature_dir)
+        except Exception:
+            logger.warning(
+                "Materialization failed after batch ending in event %s was persisted; run 'status materialize' to recover",
+                events[-1].event_id,
             )
-        )
-    _store.append_event_stream_atomic_verified(feature_dir, [*events, *annotations])
 
-    try:
-        _reducer.materialize(feature_dir)
-    except Exception:
-        logger.warning(
-            "Materialization failed after batch ending in event %s was persisted; run 'status materialize' to recover",
-            events[-1].event_id,
-        )
+        for event in events:
+            _mirror_phase1_frontmatter_lane(feature_dir, event.wp_id, str(event.to_lane))
 
-    for event in events:
-        _mirror_phase1_frontmatter_lane(feature_dir, event.wp_id, str(event.to_lane))
-
-    for event, request in built:
-        _saas_fan_out(
-            event,
-            mission_slug,
-            request.repo_root,
-            policy_metadata=request.policy_metadata,
-            ensure_sync_daemon=ensure_sync_daemon,
-        )
-    for annotation in annotations:
-        _resolved_binding_fan_out(annotation, mission_slug)
+    if fan_out:
+        for event, _prepared, request in built:
+            _saas_fan_out(
+                event,
+                mission_slug,
+                request.repo_root,
+                policy_metadata=request.policy_metadata,
+                ensure_sync_daemon=ensure_sync_daemon,
+            )
+        for annotation in annotations:
+            _resolved_binding_fan_out(annotation, mission_slug)
 
     return events
 
@@ -988,7 +1131,7 @@ def emit_inner_state_changed(
         wp_id: Target work-package id (e.g. ``"WP01"``).
         delta: Typed partial runtime-state payload. An empty delta is refused.
         actor: Identity of the actor causing the change.
-        mission_slug: Mission identifier — used only as the status-lock key.
+        mission_slug: Mission identifier used for resolved-binding fan-out.
         at: Optional ISO-8601 occurrence timestamp; defaults to now.
         repo_root: Optional repo root for status-lock resolution.
 
@@ -1010,7 +1153,7 @@ def emit_inner_state_changed(
     )
 
     lock_root = _feature_status_lock_root(feature_dir, repo_root)
-    with feature_status_lock(lock_root, mission_slug):
+    with feature_status_lock(lock_root, feature_dir.name):
         _store.append_annotations_atomic_verified(feature_dir, [event])
         try:
             _reducer.materialize(feature_dir)
@@ -1246,7 +1389,7 @@ def emit_resolved_binding(
     Args:
         feature_dir: kitty-specs feature directory (canonicalized by the emit).
         wp_id: Target work-package id (e.g. ``"WP01"``).
-        mission_slug: Mission identifier — used only as the status-lock key.
+        mission_slug: Mission identifier used for resolved-binding fan-out.
         actor: Identity of the actor performing the claim (the annotation actor).
         role: The *actual* role that ran at this seam (``"implementer"`` /
             ``"reviewer"``) — never the authored recommendation.

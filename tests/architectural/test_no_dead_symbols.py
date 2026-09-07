@@ -349,17 +349,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="charter.offering.missions.models"
         ),  # charter.offering.missions.models::IDENTIFIER_PATTERN
         SymbolKey(
-            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="charter.offering.missions.models"
+            "Mission", "36ecefcd078e89a856885fef32b1690315ca257cdf4cb90ff03ee2994e275fa8", source_module="charter.offering.missions.models"
         ),  # charter.offering.missions.models::Mission
-        SymbolKey(
-            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::MissionOrchestration
-        SymbolKey(
-            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::MissionStateObject
-        SymbolKey(
-            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::MissionTransition
         SymbolKey(
             "MissionRepository", "87721dffc175e1e94aa69dc020df1effd47b986d66e538eef4c49df962d684f9", source_module="charter.offering.missions"
         ),  # charter.offering.missions::MissionRepository
@@ -716,15 +707,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "clear_mission_brief", "52ef7df6a2e4e0e40032f1b4a785936d2a9e21d322b225fd80aa119a66d99b83", source_module="specify_cli.mission_brief"
         ),  # specify_cli.mission_brief::clear_mission_brief
-        SymbolKey(
-            "MissionProtocol", "c5521662618b6e3878d62d2cbda8f5b36e658221e7925fb4faf14153c6913bd1", source_module="specify_cli.mission_v1"
-        ),  # specify_cli.mission_v1::MissionProtocol
-        SymbolKey(
-            "load_mission", "ff1a5a3dc0abab0af9244e16db29da088093f66a6ee1a6cd80477abdf731b6d9", source_module="specify_cli.mission_v1"
-        ),  # specify_cli.mission_v1::load_mission
-        SymbolKey(
-            "load_mission_by_name", "489d0f9a1c2e1bce4062ba94ff015d79148f4b105c660813bd1156a139178d4a", source_module="specify_cli.mission_v1"
-        ),  # specify_cli.mission_v1::load_mission_by_name
         # specify_cli.missions::PrimitiveExecutionContext (escalated: live collision)
         SymbolKey("PrimitiveExecutionContext", "8d0ff32282080dcc0ee90b8fd3ba8ba5c9f41d4a20886979453df1db4ce64561", module_path="specify_cli.missions"),
         # specify_cli.missions::execute_with_glossary (escalated: live collision)
@@ -995,17 +977,8 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
             "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="charter.offering.missions.models"
         ),  # charter.offering.missions.models::IDENTIFIER_PATTERN
         SymbolKey(
-            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="charter.offering.missions.models"
+            "Mission", "36ecefcd078e89a856885fef32b1690315ca257cdf4cb90ff03ee2994e275fa8", source_module="charter.offering.missions.models"
         ),  # charter.offering.missions.models::Mission
-        SymbolKey(
-            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::MissionOrchestration
-        SymbolKey(
-            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::MissionStateObject
-        SymbolKey(
-            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::MissionTransition
         SymbolKey(
             "DelegatesTo", "e43595becef9482b7caa76b2e901db98a5f48737237d6c1aac8b74b64c32b9ee", source_module="charter.offering.missions.step_contracts"
         ),  # charter.offering.missions.step_contracts::DelegatesTo
@@ -1837,6 +1810,47 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 )
 
 
+# ---------- C. fsm-write-path-integrity-01M1TZV6 WP03 raw-append door (FR-010) ----------
+# ``specify_cli.status._unsafe`` is the enumerated, gate-facing door for the
+# raw ``status.events.jsonl`` append primitives (they left the ``status``
+# facade so no runtime module can reach them without appearing in the
+# shrink-only ``ALLOWED_CALLERS`` census). Two of its public names have no
+# cross-file ``src/`` caller BY DESIGN:
+#
+# * ``specify_cli.status._unsafe::ALLOWED_CALLERS`` -- consumed only by the
+#   architectural gate ``tests/architectural/test_status_unsafe_allowlist.py``
+#   (every door importer must be in it; it must stay a subset of the test's
+#   committed BASELINE). A runtime caller would defeat its purpose.
+# * ``specify_cli.status._unsafe::append_event`` -- the unverified single-row
+#   primitive, re-exported because the write-gates contract names every raw
+#   primitive on this door; production writers use the ``_verified`` /
+#   ``_atomic`` variants, so its only importers are tests (14 files) that
+#   seed event logs through the sanctioned door. Module-path tier: the alias
+#   text collides with ``glossary``'s unrelated ``append_event`` re-export.
+#
+# Tracked with the mission's census-gate-rule note (#3895); drop these
+# entries if the door is ever folded back or ``append_event`` retired.
+_CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.status._unsafe::ALLOWED_CALLERS
+        # Content-tier hash re-minted in WP07 (census addendum: family 8,
+        # ``specify_cli.decisions.emit``, joined the shrink-only set).
+        SymbolKey(
+            "ALLOWED_CALLERS",
+            "8419d05d86c58956c1edd363cecf32d9ec625c9e070948dc6f30f7e0c54baa8b",
+            source_module="specify_cli.status._unsafe",
+        ),
+        # specify_cli.status._unsafe::append_event (escalated module_path tier)
+        SymbolKey(
+            "append_event",
+            "75b185cd85c790dec2eb8133e573be117c82d6ea8f0f158b3984ee524e7d5dc1",
+            module_path="specify_cli.status._unsafe",
+            source_module="specify_cli.status._unsafe",
+        ),
+    }
+)
+
+
 # ---------- D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664) ----------
 # Three symbols surfaced by the src/doctrine/ -> src/charter/offering/
 # package relocation (mission ``charter-code-topology-01M152G1``, PR #3664).
@@ -1948,6 +1962,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
     | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
+    | _CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
     | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
 )
@@ -3199,8 +3214,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         # re-port queue. TODO(triage): #1065 -- wire the runtime_bridge
         # caller and delete this entry (FR-303).
         "runtime.next.committed_authority::mission_terminal_verdict",
-        "runtime.next.decision::derive_mission_state",
-        "runtime.next.decision::evaluate_guards",
         "runtime.next.runtime_bridge::KITTIFY_DIR",
         "runtime.next.runtime_bridge_cores::evaluate_guards",
         "specify_cli.acceptance::logger",
@@ -3275,7 +3288,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.mission_metadata::load_meta_strict",
         "specify_cli.mission_metadata::set_change_mode",
         "specify_cli.mission_metadata::set_purpose_summary",
-        "specify_cli.mission_v1.schema::strip_v1_keys",
         "specify_cli.missions._archive::is_mission_archived",
         "specify_cli.missions._read_path_resolver::resolve_feature_dir_for_slug",
         "specify_cli.ownership.frontmatter_source::InMemoryFrontmatterSource",
@@ -4160,7 +4172,10 @@ def test_bite_i_live_collision_escalation_regression_guard() -> None:
     }
     collision_index = classify_collisions(corpus)
     # Sanity: the live classifier actually sees the collision.
-    assert len(collision_index.get("GateDecision", [])) == 2
+    assert [location.module_path for location in collision_index.get("GateDecision", [])] == [
+        "synthetic.sanctioned",
+        "synthetic.rogue",
+    ]
 
     sanctioned_content_key = resolve_symbol_key("GateDecision", "synthetic.sanctioned", corpus["synthetic.sanctioned"], corpus=corpus)
     sanctioned_final = key_tier(sanctioned_content_key, "synthetic.sanctioned", collision_index)

@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-09-06T20:34:29.849866+00:00",
+  "flattened": false,
+  "friendly_name": "runtime advance guard topology wp completion",
+  "mission_id": "01M1W6VZTPSFZXP3NQZ8Y3WQW5",
+  "mission_number": null,
+  "mission_slug": "runtime-advance-guard-topology-wp-completion-01M1W6VZ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances runtime advance guard topology wp completion on fix/runtime-advance-guard-3883 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "runtime advance guard topology wp completion",
+  "slug": "runtime-advance-guard-topology-wp-completion-01M1W6VZ",
+  "status_phase": "1",
+  "target_branch": "fix/runtime-advance-guard-3883",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-07T01:37:40.740562+00:00"
+}

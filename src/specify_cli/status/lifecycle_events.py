@@ -535,7 +535,7 @@ def persist_lifecycle_event_local(
     )
     repo_root = _repo_root_for_lifecycle_log(log_path)
     try:
-        with _lifecycle_write_lock(repo_root, mission_slug):
+        with _lifecycle_write_lock(repo_root, log_path.parent.name if mission_slug is not None else None):
             _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)

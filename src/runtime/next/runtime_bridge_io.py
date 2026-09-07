@@ -87,7 +87,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
-from mission_runtime import CommitTarget, MissionArtifactKind, kind_for_mission_file, placement_seam
+from mission_runtime import (
+    ActionContextError,
+    CommitTarget,
+    MissionArtifactKind,
+    PlacementSeam,
+    kind_for_mission_file,
+    placement_seam,
+)
 from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
@@ -95,12 +102,17 @@ from runtime.next._internal_runtime import (
     NullEmitter,
     start_mission_run,
 )
-from runtime.next._internal_runtime.schema import MissionTemplate, load_mission_template_file
+from runtime.next._internal_runtime.schema import (
+    MissionRuntimeError,
+    MissionTemplate,
+    load_mission_template_file,
+)
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
 if TYPE_CHECKING:
@@ -147,6 +159,49 @@ class _FeatureRunEntry(TypedDict, total=False):
     mission_slug: str
 
 
+class RunIdentityMigrationRequired(MissionRuntimeError):
+    """A legacy run has no identity proving that it belongs to this mission."""
+
+    error_code = "RUN_IDENTITY_MIGRATION_REQUIRED"
+
+
+class RunStateMissing(MissionRuntimeError):
+    """A live ``feature-runs.json`` entry points at a run whose ``state.json`` is gone.
+
+    FR-016 (mission fsm-write-path-integrity-01M1TZV6, WP05): resolving such an
+    entry used to fall through to "start a new run", silently orphaning the
+    run's journal and cursor history. It is now loud and structured so the
+    operator can repair the index or the run directory deliberately.
+    """
+
+    error_code = "RUN_STATE_MISSING"
+
+    def __init__(self, *, mission_id: str | None, mission_slug: str, run_id: str, run_dir: Path) -> None:
+        self.mission_id = mission_id
+        self.mission_slug = mission_slug
+        self.run_id = run_id
+        self.run_dir = run_dir
+        super().__init__(
+            f"Run {run_id!r} for mission {mission_slug!r} (mission_id={mission_id!r}) is indexed in "
+            f"{_FEATURE_RUNS_FILE} but {run_dir / STATE_FILE} is missing. Restore the run directory "
+            f"or remove the stale index entry (`spec-kitty doctor`); the run will not be silently restarted."
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        # Local annotation re-narrows the specify_cli.* base's result from Any
+        # (follow_imports = "skip" mypy override for the runtime layer).
+        payload: dict[str, Any] = super().to_dict()
+        payload.update(
+            {
+                "mission_id": self.mission_id,
+                "mission_slug": self.mission_slug,
+                "run_id": self.run_id,
+                "run_dir": str(self.run_dir),
+            }
+        )
+        return payload
+
+
 # ---------------------------------------------------------------------------
 # Feature -> Run index (T017)
 # ---------------------------------------------------------------------------
@@ -155,6 +210,85 @@ class _FeatureRunEntry(TypedDict, total=False):
 def _feature_runs_path(repo_root: Path) -> Path:
     """Untracked helper (no test binds this name) — repo_root -> index path."""
     return repo_root / KITTIFY_DIR / "runtime" / _FEATURE_RUNS_FILE
+
+
+# WP05 / FR-016 / C-003: the index is keyed by the canonical ULID ``mission_id``
+# (083 identity model). A mission with no ``mission_id`` yet is keyed under the
+# ``legacy-<slug>`` precedent already used for the transactional status lock
+# (``coordination/status_transition.py``). The bare slug is NEVER a key any more
+# (decision ``01M1V8J842E7CJR6MGZ0MW3DQF``; ``design-notes/WP05-run-state.md``).
+_LEGACY_RUN_KEY_PREFIX = "legacy-"
+
+
+def run_index_key(mission_slug: str, mission_id: str | None) -> str:
+    """Return the canonical ``feature-runs.json`` key for a mission."""
+    if mission_id:
+        return mission_id
+    return f"{_LEGACY_RUN_KEY_PREFIX}{mission_slug}"
+
+
+def _canonicalize_run_index(
+    index: dict[str, _FeatureRunEntry],
+) -> tuple[dict[str, _FeatureRunEntry], bool]:
+    """Rekey pre-WP05 slug-keyed entries under their canonical key (Q9: in-place, on touch).
+
+    Idempotent and lossless: an entry already under its canonical key is left
+    alone, and an entry whose canonical slot is already occupied stays where it
+    is rather than overwriting the occupant. The second element reports whether
+    anything moved, so callers persist only when there is something to persist.
+    """
+    rekeyed: dict[str, _FeatureRunEntry] = {}
+    changed = False
+    for key, entry in index.items():
+        slug = entry.get("mission_slug") or key
+        canonical = run_index_key(slug, entry.get("mission_id"))
+        target = key if canonical == key or canonical in index or canonical in rekeyed else canonical
+        if target != key:
+            entry = {**entry, "mission_slug": slug}
+            changed = True
+        rekeyed[target] = entry
+    return rekeyed, changed
+
+
+def _load_run_index(repo_root: Path) -> tuple[dict[str, _FeatureRunEntry], bool]:
+    """Load the index through the canonical view; report whether it needed rekeying."""
+    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+
+    return _canonicalize_run_index(_rb._load_feature_runs(repo_root))
+
+
+def _entry_for_mission(index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None) -> _FeatureRunEntry | None:
+    """Resolve identity without treating an unbound legacy run as absent.
+
+    Identity backfill updates mission metadata, not the runtime index. A
+    no-ID entry cannot distinguish that upgrade from reuse of the same slug,
+    so require explicit ownership repair instead of restarting or adopting it.
+    """
+    entry = index.get(run_index_key(mission_slug, mission_id))
+    if entry is None and mission_id:
+        for candidate in index.values():
+            if not candidate.get("mission_id") and candidate.get("mission_slug") == mission_slug:
+                raise RunIdentityMigrationRequired(
+                    f"Legacy run {candidate['run_id']!r} for mission {mission_slug!r} has no mission_id, "
+                    f"but mission metadata now identifies {mission_id!r}. Verify ownership before resuming: "
+                    f"in .kittify/runtime/{_FEATURE_RUNS_FILE}, move the verified run entry to key "
+                    f"{mission_id!r} and set its mission_id to that value. If it belongs to a different "
+                    "mission, preserve it under that mission's verified identity. No new run was started."
+                )
+    return entry
+
+
+def _require_run_state(entry: _FeatureRunEntry, *, mission_slug: str, mission_id: str | None) -> Path:
+    """Return the entry's run directory, or raise :class:`RunStateMissing` when its cursor is gone."""
+    run_dir = Path(entry["run_dir"])
+    if not (run_dir / STATE_FILE).exists():
+        raise RunStateMissing(
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            run_id=entry["run_id"],
+            run_dir=run_dir,
+        )
+    return run_dir
 
 
 def load_feature_runs(path: Path) -> dict[str, _FeatureRunEntry]:
@@ -387,8 +521,7 @@ def _warn_non_builtin_sidecar_pairs(candidates: list[Path], mission_type: str) -
         if _is_builtin_missions_dir(parent):
             continue
         _logger.warning(
-            "Walk B: non-built-in tier at %s ships both %s and %s for "
-            "mission %r; %s wins (existing sidecar preference unchanged).",
+            "Walk B: non-built-in tier at %s ships both %s and %s for mission %r; %s wins (existing sidecar preference unchanged).",
             parent,
             MISSION_YAML,
             MISSION_RUNTIME_YAML,
@@ -477,11 +610,7 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     ]
     global_tier = [context.user_home / KITTIFY_DIR / "missions"]
     builtin_tier = list(context.builtin_roots)
-    tiers = (
-        project_tiers + [builtin_tier, global_tier]
-        if mission_type == MISSION_TYPE_SOFTWARE_DEV
-        else project_tiers + [global_tier, builtin_tier]
-    )
+    tiers = project_tiers + [builtin_tier, global_tier] if mission_type == MISSION_TYPE_SOFTWARE_DEV else project_tiers + [global_tier, builtin_tier]
 
     for roots in tiers:
         for root in roots:
@@ -540,18 +669,21 @@ def _existing_run_ref(
     repo_root: Path,
     mission_type: str,
 ) -> MissionRunRef | None:
-    """Return an existing run without creating a new one."""
+    """Return an existing run without creating a new one.
+
+    Read-only: the canonical (rekeyed) view of the index is computed in
+    memory and never persisted here, so query mode stays non-mutating for
+    ``feature-runs.json``. A live entry with a missing cursor raises
+    :class:`RunStateMissing` (FR-016) rather than masquerading as "no run".
+    """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
-
-    if mission_slug not in index:
+    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, _rekeyed = _load_run_index(repo_root)
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
+    if entry is None:
         return None
-
-    entry = index[mission_slug]
-    run_dir = Path(entry["run_dir"])
-    if not (run_dir / STATE_FILE).exists():
-        return None
+    _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id)
 
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
     return _rb._build_run_ref(
@@ -578,9 +710,7 @@ def _start_ephemeral_query_run(
     run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
     try:
         template_key = _rb._runtime_template_key(mission_type, repo_root)
-        template_override, template_path_override = _workflow_runtime_template(
-            mission_slug, mission_type, repo_root, template_key
-        )
+        template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
         context = _rb._build_discovery_context(repo_root)
 
         run_ref = start_mission_run(
@@ -608,30 +738,37 @@ def get_or_start_run(
 ) -> MissionRunRef:
     """Load existing run or start a new one.
 
-    Run mapping stored in .kittify/runtime/feature-runs.json:
-    { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
+    Run mapping stored in .kittify/runtime/feature-runs.json, keyed by the
+    canonical ``mission_id`` (``legacy-<slug>`` for a mission without one):
+    { "01HULID...": { "run_id": "abc", "run_dir": "...", "mission_slug": "042-test-mission" } }
+
+    This is the index's single writer: a pre-WP05 slug-keyed index is rekeyed
+    in place on the first touch (Q9, ``01M1V8J842E7CJR6MGZ0MW3DQF``). A live
+    entry whose ``state.json`` is gone raises :class:`RunStateMissing` -- it is
+    never silently replaced by a fresh run (FR-016).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
+    resolved_mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, rekeyed = _load_run_index(repo_root)
+    index_key = run_index_key(mission_slug, resolved_mission_id)
 
-    if mission_slug in index:
-        entry = index[mission_slug]
-        run_dir = Path(entry["run_dir"])
-        if (run_dir / STATE_FILE).exists():
-            stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-            return _rb._build_run_ref(
-                run_id=entry["run_id"],
-                run_dir=entry["run_dir"],
-                mission_type=stored_mission_type,
-            )
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
+    if entry is not None:
+        _require_run_state(entry, mission_slug=mission_slug, mission_id=resolved_mission_id)
+        if rekeyed:
+            save_feature_runs(_feature_runs_path(repo_root), index)
+        stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
+        return _rb._build_run_ref(
+            run_id=entry["run_id"],
+            run_dir=entry["run_dir"],
+            mission_type=stored_mission_type,
+        )
 
     # Start a new run
     run_store = repo_root / KITTIFY_DIR / "runtime" / "runs"
     template_key = _rb._runtime_template_key(mission_type, repo_root)
-    template_override, template_path_override = _workflow_runtime_template(
-        mission_slug, mission_type, repo_root, template_key
-    )
+    template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
     context = _rb._build_discovery_context(repo_root)
 
     run_ref = start_mission_run(
@@ -645,10 +782,9 @@ def get_or_start_run(
         template_path_override=template_path_override,
     )
 
-    # Persist to index
+    # Persist to index under the canonical key (slug is display-only)
     resolved_mission_type = _rb._mission_key_for_run_ref(run_ref, mission_type)
-    resolved_mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
-    index[mission_slug] = {
+    index[index_key] = {
         "run_id": run_ref.run_id,
         "run_dir": run_ref.run_dir,
         "mission_type": resolved_mission_type,
@@ -666,20 +802,20 @@ def get_or_start_run(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_run_dir_for_mission(
-    repo_root: Path, mission_slug: str
-) -> Path | None:
+def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | None:
     """Return the persisted run directory for ``mission_slug``, read-only.
 
     Looks the run up in the durable ``feature-runs.json`` index without
     starting a new run (unlike :func:`get_or_start_run`). Returns ``None`` when
     no run has been recorded yet. This keeps OC construction at the claim sites
-    free of any run-start side effect (NFR-004).
+    free of any run-start side effect (NFR-004). The canonical (rekeyed) view
+    is computed in memory only; nothing is persisted here.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
-    entry = index.get(mission_slug)
+    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, _rekeyed = _load_run_index(repo_root)
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if not entry:
         return None
     run_dir_raw = entry.get("run_dir")
@@ -688,9 +824,7 @@ def _resolve_run_dir_for_mission(
     return Path(run_dir_raw)
 
 
-def _resolve_tech_stack_for_profile(
-    repo_root: Path, profile_id: str | None
-) -> frozenset[str]:
+def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
     """Best-effort resolution of the in-scope tech stack for ``profile_id``.
 
     The tech stack is sourced from the resolved agent profile's
@@ -779,9 +913,7 @@ def build_operational_context_for_claim(
         try:
             run_dir = _rb._resolve_run_dir_for_mission(repo_root, mission_slug)
             if run_dir is not None:
-                resolved_profile = _rb._resolve_step_agent_profile(
-                    run_dir, current_activity
-                )
+                resolved_profile = _rb._resolve_step_agent_profile(run_dir, current_activity)
         except Exception:
             resolved_profile = None
 
@@ -818,9 +950,7 @@ def _build_operational_context_for_decision(
     resolved_profile: str | None = None
     if step_id is not None:
         try:
-            resolved_profile = _rb._resolve_step_agent_profile(
-                Path(run_ref.run_dir), step_id
-            )
+            resolved_profile = _rb._resolve_step_agent_profile(Path(run_ref.run_dir), step_id)
         except Exception:
             resolved_profile = None
 
@@ -838,9 +968,7 @@ def _build_operational_context_for_decision(
 # ---------------------------------------------------------------------------
 
 
-def _presence_filenames_for(
-    mission_family: str, repo_root: Path | None = None
-) -> frozenset[str]:
+def _presence_filenames_for(mission_family: str, repo_root: Path | None = None) -> frozenset[str]:
     """Resolve the per-type presence filename set for *mission_family* (FR-011, #3597).
 
     Sources filenames from the single per-type ``expected-artifacts.yaml``
@@ -995,18 +1123,73 @@ class ArtifactPresenceSnapshot:
     blocking_artifact_names: frozenset[str] | None = None
 
 
-def _artifact_presence_read_dir(feature_dir: Path, name: str, repo_root: Path | None) -> Path:
-    """Resolve classified inputs; unclassified filenames retain their caller's home."""
-    kind = kind_for_mission_file(feature_dir / name)
-    if repo_root is None or kind is None:
-        return feature_dir
-    seam = placement_seam(repo_root, feature_dir.name)
-    # Bootstrap supplies the resolved STATUS home. Preserve an explicit owned
-    # checkout when that home differs from the ordinary topology-aware result;
-    # a normal linked/coord caller still uses canonical placement.
-    if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() != feature_dir.resolve():
-        seam = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
-    return seam.read_dir(kind)
+#: The seam failures a presence read degrades on. ``ActionContextError`` is the
+#: seam refusing explicit placement outside ``single_branch``;
+#: ``StatusReadPathNotFound`` (incl. ``CoordinationBranchDeleted``) is a
+#: coord-partition probe failing on coordination-branch liveness;
+#: ``MissionSelectorAmbiguous`` is the seam's declared selector failure on
+#: ``feature_dir.name``. None is a fact about the PRIMARY artifact being asked
+#: for, so none may escape a fact port whose two production callers invoke it
+#: outside their ``try``.
+_PRESENCE_SEAM_DEGRADES = (ActionContextError, StatusReadPathNotFound, MissionSelectorAmbiguous)
+
+
+def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> PlacementSeam | None:
+    """Return the placement seam whose STATUS home is ``feature_dir``, else ``None``.
+
+    Bootstrap supplies the resolved STATUS home, so the ordinary
+    topology-aware seam matches for a linked/coord caller. An owned
+    ``single_branch`` checkout matches only under explicit placement, which
+    is *verified* the same way rather than assumed from the first mismatch.
+    ``None`` means the caller's directory is not a recognised STATUS home:
+    every artifact then resolves to the supplied directory (the pre-#3910
+    behaviour) instead of a guessed placement — see
+    :data:`_PRESENCE_SEAM_DEGRADES` for why a seam failure lands here too.
+    """
+    if repo_root is None:
+        return None
+    try:
+        seam = placement_seam(repo_root, feature_dir.name)
+        if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
+            return seam
+        owned = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
+        if owned.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
+            return owned
+    except _PRESENCE_SEAM_DEGRADES as exc:
+        _logger.debug("artifact presence: seam degraded for %s, keeping supplied directory: %s", feature_dir, exc)
+        return None
+    _logger.debug("artifact presence: %s is not a recognised STATUS home, keeping supplied directory", feature_dir)
+    return None
+
+
+class _ArtifactPresenceHomes:
+    """Per-``gather_artifact_presence`` memo of artifact kind -> read directory.
+
+    One seam resolution per kind per call (the module's one-read-per-call
+    discipline, cf. ``_presence_filenames_for``), instead of one per filename.
+    Classified inputs read from their canonical home; unclassified/custom
+    filenames, callers without a recognised seam, and any degraded seam read
+    keep the supplied directory.
+    """
+
+    def __init__(self, feature_dir: Path, seam: PlacementSeam | None) -> None:
+        self._feature_dir = feature_dir
+        self._seam = seam
+        self._by_kind: dict[MissionArtifactKind, Path] = {}
+
+    def read_dir(self, name: str) -> Path:
+        kind = kind_for_mission_file(self._feature_dir / name)
+        if self._seam is None or kind is None:
+            return self._feature_dir
+        home = self._by_kind.get(kind)
+        if home is None:
+            try:
+                home = self._seam.read_dir(kind)
+            except _PRESENCE_SEAM_DEGRADES as exc:
+                _logger.debug("artifact presence: read of %s degraded to supplied directory: %s", kind, exc)
+                home = self._feature_dir
+            self._by_kind[kind] = home
+        return home
 
 
 def gather_artifact_presence(
@@ -1046,19 +1229,24 @@ def gather_artifact_presence(
     ``repo_root`` enables kind-aware artifact placement as well as org-tier
     manifest resolution. Classified planning inputs use their canonical home;
     lifecycle facts continue to use ``feature_dir`` (the STATUS authority).
-    Unclassified/custom filenames and callers without ``repo_root`` retain
-    their supplied directory; no alternate copies are searched.
+    Unclassified/custom filenames, callers without ``repo_root``, and callers
+    whose ``feature_dir`` is not a recognised STATUS home retain their
+    supplied directory; no alternate copies are searched. This is a total
+    function: a seam refusal or a coordination-branch liveness failure while
+    resolving a home degrades to the supplied directory rather than raising
+    (:class:`_ArtifactPresenceHomes`).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
+    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root))
     present: set[str] = set()
     for tag in _presence_filenames_for(mission_family, repo_root=repo_root):
-        if (_artifact_presence_read_dir(feature_dir, tag, repo_root) / tag).is_file():
+        if (homes.read_dir(tag) / tag).is_file():
             present.add(tag)
 
-    planning_dir = _artifact_presence_read_dir(feature_dir, "spec.md", repo_root)
-    tasks_dir = _artifact_presence_read_dir(feature_dir, "tasks", repo_root) / "tasks"
+    planning_dir = homes.read_dir("spec.md")
+    tasks_dir = homes.read_dir("tasks") / "tasks"
     tasks_dir_is_dir = tasks_dir.is_dir()
     wp_files = sorted(tasks_dir.glob("WP*.md")) if tasks_dir_is_dir else []
     if wp_files:
@@ -1121,9 +1309,7 @@ def gather_artifact_presence(
     if _expected_artifacts_manifest_resolves(mission_family, repo_root):
         from specify_cli.runtime.resolver import required_artifacts_for  # noqa: PLC0415
 
-        blocking_artifact_names = frozenset(
-            required_artifacts_for(step_id, mission_family, repo_root=repo_root)
-        )
+        blocking_artifact_names = frozenset(required_artifacts_for(step_id, mission_family, repo_root=repo_root))
 
     return ArtifactPresenceSnapshot(
         present_artifacts=frozenset(present),

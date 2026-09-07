@@ -24,9 +24,9 @@ from specify_cli.status import (
     ReviewOverride,
     ReviewResult,
     StatusEvent,
-    append_event,
     emit_inner_state_changed,
 )
+from specify_cli.status._unsafe import append_event
 from specify_cli.status.models import Lane, WPInnerStateDelta
 
 pytestmark = pytest.mark.git_repo
