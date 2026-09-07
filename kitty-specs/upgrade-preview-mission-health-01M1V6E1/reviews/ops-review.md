@@ -46,6 +46,17 @@ withdraws that implication. Generic test-only authorization was not new policy
 arbitration. Historical overwrite and false-change reporting remain unapproved.
 These test commits are lane-local until consolidation; retirement Op remains open.
 
+The retirement supplier is independently approved at
+`f48c00b3b8914c5c27a483227301a27a7cf3e774`: separate RED
+`5a0b612a45a01592d9227f4f47332769d2855d58` and GREEN
+`5a747b5bcb811c4365d8eb2e3b7704f9c443b865`. The two-line absent-to-absent
+guard returns only from write construction, preserving manifest retirement and
+parent pruning. The unchanged migration witness passes on the delivered source
+and fails when its exact BASE write method is restored in memory. This proves
+the narrow mechanism, not a complete historical checkout test. Independent
+selected checks also preserve real-file and unselected shared-owner behavior.
+Consumer integration remains pending; this does not close the reporting defects.
+
 ## Shared Skill Parent Composition: Open
 
 Op `01M1XREZBGQTCZWW1X1WB8EBHR` addresses the next concrete WP10 boundary.
@@ -69,6 +80,35 @@ WP10's separate narrow public JSON correction passes two new regressions, but
 root/composer/full-plan implementation remains incomplete. Its disclosed external
 runtime-namespace and PTY harness problems are being corrected separately; failed
 gates are not reclassified as passing.
+
+### Shared Supplier Independently Approved
+
+Shared RED `3d04d26405cb50e4e69bfb3157ca3976d4c1c220` and GREEN
+`c3bc086189e523a9fe48a4886706952e34d4fb91` are followed by constructor-admission
+RED `dcbd2e3de5086a5820afa3ec1f342c2cd62e01b8` and final
+`f48c00b3b8914c5c27a483227301a27a7cf3e774`. The composition retains original
+assessments and the same compiler descriptor, admits only equivalent shared
+directory creation, and keeps both logical claims on one physical command effect.
+Strict `preflight_composition` precedes provisioning; `apply_composition` executes
+commands first and verifies exact created-parent receipts before paired managed
+application. It does not weaken ordinary coalescing or command mtime observations.
+
+Independent review approved both bounded supplier Ops: seven newly authored
+consumer/partial-failure/cleanup/namespace checks plus nine selected retirement,
+receipt and consent checks passed. Four real layouts matched complete raw
+physical deltas and succeeded IDs: 483 cold legacy, 481 existing parents, 483
+cold pointer, 483 pointer with explicit empty activation. Provisioning is separate;
+counts summarize full destination/action/state/hash/link/mode equality, not a
+count-only oracle. Partial command failure prevents later owner writes and
+accounts for each physical ID exactly once.
+
+Parent read the full review and verified all 29 evidence-seal entries. Source
+formatting debt and final WP10/root/bundle/wheel/E2E gates remain explicit, not
+waived. Selected-bundle interactions are undergoing a separate bounded diagnostic;
+no new failure is inferred from source concerns alone. Both Ops remain open until
+actual WP10 consumer follow-through. Evidence:
+`shared-skill-parent-composition-independent-review.md` and its external sealed
+evidence directory. These supplier commits are not yet consolidated into this PR.
 
 ## Local Shared-Package CI: Complete
 
