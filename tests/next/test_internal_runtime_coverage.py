@@ -188,7 +188,7 @@ def test_runtime_emitter_seam_functions_are_defined_on_events_not_emitter() -> N
     """The seam functions live on ``events.py`` and are exercised through
     that module in the tests above (S1-S4); ``emitter.py`` does not carry
     them (see ``test_emitter_module_re_exports``)."""
-    for name in ("runtime_emitter_for_mission", "register_runtime_emitter_factory", "reset_runtime_emitter_factory", "seed_emitter_if_supported"):
+    for name in ("runtime_emitter_for_mission", "register_runtime_emitter_factory", "reset_runtime_emitter_factory", "seed_runtime_emitter"):
         assert hasattr(events_mod, name), name
         assert not hasattr(emitter_mod, name), name
 

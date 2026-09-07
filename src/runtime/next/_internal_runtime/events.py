@@ -275,7 +275,7 @@ def runtime_emitter_for_mission(
                 feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
             )
         except Exception:
-            logger.warning(
+            logging.getLogger(__name__).warning(
                 "runtime_emitter_for_mission: registered factory %r raised; degrading to NullEmitter",
                 _registered_factory,
                 exc_info=True,
