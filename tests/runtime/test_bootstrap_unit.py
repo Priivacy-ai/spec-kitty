@@ -760,6 +760,21 @@ class TestVersionPinWiredIntoCallback:
 
         mock_pin.assert_not_called()
 
+    def test_main_callback_skips_bootstrap_before_migrate(self) -> None:
+        """The migrate command must relocate legacy state before global reads."""
+        root_callback_mock = MagicMock()
+
+        with (
+            patch("specify_cli.root_callback", root_callback_mock),
+            patch("specify_cli._run_startup_project_gates") as startup_gates_mock,
+        ):
+            from specify_cli import main_callback
+
+            main_callback(MagicMock(invoked_subcommand="migrate", meta={}), version=False)
+
+        root_callback_mock.assert_not_called()
+        startup_gates_mock.assert_not_called()
+
     def test_main_callback_skips_runtime_bootstrap_for_next(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """next is startup-sensitive but still runs project safety gates."""
         ensure_runtime_mock = MagicMock()
