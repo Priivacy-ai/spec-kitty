@@ -15,8 +15,18 @@ approved: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP11 and WP12. WP05 approval
 tests and four independent controls passed, changed Ruff/strict mypy passed.
 Real paired provider dispatch matches 169 exact effects and refuses changed
 inputs before writes. Consumer input Op is complete at the owner boundary.
-WP08 is implementing with all five approved dependency lanes included; WP10 and
-WP13 remain pending. No mission acceptance or consolidation is complete.
+WP08 is in its first independent review with all five approved dependency lanes
+included; WP10 and WP13 remain pending. No mission acceptance or consolidation
+is complete.
+
+WP08 implementation `9d78799b94f3c4df0f2e68d4ca8dda4ef3661801` reports 145 final
+owned tests passing and 91.07% changed-line coverage, plus clean Ruff/strict mypy.
+Earlier 924 subsystem and 1,642 fast-test passes retain their exact older source
+snapshots; they are not falsely attributed to every final refinement. Real pinned
+Claude validation passes the generated plugin and marketplace under strict mode;
+the malformed-name control fails as intended. These await independent review.
+Canonical for-review event `01M1WPGAMH5BFZE037QFKS7A4R` has `no_coverage`, not a
+test pass. Known WP10 intent wiring and all final integrated gates remain open.
 
 WP05 author reports 161 owned tests, all-12-path Ruff and strict mypy passing,
 plus real coordinated global/project consumer checks. Supplier dependency files

@@ -16,6 +16,21 @@ The latter remains WP10 work, not a waived gate. Exact reproduction and source
 snapshot are retained externally in wp08-evidence/owner-api-request.md and
 architecture.log. WP08 continues non-overlapping owned verification meanwhile.
 
+Supplier `e35cdc494237f55ef73b36cb6f979e0c56772bfe` is independently approved:
+six focused tests, three independent controls and static checks passed. The
+complete RED/GREEN chain is integrated into WP08 with the two supplier files
+unchanged. Actual configured/empty/duplicate consumer cases pass in author tests;
+independent consumer review is pending alongside WP08. This Op remains open.
+
+External Claude validation was recovered using only a pinned standalone 2.1.263
+executable copied into the disposable workspace, with host-home and network
+denial retained. The real marketplace initially failed strict validation; source
+comparison shows the bad payload existed in the frozen baseline. WP08's owned
+Claude-only correction now passes real strict plugin and marketplace validation,
+while a malformed-name control fails. Original failures remain in the external
+ledger and #3901 comment5563531342. No member-coverage claim is inferred from the
+validator's empty contents list; independent effects/member tests are separate.
+
 ## Caller-Resolved Global Skill Inputs: Complete
 
 Op `01M1W6MA0EWJ38MJDQG2D50ZJ3` supplies the missing WP03 input needed by
