@@ -21,7 +21,9 @@ operation with a one-time non-blocking sign-in hint; owned checkouts publish
 moments like any other checkout; target precedence is environment override,
 then configured server address, then packaged default, with the resolved
 target visible to the user; the enable flag is deleted, hosted features are
-always present, and one offline switch suppresses all hosted egress.
+always present, and authentication state is the only switch: no session and
+no service token means no hosted request of any kind (plan Decision Moment,
+2026-09-07, superseding the earlier offline-switch idea).
 
 ## Domain Language
 
@@ -36,8 +38,10 @@ Canonical terms from [Context: Team Kitty and Zeitgeist](../../docs/context/team
 - **Admission** — the server-side decision that a repository belongs to a
   team; together with membership it is the only gate. Do not say "consent"
   or "opt-in".
-- **Offline switch** — the single explicit operator setting that suppresses
-  all hosted egress. Working name `SPEC_KITTY_OFFLINE`.
+- **Authenticated** — the CLI holds a usable session or service token. It
+  is the only on/off switch for hosted behavior: `auth login` turns hosted
+  behavior on, `auth logout` turns it off. There is no separate offline
+  switch.
 - **Sync** — a retired transport. The word must not appear in new
   operator-facing text, identifiers, or configuration.
 
@@ -46,7 +50,7 @@ Canonical terms from [Context: Team Kitty and Zeitgeist](../../docs/context/team
 This mission retires the identifiers `SPEC_KITTY_ENABLE_SAAS_SYNC`,
 `SPEC_KITTY_SYNC_DISABLE`, `SPEC_KITTY_SYNC_MINIMAL_IMPORT`, the error code
 `OWNED_SYNC_UNSUPPORTED`, and the `sync_active` / `is_saas_sync_enabled`
-gate across the codebase, replacing them with the offline switch and two
+gate across the codebase, replacing them with authentication state and two
 explicitly named opt-outs. Per-category rules are captured in
 `occurrence_map.yaml` during planning; historical artifacts under
 `kitty-specs/`, `kitty-ops/`, and archived docs are not rewritten.
@@ -128,30 +132,34 @@ shape as the worktree case.
 
 ---
 
-### User Story 4 - One offline switch, two honest opt-outs (Priority: P2)
+### User Story 4 - Authentication is the switch, two honest opt-outs (Priority: P2)
 
-An operator in an air-gapped or CI environment sets the offline switch and
-sees no hosted traffic of any kind; an orchestrator that must skip the
-pre-review gate, or a process that must not register moment handlers at
-import, uses a switch whose name says what it does.
+An operator in an air-gapped or CI environment simply holds no session and
+no service token and sees no hosted traffic of any kind; `auth logout`
+turns hosted behavior off on a personal machine. An orchestrator that must
+skip the pre-review gate, or a process that must not register moment
+handlers at import, uses a switch whose name says what it does.
 
-**Why this priority**: Replaces four overloaded leftovers with three named
-controls; without it the retired vocabulary keeps leaking into operator
-guidance.
+**Why this priority**: Replaces four overloaded leftovers with the one
+switch the product already has plus two named opt-outs; without it the
+retired vocabulary keeps leaking into operator guidance.
 
-**Independent Test**: With the offline switch set, drive a lane transition
+**Independent Test**: With no session and no token, drive a lane transition
 and a readiness probe against a recording stub and assert zero requests;
-exercise each opt-out in isolation.
+run `auth logout` on an authenticated machine and repeat; exercise each
+opt-out in isolation.
 
 **Acceptance Scenarios**:
 
-1. **Given** the offline switch is set, **When** any command runs, **Then**
-   no hosted request is attempted, including moments and readiness probes,
-   and local behavior is unchanged.
-2. **Given** the offline switch is not set, **When** the retired enable flag
-   is present in the environment, **Then** it has no effect and a one-time
-   deprecation notice names its replacement.
-3. **Given** the pre-review gate opt-out, **When** a work package moves to
+1. **Given** no session and no service token, **When** any command runs,
+   **Then** no hosted request is attempted, including moments and readiness
+   probes, and local behavior is unchanged.
+2. **Given** an authenticated machine, **When** `auth logout` runs, **Then**
+   subsequent commands attempt no hosted request until `auth login`.
+3. **Given** the retired enable flag is present in the environment, **When**
+   any command runs, **Then** it has no effect and a one-time deprecation
+   notice names authentication as the switch.
+4. **Given** the pre-review gate opt-out, **When** a work package moves to
    review, **Then** only the gate is skipped and nothing hosted changes.
 
 ---
@@ -185,12 +193,14 @@ the tracker command group.
   absent, not as a disagreement.
 - The one-time hint must survive concurrent invocations without being
   printed twice and must not be persisted into project files.
-- The retired flag set to a falsy value must not be read as "offline".
+- The retired flag set to any value, truthy or falsy, has no effect.
+- A service token in the environment counts as authenticated, so CI that
+  wants hosted behavior supplies one and CI that does not simply omits it.
 - An owned checkout whose repository is not admitted publishes nothing and
   still completes the move.
 - Existing machines carrying the retired names in their persisted
   environment file continue to work; the provisioning migration stops
-  seeding the retired names and seeds the offline switch only when set.
+  seeding the retired names.
 
 ## Requirements *(mandatory)*
 
@@ -207,18 +217,18 @@ the tracker command group.
 | FR-007 | Owned checkouts publish | As an agent in an owned checkout, I want a lane move to publish the same moment as from a lane worktree, so that the hosted view is complete. | High | Approved |
 | FR-008 | Guard removed | As a maintainer, I need the owned-checkout refusal removed, so that no code path refuses a move because hosted features are present. | High | Approved |
 | FR-009 | Enable flag deleted | As an operator, I want hosted features always available without an enable flag, with sign-in guidance when logged out, so that "not enabled" never appears. | High | Approved |
-| FR-010 | Offline switch | As an operator, I want one explicit switch that suppresses every hosted request including moments and readiness probes, so that air-gapped and CI use is honest and complete. | High | Approved |
+| FR-010 | Authentication is the switch | As an operator, I want no hosted request of any kind, including moments and readiness probes, whenever I hold no session and no service token, and `auth logout` to restore that state, so that air-gapped and CI use needs no extra switch. | High | Approved |
 | FR-011 | Named opt-outs | As an orchestrator, I want the pre-review gate skip and the moment-handler import gate to have their own explicitly named switches, so that neither borrows a retired name. | Medium | Approved |
-| FR-012 | Deprecation notice | As a user with the retired names in my environment, I want them ignored with a one-time notice naming the replacement, so that migration is discoverable. | Medium | Approved |
+| FR-012 | Deprecation notice | As a user with the retired names in my environment, I want them ignored with a one-time notice naming authentication as the switch, so that migration is discoverable. | Medium | Approved |
 | FR-013 | Logged out degrades | As a person whose session lapsed or membership ended, I want local mission commands to complete and hosted-only commands to fail with sign-in guidance, so that I am never wedged. | High | Approved |
-| FR-014 | Provisioning follows | As an upgrader, I want the environment-file provisioning to stop seeding retired names and to seed the offline switch only when set, so that new machines carry no dead configuration. | Medium | Approved |
+| FR-014 | Provisioning follows | As an upgrader, I want the environment-file provisioning to stop seeding retired names, so that new machines carry no dead configuration. | Medium | Approved |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Bounded hosted cost | A lane move with an unreachable relay or absent credential completes within the existing fan-out bound of 10 seconds and typically within 1 second; the offline switch adds zero network time. | Performance | High | Approved |
-| NFR-002 | Zero egress offline | With the offline switch set, a recording stub observes 0 hosted requests across a full specify-to-review cycle. | Reliability | High | Approved |
+| NFR-001 | Bounded hosted cost | A lane move with an unreachable relay or absent credential completes within the existing fan-out bound of 10 seconds and typically within 1 second; an unauthenticated machine adds zero network time. | Performance | High | Approved |
+| NFR-002 | Zero egress unauthenticated | With no session and no service token, a recording stub observes 0 hosted requests across a full specify-to-review cycle, including readiness. | Reliability | High | Approved |
 | NFR-003 | Deterministic machine output | 100% of JSON, `--help`, `--version`, and non-TTY invocations produce byte-identical output with and without a session, except for fields that carry session state by contract. | Compatibility | High | Approved |
 | NFR-004 | No credential leakage | The resolved target display and every notice contain no token, session, or capability value; verified by a redaction test over all new output strings. | Security | High | Approved |
 | NFR-005 | Non-vacuous evidence | Every behavior change has a witnessed failing-first check through its existing entry point on the base and a passing check afterwards; no fixture stubs the change away. | Testability | High | Approved |
@@ -228,7 +238,7 @@ the tracker command group.
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | Canonical authority | Reuse the existing target-resolution, credential-resolution, readiness, and moment-publishing authorities; introduce no second reading of any of them. | Architecture | High | Approved |
-| C-002 | Vocabulary | New identifiers use Team Kitty vocabulary; no new `SAAS_`, `SYNC_`, or `TEAMSPACE` identifiers. `SPEC_KITTY_SAAS_URL` and `SPEC_KITTY_SAAS_TOKEN` keep their names as overrides. | Terminology | High | Approved |
+| C-002 | Vocabulary | New identifiers (the two opt-outs) use Team Kitty vocabulary; no new `SAAS_`, `SYNC_`, or `TEAMSPACE` identifiers. `SPEC_KITTY_SAAS_URL` and `SPEC_KITTY_SAAS_TOKEN` keep their names as overrides. | Terminology | High | Approved |
 | C-003 | Bulk edit governed | Retirement of the named identifiers runs through the occurrence-classification workflow; historical archives are not rewritten. | Process | High | Approved |
 | C-004 | Scope | No version bump, no SaaS-side change, no relay change, no non-interactive CI sign-in (#3277), no tracker control-plane redesign, no first-run announcement copy. | Scope | High | Approved |
 | C-005 | Decision record | The packaged default is a reversal of decision D-5 and is recorded as its own architecture decision record before implementation. | Governance | High | Approved |
@@ -242,8 +252,6 @@ the tracker command group.
   expired, or valid.
 - **Capability**: the relay-scoped grant minted after admission; present or
   absent per repository.
-- **Offline switch**: an operator setting; when set, no hosted request is
-  attempted.
 - **Sign-in hint state**: the per-machine record that the one-time hint has
   been shown.
 
@@ -257,9 +265,8 @@ the tracker command group.
   expected address and display the expected source.
 - **SC-003**: An owned-checkout lane move publishes exactly one moment,
   identical in shape to the lane-worktree case.
-- **SC-004**: With the offline switch set, zero hosted requests are observed
-  across a full mission cycle; without it, logged-out users complete every
-  local command.
+- **SC-004**: Unauthenticated, zero hosted requests are observed across a
+  full mission cycle; logged-out users complete every local command.
 - **SC-005**: Zero occurrences of the retired identifiers remain in
   operator-facing text, live code, or shipped configuration templates;
   historical archives unchanged.
@@ -274,6 +281,5 @@ the tracker command group.
 - Context page: `docs/context/team-kitty.md` (PR #3982), read at
   spec-kitty `d6e8fe423`, EXPERIMENTAL-zeitgeist `9b6553e`,
   EXPERIMENTAL-spec-kitty-saas `93e2ad2`.
-- Assumption: CI producers set the offline switch explicitly.
-- Assumption: the working name `SPEC_KITTY_OFFLINE` may be refined during
-  planning within C-002.
+- Assumption: CI producers that want no hosted behavior carry no session
+  and no service token; nothing else is required.
