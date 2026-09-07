@@ -9,11 +9,15 @@ requirement_refs:
 planning_base_branch: missions/coreloop-proto-missions
 merge_target_branch: missions/coreloop-proto-missions
 branch_strategy: Planning artifacts for this mission were generated on missions/coreloop-proto-missions. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into missions/coreloop-proto-missions unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-dead-port-disposition-01M1TZVN
+base_commit: 1ceba9f2259968b99f5bb85cdc56e38c92622489
+created_at: '2026-09-06T18:33:19.286922+00:00'
 subtasks:
 - T008
 - T009
 - T010
 phase: Wave 0 - Docs-shaped repair
+agent: claude
 history:
 - at: '2026-09-06T12:40:00Z'
   actor: system
@@ -30,7 +34,6 @@ owned_files:
 - src/charter/offering/missions/glossary_hook.py
 - tests/doctrine/missions/test_glossary_hook.py
 role: implementer
-agent: claude
 tags: []
 task_type: implement
 tracker_refs: []
@@ -135,3 +138,7 @@ grep -n "at import time\|at startup\|registers the concrete\|specify_cli.*regist
 > **CRITICAL**: chronological order, oldest first. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`.
 
 - 2026-09-06T12:40:00Z – system – Prompt created.
+- 2026-09-06T19:11:44Z – claude – shell_pid=88278 – T008 done: four sites rewritten per contracts/glossary-bootstrap.md §2 (glossary_runner.py docstring+provider block+register() docstring; kernel/__init__.py; kernel/README.md; glossary_hook.py dependency contract). Bootstrap :127-138 extracted into _ensure_runner_registered() (pure code motion; identical except Exception handling). Extraction safety: escalated pin specify_cli.missions::execute_with_glossary is the re-export alias hash (probe: alias 5942ba73… == pin; fn-body b64c2f5b… != pin), so test_no_dead_symbols.py and the three-link re-export chain untouched (US2-4).
+- 2026-09-06T19:11:51Z – claude – shell_pid=88278 – T009 done (ATDD-first, commit d6af84a09 before implementation 09f68d46d): TestSelfBootstrapContract (G-2 self-bootstrap registers GlossaryAwarePrimitiveRunner; degradation only when glossary.attachment unimportable via monkeypatch.setitem(sys.modules,...,None)) + TestDesignStory (G-1 SC-004 regex over the four sites, self-bootstrap mention, helper named, FR-020 note) + autouse clear_registry fixture. RED on base: 10 failed/23 passed; final: 33 passed.
+- 2026-09-06T19:11:57Z – claude – shell_pid=88278 – T010 done: facts re-verified (execute_with_glossary( non-def matches in src = hook docstring only, zero production call sites; glossary_check in packs/ = zero); FR-020 .. note:: added to glossary_hook.py module docstring per contract §4; #1868 tracker text + OD6 statement drafted in scratchpad design note (operator posts; destined for kitty-specs/dead-port-disposition-01M1TZVN/design-notes/WP02-glossary.md — not committed on the lane per lane gate). Verification: SC-004 grep zero matches; tests/doctrine 3018 passed/10 skipped (-n 4 --dist loadfile); arch gates terminology+layer+dead-symbols 96 passed; consumers kernel+pipeline-integration 53 passed; ruff/mypy clean.
+- 2026-09-06T19:26:14Z – claude – shell_pid=79555 – Independent review (claude): APPROVED. Reproduced ATDD red->green in scratch worktree (d6af84a09: 10F/23P; 09f68d46d: 33P). SC-004 regex zero over four sites; FR-020 facts re-verified (zero prod call sites, zero glossary_check in packs/). tests/doctrine -n3 3019P/10S; terminology+layer+dead-symbols 96P; kernel+pipeline consumers 53P; ruff/format/mypy clean. _ensure_runner_registered is pure code motion; GlossaryRunnerProtocol TYPE_CHECKING-only; no kernel->glossary import; gate/re-export chain untouched. Non-blocking: contract §3 pin sketch says type(runner).__name__ (registry holds a class) - implementer's runner.__name__ is the correct reading; docs say degrade on ImportError while code keeps pre-existing except Exception (scope: code motion).

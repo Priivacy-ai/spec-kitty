@@ -3,10 +3,11 @@
 
 Delivers FR-004: transitions no longer reach a hardcoded call to
 ``evaluate_pre_review_gate`` — they look up a named handler in
-``GATE_REGISTRY`` instead. This mirrors the shape of the existing
-``GUARD_REGISTRY`` (:mod:`specify_cli.mission_v1.guards`, around line 270): a
-module-level ``dict[str, ...]`` plus a lookup helper that raises a clear
-error naming the missing key and the known keys.
+``GATE_REGISTRY`` instead. This mirrors the shape of the ``GUARD_REGISTRY``
+that lived in the retired ``mission_v1/guards.py`` (see git history before
+mission ``dead-port-disposition-01M1TZVN``): a module-level
+``dict[str, ...]`` plus a lookup helper that raises a clear error naming the
+missing key and the known keys.
 
 This module is **pure indirection** for half A: exactly one handler is
 registered (the incumbent Spec-Kitty pre-review engine), and dispatching it
@@ -128,9 +129,10 @@ GATE_REGISTRY: dict[str, GateHandler] = {
 def get_gate_handler(name: str) -> GateHandler:
     """Look up a registered handler by name.
 
-    Mirrors the unknown-guard error in
-    :func:`specify_cli.mission_v1.guards.compile_guards` (naming the missing
-    key AND the known keys): an unknown ``name`` is a misconfiguration, and
+    Mirrors the unknown-guard error of ``compile_guards`` in the retired
+    ``mission_v1/guards.py`` (git history before mission
+    ``dead-port-disposition-01M1TZVN``; it named the missing key AND the
+    known keys): an unknown ``name`` is a misconfiguration, and
     the resulting ``KeyError`` names both the missing key and the registered
     ones so the cause is immediately diagnosable.
     """

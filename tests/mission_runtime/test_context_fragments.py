@@ -11,12 +11,11 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-from mission_runtime import (
+from mission_runtime import CommitTarget, MissionExecutionContext
+from mission_runtime.context import (
     ArtifactPlacementFragment,
     BranchRefFragment,
-    CommitTarget,
     IdentityFragment,
-    MissionExecutionContext,
     StatusSurfaceFragment,
     WorkspaceFragment,
 )

@@ -711,11 +711,10 @@ def test_pure_stored_topology_projects_surface_placement(
     row (T023), whose canonical authority is the live surface resolver.
     """
     from mission_runtime import (
-        BranchRefFragment,
         CommitTarget,
-        IdentityFragment,
         routes_through_coordination,
     )
+    from mission_runtime.context import BranchRefFragment, IdentityFragment
     from mission_runtime.resolution import resolve_context_for_mission
 
     # DoD-(a) THE WELD (FR-001b): pin the absolute per-topology surface placement to

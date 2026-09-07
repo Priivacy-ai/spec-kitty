@@ -235,11 +235,9 @@ def test_bootstrap_returns_blocked_decision_when_run_start_fails(tmp_path: Path,
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: emitter)
 
     class _FakeSyncEmitter:
-        @staticmethod
-        def for_feature(**_kw: Any) -> _FakeSyncEmitter:
-            return _FakeSyncEmitter()
+        pass
 
-    monkeypatch.setattr(rb, "RuntimeEventEmitter", _FakeSyncEmitter)
+    monkeypatch.setattr(rb, "runtime_event_emitter_for_mission", lambda **_kw: _FakeSyncEmitter())
 
     def _raise_start(*_a: Any, **_kw: Any) -> MissionRunRef:
         raise RuntimeError("cannot start run")
@@ -274,12 +272,10 @@ def test_bootstrap_returns_terminal_before_run_for_merged_mission(tmp_path: Path
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: stale_coord_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda feature_dir: "software-dev")
 
-    class _RaisingEmitter:
-        @staticmethod
-        def for_feature(**_kwargs: Any) -> Any:
-            raise AssertionError("a merged mission must not construct an emitter")
+    def _raising_factory(**_kwargs: Any) -> Any:
+        raise AssertionError("a merged mission must not construct an emitter")
 
-    monkeypatch.setattr(rb, "RuntimeEventEmitter", _RaisingEmitter)
+    monkeypatch.setattr(rb, "runtime_event_emitter_for_mission", _raising_factory)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", _raising)
     monkeypatch.setattr(rb, "get_or_start_run", _raising)
 
@@ -320,12 +316,10 @@ def test_bootstrap_proceeds_for_unmerged_mission(tmp_path: Path, monkeypatch: py
     class _Sentinel(Exception):
         pass
 
-    class _SentinelEmitter:
-        @staticmethod
-        def for_feature(**_kwargs: Any) -> Any:
-            raise _Sentinel
+    def _sentinel_factory(**_kwargs: Any) -> Any:
+        raise _Sentinel
 
-    monkeypatch.setattr(rb, "RuntimeEventEmitter", _SentinelEmitter)
+    monkeypatch.setattr(rb, "runtime_event_emitter_for_mission", _sentinel_factory)
 
     with pytest.raises(_Sentinel):
         rb._dn_bootstrap("agent-x", slug, "success", tmp_path)
@@ -357,16 +351,11 @@ def test_bootstrap_builds_full_context_on_happy_path(tmp_path: Path, monkeypatch
 
     fake_emitter = _FakeSyncEmitter()
 
-    class _FakeSyncEmitterClass:
-        @staticmethod
-        def for_feature(**_kw: Any) -> _FakeSyncEmitter:
-            return fake_emitter
-
     wrapped_sentinel = object()
 
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
-    monkeypatch.setattr(rb, "RuntimeEventEmitter", _FakeSyncEmitterClass)
+    monkeypatch.setattr(rb, "runtime_event_emitter_for_mission", lambda **_kw: fake_emitter)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: wrapped_sentinel)
     monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter: run_ref)
     monkeypatch.setattr(_engine_adapter, "_read_snapshot", lambda rd: SimpleNamespace(issued_step_id="implement"))
@@ -407,13 +396,9 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
         def seed_from_snapshot(self, snapshot: Any) -> None:
             raise AssertionError("must not be reached when the snapshot read itself fails")
 
-        @staticmethod
-        def for_feature(**_kw: Any) -> _FakeSyncEmitter:
-            return _FakeSyncEmitter()
-
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
-    monkeypatch.setattr(rb, "RuntimeEventEmitter", _FakeSyncEmitter)
+    monkeypatch.setattr(rb, "runtime_event_emitter_for_mission", lambda **_kw: _FakeSyncEmitter())
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: emitter)
     monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter: run_ref)
 
@@ -669,7 +654,12 @@ def test_composition_dispatch_advances_run_state_on_success(tmp_path: Path, monk
 
     assert decision is sentinel
     assert captured_kwargs["run_ref"] == ctx.run_ref
-    assert captured_kwargs["sync_emitter"] is ctx.sync_emitter
+    # ADR 2026-09-06-2 (c): the composition dispatch hands the adapter the
+    # DecisionGitLog-wrapped emitter, never the plain inner sync_emitter
+    # (the pre-fix pin asserted the bypass; behaviour pinned end-to-end in
+    # tests/runtime/test_decision_flush_target.py).
+    assert captured_kwargs["sync_emitter"] is ctx.emitter_for_engine
+    assert captured_kwargs["sync_emitter"] is not ctx.sync_emitter
 
 
 def test_composition_dispatch_returns_blocked_decision_when_advance_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

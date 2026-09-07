@@ -12,12 +12,29 @@ the primitive runs without glossary checks.
 Dependency contract
 -------------------
 This module depends only on ``kernel.glossary_runner`` — it does **not**
-import from ``specify_cli``.  The concrete runner
-(``GlossaryAwarePrimitiveRunner``) is registered into the kernel registry
-by ``specify_cli`` at startup via ``kernel.glossary_runner.register()``.
+import from ``specify_cli``, and ``specify_cli`` plays no role here.
+No eager registration happens anywhere: this hook is the registry's only
+production provider and self-bootstraps it on first use in
+``_ensure_runner_registered()`` — ``get_runner()``; on ``None``,
+``import_module("glossary.attachment")`` (which exposes
+``GlossaryAwarePrimitiveRunner``), ``register(GlossaryAwarePrimitiveRunner)``,
+then a ``get_runner()`` retry.
 
-If no runner has been registered (e.g. in pure-doctrine tests or
-third-party integrations), the primitive executes without glossary checks.
+Degradation rule: the primitive executes without glossary checks only when
+``import_module("glossary.attachment")`` raises ``ImportError`` (pure-doctrine
+environments without the ``glossary`` package).  "No runner registered" is
+not a steady state in a full install.
+
+.. note::
+
+   **Enforcement honesty (FR-020).** This hook documents ``glossary_check``
+   as enabled by default, but as of mission ``dead-port-disposition-01M1TZVN``
+   (2026-09) ``execute_with_glossary`` has **zero production call sites** and
+   no built-in step contract under ``packs/`` sets ``glossary_check``.  The
+   default is therefore enforced nowhere in the live mission loop; the tests
+   in ``tests/doctrine/missions/test_glossary_hook.py`` pin the contract, not
+   live behaviour.  Wiring the hook into the step executor is a separate
+   feature decision (tracked on #1868), not implied by this note.
 
 Usage from a mission executor::
 
@@ -39,11 +56,14 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from collections.abc import Callable
 
 from kernel.glossary_types import Strictness
 from kernel.glossary_runner import get_runner, register
+
+if TYPE_CHECKING:
+    from kernel.glossary_runner import GlossaryRunnerProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +95,30 @@ def _read_glossary_check_metadata(step_metadata: dict[str, Any]) -> bool:
     return True  # unknown value -> safe default: enabled
 
 
+def _ensure_runner_registered() -> type[GlossaryRunnerProtocol] | None:
+    """Return the registered runner class, self-bootstrapping the registry on first use.
+
+    This is the kernel registry's only production provider (see the module
+    docstring).  On an empty registry it imports ``glossary.attachment``,
+    registers ``GlossaryAwarePrimitiveRunner``, and retries ``get_runner()``.
+    Returns ``None`` only when that bootstrap fails — in practice when
+    ``glossary.attachment`` is unimportable (pure-doctrine environments) —
+    so the caller degrades to running the primitive without glossary checks.
+    """
+    runner_cls = get_runner()
+    if runner_cls is None:
+        # Lazy self-bootstrap: nothing registers eagerly, so the first enabled
+        # call installs the concrete runner into the kernel registry.
+        try:
+            module = import_module("glossary.attachment")
+            glossary_aware_runner = module.GlossaryAwarePrimitiveRunner
+            register(glossary_aware_runner)
+            runner_cls = get_runner()
+        except Exception:
+            runner_cls = None
+    return runner_cls
+
+
 def execute_with_glossary(
     primitive_fn: Callable[..., Any],
     context: Any,
@@ -91,10 +135,12 @@ def execute_with_glossary(
 
     1. Checks whether glossary checks are enabled for this step
        (via context metadata or defaults).
-    2. If enabled and a runner is registered, runs the full glossary
-       middleware pipeline on the context before executing the primitive.
-    3. If no runner is registered, executes the primitive directly
-       (graceful degradation).
+    2. If enabled, ensures a runner is registered (``_ensure_runner_registered()``
+       — the lazy self-bootstrap from ``glossary.attachment``) and runs the
+       full glossary middleware pipeline on the context before executing the
+       primitive.
+    3. If ``glossary.attachment`` is unimportable (so no runner can be
+       registered), executes the primitive directly (graceful degradation).
     4. Returns whatever the primitive function returns.
 
     Args:
@@ -124,19 +170,7 @@ def execute_with_glossary(
         )
         return primitive_fn(context, *args, **kwargs)
 
-    runner_cls = get_runner()
-    if runner_cls is None:
-        # Compatibility bootstrap: some callers import the doctrine hook
-        # directly before glossary has had a chance to register
-        # the concrete runner into the kernel registry.
-        try:
-            module = import_module("glossary.attachment")
-            glossary_aware_runner = module.GlossaryAwarePrimitiveRunner
-            register(glossary_aware_runner)
-            runner_cls = get_runner()
-        except Exception:
-            runner_cls = None
-
+    runner_cls = _ensure_runner_registered()
     if runner_cls is None:
         logger.debug(
             "No glossary runner registered; executing primitive directly for step=%s",

@@ -36,14 +36,6 @@ def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_derive_mission_state_imports_legacy_events_lazily(tmp_path: Path) -> None:
-    """Legacy state derivation keeps event-log imports off the package import path."""
-    from runtime.next.decision import derive_mission_state
-
-    with patch("specify_cli.mission_v1.events.read_events", return_value=[]):
-        assert derive_mission_state(tmp_path, "discovery") == "discovery"
-
-
 def _make_mock_decision(
     is_query: bool = False,
     mission_state: str = "specify",
@@ -409,7 +401,8 @@ class TestQueryCurrentStateErrorPaths:
 
     def test_resolved_missing_feature_dir_raises_mission_not_found(self, tmp_path: Path) -> None:
         """Resolved-but-absent paths also fail closed."""
-        from mission_runtime import MissionArtifactContext, MissionArtifactKind, MissionContext, MissionTopology
+        from mission_runtime import MissionArtifactKind, MissionContext, MissionTopology
+        from mission_runtime.context import MissionArtifactContext
         from runtime.next.runtime_bridge import MissionNotFoundError, query_current_state
 
         missing = tmp_path / "kitty-specs" / "069-missing"

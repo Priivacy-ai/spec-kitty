@@ -33,13 +33,12 @@ pytestmark = [pytest.mark.fast]
 import mission_runtime.artifacts as artifacts_mod
 from mission_runtime import (
     CommitTarget,
-    MissionArtifactHome,
     MissionArtifactKind,
     TopologySurface,
-    artifact_home_for,
     is_primary_artifact_kind,
     kind_for_mission_file,
 )
+from mission_runtime.artifacts import MissionArtifactHome, artifact_home_for
 from specify_cli.mission_metadata import write_meta
 
 _MISSION_SLUG = "coord-write-placement-closure-01KYCF83"

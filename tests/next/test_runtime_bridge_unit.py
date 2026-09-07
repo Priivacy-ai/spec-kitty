@@ -242,9 +242,9 @@ class TestWorkflowRuntimeTemplate:
         from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: runtime_bridge._BufferingRuntimeEmitter()),
+            runtime_bridge,
+            "runtime_event_emitter_for_mission",
+            lambda **_: runtime_bridge._BufferingRuntimeEmitter(),
         )
 
         runtime_bridge.decide_next_via_runtime(
@@ -610,9 +610,9 @@ class TestAnswerDecisionViaRuntime:
         monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
         monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type: fake_run_ref)
         monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: FakeEmitter()),
+            runtime_bridge,
+            "runtime_event_emitter_for_mission",
+            lambda **_: FakeEmitter(),
         )
 
         provided: list[tuple[object, str, str, object, object]] = []
@@ -858,9 +858,9 @@ class TestFullLoop:
                 return None
 
         monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: LocalOnlyEmitter()),
+            runtime_bridge,
+            "runtime_event_emitter_for_mission",
+            lambda **_: LocalOnlyEmitter(),
         )
 
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
@@ -2159,9 +2159,9 @@ class TestDecideNextViaRuntimeOwnedCheckout:
                 return None
 
         monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: LocalOnlyEmitter()),
+            runtime_bridge,
+            "runtime_event_emitter_for_mission",
+            lambda **_: LocalOnlyEmitter(),
         )
 
     def test_owned_checkout_resolves_and_advances_the_mission(self, tmp_path: Path) -> None:

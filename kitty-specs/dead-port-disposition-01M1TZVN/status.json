@@ -1,12 +1,12 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M1VS2P88JA71G5N9VM7S84C0",
-  "materialized_at": "2026-09-06T16:33:29.352402+00:00",
+  "event_count": 30,
+  "last_event_id": "01M1WDZ7FCETQTVX4N7ZM0F5Z4",
+  "materialized_at": "2026-09-06T22:38:36.012176+00:00",
   "mission_number": "",
   "mission_slug": "dead-port-disposition-01M1TZVN",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -14,43 +14,161 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 5
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VB40FJY7VKX305QQ8RYT7T",
-      "last_transition_at": "2026-09-06T12:29:32.530592+00:00"
+      "lane": "approved",
+      "last_event_id": "01M1W4NDYD0EFWRGHB05NY3GRA",
+      "last_transition_at": "2026-09-06T19:55:57.773299+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: mission-DSL v1 retired (FULL), transitions dropped, ratchet RED->GREEN, all same-WP gates moved; open item: inert-slot rows owned by Mission B need a WP03/WP05 rider or re-owning (see design note).",
+        "Review passed: RED reproduced on base 1ceba9f22 (2 failed) and GREEN on lane; events.py byte-identical; zero transitions imports; lock diff -transitions only, six retained; packs block-only by YAML round-trip; gate quartet 96, arch six-file+terminology 114, ratchet-baselines 31, 427 slice, pack-loading 514 all passed; ruff/mypy clean. D-12: owned baseline rows are the sanctioned route, BUT the anti-weasel test they rely on was deleted in 177e06269 (#3285) - no gate fires on mission completion; orchestrator must add the MissionOrchestration deletion rider to WP03 explicitly."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: RED reproduced on base 1ceba9f22 (2 failed) and GREEN on lane; events.py byte-identical; zero transitions imports; lock diff -transitions only, six retained; packs block-only by YAML round-trip; gate quartet 96, arch six-file+terminology 114, ratchet-baselines 31, 427 slice, pack-loading 514 all passed; ruff/mypy clean. D-12: owned baseline rows are the sanctioned route, BUT the anti-weasel test they rely on was deleted in 177e06269 (#3285) - no gate fires on mission completion; orchestrator must add the MissionOrchestration deletion rider to WP03 explicitly.",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 55024,
+      "shell_pid_created_at": "1788723411.067079",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VB41QE82N9QXCF4YJEC576",
-      "last_transition_at": "2026-09-06T12:29:33.806845+00:00"
+      "lane": "approved",
+      "last_event_id": "01M1W2YAVXSMB9FD0WPN863DKB",
+      "last_transition_at": "2026-09-06T19:25:52.381174+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: four glossary-runner sites canonicalized to the lazy self-bootstrap (SC-004 grep zero matches), bootstrap extracted into _ensure_runner_registered() (pure motion), FR-009 pins + SC-004 design-story pins green (33), FR-020 honesty note in glossary_hook.py, #1868 tracker text drafted in the WP02 design note. Commits d6af84a09 (ATDD) + 09f68d46d (repair).",
+        "Review passed: RED reproduced at d6af84a09 (10 failed/23 passed), GREEN at 09f68d46d (33 passed); SC-004 grep zero; tests/doctrine 3019 passed/10 skipped; arch gates 96 passed; consumers 53 passed; ruff/mypy clean; helper is pure code motion, no kernel->glossary import"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: RED reproduced at d6af84a09 (10 failed/23 passed), GREEN at 09f68d46d (33 passed); SC-004 grep zero; tests/doctrine 3019 passed/10 skipped; arch gates 96 passed; consumers 53 passed; ruff/mypy clean; helper is pure code motion, no kernel->glossary import",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 79555,
+      "shell_pid_created_at": "1788722012.598392",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VB43184G8JH52R3EJZCGT5",
-      "last_transition_at": "2026-09-06T12:29:35.144440+00:00"
+      "lane": "approved",
+      "last_event_id": "01M1W90PXW5A6DP08NX9Q296A3",
+      "last_transition_at": "2026-09-06T21:12:01.724149+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: T011-T015 + rider T014b landed on lane-c (6 commits 9f8d3a0b3..d18b0c98c, RED-first); final-HEAD sweep 1319 passed/4 skipped",
+        "Review passed (cycle 1): RED-first reproduced for both pin commits; 1319 passed/4 skipped sweep + 211 extras; schema regen zero diff; hash pin helper-produced; emitter AST-identical; T014b family gone, 14 baseline rows, counts 37/9; WP04 orphan-row prune deferred to merge consolidation (verified red on lane-c)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (cycle 1): RED-first reproduced for both pin commits; 1319 passed/4 skipped sweep + 211 extras; schema regen zero diff; hash pin helper-produced; emitter AST-identical; T014b family gone, 14 baseline rows, counts 37/9; WP04 orphan-row prune deferred to merge consolidation (verified red on lane-c)",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 37499,
+      "shell_pid_created_at": "1788727700.407858",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VB448P5MQJMKKQ3CR21FJ7",
-      "last_transition_at": "2026-09-06T12:29:36.406652+00:00"
+      "lane": "approved",
+      "last_event_id": "01M1W1ZY2HBFTSP2CGS7NYVW5N",
+      "last_transition_at": "2026-09-06T19:09:16.245931+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: derive_mission_state/evaluate_guards (+ private helper _describe_guard, lazy read_events import, unused SimpleNamespace import) deleted from runtime/next/decision.py; legacy test sections removed; third file tests/next/test_query_mode_unit.py held an undocumented consumer and was trimmed (see Activity Log). 661 runtime + 89 architectural tests passed; ruff/format/mypy clean.",
+        "Review passed (cycle 1): zero-caller proofs reproduced by AST scan; 661 + 89 tests green; three-file diff accepted (undocumented consumer in test_query_mode_unit.py); orphaned grandfathered rows handed to WP03 T014"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (cycle 1): zero-caller proofs reproduced by AST scan; 661 + 89 tests green; three-file diff accepted (undocumented consumer in test_query_mode_unit.py); orphaned grandfathered rows handed to WP03 T014",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23592,
+      "shell_pid_created_at": "1788720569.139854",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VS2P88JA71G5N9VM7S84C0",
-      "last_transition_at": "2026-09-06T16:33:29.352402+00:00"
+      "lane": "approved",
+      "last_event_id": "01M1WDZ7FCETQTVX4N7ZM0F5Z4",
+      "last_transition_at": "2026-09-06T22:38:36.012176+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: ADR 2026-09-06-2 executed -- seam consolidated onto _internal_runtime (one RuntimeEventEmitter; factory + registry; for_mission; seed_from_snapshot), event_emitter.py deleted, flush target fixed on both paths with red-first pins; step-0 lane-d merge + orphan-row prune. HEAD ec77ba471.",
+        "Review passed (cycle 1): ADR (a)-(d) + Confirmation (1)-(5) reproduced; RED-first 5f/1p at 53339201f-minus-xfail, flush pins discriminate on throwaway revert; mypy 21=21 zero new; tests/runtime 779, next 755, gates 439; Non-goals 2/4 untouched; sync_emitter keep + LOC +66 accepted as recorded defers"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (cycle 1): ADR (a)-(d) + Confirmation (1)-(5) reproduced; RED-first 5f/1p at 53339201f-minus-xfail, flush pins discriminate on throwaway revert; mypy 21=21 zero new; tests/runtime 779, next 755, gates 439; Non-goals 2/4 untouched; sync_emitter keep + LOC +66 accepted as recorded defers",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 32568,
+      "shell_pid_created_at": "1788733025.982725",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     }
   }
 }

@@ -24,8 +24,8 @@ Invariants
 Dependency notes
 ----------------
 ``jsonschema`` (>=4.0) is already listed in ``pyproject.toml`` (it is used by
-``specify_cli.mission_v1.schema`` and several ``doctrine`` sub-packages), so no
-new dependency is introduced by this module.
+several ``doctrine`` sub-packages), so no new dependency is introduced by
+this module.
 """
 
 from __future__ import annotations

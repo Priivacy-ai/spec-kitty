@@ -25,8 +25,6 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
     decide_next,
-    derive_mission_state,
-    evaluate_guards,
 )
 
 
@@ -183,229 +181,6 @@ def _complete_all_steps(
         )
         if decision.kind == "terminal":
             return
-
-
-# ---------------------------------------------------------------------------
-# derive_mission_state (legacy)
-# ---------------------------------------------------------------------------
-
-
-class TestDeriveMissionState:
-    def test_empty_log_returns_initial(self, feature_dir: Path) -> None:
-        assert derive_mission_state(feature_dir, "discovery") == "discovery"
-
-    def test_no_events_file_returns_initial(self, tmp_path: Path) -> None:
-        assert derive_mission_state(tmp_path, "specify") == "specify"
-
-    def test_with_phase_entered_events(self, feature_dir: Path) -> None:
-        events_file = feature_dir / "mission-events.jsonl"
-        events = [
-            {"type": "phase_entered", "payload": {"state": "specify"}},
-            {"type": "phase_exited", "payload": {"state": "specify"}},
-            {"type": "phase_entered", "payload": {"state": "plan"}},
-        ]
-        events_file.write_text(
-            "\n".join(json.dumps(e) for e in events) + "\n",
-            encoding="utf-8",
-        )
-        assert derive_mission_state(feature_dir, "discovery") == "plan"
-
-    def test_only_non_phase_events(self, feature_dir: Path) -> None:
-        events_file = feature_dir / "mission-events.jsonl"
-        events = [
-            {"type": "guard_failed", "payload": {"guard": "spec.md"}},
-        ]
-        events_file.write_text(json.dumps(events[0]) + "\n", encoding="utf-8")
-        assert derive_mission_state(feature_dir, "discovery") == "discovery"
-
-
-# ---------------------------------------------------------------------------
-# evaluate_guards (legacy)
-# ---------------------------------------------------------------------------
-
-
-class TestEvaluateGuards:
-    def test_no_advance_transition(self) -> None:
-        config = {
-            "transitions": [
-                {"trigger": "rework", "source": "review", "dest": "implement"},
-            ],
-        }
-        passed, failures = evaluate_guards(config, Path("/fake"), "review")
-        assert passed is True
-        assert failures == []
-
-    def test_all_guards_pass(self, feature_dir: Path) -> None:
-        # Create the artifact the guard expects
-        (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
-
-        def guard_pass(event_data):
-            return True
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [guard_pass],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is True
-        assert failures == []
-
-    def test_some_guards_fail(self, feature_dir: Path) -> None:
-        def guard_fail(event_data):
-            return False
-
-        def guard_pass(event_data):
-            return True
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [guard_pass, guard_fail],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert len(failures) == 1
-
-    def test_uncompiled_string_guard(self, feature_dir: Path) -> None:
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": ['artifact_exists("spec.md")'],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert "Uncompiled guard" in failures[0]
-
-    def test_no_conditions(self) -> None:
-        config = {
-            "transitions": [
-                {"trigger": "advance", "source": "discovery", "dest": "specify"},
-            ],
-        }
-        passed, failures = evaluate_guards(config, Path("/fake"), "discovery")
-        assert passed is True
-        assert failures == []
-
-    def test_unless_guard_blocks_when_true(self, feature_dir: Path) -> None:
-        """Unless guards block advancement when they return True."""
-
-        def unless_active(event_data):
-            return True  # condition is active -> should block
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "unless": [unless_active],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert len(failures) == 1
-        assert "Unless-guard" in failures[0]
-
-    def test_unless_guard_passes_when_false(self, feature_dir: Path) -> None:
-        """Unless guards pass when they return False."""
-
-        def unless_inactive(event_data):
-            return False  # condition is inactive -> should pass
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "unless": [unless_inactive],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is True
-        assert failures == []
-
-    def test_conditions_and_unless_combined(self, feature_dir: Path) -> None:
-        """Both conditions and unless must pass for guard to pass."""
-
-        def cond_pass(event_data):
-            return True
-
-        def unless_inactive(event_data):
-            return False
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [cond_pass],
-                    "unless": [unless_inactive],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is True
-        assert failures == []
-
-    def test_conditions_pass_but_unless_blocks(self, feature_dir: Path) -> None:
-        """If conditions pass but unless is active, overall guard fails."""
-
-        def cond_pass(event_data):
-            return True
-
-        def unless_active(event_data):
-            return True
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [cond_pass],
-                    "unless": [unless_active],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert len(failures) == 1
-
-    def test_uncompiled_unless_string(self, feature_dir: Path) -> None:
-        """Uncompiled string unless-guards report as failures."""
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "unless": ['some_check("arg")'],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert "Uncompiled unless-guard" in failures[0]
 
 
 # ---------------------------------------------------------------------------
@@ -904,8 +679,6 @@ class TestDecisionKindSerialisation:
         same bytes as when using the raw string literal — the pre-enum contract
         is preserved exactly.
         """
-        import json
-
         for member in DecisionKind:
             enum_output = json.dumps({"kind": member})
             str_output = json.dumps({"kind": member.value})
@@ -916,8 +689,6 @@ class TestDecisionKindSerialisation:
 
     def test_to_dict_kind_field_is_bare_string(self, tmp_path: Path) -> None:
         """Decision.to_dict() emits kind as a bare string, not an enum repr."""
-        import json
-
         prompt = tmp_path / "p.md"
         prompt.write_text("# p", encoding="utf-8")
         decision = Decision(

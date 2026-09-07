@@ -78,7 +78,6 @@ dependencies = [
     "tomli-w>=1.0.0",  # TOML write serialiser (stdlib tomllib is read-only)
     "filelock>=3.13.0",  # Credential storage locking
     "requests>=2.33.0",  # HTTP client for doctrine-pack https/api sources (CVE-2026-25645 fix)
-    "transitions>=0.9.2",  # State machine library for mission DSL v1
     "jsonschema>=4.0",  # JSON Schema validation for mission configs
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
@@ -692,7 +691,6 @@ exclude = [
     "src/specify_cli/dashboard/scanner.py",
     "src/specify_cli/dashboard/server.py",
     "src/specify_cli/dashboard/templates/__init__.py",
-    "src/specify_cli/decisions/emit.py",
     "src/specify_cli/decisions/ownership.py",
     "src/specify_cli/decisions/service.py",
     "src/specify_cli/decisions/store.py",
@@ -1982,21 +1980,15 @@ exclude = [
     "tests/missions/test_doc_state_formatting.py",
     "tests/missions/test_doc_state_unit.py",
     "tests/missions/test_documentation_templates.py",
-    "tests/missions/test_e2e_mission_v1_integration.py",
     "tests/missions/test_feature_lifecycle_unit.py",
     "tests/missions/test_gate_read_flattened_regression.py",
     "tests/missions/test_gate_read_two_surface_behavioral.py",
-    "tests/missions/test_mission_guards_integration.py",
-    "tests/missions/test_mission_loading_integration.py",
     "tests/missions/test_mission_schema_unit.py",
     "tests/missions/test_mission_software_dev_integration.py",
     "tests/missions/test_mission_switching_integration.py",
     "tests/missions/test_mission_topology_seam.py",
     "tests/missions/test_mission_type_profile_resolution.py",
-    "tests/missions/test_mission_v1_compat_unit.py",
     "tests/missions/test_mission_v1_events_unit.py",
-    "tests/missions/test_mission_v1_guards_unit.py",
-    "tests/missions/test_mission_v1_schema_unit.py",
     "tests/missions/test_resolution_convergence.py",
     "tests/missions/test_specify_metadata_explicit_integration.py",
     "tests/missions/test_surface_resolution_equivalence.py",
@@ -2581,7 +2573,6 @@ exclude = [
     "tests/specify_cli/mission_step_contracts/test_gate_binding_schema.py",
     "tests/specify_cli/mission_step_contracts/test_research_composition.py",
     "tests/specify_cli/mission_step_contracts/test_software_dev_composition.py",
-    "tests/specify_cli/mission_v1/test_guards_bulk_edit.py",
     "tests/specify_cli/missions/test_handle_equivalence_matrix.py",
     "tests/specify_cli/missions/test_is_committed_coord_aware.py",
     "tests/specify_cli/missions/test_mission_template_consistency.py",
@@ -2822,7 +2813,6 @@ exclude = [
     "tests/status/test_uninitialized_hint.py",
     "tests/status/test_views.py",
     "tests/status/test_views_gitop_guard.py",
-    "tests/status/test_work_package_lifecycle.py",
     "tests/status/test_zeitgeist_decision_moment_docker_local.py",
     "tests/stress/test_concurrent_emits.py",
     "tests/tasks/conftest.py",
