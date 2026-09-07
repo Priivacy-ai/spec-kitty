@@ -1,0 +1,128 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-07T09:11:20.286198Z",
+      "decision_id": "01M1XJ5SYYW8JFK67GFX6H5WXS",
+      "final_answer": "Silent local operation; one-time non-blocking hint to run auth login",
+      "input_key": "first_run_scenario",
+      "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+      "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+      "opened_by": "cli",
+      "options": [
+        "Silent local operation; one-time non-blocking hint to run auth login",
+        "Blocking prompt to log in before any mission command",
+        "Silent local operation with no hint until a hosted command is attempted",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "After launch, an operator installs the CLI fresh, runs a normal command (e.g. spec-kitty status) with no environment variables set and no auth session: what exactly should they see and what must still work locally?",
+      "rationale": null,
+      "resolved_at": "2026-09-07T09:12:19.880423Z",
+      "resolved_by": null,
+      "slot_key": "specify.scenario.first-run-after-launch",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-07T09:12:24.166340Z",
+      "decision_id": "01M1XJ7RB6BDQ4ZY2PGKA7JDDT",
+      "final_answer": null,
+      "input_key": "owned_checkout_sync_rule",
+      "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+      "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+      "opened_by": "cli",
+      "options": [
+        "Owned-checkout moves must fully participate in hosted sync (fan-out) like any other move",
+        "Owned-checkout moves succeed locally and skip hosted fan-out with a visible warning",
+        "Keep refusing; owned checkouts are a dev-only path",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "With sync on by default, owned-checkout lane moves (move-task/mark-status --owned-checkout) currently refuse with OWNED_SYNC_UNSUPPORTED. What must hold at launch?",
+      "rationale": "Question was framed in the retired 'sync' vocabulary (OWNED_SYNC_UNSUPPORTED); operator directed that the live model is Zeitgeist only. Re-asking after reading the Zeitgeist and SaaS repositories.",
+      "resolved_at": "2026-09-07T09:19:58.064748Z",
+      "resolved_by": null,
+      "slot_key": "specify.rules.owned-checkout-under-active-sync",
+      "status": "canceled",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-07T09:42:55.729692Z",
+      "decision_id": "01M1XKZMZH44PGGM0WWW6GRGVV",
+      "final_answer": "Publish like any other checkout; delete the OWNED_SYNC_UNSUPPORTED guard",
+      "input_key": "owned_checkout_moment_rule",
+      "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+      "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+      "opened_by": "cli",
+      "options": [
+        "Publish like any other checkout; delete the guard",
+        "Owned checkouts are private; suppress their moments",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When an agent moves a work package from an owned checkout on a launch build, does the moment go to the team's Zeitgeist relay exactly as from a lane worktree (delete OWNED_SYNC_UNSUPPORTED), or are owned checkouts private?",
+      "rationale": null,
+      "resolved_at": "2026-09-07T09:43:42.724740Z",
+      "resolved_by": null,
+      "slot_key": "specify.rules.owned-checkout-moments",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-07T09:43:46.960851Z",
+      "decision_id": "01M1XM170GDEH668X4GFJDVFK6",
+      "final_answer": "env var > config.toml server_url > packaged default; config pointing at another host wins over the packaged default without split-brain; split-brain guard only for env-vs-config disagreement. Plus: the resolved target and its source must be visible to the user via auth login / auth status.",
+      "input_key": "hosted_target_default_rule",
+      "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+      "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+      "opened_by": "cli",
+      "options": [
+        "env var > config.toml > packaged default; a config pointing at another host silently wins over the packaged default",
+        "env var > packaged default; config.toml server_url is retired with the sync vocabulary",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "On a launch build with nothing configured, auth login and capability minting target https://team.spec-kitty.ai. What wins when a config.toml [sync].server_url or SPEC_KITTY_SAAS_URL is also present?",
+      "rationale": null,
+      "resolved_at": "2026-09-07T09:45:22.915018Z",
+      "resolved_by": null,
+      "slot_key": "specify.rules.hosted-target-default",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-07T09:45:27.275167Z",
+      "decision_id": "01M1XM48ZBSJHA3CRSJ45TPY4P",
+      "final_answer": "Delete SPEC_KITTY_ENABLE_SAAS_SYNC; hosted features always available, auth decides; add one explicit offline kill switch (working name SPEC_KITTY_OFFLINE=1) suppressing all hosted egress incl. moments; split the pre-review-gate skip and the moment-handler import gate into their own explicitly named variables.",
+      "input_key": "sync_flag_disposition",
+      "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+      "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+      "opened_by": "cli",
+      "options": [
+        "Delete the flag; hosted features are always available and auth decides. Add one explicit offline kill switch (e.g. SPEC_KITTY_OFFLINE=1) that suppresses all hosted egress incl. moments. Split the two opt-outs into their own explicitly named variables.",
+        "Keep SPEC_KITTY_ENABLE_SAAS_SYNC as a =0 escape hatch only; everything else as in the first option",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What happens to SPEC_KITTY_ENABLE_SAAS_SYNC and the SYNC_* names at launch: the four leftover gates (readiness nag, tracker commands, --from-ticket, owned-checkout guard) and the two opt-outs (pre-review gate skip, moment-handler import gate)?",
+      "rationale": null,
+      "resolved_at": "2026-09-07T09:46:11.985869Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.sync-flag-disposition",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+  "version": 1
+}
