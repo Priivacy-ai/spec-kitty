@@ -77,10 +77,7 @@ def _decorator_qualname(node: ast.expr) -> str:
 
 
 def _is_performance_marked(func: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    return any(
-        _decorator_qualname(decorator) == _PERFORMANCE_MARKER_QUALNAME
-        for decorator in func.decorator_list
-    )
+    return any(_decorator_qualname(decorator) == _PERFORMANCE_MARKER_QUALNAME for decorator in func.decorator_list)
 
 
 def _iter_asserts(func: ast.FunctionDef | ast.AsyncFunctionDef) -> Iterable[ast.Assert]:
@@ -183,10 +180,10 @@ def test_clean_timing_only_performance_test_is_not_flagged() -> None:
 
 def test_non_performance_marked_functional_test_is_ignored() -> None:
     """The guard only inspects @pytest.mark.performance-decorated functions."""
-    source = '''
+    source = """
 def test_ordinary_functional_check() -> None:
     assert {"a": 1} == {"a": 1}
-'''
+"""
     assert find_functional_assertions_under_performance_marker(source) == []
 
 
@@ -243,11 +240,7 @@ def test_no_pull_request_workflow_selects_performance_or_interpreter_jobs() -> N
         if "pull_request" not in on_section:
             continue
         text = path.read_text(encoding="utf-8")
-        offenders.extend(
-            f"{path.name}: forbidden token {token!r} on the per-PR path"
-            for token in FORBIDDEN_PR_PATH_TOKENS
-            if token in text
-        )
+        offenders.extend(f"{path.name}: forbidden token {token!r} on the per-PR path" for token in FORBIDDEN_PR_PATH_TOKENS if token in text)
     assert not offenders, "\n".join(offenders)
 
 
@@ -283,13 +276,15 @@ def test_nightly_workflow_houses_performance_and_interpreter_jobs() -> None:
 
     interpreter_job = jobs.get("interpreter-matrix")
     assert interpreter_job is not None, "T068: interpreter-matrix job missing"
-    versions = (interpreter_job.get("strategy") or {}).get("matrix", {}).get(
-        "python-version",
+    versions = (
+        (interpreter_job.get("strategy") or {})
+        .get("matrix", {})
+        .get(
+            "python-version",
+        )
     )
     assert versions, "interpreter-matrix must declare a python-version matrix"
-    assert all(_version_tuple(v) > (3, 12) for v in versions), (
-        f"interpreter-matrix must run ABOVE 3.12: {versions}"
-    )
+    assert all(_version_tuple(v) > (3, 12) for v in versions), f"interpreter-matrix must run ABOVE 3.12: {versions}"
 
 
 def _version_tuple(version: str) -> tuple[int, ...]:

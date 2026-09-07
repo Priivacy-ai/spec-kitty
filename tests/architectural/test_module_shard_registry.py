@@ -263,8 +263,7 @@ def test_inter_shard_skew_within_twenty_percent() -> None:
 
     assert not problems, "inter-shard skew exceeds the NFR-005 ceiling:\n" + "\n".join(problems)
     assert checked_multi_shard >= 1, (
-        "no module needed more than one shard — the duration-target sizing never actually "
-        "exercised the skew constraint (vacuous coverage of NFR-005)"
+        "no module needed more than one shard — the duration-target sizing never actually exercised the skew constraint (vacuous coverage of NFR-005)"
     )
 
 
@@ -316,11 +315,7 @@ def test_registry_rows_never_declare_a_dedicated_workflow_file() -> None:
     workflow per module.
     """
     registry = _load_registry()
-    bad = [
-        row.get("module")
-        for row in _modules(registry)
-        if "workflow" in row or "workflow_file" in row
-    ]
+    bad = [row.get("module") for row in _modules(registry) if "workflow" in row or "workflow_file" in row]
     assert not bad, f"modules declare a dedicated workflow file (anti-pattern — must be matrix-over-registry): {bad}"
 
 
@@ -363,10 +358,7 @@ def test_reusable_workflow_ceiling_respected() -> None:
         "vacuously"
     )
 
-    per_module_workflow_files = [
-        f"module-{row.get('module')}.yml" for row in modules if (_WORKFLOWS_DIR / f"module-{row.get('module')}.yml").exists()
-    ]
+    per_module_workflow_files = [f"module-{row.get('module')}.yml" for row in modules if (_WORKFLOWS_DIR / f"module-{row.get('module')}.yml").exists()]
     assert not per_module_workflow_files, (
-        "one-workflow-file-per-module anti-pattern detected (breaches the ceiling for any "
-        f"non-trivial module count): {per_module_workflow_files}"
+        f"one-workflow-file-per-module anti-pattern detected (breaches the ceiling for any non-trivial module count): {per_module_workflow_files}"
     )

@@ -114,7 +114,7 @@ def test_module_tests_uses_dotted_cov_form_never_path_form() -> None:
     ambiguity Sonar cannot resolve (C-005 risk).
     """
     text = _module_tests_text()
-    has_dotted_cov = "cov_args+=(\"--cov=$target\")" in text or re.search(r"--cov=\$\{?target\}?", text)
+    has_dotted_cov = 'cov_args+=("--cov=$target")' in text or re.search(r"--cov=\$\{?target\}?", text)
     assert has_dotted_cov, "module-tests.yml must build --cov from the dotted `cov_target` field"
     # A regression to the path form would emit `--cov=src/...` or `--cov=./...`.
     has_path_form = re.search(r"--cov=[./]*src/", text)

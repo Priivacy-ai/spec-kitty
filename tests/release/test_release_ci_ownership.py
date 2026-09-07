@@ -229,6 +229,8 @@ def test_shared_package_drift_workflow_executes_real_local_validator_without_sec
     output = result.stdout + result.stderr
     assert result.returncode == (0 if mutation == "none" else 1), output
     assert diagnostic in output
+
+
 # The map ROW — not filesystem presence — is the enforcer subject: a disposition
 # is asserted over the rows registered in `docs/convergence/interim-ci-producer.md`.
 _DISPOSITION_ROW_RE = re.compile(

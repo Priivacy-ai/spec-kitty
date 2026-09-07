@@ -89,8 +89,7 @@ def _module_name_for(relpath: str) -> str:
 
 def test_membership_file_exists_and_parses() -> None:
     assert _MEMBERSHIP_PATH.exists(), (
-        f"{_MEMBERSHIP_PATH} is missing -- the P2 shape-guard demotion (C-007/"
-        "FR-014/E4) requires a committed, machine-checkable membership partition."
+        f"{_MEMBERSHIP_PATH} is missing -- the P2 shape-guard demotion (C-007/FR-014/E4) requires a committed, machine-checkable membership partition."
     )
     membership = _load_membership()
     assert membership, "membership partition must not be empty"
@@ -133,8 +132,7 @@ def test_enforcement_allowlist_set_is_exactly_the_c007_canon() -> None:
     membership = _load_membership()
     classified_enforcement = {_module_relpath(entry) for entry, cls in membership.items() if cls == "enforcement-allowlist"}
     assert classified_enforcement == set(_ENFORCEMENT_ALLOWLIST_FILES), (
-        "enforcement-allowlist classification drifted from the C-007 canon: "
-        f"got {sorted(classified_enforcement)}, expected {sorted(_ENFORCEMENT_ALLOWLIST_FILES)}"
+        f"enforcement-allowlist classification drifted from the C-007 canon: got {sorted(classified_enforcement)}, expected {sorted(_ENFORCEMENT_ALLOWLIST_FILES)}"
     )
 
 
