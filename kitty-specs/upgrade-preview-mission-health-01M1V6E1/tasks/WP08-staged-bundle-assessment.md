@@ -1,23 +1,42 @@
 ---
-work_package_id: "WP08"
-title: "Staged plugin bundle assessment"
-dependencies: ["WP02", "WP04", "WP05", "WP06", "WP07"]
-owned_files:
-  - "src/specify_cli/tool_surface/providers/plugin_bundle.py"
-  - "src/specify_cli/tool_surface/bundles/**"
-  - "tests/specify_cli/tool_surface/bundles/**"
-  - "tests/specify_cli/tool_surface/providers/test_plugin_bundle.py"
-  - "tests/specify_cli/tool_surface/test_plugin_build_codex.py"
-  - "tests/specify_cli/tool_surface/test_plugin_build_claude.py"
-requirement_refs: ["FR-002", "FR-003", "FR-004", "NFR-004", "C-001"]
-subtasks: ["T039", "T040", "T041", "T042"]
-authoritative_surface: "src/specify_cli/tool_surface/bundles/"
+work_package_id: WP08
+title: Staged plugin bundle assessment
+dependencies:
+- WP02
+- WP04
+- WP05
+- WP06
+- WP07
+requirement_refs:
+- FR-002
+- FR-003
+- FR-004
+- NFR-004
+- C-001
+planning_base_branch: codex/upgrade-preview-mission-health
+merge_target_branch: codex/upgrade-preview-mission-health
+branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
+subtasks:
+- T039
+- T040
+- T041
+- T042
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/tool_surface/bundles/
 create_intent: []
-execution_mode: "code_change"
-task_type: "implement"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "codex"
+execution_mode: code_change
+owned_files:
+- src/specify_cli/tool_surface/providers/plugin_bundle.py
+- src/specify_cli/tool_surface/bundles/**
+- tests/specify_cli/tool_surface/bundles/**
+- tests/specify_cli/tool_surface/providers/test_plugin_bundle.py
+- tests/specify_cli/tool_surface/test_plugin_build_codex.py
+- tests/specify_cli/tool_surface/test_plugin_build_claude.py
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP08 - Staged plugin bundle assessment
