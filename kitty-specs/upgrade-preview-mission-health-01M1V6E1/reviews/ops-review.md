@@ -1,5 +1,21 @@
 # Supporting Operation Reviews
 
+## Configured Bundle Source Tools: Open
+
+Op `01M1WM2PAB09HACQVJEDDR422H` addresses WP08's observed shared planner gap:
+`build_plans_for_bundles` hardcodes four representative tool keys, while the
+bundle contract requires caller-configured source tools. The bounded extension
+will preserve the existing default and explicit-empty selection, with one
+canonical registry/builder path. Scope: service.py and existing test_plan.py.
+Independent supplier review and real WP08 consumer verification precede closure.
+No dead-code exemption, dummy caller or approved-WP source edit is authorized.
+
+WP08 reported 924 subsystem tests passing; required architecture yielded 85
+passes and two failures, including this dead helper and unwired upgrade intent.
+The latter remains WP10 work, not a waived gate. Exact reproduction and source
+snapshot are retained externally in wp08-evidence/owner-api-request.md and
+architecture.log. WP08 continues non-overlapping owned verification meanwhile.
+
 ## Caller-Resolved Global Skill Inputs: Complete
 
 Op `01M1W6MA0EWJ38MJDQG2D50ZJ3` supplies the missing WP03 input needed by
