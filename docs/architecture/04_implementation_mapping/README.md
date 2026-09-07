@@ -50,7 +50,7 @@ as Python modules within a single-process CLI application.
 | Landscape Container | Primary Codebase Location | Package | Notes |
 |---|---|---|---|
 | **Control Plane** | `src/specify_cli/cli/` | `specify_cli` | Typer-based CLI. Single user entry point for all commands. |
-| **Kitty-core** | `src/specify_cli/core/`, `mission.py`, `mission_v1/`, `missions/`, `next/`, `template/`, `runtime/` | `specify_cli` | Planning pipeline (specify→plan→tasks) and next-action loop. |
+| **Kitty-core** | `src/specify_cli/core/`, `mission.py`, `mission_v1/`, `missions/`, `template/`, `runtime/` | `specify_cli` | Planning pipeline (specify→plan→tasks). The next-action loop itself lives at `src/runtime/next/_internal_runtime/` (`specify_cli/next` is gone). |
 | **Event Store** | `src/specify_cli/status/` | `specify_cli` | JSONL event logs (`store.py`), reducer (`reducer.py`), WP frontmatter, `meta.json`. Filesystem-only today. |
 | **Orchestration** | `src/specify_cli/orchestrator_api/`, `merge/`, `post_merge/`, `lanes/`, `workspace/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, merge execution, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
 | **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Playwright-based local browser kanban. Read-only against Event Store. |
@@ -125,7 +125,7 @@ vars are sanctioned by design.
 ```
 User runs: spec-kitty specify / plan / tasks
   → src/specify_cli/cli/commands/ (Control Plane)
-  → src/specify_cli/core/ + next/ + mission.py (Kitty-core)
+  → src/specify_cli/core/ + mission.py (Kitty-core; the next-action loop is src/runtime/next/_internal_runtime/)
   → src/specify_cli/status/emit.py (Event Store write)
   → kitty-specs/<feature>/ artifacts written to filesystem
 ```
