@@ -1,12 +1,12 @@
 {
-  "event_count": 133,
-  "last_event_id": "01M1Y9PP517WPA6Y3P4ZMB84C6",
-  "materialized_at": "2026-09-07T16:02:30.689201+00:00",
+  "event_count": 138,
+  "last_event_id": "01M1YCWAWETD1V8PPN2RJJZ05G",
+  "materialized_at": "2026-09-07T16:58:01.486103+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 12,
+    "approved": 13,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -346,6 +346,9 @@
       "last_event_id": "01M1Y9PP517WPA6Y3P4ZMB84C6",
       "last_transition_at": "2026-09-07T16:02:30.689201+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Focused cycle: full-plan schema, hidden conflict JSON, cold apply owner markers, and no-write snapshots verified inline."
+      ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Op 01M1Y92G5N7XG9W8APP3MG3YBS; commits 67e0825b6,0990faf65; focused suites 33+4 passing",
@@ -434,11 +437,29 @@
       }
     },
     "WP13": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VEF5N1ACPGHV2F0A1Q8NH4",
-      "last_transition_at": "2026-09-06T13:28:04.001572+00:00"
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "codex",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M1YCWAWETD1V8PPN2RJJZ05G",
+      "last_transition_at": "2026-09-07T16:58:01.486103+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Recovered lane-l after manually integrating recorded planning commit and all approved dependency ancestry.",
+        "Operator-directed focused acceptance: 10 source preview/target cells plus P6 pass after fix; wheel 1 pass; architecture 3 pass; corpus 423 missions/0 blockers. Exhaustive T065-T071 matrix intentionally not represented as individually complete."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Focused acceptance: source 11/11 across two runs; wheel 1; architecture 3; corpus 423/0 blockers; commits 9ad122826,3d55d896d",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464"
     }
   }
 }
