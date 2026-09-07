@@ -301,8 +301,8 @@
     "WP09": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
       "lane": "for_review",
       "last_event_id": "01M1XDMWFAWPWWBGCXYKJTEFSM",
@@ -314,7 +314,8 @@
         "Cycle2 correction4e72cedb49a13516fc1c0f12ff0a4d32b18d4c0d. Reviewer R1-R3 plus deactivation newline regression corrected with RED-first history; 324 owner/caller/architecture checks,1642 Make tests and both public P7 layouts passed. Eight public preview REDs remain WP10/WP13, not waived. Independent re-review required; external wp09-handoff.md supersedes cycle1.",
         "Cycle2 REJECT: multiline key comments deleted and valid explicit owned YAML keys break update/deactivation; exact BASE/current controls and both layouts reproduced. Original narrow R1-R3 pass but do not close defect class. Preserve full independent cycle2 report; no WP10 dependency waiver.",
         "Cycle3 correction b86c191608cea1b1c591730a7a934c48a038e724, RED555d07c4bef5ba43a687832d219443764dd660d8. 388 owner/caller/architecture and 1642 fast tests pass; explicit-key/comment preservation controls and public P7 apply/repeat verified by author. Independent full-contract re-review required. Eight public REDs and unchanged timing failure retained; third rejection requires arbiter escalation.",
-        "Third rejection: proven corrective-diff comment loss on reused documents; prior C2 findings fixed. Arbiter declines approval of data loss and escalates bounded further correction to user. No automatic fourth retry."
+        "Third rejection: proven corrective-diff comment loss on reused documents; prior C2 findings fixed. Arbiter declines approval of data loss and escalates bounded further correction to user. No automatic fourth retry.",
+        "User-authorized Op01M1XCGBK5AFYA6T2AE7CBRB3X fix0eff16b1: repeated-save comments and YAML directives; RED8fail8controls then136pass. Focused independent acceptance pending."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
