@@ -1988,7 +1988,6 @@ exclude = [
     "tests/missions/test_mission_switching_integration.py",
     "tests/missions/test_mission_topology_seam.py",
     "tests/missions/test_mission_type_profile_resolution.py",
-    "tests/missions/test_mission_v1_events_unit.py",
     "tests/missions/test_resolution_convergence.py",
     "tests/missions/test_specify_metadata_explicit_integration.py",
     "tests/missions/test_surface_resolution_equivalence.py",
