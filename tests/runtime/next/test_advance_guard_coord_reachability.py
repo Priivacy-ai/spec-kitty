@@ -314,3 +314,55 @@ class TestAnchoringRequiresExplicitMissionSlug:
     def test_unanchored_call_is_unaffected(self, tmp_path: Path) -> None:
         # No repo_root -> no anchoring -> no raise (an empty dir has no tasks/).
         assert rb._should_advance_wp_step("implement", tmp_path) is True
+
+
+class TestCompositionPhaseNeverSeesPendingWp:
+    """Landing fold (#3981): reachability tripwire for the two DELIBERATELY
+    unanchored `_should_advance_wp_step` call sites (`_check_cli_guards` and
+    `_check_composed_action_guard`). Their safety rests on a prose invariant:
+    they run only AFTER `_dn_dependency_gate` (the anchored phase) already
+    short-circuited for a pending WP. The phase loop in `decide_next_via_runtime`
+    (`for phase in (_dn_dependency_gate, _dn_composition_dispatch, ...)`) runs
+    `_dn_composition_dispatch` only when `_dn_dependency_gate` returns None, so
+    this pins that a pending (never-claimed / uninitialized) WP on a real
+    coord-topology fixture makes the anchored gate return a non-None WP-level
+    decision — the composition phase never evaluates its unanchored recompute on
+    a pending WP.
+
+    Reds if the FR-009 anchoring regresses (the coord gate would return None and
+    let composition run) OR if the gate is changed to stop short-circuiting on a
+    pending WP — the exact phase-reorder the two comments warn about.
+    """
+
+    def test_dn_dependency_gate_short_circuits_before_composition_for_pending_wp(self, tmp_path: Path) -> None:
+        fixture = build_coord_topology_fixture(tmp_path)  # default -> UNINITIALIZED WP
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        run_ref = MissionRunRef(run_id="run-pending", run_dir=str(run_dir), mission_key=fixture.mission_slug)
+        ctx = rb.DecideNextContext(
+            agent="agent-x",
+            mission_slug=fixture.mission_slug,
+            result="success",
+            repo_root=fixture.repo_root,
+            feature_dir=fixture.coord_feature_dir,
+            now="2026-09-07T00:00:00+00:00",
+            mission_type="software-dev",
+            sync_emitter=cast(Any, object()),
+            emitter_for_engine=cast(Any, object()),
+            origin={},
+            progress=None,
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id="implement",
+        )
+
+        decision = rb._dn_dependency_gate(ctx)
+
+        # Non-None => the phase loop short-circuits here; _dn_composition_dispatch
+        # (phase 3) never runs, so its unanchored _should_advance_wp_step recompute
+        # never evaluates this pending WP. This is the WP-iteration branch, so the
+        # decision is a WP-level outcome (step or blocked), never an advance past
+        # implement (which would be composition/materialize's job).
+        assert decision is not None
+        assert decision.kind in (DecisionKind.step, DecisionKind.blocked)
