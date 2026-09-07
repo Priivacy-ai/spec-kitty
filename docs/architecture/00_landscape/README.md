@@ -36,11 +36,15 @@ implementation-agnostic:
 | Orchestration | Python modules (lifecycle engine, status) | Same — domain logic |
 | Agent Tool Connectors | In-tool (`spec-kitty implement`) | Async shell, SDK, remote API |
 | Doctrine | Pack content in `packs/built-in/`; doctrine code + canonical skill packs in `src/charter/offering/` (incl. `src/charter/offering/skills/`); deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
-| Charter | Governance authority in `src/charter/` (absorbed the former `src/doctrine/` package at `src/charter/offering/`); compiled bundle in `.kittify/` | Same — governance artifacts |
+| Charter | Governance authority in `src/charter/` (absorbed the former `src/doctrine/` package at `src/charter/offering/`); compiled Charter Bundle in `.kittify/charter/` | Same — governance artifacts |
 | Glossary | Terminology / semantic-integrity pipeline + DRG glossary bridge in `src/glossary/` | Same — knowledge artifacts |
 | Runtime | Canonical mission control loop in `src/runtime/next/_internal_runtime/` | Same — domain logic |
 | Mission Runtime | Artifact-placement seam in `src/mission_runtime/` (PlacementSeam, resolver port, identity, lifecycle_phase) | Same — domain logic |
 | Kernel | Zero-dependency shared primitives in `src/kernel/` | Same — utility layer |
+
+> **Note:** Kernel, Glossary, Runtime, and Mission Runtime are layer packages in
+> the enforced import chain (`tests/architectural/test_layer_rules.py`), not
+> narrated Domain Containers — they have no matching `###` section below.
 
 Whether a module is in-process, a separate service, or a remote API is an
 implementation detail — the contracts between them remain stable regardless.
