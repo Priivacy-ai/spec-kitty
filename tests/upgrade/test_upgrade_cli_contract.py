@@ -26,18 +26,13 @@ def test_project_json_downgrade_refuses_without_dry_run(tmp_path: Path) -> None:
     case.retain(evidence / "project-json-downgrade", result, before, after)
 
     payload = result.json()
-    schema_path = CHECKOUT / (
-        "kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/"
-        "contracts/compat-planner.json"
-    )
+    schema_path = CHECKOUT / ("kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/contracts/compat-planner.json")
     jsonschema.Draft202012Validator(json.loads(schema_path.read_text())).validate(payload)
     assert payload["project"]["state"] == "compatible", payload
     assert payload["decision"] == "BLOCK_INCOMPATIBLE_FLAGS", payload
     assert payload["case"] == "none", payload
     assert payload["exit_code"] == 2, payload
     assert payload["pending_migrations"] == [], payload
-    assert payload["rendered_human"] == (
-        "Refusing to downgrade project metadata from 3.2.7rc1 to 3.2.6"
-    )
+    assert payload["rendered_human"] == ("Refusing to downgrade project metadata from 3.2.7rc1 to 3.2.6")
     assert result.returncode == 2, result
     assert_unchanged(before, after)
