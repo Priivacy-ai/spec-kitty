@@ -189,3 +189,51 @@ def test_normal_linked_caller_keeps_canonical_status_authority(tmp_path: Path, t
     assert bridge._check_cli_guards("specify", status, mission_family="software-dev", repo_root=linked) == []
     assert composition._check_composed_action_guard("specify", status, repo_root=linked) == []
     assert not (linked / "kitty-specs" / MISSION_SLUG / "spec.md").exists()
+
+
+# --- Total-function contract: presence gathering never raises out of the seam ---
+#
+# ``gather_artifact_presence`` is a fact port; both production callers invoke
+# it OUTSIDE their ``try`` (tests/runtime/next/test_composed_guard_launder.py).
+# The owned-checkout re-seam is a *verified* fallback: a caller whose directory
+# is not a recognised STATUS home keeps its supplied directory (the pre-#3910
+# behaviour) instead of a guessed placement, and a PRIMARY-artifact question
+# is never turned into a coordination-branch liveness failure.
+
+
+def test_coord_mission_called_from_primary_dir_keeps_supplied_directory(tmp_path: Path) -> None:
+    repo, primary, _status = _mission(tmp_path, "coord")
+    (primary / "spec.md").write_text("# Canonical planning contract\n", encoding="utf-8")
+
+    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo)
+
+    assert "spec.md" in snapshot.present_artifacts
+    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo) == []
+    assert composition._check_composed_action_guard("specify", primary, repo_root=repo) == []
+
+
+def test_deleted_coordination_branch_does_not_fail_primary_presence(tmp_path: Path) -> None:
+    repo, primary, status = _mission(tmp_path, "coord")
+    (primary / "spec.md").write_text("# Canonical planning contract\n", encoding="utf-8")
+    coord_root = status.parent.parent
+    _git(repo, "worktree", "remove", "--force", str(coord_root))
+    _git(repo, "branch", "-D", COORD_BRANCH)
+
+    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo)
+
+    assert "spec.md" in snapshot.present_artifacts
+    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo) == []
+
+
+def test_owned_checkout_under_coord_topology_keeps_supplied_directory(tmp_path: Path) -> None:
+    """Explicit placement is only legal for ``single_branch``; a coord-topology owned
+    checkout must degrade to its supplied directory rather than raise."""
+    repo, _primary, _status = _mission(tmp_path, "coord")
+    owned = tmp_path / "owned"
+    _git(repo, "worktree", "add", "-q", "-b", "codex/owned", str(owned))
+    owned_mission = owned / "kitty-specs" / MISSION_SLUG
+    (owned_mission / "spec.md").write_text("# Owned planning contract\n", encoding="utf-8")
+
+    snapshot = gather_artifact_presence(owned_mission, mission_family="software-dev", step_id="specify", repo_root=owned)
+
+    assert "spec.md" in snapshot.present_artifacts
