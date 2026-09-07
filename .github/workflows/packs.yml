@@ -1,0 +1,271 @@
+# Packs workflow — dedicated packs/doctrine-asset verification producer.
+#
+# Mission ci-pipeline-reinstatement, WP14 (FR-011).
+#
+# Independent from the code CI (ci-router.yml / ci-quality.yml): those
+# workflows exclude packs/** and tests/doctrine/** from every CODE shard (the
+# `corpus` group in ci-router.yml is explicitly a non-code, data shard — see
+# that file's "Non-code shards" comment) so a packs-only PR never pays for a
+# code shard and a src-only PR never pays for packs work. This file is the
+# other half of that split: it owns everything packs/doctrine-asset-shaped.
+#
+# Two lanes, gated by ONE dorny `changes` filter (Gate-1). Deliberately no
+# top-level `on.*.paths` (Gate-0): #3008 (docs/convergence/interim-ci-producer.md,
+# contract §Invariant 6) warns that a hand-maintained Gate-0 path list can
+# silently drift out of lockstep with Gate-1 and no-op the whole workflow.
+# ci-router.yml and ci-quality.yml both resolve this the same way — run on
+# every PR/push, gate the actual WORK per-job off the single dorny authority.
+# A src-only PR still spins up this workflow's `changes` job, but every lane
+# job below reports `if: false` (skipped) — zero packs work runs (NFR-002).
+#
+# - **Built-in lane** (`packs/built-in/**`, PUBLIC, ships in the wheel): regen
+#   `--check`, DRG `regenerate-graph --check`, the pack-manifest freshness +
+#   authored-only guard, the `-m corpus` suite (`--cov=src/doctrine`), and the
+#   Claude Code plugin build + `claude plugin validate --strict` (zero errors
+#   AND warnings).
+# - **Internal lane** (`packs/internal/**`, MAINTAINER-only, NEVER ships):
+#   `spec-kitty doctrine org validate` (DRG-fragment validity + `refines`-edge
+#   resolution + `org-charter.yaml` required-id validation), plus the
+#   packaging-safety NEGATIVE guard proving the internal pack never ships in
+#   the wheel.
+#
+# Plus the retired-dir `__pycache__` sweep (T076): a retired test directory
+# lingering only as `__pycache__` orphans (bytecode with no live `.py`) must
+# not be picked back up by pytest collection. Swept before the corpus suite
+# runs. tests/architectural/test_pycache_sweep.py (T072) pins this step's
+# behaviour directly against the on-disk YAML.
+name: Packs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Routing mode: pr (fail-fast, lane-scoped) or full (run-all).'
+        required: false
+        default: pr
+        type: choice
+        options:
+          - pr
+          - full
+
+concurrency:
+  group: packs-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # changes: the single gate-selection authority for this workflow (Gate-1).
+  # Folds in run-all (full mode / push to main) the same way ci-router.yml's
+  # `changes` job does, so `full` mode / a main push always selects both lanes.
+  # ---------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      built_in: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.built_in }}
+      internal: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.internal }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            built_in:
+              - 'packs/built-in/**'
+              - 'tests/doctrine/**'
+              - 'tests/architectural/test_pack_manifest_no_author_edit.py'
+              - '.claude/**'
+              - '.agents/skills/**'
+              - '.kittify/command-skills-manifest.json'
+              - 'tests/specify_cli/regression/_twelve_agent_baseline/**'
+              - 'tests/specify_cli/skills/__snapshots__/**'
+            internal:
+              - 'packs/internal/**'
+
+  # ===========================================================================
+  # Built-in lane (PUBLIC, packs/built-in/** — ships in the wheel).
+  # ===========================================================================
+  built-in-regen-check:
+    name: built-in / regen --check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen spec-kitty regen --check
+      - name: Surface remediation command on drift
+        if: failure()
+        run: |
+          echo "::error::Generated fixtures are stale. Run: spec-kitty regen (then commit the diff)."
+
+  built-in-drg-check:
+    name: built-in / DRG regenerate-graph --check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen spec-kitty doctrine regenerate-graph --check
+      - name: Surface remediation command on drift
+        if: failure()
+        run: |
+          echo "::error::packs/built-in DRG fragments are stale. Run: spec-kitty doctrine regenerate-graph (then commit the diff)."
+
+  built-in-pack-manifest:
+    name: built-in / pack-manifest freshness + authored-only guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/architectural/test_pack_manifest_no_author_edit.py -q
+
+  built-in-corpus-suite:
+    name: built-in / -m corpus suite (--cov=src/doctrine)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [changes]
+    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - name: Sweep retired-dir __pycache__ orphans (T076)
+        id: pycache-sweep
+        run: |
+          find . -depth -type d -name '__pycache__' -exec rm -rf {} +
+      - run: |
+          uv sync --frozen --all-extras
+          # corpus exit-5 floor (#3008): "no tests collected" is a failure,
+          # never a silent pass — do not swallow the exit code.
+          uv run --frozen pytest -m "corpus and not windows_ci" --cov=src/doctrine --cov-report=term-missing -q
+
+  built-in-plugin-validate:
+    name: built-in / plugin build + claude plugin validate --strict
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes]
+    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - name: Install claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Build plugin bundle + claude plugin validate --strict
+        run: |
+          uv sync --frozen --all-extras
+          if ! uv run --frozen spec-kitty plugin build --target claude-code 2>build.log; then
+            echo "::error::spec-kitty plugin build (claude plugin validate --strict) failed."
+            cat build.log >&2
+            exit 1
+          fi
+          cat build.log >&2
+          if grep -qi '^Warning:' build.log; then
+            echo "::error::claude plugin validate --strict emitted a warning; the built-in lane requires zero errors AND zero warnings."
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Internal lane (MAINTAINER-only, packs/internal/** — must NEVER ship).
+  # ===========================================================================
+  internal-org-validate:
+    name: internal / DRG-fragment validity + refines-edge + org-charter required-ids
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.internal == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen spec-kitty doctrine org validate packs/internal
+
+  internal-packaging-safety:
+    name: internal / packaging-safety NEGATIVE guard (never ships)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes]
+    if: ${{ needs.changes.outputs.internal == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_only_known_packages -q
+
+  # ---------------------------------------------------------------------------
+  # packs-gate: terminal aggregator. `if: always() && !cancelled()` realizes
+  # the FR-018/FR-019 full-mode semantics (skipped != pass) in both PR
+  # (fail-fast, lane-scoped skip) and full (run-all) mode.
+  # ---------------------------------------------------------------------------
+  packs-gate:
+    name: packs gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - changes
+      - built-in-regen-check
+      - built-in-drg-check
+      - built-in-pack-manifest
+      - built-in-corpus-suite
+      - built-in-plugin-validate
+      - internal-org-validate
+      - internal-packaging-safety
+    if: ${{ always() && !cancelled() }}
+    steps:
+      - name: Evaluate packs-gate decision
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          MODE: ${{ inputs.mode || 'pr' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          # A lane job short-circuit-skipped by the changes filter (PR mode,
+          # lane not selected) reports "skipped"; a genuinely failed one
+          # reports "failure" or "cancelled". Skipped != pass, but a
+          # lane-scoped skip is allowed (the lane was not selected for this diff).
+          blocking = {
+              job: result.get("result")
+              for job, result in needs.items()
+              if result.get("result") in {"failure", "cancelled"}
+          }
+          if blocking:
+              raise SystemExit(f"blocking job(s) did not succeed: {blocking}")
+          print(f"packs-gate OK (mode={os.environ['MODE']})")
+          PY
