@@ -77,13 +77,14 @@ class BannerGroup(TyperGroup):
         remaining = super().parse_args(ctx, args)
         if command_args:
             name, command, upgrade_args = self.resolve_command(ctx, command_args)
+            if name == "migrate":
+                ctx.meta["defer_root_bootstrap"] = True
             if name == "upgrade" and command is not None:
                 from specify_cli.upgrade.intent import parse_upgrade_intent
 
-                ctx.meta["upgrade_intent"] = parse_upgrade_intent(
-                    command, upgrade_args, project_available=(Path.cwd() / ".kittify").is_dir()
-                )
+                ctx.meta["upgrade_intent"] = parse_upgrade_intent(command, upgrade_args, project_available=(Path.cwd() / ".kittify").is_dir())
         return remaining
+
     def list_commands(self, ctx: click.Context) -> list[str]:
         return sorted(super().list_commands(ctx))
 
@@ -298,6 +299,7 @@ def callback(ctx: typer.Context) -> None:
             from specify_cli.core.version_checker import (  # noqa: PLC0415 — deferred import
                 maybe_emit_no_upgrade_notice,
             )
+
             maybe_emit_no_upgrade_notice(command_name)
     except Exception:  # noqa: BLE001 — notifier must never block the CLI
         pass

@@ -770,7 +770,10 @@ class TestVersionPinWiredIntoCallback:
         ):
             from specify_cli import main_callback
 
-            main_callback(MagicMock(invoked_subcommand="migrate", meta={}), version=False)
+            main_callback(
+                MagicMock(meta={"defer_root_bootstrap": True}),
+                version=False,
+            )
 
         root_callback_mock.assert_not_called()
         startup_gates_mock.assert_not_called()

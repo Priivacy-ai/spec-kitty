@@ -123,7 +123,7 @@ def main_callback(
         # Even apply intent must not bootstrap before target/schema admission.
         return
 
-    if ctx.invoked_subcommand == "migrate":
+    if ctx.meta.get("defer_root_bootstrap") is True:
         # Windows migration must relocate legacy state before global runtime reads.
         return
 
