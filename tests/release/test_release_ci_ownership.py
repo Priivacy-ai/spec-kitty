@@ -110,8 +110,11 @@ def test_shared_package_drift_preserves_candidate_trust_and_skip_policy() -> Non
     for event in ("pull_request", "push"):
         assert triggers[event]["branches"] == ["main", "develop", "2.x"]
         assert set(triggers[event]["paths"]) == {
-            "pyproject.toml", "uv.lock", str(COMPATIBILITY_MANIFEST),
-            "scripts/release/**", f".github/workflows/{DRIFT_WORKFLOW}",
+            "pyproject.toml",
+            "uv.lock",
+            str(COMPATIBILITY_MANIFEST),
+            "scripts/release/**",
+            f".github/workflows/{DRIFT_WORKFLOW}",
         }
     assert triggers["schedule"] == [{"cron": "11 2 * * *"}]
 
@@ -145,7 +148,9 @@ def test_shared_package_drift_is_local_and_unconditional() -> None:
     ],
 )
 def test_shared_package_drift_workflow_executes_real_local_validator_without_secret(
-    tmp_path: Path, mutation: str, diagnostic: str,
+    tmp_path: Path,
+    mutation: str,
+    diagnostic: str,
 ) -> None:
     job = load_workflow(DRIFT_WORKFLOW)["jobs"]["verify-drift"]
     step = next(step for step in job["steps"] if step.get("name") == "Validate shared package drift")
@@ -165,7 +170,8 @@ def test_shared_package_drift_workflow_executes_real_local_validator_without_sec
         lock = candidate / "uv.lock"
         text, count = re.subn(
             r'(name = "spec-kitty-events"\nversion = ")[^"]+',
-            r"\g<1>0.0.0", lock.read_text(encoding="utf-8"),
+            r"\g<1>0.0.0",
+            lock.read_text(encoding="utf-8"),
         )
         assert count == 1
         lock.write_text(text, encoding="utf-8")
@@ -190,7 +196,11 @@ def test_shared_package_drift_workflow_executes_real_local_validator_without_sec
     env["PATH"] = str(Path(sys.executable).parent) + os.pathsep + env.get("PATH", "")
     result = subprocess.run(
         ["bash", "-e", "-o", "pipefail", "-c", step["run"]],
-        cwd=tmp_path, env=env, text=True, capture_output=True, check=False,
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
     )
     output = result.stdout + result.stderr
     assert result.returncode == (0 if mutation == "none" else 1), output
