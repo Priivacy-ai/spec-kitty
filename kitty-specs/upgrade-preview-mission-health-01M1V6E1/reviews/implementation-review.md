@@ -8,16 +8,15 @@ updated: 2026-09-06
 
 ## Current Status
 
-This summary supersedes historical readiness statements below. Nine WPs are
-approved: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP11 and WP12. WP05 approval
+This summary supersedes historical readiness statements below. Ten WPs are
+approved: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP08, WP11 and WP12. WP05 approval
 `01M1WDR51BWCKKKXGB3HGEY6VJ` follows focused independent review of
 `a458fc01fae48d80946f450ce90ab09ab19e8f1c`: both findings resolved, 11 focused
 tests and four independent controls passed, changed Ruff/strict mypy passed.
 Real paired provider dispatch matches 169 exact effects and refuses changed
 inputs before writes. Consumer input Op is complete at the owner boundary.
-WP08's second independent review confirmed original mode preservation but found
-premature restrictive directory permissions; its author is correcting ordering
-only. All five approved dependency lanes are included;
+WP08's blocker-only third review approved directory-finalization ordering.
+All five approved dependency lanes are included;
 WP10 and WP13 remain pending. No mission acceptance or consolidation is complete.
 
 WP08 implementation `9d78799b94f3c4df0f2e68d4ca8dda4ef3661801` reports 145 final
@@ -51,6 +50,17 @@ and its external raw evidence; #3901 comment5563958182 records the finding.
 Correction and Review 3 are restricted to finalization ordering, exact final
 modes, truthful partial effects and preservation of existing/custom directories.
 No broad suite, validator or settled helper review is being restarted.
+
+WP08 approval `01M1WV7E1RX7EJS10S2XRMDBCD` follows independent Review 3 on
+`709374560c06e50d3c6f7d46273ee615bebef8db`. The byte-identical public `0555`
+witness passes (one test, 29.37 seconds). Reviewer inspected the complete two-file
+correction and reused seven author finalization/fault controls plus static evidence;
+those controls were not falsely claimed as fresh independent executions. New
+restrictive directories finalize child-first before manifests. Failed final chmod
+is reported as a failed effect and can leave temporary `0700`, without rollback or
+adoption promises. Original failures remain retained. Full report and sealed
+provenance: wp08-cycle3-independent-review.md. All final integrated gates remain
+open; this approval does not resolve WP09's pending human arbitration.
 
 External friction F045 records missing installed Click/annotated-doc files in
 previously populated environments. Locked dependency reinstallation restored
