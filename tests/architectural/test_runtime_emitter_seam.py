@@ -124,3 +124,32 @@ def test_bridge_bypass_scan_locates_reintroduced_lines(needle: str) -> None:
     assert _bridge_bypass_hits(fixed, needle) == []
     reintroduced = fixed.replace("ctx.emitter_for_engine", "ctx.sync_emitter")
     assert _bridge_bypass_hits(reintroduced, needle) == [2 if needle.startswith("flush") else 3]
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "guard"),
+    [
+        ("sync_emitter = runtime_emitter_for_mission(", "sync_emitter = NullEmitter.for_mission(", "factory"),
+        ("sync_emitter = runtime_emitter_for_mission(", "unrelated = runtime_emitter_for_mission(", "factory"),
+        ("buffer.flush(ctx.emitter_for_engine)", "buffer.flush(\n            ctx.sync_emitter\n        )", "flush"),
+        ("buffer.flush(ctx.emitter_for_engine)", "buffer.discard()", "flush"),
+        ("sync_emitter=ctx.emitter_for_engine", "sync_emitter = ctx.sync_emitter", "composition"),
+        ("_advance_run_state_after_composition(\n", "replacement_advance(\n", "composition"),
+    ],
+)
+def test_bridge_guards_reject_semantic_mutations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before: str, after: str, guard: str
+) -> None:
+    """Mutate real call sites: imports/comments cannot substitute for a call."""
+    source = _BRIDGE.read_text(encoding="utf-8")
+    assert before in source
+    mutant = tmp_path / "runtime_bridge.py"
+    mutant.write_text(source.replace(before, after), encoding="utf-8")
+    monkeypatch.setattr(__import__(__name__, fromlist=["_BRIDGE"]), "_BRIDGE", mutant)
+    with pytest.raises(AssertionError):
+        if guard == "factory":
+            test_bridge_obtains_seam_only_through_factory()
+        else:
+            test_bridge_never_hands_engine_paths_the_plain_seam(
+                "flush(ctx.sync_emitter)" if guard == "flush" else "sync_emitter=ctx.sync_emitter"
+            )
