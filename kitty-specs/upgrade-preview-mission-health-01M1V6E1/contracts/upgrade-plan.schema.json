@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:spec-kitty:upgrade-plan:1",
+  "title": "Explicit preview-only upgrade --plan-json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "intent", "target", "compatibility", "complete", "decision", "process_exit_code", "roots", "migrations", "effects", "dispositions", "diagnostics", "execution_artifacts", "commit_policy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "mode": {"const": "preview"},
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_mode", "requested_target", "include_worktrees", "confirm"],
+      "properties": {
+        "project_mode": {"type": "boolean"},
+        "requested_target": {"type": ["string", "null"]},
+        "include_worktrees": {"type": "boolean"},
+        "confirm": {"type": "boolean"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "requested", "relation", "valid", "reason"],
+      "properties": {
+        "current": {"type": ["string", "null"]},
+        "requested": {"type": ["string", "null"]},
+        "relation": {"enum": ["lower", "equal", "higher", "unknown", "invalid"]},
+        "valid": {"type": "boolean"},
+        "reason": {"type": "string"}
+      }
+    },
+    "compatibility": {
+      "$ref": "https://spec-kitty.dev/contracts/cli-upgrade-nag-lazy-project-migrations/compat-planner.json"
+    },
+    "complete": {"type": "boolean"},
+    "decision": {"enum": ["ready", "blocked", "incomplete"]},
+    "process_exit_code": {"enum": [0, 1, 2, 5, 6]},
+    "roots": {"type": "array", "items": {"$ref": "#/$defs/root"}},
+    "migrations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://spec-kitty.dev/contracts/cli-upgrade-nag-lazy-project-migrations/compat-planner.json#/properties/pending_migrations/items"
+      }
+    },
+    "effects": {"type": "array", "items": {"$ref": "#/$defs/effect"}},
+    "dispositions": {"type": "array", "items": {"$ref": "#/$defs/disposition"}},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}},
+    "execution_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["owner", "root_id", "directory", "name_pattern", "purpose"],
+        "properties": {
+          "owner": {"type": "string", "minLength": 1},
+          "root_id": {"type": "string", "minLength": 1},
+          "directory": {"type": "string"},
+          "name_pattern": {"type": "string", "minLength": 1},
+          "purpose": {"enum": ["atomic_write", "lock"]}
+        }
+      }
+    },
+    "commit_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_enabled", "worktrees_enabled", "mission_repair_included"],
+      "properties": {
+        "project_enabled": {"type": "boolean"},
+        "worktrees_enabled": {"type": "boolean"},
+        "mission_repair_included": {"const": false}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"decision": {"const": "ready"}}},
+      "then": {
+        "properties": {
+          "complete": {"const": true},
+          "process_exit_code": {"const": 0},
+          "target": {"properties": {"valid": {"const": true}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"decision": {"const": "incomplete"}}},
+      "then": {"properties": {"complete": {"const": false}, "process_exit_code": {"const": 1}, "diagnostics": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"decision": {"const": "blocked"}}},
+      "then": {"properties": {"process_exit_code": {"enum": [1, 2, 5, 6]}, "diagnostics": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scope", "path"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "scope": {"enum": ["global", "project", "worktree"]},
+        "path": {"type": "string", "minLength": 1}
+      }
+    },
+    "state": {
+      "description": "Exact invocation-prepared state. Apply never resamples time. Independent-run timestamp comparison follows owner-operations.md, not a relaxation of this hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sha256", "target", "mode"],
+      "properties": {
+        "kind": {"enum": ["absent", "file", "directory", "symlink"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "target": {"type": ["string", "null"]},
+        "mode": {"type": ["integer", "null"], "minimum": 0, "maximum": 4095}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "file"}}}, "then": {"properties": {"sha256": {"type": "string"}, "target": {"const": null}, "mode": {"type": "integer"}}}},
+        {"if": {"properties": {"kind": {"const": "symlink"}}}, "then": {"properties": {"sha256": {"const": null}, "target": {"type": "string"}, "mode": {"type": "integer"}}}},
+        {"if": {"properties": {"kind": {"const": "directory"}}}, "then": {"properties": {"sha256": {"const": null}, "target": {"const": null}, "mode": {"type": "integer"}}}},
+        {"if": {"properties": {"kind": {"const": "absent"}}}, "then": {"properties": {"sha256": {"const": null}, "target": {"const": null}, "mode": {"const": null}}}}
+      ]
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "phase", "owner", "logical_owners", "surface_ids", "root_id", "path", "action", "before", "after", "reason", "ownership"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "phase": {"enum": ["global_bootstrap", "migrations", "metadata", "provisioning", "manifest_repair", "surface_repair"]},
+        "owner": {"type": "string", "minLength": 1},
+        "logical_owners": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+        "surface_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "root_id": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "action": {"enum": ["create", "update", "delete", "replace", "retarget", "chmod"]},
+        "before": {"$ref": "#/$defs/state"},
+        "after": {"$ref": "#/$defs/state"},
+        "reason": {"type": "string", "minLength": 1},
+        "ownership": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "reference"],
+          "properties": {
+            "kind": {"enum": ["manifest", "managed_path", "canonical_content"]},
+            "reference": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "root_id", "path", "state", "reason"],
+      "properties": {
+        "owner": {"type": "string", "minLength": 1},
+        "root_id": {"type": ["string", "null"]},
+        "path": {"type": ["string", "null"]},
+        "state": {"enum": ["unchanged", "preserve", "consent_required", "not_applicable"]},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "owner", "severity", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "owner": {"type": ["string", "null"]},
+        "severity": {"enum": ["info", "warning", "error"]},
+        "message": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

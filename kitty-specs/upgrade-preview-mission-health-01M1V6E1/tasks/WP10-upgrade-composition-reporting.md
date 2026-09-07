@@ -1,72 +1,43 @@
 ---
-work_package_id: WP10
-title: Upgrade composition and compatible CLI reporting
-dependencies:
-- WP03
-- WP04
-- WP05
-- WP06
-- WP07
-- WP08
-- WP09
-requirement_refs:
-- FR-001
-- FR-002
-- FR-003
-- FR-004
-- FR-005
-- FR-006
-- FR-010
-- NFR-002
-- C-001
-- C-002
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T047
-- T048
-- T049
-- T050
-- T051
-- T052
-- T053
-history: []
-agent_profile: python-pedro
-authoritative_surface: src/specify_cli/
-create_intent:
-- src/specify_cli/upgrade/assessment.py
-- tests/upgrade/test_upgrade_assessment.py
-- tests/upgrade/test_upgrade_cli_contract.py
-execution_mode: code_change
+work_package_id: "WP10"
+title: "Upgrade composition and compatible CLI reporting"
+dependencies: ["WP03", "WP04", "WP05", "WP06", "WP07", "WP08", "WP09"]
 owned_files:
-- src/specify_cli/__init__.py
-- src/specify_cli/cli/helpers.py
-- src/specify_cli/cli/commands/upgrade.py
-- src/specify_cli/upgrade/assessment.py
-- src/specify_cli/upgrade/runner.py
-- src/specify_cli/upgrade/finalize.py
-- src/specify_cli/upgrade/metadata.py
-- src/specify_cli/upgrade/outcome.py
-- src/specify_cli/upgrade/compat.py
-- src/specify_cli/upgrade/detector.py
-- src/specify_cli/upgrade/registry.py
-- src/specify_cli/upgrade/autocommit.py
-- src/specify_cli/compat/**
-- tests/specify_cli/compat/**
-- tests/upgrade/test_upgrade_assessment.py
-- tests/upgrade/test_upgrade_cli_contract.py
-- tests/upgrade/test_finalizer.py
-- tests/upgrade/test_upgrade_integration.py
-- tests/upgrade/test_upgrade_idempotency.py
-- tests/upgrade/test_teamspace_consent_scope.py
-- docs/guides/how-to/installation/upgrade-project.md
-- docs/guides/how-to/installation/upgrade-cli.md
-- docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md
-- docs/api/upgrade-lifecycle.md
-role: implementer
-tags: []
-tracker_refs: []
+  - src/specify_cli/__init__.py
+  - src/specify_cli/cli/helpers.py
+  - src/specify_cli/cli/commands/upgrade.py
+  - src/specify_cli/upgrade/assessment.py
+  - src/specify_cli/upgrade/runner.py
+  - src/specify_cli/upgrade/finalize.py
+  - src/specify_cli/upgrade/metadata.py
+  - src/specify_cli/upgrade/outcome.py
+  - src/specify_cli/upgrade/compat.py
+  - src/specify_cli/upgrade/detector.py
+  - src/specify_cli/upgrade/registry.py
+  - src/specify_cli/upgrade/autocommit.py
+  - src/specify_cli/compat/**
+  - tests/specify_cli/compat/**
+  - tests/upgrade/test_upgrade_assessment.py
+  - tests/upgrade/test_upgrade_cli_contract.py
+  - tests/upgrade/test_finalizer.py
+  - tests/upgrade/test_upgrade_integration.py
+  - tests/upgrade/test_upgrade_idempotency.py
+  - tests/upgrade/test_teamspace_consent_scope.py
+  - docs/guides/how-to/installation/upgrade-project.md
+  - docs/guides/how-to/installation/upgrade-cli.md
+  - docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md
+  - docs/api/upgrade-lifecycle.md
+create_intent:
+  - src/specify_cli/upgrade/assessment.py
+  - tests/upgrade/test_upgrade_assessment.py
+  - tests/upgrade/test_upgrade_cli_contract.py
+authoritative_surface: "src/specify_cli/"
+execution_mode: "code_change"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
+requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005", "FR-006", "FR-010", "NFR-002", "C-001", "C-002"]
+subtasks: ["T047", "T048", "T049", "T050", "T051", "T052", "T053"]
 ---
 
 # WP10: Upgrade Composition and Compatible CLI Reporting

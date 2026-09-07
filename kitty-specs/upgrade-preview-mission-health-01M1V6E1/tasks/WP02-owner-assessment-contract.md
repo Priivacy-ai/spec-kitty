@@ -1,45 +1,31 @@
 ---
-work_package_id: WP02
-title: Immutable owner operations and assessment dispatch
+work_package_id: "WP02"
+title: "Immutable owner operations and assessment dispatch"
 dependencies: []
-requirement_refs:
-- FR-002
-- FR-003
-- FR-004
-- C-001
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T006
-- T007
-- T008
-- T009
-- T010
-history: []
-agent_profile: python-pedro
-authoritative_surface: src/specify_cli/tool_surface/
-create_intent:
-- src/specify_cli/tool_surface/operations.py
-- tests/specify_cli/tool_surface/test_operations.py
-execution_mode: code_change
+requirement_refs: ["FR-002", "FR-003", "FR-004", "C-001"]
+subtasks: ["T006", "T007", "T008", "T009", "T010"]
 owned_files:
-- src/specify_cli/tool_surface/operations.py
-- src/specify_cli/tool_surface/model.py
-- src/specify_cli/tool_surface/plan.py
-- src/specify_cli/tool_surface/repair.py
-- src/specify_cli/tool_surface/service.py
-- src/specify_cli/tool_surface/registry.py
-- src/specify_cli/tool_surface/providers/protocol.py
-- src/specify_cli/tool_surface/providers/_registry.py
-- src/specify_cli/tool_surface/providers/_discovery.py
-- tests/specify_cli/tool_surface/test_operations.py
-- tests/specify_cli/tool_surface/test_plan.py
-- tests/specify_cli/tool_surface/test_repair.py
-- tests/specify_cli/tool_surface/test_registry.py
-role: implementer
-tags: []
-tracker_refs: []
+  - src/specify_cli/tool_surface/operations.py
+  - src/specify_cli/tool_surface/model.py
+  - src/specify_cli/tool_surface/plan.py
+  - src/specify_cli/tool_surface/repair.py
+  - src/specify_cli/tool_surface/service.py
+  - src/specify_cli/tool_surface/registry.py
+  - src/specify_cli/tool_surface/providers/protocol.py
+  - src/specify_cli/tool_surface/providers/_registry.py
+  - src/specify_cli/tool_surface/providers/_discovery.py
+  - tests/specify_cli/tool_surface/test_operations.py
+  - tests/specify_cli/tool_surface/test_plan.py
+  - tests/specify_cli/tool_surface/test_repair.py
+  - tests/specify_cli/tool_surface/test_registry.py
+create_intent:
+  - src/specify_cli/tool_surface/operations.py
+  - tests/specify_cli/tool_surface/test_operations.py
+authoritative_surface: "src/specify_cli/tool_surface/"
+execution_mode: "code_change"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
 ---
 
 # WP02: Immutable Owner Operations and Assessment Dispatch

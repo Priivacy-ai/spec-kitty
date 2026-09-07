@@ -1,38 +1,21 @@
 ---
-work_package_id: WP06
-title: Profile projection and pruning assessment
-dependencies:
-- WP01
-- WP02
-requirement_refs:
-- FR-002
-- FR-003
-- FR-004
-- NFR-004
-- C-001
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T029
-- T030
-- T031
-- T032
-- T033
-history: []
-agent_profile: python-pedro
-authoritative_surface: src/specify_cli/tool_surface/profiles/
-create_intent: []
-execution_mode: code_change
+work_package_id: "WP06"
+title: "Profile projection and pruning assessment"
+dependencies: ["WP01", "WP02"]
 owned_files:
-- src/specify_cli/tool_surface/profiles/**
-- src/specify_cli/tool_surface/providers/agent_profiles.py
-- tests/specify_cli/tool_surface/profiles/**
-- tests/specify_cli/tool_surface/providers/test_agent_profiles.py
-- tests/specify_cli/tool_surface/providers/test_agent_profiles_prune.py
-role: implementer
-tags: []
-tracker_refs: []
+  - "src/specify_cli/tool_surface/profiles/**"
+  - "src/specify_cli/tool_surface/providers/agent_profiles.py"
+  - "tests/specify_cli/tool_surface/profiles/**"
+  - "tests/specify_cli/tool_surface/providers/test_agent_profiles.py"
+  - "tests/specify_cli/tool_surface/providers/test_agent_profiles_prune.py"
+requirement_refs: ["FR-002", "FR-003", "FR-004", "NFR-004", "C-001"]
+subtasks: ["T029", "T030", "T031", "T032", "T033"]
+authoritative_surface: "src/specify_cli/tool_surface/profiles/"
+execution_mode: "code_change"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
+create_intent: []
 ---
 
 # WP06: Profile projection and pruning assessment

@@ -1,42 +1,26 @@
 ---
-work_package_id: WP11
-title: Provenance-preserving corpus recovery
+work_package_id: "WP11"
+title: "Provenance-preserving corpus recovery"
 dependencies: []
-requirement_refs:
-- FR-007
-- FR-008
-- FR-009
-- FR-010
-- FR-011
-- NFR-004
-- C-006
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T054
-- T055
-- T056
-- T057
-- T058
-- T059
-history: []
-agent_profile: python-pedro
-authoritative_surface: kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/
-create_intent:
-- docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json
-execution_mode: planning_artifact
 owned_files:
-- kitty-specs/R2-T1-local-legacy-removal/**
-- kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/**
-- kitty-specs/doctrine-drg-silent-drop-boundary-01M0PE7E/status.json
-- kitty-specs/symbolkey-source-module-01M0B0SF/status.json
-- docs/archive/program-evidence/R2-T1-local-legacy-removal/**
-- kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml
-- docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json
-role: implementer
-tags: []
-tracker_refs: []
+  - "kitty-specs/R2-T1-local-legacy-removal/**"
+  - "kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/**"
+  - "kitty-specs/doctrine-drg-silent-drop-boundary-01M0PE7E/status.json"
+  - "kitty-specs/symbolkey-source-module-01M0B0SF/status.json"
+  - "docs/archive/program-evidence/R2-T1-local-legacy-removal/**"
+  - "kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"
+  - "tests/upgrade/test_mission_corpus_recovery.py"
+  - "tests/fixtures/upgrade-mission-corpus-recovery.json"
+requirement_refs: ["FR-007", "FR-008", "FR-009", "FR-010", "FR-011", "NFR-004", "C-006"]
+subtasks: ["T054", "T055", "T056", "T057", "T058", "T059"]
+authoritative_surface: "kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/"
+execution_mode: "code_change"
+create_intent:
+  - "tests/upgrade/test_mission_corpus_recovery.py"
+  - "tests/fixtures/upgrade-mission-corpus-recovery.json"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
 ---
 
 # WP11: Provenance-preserving corpus recovery
@@ -55,8 +39,9 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 
 ## Objective
 
-Resolve #3903: restore 31 historical files, relocate exactly two documents byte-for-byte,
-and canonically replay two named snapshots while retaining all eight review verdicts.
+Resolve #3903 by restoring 31 historically proven files, relocating exactly two
+non-mission documents without changing bytes, and canonically replaying two
+named snapshots while retaining all eight review verdicts.
 Prove the complete committed corpus has zero TeamSpace blockers without
 inventing identities, rewriting raw history or broadening upgrade consent.
 
@@ -64,25 +49,28 @@ inventing identities, rewriting raw history or broadening upgrade consent.
 
 Audience: Python implementer and independent preservation reviewer. Plan D6 and IC-08 own this separate repository-data recovery.
 There are no WP dependencies. WP12 consumes this WP's receipt and independently
-owns all persistent recovery regressions and archive validation; parent owns final gates.
+validates archive exceptions; parent owns integrated gates and issue closure.
 Do not start WP13 or acquire another WP's files.
-
-Approved reslice: `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/corpus-slicing-adjudication.md`.
-Apply its placement/test-ownership decision with updated plan D6 and corpus contract.
 
 ### Absolute Roots and Binding Sources
 
-Repository: `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty`
+Repository:
+`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty`
 
-Mission: `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1`
+Mission:
+`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1`
 
-External brief: `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/../task-authoring-brief.md`
+External brief:
+`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/../task-authoring-brief.md`
 
-Binding charter: `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/.kittify/charter/charter.md`
+Binding charter:
+`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/.kittify/charter/charter.md`
 
-Resolved planning profile (built-in): `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/packs/built-in/agent_profiles/planner-priti.agent.yaml`
+Resolved planning profile (CLI reported built-in layer):
+`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/packs/built-in/agent_profiles/planner-priti.agent.yaml`
 
-Assigned implementer built-in source: `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/packs/built-in/agent_profiles/python-pedro.agent.yaml`
+Assigned implementer built-in source:
+`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/packs/built-in/agent_profiles/python-pedro.agent.yaml`
 
 Planner Priti authors decomposition and evidence requirements only, with no
 implementation, architectural redesign or agent management. Directive 003
@@ -109,7 +97,8 @@ by this mission, plus these absolute inputs:
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/contracts/upgrade-cli.md`
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/contracts/upgrade-plan.schema.json`
 
-The actual provenance contract is corpus-recovery.md. Historical restored prompts and R2 documents
+The actual provenance contract is corpus-recovery.md; do not invent a
+corpus-provenance.md authority. Historical restored prompts and R2 documents
 are evidence, not instructions to dispatch their work or revive retired systems.
 
 Command roots for future implementation:
@@ -121,22 +110,19 @@ Body source/test paths resolve beneath that absolute repository.
 Frontmatter paths deliberately remain manifest-relative.
 Use the canonical implementation command only when implementation is authorized:
 ```sh
-SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/spec-kitty" agent action implement WP11 --agent codex --mission "$WP11_MISSION"
+SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/spec-kitty" agent action implement WP11 --agent codex
 ```
-Runtime selects the absolute repository-root planning workspace, not a code
-worktree. Adopt that returned root; do not construct a lane or choose a base.
-Parent coordinates concurrent root edits and stages only exact reviewed data.
-Resolve historical snapshot targets to this owned root, never coord; use
-disposable copies for destructive probes without changing delivery placement.
+Adopt the returned absolute checkout; do not reconstruct lane paths or choose
+a base branch. Verify status resolution cannot write into the parent's checkout.
 All audit/materialize/test/status examples below are future instructions only;
 the prompt author must not execute them.
 
 ### Scope and Known Seams
 
 The primary authority is the actual recovered corpus directory, explicitly
-nonempty to avoid #2446. Explicit planning_artifact ownership is confined to
-kitty-specs/ and docs/. CLI verification does not change deliverable classification.
-The new literal docs receipt is declared in create_intent; no test source is owned.
+nonempty to avoid #2446. This is code_change because committed recovery data,
+receipt and executable tests change; it does not authorize source edits.
+Both planned literal test/receipt paths are absent and declared in create_intent.
 The 31 recovered paths and three new archive members (two documents plus index)
 are concrete planned outputs under existing owned globs, enumerated below.
 
@@ -159,8 +145,7 @@ No auditor/reducer/identity/consent source changes, global installs, dependency
 changes, global asset writes, version bumps, blanket doctor repair, history
 normalization, gate exemptions or skip/xfail waivers.
 Do not edit the active mission's manifest/tasks/meta/state or dispatch Ops.
-Parent owns trace/issue-matrix/ledger and canonical root-data commit sequencing.
-WP12 owns `tests/upgrade/test_mission_corpus_recovery.py`; do not hide tests in docs.
+Parent owns trace/issue-matrix/ledger and canonical commit sequencing.
 Use only the two named old status.json paths for planned snapshot correction.
 The old cyclic mission's metadata/tasks/events are restored byte-for-byte,
 not newly authored lifecycle state.
@@ -184,12 +169,11 @@ nonempty preservation inputs that later output cannot redefine.
    and actual finding code. Record process exit and complete JSON; a crash,
    missing fixture/receipt or unknown option is not #3903 RED evidence.
    Historical four-blocker/424-directory counts are observations, not a scan cap.
-5. Retain actual pre-data CLI RED and focused missing-history/drift observations.
-   Pin the untouched baseline for WP12's persistent original-state tests; do not
-   recover data during probe setup or substitute retrospective RED claims.
-6. Hand baseline SHA, exact commands/assertions/output hashes and probe recipe
-   to WP12 before data approval. WP12 commits durable regressions in its own
-   workflow; WP11 does not wait for that future file or author test programs.
+5. Create the owned recovery test with a live-corpus acceptance assertion and
+   focused checks for the missing history and drift. Do not let fixture setup
+   perform recovery or rewrite the snapshots before this failing witness.
+6. Commit the failing test separately before any recovery through the parent's
+   canonical lane workflow. Keep exact node IDs, assertions and RED commit SHA.
    No xfail, conditional success on absent files or retry-to-green.
 7. Read historical Git trees/blobs, not guessed identity templates. Source:
    `3442ca1afc20b1b83b27a7bc64fd7014050b12a1`; convergence:
@@ -200,8 +184,8 @@ nonempty preservation inputs that later output cannot redefine.
    force provenance, lane values, mode and pre-recovery snapshot bytes.
    Never fill absent historical model/provider fields with invented values.
 
-**Files**: Inspect corpus/source read-only; retain pre-data evidence for the
-owned docs receipt in T058 and WP12's persistent regression handoff.
+**Files**: New `tests/upgrade/test_mission_corpus_recovery.py` for acceptance
+and evidence checks; inspect corpus/source read-only. Receipt data follows T058.
 
 **Validation**: A real public audit failure and focused missing-history/drift
 assertions precede data edits. Historical tree has 32 nonempty path entries,
@@ -271,7 +255,7 @@ tasks/WP03-determinism-performance-and-regression.md
 **Validation**: Exact set equality, 31 restored plus one retained schema.
 Check blob IDs, raw SHA-256, modes, original identity/timestamps and all event
 bytes; include the zero-byte .gitkeep and hidden nested dossier.
-A metadata-only recovery must fail the independent check and WP12 regression.
+A metadata-only recovery must fail the acceptance test.
 
 ### Subtask T056: Exact two-document relocation, protected archive index and live-reference mapping
 
@@ -320,14 +304,6 @@ an edited attribution sentence must fail even if corpus audit becomes green.
 
 ### Subtask T057: Scoped canonical materialization of two snapshots, preserve all eight verdicts
 
-**Parent disposition, 2026-09-06:** Apply the exact-path additional cyclic replay
-in contracts/corpus-recovery.md, "Separately Adjudicated Restored-Mission Replay".
-This explicitly supersedes two-snapshot/eight-verdict total counts below: two
-original repairs plus one separately recorded cyclic replay, eleven complete
-standing verdicts. Keep exact 31-file restoration proof before replay; only
-final cyclic status.json may differ from its historical blob. Raw history,
-identity, no-churn and zero-blocker gates remain binding. No fourth replay.
-
 **Purpose**: Correct derived snapshots through the event authority while proving
 review metadata and immutable history survive unchanged.
 
@@ -338,9 +314,9 @@ review metadata and immutable history survive unchanged.
    symbolkey-source-module-01M0B0SF SHA-256
    `7e0326d9d1a9af04f3d1ce353e0b97caba765aab298de01074df4b889a455aaf`.
    A changed input requires adjudication, never silently repinning the receipt.
-2. Resolve each mission's actual status partition at the runtime-selected
-   planning root. Verify the exact root-owned historical path before writing;
-   a mission selector alone does not exclude coord or an unrelated checkout.
+2. Resolve each mission's actual status partition in the isolated execution
+   context. Inspect the canonical resolver and returned root before the write;
+   a mission selector alone does not prove it targets the owned checkout.
 3. Capture all five doctrine and all three symbolkey complete review_result
    objects and done lanes, not just verdict strings or counts. Record
    transition IDs, last event identity and annotation provenance as baselines.
@@ -379,7 +355,7 @@ do not silently add a third replay or weaken the full-corpus gate.
 can verify rather than trust as a self-approved archive exemption.
 
 **Steps**:
-1. Create `docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json` as evidence,
+1. Create `tests/fixtures/upgrade-mission-corpus-recovery.json` as evidence,
    not runtime state or an executable apply token. Record its schema/version
    explicitly and use stable repo-relative paths for portable comparisons.
 2. Include source/baseline commit identities, the exact 31 restore entries
@@ -393,7 +369,7 @@ can verify rather than trust as a self-approved archive exemption.
    Record full audit outcome and corpus inventory identity separately from
    targeted checks. No user-home credentials or machine-dependent paths in
    the portable data contract; exact invocation cwd belongs in external evidence.
-5. Independently validate the receipt against trusted Git objects and
+5. In the owned test, validate the receipt against trusted Git objects and
    current lstat/content, exact contract path sets, pinned event streams and
    independently computed canonical replay. Reject duplicates, unknown actions,
    omissions, extra paths, absolute/traversal paths, wrong modes and escaping links.
@@ -412,11 +388,9 @@ can verify rather than trust as a self-approved archive exemption.
    unchanged. Missing source after a completed move is only valid when the
    exact destination and pinned provenance verify, never unconditional success.
 
-**Files**: New owned docs receipt only; no persistent Python test or hidden program.
-Use read-only checks/disposable counterfactuals; inventory actual files independently
-of receipt-listed paths. Preserve recipes and outputs for independent data review.
-Transfer every original/corrupted-state assertion above to WP12's durable test,
-including forged receipt plus candidate and post-landing receipt/index/result edits.
+**Files**: New receipt and owned recovery test, approximately 250-450 test lines
+as needed. Keep helpers local; no shared conftest, new global harness or source
+module. Inventory actual files independently of receipt-listed paths.
 
 **Validation**: Nonempty exact 31/2/2/8 evidence, canonical replay and independent
 object verification. WP12 and a separate reviewer revalidate the receipt.
@@ -428,7 +402,7 @@ WP11 cannot approve its own preservation exemption or weaken the archive gate.
 with separate consent and unrelated historical data still preserved.
 
 **Steps**:
-1. Run the full public audit from the repaired runtime-selected planning root, then repeat
+1. Run the full public audit from the repaired isolated checkout, then repeat
    against the final committed recovery tree after the parent's scoped commit.
    Do not use --fixture-dir, --include-fixtures, a mission filter or four-directory
    replacement as the final full-corpus witness.
@@ -439,9 +413,9 @@ with separate consent and unrelated historical data still preserved.
 3. Compare against the baseline inventory and all four original findings.
    New blockers require diagnosis and owner disposition; do not relax thresholds,
    edit unrelated metadata, or run global/mission-scoped doctor --fix.
-4. Run focused data checks and existing audit/status/consent/schema-consumer
-   tests below. WP12 owns new-test lint/types and full recovery test integration.
-   Provide pinned original and corrupted corpus probe recipes/evidence to WP12
+4. Run focused recovery tests, full affected audit/status/upgrade test packages,
+   the surviving schema consumer, make test-fast and changed-test Ruff/mypy.
+   Use the existing consent tests and provide the real damaged-corpus fixture
    for the parent's public upgrade --yes negative-consent witness.
    Existing positive explicit-consent coverage must remain reachable.
 5. Preserve all event/meta/verdict sentinels during consent-negative checks.
@@ -461,9 +435,11 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/spec-kitty" doctor mission-s
 
 **Future focused and subsystem checks**:
 ```sh
-SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/pytest" -c "$WP11_REPO/pytest.ini" "$WP11_REPO/tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py" "$WP11_REPO/tests/cli/commands/test_doctor_mission_state.py" "$WP11_REPO/tests/upgrade/test_teamspace_consent_scope.py" -v -ra -p no:cacheprovider
-SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/pytest" -c "$WP11_REPO/pytest.ini" "$WP11_REPO/tests/audit" "$WP11_REPO/tests/status" -q -ra -p no:cacheprovider
+SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/pytest" -c "$WP11_REPO/pytest.ini" "$WP11_REPO/tests/upgrade/test_mission_corpus_recovery.py" "$WP11_REPO/tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py" "$WP11_REPO/tests/cli/commands/test_doctor_mission_state.py" -v -ra -p no:cacheprovider
+SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/pytest" -c "$WP11_REPO/pytest.ini" "$WP11_REPO/tests/upgrade" "$WP11_REPO/tests/audit" "$WP11_REPO/tests/status" -q -ra -p no:cacheprovider
 SPEC_KITTY_ENABLE_SAAS_SYNC=0 make -C "$WP11_REPO" test-fast
+SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/ruff" check "$WP11_REPO/tests/upgrade/test_mission_corpus_recovery.py"
+SPEC_KITTY_ENABLE_SAAS_SYNC=0 "$WP11_REPO/.venv/bin/mypy" --strict "$WP11_REPO/tests/upgrade/test_mission_corpus_recovery.py"
 ```
 
 Use the warm direct binaries; no uv sync or replacement environment. Before any child process, isolate HOME/USERPROFILE, XDG, APPDATA/LOCALAPPDATA,
@@ -478,15 +454,13 @@ no make test-full or independent gate-policy changes here.
 
 ## Definition of Done
 
-- T054: actual pre-data public audit RED and pinned historical baseline evidence.
+- T054: committed failing-first public audit and historical baseline evidence.
 - T055: all 31 original blobs/modes restored; schema/ID/dates/events preserved.
 - T056: exactly two byte-identical relocations, protected index and scoped mapping.
 - T057: exactly two planned canonical snapshot corrections; eight verdicts retained.
 - T058: independently validated receipt, negative controls and repeat no-churn proof.
 - T059: full committed-corpus audit exits 0 with zero blockers; required checks
-  and independent data review are supplied, with no fabricated gate success.
-- WP12 receives all persistent original/corrupted counterfactual test obligations;
-  its future regression file is not a prerequisite invocation for WP11 approval.
+  and independent review evidence are supplied, with no fabricated gate success.
 
 Subtask completion is an event-sourced record, not a ticked checkbox.
 Only after evidence exists, use canonical

@@ -1,41 +1,24 @@
 ---
-work_package_id: WP04
-title: Command skill ownership and physical effects
-dependencies:
-- WP01
-- WP02
-requirement_refs:
-- FR-002
-- FR-003
-- FR-004
-- NFR-004
-- C-001
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T018
-- T019
-- T020
-- T021
-- T022
-history: []
-agent_profile: python-pedro
-authoritative_surface: src/specify_cli/skills/
-create_intent: []
-execution_mode: code_change
+work_package_id: "WP04"
+title: "Command skill ownership and physical effects"
+dependencies: ["WP01", "WP02"]
 owned_files:
-- src/specify_cli/skills/command_installer.py
-- src/specify_cli/skills/command_renderer.py
-- src/specify_cli/skills/manifest_store.py
-- src/specify_cli/tool_surface/providers/command_skills.py
-- tests/specify_cli/skills/test_command_installer.py
-- tests/specify_cli/skills/test_command_renderer.py
-- tests/specify_cli/skills/test_manifest_store.py
-- tests/specify_cli/tool_surface/providers/test_command_skills.py
-role: implementer
-tags: []
-tracker_refs: []
+  - src/specify_cli/skills/command_installer.py
+  - src/specify_cli/skills/command_renderer.py
+  - src/specify_cli/skills/manifest_store.py
+  - src/specify_cli/tool_surface/providers/command_skills.py
+  - tests/specify_cli/skills/test_command_installer.py
+  - tests/specify_cli/skills/test_command_renderer.py
+  - tests/specify_cli/skills/test_manifest_store.py
+  - tests/specify_cli/tool_surface/providers/test_command_skills.py
+create_intent: []
+authoritative_surface: "src/specify_cli/skills/"
+execution_mode: "code_change"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
+requirement_refs: ["FR-002", "FR-003", "FR-004", "NFR-004", "C-001"]
+subtasks: ["T018", "T019", "T020", "T021", "T022"]
 ---
 
 # WP04: Command Skill Ownership and Physical Effects

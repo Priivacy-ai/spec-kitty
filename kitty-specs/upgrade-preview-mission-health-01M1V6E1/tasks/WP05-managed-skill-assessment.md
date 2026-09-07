@@ -1,47 +1,28 @@
 ---
-work_package_id: WP05
-title: Managed skill assessment and deterministic backups
-dependencies:
-- WP01
-- WP02
-- WP03
-requirement_refs:
-- FR-002
-- FR-003
-- FR-004
-- NFR-004
-- C-001
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T023
-- T024
-- T025
-- T026
-- T027
-- T028
-history: []
-agent_profile: python-pedro
-authoritative_surface: src/specify_cli/skills/
-create_intent: []
-execution_mode: code_change
+work_package_id: "WP05"
+title: "Managed skill assessment and deterministic backups"
+dependencies: ["WP01", "WP02", "WP03"]
 owned_files:
-- src/specify_cli/skills/installer.py
-- src/specify_cli/skills/manifest.py
-- src/specify_cli/skills/paths.py
-- src/specify_cli/skills/registry.py
-- src/specify_cli/skills/verifier.py
-- src/specify_cli/skills/retired.py
-- src/specify_cli/tool_surface/providers/managed_skills.py
-- tests/specify_cli/skills/test_installer.py
-- tests/specify_cli/skills/test_manifest.py
-- tests/specify_cli/skills/test_manifest_repair.py
-- tests/specify_cli/skills/test_verifier.py
-- tests/specify_cli/tool_surface/providers/test_managed_skills.py
-role: implementer
-tags: []
-tracker_refs: []
+  - src/specify_cli/skills/installer.py
+  - src/specify_cli/skills/manifest.py
+  - src/specify_cli/skills/paths.py
+  - src/specify_cli/skills/registry.py
+  - src/specify_cli/skills/verifier.py
+  - src/specify_cli/skills/retired.py
+  - src/specify_cli/tool_surface/providers/managed_skills.py
+  - tests/specify_cli/skills/test_installer.py
+  - tests/specify_cli/skills/test_manifest.py
+  - tests/specify_cli/skills/test_manifest_repair.py
+  - tests/specify_cli/skills/test_verifier.py
+  - tests/specify_cli/tool_surface/providers/test_managed_skills.py
+create_intent: []
+authoritative_surface: "src/specify_cli/skills/"
+execution_mode: "code_change"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
+requirement_refs: ["FR-002", "FR-003", "FR-004", "NFR-004", "C-001"]
+subtasks: ["T023", "T024", "T025", "T026", "T027", "T028"]
 ---
 
 # WP05: Managed Skill Assessment and Deterministic Backups

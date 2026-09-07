@@ -1,46 +1,25 @@
 ---
-work_package_id: WP03
-title: Pure startup intent and global runtime assessment
-dependencies:
-- WP01
-- WP02
-requirement_refs:
-- FR-001
-- FR-002
-- FR-003
-- FR-004
-- NFR-001
-- NFR-004
-- C-001
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T011
-- T012
-- T013
-- T014
-- T015
-- T016
-- T017
-history: []
-agent_profile: python-pedro
-authoritative_surface: src/specify_cli/
-create_intent:
-- src/specify_cli/upgrade/intent.py
-- tests/runtime/test_upgrade_preview_bootstrap.py
-execution_mode: code_change
+work_package_id: "WP03"
+title: "Pure startup intent and global runtime assessment"
+dependencies: ["WP01", "WP02"]
+requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-004", "NFR-001", "NFR-004", "C-001"]
+subtasks: ["T011", "T012", "T013", "T014", "T015", "T016", "T017"]
 owned_files:
-- src/specify_cli/upgrade/intent.py
-- src/specify_cli/runtime/**
-- src/specify_cli/tool_surface/providers/slash_commands.py
-- tests/runtime/test_upgrade_preview_bootstrap.py
-- tests/runtime/test_bootstrap_unit.py
-- tests/runtime/test_agent_skills.py
-- tests/specify_cli/runtime/**
-role: implementer
-tags: []
-tracker_refs: []
+  - "src/specify_cli/upgrade/intent.py"
+  - "src/specify_cli/runtime/**"
+  - "src/specify_cli/tool_surface/providers/slash_commands.py"
+  - "tests/runtime/test_upgrade_preview_bootstrap.py"
+  - "tests/runtime/test_bootstrap_unit.py"
+  - "tests/runtime/test_agent_skills.py"
+  - "tests/specify_cli/runtime/**"
+create_intent:
+  - "src/specify_cli/upgrade/intent.py"
+  - "tests/runtime/test_upgrade_preview_bootstrap.py"
+authoritative_surface: "src/specify_cli/"
+execution_mode: "code_change"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
 ---
 
 # WP03: Pure Startup Intent and Global Runtime Assessment

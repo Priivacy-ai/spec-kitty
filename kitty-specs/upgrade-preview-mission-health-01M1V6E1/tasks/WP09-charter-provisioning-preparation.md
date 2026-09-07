@@ -1,39 +1,23 @@
 ---
-work_package_id: WP09
-title: Charter-owned provisioning preparation
-dependencies:
-- WP01
-requirement_refs:
-- FR-001
-- FR-002
-- FR-003
-- FR-004
-- NFR-004
-- C-001
-planning_base_branch: codex/upgrade-preview-mission-health
-merge_target_branch: codex/upgrade-preview-mission-health
-branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
-subtasks:
-- T043
-- T044
-- T045
-- T046
-history: []
-agent_profile: python-pedro
-authoritative_surface: src/charter/activation/
-create_intent: []
-execution_mode: code_change
+work_package_id: "WP09"
+title: "Charter-owned provisioning preparation"
+dependencies: ["WP01"]
 owned_files:
-- src/charter/activation/compiler.py
-- src/charter/activation/pack_manager.py
-- src/charter/activation/charter_yaml_io.py
-- tests/charter/test_pack_manager.py
-- tests/charter/test_charter_yaml_io.py
-- tests/charter/test_compiler_charter_yaml.py
-- tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py
-role: implementer
-tags: []
-tracker_refs: []
+  - "src/charter/activation/compiler.py"
+  - "src/charter/activation/pack_manager.py"
+  - "src/charter/activation/charter_yaml_io.py"
+  - "tests/charter/test_pack_manager.py"
+  - "tests/charter/test_charter_yaml_io.py"
+  - "tests/charter/test_compiler_charter_yaml.py"
+  - "tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py"
+requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-004", "NFR-004", "C-001"]
+subtasks: ["T043", "T044", "T045", "T046"]
+authoritative_surface: "src/charter/activation/"
+execution_mode: "code_change"
+agent_profile: "python-pedro"
+role: "implementer"
+agent: "codex"
+create_intent: []
 ---
 
 # WP09: Charter-owned provisioning preparation
