@@ -14,8 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.events.decision_log import DecisionGitLog
-from runtime.next.event_emitter import RuntimeEventEmitter
-from runtime.next._internal_runtime.events import NullEmitter
+from runtime.next._internal_runtime.events import NullEmitter, RuntimeEventEmitter
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------

@@ -116,6 +116,7 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/test_bridge_composition.py",
     "tests/runtime/test_bridge_decision_builder.py",
+    "tests/runtime/test_bridge_decision_log_flush.py",
     "tests/runtime/test_bridge_io.py",
     "tests/runtime/test_config_show_origin_integration.py",
     "tests/runtime/test_doctor_command_file_health.py",
