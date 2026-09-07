@@ -985,6 +985,35 @@ class TestGuardBites:
         assert sites, f"scanner went blind to {expected.value}"
         assert sites[0].kind is expected
 
+    def test_positional_transport_strict_xfail_landmines_disposition_still_pending(
+        self,
+    ) -> None:
+        """WP06 (T028/T030, FR-015 fix-before-wiring): re-validate the two #3113
+        strict-xfail landmines on the current tree.
+
+        Re-validated in isolation: both ``injected-transport-positional-*``
+        parametrized cases still report ``XFAIL`` (not ``XPASS``) -- FR-015's
+        own non-adoption decision (a structural tightening that measured
+        non-zero false positives over ``src/``) still holds, so the gap is
+        still genuinely open. This guard pins that disposition: it fails if
+        either case's marker is dropped, stops being ``strict=True``, or loses
+        its ``#3113`` tracking reference without the underlying gap actually
+        closing (``strict=True`` on the parametrized test itself already
+        catches an unexpected XPASS).
+        """
+        marks = getattr(type(self).test_scanner_detects_each_sink_shape, "pytestmark", [])
+        parametrize_marks = [m for m in marks if m.name == "parametrize"]
+        assert len(parametrize_marks) == 1  # golden-count: cardinality-is-contract
+        params = parametrize_marks[0].args[1]
+        xfail_params = {p.id: [m for m in p.marks if m.name == "xfail"][0] for p in params if any(m.name == "xfail" for m in p.marks)}
+        assert set(xfail_params) == {
+            "injected-transport-positional-url-name",
+            "injected-transport-positional-non-url-name",
+        }
+        for case_id, xfail_mark in xfail_params.items():
+            assert xfail_mark.kwargs.get("strict") is True, case_id
+            assert "#3113" in xfail_mark.kwargs.get("reason", ""), case_id
+
     def test_unlisted_sender_is_reported_with_its_seam(self, tmp_path: Path) -> None:
         """The whole collection path reds on a synthetic un-allowlisted sender."""
         pkg = tmp_path / "specify_cli" / "widen"

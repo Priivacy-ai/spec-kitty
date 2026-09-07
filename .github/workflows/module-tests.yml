@@ -1,0 +1,234 @@
+# Module tests (shard) — reusable workflow.
+#
+# Mission ci-pipeline-reinstatement-01M1X35E, WP09 (FR-001/006/008).
+#
+# One reusable `workflow_call` shard, matrixed by the caller
+# (ci-modules.yml) over the WP08-committed module registry
+# (.github/ci-module-registry.yml) — adding a module is a registry row, never
+# a new workflow file (bounded reusable-workflow fan-out, <=20/caller
+# ceiling; contract contracts/router-two-authority.md §"Module shard
+# registry"). Each shard:
+#   * consumes the WP04 warmup composite (.github/actions/warmup) exactly
+#     once — no per-shard re-install (the #3283 kill in practice, T050);
+#   * selects its slice of the module's tests via greedy LPT
+#     (longest-processing-time-first) bin-packing — the SAME algorithm the
+#     registry used to size shard_count
+#     (tests/architectural/test_module_shard_registry.py::_lpt_bin_pack) —
+#     never round-robin or alphabetical;
+#   * runs pytest with a dotted `--cov=<target>` (never the path form) and
+#     emits coverage/xunit under contracts/artefact-naming.md (forward-ref
+#     WP10, which dedups per-shard artefacts by basename).
+#
+# `mode` (pr|full) is honored in THIS workflow's own run step: pr mode fails
+# fast on the first red test; full mode continues past failures so every
+# shard still uploads its coverage/xunit artefacts (if: always()) for
+# aggregation (FR-018/FR-019, T049). The cross-cutting dual-mode contract
+# test (test_dual_mode_contract) and dispatched-run evidence are WP11's.
+
+on:
+  workflow_call:
+    inputs:
+      module:
+        description: 'Registry module name (ci-module-registry.yml modules[].module).'
+        required: true
+        type: string
+      roots:
+        description: "JSON array of the module's src/** globs (registry modules[].roots) — carried through for traceability/logging; the test-selection step below resolves the mirrored tests/<module> directory."
+        required: true
+        type: string
+      cov_target:
+        description: 'JSON array of dotted coverage targets (registry modules[].cov_targets) — fed to one `--cov=<target>` flag per entry, never the path form.'
+        required: true
+        type: string
+      tier:
+        description: 'Registry tier (registry modules[].tier).'
+        required: true
+        type: string
+      shard:
+        description: 'This shard as "<1-based index>/<total>"; total = registry modules[].shard_count.'
+        required: true
+        type: string
+      mode:
+        description: 'pr (fail-fast) or full (run-all, if: always()). Defaults to pr.'
+        required: false
+        type: string
+        default: pr
+  workflow_dispatch:
+    inputs:
+      module:
+        description: 'Registry module name to re-run a single shard for.'
+        required: true
+        type: string
+      roots:
+        description: "JSON array of the module's src/** globs."
+        required: true
+        type: string
+      cov_target:
+        description: 'JSON array of dotted coverage targets.'
+        required: true
+        type: string
+      tier:
+        description: 'Registry tier.'
+        required: true
+        type: string
+      shard:
+        description: 'Shard as "<index>/<total>".'
+        required: true
+        type: string
+      mode:
+        description: 'pr or full.'
+        required: false
+        type: string
+        default: pr
+
+jobs:
+  test:
+    name: "module-tests (${{ inputs.module }} shard ${{ inputs.shard }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Warm up shared test environment
+        id: warmup
+        uses: ./.github/actions/warmup
+        with:
+          mode: ${{ inputs.mode }}
+
+      - name: Compute shard identifiers
+        id: shard-info
+        shell: bash
+        run: |
+          set -euo pipefail
+          shard="${{ inputs.shard }}"
+          idx="${shard%%/*}"
+          total="${shard##*/}"
+          slug="${idx}-of-${total}"
+          echo "idx=$idx" >> "$GITHUB_OUTPUT"
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "module-tests: roots for ${{ inputs.module }} = ${{ inputs.roots }}"
+
+      - name: Select this shard's tests (greedy-LPT bin-packing over the registry shard structure)
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
+          module="${{ inputs.module }}"
+          idx="${{ steps.shard-info.outputs.idx }}"
+          total="${{ steps.shard-info.outputs.total }}"
+
+          "$venv_python" - "$module" "$idx" "$total" "$venv_python" <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          module, idx, total, venv_python = sys.argv[1:5]
+          idx, total = int(idx), int(total)
+
+          test_dir = f"tests/{module}"
+          # Known dual-test-tree module (CLAUDE.md Modularity SSOT): the
+          # doctrine test tree did not move when src/doctrine/ was absorbed
+          # into src/charter/offering/, so both dirs still cover `charter`.
+          extra_dirs = {"charter": ["tests/doctrine"]}
+          test_dirs = [d for d in [test_dir, *extra_dirs.get(module, [])] if os.path.isdir(d)]
+          if not test_dirs:
+              print(f"::error::module-tests: no test directory found for module {module!r} (looked for {test_dir!r})")
+              sys.exit(64)
+
+          collected = subprocess.run(
+              [venv_python, "-m", "pytest", *test_dirs, "--collect-only", "-q"],
+              capture_output=True,
+              text=True,
+              check=True,
+          )
+          node_ids = [line for line in collected.stdout.splitlines() if "::" in line]
+          if not node_ids:
+              print(f"::error::module-tests: pytest collected zero tests for module {module!r} under {test_dirs!r}")
+              sys.exit(64)
+
+          # Greedy LPT (longest-processing-time-first) bin-packing -- the SAME
+          # algorithm the WP08 registry used to size shard_count
+          # (tests/architectural/test_module_shard_registry.py::_lpt_bin_pack),
+          # never round-robin or alphabetical (WP09 caveat B). The registry's
+          # ci-shard-timings.json records per-test durations but drops nodeids
+          # for compactness, so they cannot be joined by identity; when the
+          # collected test count matches the measured count we pair them
+          # positionally (both come from a stable pytest collection order) as
+          # the best available duration signal, falling back to uniform
+          # weights -- still genuine greedy-LPT bin-packing, never a different
+          # split scheme -- when the suite has drifted since the measurement
+          # pass.
+          durations: list[float] = []
+          try:
+              with open(".github/ci-shard-timings.json", encoding="utf-8") as fh:
+                  timings = json.load(fh)
+              durations = list(timings.get("module_test_durations", {}).get(module, []))
+          except FileNotFoundError:
+              durations = []
+          if len(durations) != len(node_ids):
+              durations = [1.0] * len(node_ids)
+
+          paired = sorted(zip(node_ids, durations), key=lambda pair: pair[1], reverse=True)
+          bins: list[list[str]] = [[] for _ in range(total)]
+          loads = [0.0] * total
+          for node_id, duration in paired:
+              least_loaded = min(range(total), key=lambda k: loads[k])
+              bins[least_loaded].append(node_id)
+              loads[least_loaded] += duration
+
+          selected = bins[idx - 1]
+          with open("shard_tests.txt", "w", encoding="utf-8") as out:
+              out.write("\n".join(selected))
+          print(f"module-tests: selected {len(selected)}/{len(node_ids)} tests for {module} shard {idx}/{total}")
+          PY
+
+      - name: Run pytest for this shard
+        id: pytest-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
+          tier="${{ inputs.tier }}"
+          mod="${{ inputs.module }}"
+          slug="${{ steps.shard-info.outputs.slug }}"
+          mode="${{ inputs.mode }}"
+          run_id="${{ github.run_id }}"
+
+          mkdir -p out/reports/coverage out/reports/xunit-reports
+
+          cov_args=()
+          while IFS= read -r target; do
+            [ -n "$target" ] && cov_args+=("--cov=$target")
+          done < <("$venv_python" -c 'import json,sys; [print(t) for t in json.loads(sys.argv[1])]' '${{ inputs.cov_target }}')
+
+          coverage_xml="out/reports/coverage/coverage-${tier}-${mod}-shard${slug}.xml"
+          xunit_xml="out/reports/xunit-reports/xunit-result-${mod}-shard${slug}-${run_id}.xml"
+
+          mapfile -t shard_tests < shard_tests.txt
+
+          set +e
+          "$venv_python" -m pytest "${shard_tests[@]}" \
+            "${cov_args[@]}" --cov-report="xml:${coverage_xml}" \
+            --junitxml="${xunit_xml}" \
+            -q
+          status=$?
+          set -e
+
+          if [ "$mode" = "full" ]; then
+            # full mode: run-all, never short-circuit the aggregation run --
+            # this shard's failure is surfaced but does not abort the step.
+            if [ "$status" -ne 0 ]; then
+              echo "::warning::module-tests: shard ${mod} ${slug} failed in full mode (if: always() aggregation continues)"
+            fi
+          else
+            # pr mode: fail-fast -- propagate this shard's exit status.
+            exit "$status"
+          fi
+
+      - name: Upload coverage + xunit artefacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: "module-tests-${{ inputs.module }}-shard-${{ steps.shard-info.outputs.slug }}-reports"
+          path: out/reports/

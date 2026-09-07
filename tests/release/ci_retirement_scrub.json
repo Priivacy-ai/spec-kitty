@@ -1,0 +1,281 @@
+{
+  "schema_version": "1.0",
+  "description": "P1 retirement scrub (FR-013). The CI test-selection basis (dorny filter groups + --cov targets) re-derived against the LIVE post-#3921 src/** tree. The WP02 census oracle (tests/architectural/_p1_census_oracle.py) is the authority: no kept group maps a filter group or a --cov target onto a retired subsystem (sync/saas/delivery/event_journal/egress/websockets) or any census-dead surface, and every excluded surface cites the oracle's independent evidence. This is the single data source WP07 (router groups) and WP08 (module registry / shard-freeze) consume -- they derive from it, they do not re-scrub. It lands BEFORE the --durations shard-freeze so shard boundaries are measured on the scrubbed live basis. Enforced by tests/architectural/test_retirement_scrub.py.",
+  "notes": [
+    "Coverage form (C-005): --cov targets are kept in dotted module form (never path form) and pyproject [tool.coverage.run].relative_files=true is preserved -- both are required for multi-<source> coverage resolution by the downstream aggregators.",
+    "Re-derivation (moves, NOT census exclusions): the historical standalone 'doctrine' group (src/doctrine/**) and the --cov=doctrine.missions target were re-mapped to their live successor src/charter/offering/** (doctrine absorbed into charter/offering post-convergence); doctrine is a MOVE, not a retirement, so it is not in excluded_surfaces. The stale core_misc root src/specify_cli/render/** was dropped -- the render package no longer exists (oracle: importer-count:0), so it is not carried by any kept group.",
+    "The enforcement allowlists (test_no_dead_symbols / test_no_dead_modules / test_no_retired_subsystems) that QUOTE dead surfaces as banned strings are out of scope of exclusion (C-006): they stay always-on blocking gates and never appear in excluded_surfaces."
+  ],
+  "groups": [
+    {
+      "group": "merge",
+      "roots": [
+        "src/specify_cli/merge/**"
+      ],
+      "cov_targets": [
+        "specify_cli.merge"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "missions",
+      "roots": [
+        "src/specify_cli/mission.py",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/missions/**",
+        "src/charter/offering/missions/**"
+      ],
+      "cov_targets": [
+        "specify_cli.mission",
+        "specify_cli.mission_metadata",
+        "specify_cli.missions",
+        "charter.offering.missions"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "post_merge",
+      "roots": [
+        "src/specify_cli/post_merge/**"
+      ],
+      "cov_targets": [
+        "specify_cli.post_merge"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "release",
+      "roots": [
+        "src/specify_cli/release/**"
+      ],
+      "cov_targets": [
+        "specify_cli.release"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "status",
+      "roots": [
+        "src/specify_cli/status/**",
+        "src/specify_cli/coordination/**"
+      ],
+      "cov_targets": [
+        "specify_cli.status",
+        "specify_cli.coordination"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "review",
+      "roots": [
+        "src/specify_cli/review/**"
+      ],
+      "cov_targets": [
+        "specify_cli.review"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "next",
+      "roots": [
+        "src/specify_cli/runtime/**",
+        "src/runtime/next/**",
+        "src/mission_runtime/**"
+      ],
+      "cov_targets": [
+        "specify_cli.runtime",
+        "runtime.next",
+        "mission_runtime"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "lanes",
+      "roots": [
+        "src/specify_cli/lanes/**"
+      ],
+      "cov_targets": [
+        "specify_cli.lanes"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "dashboard",
+      "roots": [
+        "src/specify_cli/dashboard/**"
+      ],
+      "cov_targets": [
+        "specify_cli.dashboard"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "upgrade",
+      "roots": [
+        "src/specify_cli/upgrade/**"
+      ],
+      "cov_targets": [
+        "specify_cli.upgrade"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "cli",
+      "roots": [
+        "src/specify_cli/cli/**"
+      ],
+      "cov_targets": [
+        "specify_cli.cli"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "charter",
+      "roots": [
+        "src/charter/**",
+        "src/specify_cli/charter_runtime/**"
+      ],
+      "cov_targets": [
+        "charter",
+        "specify_cli.charter_runtime"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "agent",
+      "roots": [
+        "src/specify_cli/agent_utils/**"
+      ],
+      "cov_targets": [
+        "specify_cli.agent_utils"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "kernel",
+      "roots": [
+        "src/kernel/**"
+      ],
+      "cov_targets": [
+        "kernel"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "glossary",
+      "roots": [
+        "src/glossary/**"
+      ],
+      "cov_targets": [
+        "glossary"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "execution_context",
+      "roots": [
+        "src/mission_runtime/**",
+        "src/specify_cli/status/**",
+        "src/runtime/next/**",
+        "src/specify_cli/cli/commands/agent/**"
+      ],
+      "cov_targets": [
+        "mission_runtime",
+        "specify_cli.status",
+        "runtime.next"
+      ],
+      "census_evidence": "known-live"
+    },
+    {
+      "group": "core_misc",
+      "roots": [
+        "src/kernel/**",
+        "src/charter/offering/**",
+        "src/specify_cli/core/**",
+        "src/specify_cli/coordination/**",
+        "src/specify_cli/doctrine_synthesizer/**",
+        "src/specify_cli/status/**",
+        "src/specify_cli/tool_surface/**",
+        "src/specify_cli/zeitgeist_client/**"
+      ],
+      "cov_targets": [
+        "specify_cli",
+        "glossary",
+        "mission_runtime"
+      ],
+      "census_evidence": "known-live"
+    }
+  ],
+  "non_src_router_groups": [
+    {
+      "group": "docs",
+      "roots": [
+        "docs/**",
+        "tests/docs/**",
+        "scripts/docs/**"
+      ],
+      "note": "Docs-only cheap lane; no src --cov subject."
+    },
+    {
+      "group": "corpus",
+      "roots": [
+        "packs/**",
+        "kitty-specs/**/spec.md",
+        "kitty-specs/**/plan.md",
+        "kitty-specs/**/tasks/**",
+        "kitty-specs/**/contracts/**",
+        "kitty-specs/**/acceptance-matrix.json",
+        ".kittify/charter/**",
+        ".kittify/glossaries/**",
+        ".kittify/doctrine/**"
+      ],
+      "note": "Wheel-shipped doctrine corpus + mission data leaves (#3008); non-src, no --cov subject."
+    },
+    {
+      "group": "e2e",
+      "roots": [
+        "tests/e2e/**",
+        "tests/cross_cutting/**"
+      ],
+      "note": "End-to-end / cross-cutting suite; not a src --cov subject."
+    }
+  ],
+  "excluded_surfaces": [
+    {
+      "surface": "specify_cli.sync",
+      "reason": "retired-subsystem",
+      "census_evidence": "retirement-gate:test_no_retired_subsystems",
+      "note": "Sync transport retired in The Convergence (#115). No filter group or --cov target may map to it."
+    },
+    {
+      "surface": "specify_cli.delivery",
+      "reason": "retired-subsystem",
+      "census_evidence": "retirement-gate:test_no_retired_subsystems",
+      "note": "Delivery subsystem retired with the sync transport."
+    },
+    {
+      "surface": "specify_cli.event_journal",
+      "reason": "retired-subsystem",
+      "census_evidence": "retirement-gate:test_no_retired_subsystems",
+      "note": "Event-journal subsystem retired with the sync transport."
+    },
+    {
+      "surface": "specify_cli.saas",
+      "reason": "retired-subsystem",
+      "census_evidence": "retirement-gate:test_no_retired_subsystems",
+      "note": "In-repo saas subsystem retired; SaaS is now an upstream client repo (saas_client is the live consumer, not this surface)."
+    },
+    {
+      "surface": "specify_cli.egress",
+      "reason": "retired-subsystem",
+      "census_evidence": "retirement-gate:test_no_retired_subsystems",
+      "note": "Egress + egress_consent modules retired."
+    },
+    {
+      "surface": "websockets",
+      "reason": "retired-dependency",
+      "census_evidence": "retirement-gate:test_no_retired_subsystems",
+      "note": "The websockets transport dependency was retired; excluded from every group and from the coverage denominator (E3 invariant)."
+    }
+  ]
+}
