@@ -653,15 +653,28 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
         len(Path(e.path).parts), e.path,
     ))
     succeeded: list[str] = []
-    for index, effect in enumerate(effects):
+    failed: list[str] = []
+    diagnostics: list[Diagnostic] = []
+    pending: list[tuple[PhysicalEffect, BundleObservation]] = []
+    for effect in effects:
+        if effect.after.kind == "file" and members[effect.path].manifest and pending:
+            _finalize_staged_directories(pending, succeeded, failed, diagnostics)
+            if failed:
+                break
         try:
             current = observe_confined(assessment.root.path, effect.destination)[-1].state
             if current != effect.before:
                 raise ValueError(f"Staged destination changed during apply: {effect.path}")
             if effect.after.kind == "directory":
                 assert effect.after.mode is not None
-                effect.destination.mkdir(mode=effect.after.mode)
-                effect.destination.chmod(effect.after.mode)
+                # Restrictive final permissions must not prevent descendant writes.
+                deferred = effect.after.mode & 0o700 != 0o700
+                mode = 0o700 if deferred else effect.after.mode
+                effect.destination.mkdir(mode=mode)
+                effect.destination.chmod(mode)
+                if deferred:
+                    pending.append((effect, observe_confined(assessment.root.path, effect.destination)[-1]))
+                    continue
             else:
                 member = members[effect.path]
                 if member.wrapper:
@@ -676,8 +689,42 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
                 else:
                     write_staged_file(effect.destination, member.content, member.mode)
         except (OSError, ValueError) as exc:
-            return OwnerApplyResult(OWNER, tuple(succeeded), (effect.id,), tuple(e.id for e in effects[index + 1:]),
-                                    (Diagnostic("bundle_write_failed", OWNER, "error", str(exc)),),
-                                    "partial" if succeeded else "failed")
+            failed.append(effect.id)
+            diagnostics.append(Diagnostic("bundle_write_failed", OWNER, "error", str(exc)))
+            break
         succeeded.append(effect.id)
-    return OwnerApplyResult(OWNER, tuple(succeeded))
+    _finalize_staged_directories(pending, succeeded, failed, diagnostics)
+    completed = set(succeeded + failed)
+    return OwnerApplyResult(OWNER, tuple(succeeded), tuple(failed), tuple(e.id for e in effects if e.id not in completed),
+                            tuple(diagnostics), ("partial" if succeeded else "failed") if failed else "applied")
+
+
+def _finalize_staged_directories(
+    pending: list[tuple[PhysicalEffect, BundleObservation]], succeeded: list[str],
+    failed: list[str], diagnostics: list[Diagnostic],
+) -> None:
+    """Finish only this apply's created directories, child-first, including on failure."""
+    for effect, created in reversed(pending):
+        try:
+            current = observe_confined(effect.root.path, effect.destination)[-1]
+            if not same_observation(current, created):
+                raise ValueError(f"Staged directory changed before finalization: {effect.path}")
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            descriptor = os.open(effect.destination, flags)
+            try:
+                info = os.fstat(descriptor)
+                if (info.st_dev, info.st_ino, stat.S_IMODE(info.st_mode)) != (created.device, created.inode, created.state.mode):
+                    raise ValueError(f"Staged directory replaced during finalization: {effect.path}")
+                assert effect.after.mode is not None
+                os.fchmod(descriptor, effect.after.mode)
+            finally:
+                os.close(descriptor)
+            final = observe_confined(effect.root.path, effect.destination)[-1]
+            if not same_observation(final, replace(created, state=effect.after)):
+                raise ValueError(f"Staged directory changed during finalization: {effect.path}")
+        except (OSError, ValueError) as exc:
+            failed.append(effect.id)
+            diagnostics.append(Diagnostic("bundle_write_failed", OWNER, "error", f"Cannot finalize {effect.path}: {exc}"))
+        else:
+            succeeded.append(effect.id)
+    pending.clear()

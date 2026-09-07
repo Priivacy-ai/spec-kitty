@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -168,6 +170,151 @@ def test_codex_prepared_directory_modes_and_guards(
     assert repeated.complete and not repeated.effects, repeated.diagnostics
     assert apply_staging(repeated, repeated.consent).outcome == "applied"
     assert_unchanged(settled, snapshot({"staging": tmp_path, "home": Path.home()}))
+
+
+@pytest.mark.parametrize("fault", ["none", "member", "final-mode", "replacement", "symlink", "mode", "open-race"])
+def test_codex_readonly_directory_finalization(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str,
+) -> None:
+    import stat
+    import charter.offering as offering
+    from specify_cli.tool_surface.bundles import projection
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    source = tmp_path / "source"
+    hooks = source / "hooks"
+    (hooks / "empty").mkdir(parents=True)
+    (hooks / "nested").mkdir()
+    script = hooks / "nested/run.sh"
+    script.write_bytes(b"#!/bin/sh\nexit 0\n")
+    script.chmod(0o750)
+    for path in (hooks, hooks / "empty", hooks / "nested"):
+        path.chmod(0o555)
+    monkeypatch.setattr(offering, "__file__", str(source / "__init__.py"))
+    projector = CodexBundleProjector(tmp_path / "dist")
+    staged = projector.bundle_dir / "hooks"
+    outside = tmp_path / "custom"
+    outside.mkdir(mode=0o751)
+    (outside / "sentinel").write_bytes(b"custom directory must not be adopted")
+    custom_before = snapshot({"custom": outside})
+    before = snapshot({"staging": tmp_path, "home": Path.home()})
+    assessment = projector.prepare(ApplyConsent(automatic=True))
+    assert assessment.complete and assessment.effects, assessment.diagnostics
+    assert_unchanged(before, snapshot({"staging": tmp_path, "home": Path.home()}))
+    by_path = {e.destination: e for e in assessment.effects}
+    for path in (staged, staged / "empty", staged / "nested"):
+        assert by_path[path].after.mode == 0o555
+
+    with _readonly_directory_faults(monkeypatch, staged, outside, fault) as (finalized, was_injected):
+        result = projection.apply_staging(assessment, assessment.consent)
+    injected = was_injected()
+
+    assert_unchanged(custom_before, snapshot({"custom": outside}))
+    assert finalized[-1] == staged
+    assert stat.S_IMODE(staged.stat().st_mode) == 0o555
+    assert set(result.succeeded + result.failed + result.skipped) == {e.id for e in assessment.effects}
+    after = snapshot({"staging": tmp_path, "home": Path.home()})
+    for effect in assessment.effects:
+        if effect.id in result.succeeded:
+            state = after[("staging", effect.destination.relative_to(tmp_path).as_posix())]
+            assert (state.kind, state.sha256, state.mode) == (effect.after.kind, effect.after.sha256, effect.after.mode)
+    if fault == "none":
+        assert not injected
+        assert result.outcome == "applied" and not result.failed and not result.skipped
+        assert finalized == [staged / "nested", staged / "empty", staged]
+        assert (staged / "nested/run.sh").read_bytes() == script.read_bytes()
+        assert stat.S_IMODE((staged / "nested/run.sh").stat().st_mode) == 0o750
+        actual = net_delta(before, snapshot({"staging": tmp_path, "home": Path.home()}))
+        assert {(e.root.root_id, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in assessment.effects} == {
+            (e.root, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in actual}
+        settled = snapshot({"staging": tmp_path, "home": Path.home()})
+        projector.build()
+        assert_unchanged(settled, snapshot({"staging": tmp_path, "home": Path.home()}))
+    else:
+        assert injected and result.outcome == "partial", result
+        failed_path = staged / ("nested/run.sh" if fault == "member" else "nested" if fault == "final-mode" else "empty")
+        assert result.failed == (by_path[failed_path].id,)
+        assert result.diagnostics
+        assert not (projector.bundle_dir / ".codex-plugin/plugin.json").exists()
+        assert not (projector.bundle_dir / ".spec-kitty-bundle.json").exists()
+        assert not list(staged.rglob("*.tmp"))
+        if fault in {"replacement", "open-race"}:
+            assert stat.S_IMODE((staged / "empty").stat().st_mode) == 0o751
+            assert (staged / "empty/sentinel").read_bytes() == b"replacement is not ours"
+        elif fault == "symlink":
+            assert (staged / "empty").is_symlink()
+        elif fault == "mode":
+            assert stat.S_IMODE((staged / "empty").stat().st_mode) == 0o751
+        elif fault == "final-mode":
+            assert stat.S_IMODE((staged / "nested").stat().st_mode) == 0o700
+        elif fault == "member":
+            assert not (staged / "nested/run.sh").exists()
+            assert all(stat.S_IMODE(p.stat().st_mode) == 0o555 for p in (staged / "empty", staged / "nested"))
+
+
+@contextmanager
+def _readonly_directory_faults(
+    monkeypatch: pytest.MonkeyPatch, staged: Path, outside: Path, fault: str,
+) -> Iterator[tuple[list[Path], Callable[[], bool]]]:
+    """Inject one I/O failure or concurrent replacement; other operations remain real."""
+    import os
+    import stat
+
+    real_replace, real_fchmod, real_open = os.replace, os.fchmod, os.open
+    finalized: list[Path] = []
+    injected = False
+
+    def replace_member(src: object, dst: object) -> None:
+        nonlocal injected
+        if Path(str(dst)) == staged / "nested/run.sh":
+            if fault == "member":
+                injected = True
+                raise OSError("injected readonly bundle member failure")
+            real_replace(src, dst)
+            if fault in {"replacement", "symlink", "mode"}:
+                injected = True
+                empty = staged / "empty"
+                if fault == "mode":
+                    empty.chmod(0o751)
+                else:
+                    empty.rename(staged / "displaced-empty")
+                    if fault == "symlink":
+                        empty.symlink_to(outside, target_is_directory=True)
+                    else:
+                        empty.mkdir(mode=0o751)
+                        (empty / "sentinel").write_bytes(b"replacement is not ours")
+            return
+        real_replace(src, dst)
+
+    def finalize_mode(fd: int, mode: int) -> None:
+        nonlocal injected
+        info = os.fstat(fd)
+        if stat.S_ISDIR(info.st_mode):
+            path = next(p for p in (staged, staged / "empty", staged / "nested")
+                        if p.lstat().st_ino == info.st_ino)
+            assert mode == 0o555
+            assert not (staged.parent / ".codex-plugin/plugin.json").exists()
+            if path == staged / "nested" and fault == "final-mode":
+                injected = True
+                raise OSError("injected readonly directory final-mode failure")
+            finalized.append(path)
+        real_fchmod(fd, mode)
+
+    def open_directory(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal injected
+        if path == staged / "empty" and fault == "open-race" and not injected:
+            injected = True
+            (staged / "empty").rename(staged / "displaced-empty")
+            (staged / "empty").mkdir(mode=0o751)
+            (staged / "empty/sentinel").write_bytes(b"replacement is not ours")
+        return real_open(path, flags, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "replace", replace_member)
+        patch.setattr(os, "fchmod", finalize_mode)
+        patch.setattr(os, "open", open_directory)
+        yield finalized, lambda: injected
 
 
 def test_codex_hook_copy_preserves_unknown_descendant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
