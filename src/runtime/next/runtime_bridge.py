@@ -178,6 +178,7 @@ from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import get_all_wp_snapshots
@@ -735,7 +736,13 @@ def _count_wp_endings(
             acceptable_endings += 1
     return done_endings, acceptable_endings
 
-def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
+def _should_advance_wp_step(
+    step_id: str,
+    feature_dir: Path,
+    *,
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
+) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
     For implement: all WPs must be handed off, accepted, done, or reach an
@@ -749,8 +756,30 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     ``get_wp_lane`` used (C-003/D6): a genuinely-absent committed status log
     still raises ``CanonicalStatusNotFoundError`` here, never a silent
     ``False``.
+
+    FR-009 (#3884): when the caller opts in by supplying ``repo_root`` (no
+    separate flag, mirroring the #3704 precedent), the ``tasks/`` directory
+    this function reads is anchored via ``mission_runtime.placement_seam``'s
+    PRIMARY-partition resolution for ``MissionArtifactKind.WORK_PACKAGE_TASK``
+    instead of the raw ``feature_dir`` -- a coord-topology mission's
+    coordination-worktree ``feature_dir`` never receives ``tasks/WP*.md``
+    (a PRIMARY-partition artifact), so the unanchored read hit this
+    function's own no-``tasks/``-dir early return below and skipped the
+    per-WP loop entirely, regardless of whether FR-004's disjunct exists. Any
+    coord-less topology (``SINGLE_BRANCH``/``LANES``) -- where ``feature_dir``
+    already IS the primary directory -- sees no behavior change: the anchor
+    resolves to the same directory for both. May raise ``MissionSelectorAmbiguous`` for a genuinely
+    ambiguous ``mission_slug`` handle -- caught at this function's one real
+    call site (``_dn_dependency_gate``, FR-010).
     """
-    tasks_dir = feature_dir / "tasks"
+    anchor_dir = feature_dir
+    if repo_root is not None:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
+        resolved_mission_slug = mission_slug if mission_slug is not None else feature_dir.name
+        anchor_dir = placement_seam(repo_root, resolved_mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+
+    tasks_dir = anchor_dir / "tasks"
     if not tasks_dir.is_dir():
         return True  # no WPs to iterate over
 
@@ -801,8 +830,13 @@ def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> b
         # (for_review or approved) or reaches an acceptable ending.
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
+        # FR-004 (#3884): Lane.UNINITIALIZED is neither is_blocked nor
+        # is_run_affecting (it never entered an active lane) -- it fell
+        # through both disjuncts and silently did not block. A never-claimed
+        # WP must not be conflated with a genuinely-exempt state.
         return (
-            state.is_blocked
+            lane is Lane.UNINITIALIZED
+            or state.is_blocked
             or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
         )
     if step_id == "review":
@@ -855,6 +889,16 @@ def _check_cli_guards(
         repo_root=repo_root,
     )
     if step_id in ("implement", "review"):
+        # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
+        # though repo_root is in scope above for gather_artifact_presence: this call
+        # is reachable only from _dn_dependency_gate's WP-iteration branch (#3884
+        # INT-001), and only AFTER that branch's own anchored _should_advance_wp_step
+        # call (repo_root=repo_root, mission_slug=mission_slug) already returned
+        # True for the identical (step_id, feature_dir) — see the "All WPs done for
+        # this step" comment at its call site. Do not "fix" this by anchoring it; if
+        # phase ordering ever changes so this can be reached with WPs still pending,
+        # this needs a repo_root=/mission_slug= forward of its own, mirroring
+        # _dn_dependency_gate's call, not a silent carry-forward assumption.
         snapshot = dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir))
     return _cores.evaluate_guards_strict(snapshot)
 
@@ -1678,8 +1722,27 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if ctx.result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
-            should_advance = _should_advance_wp_step(current_step_id, feature_dir)
+            should_advance = _should_advance_wp_step(
+                current_step_id, feature_dir, repo_root=repo_root, mission_slug=mission_slug
+            )
         except CanonicalStatusNotFoundError as exc:
+            return _materialize_decision(
+                _cores.DecisionEnvelope(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=str(exc),
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                ),
+                [str(exc)],
+            )
+        except MissionSelectorAmbiguous as exc:  # NEW — FR-010 (#3884)
             return _materialize_decision(
                 _cores.DecisionEnvelope(
                     kind=DecisionKind.blocked,
