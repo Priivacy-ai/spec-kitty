@@ -273,7 +273,7 @@ class TestDiagnosticControls:
         resolved = resolve_activated_org_profiles(tmp_path)
         diagnostics = resolved.skipped_profiles
 
-        assert len(diagnostics) == 1
+        assert [Path(item.path).name for item in diagnostics] == ["orgzilla-broken.agent.yaml"]
         assert list(resolved) == resolved[:]
         assert resolved[0].source_path == pack_root / "agent_profiles" / f"{_ORG_ANALYST_ID}.agent.yaml"
         resolved.clear()

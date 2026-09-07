@@ -218,6 +218,28 @@ def _repo_root() -> Path:
     raise RuntimeError("Could not locate repo root (no .kittify/ marker found).")
 
 
+def _require_tracked_scan_roots(roots: tuple[str, ...]) -> None:
+    """Fail closed when a scan root has no tracked files under the repo root.
+
+    ``git grep`` exits 1 for a pathspec that matches nothing exactly as it does
+    for a clean tree, so a zero-hit verdict over a missing or renamed root
+    (``src/`` -> ``source/``) would pass vacuously. The real gates call this
+    before trusting an empty scan; the fixture-scoped helper tests stage only
+    the roots they exercise and are not routed through it.
+    """
+    root_dir = _repo_root()
+    for root in roots:
+        result = subprocess.run(
+            ["git", "-C", str(root_dir), "ls-files", "-z", "--", f"{root}/"],
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"git ls-files failed for scan root {root!r}: exit={result.returncode} stderr={result.stderr!r}")
+        if not result.stdout:
+            raise RuntimeError(f"Scan root {root!r} has no tracked files under {root_dir}; a zero-hit scan would be vacuous")
+
+
 def _grep_for(term: str) -> list[str]:
     """Scan tracked active sources; Git/read/parse errors fail closed."""
     root = _repo_root()
@@ -236,6 +258,7 @@ def test_forbidden_term_does_not_appear(term: str) -> None:
     directories. The test file itself is excluded via _EXCLUDED_PATH_FRAGMENTS
     and via the string-fragment construction of _FORBIDDEN_TERMS.
     """
+    _require_tracked_scan_roots(_SCAN_ROOTS)
     hits = _grep_for(term)
     if hits:
         formatted = "\n  ".join(hits)
@@ -388,6 +411,7 @@ def test_lane_consolidation_phrasing_does_not_grow_beyond_baseline() -> None:
     only the curated phrases in ``_LANE_CONSOLIDATION_FORBIDDEN_PHRASES`` are
     forbidden, and only outside the grandfathered ``_LANE_CONSOLIDATION_PHRASE_BASELINE``.
     """
+    _require_tracked_scan_roots(_LANE_CONSOLIDATION_SCAN_ROOTS)
     violations = _collect_lane_consolidation_phrase_violations()
     if violations:
         formatted = "\n".join(f"  {rel}:\n    " + "\n    ".join(hits) for rel, hits in sorted(violations.items()))
@@ -566,13 +590,25 @@ def test_exclusion_preserves_legitimate_paths(path: str) -> None:
     assert _line_is_excluded(f"{path}:7:{_FORBIDDEN_TERMS[0]}")
 
 
-def _stage_scanner_fixture(root: Path, files: Mapping[str, str | bytes]) -> None:
+def _stage_scanner_fixture(root: Path, files: Mapping[str, str | bytes], *, ensure_roots: bool = True) -> None:
+    """Stage *files* in a fresh repo at *root*.
+
+    ``ensure_roots`` (default) also tracks an empty ``.keep`` under every scan
+    root the fixture leaves untouched, so the real gates' non-vacuity
+    precondition (:func:`_require_tracked_scan_roots`) sees a complete scan
+    set; pass ``False`` to model a missing/renamed root deliberately.
+    """
     subprocess.run(["git", "init", "--quiet", str(root)], check=True, capture_output=True)
-    for relative, content in files.items():
+    staged = dict(files)
+    if ensure_roots:
+        for scan_root in sorted(set(_SCAN_ROOTS) | set(_LANE_CONSOLIDATION_SCAN_ROOTS)):
+            if not any(relative.startswith(f"{scan_root}/") for relative in staged):
+                staged[f"{scan_root}/.keep"] = ""
+    for relative, content in staged.items():
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content.encode("utf-8") if isinstance(content, str) else content)
-    subprocess.run(["git", "-C", str(root), "add", "--", *files], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(root), "add", "--", *staged], check=True, capture_output=True)
 
 
 def test_real_term_scanner_keeps_active_hits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -615,8 +651,8 @@ def test_real_phrase_scanner_keeps_path_lookalikes(tmp_path: Path, monkeypatch: 
     )
     monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
     hits = _grep_for_phrase_ci("lane merge", roots=("src", "docs"))
-    assert len(hits) == 4, hits
-    assert len(_hits_outside_baseline(hits, frozenset({"docs/name"}))) == 4
+    assert len(hits) == 4, hits  # golden-count: cardinality-is-contract
+    assert len(_hits_outside_baseline(hits, frozenset({"docs/name"}))) == 4  # golden-count: cardinality-is-contract
     with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
         test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
 
@@ -677,9 +713,9 @@ def test_real_scanner_receipt_boundary(
         if mutation in {"append", "replace", "alongside"}:
             assert any(prose in hit for hit in hits), hits
         if mutation == "alongside":
-            assert len(hits) == 1, hits
+            assert len(hits) == 1, hits  # golden-count: cardinality-is-contract
         elif mutation == "lookalike":
-            assert len(hits) == 2, hits
+            assert len(hits) == 2, hits  # golden-count: cardinality-is-contract
         with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
             test_forbidden_term_does_not_appear(term)
 
@@ -689,6 +725,29 @@ def test_real_scanners_empty_matches(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
     assert _grep_for(_FORBIDDEN_TERMS[0]) == []
     assert _grep_for_phrase_ci("lane merge", roots=("docs",)) == []
+
+
+def test_real_gates_refuse_an_untracked_scan_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A renamed/missing scan root must red the gate, never pass it vacuously."""
+    term = _FORBIDDEN_TERMS[0]
+    _stage_scanner_fixture(
+        tmp_path,
+        {"source/live.py": f"BANNER = '{term} commit'\n", "tests/t.py": "x = 1\n", "docs/d.md": "ok\n"},
+        ensure_roots=False,
+    )
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    assert _grep_for(term) == []  # the vacuous verdict the gate must not trust
+    with pytest.raises(RuntimeError, match="Scan root 'src' has no tracked files"):
+        test_forbidden_term_does_not_appear(term)
+    with pytest.raises(RuntimeError, match="Scan root 'src' has no tracked files"):
+        test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
+
+
+def test_real_gates_run_when_every_scan_root_is_tracked(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _stage_scanner_fixture(tmp_path, {"src/live.py": "x = 1\n", "tests/t.py": "x = 1\n", "docs/d.md": "ok\n"})
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    test_forbidden_term_does_not_appear(_FORBIDDEN_TERMS[0])
+    test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
 
 
 @pytest.mark.parametrize("output", [b"", b"docs/adr/history.md:1:bad\n", b"docs/a\0x\0bad\n", b"docs/a\x001\x00bad"])
@@ -731,14 +790,14 @@ def test_real_phrase_scanner_rejects_prose_in_receipt(tmp_path: Path, monkeypatc
     receipt = (_repo_root() / _RECEIPT_PATH).read_bytes()
     _stage_scanner_fixture(tmp_path, {_RECEIPT_PATH: receipt + b"\nlane merge; see docs/adr/history.md\n"})
     monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
-    assert len(_grep_for_phrase_ci("lane merge", roots=("docs",))) == 1
+    assert len(_grep_for_phrase_ci("lane merge", roots=("docs",))) == 1  # golden-count: cardinality-is-contract
     with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
         test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
 
 
 @pytest.mark.parametrize("name", ["base", "head"])
 def test_frozen_census_bytes(name: str) -> None:
-    assert len(_CENSUS_SHA256) == 2
+    assert len(_CENSUS_SHA256) == 2  # golden-count: cardinality-is-contract
     relative = f"{_CENSUS_DIRECTORY}/{name}-census.json"
     path = _regular_frozen_evidence_path(relative)
     # Parent-reviewed whole-file evidence integrity, not charter hashing.
@@ -772,7 +831,7 @@ def test_real_census_term_boundary(name: str, mutation: str, tmp_path: Path, mon
             if mutation in {"append", "replace", "neighbor"} and term == _FORBIDDEN_TERMS[0]:
                 assert any(prose in hit for hit in hits)
             if mutation == "neighbor":
-                assert len(hits) == 1
+                assert len(hits) == 1  # golden-count: cardinality-is-contract
             with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
                 test_forbidden_term_does_not_appear(term)
 
@@ -799,8 +858,7 @@ def test_census_source_hits_cannot_be_forged(name: str, attack: str, tmp_path: P
     monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
     monkeypatch.setattr(sys.modules[__name__], "_git_grep_hits", lambda *args, **kwargs: [forged])
     hits = _grep_for(_FORBIDDEN_TERMS[0])
-    assert len(hits) == 1
-    assert hits[0] == forged
+    assert hits == [forged]
 
 
 @pytest.mark.parametrize("name", ["base", "head"])
