@@ -319,8 +319,9 @@ class ClaudeBundleProjector:
         """
         catalog: dict[str, object] = {
             "name": "spec-kitty-plugins",
+            "description": "Spec Kitty skills, agent profiles, and runtime wrappers for Claude Code.",
             "version": version,
-            "interface": {"displayName": "Spec Kitty Plugins"},
+            "owner": {"name": "Priivacy AI"},
             "plugins": [
                 {
                     "name": "spec-kitty",
@@ -328,10 +329,6 @@ class ClaudeBundleProjector:
                         "source": "git-subdir",
                         "url": "https://github.com/Priivacy-ai/spec-kitty.git",
                         "path": "dist/spec-kitty-plugins/claude-code",
-                    },
-                    "policy": {
-                        "installation": "AVAILABLE",
-                        "authentication": "ON_INSTALL",
                     },
                     "category": "Developer Tools",
                 },

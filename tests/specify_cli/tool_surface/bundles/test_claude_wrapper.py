@@ -281,6 +281,7 @@ class TestMarketplaceJson:
         )
         assert payload["name"] == "spec-kitty-plugins"
         assert payload.get("owner") == {"name": "Priivacy AI"}
+        assert payload.get("description") == "Spec Kitty skills, agent profiles, and runtime wrappers for Claude Code."
         assert "interface" not in payload
         assert "plugins" in payload
         assert len(payload["plugins"]) == 1

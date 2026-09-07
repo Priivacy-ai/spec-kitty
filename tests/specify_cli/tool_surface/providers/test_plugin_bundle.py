@@ -70,6 +70,37 @@ def _selected(provider: PluginBundleProvider, project: Path, targets: tuple[str,
         consent=ApplyConsent(automatic=True)), (), selections=())
 
 
+@pytest.mark.parametrize("configured", [("gemini", "codex"), (), ("codex", "gemini", "codex")])
+def test_configured_consumer_calls_approved_helper_without_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, configured: tuple[str, ...],
+) -> None:
+    from collections.abc import Sequence
+    from specify_cli.core.agent_config import AgentConfig, save_agent_config
+    from specify_cli.tool_surface import service
+    from specify_cli.tool_surface.model import SurfacePlan
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    save_agent_config(tmp_path, AgentConfig(available=list(configured), auto_commit=False))
+    real_helper = service.build_plans_for_bundles
+    calls: list[tuple[str, ...] | None] = []
+    def observing_helper(project_root: Path, *, tool_keys: Sequence[str] | None = None) -> list[SurfacePlan]:
+        calls.append(None if tool_keys is None else tuple(tool_keys))
+        return real_helper(project_root, tool_keys=tool_keys)
+    monkeypatch.setattr(service, "build_plans_for_bundles", observing_helper)
+    before = snapshot({"project": tmp_path, "home": Path.home()})
+    with _write_attempts() as attempted:
+        plans = PluginBundleProvider()._plans_for_projection(tmp_path)
+    assert calls == [configured]
+    assert tuple(plan.tool_key for plan in plans) == configured
+    if configured:
+        assert all(plan.instances and plan.definitions for plan in plans)
+        assert {instance.owner for plan in plans for instance in plan.instances} == set(configured)
+    else:
+        assert plans == []
+    assert not attempted, attempted
+    assert_unchanged(before, snapshot({"project": tmp_path, "home": Path.home()}))
+
+
 def test_canonical_selected_bundle_exact_effects_and_read_only_assessment(
     tmp_path: Path, canonical_bundle_tree: Path,
 ) -> None:

@@ -365,13 +365,10 @@ class PluginBundleProvider:
         Imported lazily to avoid a provider <-> service import cycle.
         """
         from specify_cli.core.agent_config import load_agent_config
-        from ..plan import SurfacePlanBuilder
-        from ..service import build_providers, build_registry
+        from ..service import build_plans_for_bundles
 
         agents = load_agent_config(project_root).available
-        plans: list[SurfacePlan] = SurfacePlanBuilder(build_registry(agents), build_providers()).build(
-            agents, project_root, kinds=tuple(BUNDLE_SURFACE_KINDS),
-        )
+        plans: list[SurfacePlan] = build_plans_for_bundles(project_root, tool_keys=agents)
         return plans
 
 
