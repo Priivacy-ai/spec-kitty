@@ -1,5 +1,22 @@
 # Supporting Operation Reviews
 
+## WP09 YAML Preservation Arbitration: Open
+
+Op `01M1XCGBK5AFYA6T2AE7CBRB3X` records explicit user authorization to fix
+both remaining WP09 defects after its third rejection: comments lost when the
+same loaded YAML document is saved repeatedly, and the already-reproduced
+YAML-directive compatibility failures. This supersedes the human-arbitration
+pause, not the preservation contract or review requirements.
+
+The original author resumed the existing lane through the canonical implement
+command. Scope remains WP09-owned YAML I/O and tests, with genuine RED evidence
+for both defects before the fix. Follow-up review is limited to these corrections
+and immediate preservation risks; unchanged broader evidence is reused. No
+automatic approval, broad review restart, dependency change or acceptance waiver.
+The durable Op record is included in this PR. Closure requires the actual fix
+commit and independent focused review evidence. WP10 integration, WP13 acceptance
+matrices and all final mission gates remain pending.
+
 ## Configured Bundle Source Tools: Complete
 
 Op `01M1WM2PAB09HACQVJEDDR422H` addresses WP08's observed shared planner gap:
