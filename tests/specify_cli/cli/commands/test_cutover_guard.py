@@ -442,6 +442,7 @@ def _init_relocation_repo(tmp_path: Path, *, base_files: dict[str, str]) -> tupl
     legacy = repo / "kitty-specs" / "legacy-notes"
     legacy.mkdir(parents=True)
     for name, body in base_files.items():
+        (legacy / name).parent.mkdir(parents=True, exist_ok=True)
         (legacy / name).write_text(body, encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "base corpus")
@@ -450,11 +451,16 @@ def _init_relocation_repo(tmp_path: Path, *, base_files: dict[str, str]) -> tupl
     dest = repo / "docs" / "archive" / "legacy-notes"
     dest.mkdir(parents=True)
     for name in base_files:
+        (dest / name).parent.mkdir(parents=True, exist_ok=True)
         _git(repo, "mv", f"kitty-specs/legacy-notes/{name}", f"docs/archive/legacy-notes/{name}")
     # ``git mv`` leaves the emptied source directory on disk; a real checkout
     # of the relocating commit has no such directory, so mirror that shape.
-    if legacy.exists() and not any(legacy.iterdir()):
-        legacy.rmdir()
+    if legacy.exists():
+        for stale in sorted(legacy.rglob("*"), reverse=True):
+            if stale.is_dir() and not any(stale.iterdir()):
+                stale.rmdir()
+        if not any(legacy.iterdir()):
+            legacy.rmdir()
     _git(repo, "commit", "-q", "-m", "relocate non-mission evidence")
     return repo, base_sha
 
@@ -480,7 +486,7 @@ def test_relocation_of_identityless_non_mission_directory_passes(tmp_path: Path)
     assert verdict.passed is True
     assert verdict.failures == ()
     assert verdict.touched_slugs == ("legacy-notes",)
-    assert verdict.relocated_slugs == ("legacy-notes",)
+    assert verdict.non_mission_slugs == ("legacy-notes",)
 
 
 @pytest.mark.parametrize(
@@ -502,12 +508,24 @@ def test_relocation_of_a_directory_carrying_mission_artifacts_fails_closed(tmp_p
     verdict = evaluate_touched_missions(repo, changed_paths, merge_base=base_sha)
 
     assert verdict.passed is False
-    assert verdict.relocated_slugs == ()
+    assert verdict.non_mission_slugs == ()
     assert len(verdict.failures) == 1
     failure = verdict.failures[0]
     assert failure.mission_slug == "legacy-notes"
     assert any(base_sha[:12] in reason for reason in failure.reasons)
     assert any(mission_artifact in reason for reason in failure.reasons)
+
+
+def test_removed_directory_with_a_nested_mission_artifact_fails_closed(tmp_path: Path) -> None:
+    """The base listing is recursive: an artifact below the root keeps the dir in domain."""
+    repo, base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n", "sub/meta.json": "{}\n"})
+    changed_paths = ["kitty-specs/legacy-notes/notes.md", "kitty-specs/legacy-notes/sub/meta.json"]
+
+    verdict = evaluate_touched_missions(repo, changed_paths, merge_base=base_sha)
+
+    assert verdict.passed is False
+    assert verdict.non_mission_slugs == ()
+    assert any("meta.json" in reason for reason in verdict.failures[0].reasons)
 
 
 def test_missing_directory_without_a_merge_base_still_fails_closed(tmp_path: Path) -> None:
@@ -517,7 +535,7 @@ def test_missing_directory_without_a_merge_base_still_fails_closed(tmp_path: Pat
     verdict = evaluate_touched_missions(repo, ["kitty-specs/legacy-notes/notes.md"])
 
     assert verdict.passed is False
-    assert verdict.relocated_slugs == ()
+    assert verdict.non_mission_slugs == ()
     assert verdict.failures[0].mission_slug == "legacy-notes"
 
 
@@ -536,7 +554,7 @@ def test_unreadable_merge_base_tree_fails_closed(tmp_path: Path) -> None:
     verdict = evaluate_touched_missions(repo, ["kitty-specs/legacy-notes/notes.md"], merge_base="0" * 40)
 
     assert verdict.passed is False
-    assert verdict.relocated_slugs == ()
+    assert verdict.non_mission_slugs == ()
     assert any("merge-base" in reason for reason in verdict.failures[0].reasons)
 
 
@@ -551,5 +569,5 @@ def test_relocation_passes_through_the_cli_with_base_ref(tmp_path: Path, monkeyp
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
     assert payload["passed"] is True
-    assert payload["relocated_slugs"] == ["legacy-notes"]
+    assert payload["non_mission_slugs"] == ["legacy-notes"]
     assert payload["failures"] == []

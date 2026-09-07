@@ -1148,11 +1148,11 @@ def git_ls_tree_names_checked(
     *,
     timeout: float | None = None,
 ) -> tuple[str, ...] | None:
-    """Fail-distinguishing ``git ls-tree --name-only <rev> <path>``.
+    """Fail-distinguishing ``git ls-tree -r --name-only <rev> <path>``.
 
-    Lists the tree entries recorded at *rev* for *path* (a directory path
-    with a trailing ``/`` lists that directory's direct children; without one
-    it names the entry itself). The failure mode is *distinguishable*:
+    Lists every blob recorded at *rev* under *path*, recursively (a
+    directory path with a trailing ``/`` lists all files below it; a file
+    path names the entry itself). The failure mode is *distinguishable*:
     returns ``None`` when ``git ls-tree`` exits non-zero (unknown *rev*,
     not a repository), versus an empty tuple when *rev* simply records
     nothing at *path*. Use it from fail-closed callers that must not read an
@@ -1171,7 +1171,7 @@ def git_ls_tree_names_checked(
         (possibly empty); ``None`` on non-zero exit.
     """
     result = subprocess.run(
-        ["git", "ls-tree", "--name-only", rev, path],
+        ["git", "ls-tree", "-r", "--name-only", rev, path],
         cwd=str(repo),
         capture_output=True,
         text=True,

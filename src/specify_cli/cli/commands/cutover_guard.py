@@ -16,8 +16,8 @@ directory the diff relocates OUT of ``kitty-specs/`` that carried neither a
 ``meta.json`` nor a ``status.events.jsonl`` at the merge-base (never a
 mission, never any runtime state to cut over — e.g. the FR-007 relocation of
 non-mission program evidence). With ``--base-ref`` the guard reads that base
-tree and reports such a slug as *relocated*; without a base tree
-(``--paths-from``) a vanished directory stays a closed failure.
+tree and reports such a slug as a removed non-mission directory; without
+a base tree (``--paths-from``) a vanished directory stays a closed failure.
 
 Usage::
 
@@ -79,9 +79,10 @@ class GuardVerdict:
     touched_slugs: tuple[str, ...]
     failures: tuple[CutOverVerdict, ...]
     #: Touched slugs whose directory the diff removed from the corpus and
-    #: which carried no mission artifact at the merge-base — outside the
+    #: which carried no mission artifact anywhere below it at the merge-base
+    #: (a relocation or deletion of non-mission content) — outside the
     #: guard's domain, reported for transparency, never counted as failures.
-    relocated_slugs: tuple[str, ...] = ()
+    non_mission_slugs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -134,10 +135,12 @@ def _removed_directory_verdict(repo_root: Path, mission_dir: Path, slug: str, me
 
     Returns ``None`` when the slug is outside the guard's domain — the
     directory existed at *merge_base* and carried no mission artifact
-    (:data:`_MISSION_ARTIFACT_NAMES`), so the diff relocated non-mission
-    content and there is nothing to cut over. Every other case is a closed
-    failure: no base tree to consult, an unreadable base tree, a slug absent
-    from the base too (ambiguous), or a removed directory that WAS a mission.
+    (:data:`_MISSION_ARTIFACT_NAMES`) at any depth below it, so the diff
+    relocated or deleted non-mission content and there is nothing to cut
+    over. Every other case is a closed failure: no base tree to consult, an
+    unreadable base tree, a slug absent from the base too (ambiguous), or a
+    removed directory that WAS a mission. The base listing is recursive so a
+    nested artifact keeps the directory inside the domain (fail-closed).
     """
     removed_reason = "mission directory not found in corpus (ambiguous or removed)"
     if merge_base is None:
@@ -177,7 +180,7 @@ def evaluate_touched_missions(
     on uncertainty.
 
     *merge_base* (the SHA ``changed_paths`` was diffed from) lets the guard
-    tell a relocated non-mission directory apart from a removed mission —
+    tell a removed non-mission directory apart from a removed mission —
     see :func:`_removed_directory_verdict`. ``None`` keeps every vanished
     directory a closed failure.
     """
@@ -185,7 +188,7 @@ def evaluate_touched_missions(
     slugs = touched_mission_slugs(changed_paths)
 
     failures: list[CutOverVerdict] = []
-    relocated: list[str] = []
+    non_mission: list[str] = []
     for slug in slugs:
         # ``slug`` is diff-derived (``touched_mission_slugs`` takes it verbatim
         # from ``parts[1]`` of a changed path), so it is untrusted input reaching
@@ -208,7 +211,7 @@ def evaluate_touched_missions(
         if not mission_dir.is_dir():
             removed = _removed_directory_verdict(repo_root, mission_dir, slug, merge_base)
             if removed is None:
-                relocated.append(slug)
+                non_mission.append(slug)
             else:
                 failures.append(removed)
             continue
@@ -231,7 +234,7 @@ def evaluate_touched_missions(
         passed=not failures,
         touched_slugs=slugs,
         failures=tuple(failures),
-        relocated_slugs=tuple(relocated),
+        non_mission_slugs=tuple(non_mission),
     )
 
 
@@ -248,8 +251,8 @@ def _print_report(verdict: GuardVerdict) -> None:
     console.print("\n[bold]cutover-guard report[/bold]")
     console.print(f"  Missions touched by diff : {len(verdict.touched_slugs)}")
     console.print(f"  Un-cut-over              : {len(verdict.failures)}")
-    if verdict.relocated_slugs:
-        console.print(f"  Relocated (non-mission)  : {', '.join(verdict.relocated_slugs)}")
+    if verdict.non_mission_slugs:
+        console.print(f"  Removed non-mission dirs : {', '.join(verdict.non_mission_slugs)}")
 
     if not verdict.touched_slugs:
         console.print("\n[green]No kitty-specs/ missions touched by this diff.[/green]")
@@ -270,7 +273,7 @@ def _payload(verdict: GuardVerdict) -> dict[str, object]:
     return {
         "passed": verdict.passed,
         "touched_slugs": list(verdict.touched_slugs),
-        "relocated_slugs": list(verdict.relocated_slugs),
+        "non_mission_slugs": list(verdict.non_mission_slugs),
         "failures": [
             {
                 "slug": failure.mission_slug,

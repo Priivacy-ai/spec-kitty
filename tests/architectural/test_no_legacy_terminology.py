@@ -797,7 +797,7 @@ def test_real_phrase_scanner_rejects_prose_in_receipt(tmp_path: Path, monkeypatc
 
 @pytest.mark.parametrize("name", ["base", "head"])
 def test_frozen_census_bytes(name: str) -> None:
-    assert len(_CENSUS_SHA256) == 2  # golden-count: cardinality-is-contract
+    assert set(_CENSUS_SHA256) == {f"{_CENSUS_DIRECTORY}/{census}-census.json" for census in ("base", "head")}
     relative = f"{_CENSUS_DIRECTORY}/{name}-census.json"
     path = _regular_frozen_evidence_path(relative)
     # Parent-reviewed whole-file evidence integrity, not charter hashing.

@@ -108,7 +108,7 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
-from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
 if TYPE_CHECKING:
@@ -987,10 +987,12 @@ class ArtifactPresenceSnapshot:
 #: The seam failures a presence read degrades on. ``ActionContextError`` is the
 #: seam refusing explicit placement outside ``single_branch``;
 #: ``StatusReadPathNotFound`` (incl. ``CoordinationBranchDeleted``) is a
-#: coord-partition probe failing on coordination-branch liveness. Neither is
-#: a fact about the PRIMARY artifact being asked for, so neither may escape
-#: a fact port whose two production callers invoke it outside their ``try``.
-_PRESENCE_SEAM_DEGRADES = (ActionContextError, StatusReadPathNotFound)
+#: coord-partition probe failing on coordination-branch liveness;
+#: ``MissionSelectorAmbiguous`` is the seam's declared selector failure on
+#: ``feature_dir.name``. None is a fact about the PRIMARY artifact being asked
+#: for, so none may escape a fact port whose two production callers invoke it
+#: outside their ``try``.
+_PRESENCE_SEAM_DEGRADES = (ActionContextError, StatusReadPathNotFound, MissionSelectorAmbiguous)
 
 
 def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> PlacementSeam | None:
@@ -1014,8 +1016,10 @@ def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> Placem
         owned = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
         if owned.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
             return owned
-    except _PRESENCE_SEAM_DEGRADES:
+    except _PRESENCE_SEAM_DEGRADES as exc:
+        _logger.debug("artifact presence: seam degraded for %s, keeping supplied directory: %s", feature_dir, exc)
         return None
+    _logger.debug("artifact presence: %s is not a recognised STATUS home, keeping supplied directory", feature_dir)
     return None
 
 
@@ -1042,7 +1046,8 @@ class _ArtifactPresenceHomes:
         if home is None:
             try:
                 home = self._seam.read_dir(kind)
-            except _PRESENCE_SEAM_DEGRADES:
+            except _PRESENCE_SEAM_DEGRADES as exc:
+                _logger.debug("artifact presence: read of %s degraded to supplied directory: %s", kind, exc)
                 home = self._feature_dir
             self._by_kind[kind] = home
         return home
