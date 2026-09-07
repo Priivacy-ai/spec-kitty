@@ -3,6 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
+from collections.abc import Callable
+
+if TYPE_CHECKING:
+    from charter.activation.compiler import _PreparedMissionTypeActivations
+    from specify_cli.tool_surface.providers.managed_skills import ManagedSkillsProvider, SkillCommandComposition
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from tests.upgrade.preview_support.snapshot import Snapshot
 
 import pytest
 import shutil
@@ -541,3 +549,161 @@ def test_plugin_bundle_repair_is_staging_only_and_dry_run_is_inert(
 
     repaired = provider.expand(definition, PLUGIN_BUNDLE_TOOL_KEY, tmp_path)
     assert {provider.probe(instance).state for instance in repaired} == {STATE_PRESENT}
+
+@pytest.fixture(scope="module")
+def selected_codex_seed(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
+    from typer.testing import CliRunner
+    from specify_cli import app
+
+    base = tmp_path_factory.mktemp("selected-codex-seed")
+    home, project = base / "home", base / "project"
+    home.mkdir()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.chdir(base)
+        patch.setenv("HOME", str(home))
+        patch.setenv("USERPROFILE", str(home))
+        patch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+        result = CliRunner().invoke(app, ["init", str(project), "--ai", "codex", "--non-interactive"])
+        assert result.exit_code == 0, (result.output, result.exception)
+        assert (project / ".agents/skills/spec-kitty.plan/SKILL.md").is_file()
+    return project, home
+
+
+def _selected_skill_preparation(
+    project: Path,
+) -> tuple[_PreparedMissionTypeActivations, ApplyConsent, ManagedSkillsProvider, SkillCommandComposition, PluginBundleProvider, OwnerAssessment]:
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.skills.registry import SkillRegistry
+    from specify_cli.tool_surface.bundles.model import BundleSources
+    from specify_cli.tool_surface.enums import ToolSurfaceKind
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.plan import SurfacePlanBuilder
+    from specify_cli.tool_surface.providers.managed_skills import ManagedSkillsProvider
+    from specify_cli.tool_surface.service import build_providers, build_registry
+
+    root, consent = OperationRoot("project", "project", project), ApplyConsent(automatic=True)
+    descriptor = prepare_mission_type_activations(project)
+    providers = build_providers()
+    builder = SurfacePlanBuilder(build_registry(("codex", PLUGIN_BUNDLE_TOOL_KEY)), providers)
+    installation = assess_skill_installation(
+        AssessmentInputs(root, projected=descriptor, consent=consent), SkillRegistry.from_package(), ("codex",),
+        runtime=True, commands=True, command_agent_keys=[key for key in ("codex",) if key in AGENT_COMMAND_CONFIG],
+    )
+    commands = builder.assess(
+        ("codex",), AssessmentInputs(root, projected=descriptor, consent=consent),
+        kinds=(ToolSurfaceKind.COMMAND_SKILL,),
+    ).assessments[0]
+    doctrine = builder.assess(
+        ("codex",), AssessmentInputs(root, projected=installation, consent=consent),
+        kinds=(ToolSurfaceKind.DOCTRINE_SKILL,),
+    ).assessments[0]
+    assert doctrine == installation.project_skills
+    managed = next(p for p in providers if isinstance(p, ManagedSkillsProvider))
+    bundle_provider = next(p for p in providers if isinstance(p, PluginBundleProvider))
+    assert commands.prepared is not None and installation.project_skills.prepared is not None
+    sources = BundleSources((installation.project_skills, commands), ("claude_code_plugin",))
+    inputs = AssessmentInputs(root, projected=sources, consent=consent)
+    disabled = builder.assess(
+        (PLUGIN_BUNDLE_TOOL_KEY,), inputs, kinds=(ToolSurfaceKind.PLUGIN_MANIFEST,), configured_tools=("codex",),
+    )
+    assert all(not owner.effects for owner in disabled.assessments)  # Generic selection stays disabled.
+    plans = builder.build((PLUGIN_BUNDLE_TOOL_KEY,), project, kinds=(ToolSurfaceKind.PLUGIN_MANIFEST,))
+    selections = tuple(SurfaceSelection(plan.tool_key, definition) for plan in plans for definition in plan.definitions)
+    bundle = bundle_provider.assess(inputs, disabled.report.surfaces, selections=selections)
+    assert bundle.complete, bundle.diagnostics
+    composition = managed.compose_installation(installation, commands, staged_bundle=bundle)
+    assert composition.commands is commands and composition.installation is installation
+    return descriptor, consent, managed, composition, bundle_provider, bundle
+
+
+def _selected_skill_project(
+    seed: tuple[Path, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    *, key_present: bool, dist_present: bool, pointer: bool = False,
+) -> tuple[Path, dict[str, Path]]:
+    import yaml
+
+    original, home = seed
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    project = tmp_path / "project"
+    shutil.copytree(original, project, symlinks=True)
+    config_path = project / ".kittify/config.yaml"
+    config = yaml.safe_load(config_path.read_text())
+    config.pop("charter", None)
+    config.pop("mission_type_activations", None)
+    if pointer:
+        config["charter"] = "authored.yaml"
+        (project / "authored.yaml").write_text("custom: preserved\n" + ("mission_type_activations: []\n" if key_present else ""))
+    elif key_present:
+        config["mission_type_activations"] = []
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False))
+    assert config["agents"]["available"] == ["codex"]
+    if dist_present:
+        (project / "dist").mkdir()
+    (project / ".agents/skills/spec-kitty.plan/SKILL.md").unlink()
+    return project, {"project": project, "home": home}
+
+
+def _assert_selected_delta(effects: tuple, before: Snapshot, after: Snapshot) -> None:
+    from tests.upgrade.preview_support.snapshot import net_delta
+
+    assert {(e.root.root_id, e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for e in effects} == {
+        (e.root, e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for e in net_delta(before, after)
+    }
+
+
+@pytest.mark.parametrize("key_present", [False, True], ids=["missing-key", "explicit-empty"])
+@pytest.mark.parametrize("dist_present", [False, True], ids=["absent-dist", "existing-dist"])
+def test_selected_bundle_skill_transitions(
+    selected_codex_seed: tuple[Path, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[[str, object], None], key_present: bool, dist_present: bool,
+) -> None:
+    from dataclasses import asdict
+    from specify_cli.tool_surface.providers.command_skills import CommandSkillsProvider
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    project, roots = _selected_skill_project(
+        selected_codex_seed, tmp_path, monkeypatch, key_present=key_present, dist_present=dist_present,
+    )
+    before = snapshot(roots)
+    with _write_attempts() as writes:
+        descriptor, consent, managed, composition, provider, bundle = _selected_skill_preparation(project)
+    assert not writes, writes
+    assert_unchanged(before, snapshot(roots))
+    assert bundle.effects and any(e.path.endswith("plugin.json") for e in bundle.effects)
+    assert any(e.path.endswith("skills/spec-kitty.plan/SKILL.md") for e in bundle.effects)
+    assert any("agents/" in e.path for e in bundle.effects)
+    with provider.recheck(bundle) as errors:
+        assert not errors, errors
+    with managed.preflight_composition(composition, consent) as errors:
+        assert not errors, errors
+        assert not CommandSkillsProvider().preflight(composition.commands)
+        assert_unchanged(before, snapshot(roots))
+        assert descriptor.apply() is (not key_present)
+        provisioned = snapshot(roots)
+        result = provider.apply(bundle, consent)
+        record_property("bundle_result", asdict(result))
+        assert result.outcome == "applied", result
+        staged = snapshot(roots)
+        _assert_selected_delta(bundle.effects, provisioned, staged)
+        assert not (project / ".agents/skills/spec-kitty.plan/SKILL.md").exists()
+        results = managed.apply_composition(composition, consent)
+        record_property("skill_results", [asdict(r) for r in results])
+        assert all(r.outcome in {"applied", "skipped"} for r in results), results
+        _assert_selected_delta(composition.effects, staged, snapshot(roots))
+        assert {e.id for e in bundle.effects + composition.effects} == set(result.succeeded) | {i for r in results for i in r.succeeded}
+    record_property("effects", [asdict(e) for e in bundle.effects + composition.effects])
+    record_property("delta", [asdict(e) for e in net_delta(provisioned, snapshot(roots))])
+    settled = snapshot(roots)
+    d2, c2, m2, s2, p2, b2 = _selected_skill_preparation(project)
+    assert not s2.effects and not b2.effects
+    with m2.preflight_composition(s2, c2) as errors:
+        assert not errors, errors
+        assert not d2.apply()
+        assert p2.apply(b2, c2).outcome == "applied"
+        assert all(r.outcome in {"applied", "skipped"} for r in m2.apply_composition(s2, c2))
+    assert_unchanged(settled, snapshot(roots))

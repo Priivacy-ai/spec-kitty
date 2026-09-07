@@ -63,6 +63,8 @@ from ..findings import (
 from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
 from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, FileState, OperationRoot, OwnerAssessment, OwnerApplyResult, PhysicalEffect, coalesce_effects
 from ..repair import RepairResult
+from ..bundles.projection import SelectedSkillBundle, completed_selected_skill_bundle, selected_skill_bundle_guard
+from ..bundles.model import PreparedBundle
 from ..status import (
     STATE_DRIFTED,
     STATE_MISSING,
@@ -89,6 +91,7 @@ class SkillCommandComposition:
     installation: skill_installer.SkillInstallationAssessment
     commands: OwnerAssessment
     parents: tuple[SkillPathObservation, ...]
+    staged_bundle: SelectedSkillBundle | None = None
 
     def __post_init__(self) -> None:
         installation, commands = self.installation, self.commands
@@ -104,6 +107,11 @@ class SkillCommandComposition:
         ):
             raise ValueError("Complete commands and the exact paired provisioning input required")
         _ = self.effects  # Static conflicts abort before provisioning, including replace().
+        if self.staged_bundle is not None:
+            bundle = self.staged_bundle
+            if bundle.commands is not commands or not any(s is project for s in cast("PreparedBundle", bundle.assessment.prepared).suppliers):
+                raise ValueError("Selected bundle must retain this exact command/project pair")
+            coalesce_effects(self.effects + bundle.assessment.effects)
 
     @property
     def effects(self) -> tuple[PhysicalEffect, ...]:
@@ -167,7 +175,8 @@ def _recheck_command_completion(
     for before in composition.parents:
         current = observe_skill_path(before.path, members=True)
         expected = created.get(before.path, before)
-        names = set(before.children or ())
+        bundle_parent = command_installer._bundle_parent_input(composition.commands, before.path)
+        names = set(bundle_parent.children if bundle_parent is not None and bundle_parent.children is not None else before.children or ())
         for effect in command_effects:
             if effect.destination.parent == before.path:
                 if effect.after.kind == "absent":
@@ -262,12 +271,15 @@ class ManagedSkillsProvider:
         self,
         installation: skill_installer.SkillInstallationAssessment,
         commands: OwnerAssessment,
+        *,
+        staged_bundle: OwnerAssessment | None = None,
     ) -> SkillCommandComposition:
         """Admit the original command/managed pair, without reassessment or writes."""
         return SkillCommandComposition(
             installation,
             commands,
             tuple(observe_skill_path(path, members=True) for path in _composition_parents(installation, commands)),
+            SelectedSkillBundle.prepare(staged_bundle, commands) if staged_bundle is not None else None,
         )
 
     @contextmanager
@@ -277,7 +289,8 @@ class ManagedSkillsProvider:
         consent: ApplyConsent,
     ) -> Iterator[tuple[Diagnostic, ...]]:
         """Hold existing three global locks and project lock across provisioning."""
-        with self.preflight_installation(composition.installation, consent) as errors:
+        with selected_skill_bundle_guard(composition.staged_bundle) as bundle_errors, self.preflight_installation(composition.installation, consent) as errors:
+            errors += bundle_errors
             errors += command_installer.recheck_commands(composition.commands, phase="preflight")
             try:
                 _ = composition.effects
@@ -307,8 +320,12 @@ class ManagedSkillsProvider:
             return _composition_refused(
                 composition, (Diagnostic("skill_composition_preflight_required", PROVIDER_KEY, "error", "Exact active composition and consent required"),)
             )
-        with recheck_assets(installation.global_assets) as global_errors, self.recheck(installation.project_skills) as project_errors:
-            errors = global_errors + project_errors + command_installer.recheck_commands(commands, phase="apply")
+        with (
+            completed_selected_skill_bundle(composition.staged_bundle) as bundle_errors,
+            recheck_assets(installation.global_assets) as global_errors,
+            self.recheck(installation.project_skills) as project_errors,
+        ):
+            errors = bundle_errors + global_errors + project_errors + command_installer.recheck_commands(commands, phase="apply")
             if errors:
                 return _composition_refused(composition, errors)
             _COMPOSITION.set(None)  # Single consumption, including partial failure.
