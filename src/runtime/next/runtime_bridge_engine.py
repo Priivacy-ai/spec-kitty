@@ -61,7 +61,6 @@ from runtime.next._internal_runtime.events import (
     MISSION_RUN_COMPLETED,
     NEXT_STEP_AUTO_COMPLETED,
     NEXT_STEP_ISSUED,
-    seed_runtime_emitter,
 )
 from runtime.next._internal_runtime.schema import DecisionRequest, MissionPolicySnapshot, MissionRunSnapshot, MissionTemplate
 from runtime.next import runtime_bridge_retrospective as _retrospective
@@ -78,7 +77,7 @@ if TYPE_CHECKING:
     from runtime.next._internal_runtime import MissionRunRef, NextDecision
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
     from runtime.next.decision import Decision
-    from runtime.next._internal_runtime.events import RuntimeEventEmitter
+    from runtime.next.event_emitter import RuntimeEventEmitter
 
 # ---------------------------------------------------------------------------
 # T011 — grep-complete engine/planner private-access wrappers
@@ -310,11 +309,6 @@ def _apply_decision_effects(
     return snapshot.model_copy(update={"issued_step_id": issued_step_id, "pending_decisions": pending_decisions})
 
 
-def _seed_emitter(sync_emitter: RuntimeEventEmitter, snapshot: Any) -> None:
-    """Seed optional producer state through the canonical nonfatal seam."""
-    seed_runtime_emitter(sync_emitter, snapshot)
-
-
 def advance_run_state_after_composition(
     *,
     run_ref: MissionRunRef,
@@ -347,7 +341,7 @@ def advance_run_state_after_composition(
 
     run_dir = Path(run_ref.run_dir)
     snapshot = _read_snapshot(run_dir)
-    _seed_emitter(sync_emitter, snapshot)
+    sync_emitter.seed_from_snapshot(snapshot)
 
     snapshot, did_complete_step = _mark_step_completed(run_dir, snapshot, agent, sync_emitter)
 

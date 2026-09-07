@@ -10,6 +10,7 @@ related:
 - docs/changelog/4.0.0.md
 - docs/plans/doctrine/charter-sole-door-deferred-issues.md
 - docs/plans/doctrine/index.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
 ---
@@ -86,7 +87,7 @@ this plan, doctrine/charter planning had no standalone throughline — it was im
 spread across the open-core delivery plan, the glossary overhaul program, and the
 `docs/plans/doctrine/` design corpus (see §2). This plan makes the throughline
 explicit and becomes the domain's index. It is the **second** domain throughline
-(the SaaS & Hosted Sync domain plan — retired 2026-09-06, Convergence #3881 — was first).
+(the [SaaS & Hosted Sync Domain Plan](saas-hosted-sync-domain-plan.md) was first).
 
 **In scope — the governance substrate.** "Doctrine & charter" here means the
 governance layer and the seam through which it reaches the runtime:
@@ -117,9 +118,8 @@ governance layer and the seam through which it reaches the runtime:
 **Explicit non-goals.**
 
 - **Not the hosted product.** Sync, event-envelope integrity, consent/identity egress,
-  CLI↔hosted auth, and rollout gating were a *different domain* — the
-  SaaS & Hosted Sync domain plan (retired 2026-09-06, Convergence #3881; the surface
-  re-homed upstream). This plan does not
+  CLI↔hosted auth, and rollout gating are a *different domain* — the
+  [SaaS & Hosted Sync Domain Plan](saas-hosted-sync-domain-plan.md). This plan does not
   restate them. Charter *domain events* (`CharterCreated`/`CharterUpdated`, #2520) are
   named here where the charter lifecycle emits them, but the hosted consumer of those
   events belongs to the SaaS domain. (Note the inverse miscategorisation the SaaS plan
@@ -489,7 +489,7 @@ are open but unscheduled; #3275 has no owning epic at all — the §4 content-QA
 
 **Sibling domain throughlines (the durable spine of `docs/plans/`):**
 
-- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881; surface re-homed upstream).
+- **SaaS & hosted sync** — [SaaS & Hosted Sync — Domain Plan](saas-hosted-sync-domain-plan.md).
   The **non-goal boundary** for this plan (§1): sync, consent/identity egress, auth, and
   rollout gating are its domain, not this one. Note the crossing thread — charter domain
   events (#2520) are emitted on *this* domain's activation seam and consumed by *that*

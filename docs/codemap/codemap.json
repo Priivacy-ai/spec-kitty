@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "source_base": "ca91f626ea542c0a1eca48cd2607eb0480015544",
+  "scope": "Explicit single_branch checkout commands",
+  "nodes": [
+    {
+      "id": "move_task",
+      "paths": ["src/specify_cli/cli/commands/agent/tasks.py", "src/specify_cli/cli/commands/agent/tasks_move_task.py"],
+      "called_by": ["src/specify_cli/cli/commands/agent/__init__.py", "Typer tasks.app"],
+      "calls": ["task_reads", "workspace_guards", "verdicts", "task_ports", "bootstrap"],
+      "affects": "Explicit owned claim/start/review/approval/rollback threads validated roots through reads, transactions and writers. Review requires a committed implementation change matching WP owned_files; auto-commit rejects any out-of-scope path before staging. A post-transition side-effect failure reports partial application and retains verdict evidence already referenced by the durable transition. Active sync, done and force/skip modes remain rejected; flagless behavior is preserved.",
+      "tests": ["tests/integration/test_owned_checkout_move_task.py", "tests/specify_cli/cli/commands/test_tasks_move_task_cwd.py", "tests/specify_cli/cli/commands/agent/test_move_task_guard.py", "tests/specify_cli/cli/commands/agent/test_move_task_durability.py"]
+    },
+    {
+      "id": "mark_status",
+      "paths": ["src/specify_cli/cli/commands/agent/tasks.py", "src/specify_cli/cli/commands/agent/tasks_mark_status.py"],
+      "called_by": ["src/specify_cli/cli/commands/agent/__init__.py", "Typer tasks.app"],
+      "calls": ["ownership", "task_ports", "placement", "bootstrap", "src/specify_cli/sync/events.py", "src/specify_cli/sync/dossier_pipeline.py"],
+      "affects": "Resolves authored subtask IDs and writes canonical InnerStateChanged annotations. The planned owned mode must keep TASKS_INDEX, status events, materialized snapshot and transactional commit in one verified single_branch checkout, reject active sync and unsupported auto-commit modes before writes, skip ambient history/error/dossier hooks, and preserve flagless behavior.",
+      "tests": ["tests/integration/test_owned_checkout_mark_status.py", "tests/specify_cli/cli/commands/agent/test_tasks_mark_status.py", "tests/specify_cli/cli/commands/agent/test_tasks_mark_status_seam.py", "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract.py", "tests/specify_cli/status/test_infer_subtasks_primary.py", "tests/specify_cli/cli/commands/agent/test_issue_2684_subtask_completion_event_sourced.py"]
+    },
+    {
+      "id": "task_reads",
+      "paths": ["src/specify_cli/task_utils/support.py", "src/specify_cli/cli/commands/agent/tasks_materialization.py", "src/specify_cli/cli/commands/agent/tasks_finalize_validation.py"],
+      "called_by": ["move_task", "workspace_guards"],
+      "calls": ["placement"],
+      "affects": "WP documents and authoritative lane reads accept explicit effective_root; default placement unchanged",
+      "tests": ["tests/specify_cli/cli/commands/test_tasks_move_task_cwd.py", "tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py"]
+    },
+    {
+      "id": "workspace_guards",
+      "paths": ["src/specify_cli/cli/commands/agent/tasks_shared.py", "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py", "src/specify_cli/workspace/context.py", "src/specify_cli/missions/_read_path_resolver.py", "src/specify_cli/coordination/status_transition.py"],
+      "called_by": ["move_task"],
+      "calls": ["placement", "task_reads"],
+      "affects": "Branch selection, implementation commit, subtasks, code cleanliness and review comparison base. Owned review pins planning_commit_sha, distinguishes WP-owned implementation changes from lifecycle-only commits, and rejects dirty paths outside authored owned_files before auto-commit.",
+      "tests": ["tests/integration/test_owned_checkout_move_task.py", "tests/specify_cli/cli/commands/agent/test_move_task_guard.py", "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_baseline_read.py", "tests/specify_cli/status/test_subtasks_gate_dir_seam.py", "tests/specify_cli/status/test_infer_subtasks_primary.py"]
+    },
+    {
+      "id": "verdicts",
+      "paths": ["src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py", "src/specify_cli/review/cycle.py"],
+      "called_by": ["move_task"],
+      "calls": ["task_ports", "placement", "commit"],
+      "affects": "Review allocation, durable evidence, readback and compensation use the selected effective root when owned mode is active. Compensation runs only before a status transition commits; later side-effect failures retain durable evidence. Flagless placement remains unchanged.",
+      "tests": ["tests/integration/test_owned_checkout_move_task.py", "tests/review/test_verdict_seam_reader_collapse.py", "tests/specify_cli/cli/commands/agent/test_move_task_approval_evidence.py", "tests/specify_cli/cli/commands/agent/test_move_task_durability.py"]
+    },
+    {
+      "id": "task_ports",
+      "paths": ["src/specify_cli/agent_tasks_ports.py"],
+      "called_by": ["move_task", "verdicts"],
+      "calls": ["placement", "bootstrap", "commit"],
+      "affects": "MissionHandle carries optional effective_root through filesystem and artifact/status commit adapters",
+      "tests": ["tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py", "tests/specify_cli/cli/commands/agent/test_move_task_durability.py"]
+    },
+    {
+      "id": "annotations",
+      "paths": ["src/specify_cli/status/emit.py"],
+      "called_by": ["bootstrap", "move_task"],
+      "calls": ["placement", "src/specify_cli/status/store.py", "src/specify_cli/status/reducer.py"],
+      "affects": "Subtask reset and assignment annotations run inside the owned status transaction. If a transition commits before annotation failure, the error envelope reports transition_applied=true and the authoritative lane remains committed without touching primary or siblings.",
+      "tests": ["tests/specify_cli/cli/commands/agent/test_move_task_rollback_clears_claim.py", "tests/integration/test_2939_move_task_clean_tree_after_rejection.py"]
+    },
+    {
+      "id": "accept",
+      "paths": ["src/specify_cli/cli/commands/accept.py"],
+      "called_by": ["src/specify_cli/cli/commands/__init__.py"],
+      "calls": ["ownership", "acceptance", "placement", "commit", "cutover"],
+      "affects": "Acceptance diagnostics, encoding repair, metadata and residual commits",
+      "tests": ["tests/integration/test_explicit_checkout_commands.py", "tests/specify_cli/cli/commands/test_accept*.py"]
+    },
+    {
+      "id": "cutover",
+      "paths": ["src/specify_cli/migration/runtime_state_cutover.py", "src/specify_cli/migration/backfill_runtime_state.py"],
+      "called_by": ["accept", "src/specify_cli/merge/executor.py", "migration commands"],
+      "calls": ["ownership", "placement", "src/specify_cli/status/store.py", "src/specify_cli/status/reducer.py"],
+      "affects": "Owned runtime event seeds, verification and metadata status_phase; default canonical migration preserved",
+      "tests": ["tests/integration/test_explicit_checkout_commands.py", "tests/specify_cli/migration/test_runtime_state_cutover.py", "tests/specify_cli/migration/test_runtime_state_cutover_placement.py", "tests/specify_cli/migration/test_backfill_cutover_guard.py"]
+    },
+    {
+      "id": "acceptance",
+      "paths": ["src/specify_cli/acceptance/__init__.py", "src/specify_cli/acceptance/gates_core.py", "src/specify_cli/acceptance/execution_context.py"],
+      "called_by": ["accept"],
+      "calls": ["placement", "matrices", "commit"],
+      "affects": "Planning and status read roots, acceptance verdict and matrix persistence",
+      "tests": ["tests/specify_cli/acceptance/", "tests/specify_cli/test_acceptance.py", "tests/specify_cli/test_accept_no_commit_readonly.py"]
+    },
+    {
+      "id": "cli",
+      "paths": [
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/spec_commit_cmd.py"
+      ],
+      "calls": [
+        "ownership",
+        "placement",
+        "commit",
+        "bootstrap",
+        "matrices"
+      ],
+      "affects": "Planning paths, validations and commit destination",
+      "tests": [
+        "tests/integration/test_explicit_checkout_commands.py",
+        "tests/specify_cli/cli/commands/test_finalize_tasks_validate_only_readonly.py",
+        "tests/specify_cli/cli/commands/test_spec_commit_cmd.py"
+      ]
+    },
+    {
+      "id": "ownership",
+      "paths": [
+        "src/specify_cli/core/checkout_ownership.py",
+        "src/specify_cli/core/owned_mission.py"
+      ],
+      "calls": [],
+      "affects": "Rejects invalid Git topology claims",
+      "tests": [
+        "tests/core/test_checkout_ownership.py",
+        "tests/integration/test_explicit_checkout_commands.py"
+      ]
+    },
+    {
+      "id": "placement",
+      "paths": [
+        "src/mission_runtime/resolution.py"
+      ],
+      "calls": [],
+      "affects": "Artifact read/write roots and target refs",
+      "tests": [
+        "tests/mission_runtime"
+      ]
+    },
+    {
+      "id": "commit",
+      "paths": [
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/git/commit_helpers.py"
+      ],
+      "calls": [
+        "placement",
+        "local_commit_state"
+      ],
+      "affects": "Index and branch commits; protection policy",
+      "tests": [
+        "tests/integration/test_protected_primary_spec_commit.py"
+      ]
+    },
+    {
+      "id": "local_commit_state",
+      "paths": ["src/specify_cli/sync/local_commit.py"],
+      "calls": [],
+      "affects": "Checkout-local sync-state.json after successful commit; no hosted egress",
+      "tests": ["tests/integration/test_explicit_checkout_commands.py", "tests/specify_cli/sync/test_local_commit_wiring.py"]
+    },
+    {
+      "id": "matrices",
+      "paths": [
+        "src/specify_cli/acceptance/matrix.py",
+        "src/specify_cli/tasks/issue_matrix.py",
+        "src/specify_cli/coordination/write_seam.py"
+      ],
+      "calls": ["placement", "commit"],
+      "affects": "Canonical acceptance/issue matrix writers and idempotency home",
+      "tests": ["tests/integration/test_explicit_checkout_commands.py"]
+    },
+    {
+      "id": "bootstrap",
+      "paths": [
+        "src/specify_cli/status/bootstrap.py",
+        "src/specify_cli/status/models.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/coordination/transaction.py"
+      ],
+      "calls": [
+        "placement",
+        "commit"
+      ],
+      "affects": "Status events and status.json; explicit owned transitions and annotations require transactions without legacy fallback",
+      "tests": [
+        "tests/status/test_bootstrap.py",
+        "tests/coordination"
+      ]
+    }
+  ]
+}

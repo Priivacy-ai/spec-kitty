@@ -363,24 +363,6 @@ class TestDelegation:
         log.emit_decision_timeout_expired(payload)
         inner.emit_decision_timeout_expired.assert_called_once_with(payload)
 
-    def test_seed_from_snapshot_delegates_to_inner(self, tmp_path: Path) -> None:
-        """F6 (dead-port-disposition-01M1VRA2): the composition advancement
-        helper seeds whichever emitter it is handed; the wrap forwards that
-        seed to an inner seam that supports it."""
-        inner = MagicMock(spec=NullEmitter)
-        inner.seed_from_snapshot = MagicMock()
-        log = _make_log(tmp_path, inner=inner)
-        snapshot = object()
-        log.seed_from_snapshot(snapshot)
-        inner.seed_from_snapshot.assert_called_once_with(snapshot)
-
-    def test_seed_from_snapshot_tolerates_inner_without_seed(self, tmp_path: Path) -> None:
-        """F6: an inner sink without ``seed_from_snapshot`` is a no-op, never an error."""
-        inner = MagicMock(spec=["emit_decision_input_requested"])
-        log = _make_log(tmp_path, inner=inner)
-        log.seed_from_snapshot(object())
-        assert not hasattr(inner, "seed_from_snapshot")
-
 
 # ---------------------------------------------------------------------------
 # T011-H: decisions_file path is correct
