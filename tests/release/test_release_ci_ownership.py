@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import yaml
@@ -77,8 +77,8 @@ UPSTREAM_SCRIPT_PATHS = {
 }
 
 
-def load_workflow(name: str) -> dict[str, Any]:
-    return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
+def load_workflow(name: str) -> dict[str | bool, Any]:
+    return cast(dict[str | bool, Any], yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8")))
 
 
 def workflow_text(name: str) -> str:
