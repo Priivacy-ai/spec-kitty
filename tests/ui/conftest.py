@@ -26,9 +26,9 @@ from specify_cli.status import (
     Lane,
     StatusEvent,
     WPInnerStateDelta,
-    append_event,
     emit_inner_state_changed,
 )
+from specify_cli.status._unsafe import append_event
 
 
 # ---------------------------------------------------------------------------

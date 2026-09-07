@@ -28,6 +28,7 @@ from specify_cli.status.models import ActorField, InnerStateChanged, Lane, WPInn
 # ``transitions.py`` implementation these guards were migrated from).
 _FORCE_REQUIRES_ACTOR_AND_REASON = "Force transitions require actor and reason"
 _REVIEWER_APPROVAL_REQUIRED = "Transition to approved/done requires evidence (reviewer identity and approval reference)"
+_DEPENDENCIES_UNSATISFIED = "Transition {source} -> {target} blocked: unsatisfied dependencies (force with reason to override)"
 
 
 class TransitionInputs(Protocol):
@@ -49,6 +50,7 @@ class TransitionInputs(Protocol):
     force: bool
     review_result: object
     current_actor: str | None
+    dependency_ready: bool | None
 
 
 class InvalidTransitionError(Exception):
@@ -308,6 +310,13 @@ class PlannedState(WPState):
     def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
         if target == Lane.CLAIMED and not _has_actor(ctx):
             return False, "Transition requires actor identity"
+        # FR-012 dependency gate, tri-state and fail-OPEN on ``None`` (C-004,
+        # decision Q8): only an explicit ``False`` verdict refuses. ``None`` means
+        # no verdict was supplied (the two direct probe callers) and passes. Do
+        # NOT copy ``subtasks_complete``'s ``is not True`` polarity. Force is not
+        # consulted here -- ``check_transition._check_force`` bypasses the guard.
+        if target == Lane.CLAIMED and ctx.dependency_ready is False:
+            return False, _DEPENDENCIES_UNSATISFIED.format(source=Lane.PLANNED.value, target=Lane.CLAIMED.value)
         return True, None
 
     def progress_bucket(self) -> str:
@@ -331,6 +340,10 @@ class ClaimedState(WPState):
     def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
         if target == Lane.IN_PROGRESS and not (ctx.workspace_context and ctx.workspace_context.strip()):
             return False, "Transition claimed -> in_progress requires workspace context"
+        # FR-012 dependency gate: same tri-state, fail-OPEN-on-``None`` polarity
+        # as ``PlannedState.guard_for`` (C-004, decision Q8).
+        if target == Lane.IN_PROGRESS and ctx.dependency_ready is False:
+            return False, _DEPENDENCIES_UNSATISFIED.format(source=Lane.CLAIMED.value, target=Lane.IN_PROGRESS.value)
         return True, None
 
     def progress_bucket(self) -> str:

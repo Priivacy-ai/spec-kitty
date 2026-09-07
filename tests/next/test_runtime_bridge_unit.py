@@ -390,8 +390,11 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        assert "042-test-feature" in index
-        assert "run_id" in index["042-test-feature"]
+        # WP05 / FR-016 (C-003): the index is keyed by mission_id; a mission
+        # without one (this scaffold's meta.json) lands under ``legacy-<slug>``
+        # and the bare slug is never a key.
+        assert set(index) == {"legacy-042-test-feature"}
+        assert "run_id" in index["legacy-042-test-feature"]
 
     def test_feature_runs_index_includes_mission_id_and_slug(self, tmp_path: Path) -> None:
         """FR-028: feature-runs.json entries must include mission_id and mission_slug (WP06)."""
@@ -401,8 +404,8 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        entry = index["042-test-feature"]
-        # mission_slug must always be present and match the key
+        entry = index["legacy-042-test-feature"]
+        # mission_slug is display-only (WP05) but must always be present
         assert entry.get("mission_slug") == "042-test-feature"
         # mission_id may be None when no meta.json exists, but the key must be present
         assert "mission_id" in entry

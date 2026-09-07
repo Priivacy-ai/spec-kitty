@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status import adapters
-from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.emit import emit_status_transition, emit_status_transition_batch
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
@@ -124,5 +124,95 @@ class TestFanOutPreservation:
                 )
             )
             assert event is not None
+        finally:
+            adapters.reset_handlers()
+
+
+class TestFanOutSeam:
+    """WP02 (fsm-write-path-integrity, FR-008 seam): ``fan_out=False`` is silent.
+
+    The coord fallback arm calls the flat shell with ``fan_out=False``, commits,
+    and only then fans out -- so a truncated event can never have been
+    announced. Observable contract: zero adapter calls for the suppressed emit.
+    """
+
+    def test_single_fan_out_false_records_zero_adapter_calls(self, feature_dir: Path) -> None:
+        adapters.reset_handlers()
+        captured: list[dict[str, object]] = []
+        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        try:
+            _seed_planned(feature_dir, "WP01")
+            event = emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="test-feature",
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="test-actor",
+                ),
+                fan_out=False,
+            )
+            assert event.to_lane == Lane.CLAIMED
+            assert captured == []
+        finally:
+            adapters.reset_handlers()
+
+    def test_batch_fan_out_false_records_zero_adapter_calls(self, feature_dir: Path) -> None:
+        adapters.reset_handlers()
+        captured: list[dict[str, object]] = []
+        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        try:
+            _seed_planned(feature_dir, "WP01")
+            events = emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="test-feature",
+                        wp_id="WP01",
+                        to_lane="claimed",
+                        actor="test-actor",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="test-feature",
+                        wp_id="WP01",
+                        to_lane="in_progress",
+                        actor="test-actor",
+                        workspace_context="worktree:/nonexistent/wp01",
+                    ),
+                ],
+                fan_out=False,
+            )
+            assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+            assert captured == []
+        finally:
+            adapters.reset_handlers()
+
+    def test_batch_fan_out_default_fires_once_per_event(self, feature_dir: Path) -> None:
+        adapters.reset_handlers()
+        captured: list[dict[str, object]] = []
+        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        try:
+            _seed_planned(feature_dir, "WP01")
+            emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="test-feature",
+                        wp_id="WP01",
+                        to_lane="claimed",
+                        actor="test-actor",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="test-feature",
+                        wp_id="WP01",
+                        to_lane="in_progress",
+                        actor="test-actor",
+                        workspace_context="worktree:/nonexistent/wp01",
+                    ),
+                ]
+            )
+            assert [call["to_lane"] for call in captured] == ["claimed", "in_progress"]
         finally:
             adapters.reset_handlers()

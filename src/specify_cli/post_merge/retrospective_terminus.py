@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Literal
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
 
 if TYPE_CHECKING:
     from specify_cli.retrospective.schema import ProvenanceKind
@@ -108,28 +109,40 @@ def run_retrospective_postcondition(
         # mission_id; fall back to empty string so the event is still valid.
         mission_id = _resolve_mission_id(feature_dir)
 
+        # fsm-write-path-integrity WP01 (FR-003 b / NFR-003): this runs on the
+        # ``spec-kitty merge`` completion path, under the merge-global sentinel
+        # (L5). Every mission status-lock (L1) take the retrospective appenders
+        # make from here -- ``emit_captured`` reached through the runtime
+        # bridge, and ``emit_capture_failed`` below -- is bounded by the scoped
+        # timeout, so a stalled status writer surfaces as a structured
+        # ``FeatureStatusLockTimeoutError`` (caught by the fail-open handlers
+        # below, i.e. a failed retrospective step) instead of converting into
+        # an unbounded, repo-wide merge refusal (R7).
+        from specify_cli.retrospective.lifecycle_events import bounded_lock_timeout
+
         # T032 — Call the live capture path (not a duplicate implementation).
-        try:
-            _invoke_capture(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                feature_dir=feature_dir,
-                repo_root=repo_root,
-                provenance_kind=provenance_kind,
-            )
-        except Exception as exc:  # noqa: BLE001 — fail-open: record but don't abort
-            logger.warning(
-                "post-merge retrospective capture failed for mission %s: %s",
-                mission_slug,
-                exc,
-            )
-            # T033 — Emit capture_failed event so the gap is auditable.
-            _emit_capture_failed(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                exc=exc,
-            )
+        with bounded_lock_timeout(BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
+            try:
+                _invoke_capture(
+                    mission_id=mission_id,
+                    mission_slug=mission_slug,
+                    feature_dir=feature_dir,
+                    repo_root=repo_root,
+                    provenance_kind=provenance_kind,
+                )
+            except Exception as exc:  # noqa: BLE001 — fail-open: record but don't abort
+                logger.warning(
+                    "post-merge retrospective capture failed for mission %s: %s",
+                    mission_slug,
+                    exc,
+                )
+                # T033 — Emit capture_failed event so the gap is auditable.
+                _emit_capture_failed(
+                    mission_id=mission_id,
+                    mission_slug=mission_slug,
+                    repo_root=repo_root,
+                    exc=exc,
+                )
 
     # #2119 follow-up: commit whatever the capture wrote — the RetrospectiveCaptured
     # event + retrospective.yaml on success, or the capture_failed event append on
@@ -348,6 +361,8 @@ def _emit_capture_failed(
             missing_artifacts=None,
             actor=system_actor,
             execution_mode="main",
+            # FR-003 (b): explicit finite bound on the merge-path L1 take.
+            lock_timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
         )
     except Exception as emit_exc:  # noqa: BLE001
         logger.warning(

@@ -23,7 +23,6 @@
   "purpose_context": "This mission advances FSM Write-Path Integrity on missions/coreloop-proto-missions so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Serialize and unify every writer of the mission status event log so no transition can be lost, phantom-announced, or dep-illegally claimed",
   "slug": "fsm-write-path-integrity-01M1TZV6",
-  "status_phase": "1",
   "target_branch": "missions/coreloop-proto-missions",
   "topology": "single_branch",
   "vcs": "git",

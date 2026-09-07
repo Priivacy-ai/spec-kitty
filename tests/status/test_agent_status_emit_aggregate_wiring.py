@@ -365,99 +365,84 @@ def test_transition_helper_maps_uninitialized_lane_to_genesis(tmp_path: Path) ->
     assert current_actor == "codex"
 
 
-def test_transition_helper_prefers_explicit_workspace_context(tmp_path: Path) -> None:
-    """Aggregate helper must not overwrite caller-provided workspace context."""
-    from specify_cli.status import TransitionRequest
-    from specify_cli.status.aggregate import MissionStatus
+def test_validate_transition_runs_exactly_once_through_the_aggregate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """US2-4 / FR-006: one emit through ``MissionStatus.transition`` validates once, tree-wide.
 
-    ms = MissionStatus(
-        mission_slug="017-helper-workspace-context",
-        mission_id=None,
-        mid8="",
-        topology="legacy",
-        read_dir=tmp_path,
-        repo_root=tmp_path,
-    )
-    request = TransitionRequest(
-        wp_id="WP01",
-        to_lane="claimed",
-        actor="codex",
-        feature_dir=tmp_path,
-        mission_slug=ms.mission_slug,
-        workspace_context="explicit-context",
-    )
-
-    assert ms._resolve_workspace_context(request) == "explicit-context"
-
-
-def test_transition_helper_infers_missing_review_gate_inputs(tmp_path: Path) -> None:
-    """Aggregate helper infers both review-gate booleans on enter-review.
-
-    WP02/T010: the subtasks-completeness read now threads through
-    ``resolve_planning_read_dir(..., kind=TASKS_INDEX)`` (PRIMARY-partition),
-    landing on ``repo_root / "kitty-specs" / mission_slug`` rather than the
-    raw ``self.read_dir`` -- even though this legacy-topology fixture's
-    ``read_dir == repo_root == tmp_path`` pre-resolution. Since the #2816
-    runtime-state corpus cutover, both gate inputs are resolved from a single
-    pre-fetched ``EventStream`` (one canonical read instead of two): the
-    implementation-evidence check calls
-    ``status_emit._infer_implementation_evidence_from_event_stream(event_stream,
-    wp_id)`` rather than the retired ``_infer_implementation_evidence(read_dir,
-    wp_id)``.
+    Before mission ``fsm-write-path-integrity-01M1TZV6`` (WP06) the aggregate
+    re-derived the lane, re-inferred the review gates and called
+    ``validate_transition`` itself before the transactional door validated a
+    second time. Now the ONLY ``validate_transition`` call per emit is the
+    status-owned pipeline's (``status.transition_pipeline``), inside the
+    shell; the aggregate's source carries none.
     """
-    from specify_cli.status import TransitionRequest
+    import ast
+    import inspect
+    import textwrap
+
+    from specify_cli.status import TransitionRequest, transition_pipeline
     from specify_cli.status.aggregate import MissionStatus
-    from specify_cli.status.models import Lane
 
-    ms = MissionStatus(
-        mission_slug="017-helper-review-gates",
-        mission_id=None,
-        mid8="",
-        topology="legacy",
-        read_dir=tmp_path,
-        repo_root=tmp_path,
-    )
-    request = TransitionRequest(
-        wp_id="WP07",
-        to_lane="for_review",
-        actor="codex",
-        feature_dir=tmp_path,
-        mission_slug=ms.mission_slug,
-    )
-    expected_primary_subtasks_dir = tmp_path / "kitty-specs" / ms.mission_slug
+    slug = "017-validate-once"
+    repo = _make_repo_with_mission(tmp_path, slug)
+    calls: list[tuple[object, ...]] = []
+    real = transition_pipeline.validate_transition
 
-    class _StatusEmit:
-        @staticmethod
-        def _infer_subtasks_complete(
-            read_dir: Path,
-            wp_id: str,
-            *,
-            event_stream: object,
-        ) -> bool:
-            assert read_dir == expected_primary_subtasks_dir
-            assert wp_id == "WP07"
-            assert event_stream is not None
-            return True
+    def _counting(*args: object, **kwargs: object) -> object:
+        calls.append(args)
+        return real(*args, **kwargs)
 
-        @staticmethod
-        def _infer_implementation_evidence_from_event_stream(
-            event_stream: object, wp_id: str
-        ) -> bool:
-            assert event_stream is not None
-            assert wp_id == "WP07"
-            return True
+    monkeypatch.setattr(transition_pipeline, "validate_transition", _counting)
 
-    subtasks_complete, implementation_evidence_present = ms._resolve_review_gate_inputs(
-        request=request,
-        from_lane_str=str(Lane.IN_PROGRESS),
-        resolved_to_lane=str(Lane.FOR_REVIEW),
-        status_emit=_StatusEmit,
-        lane_in_progress=Lane.IN_PROGRESS,
-        lane_for_review=Lane.FOR_REVIEW,
+    ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
+    event = ms.transition(
+        TransitionRequest(wp_id="WP01", to_lane="claimed", actor="codex", feature_dir=ms.read_dir, mission_slug=slug)
     )
 
-    assert subtasks_complete is True
-    assert implementation_evidence_present is True
+    assert str(event.to_lane) == "claimed"
+    assert len(calls) == 1, calls
+    assert calls[0][:2] == ("planned", "claimed")
+    tree = ast.parse(textwrap.dedent(inspect.getsource(MissionStatus.transition)))
+    called = {
+        node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", None)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    }
+    assert "validate_transition" not in called, "the aggregate must not validate itself (P-2)"
+
+
+def test_aggregate_threads_current_actor_into_the_pipeline_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The aggregate still contributes the WP's current actor as a guard input.
+
+    ``current_actor`` was only ever populated by the aggregate (it read it
+    from the transactional lane read). After the de-duplication it rides on
+    the enriched request so the pipeline's ``GuardContext`` sees the same
+    value the aggregate used to build locally; a caller-supplied value wins.
+    """
+    from specify_cli.status import TransitionRequest, transition_pipeline
+    from specify_cli.status.aggregate import MissionStatus
+
+    slug = "017-current-actor"
+    repo = _make_repo_with_mission(tmp_path, slug)
+    seen: list[object] = []
+    real = transition_pipeline.validate_transition
+
+    def _capture(from_lane: object, to_lane: object, ctx: object) -> object:
+        seen.append(getattr(ctx, "current_actor", None))
+        return real(from_lane, to_lane, ctx)
+
+    monkeypatch.setattr(transition_pipeline, "validate_transition", _capture)
+    ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
+
+    ms.transition(TransitionRequest(wp_id="WP01", to_lane="claimed", actor="codex", feature_dir=ms.read_dir, mission_slug=slug))
+    ms.transition(
+        TransitionRequest(
+            wp_id="WP01", to_lane="in_progress", actor="codex", feature_dir=ms.read_dir, mission_slug=slug, current_actor="explicit"
+        )
+    )
+
+    assert seen == ["seed", "explicit"], seen
 
 
 @patch("specify_cli.cli.commands.agent.status.locate_project_root")

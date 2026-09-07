@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import logging
 import os
 import re
 import tempfile
@@ -35,6 +36,8 @@ from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.status import NON_DISPLAY_LANES
 from specify_cli.workspace.context import resolve_workspace_for_wp
+
+_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -365,16 +368,18 @@ def _compute_wp_progress(
         elif state.progress_bucket() == "not_started":
             counts["planned_wps"] += 1
 
-    # Compute weighted progress from the materialized snapshot
+    # Compute weighted progress from a PURE snapshot reduce (FR-017): this is
+    # a query, so it must never rewrite the tracked status.json the way the
+    # writing ``materialize`` does. The fallback is logged, not swallowed.
     try:
         from specify_cli.status import compute_weighted_progress
-        from specify_cli.status import materialize
+        from specify_cli.status import materialize_snapshot
 
-        snapshot = materialize(lane_read_dir)
+        snapshot = materialize_snapshot(lane_read_dir)
         progress = compute_weighted_progress(snapshot)
         counts["weighted_percentage"] = round(progress.percentage, 1)
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.warning("weighted progress unavailable for %s: %s", lane_read_dir, exc)
 
     return counts
 

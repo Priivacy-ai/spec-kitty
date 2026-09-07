@@ -49,18 +49,21 @@ from .store import (
     EVENTS_FILENAME,
     EventPersistenceError,
     StoreError,
-    append_annotations_atomic_verified,
-    append_event,
-    append_event_verified,
-    # WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004/T006): promoted
-    # so coordination/status_service.py's mixed transition/annotation atomic
-    # write resolves WITHOUT a direct ``specify_cli.status.store`` import
-    # (test_status_module_boundary.py SR-2), matching the sibling
-    # append_*_atomic_verified exports above.
-    append_event_stream_atomic_verified,
-    append_events_atomic_verified,
-    append_primary_checkout_event_verified,
-    append_primary_checkout_events_atomic_verified,
+    # WP03 (fsm-write-path-integrity-01M1TZV6, FR-010): the raw append
+    # primitives (append_event, append_event_verified,
+    # append_event_stream_atomic_verified, append_events_atomic_verified,
+    # append_primary_checkout_event_verified,
+    # append_primary_checkout_events_atomic_verified,
+    # append_annotations_atomic_verified, append_raw_rows_atomic) are NO
+    # LONGER exported here. They were promoted onto this facade by WP02 of
+    # verdict-seam-boundary-hardening-01KZG179 (FR-004/T006, so
+    # coordination/status_service.py could avoid a deep ``status.store``
+    # import) and by WP01 of this mission (append_raw_rows_atomic, for the
+    # hardened retrospective writers). Both promotions handed an unlocked,
+    # unvalidated write door to any importer; they now live behind
+    # ``specify_cli.status._unsafe`` with an enumerated, shrink-only
+    # ``ALLOWED_CALLERS`` set gated by
+    # tests/architectural/test_status_unsafe_allowlist.py.
     read_event_stream,
     read_event_stream_from_text,
     read_events,
@@ -205,6 +208,7 @@ from .identity_audit import (
     summarize,
 )
 from .locking import (
+    BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
     FeatureStatusLockTimeoutError,
     feature_status_lock,
 )
@@ -391,7 +395,6 @@ __all__ = [
     "Status",
     "WPInnerStateDelta",
     "annotate",
-    "append_annotations_atomic_verified",
     "build_claim_policy_metadata",
     "build_resolved_actor",
     "is_cut_over",
@@ -410,6 +413,7 @@ __all__ = [
     "read_authored_wp_frontmatter_lenient",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
+    "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS",
     "FeatureStatusLockTimeoutError",
     "GuardContext",
     "IdentityState",
@@ -515,7 +519,6 @@ __all__ = [
     "_Builder",
     "BootstrapResult",
     "audit_repo",
-    "append_event",
     "bootstrap_canonical_state",
     "classify_mission",
     "feature_status_lock",
@@ -530,13 +533,9 @@ __all__ = [
     "register_saas_fanout_handler",
     "summarize",
     "uninitialized_status_error",
-    "append_event_verified",
-    # WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004/T006): see the
-    # matching provenance comment on the ``.store`` import block above.
-    "append_event_stream_atomic_verified",
-    "append_events_atomic_verified",
-    "append_primary_checkout_event_verified",
-    "append_primary_checkout_events_atomic_verified",
+    # WP03 (fsm-write-path-integrity-01M1TZV6, FR-010): the raw append
+    # primitives are not facade exports -- see ``status/_unsafe.py`` and the
+    # provenance note on the ``.store`` import block above.
     "build_self_asserting_actor",
     "emit_status_transition",
     "generate_status_view",

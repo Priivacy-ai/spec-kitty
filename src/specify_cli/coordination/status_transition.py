@@ -3,6 +3,25 @@
 Production workflow callers must append status events through
 ``BookkeepingTransaction`` so SaaS/dossier fanout runs only after the
 bookkeeping commit succeeds.
+
+This module is the **transactional composition shell** of the status write
+path (mission ``fsm-write-path-integrity-01M1TZV6``, contract
+``contracts/emit-pipeline.md`` §2, data-model §5). Validation and event
+construction live in the status-owned pipeline
+:func:`specify_cli.status.transition_pipeline.prepare_transition` -- the
+single validation/build authority (decision Q4,
+``01M1V80R6F6RTMR7Y3C2WBKR32``). The three doors here (single, batch,
+inner-state) own only what a shell owns: the transaction acquire (L1), the
+in-lock from-lane derivation, the append, and the fan-out timing (deferred
+behind the commit). ``MissionStatus`` (``status/aggregate.py``) composes the
+single door and is the intended domain facade for callers; it is not the
+write chokepoint (the eight direct transactional callers remain until a
+caller-migration mission).
+
+Fan-out timing (FR-008): every coord arm -- the ``BookkeepingTransaction``
+doors AND the non-transactional coord fallback arms -- announces an event
+only after its durable commit succeeded. A truncated event is never
+announced (SC-002; ``tests/specify_cli/coordination/test_phantom_fanout.py``).
 """
 
 from __future__ import annotations
@@ -14,7 +33,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from kernel.clock import now_utc, now_utc_iso, timedelta
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -38,23 +57,25 @@ from specify_cli.lanes.branch_naming import (
 from specify_cli.status import emit as _emit
 from specify_cli.status.models import (
     CurrentWpState,
-    DoneEvidence,
     EventStream,
-    GuardContext,
     InnerStateChanged,
     Lane,
     StatusEvent,
     TransitionRequest,
     WPInnerStateDelta,
-    actor_identity_str,
 )
 from specify_cli.status.reducer import reduce as _reduce_events
 from specify_cli.status.store import EVENTS_FILENAME as _EVENTS_FILENAME
+from specify_cli.status.store import read_event_stream_from_text as _read_event_stream_from_text
 from specify_cli.status.store import read_events as _read_raw_events
+from specify_cli.status.transition_pipeline import PreparedTransition, prepare_transition
 from specify_cli.status.views import DERIVED_STATUS_FILENAME as _DERIVED_STATUS_FILENAME
-from specify_cli.status.transitions import is_terminal, resolve_lane_alias, validate_transition
+from specify_cli.status.transitions import is_terminal, resolve_lane_alias
 from specify_cli.status.wp_state import annotate as _annotate
 from specify_cli.workspace import canonicalize_feature_dir, delete_context
+
+if TYPE_CHECKING:
+    from specify_cli.core.dependency_graph import DependencyReadiness
 
 _logger = logging.getLogger(__name__)
 
@@ -379,6 +400,96 @@ def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Pa
     return feature_dir
 
 
+def _fan_out_committed_coord_tail(
+    coord_feature_dir: Path,
+    *,
+    pre_emit_event_size: int,
+    mission_slug: str,
+    repo_root: Path | None,
+    ensure_sync_daemon: bool,
+) -> None:
+    """Announce exactly the rows the coord commit made durable (FR-008 / SC-002).
+
+    The coord fallback arms call the flat shell with ``fan_out=False`` and
+    commit first; this is their deferred step 7 (contract §2). It reads only
+    the bytes appended past the pre-emit snapshot -- never the whole log
+    (NFR-004) -- so an alias-collapse no-op (nothing appended) announces
+    nothing, and a persisted claim announces its lane event AND its
+    resolved-binding annotation, exactly as the flat shell would have.
+    ``policy_metadata`` rides on the persisted event (the pipeline stamps
+    ``request.policy_metadata`` onto it), so no request is needed here.
+    """
+    events_path = coord_feature_dir / _EVENTS_FILENAME
+    if not events_path.exists():
+        return
+    with events_path.open("rb") as fh:
+        fh.seek(pre_emit_event_size)
+        tail = fh.read().decode("utf-8")
+    if not tail.strip():
+        return
+    stream = _read_event_stream_from_text(coord_feature_dir, tail)
+    for event in stream.transitions:
+        _emit._saas_fan_out(
+            event,
+            mission_slug,
+            repo_root,
+            policy_metadata=event.policy_metadata,
+            ensure_sync_daemon=ensure_sync_daemon,
+        )
+    for annotation in stream.annotations:
+        _emit._resolved_binding_fan_out(annotation, mission_slug)
+
+
+_CoordEmitResult = TypeVar("_CoordEmitResult")
+
+
+def _emit_on_coord_then_commit(
+    identity: _TransactionIdentity,
+    mission_slug: str,
+    coord_worktree: Path,
+    *,
+    emit: Callable[[Path], _CoordEmitResult],
+    repo_root: Path | None,
+    ensure_sync_daemon: bool,
+) -> tuple[_CoordEmitResult, Path]:
+    """The coord fallback arm shared by the single and batch doors (FR-004 row 7).
+
+    Order is load-bearing: *emit* (the flat shell, fan-out suppressed) ->
+    ``safe_commit`` -> fan out the committed tail. A commit failure truncates
+    the just-emitted rows back (rollback-symmetry with the transactional
+    True-arm) and NO fan-out fires for them (SC-002) -- the ``finally`` only
+    restores; the deferred step 7 is reached only on the success path.
+    Returns the emit result and the coord feature dir the write landed on.
+    """
+    coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
+    pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
+    result = emit(coord_fd)
+    committed = False
+    try:
+        _commit_status_artifacts_to_coord(
+            repo_root=identity.repo_root,
+            mission_slug=mission_slug,
+            coord_worktree=coord_worktree,
+            coord_feature_dir=coord_fd,
+        )
+        committed = True
+    finally:
+        if not committed:
+            _restore_coord_status_artifacts(
+                coord_fd,
+                pre_emit_event_size=pre_size,
+                pre_emit_status_bytes=pre_status,
+            )
+    _fan_out_committed_coord_tail(
+        coord_fd,
+        pre_emit_event_size=pre_size,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        ensure_sync_daemon=ensure_sync_daemon,
+    )
+    return result, coord_fd
+
+
 def _fallback_emit_single(
     identity: _TransactionIdentity,
     request: TransitionRequest,
@@ -386,7 +497,14 @@ def _fallback_emit_single(
     *,
     ensure_sync_daemon: bool,
 ) -> StatusEvent:
-    """Single-event non-transactional fallback (FR-004 rows 7-8)."""
+    """Single-event non-transactional fallback (FR-004 rows 7-8).
+
+    ``_primary`` (coord-less: ``SINGLE_BRANCH`` / ``LANES`` / flat) is the
+    plain-door call with its uncommitted-write semantics (C-008; pinned by
+    ``tests/specify_cli/coordination/test_plain_door_semantics.py``) and, as
+    no commit exists there, immediate fan-out is correct. ``_coord`` defers
+    fan-out behind the coord commit (FR-008).
+    """
 
     def _primary() -> StatusEvent:
         event = _emit.emit_status_transition(request, ensure_sync_daemon=ensure_sync_daemon)
@@ -399,30 +517,22 @@ def _fallback_emit_single(
         return event
 
     def _coord(coord_worktree: Path) -> StatusEvent:
-        coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
-        pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
-        event = _emit.emit_status_transition(
-            replace(request, feature_dir=coord_fd, mission_dir=None),
+        def _flat_shell(coord_fd: Path) -> StatusEvent:
+            event: StatusEvent = _emit.emit_status_transition(
+                replace(request, feature_dir=coord_fd, mission_dir=None),
+                ensure_sync_daemon=ensure_sync_daemon,
+                fan_out=False,
+            )
+            return event
+
+        event, coord_fd = _emit_on_coord_then_commit(
+            identity,
+            mission_slug,
+            coord_worktree,
+            emit=_flat_shell,
+            repo_root=request.repo_root,
             ensure_sync_daemon=ensure_sync_daemon,
         )
-        # Rollback-symmetry (FR-004): a commit failure truncates the just-emitted
-        # event back rather than stranding it uncommitted on the coord worktree.
-        committed = False
-        try:
-            _commit_status_artifacts_to_coord(
-                repo_root=identity.repo_root,
-                mission_slug=mission_slug,
-                coord_worktree=coord_worktree,
-                coord_feature_dir=coord_fd,
-            )
-            committed = True
-        finally:
-            if not committed:
-                _restore_coord_status_artifacts(
-                    coord_fd,
-                    pre_emit_event_size=pre_size,
-                    pre_emit_status_bytes=pre_status,
-                )
         _tombstone_lane_workspace_context_on_cancel(
             repo_root=identity.repo_root,
             mission_slug=mission_slug,
@@ -443,7 +553,13 @@ def _fallback_emit_batch(
     *,
     ensure_sync_daemon: bool,
 ) -> list[StatusEvent]:
-    """Same-WP batch non-transactional fallback (FR-004 rows 7-8)."""
+    """Same-WP batch non-transactional fallback (FR-004 rows 7-8).
+
+    Same two arms as :func:`_fallback_emit_single`; the coord arm fans the
+    committed tail out with the batch's emitting checkout root (the batch is
+    ONE lifecycle operation on one mission/WP, so ``requests[0].repo_root``
+    is the checkout every member emits from).
+    """
 
     def _primary() -> list[StatusEvent]:
         # Local annotation re-narrows the cross-module (``Any``) emit result.
@@ -453,30 +569,22 @@ def _fallback_emit_batch(
         return events
 
     def _coord(coord_worktree: Path) -> list[StatusEvent]:
-        coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
-        pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
-        events: list[StatusEvent] = _emit.emit_status_transition_batch(
-            [replace(req, feature_dir=coord_fd, mission_dir=None) for req in requests],
+        def _flat_shell(coord_fd: Path) -> list[StatusEvent]:
+            events: list[StatusEvent] = _emit.emit_status_transition_batch(
+                [replace(req, feature_dir=coord_fd, mission_dir=None) for req in requests],
+                ensure_sync_daemon=ensure_sync_daemon,
+                fan_out=False,
+            )
+            return events
+
+        events, _coord_fd = _emit_on_coord_then_commit(
+            identity,
+            mission_slug,
+            coord_worktree,
+            emit=_flat_shell,
+            repo_root=requests[0].repo_root,
             ensure_sync_daemon=ensure_sync_daemon,
         )
-        # Rollback-symmetry (FR-004): a commit failure truncates the just-emitted
-        # batch back rather than stranding it uncommitted on the coord worktree.
-        committed = False
-        try:
-            _commit_status_artifacts_to_coord(
-                repo_root=identity.repo_root,
-                mission_slug=mission_slug,
-                coord_worktree=coord_worktree,
-                coord_feature_dir=coord_fd,
-            )
-            committed = True
-        finally:
-            if not committed:
-                _restore_coord_status_artifacts(
-                    coord_fd,
-                    pre_emit_event_size=pre_size,
-                    pre_emit_status_bytes=pre_status,
-                )
         return events
 
     return _emit_via_non_transactional_fallback(
@@ -839,129 +947,128 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     )
 
 
-def _prepare_event(
+def _resolve_transaction_entry(
+    request: TransitionRequest, mission_slug: str
+) -> tuple[_TransactionIdentity, bool]:
+    """Shared preamble of the single and batch doors: identity + topology + owned check.
+
+    ONE place decides whether a request may take the ``BookkeepingTransaction``
+    path (FR-007 / decision Q5 parity, data-model §5 S-2): the batch door used
+    to skip the owned-mission refusal the single door applied, so an
+    ``effective_root`` request could silently degrade to the non-transactional
+    fallback. An owned mission (#1737) requires the transaction; refusing it
+    here makes the divergence structurally impossible.
+    """
+    identity = _identity_for_request(request)
+    topology_available = _transaction_topology_available(identity, mission_slug)
+    if request.effective_root is not None and not topology_available:
+        from mission_runtime import ActionContextError  # noqa: PLC0415
+
+        raise ActionContextError(
+            "OWNED_TRANSACTION_UNAVAILABLE", "Owned mission requires transactional status metadata."
+        )
+    return identity, topology_available
+
+
+def _acquire_status_transaction(
+    identity: _TransactionIdentity,
+    mission_slug: str,
     *,
+    operation: str,
+    capability: GuardCapability,
+) -> BookkeepingTransaction:
+    """The ONE ``BookkeepingTransaction.acquire`` shape for every door (contract §2 step 1).
+
+    * ``repo_root`` anchors the lock/worktree on the PRIMARY root for an owned
+      mission (``identity.primary_root``) and on the mission's own root
+      otherwise; ``effective_root`` is the owned checkout in the former case
+      and omitted (``None``) in the latter.
+    * WP04/FR-004: ``acquire`` requires ``str`` for its lock/path management.
+      For a legacy mission (``identity.mission_id is None``) the explicit
+      ``f"legacy-{slug}"`` string is the transaction-lock identifier ONLY --
+      it is never written into any ``mission_id`` event field.
+    """
+    return BookkeepingTransaction.acquire(
+        repo_root=identity.primary_root or identity.repo_root,
+        mission_id=identity.mission_id or f"legacy-{mission_slug}",
+        mission_slug=mission_slug,
+        mid8=identity.mid8,
+        destination_ref=identity.destination_ref,
+        operation=operation,
+        capability=capability,
+        effective_root=identity.repo_root if identity.primary_root is not None else None,
+    )
+
+
+def _durability_unit(prepared: PreparedTransition, event: StatusEvent) -> list[StatusEvent | InnerStateChanged]:
+    """A transition and its claim annotation are appended as one unit.
+
+    A resolved binding must never lag behind the claim it describes: one
+    ``txn.append_events`` call carries both rows.
+    """
+    annotation = prepared.annotation
+    return [event, *([annotation] if annotation is not None else [])]
+
+
+def _defer_fan_out(
+    txn: BookkeepingTransaction,
+    prepared: PreparedTransition,
+    event: StatusEvent,
+    *,
+    mission_slug: str,
+    repo_root: Path | None,
+    ensure_sync_daemon: bool,
+) -> None:
+    """Step 7 of the transactional shell: fan-out fires only after commit success."""
+    if prepared.annotation is not None:
+        txn.defer_outbound(_deferred_resolved_binding_fan_out(prepared.annotation, mission_slug))
+    queue_saas_emission(
+        txn,
+        event,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        ensure_sync_daemon=ensure_sync_daemon,
+    )
+
+
+def _collapse_alias_in_transaction(
     feature_dir: Path,
     request: TransitionRequest,
+    *,
     mission_slug: str,
     mission_id: str | None,
     from_lane: str,
-    at: str | None = None,
-) -> tuple[StatusEvent | None, str]:
-    if request.wp_id is None or request.to_lane is None or request.actor is None:
-        raise TypeError("Each status transition requires wp_id, to_lane, and actor")
+    prepared: PreparedTransition,
+) -> StatusEvent:
+    """Alias-collapse no-op arm of the single door (C-007): mirror only, nothing appended.
 
-    raw_to_lane = str(request.to_lane).strip().lower()
-    resolved_lane = resolve_lane_alias(str(request.to_lane))
-
-    workspace_context = request.workspace_context
-    if workspace_context is None:
-        context_root = request.repo_root if request.repo_root is not None else feature_dir
-        workspace_context = f"{request.execution_mode}:{context_root}"
-
-    subtasks_complete = request.subtasks_complete
-    implementation_evidence_present = request.implementation_evidence_present
-    if (
-        not request.force
-        and from_lane == Lane.IN_PROGRESS
-        and resolved_lane == Lane.FOR_REVIEW
-    ):
-        # T012/FR-002 (#2574 single seam): route through the canonical
-        # resolve_subtasks_gate_dir seam (mirroring T010's aggregate.py wiring
-        # and T011's emit.py wiring) so a coord-topology mission's
-        # completeness check reads the PRIMARY tasks.md, not a
-        # coordination-branch husk. When ``request.repo_root`` is None (this
-        # function is also called from non-orchestrator paths that don't
-        # populate it) the seam now recovers the primary root from
-        # ``feature_dir``'s git ancestry instead of reading ``feature_dir``
-        # unrecovered -- closing the historically weak fallback this site used
-        # to fall back to ``feature_dir`` (the coordination-branch husk for a
-        # coord-topology mission) without ever attempting recovery.
-        from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
-
-        subtasks_dir = resolve_subtasks_gate_dir(
-            feature_dir,
-            request.repo_root,
-            mission_slug,
-            effective_root=request.effective_root,
-        )
-        subtasks_complete = _emit._infer_subtasks_complete(
-            subtasks_dir,
-            request.wp_id,
-            status_dir=feature_dir,
-        )
-    if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-        implementation_evidence_present = _emit._infer_implementation_evidence(feature_dir, request.wp_id)
-
-    if _emit._legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
-        _emit._mirror_phase1_frontmatter_lane(feature_dir, request.wp_id, resolved_lane)
-        return None, resolved_lane
-
-    done_evidence: DoneEvidence | None = None
-    if request.evidence is not None:
-        done_evidence = _emit._build_done_evidence(request.evidence)
-
-    ok, error_msg = validate_transition(
-        from_lane,
-        resolved_lane,
-        GuardContext(
-            force=request.force,
-            actor=actor_identity_str(request.actor),
-            workspace_context=workspace_context,
-            subtasks_complete=subtasks_complete,
-            implementation_evidence_present=implementation_evidence_present,
-            reason=request.reason,
-            review_ref=request.review_ref,
-            evidence=done_evidence,
-            review_result=request.review_result,
-            current_actor=request.current_actor,
-        ),
+    The pipeline only *requests* the phase-gated frontmatter mirror
+    (``mirror_frontmatter_lane``); the shell performs it here -- the same
+    ``_mirror_phase1_frontmatter_lane`` write the arm always did, still the
+    tree's only ``write_frontmatter`` of ``lane`` (the 2093 invariant). The
+    persisted arm of this shell never mirrored (a frontmatter write on the
+    coord worktree would dirty the coord tree, #2939), and still does not.
+    Returns the same unpersisted synthetic same-lane event as before.
+    """
+    if request.wp_id is None:  # guarded by the pipeline; keeps the type invariant explicit
+        raise TypeError("transactional status emit requires wp_id")
+    if prepared.mirror_frontmatter_lane:
+        _emit._mirror_phase1_frontmatter_lane(feature_dir, request.wp_id, prepared.resolved_lane)
+    synthetic: StatusEvent = _emit.build_status_event(
+        mission_slug=mission_slug,
+        wp_id=request.wp_id,
+        from_lane=from_lane,
+        to_lane=from_lane,
+        actor=request.actor or "unknown",
+        mission_id=mission_id,
+        force=request.force,
+        execution_mode=request.execution_mode,
+        reason=request.reason,
+        review_ref=request.review_ref,
+        review_result=request.review_result,
+        policy_metadata=request.policy_metadata,
     )
-    if not ok:
-        raise _emit.TransitionError(error_msg)
-
-    return (
-        _emit.build_status_event(
-            mission_slug=mission_slug,
-            wp_id=request.wp_id,
-            from_lane=from_lane,
-            to_lane=resolved_lane,
-            actor=request.actor,
-            at=at,
-            mission_id=mission_id,
-            force=request.force,
-            execution_mode=request.execution_mode,
-            reason=request.reason,
-            # Provenance discriminator (FR-001): threaded from the request so the
-            # canonical move-task command's cancel event carries operator/synthetic
-            # onto the persisted StatusEvent (the transactional emit path).
-            reason_source=request.reason_source,
-            review_ref=request.review_ref,
-            evidence=done_evidence,
-            review_result=request.review_result,
-            policy_metadata=request.policy_metadata,
-        ),
-        resolved_lane,
-    )
-
-
-def _annotation_for_request(
-    request: TransitionRequest,
-    *,
-    at: str | None = None,
-) -> InnerStateChanged | None:
-    """Build the claim annotation carried by *request*, without I/O."""
-    if request.annotation_delta is None:
-        return None
-    if request.wp_id is None or request.actor is None:
-        raise TypeError("claim annotations require wp_id and actor")
-    return _annotate(
-        request.wp_id,
-        request.annotation_delta,
-        actor=request.actor,
-        at=at or now_utc_iso(),
-        event_id=_emit._generate_ulid(),
-    )
+    return synthetic
 
 
 def _deferred_resolved_binding_fan_out(
@@ -1322,27 +1429,24 @@ def emit_status_transition_transactional(
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
 ) -> StatusEvent:
-    """Validate, append, commit, then fan out one status transition."""
+    """The single transactional door (contract §2, transactional column).
+
+    acquire (L1) -> derive ``from_lane`` once in-lock -> the status-owned
+    :func:`prepare_transition` (the tree's only validation) -> one atomic
+    append of the event and its claim annotation -> deferred fan-out -> commit
+    on exit. Failure policy (C-007): fail-closed on an unresolvable coord
+    worktree -- ``BookkeepingWorktreeMissing`` propagates (#1848 / SC-001,
+    pinned by ``test_transactional_emit_fails_closed_when_coordination_branch_
+    missing``); a pipeline refusal (``TransitionError``) raises before any
+    append; the alias-collapse no-op arm appends nothing.
+    """
     feature_dir = request.feature_dir or request.mission_dir
     mission_slug = request.mission_slug or request._legacy_mission_slug
     if feature_dir is None or mission_slug is None or request.wp_id is None:
         raise TypeError("transactional status emit requires feature_dir, mission_slug, and wp_id")
 
-    identity = _identity_for_request(request)
-    # Declared once, up front: both branches below assign ``event`` with
-    # different (but here-compatible) shapes -- the early-return branch gets a
-    # non-Optional ``StatusEvent`` from ``_emit.emit_status_transition``, the
-    # transactional branch gets ``StatusEvent | None`` from ``_prepare_event``
-    # and narrows it via the ``is None`` guard before use. Without this
-    # explicit annotation mypy infers ``event``'s type from the first
-    # assignment (non-Optional) and then flags the second, Optional-typed
-    # assignment as an incompatible redefinition (T055, #2675).
-    event: StatusEvent | None
-    if not _transaction_topology_available(identity, mission_slug):
-        if request.effective_root is not None:
-            from mission_runtime import ActionContextError
-
-            raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "Owned mission requires transactional status metadata.")
+    identity, topology_available = _resolve_transaction_entry(request, mission_slug)
+    if not topology_available:
         # WP04/FR-004 (rows 7-8): coord topology commits to the coord worktree;
         # coord-less topologies keep the primary-uncommitted write path. The
         # coord-vs-primary decision lives in _emit_via_non_transactional_fallback.
@@ -1353,55 +1457,42 @@ def emit_status_transition_transactional(
             ensure_sync_daemon=ensure_sync_daemon,
         )
 
-    # WP04/FR-004: BookkeepingTransaction.acquire requires str for its lock/path
-    # management. For legacy missions (identity.mission_id is None), use the
-    # explicit f"legacy-{slug}" string ONLY for the transaction lock — this is
-    # documented and NOT written into any mission_id event field.
-    _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
-    with BookkeepingTransaction.acquire(
-        repo_root=identity.primary_root or identity.repo_root,
-        mission_id=_txn_mission_id,
-        mission_slug=mission_slug,
-        mid8=identity.mid8,
-        destination_ref=identity.destination_ref,
+    with _acquire_status_transaction(
+        identity,
+        mission_slug,
         operation=operation or f"status transition {request.wp_id}",
         capability=capability,
-        effective_root=identity.repo_root if identity.primary_root is not None else None,
     ) as txn:
-        # WP04: identity.mission_id is now str | None; None means no ULID (legacy).
-        # The old .startswith("legacy-") sentinel is replaced by the None check.
-        mission_id_for_event = identity.mission_id
-        from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id))
-        event, _resolved_lane = _prepare_event(
-            feature_dir=txn.feature_dir,
+        # WP04: identity.mission_id is str | None; None means no ULID (legacy).
+        # One reduce of the transaction's write surface (NFR-004) feeds both
+        # ``from_lane`` and the dependency verdict, which is resolved INSIDE the
+        # transaction against ``txn.feature_dir`` (FR-013) -- the declared deps
+        # come from the WP file on the primary planning surface.
+        snapshot = _emit._reduce_write_surface(txn.feature_dir)
+        from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id, snapshot=snapshot))
+        readiness = _emit._resolve_dependency_readiness(identity.feature_dir, request.wp_id, snapshot)
+        prepared = prepare_transition(
             request=request,
+            feature_dir=txn.feature_dir,
             mission_slug=mission_slug,
-            mission_id=mission_id_for_event,
+            mission_id=identity.mission_id,
             from_lane=from_lane,
+            readiness=readiness,
         )
-        if event is None:
-            return _emit.build_status_event(
+        if prepared.event is None:
+            return _collapse_alias_in_transaction(
+                txn.feature_dir,
+                request,
                 mission_slug=mission_slug,
-                wp_id=request.wp_id,
+                mission_id=identity.mission_id,
                 from_lane=from_lane,
-                to_lane=from_lane,
-                actor=request.actor or "unknown",
-                mission_id=mission_id_for_event,
-                force=request.force,
-                execution_mode=request.execution_mode,
-                reason=request.reason,
-                review_ref=request.review_ref,
-                review_result=request.review_result,
-                policy_metadata=request.policy_metadata,
+                prepared=prepared,
             )
-        annotation = _annotation_for_request(request)
-        txn.append_events([event, *([annotation] if annotation is not None else [])])
-        if annotation is not None:
-            txn.defer_outbound(
-                _deferred_resolved_binding_fan_out(annotation, mission_slug)
-            )
-        queue_saas_emission(
+        event = prepared.event
+        txn.append_events(_durability_unit(prepared, event))
+        _defer_fan_out(
             txn,
+            prepared,
             event,
             mission_slug=mission_slug,
             repo_root=request.repo_root,
@@ -1538,23 +1629,15 @@ def emit_inner_state_changed_transactional(
         at=at or now_utc_iso(),
         event_id=_emit._generate_ulid(),
     )
-    # WP04/FR-004 parity: a legacy mission (no ULID) supplies the explicit
-    # f"legacy-{slug}" worktree-lock identifier ONLY — never persisted to an event.
-    _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
+    # The acquire shape is the shared one (``_acquire_status_transaction``):
+    # ``identity.primary_root`` is set exactly when ``effective_root`` was
+    # supplied, so the owned checkout threads through identically here.
     try:
-        from specify_cli.core.owned_mission import effective_root_kwargs
-
-        with BookkeepingTransaction.acquire(
-            repo_root=identity.primary_root or identity.repo_root,
-            mission_id=_txn_mission_id,
-            mission_slug=mission_slug,
-            mid8=identity.mid8,
-            destination_ref=identity.destination_ref,
+        with _acquire_status_transaction(
+            identity,
+            mission_slug,
             operation=operation or f"inner-state annotation {wp_id}",
             capability=capability,
-            **effective_root_kwargs(
-                identity.repo_root if effective_root is not None else None
-            ),
         ) as txn:
             txn.append_events([annotation])
             txn.defer_outbound(
@@ -1578,7 +1661,18 @@ def emit_status_transition_batch_transactional(
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
 ) -> list[StatusEvent]:
-    """Validate, append, commit, then fan out a same-WP transition batch."""
+    """The batch transactional door: steps 2-5 per request under ONE acquisition (FR-018).
+
+    Applies the owned-mission refusal and the ``effective_root`` acquisition
+    exactly as the single door (FR-007 / Q5 parity) through the shared
+    :func:`_resolve_transaction_entry` / :func:`_acquire_status_transaction`
+    preamble. Failure policy (C-007, all-or-nothing): a member targeting
+    another mission/WP (``TypeError``) or refused by the pipeline
+    (``TransitionError``) raises before the single atomic append, so nothing
+    is persisted; an unresolvable coord worktree propagates
+    ``BookkeepingWorktreeMissing`` unchanged (fail-closed like the single
+    door -- the #3460 degrade belongs to the inner-state door only).
+    """
     if not requests:
         return []
 
@@ -1590,8 +1684,8 @@ def emit_status_transition_batch_transactional(
             "transactional status batch requires feature_dir/mission_dir, mission_slug, and wp_id"
         )
 
-    identity = _identity_for_request(first)
-    if not _transaction_topology_available(identity, mission_slug):
+    identity, topology_available = _resolve_transaction_entry(first, mission_slug)
+    if not topology_available:
         # WP04/FR-004 (rows 7-8): same coord-vs-primary decision as the single
         # site, routed through the ONE _emit_via_non_transactional_fallback so
         # this batch function never branches coord-vs-primary in place.
@@ -1602,95 +1696,104 @@ def emit_status_transition_batch_transactional(
             ensure_sync_daemon=ensure_sync_daemon,
         )
 
-    # WP04/FR-004: explicit legacy fallback for transaction lock only (not event field).
-    _txn_mission_id_batch = identity.mission_id or f"legacy-{mission_slug}"
-    with BookkeepingTransaction.acquire(
-        repo_root=identity.repo_root,
-        mission_id=_txn_mission_id_batch,
-        mission_slug=mission_slug,
-        mid8=identity.mid8,
-        destination_ref=identity.destination_ref,
+    with _acquire_status_transaction(
+        identity,
+        mission_slug,
         operation=operation or f"status transition batch {first.wp_id}",
         capability=capability,
     ) as txn:
-        # WP04: identity.mission_id is str | None; None replaces the old "legacy-" sentinel.
-        mission_id_for_event = identity.mission_id
-        from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id))
-        built: list[tuple[StatusEvent, TransitionRequest]] = []
-        started_at = now_utc()
-
-        # The loop below makes sure every transition in this batch is for the
-        # same work package, by checking they all sit in the same mission folder.
-        # We compare against the first request's folder.
-        #
-        # We must NOT compare against identity.feature_dir. In coordination mode a
-        # mission exists in two folders on disk: the normal checkout, and a
-        # separate "coordination" worktree. The requests point at the coordination
-        # folder, but identity.feature_dir points at the normal one — same work
-        # package, different folder. Comparing against it rejected valid batches.
-        #
-        # (We work this out here, not earlier, because the transaction above just
-        # registered the coordination worktree with git, and canonicalize_feature_dir
-        # only keeps the coordination folder once that registration exists.)
-        first_feature_dir = canonicalize_feature_dir(first_feature_dir_raw)
-
-        for request in requests:
-            request_feature_dir = request.feature_dir or request.mission_dir
-            request_mission_slug = request.mission_slug or request._legacy_mission_slug
-            if (
-                request_feature_dir is None
-                or canonicalize_feature_dir(request_feature_dir) != first_feature_dir
-                or request_mission_slug != mission_slug
-                or request.wp_id != first.wp_id
-            ):
-                raise TypeError("transactional status batch only supports one feature/mission/wp")
-
-            event, resolved_lane = _prepare_event(
-                feature_dir=txn.feature_dir,
-                request=request,
-                mission_slug=mission_slug,
-                mission_id=mission_id_for_event,
-                from_lane=from_lane,
-                at=(started_at + timedelta(microseconds=len(built))).isoformat(),
-            )
-            if event is None:
-                from_lane = resolved_lane
-                continue
-            built.append((event, request))
-            from_lane = resolved_lane
-
-        durability_unit: list[StatusEvent | InnerStateChanged] = []
-        annotations: list[InnerStateChanged | None] = []
-        for index, (event, request) in enumerate(built):
-            annotation = _annotation_for_request(
-                request,
-                at=(
-                    started_at
-                    + timedelta(microseconds=len(built) + index)
-                ).isoformat(),
-            )
-            durability_unit.append(event)
-            if annotation is not None:
-                durability_unit.append(annotation)
-            annotations.append(annotation)
+        # One reduce of the coord write surface (NFR-004); the dependency
+        # verdict is resolved in-transaction against ``txn.feature_dir``
+        # (FR-013) with the declared deps from the primary WP file.
+        snapshot = _emit._reduce_write_surface(txn.feature_dir)
+        from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id, snapshot=snapshot))
+        readiness = _emit._resolve_dependency_readiness(identity.feature_dir, first.wp_id, snapshot)
+        built = _prepare_batch_in_transaction(
+            requests,
+            first_feature_dir_raw=first_feature_dir_raw,
+            feature_dir=txn.feature_dir,
+            mission_slug=mission_slug,
+            mission_id=identity.mission_id,
+            from_lane=from_lane,
+            readiness=readiness,
+        )
 
         # The batch is one logical lifecycle operation. Persist every lane hop
         # and its annotations with one atomic file replacement so a hard crash
         # cannot strand an intermediate lane without the binding that belongs
         # to the completed start operation.
-        txn.append_events(durability_unit)
+        txn.append_events([row for prepared, event, _request in built for row in _durability_unit(prepared, event)])
 
-        for (event, request), annotation in zip(built, annotations, strict=True):
-            if annotation is not None:
-                txn.defer_outbound(
-                    _deferred_resolved_binding_fan_out(annotation, mission_slug)
-                )
-            queue_saas_emission(
+        for prepared, event, request in built:
+            _defer_fan_out(
                 txn,
+                prepared,
                 event,
                 mission_slug=mission_slug,
                 repo_root=request.repo_root,
                 ensure_sync_daemon=ensure_sync_daemon,
             )
 
-        return [event for event, _request in built]
+        return [event for _prepared, event, _request in built]
+
+
+def _prepare_batch_in_transaction(
+    requests: list[TransitionRequest],
+    *,
+    first_feature_dir_raw: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    mission_id: str | None,
+    from_lane: str,
+    readiness: DependencyReadiness,
+) -> list[tuple[PreparedTransition, StatusEvent, TransitionRequest]]:
+    """Run the pipeline per batch member in-lock, chaining ``from_lane`` in memory.
+
+    ``readiness`` is the in-transaction verdict for the batch's single WP; a
+    WP's verdict depends only on its dependencies' lanes, which a same-WP
+    batch cannot change, so it holds for every member (see the flat
+    ``emit._prepare_batch``).
+
+    Every member must target the first member's mission folder and WP. We
+    compare against the first request's folder, NOT ``identity.feature_dir``:
+    in coordination mode a mission exists in two folders on disk (the normal
+    checkout and the coordination worktree); the requests point at the
+    coordination folder while the identity anchors on the normal one -- same
+    work package, different folder. This runs INSIDE the transaction because
+    the acquire just registered the coordination worktree with git, and
+    ``canonicalize_feature_dir`` only keeps the coordination folder once that
+    registration exists.
+
+    Alias-collapse members persist nothing and are skipped without the
+    frontmatter mirror (the batch's historical behaviour, D-4 in
+    ``design-notes/WP06-convergence.md``). Any refusal raises before the
+    caller appends anything.
+    """
+    first = requests[0]
+    first_feature_dir = canonicalize_feature_dir(first_feature_dir_raw)
+    built: list[tuple[PreparedTransition, StatusEvent, TransitionRequest]] = []
+    started_at = now_utc()
+    for request in requests:
+        request_feature_dir = request.feature_dir or request.mission_dir
+        request_mission_slug = request.mission_slug or request._legacy_mission_slug
+        if (
+            request_feature_dir is None
+            or canonicalize_feature_dir(request_feature_dir) != first_feature_dir
+            or request_mission_slug != mission_slug
+            or request.wp_id != first.wp_id
+        ):
+            raise TypeError("transactional status batch only supports one feature/mission/wp")
+
+        prepared = prepare_transition(
+            request=request,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            from_lane=from_lane,
+            readiness=readiness,
+            at=(started_at + timedelta(microseconds=len(built))).isoformat(),
+        )
+        from_lane = prepared.resolved_lane
+        if prepared.event is not None:
+            built.append((prepared, prepared.event, request))
+    return built

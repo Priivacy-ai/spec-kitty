@@ -147,6 +147,8 @@ def _preview_from_candidates(
             # canceled-with-operator-provenance WP is surfaced as claimable
             # rather than reported blocked (FR-009). The default (None) keeps
             # the legacy lane-only behaviour for callers that pass no map.
+            # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+            # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
             readiness = dependency_readiness_for_wp(
                 wp_id,
                 dependency_graph.get(wp_id, []),

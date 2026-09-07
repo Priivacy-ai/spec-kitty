@@ -41,9 +41,9 @@ from specify_cli.cli.commands.cutover_guard import (
 from specify_cli.status import (
     Lane,
     StatusEvent,
-    append_events_atomic_verified,
     build_claim_policy_metadata,
 )
+from specify_cli.status._unsafe import append_events_atomic_verified
 
 pytestmark = [pytest.mark.fast]
 
