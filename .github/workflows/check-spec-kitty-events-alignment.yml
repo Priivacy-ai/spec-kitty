@@ -18,7 +18,7 @@ on:
       - 'scripts/release/**'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
   schedule:
-    # Nightly local shared-package drift monitor.
+    # Nightly shared-package drift monitor.
     - cron: '11 2 * * *'
   workflow_dispatch:
 

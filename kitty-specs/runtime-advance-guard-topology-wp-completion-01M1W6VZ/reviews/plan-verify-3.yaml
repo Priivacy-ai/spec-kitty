@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: "Plan.md now names Call (e) (lines ~893-907), which builds the same corrupt/missing-meta.json fixture as Call (a), calls _check_composed_action_guard directly, and asserts a non-empty failure list; live code at runtime_bridge_composition.py:543-549 confirms the gather_artifact_presence call sits before the action-in-(implement,review) gate at :550, so the catch site fires unconditionally as claimed."
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: "Call (c) (plan.md line ~879) now states 'action MUST be \"implement\" or \"review\" here (PLAN-FRESH2-002...)' with the vacuous-pass reason spelled out; live code at runtime_bridge_composition.py:550 confirms the :557 _should_advance_wp_step call is gated exactly by mission==\"software-dev\" and action in (\"implement\",\"review\")."
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: "The WP2 commit-ordering worked example (plan.md ~line 1225) now has its own bullet for Call (b), placing it red as soon as PrimaryPlacementResolutionError exists (same commit as Call (a)/(e)) and green only after the separate _dn_dependency_gate :1729/:1774 catch-arm commit; live code confirms _check_cli_guards (runtime_bridge.py:823-859) has no try/except around its gather_artifact_presence call today, matching the 'verified live' claim."
+completeness_sweep:
+  functions_checked: [gather_artifact_presence, _should_advance_wp_step]
+  method: "grep -rn '<fn>(' src/runtime/next/ --include='*.py', plus manual read of _dispatch_via_composition (both runtime_bridge_composition.py:571 native and runtime_bridge.py:1159 compat delegate) and _advance_run_state_after_composition (runtime_bridge.py:1204 delegate and runtime_bridge_engine.py:312 adapter) to confirm neither calls either guard function"
+  gather_artifact_presence_call_sites:
+    - runtime_bridge_composition.py:543 (inside _check_composed_action_guard)
+    - runtime_bridge.py:851 (inside _check_cli_guards)
+  should_advance_wp_step_call_sites:
+    - runtime_bridge_composition.py:557 (inside _check_composed_action_guard)
+    - runtime_bridge.py:858 (inside _check_cli_guards)
+    - runtime_bridge.py:1680 (inside _dn_dependency_gate, direct call)
+  sixth_site_found: false
+  finding: "No 6th call site exists anywhere in src/runtime/next/ (or elsewhere in src/) for either function. _dispatch_via_composition and _advance_run_state_after_composition were specifically checked and neither calls gather_artifact_presence or _should_advance_wp_step — they only run the StepContractExecutor and advance run state. The plan's enumerated 2 + 3 real call sites (5 total, matching the plan's 'FIVE real FR-006 catch sites' count) is exhaustive and correctly targeted by reproductions #1/#2's Calls (a)-(e)."

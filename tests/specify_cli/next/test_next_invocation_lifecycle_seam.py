@@ -46,7 +46,7 @@ from runtime.next.next_invocation_lifecycle import (
 
 from specify_cli import app as cli_app
 from specify_cli.invocation.lifecycle import read_lifecycle_records
-from specify_cli.mission_v1.events import read_events
+from specify_cli.mission_v1.events import _read_events
 
 from tests._factories import provision_test_charter
 
@@ -98,14 +98,14 @@ def assert_lifecycle_seam_effects(
     """
     del mission_slug  # accepted for shape-symmetry with WP08's extension
 
-    events_before = read_events(feature_dir)
+    events_before = _read_events(feature_dir)
     records_before = read_lifecycle_records(repo_root)
     paired_before = sum(1 for r in records_before if r.phase != "started")
     started_before = sum(1 for r in records_before if r.phase == "started")
 
     run_action()
 
-    events_after = read_events(feature_dir)
+    events_after = _read_events(feature_dir)
     records_after = read_lifecycle_records(repo_root)
     paired_after = sum(1 for r in records_after if r.phase != "started")
     started_after = sum(1 for r in records_after if r.phase == "started")
@@ -450,7 +450,7 @@ class TestSeamFunctionsEffectiveRootFork:
             effective_root=tmp_path / "owned-checkout",
         )
 
-        events = read_events(feature_dir)
+        events = _read_events(feature_dir)
         assert any(e.get("type") == "MissionNextInvoked" for e in events), f"expected the effective_root fork to still emit the event; events={events!r}"
 
 

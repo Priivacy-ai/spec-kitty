@@ -1,8 +1,8 @@
 ---
 title: Managing the Issue Tracker
-description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, native sub-issue parenting, blocked_by dependencies, and triage (type, severity, release-blocking bugs).'
+description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, native sub-issue parenting, blocked_by dependencies, triage (type, severity, release-blocking bugs), and the label taxonomy.'
 doc_status: active
-updated: '2026-07-17'
+updated: '2026-09-07'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -200,6 +200,102 @@ peripheral or tooling surface rather than a load-bearing one. One guardrail: if 
 carry real blast radius despite being a good entry point), require maintainer
 concurrence on the chosen approach **before** implementation — normal PR review
 then covers the rest.
+
+## Label taxonomy
+
+Two orthogonal axes carry the load and are documented above: the **native type**
+(`Bug` / `Feature` / `Task` — the sole kind carrier) and **priority**
+(`priority:P0`…`priority:P3`). Labels never encode kind — the retired `bug`
+label must not return. Beyond type and priority, labels fall into the families
+below. Apply as many as genuinely apply; a `catfooding` `reliability` `Bug` at
+`priority:P2` is a normal, well-triaged issue.
+
+### Classification labels — what *kind of work* it is
+
+These describe the nature of the work independently of the subsystem. They are
+orthogonal to native type (a `catfooding` issue is still a Bug, Feature, or Task).
+
+- `catfooding` — **Doctrine Catfooding**: dogfooding Spec Kitty's own
+  quality/doctrine practices. Applied to defects and frictions surfaced by
+  *running Spec Kitty on Spec Kitty* — a live mission session that exercises the
+  specify → plan → tasks → implement → review → merge loop and reports where the
+  tool fought its own operator. This is the dominant classifier for the
+  post-convergence dogfooding backlog; expect clusters of `catfooding`
+  `workflow`/`git`/`usability` issues that circle a single root cause.
+- `tidy-up` — Campsite / declutter / degodding cleanup surfaced *during other
+  work* (the boy-scout residue a mission couldn't fold in-line).
+- `tech-debt` — Accumulated lint, type-checking, static-analysis, and
+  code-quality debt.
+- `design-spike` — Foundational design work.
+- `research` — Research / experiment validation work.
+
+### Subsystem / domain labels — *where* the work lives
+
+Route an issue to its owning surface. Apply every domain that genuinely applies.
+
+- `reliability` — Runtime reliability, resiliency, observability, incident
+  prevention.
+- `usability` — Operator/user experience and ergonomics.
+- `workflow` — Workflow / UX improvements.
+- `git` — How Spec Kitty uses git.
+- `doctrine` — Doctrine system.
+- `agent-profiles` — Agent-profile system.
+- `schema-versioning` — Schema-versioning infrastructure.
+- `sync` — Local event sync, sync daemon, offline queue, projection delivery.
+- `saas` — Hosted SaaS projection, `saas_client`, auth, hosted teamspace.
+- `dashboard` — Dashboard features.
+- `windows` — Windows-specific issues.
+
+### Triage-state labels — transient hygiene state, not classification
+
+These record *where an issue sits in triage*. Remove them once resolved; they are
+working state, not a permanent property.
+
+- `triage:maybe-duplicate` — Suspected duplicate pending confirmation (as opposed
+  to the confirmed `duplicate`).
+- `triage:needs-revision` — Scope/spec needs rework before action.
+- `triage:stale` — Reproduce and close if no longer valid.
+- `triage:repro-needed` — Reported against behavior that may already be fixed;
+  needs live re-reproduction before implementing.
+
+### PR-workflow labels — for pull requests, not issues
+
+- `pr:needs-refresh` — PR branch drifted from `main`; rebase/refresh before review
+  or merge.
+- `pr:needs-revision` — PR has unresolved review findings that must be addressed
+  before it can merge.
+- `pr:kept-for-reference` — Kept open for reference/history; not intended to merge
+  as-is.
+- `pr:deferred` — Held under the 3.2.x doctrine-surface freeze; CI is skipped
+  until unblocked.
+- `pr:skip-ci` — Intentionally skip CI for this PR (docs / manual review only).
+- `ci:full` — Run the full CI suite on a draft PR (overrides `ci-quality`'s draft
+  exemption).
+
+### Lifecycle & community labels
+
+- `deferred` — Work paused pending an activation trigger.
+- `feedback-welcome` — Community feedback & brainstorming welcome; comment
+  ideas/objections, no code needed.
+- `good first issue` — a good *entry point* (see
+  [What "good first issue" means here](#what-good-first-issue-means-here)); not a
+  difficulty signal.
+- `help wanted` — Extra attention is needed.
+- `mvp` — Required for the current Private Teamspace MVP.
+- `release` — Release tracking and coordination.
+- `documentation` — Improvements or additions to documentation.
+- `enhancement` — GitHub's built-in label; treat it as a `Feature` synonym only.
+  Kind lives in the **native type** — prefer setting `--type Feature` over relying
+  on this label.
+- The stock GitHub defaults `duplicate`, `invalid`, `question`, and `wontfix`
+  keep their conventional meanings.
+
+### Grouping labels (documented above)
+
+`epic` and `meta-tracker` are covered in
+[Functional epics versus meta-trackers](#functional-epics-versus-meta-trackers) —
+they are not free-floating classification labels and carry structural obligations
+(native children vs. a body checklist).
 
 ## See also
 

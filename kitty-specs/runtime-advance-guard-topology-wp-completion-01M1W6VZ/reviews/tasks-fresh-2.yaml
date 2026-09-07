@@ -1,0 +1,32 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-2
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: TASKS-FRESH2-001
+    lens: cross-reference-integrity
+    severity: 1
+    title: Unqualified "step 4" backreference in WP03's new T021 step 6 reads ambiguously against the "WP02's Subtask T007 step 4" it was just named alongside
+    evidence:
+      - artifact: "tasks/WP03-regression-sweep-baseline-reverify.md § Subtask T021, Step 6 (\"classify the discrepancy per step 4's baseline-red gotcha\")"
+    claim: >
+      Round 2's new Step 6 (the TASKS-FRESH-002 fix) opens by naming "WP02's
+      Subtask T007 step 4 entry" explicitly, then two sentences later says
+      "classify the discrepancy per step 4's baseline-red gotcha" with no WP/
+      subtask qualifier. Read in isolation, the nearest antecedent for a bare
+      "step 4" is the WP02/T007 step 4 just named — but T021 is itself on its
+      own step 6, and T021's own step 4 ("classify per the CLAUDE.md
+      baseline-red gotcha BEFORE attributing it to this mission — (1)...(4)")
+      is the one actually being cross-referenced, per this document's own
+      convention elsewhere of leaving same-subtask step references bare and
+      fully qualifying cross-WP ones. The ambiguity is low-stakes only
+      because both candidate "step 4"s route to the identical CLAUDE.md
+      baseline-red gotcha classification scheme, so either reading produces
+      the same action — but a fresh reader has to reason that out rather than
+      being told directly.
+    remediation: >
+      Reword to "classify the discrepancy per this subtask's own Step 4
+      baseline-red gotcha classification" (or similarly disambiguate with
+      "T021 Step 4") so the backreference cannot be misread as pointing to
+      WP02's T007 step 4 named one sentence earlier.

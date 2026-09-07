@@ -6,12 +6,8 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-from mission_runtime import (
-    CommitTarget,
-    MissionArtifactKind,
-    MissionTopology,
-    artifact_home_for,
-)
+from mission_runtime import CommitTarget, MissionArtifactKind, MissionTopology
+from mission_runtime.artifacts import artifact_home_for
 from mission_runtime.artifacts import kind_is_coordination_residue
 from specify_cli.coordination.coherence import is_coord_residue_churn
 

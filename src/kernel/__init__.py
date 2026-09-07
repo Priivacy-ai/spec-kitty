@@ -38,9 +38,13 @@ paths
 glossary_runner
     Plugin registry for the glossary runner. Defines
     ``GlossaryRunnerProtocol``, ``register()``, ``get_runner()``, and
-    ``clear_registry()`` (test-only). ``glossary`` registers
-    the concrete ``GlossaryAwarePrimitiveRunner`` at import time; doctrine
-    calls ``get_runner()`` without importing ``specify_cli``.
+    ``clear_registry()`` (test-only). Nobody registers eagerly: the consumer
+    ``charter.offering.missions.glossary_hook`` lazily self-bootstraps the
+    registry on first use (``get_runner()`` → ``None`` →
+    ``import_module("glossary.attachment")`` →
+    ``register(GlossaryAwarePrimitiveRunner)`` → retry) and degrades only when
+    ``glossary.attachment`` is unimportable; doctrine calls ``get_runner()``
+    without importing ``specify_cli``.
 """
 
 from kernel.paths import (

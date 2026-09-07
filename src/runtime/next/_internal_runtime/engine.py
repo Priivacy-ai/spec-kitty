@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -115,8 +116,15 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
         "timestamp": now_utc_iso(),
         "payload": payload,
     }
+    # Serialize before appending, then flush and fsync for durability. Append
+    # mode preserves earlier records, but a failed write or crash can still
+    # leave a partial final line; this is not an atomic record publication.
+    # The journal is per-run, single-writer.
+    line = json.dumps(event, sort_keys=True, default=str) + "\n"
     with open(event_file, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(event, sort_keys=True, default=str) + "\n")
+        handle.write(line)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
@@ -126,8 +134,17 @@ def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
 
 
 def _write_snapshot(run_dir: Path, snapshot: MissionRunSnapshot) -> None:
-    with open(run_dir / "state.json", "w", encoding="utf-8") as handle:
+    # FR-015: stage the cursor in a same-directory tmp file (same filesystem),
+    # fsync, then publish with os.replace (atomic on POSIX and NTFS) -- the
+    # ``reducer.materialize`` shape. A crash at any point leaves either the
+    # previous complete state.json or the new one, never a torn file.
+    target = run_dir / "state.json"
+    tmp = run_dir / "state.json.tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(snapshot.model_dump(mode="json"), handle, indent=2, sort_keys=True, default=str)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp, target)
 
 
 def _freeze_template(run_dir: Path, template: MissionTemplate, template_path: str) -> str:

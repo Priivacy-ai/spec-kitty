@@ -288,7 +288,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # transaction object; on any setup failure below, release it before
         # propagating the domain error.
         lock_cm = feature_status_lock(
-            effective_root or repo_root, mission_slug, timeout=timeout,
+            effective_root or repo_root, _mission_specs_dir_name(mission_slug, mid8), timeout=timeout,
         )
         try:
             lock_cm.__enter__()

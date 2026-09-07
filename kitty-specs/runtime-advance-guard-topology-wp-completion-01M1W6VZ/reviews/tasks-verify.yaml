@@ -1,0 +1,20 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: WP01's Context section now names concrete subtask IDs for both original hunks (T008-T011+T014+catch-sites+T015 for the FR-001/002/003/006/007/008 gather_artifact_presence-anchoring hunk; T012/T013/T016/T017 for the FR-004/005 Lane.UNINITIALIZED-plus-Seam-2 hunk), and each ID's own heading requirement-tag matches the hunk it is assigned to, so the claim is independently checkable rather than a bare assertion.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: WP01's Risks section now carries the PR #3923 collision flag with a kickoff re-check-and-reconcile instruction and a tracer-design-decisions.md recording requirement, and gh pr view 3923 --json state,isDraft,baseRefName confirms it is still OPEN, DRAFT, base=main as of the verification date, matching the note's claims exactly.
+  - id: TASKS-SEQ-002
+    status: resolved
+    reason: The heading is renamed to "## The three ORIGINAL FR-006 catch sites (part of T014's scope)", which drops the Txxx-shaped id from the heading entirely, and a grep of every "## Subtask Txxx" heading in WP01 shows only the 12 registered ids T008-T019 with no other stray Txxx-shaped heading introduced by the fix (residual "T014a" mentions are inline prose labels, not headings or checkbox/Subtasks-list tokens, so they do not collide with mark-status's heading/list-based parsing).
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: WP02's T007 (unchanged frontmatter subtasks list, still T001-T007 matching wps.yaml) now has an added step 4 instructing the three NFR-001-exact invocations be run and recorded with dated entries in tracer-design-decisions.md, and since WP01 depends on WP02 this runs before WP01's first production-code commit as required.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: WP01's T018 contains a new item 5 building a coord-topology fixture where primary_dir and coord feature_dir disagree on WP status and asserting the coord-anchored answer wins, and the Reviewer Guidance section has a matching checklist line requiring this discriminating assertion be confirmed present.

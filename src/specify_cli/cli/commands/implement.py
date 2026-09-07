@@ -1337,6 +1337,8 @@ def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declare
     # workspace"); collapsing to a lane-only map here would leave the #2945
     # strand trap open on the main claim path (review REJECT), mirroring the
     # workflow_executor gate fix.
+    # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+    # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
     dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes, provenance=_snapshot.work_packages)
     if not dependency_readiness.satisfied:
         blocked = ", ".join(dependency_readiness.unsatisfied)

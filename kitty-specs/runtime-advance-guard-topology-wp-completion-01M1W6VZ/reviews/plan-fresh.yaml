@@ -1,0 +1,99 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-FRESH-001
+    lens: fresh-eyes / test-strategy completeness (FR-006 fail-loud contract)
+    severity: 4
+    title: >-
+      The Seam 2 extension's two NEW FR-006 catch-site arms
+      (_check_composed_action_guard:557 and _dn_dependency_gate's direct
+      _should_advance_wp_step call at :1680) have no red-first reproduction
+      that actually exercises exception propagation through them — reproduction
+      #2 still says "three" call sites verbatim, and reproduction #4 (cited by
+      the coverage-arithmetic section as covering them) never injects a
+      resolution failure.
+    evidence:
+      - artifact: "plan.md § 'Seam 2 extension' → 'FR-006 catch-site extension' (lines 649-683): enumerates 2 NEW except-arm requirements at _check_composed_action_guard:557 and _dn_dependency_gate's direct call at :1680, on top of the original 3, for a total of 5 real catch sites."
+      - artifact: "plan.md § Test Strategy, reproduction #2 'FR-006 raise-and-catch reproduction' (lines 833-842): unchanged wording still asserts only '(b) each of the three FR-006 call sites (both _check_cli_guards sites via _dn_dependency_gate, and _check_composed_action_guard) converts that raise into a DecisionKind.blocked ... or a non-empty failure list' — no mention of the 2 new sites this same round's extension added."
+      - artifact: "plan.md § Test Strategy, reproduction #4 (lines 852-869): calls `_should_advance_wp_step(\"implement\", coord_feature_dir, repo_root=<repo_root>, mission_slug=<slug>)` directly and asserts its True/False return value (the anchoring-correctness / Lane.UNINITIALIZED happy path) — it never constructs a corrupt/missing meta.json fixture and never asserts an exception is raised or caught anywhere, so it cannot be exercising a catch-site's except arm."
+      - artifact: "plan.md § '90%+ new-code coverage arithmetic' (lines 911-930), item (3): 'the 2 NEW FR-006 catch-site arms PLAN-FIT-001's extension adds ... — reproduction #4 below' — this attribution is the specific claim shown false by re-reading reproduction #4's own text."
+      - code: "src/runtime/next/runtime_bridge_composition.py:556-558 (the _should_advance_wp_step call inside _check_composed_action_guard, confirmed OUTSIDE the function's only try at :559-568) and :1680 in src/runtime/next/runtime_bridge.py (the direct _should_advance_wp_step call inside _dn_dependency_gate's WP-iteration branch, confirmed wrapped only in `except CanonicalStatusNotFoundError` at :1681-1697, with no PrimaryPlacementResolutionError arm today)."
+    claim: >-
+      This round's own extension correctly identifies that anchoring
+      _should_advance_wp_step adds two brand-new places PrimaryPlacementResolutionError
+      can now escape from, and correctly designs two new except arms for them.
+      But the Test Strategy section that is supposed to prove FR-006's
+      "MUST raise, AND be caught at every real call site" contract holds was
+      never extended to match: reproduction #2's prose is verbatim inherited
+      from the pre-extension (3-call-site) design, and reproduction #4 —
+      the only test the coverage-arithmetic section credits for the 2 new
+      arms — tests a completely different thing (does the Lane.UNINITIALIZED
+      fix fire once anchoring succeeds), not what happens when anchoring
+      fails through those two new paths. As written, an implementer following
+      this Test Strategy verbatim would ship two new except blocks with zero
+      direct test coverage, silently violating both FR-006's own contract
+      ("An uncaught crash out of decide_next_via_runtime is NOT acceptable
+      behavior for this failure class") and the charter's 90%+ new-code
+      coverage floor the plan explicitly cites (charter.md:262) for exactly
+      this class of new branch.
+    remediation: >-
+      Extend reproduction #2 (or add a dedicated reproduction #5) so the same
+      corrupt/missing-meta.json fixture used for the original 3 catch sites is
+      also driven through (a) `_check_composed_action_guard(action, coord_feature_dir,
+      mission="software-dev", repo_root=<repo_root>)` where the WP-advance-ready
+      branch's own `_should_advance_wp_step` call is the one that fails (not the
+      earlier `gather_artifact_presence` call), asserting a non-empty failure list;
+      and (b) a direct `_dn_dependency_gate(ctx)` invocation on the WP-iteration
+      branch where `_should_advance_wp_step` itself (not `_check_cli_guards`)
+      raises, asserting a `DecisionKind.blocked` Decision. Update reproduction
+      #2's prose from "three FR-006 call sites" to "five" (or explicitly split
+      into two reproductions) and correct the coverage-arithmetic section's
+      attribution accordingly.
+
+  - id: PLAN-FRESH-002
+    lens: fresh-eyes / plan self-consistency (DIRECTIVE_044 single-canonical-authority)
+    severity: 3
+    title: >-
+      The plan's own Seam 1 code sample for gather_artifact_presence's
+      anchor_dir block was never updated to reflect the Seam 2 extension's
+      stated extraction of that exact block into the new shared
+      resolve_primary_anchor_dir helper — the document shows the anchoring
+      logic inline in one section and as an extracted helper in another,
+      without reconciling them.
+    evidence:
+      - artifact: "plan.md § 'Design decision: gather_artifact_presence needs ONE new parameter, mission_slug' (lines 279-297): shows the full inline `anchor_dir = feature_dir / if repo_root is not None: ... try: anchor_dir = placement_seam(...).read_dir(...) except Exception as exc: raise PrimaryPlacementResolutionError(...)` block as gather_artifact_presence's OWN body, with no forward-reference or caveat that this block is later extracted."
+      - artifact: "plan.md § 'Seam 2 extension' → the `resolve_primary_anchor_dir` code sample (lines 567-595), whose leading comment reads: 'extracted from gather_artifact_presence's existing inline anchor_dir block; gather_artifact_presence itself now calls this instead of inlining the try/except.'"
+      - artifact: "plan.md never re-renders gather_artifact_presence's updated body calling `_io_seam.resolve_primary_anchor_dir(...)` or `resolve_primary_anchor_dir(...)` directly — the only place that call appears is inside the new `_should_advance_wp_step` sample (line 613)."
+    claim: >-
+      Read top-to-bottom, the plan presents the try/placement_seam/except
+      anchoring logic verbatim TWICE: first as inline code the reader is told
+      belongs directly inside gather_artifact_presence (Seam 1's Design
+      decision section), and second as an extracted helper the reader is told
+      gather_artifact_presence now calls INSTEAD of that inline block (Seam 2
+      extension). The plan never goes back and marks the first code sample as
+      superseded, nor shows gather_artifact_presence's final body with the
+      helper call substituted in. An implementer working strictly off the
+      plan's code samples (rather than inferring intent from the later prose)
+      could reasonably keep the original inline block in gather_artifact_presence
+      as shown AND add the new helper for _should_advance_wp_step only — i.e.
+      exactly the "second anchoring mechanism duplicated" outcome DIRECTIVE_044
+      and this plan's own Charter Check section explicitly rule out ("the fix
+      lands ONCE inside gather_artifact_presence, never as a second anchoring
+      mechanism duplicated"). This is a real self-contradiction between two
+      code samples in the same document, not merely a stale prose reference.
+    remediation: >-
+      Either strike/annotate the original inline anchor_dir code sample in the
+      Design decision section as "superseded by resolve_primary_anchor_dir,
+      shown below" and add a short follow-up snippet showing
+      gather_artifact_presence's post-extraction body (e.g. `anchor_dir =
+      feature_dir; if repo_root is not None: anchor_dir =
+      resolve_primary_anchor_dir(feature_dir, repo_root, mission_slug)`), or
+      move the helper extraction earlier so Seam 1's own section defines it
+      once and both call sites are shown consuming it from the start.
+
+findings_count_by_severity:
+  "4": 1
+  "3": 1

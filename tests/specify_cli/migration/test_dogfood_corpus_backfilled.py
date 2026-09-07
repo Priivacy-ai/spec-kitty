@@ -66,9 +66,9 @@ from specify_cli.migration.backfill_runtime_state import (
 from specify_cli.status import (
     Lane,
     StatusEvent,
-    append_events_atomic_verified,
     build_claim_policy_metadata,
 )
+from specify_cli.status._unsafe import append_events_atomic_verified
 from specify_cli.status import emit as _emit
 from specify_cli.status.cutover_eligibility import (
     assert_birth_invariant_holds as _assert_birth_invariant_holds,

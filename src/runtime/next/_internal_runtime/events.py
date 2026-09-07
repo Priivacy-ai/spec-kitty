@@ -10,6 +10,9 @@ Uses canonical event constants and payload models from spec-kitty-events v2.3.1.
 from __future__ import annotations
 
 import json
+import logging
+import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -38,6 +41,12 @@ from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     TimeoutExpiredPayload,
 )
+# Layer note (dead-port-disposition-01M1VRA2, research R-5): ``runtime`` may import
+# ``specify_cli.*`` except ``specify_cli.cli`` / ``specify_cli.next``; both ``core``
+# and ``mission_metadata`` are already on the runtime outbound ledger
+# (``tests/architectural/test_layer_rules.py``), so these add no ledger entry.
+from specify_cli.core.env import is_truthy
+from specify_cli.mission_metadata import resolve_mission_identity
 
 # Explicit re-exports so `from runtime.next._internal_runtime.events import X`
 # resolves under `mypy --strict` (otherwise `attr-defined` flags the indirected names).
@@ -57,6 +66,10 @@ __all__ = [
     "RuntimeEventEmitter",
     "NullEmitter",
     "JsonlEventLog",
+    "seed_runtime_emitter",
+    "runtime_emitter_for_mission",
+    "register_runtime_emitter_factory",
+    "reset_runtime_emitter_factory",
 ]
 
 
@@ -88,15 +101,63 @@ class RuntimeEventEmitter(Protocol):
     def emit_decision_timeout_expired(self, payload: TimeoutExpiredPayload) -> None: ...
 
 
+def seed_runtime_emitter(emitter: RuntimeEventEmitter, snapshot: Any) -> None:
+    """Seed optional producer state without affecting mission control flow.
+
+    Protocol-only products need no hook. Lookup and invocation failures are
+    logged and ignored, including when a decision-log wrapper delegates inward.
+    """
+    try:
+        seed = getattr(emitter, "seed_from_snapshot", None)
+        if seed is not None:
+            seed(snapshot)
+    except Exception as exc:  # noqa: BLE001 — optional instrumentation must not alter mission state
+        logging.getLogger(__name__).warning("Failed to seed runtime emitter from snapshot: %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # NullEmitter (no-op default)
 # ---------------------------------------------------------------------------
 
 class NullEmitter:
-    """No-op emitter — default when no concrete emitter is provided."""
+    """No-op emitter — default when no concrete emitter is provided.
 
-    def __init__(self, correlation_id: str = "") -> None:
+    Also the null object the runtime emitter seam returns (see
+    :func:`runtime_emitter_for_mission`). Nothing here may raise: emission is
+    fire-and-forget instrumentation, never control flow.
+    """
+
+    def __init__(
+        self,
+        correlation_id: str = "",
+        *,
+        mission_slug: str = "",
+        mission_type: str = "",
+        mission_id: str | None = None,
+    ) -> None:
         self.correlation_id = correlation_id
+        self.mission_slug = mission_slug
+        self.mission_type = mission_type
+        self.mission_id = mission_id
+
+    @classmethod
+    def for_mission(
+        cls,
+        *,
+        feature_dir: Path,
+        mission_slug: str,
+        mission_type: str,
+    ) -> NullEmitter:
+        """Build the null seam for one mission, resolving its ULID when possible."""
+        try:
+            mission_id: str | None = resolve_mission_identity(feature_dir).mission_id
+        except Exception:  # noqa: BLE001 — identity is informational; the seam must never raise
+            mission_id = None
+        return cls(mission_slug=mission_slug, mission_type=mission_type, mission_id=mission_id)
+
+    def seed_from_snapshot(self, snapshot: Any) -> None:
+        """No-op: the null seam carries no phase state to seed."""
+        del snapshot
 
     def emit_mission_run_started(self, payload: MissionRunStartedPayload) -> None:
         pass
@@ -121,6 +182,150 @@ class NullEmitter:
 
     def emit_decision_timeout_expired(self, payload: TimeoutExpiredPayload) -> None:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Runtime emitter seam (factory + registry)
+# ---------------------------------------------------------------------------
+#
+# This is the reserved E3 *producer* seam for the six ``mission_next`` runtime
+# moments (mission run started/completed, next step issued/auto-completed,
+# decision input requested/answered). Nothing registers here today; the seam
+# returns :class:`NullEmitter` so the bridge's instrumentation points survive
+# intact.
+#
+# A future producer registers once at its import tail via
+# :func:`register_runtime_emitter_factory`, under the
+# ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` gate, mirroring
+# ``specify_cli.status.adapters.ensure_zeitgeist_moment_handlers``::
+#
+#     if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
+#         register_runtime_emitter_factory(MyProducer.for_mission)
+#
+# The zeitgeist *moment fan-out* is a separate, already-live seam in
+# ``specify_cli/status/adapters.py`` (``WPStatusChanged`` and lifecycle events);
+# it is NOT what registers here. This seam carries only the runtime-loop
+# moments listed above.
+#
+# Governing ADR: ``docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md``.
+
+RuntimeEmitterFactory = Callable[..., RuntimeEventEmitter]
+_registered_factory: RuntimeEmitterFactory | None = None
+
+
+def _callable_key(fn: Callable[..., Any]) -> str:
+    """Return a stable identity key for a registered callable.
+
+    Mirrors ``specify_cli.invocation.adapters._callable_key`` (this module
+    may not import from ``specify_cli.invocation`` -- see the enforced layer
+    chain in ``tests/architectural/test_layer_rules.py`` -- so the helper is
+    duplicated locally rather than imported). Uses ``__module__`` +
+    ``__qualname__`` (falling back to ``__name__``) so that the same logical
+    callable compares equal across module reloads *and* across repeated
+    attribute access on a classmethod, which mints a fresh bound-method
+    object every time (``Producer.for_mission is Producer.for_mission`` is
+    ``False``).
+    """
+    module = getattr(fn, "__module__", None)
+    qualname = getattr(fn, "__qualname__", None)
+    name = qualname if isinstance(qualname, str) else getattr(fn, "__name__", None)
+    if isinstance(module, str) and isinstance(name, str):
+        return f"{module}.{name}"
+    if isinstance(name, str):
+        return name
+    return repr(fn)
+
+
+def register_runtime_emitter_factory(factory: RuntimeEmitterFactory) -> None:
+    """Register the producer factory a future E3 adapter installs at import tail.
+
+    The callable must accept ``feature_dir``, ``mission_slug`` and
+    ``mission_type`` as keywords and return an object satisfying
+    :class:`RuntimeEventEmitter`.
+
+    Policy: reject-on-conflict. Two producers racing to register here would
+    otherwise resolve silently by import order -- whichever registers first
+    (or last, under a last-writer-wins policy) wins with no diagnosis of the
+    other -- so this fails closed with ``RuntimeError`` instead, forcing the
+    conflict to surface at the point it happens. That policy is the in-repo
+    precedent set by ``kernel.glossary_runner.register``. The *comparison*
+    it runs, however, is keyed on ``__module__`` + ``__qualname__`` (see
+    :func:`_callable_key`, mirroring ``specify_cli.invocation.adapters.
+    _callable_key``) rather than object identity: ``glossary_runner``
+    registers a *class*, whose identity is stable across accesses, but this
+    seam's own documented registration form (``MyProducer.for_mission``, a
+    classmethod) is not -- every attribute access mints a fresh bound-method
+    object, so an identity check would treat a benign re-import as a
+    conflicting registrant. Re-registering the same logical callable (by
+    key) rebinds the slot to the newest object and returns; registering a
+    genuinely different callable while one is already registered raises
+    ``RuntimeError``; a non-callable argument raises ``TypeError``.
+    """
+    global _registered_factory
+    if not callable(factory):
+        raise TypeError(f"factory must be callable, got {type(factory)!r}")
+    new_key = _callable_key(factory)
+    if _registered_factory is not None:
+        existing_key = _callable_key(_registered_factory)
+        if existing_key == new_key:
+            # Idempotent: same logical callable re-registered (e.g. a
+            # classmethod re-accessed, or a module re-import) rebinds the
+            # slot to the newest object rather than raising.
+            _registered_factory = factory
+            return
+        raise RuntimeError(f"A different runtime emitter factory is already registered: {_registered_factory!r}. Cannot register {factory!r}.")
+    _registered_factory = factory
+
+
+def reset_runtime_emitter_factory() -> None:
+    """Restore the default (null) seam; test-only utility, mirrors ``reset_handlers()``."""
+    global _registered_factory
+    _registered_factory = None
+
+
+def runtime_emitter_for_mission(
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    mission_type: str,
+) -> RuntimeEventEmitter:
+    """Return the mission's runtime emitter seam.
+
+    Under ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` the null seam is returned
+    unconditionally and the registered factory is not called (S2). Otherwise
+    the registered factory wins (S3); with none registered the null seam is
+    returned (S1). The env gate is read at call time so tests can toggle it
+    without reloading this module.
+
+    A registered factory that raises degrades to the null seam rather than
+    propagating: ``NullEmitter``'s own docstring rule -- "Nothing here may
+    raise: emission is fire-and-forget instrumentation, never control flow"
+    -- applies to the seam as a whole, and an uncaught factory-constructor
+    exception would otherwise kill the caller (e.g. ``spec-kitty next``)
+    instead of degrading gracefully. The failure is logged at WARNING, not
+    silent.
+    """
+    if is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
+        return NullEmitter.for_mission(
+            feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+        )
+    if _registered_factory is not None:
+        try:
+            return _registered_factory(
+                feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+            )
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "runtime_emitter_for_mission: registered factory %r raised; degrading to NullEmitter",
+                _registered_factory,
+                exc_info=True,
+            )
+            return NullEmitter.for_mission(
+                feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+            )
+    return NullEmitter.for_mission(
+        feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+    )
 
 
 # ---------------------------------------------------------------------------

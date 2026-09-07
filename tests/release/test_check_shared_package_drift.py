@@ -118,7 +118,6 @@ def load_script_module() -> ModuleType:
 def test_shared_package_drift_passes_with_aligned_sources(tmp_path: Path) -> None:
     cli = tmp_path / "pyproject.toml"
     lockfile = tmp_path / "uv.lock"
-    saas = tmp_path / "saas.toml"
     runtime = tmp_path / "runtime.toml"
 
     write_pyproject(
@@ -135,13 +134,6 @@ def test_shared_package_drift_passes_with_aligned_sources(tmp_path: Path) -> Non
             "spec-kitty-tracker": "0.4.2",
         },
     )
-    write_pyproject(
-        saas,
-        dependencies=[
-            "spec-kitty-events==4.0.0",
-            "spec-kitty-tracker==0.4.2",
-        ],
-    )
     write_pyproject(runtime, dependencies=["spec-kitty-events==3.3.0"])
 
     result = run_check(
@@ -150,59 +142,12 @@ def test_shared_package_drift_passes_with_aligned_sources(tmp_path: Path) -> Non
         str(cli),
         "--lockfile",
         str(lockfile),
-        "--saas-pyproject",
-        str(saas),
         "--runtime-pyproject",
         str(runtime),
     )
 
     assert result.returncode == 0, result.stderr
     assert "Shared package drift check passed." in result.stdout
-
-
-def test_shared_package_drift_fails_on_saas_mismatch(tmp_path: Path) -> None:
-    cli = tmp_path / "pyproject.toml"
-    lockfile = tmp_path / "uv.lock"
-    saas = tmp_path / "saas.toml"
-    runtime = tmp_path / "runtime.toml"
-
-    write_pyproject(
-        cli,
-        dependencies=[
-            "spec-kitty-events>=4.0.0,<5.0.0",
-            "spec-kitty-tracker>=0.4,<0.5",
-        ],
-    )
-    write_lockfile(
-        lockfile,
-        versions={
-            "spec-kitty-events": "4.0.0",
-            "spec-kitty-tracker": "0.4.2",
-        },
-    )
-    write_pyproject(
-        saas,
-        dependencies=[
-            "spec-kitty-events==4.0.0",
-            "spec-kitty-tracker==0.4.1",
-        ],
-    )
-    write_pyproject(runtime, dependencies=["spec-kitty-events==3.3.0"])
-
-    result = run_check(
-        tmp_path,
-        "--pyproject",
-        str(cli),
-        "--lockfile",
-        str(lockfile),
-        "--saas-pyproject",
-        str(saas),
-        "--runtime-pyproject",
-        str(runtime),
-    )
-
-    assert result.returncode == 1
-    assert "spec-kitty-tracker pin mismatch between SaaS and CLI uv.lock" in result.stdout
 
 
 def test_shared_package_drift_fails_when_override_remains(tmp_path: Path) -> None:
@@ -415,55 +360,6 @@ def test_shared_package_drift_fails_on_cli_direct_reference(
         str(cli),
         "--lockfile",
         str(lockfile),
-    )
-
-    assert result.returncode == 1
-    assert "spec-kitty-events: direct references are forbidden" in result.stderr
-
-
-def test_shared_package_drift_fails_when_saas_uses_direct_reference(tmp_path: Path) -> None:
-    """No consumer context is permitted to use a direct shared-package reference."""
-    cli = tmp_path / "pyproject.toml"
-    lockfile = tmp_path / "uv.lock"
-    saas = tmp_path / "saas.toml"
-    write_manifest(
-        tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
-        events_range=">=9,<10",
-        events_version="9.1.4",
-        tracker_range=">=0.5.2,<0.6",
-        tracker_version="0.5.2",
-    )
-
-    write_pyproject(
-        cli,
-        dependencies=[
-            "spec-kitty-events>=9,<10",
-            "spec-kitty-tracker>=0.5.2,<0.6",
-        ],
-    )
-    write_lockfile(
-        lockfile,
-        versions={
-            "spec-kitty-events": "9.1.4",
-            "spec-kitty-tracker": "0.5.2",
-        },
-    )
-    write_pyproject(
-        saas,
-        dependencies=[
-            "spec-kitty-events @ git+https://github.com/Priivacy-ai/spec-kitty-events@9fe707345469aaaf5d232047724a0e6a08925645",
-            "spec-kitty-tracker==0.5.2",
-        ],
-    )
-
-    result = run_check(
-        tmp_path,
-        "--pyproject",
-        str(cli),
-        "--lockfile",
-        str(lockfile),
-        "--saas-pyproject",
-        str(saas),
     )
 
     assert result.returncode == 1

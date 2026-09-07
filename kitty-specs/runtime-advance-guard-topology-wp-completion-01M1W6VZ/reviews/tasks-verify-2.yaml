@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: A grep for "T014a" in WP01-merged-production-fix.md now returns zero hits, and every remaining Txxx-shaped token in the file (T002, T003, T008-T019) is either a real registered WP01 subtask id or a legitimate cross-reference to a real registered WP02 subtask id, matching wps.yaml exactly.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: WP03's T021 now carries a new step 6 that reads WP02's T007-step-4 tracer-design-decisions.md "before" baseline entry and diffs the "after" counts against it (with an explicit discrepancy-classification path), and T022 step 2 now lists that same baseline entry among what must be confirmed present at tracer close-out, making WP02 T007's claim about what WP03's T021 diffs against actually true of WP03's contract as written.

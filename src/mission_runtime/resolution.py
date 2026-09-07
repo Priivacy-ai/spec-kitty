@@ -82,8 +82,11 @@ __all__ = [
     "ActionContextError",
     "ActionName",
     "PlacementSeam",
-    "ResolvedSurface",
-    "SurfaceLocations",
+    # ResolvedSurface / SurfaceLocations / translate_surface: demoted -- the
+    # stamped output, the input bundle, and the member->path translation of
+    # ``resolve_artifact_surface`` are consumed as *instances* by src/ callers,
+    # never imported by name outside this module (dead-port-disposition-01M1TZVN
+    # WP03, FR-014; same disposition as resolve_context_for_mission below).
     "TopologySurface",
     "coord_read_dir_for",
     "declared_read_surface",
@@ -95,7 +98,6 @@ __all__ = [
     # resolve_context_for_mission: demoted — no cross-module src/ from-import
     # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "resolve_placement_only",
-    "translate_surface",
 ]
 
 

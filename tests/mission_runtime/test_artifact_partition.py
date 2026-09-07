@@ -31,13 +31,8 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import (
-    CommitTarget,
-    MissionArtifactKind,
-    MissionTopology,
-    artifact_home_for,
-    resolve_placement_only,
-)
+from mission_runtime import CommitTarget, MissionArtifactKind, MissionTopology, resolve_placement_only
+from mission_runtime.artifacts import artifact_home_for
 from mission_runtime.artifacts import kind_is_coordination_residue
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]

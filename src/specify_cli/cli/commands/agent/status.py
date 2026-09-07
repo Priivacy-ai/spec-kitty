@@ -526,7 +526,7 @@ def materialize(
             )
             raise typer.Exit(1)
 
-        with feature_status_lock(main_repo_root, mission_slug):
+        with feature_status_lock(main_repo_root, feature_dir.name):
             # Materialize snapshot from event log
             snapshot = do_materialize(feature_dir)
 

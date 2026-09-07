@@ -46,13 +46,19 @@ _PACKAGE_DIR = _SRC / "mission_runtime"
 # expected surface is sorted too.
 _PUBLIC_SURFACE = sorted(
     [
+        # dead-port-disposition-01M1TZVN WP03 (FR-014): this list is now asserted
+        # against ``mission_runtime.__all__`` (it never was before, so it had
+        # drifted by the five live names below). The eleven facade names with no
+        # src/ importer outside the package were demoted off the root surface in
+        # the same change; they stay importable from their defining submodule
+        # (tests/mission_runtime/test_facade_demotions.py).
+        "CheckoutIdentityError",
+        "ReadDegradeStrategy",
+        "ReadDirDecision",
+        "enforce_checkout_identity",
+        "resolve_read_dir_or_degrade",
         "ActionContextError",
-        "ArtifactPlacementFragment",
-        "BranchRefFragment",
         "CommitTarget",
-        "IdentityFragment",
-        "MissionArtifactContext",
-        "MissionArtifactHome",
         "MissionArtifactKind",
         "MissionContext",
         "MissionExecutionContext",
@@ -72,15 +78,10 @@ _PUBLIC_SURFACE = sorted(
         # lifecycle-gate-execution-context-01KY72GQ WP02 (IC-11): the stamped
         # output + input bundle of the surface→filesystem translation seam — the
         # true schema root. Package-root public symbols, so pinned here.
-        "ResolvedSurface",
-        "StatusSurfaceFragment",
-        "SurfaceLocations",
         # WP02: the surface-vocabulary enum (``surface`` Sense 2), now a package-
         # root public symbol because ``ResolvedSurface.surface_kind`` stamps it and
         # consumers read the stamp.
         "TopologySurface",
-        "WorkspaceFragment",
-        "artifact_home_for",
         "classify_topology",
         # coord-commit-integrity SURFACE A (#5): the ONE topology-guarded coord-read
         # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
@@ -139,7 +140,6 @@ _PUBLIC_SURFACE = sorted(
         # single kind-parameterized helper with caller-supplied degrade policy.
         "resolve_write_target_or_degrade",
         "routes_through_coordination",
-        "translate_surface",
     ]
 )
 
@@ -162,6 +162,16 @@ class TestMissionRuntimeSurface:
             check=False,
         )
         assert result.returncode == 0, result.stderr
+
+    def test_public_surface_is_exactly_all(self) -> None:
+        """``_PUBLIC_SURFACE`` IS ``mission_runtime.__all__`` -- nothing more, nothing less.
+
+        Until dead-port-disposition-01M1TZVN WP03 this list was declared but
+        never compared, so it could not catch a widened or shrunk root surface.
+        """
+        import mission_runtime
+
+        assert list(mission_runtime.__all__) == _PUBLIC_SURFACE
 
 
     def test_no_external_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:

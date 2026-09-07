@@ -143,11 +143,14 @@ def test_get_or_start_run_succeeds_for_research(isolated_repo: Path) -> None:
     )
 
     # The feature-runs index records the entry under the research key.
+    # WP05 / FR-016: keyed by mission_id, or ``legacy-<slug>`` for a mission
+    # without one (this scaffold's meta.json); the bare slug is never a key.
     feature_runs = isolated_repo / ".kittify" / "runtime" / "feature-runs.json"
     assert feature_runs.is_file()
     index = json.loads(feature_runs.read_text(encoding="utf-8"))
-    entry = index["demo-research-walk"]
+    entry = index["legacy-demo-research-walk"]
     assert entry["mission_type"] == "research"
+    assert entry["mission_slug"] == "demo-research-walk"
 
 
 def test_initial_success_bootstrap_issues_research_scoping_prompt(

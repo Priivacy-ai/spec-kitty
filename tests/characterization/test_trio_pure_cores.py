@@ -40,7 +40,8 @@ from specify_cli.cli.commands.agent.workflow import (
     _resolve_review_feedback_context,
 )
 from specify_cli.review.cycle import create_rejected_review_cycle
-from specify_cli.status import Lane, StatusEvent, append_event
+from specify_cli.status import Lane, StatusEvent
+from specify_cli.status._unsafe import append_event
 from specify_cli.task_utils import WorkPackage
 from specify_cli.workspace.context import ResolvedWorkspace, WorkspaceContext
 

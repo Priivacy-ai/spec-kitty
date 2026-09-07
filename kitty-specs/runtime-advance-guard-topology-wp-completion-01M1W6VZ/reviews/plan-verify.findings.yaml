@@ -1,0 +1,96 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-VERIFY-001
+    lens: C-008's three red-first reproductions
+    severity: 3
+    title: >-
+      US1 reproduction's "call (b)" names decide_next_via_runtime as the entry
+      point but cites a sibling-test pattern that actually bypasses it,
+      leaving the exact fixture-construction approach unresolved
+    evidence:
+      - artifact: "plan.md § Test Strategy, 'C-008's three named red-first reproductions', item 1, Call (b)"
+      - artifact: "plan.md § Project Structure, tests/runtime/next/test_cli_guard_family.py — \"existing sibling fixture — pattern to follow\""
+      - code: "tests/runtime/next/test_cli_guard_family.py:487-544 (test_cli_pre_check_threads_real_repo_root) — builds a DecideNextContext directly and calls rb._dn_dependency_gate(ctx) directly; decide_next_via_runtime is never invoked"
+      - code: "src/runtime/next/runtime_bridge.py:2293-2352 (decide_next_via_runtime) — real invocation requires _merged_mission_short_circuit, _dn_bootstrap (get_or_start_run, meta.json resolution, run_ref construction) to succeed before _dn_dependency_gate ever runs"
+      - code: "tests/runtime/test_bridge_decide_next.py:158-166 — a third, lighter pattern: monkeypatch _dn_bootstrap to return a synthetic ctx, then call decide_next_via_runtime for real"
+    claim: >-
+      Plan's Test Strategy item 1 Call (b) says "a decide_next_via_runtime
+      invocation reaching _dn_dependency_gate's non-WP-iteration
+      software-dev-only pre-check ... via _check_cli_guards" — language lifted
+      near-verbatim from spec.md's Independent Test/C-003 text. But the
+      plan's own "pattern to follow" citation (test_cli_guard_family.py) does
+      NOT call decide_next_via_runtime at all; it constructs a
+      DecideNextContext by hand and calls _dn_dependency_gate(ctx) directly,
+      skipping the full mission-bootstrap chain (_merged_mission_short_circuit,
+      _dn_bootstrap/get_or_start_run) that a literal decide_next_via_runtime
+      call would require. The repo has at least three materially different
+      ways to satisfy the words "reproduction through decide_next_via_runtime":
+      (1) full real bootstrap with a genuine mission scaffold (heaviest,
+      matches the words literally), (2) monkeypatch _dn_bootstrap to shortcut
+      straight to _dn_dependency_gate while still nominally calling
+      decide_next_via_runtime (test_bridge_decide_next.py's pattern), or (3)
+      skip decide_next_via_runtime entirely and construct DecideNextContext +
+      call _dn_dependency_gate(ctx) directly (the plan's own cited "pattern to
+      follow"). The plan does not say which of these WP1 should build, so an
+      implementer following "the pattern to follow" citation will produce a
+      test that does not literally exercise decide_next_via_runtime — silently
+      diverging from C-003's own stated dual-path requirement and from the
+      words in the plan's own Test Strategy section. This is exactly the kind
+      of ambiguity C-008 asks the plan to close before implementation.
+    remediation: >-
+      In plan.md's Test Strategy item 1, Call (b), name the exact construction
+      method explicitly rather than paraphrasing spec.md's Independent Test
+      text. Recommended: state that Call (b) uses the
+      test_cli_guard_family.py:487 pattern (construct DecideNextContext by
+      hand with current_step_id="tasks", mission_type="software-dev",
+      result="success", and the coord-worktree feature_dir; call
+      rb._dn_dependency_gate(ctx) directly) as functionally equivalent
+      dual-path coverage of the guard chain, OR explicitly require the
+      heavier real decide_next_via_runtime path if literal entry-point fidelity
+      is actually required by C-003's "reproduction through
+      decide_next_via_runtime" wording — and if so, say what mission scaffold
+      (meta.json, run_dir/run_ref, get_or_start_run) WP1 must build for that.
+      Either choice is acceptable; the plan currently makes neither choice
+      explicit.
+
+  - id: PLAN-VERIFY-002
+    lens: New-code coverage claim
+    severity: 2
+    title: >-
+      Gate Set's SonarCloud row invokes "CLAUDE.md's Sonar Expectations" (no
+      percentage) instead of the charter's actual binding new-code coverage
+      floor
+    evidence:
+      - artifact: "plan.md § Gate Set, row 'SonarCloud Quality Gate'"
+      - artifact: ".kittify/charter/charter.md:262 — \"pytest with 90%+ test coverage for new code\" (Testing Requirements, binding)"
+      - artifact: "AGENTS.md:309 — \"Sonar's project gate is dominated by new-code coverage\" (no percentage stated there either)"
+    claim: >-
+      The plan's Gate Set justifies the SonarCloud row by citing "CLAUDE.md's
+      Sonar Expectations," which states qualitative rules (every new
+      branch/helper needs tests) but never a percentage. The charter itself
+      (charter.md:262, Testing Requirements) states a concrete, binding floor
+      — "90%+ test coverage for new code" — that the review lens asked the
+      plan to check its test list against. The plan's "Additional narrow unit
+      tests" section (Test Strategy) does, on inspection, plausibly cover
+      essentially all new lines (the anchor_dir try/success/except branches,
+      all three FR-006 catch sites, and the new Lane.UNINITIALIZED disjunct
+      each have a named direct test) — so the substance is very likely fine —
+      but the plan itself never states the floor it is being held to or does
+      the arithmetic (approximate new-line count vs. named tests) to show it
+      plausibly clears 90%, leaving that connection implicit rather than
+      verified in the artifact itself.
+    remediation: >-
+      In the Gate Set's SonarCloud row (or the "Additional narrow unit tests"
+      subsection), cite charter.md's actual "90%+ test coverage for new code"
+      requirement explicitly (not only CLAUDE.md's qualitative Sonar
+      Expectations), and add one sentence enumerating the new
+      lines/branches introduced (the anchor_dir resolution block's 3 paths,
+      the 3 FR-006 catch-site arms, the 8 threaded-parameter signatures, and
+      the 1 new Lane.UNINITIALIZED disjunct) against the named tests that
+      exercise each, so the 90%+ claim is demonstrated rather than assumed.
+
+profile_applied: "debugger-debbie (packs/built-in/agent_profiles/debugger-debbie.agent.yaml) — directive-references 001 (Architectural Integrity), 003 (Decision Documentation), 030 (Test/Typecheck Quality Gate), 032 (Conceptual Alignment) applied as the review lens; tactic review-intent-and-risk-first applied to weigh each plan claim's intent against blast-radius risk before accepting it. Full five-paradigm dispatch (Debbie's dispatch/synthesis mode-defaults) was not invoked — this is a plan-verification pass against a not-yet-recurring defect, not a stubborn/recurring-bug investigation, so only the directive/tactic lenses were carried over, not the five-subagent swarm."

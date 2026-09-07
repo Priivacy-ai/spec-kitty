@@ -1,0 +1,76 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: SPEC-FRESH2-001
+    lens: cross-story-consistency
+    severity: 3
+    title: "US2's 'shared guard surface' priority-justification is stale after US1's round-2 re-anchoring to the tasks step, and misstates the wp_advance_ready data flow"
+    evidence:
+      - artifact: "spec.md § User Story 2, 'Why this priority' (line 162-166)"
+      - artifact: "spec.md § User Story 1, guard-path precision note (line 26-72, round-2 rewrite)"
+      - code: "src/runtime/next/runtime_bridge_io.py:965-970 (docstring: \"wp_advance_ready ... is deliberately NOT populated by gather_artifact_presence\")"
+      - code: "src/runtime/next/runtime_bridge.py:858 (dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir)) — threaded in AFTER gather_artifact_presence returns)"
+    claim: >
+      User Story 2's scoping justification (untouched by round 2) reads: "shares the
+      same guard surface (`_should_advance_wp_step` feeds `wp_advance_ready` into the
+      same `gather_artifact_presence`/`evaluate_guards_strict` path User Story 1
+      fixes)". This claim was written when US1's own round-1 (and round-1-fixed)
+      framing anchored the #3883 bug on the `implement` step's WP-iteration guard —
+      i.e., literally the same step and the same guard function (`_evaluate_wp_iteration_guard`)
+      that US2's `_wp_blocks_step` fix also touches. Round 2 correctly moved US1's
+      mechanism to the `"tasks"` step's `_evaluate_composed_tasks_terminal_guard`
+      (a different step, a different guard function, and a different snapshot field —
+      `present_artifacts` rather than `wp_advance_ready`), but the round-2 rewrite did
+      not revisit US2's "why this priority" text, which still reads as if the two bugs
+      resolve inside the same guard evaluation. Additionally, the specific mechanism
+      cited was already imprecise even under the old framing: `gather_artifact_presence`
+      never computes or gathers `wp_advance_ready` at all — it defaults the field to
+      `None` and the caller threads the real value in afterward via
+      `dataclasses.replace`, specifically so `gather_artifact_presence` does NOT do
+      that I/O (see the WP06/T022 docstring). So "feeds `wp_advance_ready` into ...
+      `gather_artifact_presence`" describes a data flow that does not exist; at most,
+      both fixes flow through the same `evaluate_guards_strict` dispatcher on a
+      snapshot that happens to have been produced by the same factory function for an
+      unrelated reason. This overstates the coupling between the two fixes and could
+      lead a plan-phase reader to expect a single shared code change point for both
+      bugs, when FR-001 (tasks-step presence loop) and FR-004 (`_wp_blocks_step`'s
+      implement-branch fall-through) are in fact disjoint functions on disjoint steps.
+    remediation: >
+      Rewrite US2's "Why this priority" to state the justification precisely: both
+      bugs are reachable through `evaluate_guards_strict`'s per-family dispatch table
+      (`_GUARD_TABLES`) and both bugs manifest in the `software-dev` guard chain, but
+      they are different guard functions on different steps (`_evaluate_composed_tasks_terminal_guard`
+      for `"tasks"` vs. `_evaluate_wp_iteration_guard` for `"implement"`/`"review"`)
+      consuming different snapshot fields (`present_artifacts` vs. `wp_advance_ready`,
+      the latter NOT populated by `gather_artifact_presence` itself per its own
+      docstring). State plainly that the two fixes are scoped into one mission for
+      programme/co-review reasons (both are #3883/#3884 runtime-advance-guard defects),
+      not because they share an implementation seam.
+  - id: SPEC-FRESH2-002
+    lens: citation-verification
+    severity: 1
+    title: "Two round-2-introduced file:line citations are off by a couple of lines"
+    evidence:
+      - artifact: "spec.md § User Story 1, guard-path precision note: \"`mission-runtime.yaml` v2.2.0, `packs/built-in/missions/software-dev/mission-runtime.yaml:33,53-58`\""
+      - code: "packs/built-in/missions/software-dev/mission-runtime.yaml:31 (`version: \"2.2.0\"`); line 33 is actually `steps:`"
+      - artifact: "spec.md § FR-006: \"`_check_composed_action_guard`'s own `gather_artifact_presence` call (`runtime_bridge_composition.py:543`) is likewise outside its function's only `try` (which wraps solely the later `evaluate_guards_strict` call at lines 559-566)\""
+      - code: "src/runtime/next/runtime_bridge_composition.py:559-568 (the try/except/return block actually spans through line 568's `return []`, not 566)"
+    claim: >
+      Two citations added/expanded in this round point 2 lines short of their target.
+      (1) The `mission-runtime.yaml` `version: "2.2.0"` field this round cites to
+      justify "v2.2.0" is on line 31, not line 33 (line 33 is the `steps:` header
+      two lines later) — the `53-58` half of the same citation (the `tasks` step
+      block) is correct. (2) FR-006's new "Verified live" paragraph describes
+      `_check_composed_action_guard`'s try/except as spanning `559-566`, but the
+      actual try/except/return construct runs `559-568` (566 is mid-way through the
+      `logger.warning(...)` call's arguments, not the end of the block). Neither
+      error changes which function/step is being discussed and a reader lands within
+      2 lines either way, but both are new imprecisions this round did not have
+      before (the surrounding prose was rewritten/added in round 2).
+    remediation: >
+      Correct the two citations: "mission-runtime.yaml:33,53-58" -> "mission-runtime.yaml:31,53-58";
+      "lines 559-566" -> "lines 559-568" (or "559-560" if only the call line itself,
+      not the whole try/except, was intended).

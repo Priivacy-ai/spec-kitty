@@ -1,0 +1,135 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-FRESH2-001
+    lens: debugger-debbie/structural-root-cause
+    severity: 4
+    title: >
+      Reproduction #2's round-2 rewrite of Call (b) silently dropped
+      failure-injection coverage for FR-006 catch site #3
+      (_check_composed_action_guard's own gather_artifact_presence wrap) while
+      the surrounding prose still claims all three "original" catch sites are
+      covered
+    evidence:
+      - artifact: "plan.md § Test Strategy, reproduction #2, line 856-859 (Call (b))"
+      - artifact: "plan.md § Test Strategy, reproduction #2, line 878 (\"(a)/(b) exercise the three catch sites FR-006's original scope planned\")"
+      - artifact: "plan.md § Test Strategy, coverage-arithmetic section, line 989-994 (\"all 5 FR-006 catch-site arms ... all exercised directly, with real failure injection, by reproduction #2 ... Calls (a)-(d)\")"
+      - artifact: "plan.md § FR-006 — the three real catch sites, item 3, line 470-488 (defines catch site #3: wrap gather_artifact_presence(...) at runtime_bridge_composition.py:543-549 inside _check_composed_action_guard, `except PrimaryPlacementResolutionError as exc: return [str(exc)]`)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:543-568 (verified live: the gather_artifact_presence call at :543 sits outside the function's only existing try at :559-568; FR-006 must add a new try/except around it — this is catch site #3, distinct from the NEW :557 _should_advance_wp_step wrap that Call (c) targets)"
+    claim: >
+      Round 1's version of this reproduction described Call (b) as covering
+      "each of the three FR-006 call sites (both _check_cli_guards sites via
+      _dn_dependency_gate, and _check_composed_action_guard) ... (sites 1/2)
+      or a non-empty failure list ... (site 3)" — i.e. it exercised
+      _check_composed_action_guard's own catch of ITS gather_artifact_presence
+      call. Round 2, in fixing PLAN-FRESH-001 by adding Calls (c)/(d) for the
+      two NEW PLAN-FIT-001 catch sites, rewrote Call (b) down to "each of the
+      two `_check_cli_guards` call sites (`_dn_dependency_gate`'s WP-iteration
+      and non-WP-iteration branches)" — dropping the _check_composed_action_guard
+      site entirely, with nothing added in its place. Call (a) only calls
+      gather_artifact_presence directly (no consumer, so it cannot exercise any
+      catch site). Call (c) explicitly constructs its fixture so that
+      "gather_artifact_presence itself succeeds" and only the SEPARATE,
+      later _should_advance_wp_step call (the NEW :557 site) fails — by
+      construction this cannot exercise the pre-existing :543-549 wrap either.
+      Call (d) doesn't touch _check_composed_action_guard at all. The net
+      result: as currently scoped, no reproduction ever constructs a fixture
+      where _check_composed_action_guard is invoked AND its own
+      gather_artifact_presence call (not _should_advance_wp_step) is the one
+      that raises PrimaryPlacementResolutionError — catch site #3 (one of
+      FR-006's three originally-planned sites, not even a PLAN-FIT-001
+      addition) has zero red-first failure-injection coverage. Both the
+      per-reproduction summary sentence ("(a)/(b) exercise the three catch
+      sites FR-006's original scope planned") and the coverage-arithmetic
+      section ("all 5 FR-006 catch-site arms ... all exercised directly ...
+      by ... Calls (a)-(d)") are therefore factually wrong as currently
+      written — this is the exact class of gap PLAN-FRESH-001 was raised
+      to close, reintroduced by round 2's own edit to (b), for a different
+      catch site than the two PLAN-FIT-001 fixed.
+    remediation: >
+      Add a Call (e) (or restore it inside (b)) that builds a fixture where
+      gather_artifact_presence itself fails to resolve (the same
+      corrupt/missing-meta.json fixture already used for Call (a)), then
+      calls `_check_composed_action_guard(action, coord_feature_dir,
+      mission="software-dev", repo_root=<repo_root>)` directly (with
+      `action="tasks"` or any action, since this path is reached
+      unconditionally at :543, before the implement/review-gated
+      _should_advance_wp_step branch) and asserts a non-empty failure list —
+      never a propagated raise. Update the "(a)/(b) exercise the three catch
+      sites" sentence and the coverage-arithmetic section's catch-site count
+      to reflect the corrected Call lettering once this is added.
+
+  - id: PLAN-FRESH2-002
+    lens: debugger-debbie/hypothesis-driven-debugging
+    severity: 3
+    title: >
+      Reproduction #2's Call (c) never pins the `action` argument to
+      "implement"/"review", the one value that actually reaches the new
+      _should_advance_wp_step catch site it claims to test
+    evidence:
+      - artifact: "plan.md § Test Strategy, reproduction #2, Call (c), line 860-869"
+      - code: "src/runtime/next/runtime_bridge_composition.py:550-558 (the _should_advance_wp_step call at :557 is only reached inside `if mission == \"software-dev\" and action in (\"implement\", \"review\"):`)"
+      - artifact: "plan.md § Test Strategy, reproduction #1, Call (a), line 808-811 (establishes the precedent of calling _check_composed_action_guard with action=\"tasks\")"
+    claim: >
+      Call (c) reads "`_check_composed_action_guard(action, coord_feature_dir,
+      mission=\"software-dev\", repo_root=<repo_root>)` returns a non-empty
+      failure list" using the bare word "action" with no stated value,
+      immediately after reproduction #1's Call (a) established the pattern of
+      calling the same function with `action="tasks"`. But the :557
+      `_should_advance_wp_step` call this test is meant to exercise is only
+      reached when `action in ("implement", "review")` — verified live at
+      runtime_bridge_composition.py:550. If an implementer follows the
+      adjacent Call (a) precedent and uses `action="tasks"`, the
+      `_should_advance_wp_step` branch is skipped entirely; with
+      "gather_artifact_presence itself succeeds" (as the fixture requires),
+      `evaluate_guards_strict` runs on an unmodified passing snapshot and
+      returns `[]`, so the test's own "non-empty failure list" assertion
+      fails for a reason unrelated to the catch site under test — it doesn't
+      silently pass wrong, but it does cost debugging time and the plan
+      never states the one fact (action must be "implement" or "review")
+      that would prevent it.
+    remediation: >
+      State explicitly in Call (c) that `action` must be `"implement"` (or
+      `"review"`) — e.g. "`_check_composed_action_guard("implement",
+      coord_feature_dir, mission="software-dev", repo_root=<repo_root>)`" —
+      and note why: it is the one value range that reaches the new :557
+      `_should_advance_wp_step` forward at all.
+
+  - id: PLAN-FRESH2-003
+    lens: debugger-debbie/bisection-and-timeline-construction
+    severity: 2
+    title: >
+      WP2's "write each reproduction immediately after the signature/
+      exception surface it needs lands" ordering example omits Call (b),
+      leaving its own red-then-green commit point unspecified
+    evidence:
+      - artifact: "plan.md § Phasing, WP2 bullet, line 1133-1150"
+    claim: >
+      The WP2 bullet's worked example only names two anchor points: "e.g.
+      PrimaryPlacementResolutionError and gather_artifact_presence's
+      mission_slug param for #2's Call (a); _should_advance_wp_step's
+      extended signature for #2's Calls (c)/(d) and for #4" — Call (b)
+      (which needs the FR-006 catch-site arms added at
+      _dn_dependency_gate's two _check_cli_guards call sites, i.e. the
+      original "FR-006 — the three real catch sites" items 1/2, a
+      genuinely different commit surface than Call (a)'s helper/exception
+      addition or Calls (c)/(d)'s _should_advance_wp_step signature) is
+      never placed anywhere in the sequence. Given the round's own framing
+      ("red-first discipline applied at WP-internal commit granularity"),
+      an implementer is left to guess whether Call (b) goes red immediately
+      after Call (a) (before the _dn_dependency_gate catch arms exist) or is
+      deferred until those arms land — the "e.g." qualifier makes this
+      non-exhaustive by design, but the one call left out is exactly the one
+      whose surface (a different function/file) is least obvious to place by
+      inference.
+    remediation: >
+      Extend the worked example to explicitly place Call (b): write it red
+      immediately once PrimaryPlacementResolutionError exists (it only needs
+      _check_cli_guards to propagate the raise, which requires no new catch
+      arm yet), then confirm it goes green only after the
+      _dn_dependency_gate catch-arm commit (FR-006 items 1/2) lands —
+      distinct from, and preceding, the catch-arm commits Calls (c)/(d)
+      depend on.
