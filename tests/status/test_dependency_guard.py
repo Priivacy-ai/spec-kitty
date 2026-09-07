@@ -363,7 +363,7 @@ class TestVerdictHelpers:
             verdict = emit_module._resolve_dependency_readiness(feature_dir, "WP02", snapshot)
         assert verdict.satisfied is False
         assert verdict.dependencies == ()
-        assert len(verdict.unsatisfied) == 1 and verdict.unsatisfied[0].startswith(UNRESOLVABLE_MARKER)
+        assert len(verdict.unsatisfied) == 1 and verdict.unsatisfied[0].startswith(UNRESOLVABLE_MARKER)  # golden-count: cardinality-is-contract
         assert "unreadable" in verdict.unsatisfied[0]
         assert any("unresolvable" in record.getMessage() for record in caplog.records)
 

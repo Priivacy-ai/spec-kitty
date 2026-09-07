@@ -37,7 +37,7 @@
 | 4 | `…::test_full_sequence_main_checkout_parity` | fails | baseline-red (env-sensitive) | both files |
 | 5 | `…::test_full_sequence_ratchet_catches_divergence` | fails | baseline-red (env-sensitive) | both files |
 | 6 | `…::test_full_sequence_worktree_parity` | fails | baseline-red (env-sensitive) | both files |
-| 7 | `test_golden_count_ban.py::test_convert_sites_do_not_exceed_frozen_baseline` | fails | baseline-red | both files |
+| 7 | `test_golden_count_ban.py::test_convert_sites_do_not_exceed_frozen_baseline` | fails | PARTLY branch-caused (corrected 2026-09-07 by the adversarial squad, architect lens): `tests/specify_cli` 238→242 and `tests/status` 31→34 were exactly at ceiling on `origin/main` and crossed it because of this mission's own tests (11 sites, all cardinality-only, now annotated `# golden-count: cardinality-is-contract`); `tests/architectural` is 15 vs ceiling 14 on `origin/main` too — that single site is the genuine baseline red that remains | mixed |
 | 8 | `test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_package_root_cold_imports` | fails | baseline-red | both files |
 | 9 | `test_spec_kitty_home_pin_census.py::test_t022_both_artefacts_are_reproduced_byte_identically_by_the_documented_command` | fails | baseline-red (env-sensitive) | both files |
 | 10 | `test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[next]` | passes (file absent) | **mission-caused (WP05)** | assertion names all 15 nodes of `tests/runtime/test_run_state_hardening.py` with `[]` markers — the new file was not registered in `tests/_next_shard_map.py` |
