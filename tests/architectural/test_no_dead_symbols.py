@@ -4172,7 +4172,10 @@ def test_bite_i_live_collision_escalation_regression_guard() -> None:
     }
     collision_index = classify_collisions(corpus)
     # Sanity: the live classifier actually sees the collision.
-    assert len(collision_index.get("GateDecision", [])) == 2
+    assert [location.module_path for location in collision_index.get("GateDecision", [])] == [
+        "synthetic.sanctioned",
+        "synthetic.rogue",
+    ]
 
     sanctioned_content_key = resolve_symbol_key("GateDecision", "synthetic.sanctioned", corpus["synthetic.sanctioned"], corpus=corpus)
     sanctioned_final = key_tier(sanctioned_content_key, "synthetic.sanctioned", collision_index)

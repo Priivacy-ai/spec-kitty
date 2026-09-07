@@ -124,7 +124,8 @@ def _emit_batch(repo_root: Path) -> None:
 
 
 def test_coord_fallback_announces_only_its_own_rows_when_writer_interleaves(
-    repo: Path, monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A writer finishing after this commit must not enter this call's fan-out."""
     _seed_planned_on_coord(repo)
@@ -151,7 +152,9 @@ def test_coord_fallback_announces_only_its_own_rows_when_writer_interleaves(
 
 @pytest.mark.parametrize("commit_fails", [False, True])
 def test_coord_fallback_holds_lock_through_commit_and_restore_but_not_fanout(
-    repo: Path, monkeypatch: pytest.MonkeyPatch, commit_fails: bool,
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    commit_fails: bool,
 ) -> None:
     from specify_cli.status.locking import _get_thread_locks, feature_status_lock_path
 
@@ -366,18 +369,14 @@ def _seed_in_progress_on_coord(repo_root: Path) -> None:
 
 @pytest.mark.parametrize("emit", [_emit_single, _emit_batch], ids=["single", "batch"])
 @pytest.mark.parametrize("fallback", [False, True], ids=["transaction", "fallback"])
-def test_coord_claim_reads_dependencies_from_primary(
-    repo: Path, monkeypatch: pytest.MonkeyPatch, emit: Any, fallback: bool
-) -> None:
+def test_coord_claim_reads_dependencies_from_primary(repo: Path, monkeypatch: pytest.MonkeyPatch, emit: Any, fallback: bool) -> None:
     """Coord status is current, but PRIMARY owns the WP's declared dependencies."""
     from specify_cli.status.emit import TransitionError
 
     _seed_planned_on_coord(repo)
     primary_tasks = repo / "kitty-specs" / MISSION_DIRNAME / "tasks"
     primary_tasks.mkdir()
-    (primary_tasks / "WP01-test.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\ndependencies: [WP02]\n---\n", encoding="utf-8"
-    )
+    (primary_tasks / "WP01-test.md").write_text("---\nwork_package_id: WP01\ntitle: Test\ndependencies: [WP02]\n---\n", encoding="utf-8")
     if fallback:
         _force_fallback_path(monkeypatch)
     with pytest.raises(TransitionError, match="unsatisfied dependencies"):

@@ -446,9 +446,7 @@ def test_progress_query_logs_when_weighted_progress_is_unavailable(tmp_path: Pat
 
 @pytest.mark.parametrize("legacy_key", [_SLUG, f"legacy-{_SLUG}"])
 @pytest.mark.parametrize("with_state", [True, False])
-def test_identity_backfill_never_silently_restarts_legacy_run(
-    tmp_path: Path, fake_engine: _FakeEngine, legacy_key: str, with_state: bool
-) -> None:
+def test_identity_backfill_never_silently_restarts_legacy_run(tmp_path: Path, fake_engine: _FakeEngine, legacy_key: str, with_state: bool) -> None:
     """Backfill cannot prove a no-ID run's ownership; require repair before resuming."""
     from specify_cli.migration.backfill_identity import backfill_mission
 
