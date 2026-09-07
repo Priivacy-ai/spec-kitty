@@ -12,6 +12,7 @@ from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
 )
 from specify_cli.tool_surface.providers.protocol import ReportingSurfaceProvider
+from specify_cli.tool_surface.operations import OwnerAssessment
 from specify_cli.tool_surface.status import (
     STATE_DRIFTED,
     STATE_MISSING,
@@ -26,6 +27,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 @pytest.mark.parametrize("pointer", [False, True], ids=["legacy", "pointer"])
 @pytest.mark.parametrize("missing", [True, False], ids=["missing-key", "explicit-empty"])
 def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool, missing: bool) -> None:
+    import os
+    import sys
     from charter.activation.compiler import prepare_mission_type_activations
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
@@ -63,8 +66,20 @@ def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool,
     assert activation.apply() is missing
     assert target.read_bytes() == activation.write.desired_bytes
     after_provision = snapshot({"project": project})
-    (result,) = SurfaceRepairService([provider]).apply_assessments((assessment,), consent)
+    skill_writes: list[str] = []
+    observing = True
+
+    def observe(event: str, args: tuple[object, ...]) -> None:
+        if observing and event == "open" and str(args[0]).endswith("/SKILL.md.tmp") and isinstance(args[2], int) and args[2] & os.O_CREAT:
+            skill_writes.append(str(args[0]))
+
+    sys.addaudithook(observe)
+    try:
+        (result,) = SurfaceRepairService([provider]).apply_assessments((assessment,), consent)
+    finally:
+        observing = False
     assert result.outcome == "applied", result
+    assert len(skill_writes) == len(set(skill_writes)) == len(command_installer.CANONICAL_COMMANDS)
     _wp04_equal_effects(assessment, after_provision, snapshot({"project": project}))
     assert len(result.succeeded) == len(assessment.effects)
     assert all(entry.agents == ("codex", "vibe") for entry in manifest_store.load(project).entries)
@@ -90,6 +105,253 @@ def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool,
     repeated = SurfaceRepairService([provider]).apply_assessments((repeat,), consent)[0]
     assert repeated.outcome == "skipped" and not repeated.succeeded
     assert_unchanged(before_repeat, snapshot({"project": project}))
+
+
+def _projection_project(tmp_path: Path, pointer: bool) -> tuple[Path, Path]:
+    project = tmp_path / "project"
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text("agents:\n  available: [codex, vibe]\ncustom: keep\n", encoding="utf-8")
+    target = config
+    if pointer:
+        config.write_text(config.read_text() + "charter: custom-authority.yaml\n", encoding="utf-8")
+        target = project / "custom-authority.yaml"
+        target.write_text("# custom authority\n", encoding="utf-8")
+    target.write_text(target.read_text() + "activated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n", encoding="utf-8")
+    return project, target
+
+
+def _projection_assess(project: Path, projected: object) -> tuple[CommandSkillsProvider, OwnerAssessment]:
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.plan import SurfacePlanBuilder
+    from specify_cli.tool_surface.registry import ToolSurfaceRegistry
+
+    provider = CommandSkillsProvider()
+    registry = ToolSurfaceRegistry()
+    for agent in ("codex", "vibe"):
+        registry.register_definition(agent, command_skill_definition())
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), projected=projected, consent=ApplyConsent(automatic=True))
+    (assessment,) = SurfacePlanBuilder(registry, [provider]).assess(("codex", "vibe"), inputs).assessments
+    return provider, assessment
+
+
+@pytest.mark.parametrize("pointer", [False, True])
+@pytest.mark.parametrize("after", [False, True], ids=["before-provision", "after-provision"])
+@pytest.mark.parametrize("damage", ["bytes", "selector", "agents", "pointer", "mode", "inode", "symlink", "mtime"])
+def test_provisioning_projection_drift_refuses_without_writes(tmp_path: Path, pointer: bool, after: bool, damage: str) -> None:
+    import os
+    import sys
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from tests.upgrade.preview_support.write_observer import EVENTS
+
+    project, target = _projection_project(tmp_path, pointer)
+    config = project / ".kittify/config.yaml"
+    foreign = project / "foreign.yaml"
+    foreign.write_bytes(target.read_bytes())
+    activation = prepare_mission_type_activations(project)
+    provider, assessment = _projection_assess(project, activation)
+    assert assessment.complete, assessment.diagnostics
+    if after:
+        assert activation.apply()
+    if damage == "bytes":
+        target.write_bytes(target.read_bytes() + b"# unrelated edit\n")
+    elif damage == "selector":
+        target.write_text(target.read_text().replace("activated_paradigms: []", "activated_paradigms: [structured-prompt-driven-development]"))
+    elif damage == "agents":
+        config.write_text(config.read_text().replace("[codex, vibe]", "[vibe]"))
+    elif damage == "pointer":
+        config.write_text(config.read_text().replace("charter: custom-authority.yaml\n", "") + "charter: foreign.yaml\n")
+    elif damage == "mode":
+        target.chmod(0o400)
+    elif damage == "inode":
+        replacement = project / "replacement.yaml"
+        replacement.write_bytes(target.read_bytes())
+        os.replace(replacement, target)
+    elif damage == "symlink":
+        target.unlink()
+        target.symlink_to(foreign)
+    else:
+        os.utime(target, ns=(1, 1))
+    before = snapshot({"project": project})
+    events: list[str] = []
+    active = True
+
+    def observe(event: str, args: tuple[object, ...]) -> None:
+        write_open = event == "open" and isinstance(args[2], int) and args[2] & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC)
+        if active and (event in EVENTS or write_open):
+            events.append(event)
+
+    sys.addaudithook(observe)
+    try:
+        (result,) = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)
+        assert result.outcome == "precondition_changed" and result.diagnostics
+        assert not result.succeeded and not events
+        assert_unchanged(before, snapshot({"project": project}))
+        control = project / "observer-control"
+        control.write_bytes(b"transient")
+        control.unlink()
+        assert "open" in events and "os.remove" in events
+    finally:
+        active = False
+
+
+@pytest.mark.parametrize("pointer", [False, True])
+@pytest.mark.parametrize("damage", ["bytes", "rehash", "selector", "agents", "values", "reason", "target", "descriptor", "stale"])
+def test_provisioning_projection_rejects_forged_preparation(tmp_path: Path, pointer: bool, damage: str) -> None:
+    from dataclasses import replace
+    from charter.activation.compiler import prepare_mission_type_activations
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, target = _projection_project(tmp_path, pointer)
+    prepared = prepare_mission_type_activations(project)
+    write = prepared.write
+    if damage in {"bytes", "rehash", "selector", "agents"}:
+        desired = write.desired_bytes + b"# forged\n"
+        if damage == "selector":
+            desired = write.desired_bytes.replace(b"activated_tactics: []", b"activated_tactics: [reasons-canvas-fill]")
+        elif damage == "agents":
+            desired = write.desired_bytes + b"agents: {available: [vibe]}\n"
+        write = replace(write, desired_bytes=desired)
+        if damage != "bytes":
+            write = replace(write, desired_sha256=manifest_store.fingerprint(desired))
+        prepared = replace(prepared, write=write)
+    elif damage == "values":
+        prepared = replace(prepared, mission_type_activations=())
+    elif damage == "reason":
+        prepared = replace(prepared, reason="key_present")
+    elif damage == "target":
+        prepared = replace(prepared, write=replace(write, target=target.parent / "foreign.yaml"))
+    elif damage == "descriptor":
+        prepared = write
+    else:
+        target.write_bytes(target.read_bytes() + b"# changed after compiler preparation\n")
+    before = snapshot({"project": project})
+    _, assessment = _projection_assess(project, prepared)
+    assert not assessment.complete and assessment.diagnostics and not assessment.effects
+    assert_unchanged(before, snapshot({"project": project}))
+
+
+def test_provisioning_projection_preflight_is_original_state_only(tmp_path: Path) -> None:
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, _ = _projection_project(tmp_path, True)
+    prepared = prepare_mission_type_activations(project)
+    provider, assessment = _projection_assess(project, prepared)
+    assert assessment.complete and not provider.preflight(assessment)
+    before = snapshot({"project": project})
+    (premature,) = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)
+    assert premature.outcome == "precondition_changed" and not premature.succeeded
+    assert_unchanged(before, snapshot({"project": project}))
+    assert prepared.apply()
+    assert provider.preflight(assessment)
+    (applied,) = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)
+    assert applied.outcome == "applied"
+
+
+@pytest.mark.parametrize("retain_hash", [False, True])
+def test_provisioning_projection_retained_payload_tampering(tmp_path: Path, retain_hash: bool) -> None:
+    from dataclasses import replace
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, _ = _projection_project(tmp_path, False)
+    provisioning = prepare_mission_type_activations(project)
+    provider, assessment = _projection_assess(project, provisioning)
+    assert provisioning.apply()
+    assert isinstance(assessment.prepared, command_installer.PreparedCommands)
+    modified = provisioning.write.desired_bytes + b"# tampered after assessment\n"
+    altered = replace(provisioning.write, desired_bytes=modified)
+    if not retain_hash:
+        altered = replace(altered, desired_sha256=manifest_store.fingerprint(modified))
+    assessment = replace(assessment, prepared=replace(assessment.prepared, provisioning=replace(provisioning, write=altered)))
+    before = snapshot({"project": project})
+    (result,) = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)
+    assert result.outcome == "precondition_changed" and not result.succeeded
+    assert_unchanged(before, snapshot({"project": project}))
+
+
+def test_provisioning_projection_cannot_remove_retained_dependency(tmp_path: Path) -> None:
+    from dataclasses import replace
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, _ = _projection_project(tmp_path, False)
+    provider, assessment = _projection_assess(project, prepare_mission_type_activations(project))
+    assert isinstance(assessment.prepared, command_installer.PreparedCommands)
+    assessment = replace(assessment, prepared=replace(assessment.prepared, provisioning=None))
+    before = snapshot({"project": project})
+    (result,) = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)
+    assert result.outcome == "precondition_changed" and not result.succeeded
+    assert_unchanged(before, snapshot({"project": project}))
+
+
+def test_provisioning_projection_absent_authority_is_explicitly_unsupported(tmp_path: Path) -> None:
+    from charter.activation.compiler import prepare_mission_type_activations
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    prepared = prepare_mission_type_activations(project)
+    before = snapshot({"project": project})
+    _, assessment = _projection_assess(project, prepared)
+    assert not assessment.complete and not assessment.effects
+    assert "existing rendering authority" in assessment.diagnostics[0].message
+    assert_unchanged(before, snapshot({"project": project}))
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_provisioning_projection_hardlinked_authority_admission(tmp_path: Path, missing: bool) -> None:
+    import os
+    from charter.activation.compiler import prepare_mission_type_activations
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project, target = _projection_project(tmp_path, True)
+    if not missing:
+        target.write_bytes(target.read_bytes() + b"mission_type_activations: []\n")
+    os.link(target, project / "other-name.yaml")
+    before = snapshot({"project": project})
+    _, assessment = _projection_assess(project, prepare_mission_type_activations(project))
+    assert assessment.complete is not missing
+    if missing:
+        assert not assessment.effects and "single-link" in assessment.diagnostics[0].message
+    assert_unchanged(before, snapshot({"project": project}))
+
+
+def test_provisioning_projection_assessment_has_no_write_attempts(tmp_path: Path) -> None:
+    import os
+    import sys
+    from charter.activation.compiler import prepare_mission_type_activations
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from tests.upgrade.preview_support.write_observer import EVENTS
+
+    project, _ = _projection_project(tmp_path, True)
+    before = snapshot({"project": project})
+    events: list[str] = []
+    active = True
+
+    def observe(event: str, args: tuple[object, ...]) -> None:
+        write_open = event == "open" and isinstance(args[2], int) and args[2] & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC)
+        if active and (event in EVENTS or write_open):
+            events.append(event)
+
+    sys.addaudithook(observe)
+    try:
+        provider, assessment = _projection_assess(project, prepare_mission_type_activations(project))
+        assert assessment.complete and not provider.preflight(assessment)
+        assert not events
+        assert_unchanged(before, snapshot({"project": project}))
+        control = project / "observer-control"
+        control.write_bytes(b"transient")
+        control.unlink()
+        assert "open" in events and "os.remove" in events
+    finally:
+        active = False
 
 
 @pytest.mark.parametrize("enabled", [("codex",), ("codex", "vibe"), ()])
@@ -126,6 +388,7 @@ def test_wp04_dispatch_respects_disabled_selection(tmp_path: Path, monkeypatch: 
     assessed = SurfacePlanBuilder(registry, [provider]).assess(("codex", "vibe"), AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent))
     (assessment,) = assessed.assessments
     assert assessment.complete, assessment.diagnostics
+    assert not provider.preflight(assessment)
     assert_unchanged(before, snapshot({"project": tmp_path}))
     results = SurfaceRepairService([provider]).apply_assessments(assessed.assessments, consent)
     assert all(result.outcome in {"applied", "skipped"} for result in results)

@@ -150,6 +150,19 @@ class CommandSkillsProvider:
         """No command-owner lock exists; retain the complete pre-write check."""
         return nullcontext(command_installer.recheck_commands(assessment))
 
+    def preflight(self, assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
+        """Require original inputs before the composer's provisioning phase."""
+        if (
+            assessment.complete
+            and assessment.prepared is None
+            and not assessment.effects
+            and not assessment.diagnostics
+            and assessment.dispositions
+            and all(item.state == "not_applicable" for item in assessment.dispositions)
+        ):
+            return ()
+        return command_installer.recheck_commands(assessment, phase="preflight")
+
     def apply(self, assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerApplyResult:
         """Consume the command owner's exact preparation and truthful results."""
         return command_installer.apply_commands(assessment, consent)

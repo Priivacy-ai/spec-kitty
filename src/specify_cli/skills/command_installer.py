@@ -31,7 +31,7 @@ import os
 import stat
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal, cast
 from specify_cli.core.agent_config import AgentConfigError
 
 from specify_cli.tool_surface.operations import (
@@ -57,6 +57,9 @@ from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from kernel.clock import now_utc_iso
 from specify_cli.shims.registry import CONSUMER_SKILLS
 from kernel.paths import to_posix
+
+if TYPE_CHECKING:
+    from charter.activation.compiler import _PreparedMissionTypeActivations
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -422,6 +425,7 @@ class PreparedCommands:
     version: str
     execution_artifacts: tuple[CommandExecutionArtifact, ...]
     template_paths: tuple[tuple[str, Path], ...]
+    provisioning: _PreparedMissionTypeActivations | None = None
 
 
 def _state(path: Path) -> FileState:
@@ -652,6 +656,7 @@ class _CommandBatch:
             self.version,
             tuple(self.artifacts),
             tuple(self.template_paths),
+            _prepare_command_provisioning(self.root, self.inputs.projected),
         )
         return OwnerAssessment(
             _OWNER,
@@ -674,6 +679,66 @@ def _resolve_observed_input(path: Path) -> Path:
         if isinstance(cause, OSError) and cause.errno == errno.ELOOP:
             raise cause from exc
         raise
+
+
+def _prepare_command_provisioning(repo_root: Path, projected: object) -> _PreparedMissionTypeActivations | None:
+    """Admit only the actual compiler's immutable, still-current preparation."""
+    from charter.activation.compiler import _PreparedMissionTypeActivations, prepare_mission_type_activations
+
+    if projected is None:
+        return None
+    if type(projected) is not _PreparedMissionTypeActivations:
+        raise ValueError("Unsupported command provisioning input")
+    prepared = cast("_PreparedMissionTypeActivations", projected)
+    prepared.write.recheck()
+    if prepared != prepare_mission_type_activations(repo_root):
+        raise ValueError("Command provisioning differs from the canonical compiler preparation")
+    write = prepared.write
+    if write.before_bytes is None or write.absent_parents:
+        raise ValueError("Command provisioning requires an existing rendering authority")
+    original = next(item for item in write.observations if item.path == write.target)
+    if write.changed and (original.identity is None or original.identity[-1] != 1):
+        raise ValueError("Changed command provisioning requires a single-link rendering authority")
+    command_renderer.validate_mission_provisioning(repo_root, write.before_bytes, write.desired_bytes, write.target)
+    return prepared
+
+
+def _recheck_command_provisioning(payload: PreparedCommands, phase: Literal["preflight", "transition", "apply"]) -> Path | None:
+    """Permit only the known direct writer's exact transition, never rerender."""
+    from charter.activation.charter_yaml_io import observe_yaml_input
+
+    provisioning = payload.provisioning
+    if provisioning is None:
+        return None
+    write = provisioning.write
+    if manifest_store.fingerprint(write.desired_bytes) != write.desired_sha256:
+        raise ValueError("precondition_changed: prepared provisioning bytes")
+    current = observe_yaml_input(write.target)
+    if phase == "preflight" or not write.changed or current.content == write.before_bytes:
+        write.recheck()
+        if phase == "apply" and write.changed:
+            raise ValueError("precondition_changed: mission provisioning has not been applied")
+        return None
+    original = next(item for item in write.observations if item.path == write.target)
+    old, new = original.identity, current.identity
+    # The existing YAML writer truncates in place. Only target size/mtime/ctime
+    # can change; a replacement inode, link, mode or unrelated input cannot.
+    if (
+        old is None
+        or new is None
+        or old[:3] != new[:3]
+        or old[6] != 1
+        or new[6] != 1
+        or new[3] < old[3]
+        or new[4] < old[4]
+        or new[5] != len(write.desired_bytes)
+        or current.content != write.desired_bytes
+    ):
+        raise ValueError(f"precondition_changed: provisioning target {write.target}")
+    for item in write.observations:
+        if item.path != write.target and observe_yaml_input(item.path) != item:
+            raise ValueError(f"precondition_changed: provisioning input {item.path}")
+    return cast("Path", write.target)
 
 
 def prepare_commands(
@@ -714,7 +779,7 @@ def prepare_commands(
                 if selected.intersection(entry.agents):
                     batch.remove_entry(entry, tuple(a for a in entry.agents if a not in selected))
         assessment = batch.finish()
-        diagnostics = recheck_commands(assessment)
+        diagnostics = recheck_commands(assessment, phase="preflight")
         return replace(assessment, complete=False, diagnostics=diagnostics) if diagnostics else assessment
     except (OSError, ValueError, AgentConfigError, InstallerError, ManifestError, command_renderer.SkillRenderError) as exc:
         return OwnerAssessment(
@@ -726,22 +791,36 @@ def prepare_commands(
         )
 
 
-def recheck_commands(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
-    """Check the whole retained batch before its first write; never rerender."""
+def recheck_commands(assessment: OwnerAssessment, *, phase: Literal["preflight", "transition", "apply"] = "transition") -> tuple[Diagnostic, ...]:
+    """Check retained inputs, with explicit original-state and apply phases.
+
+    Preflight requires original compiler observations before any provisioning.
+    Transition accepts original or exact provisioned state for service rechecks.
+    Apply requires provisioning complete when a changed write was prepared.
+    """
     payload = assessment.prepared
     if not assessment.complete or not isinstance(payload, PreparedCommands):
         return (Diagnostic("incomplete_assessment", _OWNER, "error", "Command preparation is incomplete"),)
     try:
+        if InputObservation("projected", payload.provisioning) not in assessment.inputs_fingerprint:
+            raise ValueError("precondition_changed: retained provisioning input")
+        provisioned_target = _recheck_command_provisioning(payload, phase)
         if payload.catalog != CANONICAL_COMMANDS or payload.version != _get_version():
             raise InstallerError("precondition_changed", detail="Command catalog/version changed")
         if any(_resolve_template(assessment.root.path, command) != path for command, path in payload.template_paths):
             raise InstallerError("precondition_changed", detail="Command source selection changed")
         for item in payload.observations:
-            if _state(item.path) != item.state:
+            current = _state(item.path)
+            if provisioned_target is not None and _resolve_observed_input(item.path) == provisioned_target and item.state.kind == "file":
+                assert payload.provisioning is not None
+                expected = FileState("file", sha256=payload.provisioning.write.desired_sha256, mode=item.state.mode, mtime_ns=current.mtime_ns)
+            else:
+                expected = item.state
+            if current != expected:
                 raise InstallerError("precondition_changed", path=str(item.path))
             if item.children is not None and tuple(sorted(p.name for p in item.path.iterdir())) != item.children:
                 raise InstallerError("precondition_changed", path=str(item.path))
-    except (OSError, InstallerError) as exc:
+    except (OSError, ValueError, InstallerError) as exc:
         return (Diagnostic("precondition_changed", _OWNER, "error", str(exc)),)
     return ()
 
@@ -791,7 +870,7 @@ def apply_commands(assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerA
     ids = tuple(e.id for e in assessment.effects)
     if not consent.automatic or consent != assessment.consent:
         return OwnerApplyResult(_OWNER, skipped=ids, outcome="skipped")
-    diagnostics = recheck_commands(assessment)
+    diagnostics = recheck_commands(assessment, phase="apply")
     if diagnostics:
         return OwnerApplyResult(_OWNER, skipped=ids, diagnostics=diagnostics, outcome="precondition_changed")
     payload = assessment.prepared

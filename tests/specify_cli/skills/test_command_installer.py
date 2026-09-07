@@ -456,7 +456,7 @@ def test_wp04_effect_oracle_detects_omitted_manifest(repo: Path) -> None:
 def test_wp04_recheck_bypass_is_detected(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.skills import command_installer as owner
 
-    monkeypatch.setattr(owner, "recheck_commands", lambda assessment: ())
+    monkeypatch.setattr(owner, "recheck_commands", lambda assessment, **phase: ())
     with pytest.raises(AssertionError):
         test_wp04_changed_batch_refuses_zero_writes(repo, "manifest")
 
