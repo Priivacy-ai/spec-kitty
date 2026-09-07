@@ -277,6 +277,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Build the census environment
+        shell: bash
+        # The census oracle (below) is a test-suite citizen: importing it pulls
+        # in specify_cli (typer), pytest, and scripts.docs — so the census step
+        # needs the real editable environment, not a bare interpreter. Without
+        # it the step dies under `set -euo pipefail` and the diff-cover gate can
+        # never go green. `--frozen --all-extras` is deterministic (uv.lock) and
+        # mode-independent: the census only needs the env to import, it does not
+        # exercise upstream event drift.
+        run: uv sync --frozen --all-extras
+
       - name: Download reconciled coverage set
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -292,7 +306,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          .venv/bin/python - <<'PY'
           import os
           import sys
 
