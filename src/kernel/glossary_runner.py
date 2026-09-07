@@ -17,8 +17,10 @@ imported), ``register(GlossaryAwarePrimitiveRunner)``, then a ``get_runner()``
 retry.  ``specify_cli`` plays no role.
 
 Degradation rule: the hook runs the primitive without glossary checks only
-when ``import_module("glossary.attachment")`` raises ``ImportError``
-(pure-doctrine environments without the ``glossary`` package).  "No runner
+when its bootstrap fails — normally because ``import_module("glossary.attachment")``
+raises ``ImportError`` (pure-doctrine environments without the ``glossary``
+package); the hook swallows any exception raised while importing or registering
+the provider, so a broken provider degrades the same way.  "No runner
 registered" is not a steady state in a full install — the first enabled call
 populates the registry.
 

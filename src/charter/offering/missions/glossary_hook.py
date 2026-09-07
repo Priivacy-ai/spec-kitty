@@ -21,9 +21,11 @@ production provider and self-bootstraps it on first use in
 then a ``get_runner()`` retry.
 
 Degradation rule: the primitive executes without glossary checks only when
-``import_module("glossary.attachment")`` raises ``ImportError`` (pure-doctrine
-environments without the ``glossary`` package).  "No runner registered" is
-not a steady state in a full install.
+the bootstrap fails — normally because ``import_module("glossary.attachment")``
+raises ``ImportError`` (pure-doctrine environments without the ``glossary``
+package); ``_ensure_runner_registered`` swallows *any* exception raised while
+importing or registering the provider, so a broken provider degrades the same
+way.  "No runner registered" is not a steady state in a full install.
 
 .. note::
 
