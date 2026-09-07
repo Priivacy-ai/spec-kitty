@@ -1,20 +1,20 @@
 {
-  "event_count": 133,
-  "last_event_id": "01M1Y9PP517WPA6Y3P4ZMB84C6",
-  "materialized_at": "2026-09-07T16:02:30.689201+00:00",
+  "event_count": 134,
+  "last_event_id": "01M1Y9ZSWWAHNC42PNRK065T86",
+  "materialized_at": "2026-09-07T16:07:29.436353+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "",
   "summary": {
     "approved": 12,
-    "blocked": 0,
+    "blocked": 1,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -346,6 +346,9 @@
       "last_event_id": "01M1Y9PP517WPA6Y3P4ZMB84C6",
       "last_transition_at": "2026-09-07T16:02:30.689201+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Focused cycle: full-plan schema, hidden conflict JSON, cold apply owner markers, and no-write snapshots verified inline."
+      ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Op 01M1Y92G5N7XG9W8APP3MG3YBS; commits 67e0825b6,0990faf65; focused suites 33+4 passing",
@@ -434,11 +437,11 @@
       }
     },
     "WP13": {
-      "actor": "finalize-tasks",
+      "actor": "codex",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M1VEF5N1ACPGHV2F0A1Q8NH4",
-      "last_transition_at": "2026-09-06T13:28:04.001572+00:00"
+      "lane": "blocked",
+      "last_event_id": "01M1Y9ZSWWAHNC42PNRK065T86",
+      "last_transition_at": "2026-09-07T16:07:29.436353+00:00"
     }
   }
 }
