@@ -23,6 +23,75 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+@pytest.mark.parametrize("pointer", [False, True], ids=["legacy", "pointer"])
+@pytest.mark.parametrize("missing", [True, False], ids=["missing-key", "explicit-empty"])
+def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool, missing: bool) -> None:
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.tool_surface.model import SurfaceSelection
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    from tests.specify_cli.skills.test_command_installer import _wp04_equal_effects
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text("agents:\n  available: [codex, vibe]\n# authored setting\ncustom: keep\n", encoding="utf-8")
+    target = config
+    if pointer:
+        config.write_text(config.read_text() + "charter: authored.yaml\n", encoding="utf-8")
+        target = project / "authored.yaml"
+        target.write_text("# authored charter\nactivated_paradigms: []\n", encoding="utf-8")
+    if not missing:
+        target.write_text(target.read_text() + "mission_type_activations: []\n", encoding="utf-8")
+    target.chmod(0o640)
+    before = snapshot({"project": project})
+    activation = prepare_mission_type_activations(project)
+    consent = ApplyConsent(automatic=True)
+    provider = CommandSkillsProvider()
+    selections = tuple(SurfaceSelection(agent, command_skill_definition()) for agent in ("codex", "vibe"))
+    assessment = provider.assess(
+        AssessmentInputs(OperationRoot("project", "project", project), projected=activation, consent=consent),
+        (),
+        selections=selections,
+    )
+    assert assessment.complete, assessment.diagnostics
+    assert assessment.effects
+    assert_unchanged(before, snapshot({"project": project}))
+    with provider.recheck(assessment) as diagnostics:
+        assert not diagnostics
+    assert activation.apply() is missing
+    assert target.read_bytes() == activation.write.desired_bytes
+    after_provision = snapshot({"project": project})
+    (result,) = SurfaceRepairService([provider]).apply_assessments((assessment,), consent)
+    assert result.outcome == "applied", result
+    _wp04_equal_effects(assessment, after_provision, snapshot({"project": project}))
+    assert len(result.succeeded) == len(assessment.effects)
+    assert all(entry.agents == ("codex", "vibe") for entry in manifest_store.load(project).entries)
+
+    # Independently provision an equivalent project, then use ordinary installation.
+    ordinary = tmp_path / "ordinary"
+    ordinary_config = ordinary / ".kittify/config.yaml"
+    ordinary_config.parent.mkdir(parents=True)
+    ordinary_config.write_bytes(config.read_bytes())
+    if pointer:
+        (ordinary / "authored.yaml").write_bytes(target.read_bytes())
+    command_installer.install(ordinary, "codex")
+    for command in command_installer.CANONICAL_COMMANDS:
+        rel = f".agents/skills/spec-kitty.{command}/SKILL.md"
+        assert (project / rel).read_bytes() == (ordinary / rel).read_bytes()
+    repeat = provider.assess(
+        AssessmentInputs(OperationRoot("project", "project", project), projected=prepare_mission_type_activations(project), consent=consent),
+        (),
+        selections=selections,
+    )
+    assert repeat.complete and not repeat.effects
+    before_repeat = snapshot({"project": project})
+    repeated = SurfaceRepairService([provider]).apply_assessments((repeat,), consent)[0]
+    assert repeated.outcome == "skipped" and not repeated.succeeded
+    assert_unchanged(before_repeat, snapshot({"project": project}))
+
+
 @pytest.mark.parametrize("enabled", [("codex",), ("codex", "vibe"), ()])
 @pytest.mark.parametrize("empty_catalog", [False, True])
 def test_wp04_dispatch_respects_disabled_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, enabled: tuple[str, ...], empty_catalog: bool) -> None:
