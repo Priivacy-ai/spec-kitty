@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +21,9 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 CONVERGENCE_MAP = ROOT / "docs" / "convergence" / "interim-ci-producer.md"
 RELEASE_CHECKLIST = ROOT / "RELEASE_CHECKLIST.md"
 DOCS_REFERENCE_INDEX = ROOT / "docs" / "development" / "reference" / "index.md"
+DRIFT_WORKFLOW = "check-spec-kitty-events-alignment.yml"
+DRIFT_SCRIPT = Path("scripts/release/check_shared_package_drift.py")
+COMPATIBILITY_MANIFEST = Path(".kittify/release/shared-package-compatibility.json")
 
 RESTORED_WORKFLOWS = {
     "ci-quality.yml",
@@ -75,6 +83,118 @@ def load_workflow(name: str) -> dict[str, Any]:
 
 def workflow_text(name: str) -> str:
     return (WORKFLOWS / name).read_text(encoding="utf-8")
+
+
+def test_shared_package_drift_preserves_candidate_trust_and_skip_policy() -> None:
+    workflow = load_workflow(DRIFT_WORKFLOW)
+    assert workflow["name"] == "Check Shared Package Drift"
+    assert workflow["permissions"] == {"contents": "read"}
+    jobs = workflow["jobs"]
+    assert set(jobs) == {"prepare-candidate-metadata", "verify-drift"}
+    prepare, verify = jobs["prepare-candidate-metadata"], jobs["verify-drift"]
+    assert prepare["name"] == "Prepare candidate package metadata"
+    assert verify["name"] == "Verify shared package drift"
+    policy = "${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}"
+    assert prepare["if"] == verify["if"] == policy
+    assert verify["needs"] == ["prepare-candidate-metadata"]
+    checkout = next(step for step in verify["steps"] if step.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["ref"] == "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}"
+    upload = next(step for step in prepare["steps"] if step.get("uses", "").startswith("actions/upload-artifact@"))
+    download = next(step for step in verify["steps"] if step.get("uses", "").startswith("actions/download-artifact@"))
+    assert upload["with"]["name"] == download["with"]["name"] == "candidate-package-metadata"
+    assert set(upload["with"]["path"].splitlines()) == {"pyproject.toml", "uv.lock", str(COMPATIBILITY_MANIFEST)}
+    assert download["with"]["path"] == "candidate"
+    # PyYAML's YAML 1.1 loader treats the unquoted GitHub Actions "on" key as True.
+    triggers = workflow[True]
+    assert set(triggers) == {"pull_request", "push", "schedule", "workflow_dispatch"}
+    for event in ("pull_request", "push"):
+        assert triggers[event]["branches"] == ["main", "develop", "2.x"]
+        assert set(triggers[event]["paths"]) == {
+            "pyproject.toml", "uv.lock", str(COMPATIBILITY_MANIFEST),
+            "scripts/release/**", f".github/workflows/{DRIFT_WORKFLOW}",
+        }
+    assert triggers["schedule"] == [{"cron": "11 2 * * *"}]
+
+
+def test_shared_package_drift_is_local_and_unconditional() -> None:
+    workflow = load_workflow(DRIFT_WORKFLOW)
+    job = workflow["jobs"]["verify-drift"]
+    step = next(step for step in job["steps"] if step.get("name") == "Validate shared package drift")
+    assert "if" not in step, "Local validation must run even when no SaaS read secret is available"
+    assert "continue-on-error" not in job
+    assert "continue-on-error" not in step
+    text = workflow_text(DRIFT_WORKFLOW)
+    for retired_reference in ("fetch_refs", "--saas-pyproject", "secrets.", "CROSS_REPO_TOKEN", "HAS_SAAS_READ_TOKEN"):
+        assert retired_reference not in text
+    run = step["run"]
+    assert f"python {DRIFT_SCRIPT}" in run
+    assert "--pyproject candidate/pyproject.toml" in run
+    assert "--lockfile candidate/uv.lock" in run
+    assert f"--compatibility-manifest candidate/{COMPATIBILITY_MANIFEST}" in run
+
+
+@pytest.mark.parametrize(
+    ("mutation", "diagnostic"),
+    [
+        ("none", "Shared package drift check passed."),
+        ("lock", "uv.lock version 0.0.0 is outside CLI constraint"),
+        ("manifest", "does not match release authority 0.0.0"),
+        ("range", "does not match release authority"),
+        ("retired", "Retired runtime package must not be a CLI dependency"),
+        ("missing-manifest", "Compatibility manifest not found:"),
+    ],
+)
+def test_shared_package_drift_workflow_executes_real_local_validator_without_secret(
+    tmp_path: Path, mutation: str, diagnostic: str,
+) -> None:
+    job = load_workflow(DRIFT_WORKFLOW)["jobs"]["verify-drift"]
+    step = next(step for step in job["steps"] if step.get("name") == "Validate shared package drift")
+    assert "if" not in step, "The workflow must not skip the local validator without a secret"
+    candidate = tmp_path / "candidate"
+    for relative in (Path("pyproject.toml"), Path("uv.lock"), COMPATIBILITY_MANIFEST):
+        destination = candidate / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, destination)
+    script = tmp_path / DRIFT_SCRIPT
+    script.parent.mkdir(parents=True)
+    shutil.copyfile(ROOT / DRIFT_SCRIPT, script)
+    manifest_path = candidate / COMPATIBILITY_MANIFEST
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    events = next(entry for entry in manifest["packages"] if entry["package"] == "spec-kitty-events")
+    if mutation == "lock":
+        lock = candidate / "uv.lock"
+        text, count = re.subn(
+            r'(name = "spec-kitty-events"\nversion = ")[^"]+',
+            r"\g<1>0.0.0", lock.read_text(encoding="utf-8"),
+        )
+        assert count == 1
+        lock.write_text(text, encoding="utf-8")
+    elif mutation == "manifest":
+        events["locked_version"] = "0.0.0"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    elif mutation in {"retired", "range"}:
+        pyproject = candidate / "pyproject.toml"
+        text = pyproject.read_text(encoding="utf-8")
+        if mutation == "retired":
+            text, count = re.subn(r"(dependencies\s*=\s*\[)", r'\1"spec-kitty-runtime==0.0.0",', text, count=1)
+        else:
+            text, count = re.subn(r'"spec-kitty-events[^"]+"', '"spec-kitty-events>=0,<1"', text, count=1)
+        assert count == 1
+        pyproject.write_text(text, encoding="utf-8")
+    elif mutation == "missing-manifest":
+        manifest_path.unlink()
+    env = dict(os.environ)
+    for key in ("SPEC_KITTY_SAAS_READ_TOKEN", "CROSS_REPO_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"):
+        env.pop(key, None)
+    env["HAS_SAAS_READ_TOKEN"] = "false"
+    env["PATH"] = str(Path(sys.executable).parent) + os.pathsep + env.get("PATH", "")
+    result = subprocess.run(
+        ["bash", "-e", "-o", "pipefail", "-c", step["run"]],
+        cwd=tmp_path, env=env, text=True, capture_output=True, check=False,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == (0 if mutation == "none" else 1), output
+    assert diagnostic in output
 
 
 def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisite() -> None:
