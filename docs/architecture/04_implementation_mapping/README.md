@@ -2,7 +2,7 @@
 title: 2.x Implementation Mapping
 description: '2.x implementation mapping (C4 level 4): the historical link from architecture components to the code that realizes them, preserved beneath the living model.'
 doc_status: active
-updated: '2026-05-15'
+updated: '2026-09-06'
 related:
 - docs/architecture/00_landscape/README.md
 - docs/architecture/04_implementation_mapping/code-patterns.md
@@ -29,10 +29,16 @@ This is **not** a code inventory — it maps domain responsibilities to modules,
 explains the doctrine stack layer model, and identifies where the current
 implementation aligns with or diverges from the target architecture.
 
-> **Slice-level ownership** — For the authoritative record of which package owns each
-> functional slice, where it lives today, what adapter responsibilities remain in
-> `src/specify_cli/`, and how each slice sequences for extraction, see
-> **[05_ownership_map.md](../05_ownership_map.md)**.
+> **Current package boundaries** — Package inventory is defined by
+> [`pyproject.toml`](../../../pyproject.toml) `[tool.hatch.build.targets.wheel].packages`,
+> enforced by [`test_pyproject_shape.py`](../../../tests/architectural/test_pyproject_shape.py).
+> Import direction is defined and enforced by the `landscape` fixture in
+> [`conftest.py`](../../../tests/architectural/conftest.py) and
+> [`test_layer_rules.py`](../../../tests/architectural/test_layer_rules.py).
+> This implementation mapping is a derived view of those sources.
+> [05_ownership_map.md](../05_ownership_map.md) is historical narrative only;
+> its former slice assignments and extraction roadmap are not authoritative for
+> current package ownership or boundaries.
 
 ---
 

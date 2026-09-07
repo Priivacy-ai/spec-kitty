@@ -9,7 +9,6 @@ doc_status: active
 updated: '2026-08-12'
 related:
 - docs/plans/index.md
-- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/domains/packs-extraction-domain-plan.md
 - docs/plans/domains/api-dashboard-domain-plan.md
@@ -27,9 +26,10 @@ This page is the one-hop catalog of every throughline. Naming convention:
 
 ## The throughlines
 
-- **[SaaS & Hosted Sync — Domain Plan](saas-hosted-sync-domain-plan.md)** — the hosted
-  Team Kitty product and the CLI↔hosted boundary: sync & event-envelope integrity,
-  consent & identity, auth & token lifecycle, and hosted rollout readiness.
+- **SaaS & Hosted Sync** — domain plan retired 2026-09-06 (Convergence #3881): the local
+  sync transport was removed and the hosted surface re-homed to the authoritative upstream
+  repos (`spec-kitty/zeitgeist`, `spec-kitty/saas`). See the
+  [convergence-retirement ADR](../../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
 - **[Doctrine & Charter — Domain Plan](doctrine-charter-domain-plan.md)** — the
   governance substrate: charter lifecycle & sole-door access, pack extensibility,
   activation-driven availability, `meta.json` fail-closed reads, the stable public API
