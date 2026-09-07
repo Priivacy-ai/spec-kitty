@@ -1439,3 +1439,24 @@ def test_shared_parent_composition_rejects_unsupported_overlap(tmp_path: Path, m
     with pytest.raises(ValueError, match="Complete commands"):
         provider.compose_installation(installation, replace(commands, complete=False))
     assert_unchanged(before, snapshot(roots))
+
+
+@pytest.mark.parametrize("route", ["factory", "replace"])
+def test_shared_parent_composition_rejects_error_bearing_complete_owner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str,
+) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import Diagnostic
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(tmp_path, monkeypatch)
+    composition = provider.compose_installation(installation, commands)
+    invalid = replace(commands, diagnostics=(Diagnostic("required_input_failed", commands.owner_key, "error", "Known input failure"),))
+    with _shared_write_observer() as writes:
+        with pytest.raises(ValueError, match="Complete commands"):
+            if route == "factory":
+                provider.compose_installation(installation, invalid)
+            else:
+                replace(composition, commands=invalid)
+    assert not writes
+    assert_unchanged(before, snapshot(roots))
