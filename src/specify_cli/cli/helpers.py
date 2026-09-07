@@ -69,20 +69,12 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
     return False
 
 
-def _context_command_args(ctx: click.Context) -> list[str]:
-    """Read command arguments across Click 8 and Click 9 contexts."""
-    protected = getattr(ctx, "protected_args", None)  # noqa: B009 - cross-version optional attribute
-    if protected is not None:
-        return [*protected, *ctx.args]
-    return [ctx.invoked_subcommand, *ctx.args] if ctx.invoked_subcommand else list(ctx.args)
-
-
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        command_args = list(args)
         remaining = super().parse_args(ctx, args)
-        command_args = _context_command_args(ctx)
         if command_args:
             name, command, upgrade_args = self.resolve_command(ctx, command_args)
             if name == "upgrade" and command is not None:

@@ -157,13 +157,6 @@ def test_intent_uses_actual_definitions(argv: list[str], available: bool, mode: 
     assert (intent.mode, intent.representation, intent.conflicts) == (mode, representation, ())
 
 
-def test_root_parser_supports_click_context_without_protected_args() -> None:
-    from specify_cli.cli.helpers import _context_command_args
-
-    context = cast(click.Context, SimpleNamespace(args=["--plan-json"], invoked_subcommand="upgrade"))
-    assert _context_command_args(context) == ["upgrade", "--plan-json"]
-
-
 @pytest.mark.parametrize("argv", [["--target"], ["--unknown"], ["extra"]])
 def test_intent_retains_click_usage_errors(argv: list[str]) -> None:
     with pytest.raises(click.UsageError):
