@@ -49,6 +49,12 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ---
 
+## ⚠️ CRITICAL: Team Kitty is Zeitgeist — "sync" is dead
+
+The hosted product is **Team Kitty**; the live transport is **Zeitgeist**, a volatile per-team relay the SaaS provisions and polls. On every lane transition the CLI publishes one **moment** straight to the team's relay (`status/emit.py` → `status/adapters.py` → `status/zeitgeist_bridge.py` → `zeitgeist_client/`), bounded to one request with no queue and no retry, gated only by team membership and repository admission on the SaaS side. The old "sync" transport (daemon, offline queue, per-project consent, `api/v1/sync/*` ingress) was deleted on both sides in August 2026; every remaining "sync" identifier (`SPEC_KITTY_ENABLE_SAAS_SYNC`, `SPEC_KITTY_SYNC_*`, `sync_active()`, `OWNED_SYNC_UNSUPPORTED`) is residue that does **not** gate the moment path. Read [`docs/context/team-kitty.md`](docs/context/team-kitty.md) before touching anything hosted, and never design against or "re-enable" sync.
+
+---
+
 ## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
 This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here, including the Blacksmith deterministic-CI producer in `.github/workflows/ci.yml`; see [the planning repository's Blacksmith CI contract](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/docs/BLACKSMITH-CI.md).
