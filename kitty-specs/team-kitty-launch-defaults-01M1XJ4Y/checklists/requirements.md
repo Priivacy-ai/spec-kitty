@@ -35,4 +35,4 @@
 
 ## Notes
 
-- Validation pass 1 (2026-09-07): all items pass. Environment-variable names appear because they are operator-facing configuration, not implementation; module names are confined to the linked context page.
+- Validation pass 1 (2026-09-07): all items pass. Pass 2 after the plan-phase amendment (authentication is the switch; offline switch removed): all items pass.

@@ -121,6 +121,31 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-09-07T09:50:10.834306Z",
+      "decision_id": "01M1XMCXWJNG6J8HF4YRQRSF6T",
+      "final_answer": "No offline switch. Authentication state is the switch: no session and no service token means zero hosted requests (fail closed on identity); auth logout/login toggle it; CI carries no token; agent-facing moments keep 'spec-kitty moments off'.",
+      "input_key": "offline_switch_surface",
+      "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+      "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+      "opened_by": "cli",
+      "options": [
+        "Env var + config.toml key (env wins); no new CLI command",
+        "Env var only",
+        "Env + config + a CLI toggle (spec-kitty hosted off/on/status)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": true,
+      "question": "Where does the offline switch live: environment variable only, environment plus a persisted config.toml key, or also a CLI toggle like the existing 'spec-kitty moments off'?",
+      "rationale": null,
+      "resolved_at": "2026-09-07T09:52:02.123926Z",
+      "resolved_by": null,
+      "slot_key": "plan.offline-switch.surface",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
