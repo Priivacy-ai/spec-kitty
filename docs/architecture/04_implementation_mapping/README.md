@@ -388,7 +388,7 @@ update and a valid fixture update.
 | All 7 artifact types with Pydantic models, repositories, validation | ✅ Complete | `src/charter/offering/*/models.py`, `repository.py`, `validation.py` |
 | JSON Schema validation for all types | ✅ Complete | `src/charter/offering/schemas/*.schema.yaml` |
 | Two-source loading (shipped + project override) | ✅ Complete | `repository.py` field-level merge on each type |
-| Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage (40 doctrine tests) |
+| Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage across `tests/doctrine/` (185 test files, 3,017 collected tests as of 2026-09-07 — this figure grows over time, not a ceiling) |
 | Tension/rejection modeling (`in_tension_with`/`reconciles_tension`/`rejects` DRG edges) | ✅ Complete | Hand-authored edges in `packs/built-in/*.graph.yaml`; validated via `assert_valid` |
 | DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
 | Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `DoctrineResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/doctrine/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
