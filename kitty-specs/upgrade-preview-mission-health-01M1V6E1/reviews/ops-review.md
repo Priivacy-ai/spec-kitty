@@ -1,5 +1,35 @@
 # Supporting Operation Reviews
 
+## Selected Bundle Composition: Open
+
+Op `01M1XXTXV3NK7P3WAPRA4T6TZG` addresses two reproduced conditional #3901
+transitions outside the approved shared-skill-parent capability. The actual
+explicit bundle provider admits the selected Claude plugin target in a
+Codex-configured project with an owned command repair. All original owner
+preflights pass. When required provisioning updates legacy config, retained
+bundle staging refuses its config observation. With an explicit empty activation
+key and initially absent `dist`, bundle staging succeeds but command composition
+refuses the changed root directory mtime. Existing `dist` with unchanged config
+succeeds and a fresh repeat has no churn.
+
+The four diagnostic assertions passed in 38.44 seconds, representing three actual
+refusals and one successful control, not four successful applies. Earlier writes
+remain in refused operations; no rollback is claimed. Full raw physical deltas
+match each completed phase. The initial disabled generic-builder selection was
+a caller error, preserved separately rather than attributed to either defect.
+Evidence: `wp10-selected-bundle-diagnosis.md` and its 25-entry external SHA256 seal,
+all verified by the parent.
+
+Implementation starts from reviewed integration
+`5c5c1c6fadd8859271e6069d1d53864137985d49` in a separate worktree. Scope is
+precise retained compiler-transition and actual staged-parent admission. Preserve
+original assessments, strict preflight before writes, explicit selection,
+staging-before-upstream order, unrelated-drift refusal and physical accounting.
+No reassessment, broad timestamp exemption or dropped selected owner is permitted.
+Stable RED, minimal GREEN, focused independent review and actual WP10 consumer
+follow-through precede closure. WP10 continues its non-overlapping owned CLI and
+composition work while this supplier extension is implemented.
+
 ## Migration Follow-Through: Open
 
 Issue #3985 records two distinct failures diagnosed through exact existing
@@ -109,6 +139,15 @@ no new failure is inferred from source concerns alone. Both Ops remain open unti
 actual WP10 consumer follow-through. Evidence:
 `shared-skill-parent-composition-independent-review.md` and its external sealed
 evidence directory. These supplier commits are not yet consolidated into this PR.
+
+Parent subsequently integrated the exact approved supplier chain into WP10 with
+normal merge `5c5c1c6fadd8859271e6069d1d53864137985d49`, preserving later
+formatting and test-contract commits. The merge tree equals the conflict-free
+preflight tree; all five supplier files remain byte-identical to reviewed HEAD.
+Fresh lane verification passed four shared layouts and the unchanged retirement
+migration witness: five passed in 44.18 seconds. This verifies lane integration,
+not full public WP10 composition. Both supporting Ops remain open pending that
+consumer review, and implementation commits remain lane-local until consolidation.
 
 ## Local Shared-Package CI: Complete
 
