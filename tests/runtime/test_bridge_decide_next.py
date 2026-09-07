@@ -385,6 +385,66 @@ def test_bootstrap_builds_full_context_on_happy_path(tmp_path: Path, monkeypatch
     assert fake_emitter.seeded and fake_emitter.seeded[0].issued_step_id == "implement"
 
 
+@pytest.mark.parametrize("seed_mode", ["missing", "raises", "lookup_raises"])
+def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seed_mode: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    from runtime.next._internal_runtime.events import RuntimeEventEmitter
+
+    feature_dir = tmp_path / "kitty-specs" / "042-mission"
+    feature_dir.mkdir(parents=True)
+    run_ref = _make_run_ref(tmp_path / "run")
+
+    class Producer:
+        def __getattr__(self, name: str) -> Any:
+            if name == "seed_from_snapshot":
+                if seed_mode == "lookup_raises":
+                    raise RuntimeError("seed lookup failed")
+                if seed_mode == "raises":
+                    def fail(snapshot: Any) -> None:
+                        raise RuntimeError("seed failed")
+                    return fail
+            raise AttributeError(name)
+
+    producer = Producer()
+    for name in RuntimeEventEmitter.__dict__:
+        if name.startswith("emit_"):
+            setattr(producer, name, lambda payload: None)
+    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda *_: feature_dir)
+    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda *_: None)
+    monkeypatch.setattr(rb, "get_mission_type", lambda *_: "software-dev")
+    monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: producer)
+    monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, *_: emitter)
+    monkeypatch.setattr(rb, "get_or_start_run", lambda *_, **__: run_ref)
+    monkeypatch.setattr(_engine_adapter, "_read_snapshot", lambda _: SimpleNamespace(issued_step_id="implement"))
+    context_calls: list[dict[str, Any]] = []
+
+    def context(**kwargs: Any) -> OperationalContext:
+        context_calls.append(kwargs)
+        return OperationalContext()
+
+    monkeypatch.setattr(_io_seam, "_build_operational_context_for_decision", context)
+    def no_template(*args: Any) -> Any:
+        raise FileNotFoundError()
+    monkeypatch.setattr("specify_cli.runtime.resolver.resolve_mission", no_template)
+    ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
+    assert decision is None
+    assert ctx is not None
+    assert ctx.current_step_id == "implement"
+    assert context_calls[0]["step_id"] == "implement"
+    assert context_calls[0]["mission_state"] == "implement"
+    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda _: True)
+    def unavailable_status(*args: Any) -> bool:
+        raise CanonicalStatusNotFoundError("guard still active")
+    monkeypatch.setattr(rb, "_should_advance_wp_step", unavailable_status)
+    guarded = rb._dn_dependency_gate(ctx)
+    assert guarded is not None
+    assert guarded.kind == DecisionKind.blocked
+    assert guarded.reason == "guard still active"
+    if seed_mode != "missing":
+        assert "seed" in caplog.text
+
+
 def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     feature_dir = tmp_path / "kitty-specs" / "042-mission"
     feature_dir.mkdir(parents=True)
