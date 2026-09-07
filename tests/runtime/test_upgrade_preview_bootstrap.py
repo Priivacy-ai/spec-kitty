@@ -1062,6 +1062,30 @@ def test_managed_tree_uses_portable_directory_mode(owner_home: Path, tmp_path: P
     assert write.effect.after.mode == 0o755
 
 
+def test_skill_tree_uses_portable_directory_mode(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.runtime.agent_skills import _prepare_skill_tree
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root
+
+    source = tmp_path / "readonly-skill"
+    source.mkdir()
+    (source / "SKILL.md").write_text("---\nname: portable\n---\n")
+    source.chmod(0o555)
+    destination = owner_home / ".claude/skills/portable"
+    prepared = AssetPreparation(
+        "global_skills",
+        global_asset_root("global_skills", (owner_home,)),
+        owner_home / "cache",
+        ".skills.lock",
+        ApplyConsent(),
+    )
+
+    _prepare_skill_tree(prepared, source, destination, "portable")
+
+    write = prepared.writes[destination]
+    assert write.effect.before.kind == "absent"
+    assert write.effect.after.mode == 0o755
+
+
 @pytest.mark.parametrize("conflict", ["bytes", "state", "membership", "environment"])
 def test_global_builder_refuses_contradictory_family_inputs(owner_home: Path, monkeypatch: pytest.MonkeyPatch, conflict: str) -> None:
     from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation, global_asset_root
