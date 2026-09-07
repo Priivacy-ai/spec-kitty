@@ -192,7 +192,7 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
 )
-from runtime.next.event_emitter import RuntimeEventEmitter
+from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
 from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
@@ -1549,7 +1549,7 @@ def _dn_bootstrap(
                 reason="Mission is already completed",
             )
         )
-    sync_emitter = RuntimeEventEmitter.for_feature(
+    sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
@@ -1611,9 +1611,10 @@ def _dn_bootstrap(
     try:
         snapshot = _engine_adapter._read_snapshot(run_dir)
         current_step_id = snapshot.issued_step_id
-        sync_emitter.seed_from_snapshot(snapshot)
     except Exception:
         current_step_id = None
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
 
     # FR-017: populate the runtime OperationalContext at the `next` decision
     # boundary via the extracted helper (keeps the bootstrap phase flat). The
@@ -1958,10 +1959,12 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
         # Composition succeeded; advance run state via the
         # composition-specific advancement helper and short-circuit the
         # legacy ``runtime_next_step`` fall-through (FR-001/FR-002). The
-        # helper emits the same lane / state events the legacy path emits;
-        # any error from it surfaces through the existing ``Decision``
-        # ``blocked`` shape (EDGE-003) — the legacy DAG dispatch handler is
-        # **not** entered as a fallback.
+        # helper emits the same lane / state events the legacy path emits,
+        # through the decision-log-wrapped engine emitter so a
+        # ``DecisionInputRequested`` it raises is durably recorded
+        # (ADR 2026-09-06-2 (c)); any error from it surfaces through the
+        # existing ``Decision`` ``blocked`` shape (EDGE-003) — the legacy
+        # DAG dispatch handler is **not** entered as a fallback.
         try:
             return _advance_run_state_after_composition(
                 run_ref=run_ref,
@@ -1973,7 +1976,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                 timestamp=now,
                 progress=progress,
                 origin=origin,
-                sync_emitter=ctx.sync_emitter,
+                sync_emitter=ctx.emitter_for_engine,
             )
         except Exception as exc:  # noqa: BLE001 — EDGE-003 contract: any
             # advancement-helper failure must surface as a structured
@@ -2181,10 +2184,11 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
             return gate_decision
 
     # Gate either passed (terminal allow) or never ran (non-terminal /
-    # not opted in): flush any buffered emit calls into the real sync
-    # emitter so observers receive them in original order.
+    # not opted in): flush any buffered emit calls into the decision-log-
+    # wrapped engine emitter so decision events are durably recorded and
+    # observers receive them in original order (ADR 2026-09-06-2 (c)).
     if buffer is not None:
-        buffer.flush(ctx.sync_emitter)
+        buffer.flush(ctx.emitter_for_engine)
 
     if retrospective_enabled and not block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
         mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
@@ -2736,19 +2740,21 @@ def answer_decision_via_runtime(
         raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
-    sync_emitter = RuntimeEventEmitter.for_feature(
+    sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
     )
     try:
-        sync_emitter.seed_from_snapshot(_engine_adapter._read_snapshot(Path(run_ref.run_dir)))
+        snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
     except Exception as exc:
         logger.warning(
             "answer_decision_via_runtime: failed to seed emitter from snapshot for run %r: %s",
             run_ref.run_dir,
             exc,
         )
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
     answer_emitter: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)

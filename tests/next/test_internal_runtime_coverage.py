@@ -171,7 +171,181 @@ def _make_simple_template() -> MissionTemplate:
 def test_emitter_module_re_exports() -> None:
     assert emitter_mod.NullEmitter is events_mod.NullEmitter
     assert emitter_mod.RuntimeEventEmitter is events_mod.RuntimeEventEmitter
-    assert set(emitter_mod.__all__) == {"NullEmitter", "RuntimeEventEmitter"}
+    assert emitter_mod.runtime_emitter_for_mission is events_mod.runtime_emitter_for_mission
+    assert (
+        emitter_mod.register_runtime_emitter_factory
+        is events_mod.register_runtime_emitter_factory
+    )
+    assert emitter_mod.reset_runtime_emitter_factory is events_mod.reset_runtime_emitter_factory
+    assert set(emitter_mod.__all__) == {
+        "NullEmitter",
+        "RuntimeEventEmitter",
+        "runtime_emitter_for_mission",
+        "register_runtime_emitter_factory",
+        "reset_runtime_emitter_factory",
+    }
+    for name in emitter_mod.__all__:
+        assert name in events_mod.__all__, name
+
+
+# ---------------------------------------------------------------------------
+# Runtime emitter seam: factory, registry, NullEmitter.for_mission
+# (contracts/emitter-seam.md rules S1-S6, mission dead-port-disposition-01M1VRA2)
+# ---------------------------------------------------------------------------
+
+_SEAM_KWARGS: dict[str, str] = {"mission_slug": "m", "mission_type": "software-dev"}
+_MISSION_ULID = "01KT3YBDABCDEFGHIJKLMNOP"
+
+
+@pytest.fixture
+def clean_emitter_factory() -> Any:
+    """Guarantee no registered factory leaks into or out of a seam test (S4)."""
+    events_mod.reset_runtime_emitter_factory()
+    yield
+    events_mod.reset_runtime_emitter_factory()
+
+
+@pytest.mark.usefixtures("clean_emitter_factory")
+def test_factory_returns_null_emitter_by_default(tmp_path: Path) -> None:
+    # S1 + S5 degrade path (no meta.json -> mission_id None)
+    result = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+
+    assert isinstance(result, NullEmitter)
+    assert result.mission_slug == "m"
+    assert result.mission_type == "software-dev"
+    assert result.mission_id is None
+
+
+@pytest.mark.usefixtures("clean_emitter_factory")
+def test_factory_honors_registered_factory(tmp_path: Path) -> None:
+    # S3: registered callable is invoked with the same keywords, return passed through
+    sentinel = object()
+    received: list[dict[str, Any]] = []
+
+    def _factory(**kwargs: Any) -> Any:
+        received.append(kwargs)
+        return sentinel
+
+    events_mod.register_runtime_emitter_factory(_factory)
+    result = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+
+    assert result is sentinel
+    assert received == [
+        {"feature_dir": tmp_path, "mission_slug": "m", "mission_type": "software-dev"}
+    ]
+
+
+@pytest.mark.usefixtures("clean_emitter_factory")
+def test_factory_reset_restores_default(tmp_path: Path) -> None:
+    # S4
+    sentinel = object()
+    events_mod.register_runtime_emitter_factory(lambda **_: sentinel)
+    assert (
+        events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+        is sentinel
+    )
+
+    events_mod.reset_runtime_emitter_factory()
+    result = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+
+    assert isinstance(result, NullEmitter)
+
+
+@pytest.mark.usefixtures("clean_emitter_factory")
+@pytest.mark.parametrize("gate_value", ["1", "true", "yes"])
+def test_factory_minimal_import_gate_wins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gate_value: str
+) -> None:
+    # S2: env gate read at call time; registered factory must not be called
+    def _must_not_be_called(**_: Any) -> Any:
+        raise AssertionError("must not be called")
+
+    events_mod.register_runtime_emitter_factory(_must_not_be_called)
+    monkeypatch.setenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", gate_value)
+
+    result = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+
+    assert isinstance(result, NullEmitter)
+    assert result.mission_slug == "m"
+
+
+@pytest.mark.usefixtures("clean_emitter_factory")
+def test_factory_gate_off_value_does_not_shadow_registered_factory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # S2 complement: a falsy gate value leaves the registry in charge (S3)
+    sentinel = object()
+    events_mod.register_runtime_emitter_factory(lambda **_: sentinel)
+    monkeypatch.setenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", "0")
+
+    result = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+
+    assert result is sentinel
+
+
+def test_for_mission_resolves_mission_id_from_meta(tmp_path: Path) -> None:
+    # S5 success path
+    (tmp_path / "meta.json").write_text(
+        '{"mission_id":"' + _MISSION_ULID + '"}', encoding="utf-8"
+    )
+
+    emitter = NullEmitter.for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+
+    assert emitter.mission_id == _MISSION_ULID
+    assert emitter.mission_slug == "m"
+    assert emitter.mission_type == "software-dev"
+    assert emitter.correlation_id == ""
+
+
+def test_for_mission_degrades_on_corrupt_meta(tmp_path: Path) -> None:
+    # S5 degrade path: corrupt meta.json never raises out of the seam
+    (tmp_path / "meta.json").write_text("{not json", encoding="utf-8")
+
+    emitter = NullEmitter.for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
+
+    assert emitter.mission_id is None
+    assert emitter.mission_slug == "m"
+
+
+def test_null_emitter_seed_and_emits_never_raise() -> None:
+    # S6: every method is a no-op that tolerates arbitrary input
+    emitter = NullEmitter()
+    emit_methods = [
+        name for name in dir(events_mod.RuntimeEventEmitter) if name.startswith("emit_")
+    ]
+    assert len(emit_methods) == 8  # golden-count: cardinality-is-contract (R-2: the Protocol is exactly the eight emit_* methods)
+
+    emitter.seed_from_snapshot(object())
+    for name in emit_methods:
+        assert getattr(emitter, name)(object()) is None
+
+
+def test_null_emitter_bare_constructor_unchanged() -> None:
+    # Backwards compatibility for the NullEmitter() / NullEmitter("c") call sites
+    bare = NullEmitter()
+    assert bare.correlation_id == ""
+    assert bare.mission_slug == ""
+    assert bare.mission_type == ""
+    assert bare.mission_id is None
+
+    with_corr = NullEmitter("c")
+    assert with_corr.correlation_id == "c"
+    assert with_corr.mission_slug == ""
+    assert with_corr.mission_type == ""
+    assert with_corr.mission_id is None
+
+
+def test_null_emitter_for_mission_not_on_protocol() -> None:
+    # R-2: the Protocol stays at the eight emit_* methods; construction/seeding are
+    # bridge-side concerns on the object the factory returns.
+    protocol_names = set(vars(events_mod.RuntimeEventEmitter))
+    assert "for_mission" not in protocol_names
+    assert "seed_from_snapshot" not in protocol_names
+    # R-7: ``for_mission`` is the only named constructor; no legacy alias exists.
+    classmethods = {
+        name for name, value in vars(NullEmitter).items() if isinstance(value, classmethod)
+    }
+    assert classmethods == {"for_mission"}
 
 
 def test_lifecycle_module_re_exports() -> None:
