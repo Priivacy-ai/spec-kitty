@@ -156,7 +156,7 @@ for agent_root, subdir in agent_dirs:
 - `get_agent_dirs_for_project(project_path)` — (dir, subdir) tuples for configured agents
 - `load_agent_config(repo_root)` / `save_agent_config(repo_root, config)` — config I/O
 
-**See also:** ADR #6, `tests/specify_cli/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
+**See also:** ADR #6, `tests/agent/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
 
 ### Adding New Agent Support
 
