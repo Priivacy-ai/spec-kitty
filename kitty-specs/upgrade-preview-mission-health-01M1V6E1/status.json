@@ -265,8 +265,8 @@
     "WP08": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "for_review",
       "last_event_id": "01M1WRZC9H0S0PG5J4HTWH6NEQ",
@@ -274,7 +274,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation9d78799b94f3c4df0f2e68d4ca8dda4ef3661801 ready for FIRST independent review. Final145ownedtests91.07pct changed-line coverage, Ruff/strictmypy, actualpinnedClaudeplugin/catalogstrictvalidation pass withnegativecontrol. Earlier924subsystem1642fast evidence frozen/reused; WP10intentarchitecturedebt unwaived. Approvedhelperintegration requires independentconsumerverdict beforeOpclosure.",
-        "First review REJECT F1: public Codex build broadens source hook directories0700 to0755. Retain observed directory modes in prepared effects/writer; preserve unknown existing dirs. Corrective review only F1/diff/adjacentrisk. Separate configuredhelperconsumer APPROVE; finalgates unwaived."
+        "First review REJECT F1: public Codex build broadens source hook directories0700 to0755. Retain observed directory modes in prepared effects/writer; preserve unknown existing dirs. Corrective review only F1/diff/adjacentrisk. Separate configuredhelperconsumer APPROVE; finalgates unwaived.",
+        "F1 correction 451af47d: retain source directory modes; preserve existing directories. Targeted evidence only; independent focused Review 2 pending."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
