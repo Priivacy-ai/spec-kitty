@@ -1,20 +1,42 @@
 ---
-work_package_id: "WP12"
-title: "Evidence-bound archive preservation gate"
-dependencies: ["WP11"]
-owned_files:
-  - "tests/architectural/test_archive_root_byte_identical.py"
-  - "tests/architectural/test_upgrade_recovery_preservation.py"
-requirement_refs: ["FR-007", "FR-008", "FR-009", "NFR-003", "NFR-004", "C-001", "C-006"]
-subtasks: ["T060", "T061", "T062", "T063", "T064"]
-authoritative_surface: "tests/architectural/test_archive_root_byte_identical.py"
+work_package_id: WP12
+title: Evidence-bound archive preservation gate
+dependencies:
+- WP11
+requirement_refs:
+- FR-007
+- FR-008
+- FR-009
+- FR-010
+- FR-011
+- NFR-003
+- NFR-004
+- C-001
+- C-006
+planning_base_branch: codex/upgrade-preview-mission-health
+merge_target_branch: codex/upgrade-preview-mission-health
+branch_strategy: Planning artifacts for this mission were generated on codex/upgrade-preview-mission-health. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/upgrade-preview-mission-health unless the human explicitly redirects the landing branch.
+subtasks:
+- T060
+- T061
+- T062
+- T063
+- T064
+history: []
+agent_profile: python-pedro
+authoritative_surface: tests/architectural/test_archive_root_byte_identical.py
 create_intent:
-  - "tests/architectural/test_upgrade_recovery_preservation.py"
-execution_mode: "code_change"
-task_type: "implement"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "codex"
+- tests/architectural/test_upgrade_recovery_preservation.py
+- tests/upgrade/test_mission_corpus_recovery.py
+execution_mode: code_change
+owned_files:
+- tests/architectural/test_archive_root_byte_identical.py
+- tests/architectural/test_upgrade_recovery_preservation.py
+- tests/upgrade/test_mission_corpus_recovery.py
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP12 - Evidence-bound archive preservation gate
@@ -41,6 +63,8 @@ retain rejection of every unrelated edit, forged recovery and baseline bypass.
 ## Context
 
 Audience: Python implementer and independent preservation reviewer.
+Approved reslice: plan D6 and corpus-slicing-adjudication.md transfer persistent
+corpus regressions, not data ownership or acceptance authority, to WP12.
 This prompt describes future work only. Its author has not changed gate code,
 run product tests, committed, emitted status, dispatched an Op or advanced runtime.
 
@@ -54,6 +78,7 @@ Frontmatter ownership and Git paths remain repository-relative by schema.
 
 Read these binding authorities after loading the assigned profile:
 
+- `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/corpus-slicing-adjudication.md`.
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/AGENTS.md`.
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/.kittify/charter/charter.md`.
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/packs/built-in/agent_profiles/python-pedro.agent.yaml`.
@@ -86,18 +111,20 @@ directives and tactics. Preserve the project's supported Python floor.
 
 ### Dependency and Ownership Boundary
 
-WP11 is the only manifest dependency. It owns all corpus restoration/relocation,
-snapshot application, archive index, rename spine and recovery evidence:
-`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/tests/fixtures/upgrade-mission-corpus-recovery.json` and
-`/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/tests/upgrade/test_mission_corpus_recovery.py`.
+WP11 is the only manifest dependency, confined to planning data and receipt:
+corpus restoration/relocation, snapshot application, archive index, rename spine,
+and `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/recovery-receipt.json`.
+WP11 retains actual pre-data audit RED, no-churn/mutation and full-audit evidence;
+WP12 owns persistent corpus regressions, not application of the recovery.
 The receipt is planned, not present at author inspection. Consume its delivered
 schema, exact verified values and independent review; do not fabricate delivery.
 Parent owns diagnostic classification, issue tracking and independent review.
 WP12 cannot approve its own admission predicates or WP11's receipt.
 WP13 consumes final evidence later; do not start or author WP13 here.
 
-WP12 implementation may edit exactly the two frontmatter test paths.
-The new preservation test is explicitly declared in create_intent.
+WP12 implementation may edit exactly the three frontmatter test paths.
+Both new test files are explicitly declared in create_intent.
+No code WP owns kitty-specs; never hide Python in docs or mutate data to pass.
 The existing gate file is the nonempty authoritative_surface; this test-only
 code_change has no owned production source prefix. Do not invent src ownership
 or derive an empty common prefix (#2446).
@@ -111,6 +138,9 @@ Canonical status commands below are future instructions, not author actions.
 
 ### Existing Seams to Inspect
 
+- `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/tests/audit/test_audit_cli.py`: real doctor mission-state CLI and report assertions.
+- `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/src/specify_cli/audit/engine.py`: full discovery, findings and teamspace_blockers aggregation.
+- `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/src/specify_cli/cli/commands/_mission_state_doctor.py`: public audit/materialization routing, read-only dependency.
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/tests/architectural/test_archive_root_byte_identical.py`: existing gate.
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/src/specify_cli/invocation/lifecycle.py`: exact path and append writer.
 - `/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/src/specify_cli/invocation/record.py`: ProfileInvocationRecord.from_dict.
@@ -227,7 +257,18 @@ old-row delete/reorder, prepend/truncation/newline conversion, invalid suffix,
 mode/type change and escaping parent fail. Assert direct row-parser invocation
 for the complete suffix using invalid middle-row controls, not reader counts.
 
-### Subtask T062: Admit exact reviewed corpus receipt via canonical replay and relocation proofs
+### Subtask T062: Persist corpus regressions and admit exact reviewed recovery evidence
+
+**Parent disposition, 2026-09-06:** Independently validate the additional cyclic
+replay pinned in contracts/corpus-recovery.md, "Separately Adjudicated
+Restored-Mission Replay". This explicitly supersedes two-snapshot/eight-verdict
+total counts below: two original repairs plus one restored-mission replay,
+eleven complete standing verdicts. Prove exact historical restoration before
+replay, then admit only the separately pinned cyclic status.json output; all
+other historical blobs remain exact. Bind reviewed input/output and current
+canonical computation; reject receipt/output forgery and fourth-path admission.
+The pre-replay historical snapshot pin must remain in provenance. No generic
+snapshot exemption or weakened no-churn, consent or full-audit requirement.
 
 **Purpose**: Admit only WP11's verified recovery operations while keeping the
 receipt subordinate to approved scope and independently checked provenance.
@@ -235,7 +276,7 @@ receipt subordinate to approved scope and independently checked provenance.
 **Steps**:
 
 1. Wait for actual WP11 delivery and independent review. Read its receipt and
-   evidence test without editing them. Record the reviewed receipt blob/digest
+   retained execution evidence without editing them. Record the reviewed receipt blob/digest
    and source/recovery commit identities in the gate's bounded test evidence.
    Do not trust a candidate "reviewed": true flag or its self-reported hashes.
 2. Constrain receipt entries to the exact approved operations below.
@@ -243,7 +284,8 @@ receipt subordinate to approved scope and independently checked provenance.
    Bind expected input/output/mode values to reviewed evidence and original
    Git objects. A candidate receipt change cannot expand its own authority.
 3. Author admission predicates in the existing gate; keep independent attack
-   fixtures/tests in the new file. Do not use a test asserting candidate equals
+   fixtures in the new preservation test and corpus regressions in the new
+   upgrade test. Do not use a test asserting candidate equals
    its own freshly computed receipt as evidence of historical preservation.
 4. Admit only the two status.json targets: doctrine-drg-silent-drop-boundary-
    01M0PE7E and symbolkey-source-module-01M0B0SF (full slugs below).
@@ -281,9 +323,43 @@ receipt subordinate to approved scope and independently checked provenance.
     A later merge-base containing the recovery must pass unchanged data and
     reject later mutation/deletion/mode changes; do not demand a fresh move.
     Keep receipt/provenance checks active when the original diff disappears.
+13. Transfer ALL persistent T054-T059 expectations from the original committed
+    WP11 prompt into the upgrade test. Build original and corrupted counterfactual
+    fixtures from pinned Git provenance, not only the already-recovered checkout.
+    Use original baseline c0054153b9bce0778cf41a85d11ecd4e9650031d and restore
+    source above; prove deletion against convergence
+    2554bd13adc289d3457681308645fe52619bca0e and its first parent.
+    Desired-health/preservation assertions must actually fail on original or
+    independently corrupted inputs, then pass on recovered controls through
+    public audit/replay seams. No import error, synthetic failure or mocked audit.
+    Retain WP11's earlier actual audit RED; do not claim these tests predated data.
+14. Require exact 31 restored paths/blobs/modes plus the retained schema, including
+    hidden dossier files and zero-byte .gitkeep. Assert original ID, created and
+    accepted timestamps, all 71 task rows and schema provenance from the contract.
+    Metadata-only restoration, missing blob, changed ID/date or a forged matching
+    receipt must fail. Independently inventory disk/Git, not receipt paths alone.
+15. Assert exactly two R2 moves, no old directory/stub/meta/alias, exact source
+    provenance and destination bytes/modes. Verify archive index classification,
+    contextual links and exact two rename-spine additions while retaining prior
+    rows/comments. Wrong path, attribution, index or parent symlink must fail.
+16. Assert exactly two corrected snapshots and five plus three complete verdicts:
+    reviewer/review references, done lanes, identities/order, annotations and
+    force/cancellation provenance. Doctrine mission_type becomes software-dev;
+    pinned events/meta remain byte-identical. Omitted verdict fields and
+    canonical-looking but unreviewed output fail. Do not silently replay a third
+    cyclic snapshot; report new drift for separately evidenced parent disposition.
+17. Repeat real restore/move/replay in disposable copies using the evidenced
+    operations; compare bytes, kind/mode and mtimes across the full affected set.
+    Missing move source is success only with exact completed-destination proof.
+    Reject same-bytes mtime churn, unknown actions, omitted/extra paths, forged
+    receipt/history and unrelated archive edits. Each negative has a passing
+    unmutated control. Fixtures copy historical facts, never invent runtime state.
+18. Protect reviewed receipt, index, rename-spine recovery rows and all recovered
+    results after landing, including when the original diff is no longer visible.
+    Keep new-file restoration policy distinct from permission to rewrite history.
 
-**Files**: Both owned tests only; approximately 80-140 bounded predicate lines
-plus receipt/replay integration tests. Receipt/data corrections go to WP11.
+**Files**: All three owned tests; bounded gate predicates, preservation attacks
+and local persistent corpus fixtures. Receipt/data corrections go to WP11.
 
 **Validation**: Delivered unmodified receipt plus genuine canonical snapshots
 and exact tracked moves pass; missing or forged evidence fails closed.
@@ -359,7 +435,7 @@ operations and the post-landing unchanged control pass.
 No xfail/skip, generic pytest.raises(Exception), mocked success, empty receipt
 or changed baseline substitutes for an executed preservation assertion.
 
-### Subtask T064: Real lifecycle writer witness, self-mutation and architecture blast radius
+### Subtask T064: Real owner witnesses, full-corpus zero controls and subsystem regressions
 
 **Purpose**: Prove the delivered gate is wired into real behavior and survives
 attempts to remove its checks, then obtain independent review.
@@ -382,8 +458,8 @@ attempts to remove its checks, then obtain independent review.
    remove destination tracking/hash checking; omit one ordinary archive root;
    accept candidate-controlled receipt hashes; remove a protected gate function.
    Each must make the corresponding independently asserted control fail.
-5. Run focused tests first, then the complete architectural subsystem, invocation/
-   next lifecycle and status materialization regressions, and make test-fast.
+5. Run all three focused files, then architecture, upgrade, audit, status,
+   schema/doctor consumers and invocation/next regressions, and make test-fast.
    Record all counts and named assertions, not only an outer green exit.
 6. Use direct warm binaries; no uv sync or dependency resync.
    Child HOME/USERPROFILE/XDG/APPDATA/LOCALAPPDATA/SPEC_KITTY_HOME and temp roots
@@ -399,22 +475,50 @@ attempts to remove its checks, then obtain independent review.
    evidence, never blanket waivers or product acceptance.
 9. Submit gate plus WP11 receipt/data evidence to an independent preservation
    reviewer. Neither producer approves its own exemption.
-   Parent owns full corpus audit and terminal issue matrix; provide results
-   without claiming WP12 alone completed FR-009 or aggregate acceptance.
+   Parent retains final corpus/terminal acceptance; WP12 must deliver persistent
+   full-corpus zero-blocker controls, not delegate them back to WP11.
+10. In the new upgrade test run the real public doctor mission-state audit over
+    the entire recovered disposable corpus: exit 0 and
+    repo_summary.teamspace_blockers == 0, complete stdout as one JSON object.
+    Prove nonempty discovery, restored mission present, relocated directory absent;
+    no hardcoded historical total (424), empty scanner, --fixture-dir,
+    --include-fixtures, mission filter or four-directory substitute for this gate.
+    Original provenance must expose the two identity and two snapshot-drift
+    failures by finding code; corruption controls must fail the zero assertion.
+    Repeat on the final recovered tree after parent landing; retain corpus
+    membership and exact delta inventory independently of the receipt.
+11. Preserve separate consent regressions through the real damaged-corpus upgrade
+    seam: --yes alone cannot authorize mission-state repair or alter metadata,
+    events/verdicts; explicit separate consent must reach the intended owner path.
+    Assert actual owner effect/no-effect and filesystem evidence, not a startup
+    crash or mocked plan/apply success. Use the existing successful human upgrade
+    finalizer and independent consent owner, with a real TTY approval for the
+    positive control; JSON or failed-upgrade early returns are not that witness.
+    No new WP10 API is required and no WP10-owned file may be edited here.
+    Isolate existing startup writes; WP13 T070 reruns against integrated WP10.
+12. Record commands, SHAs, finding codes, raw evidence hashes and no-churn results.
+    Additional blockers are failures to route, not reasons to lower thresholds.
+    WP11 data approval never means #3911 is green; no backward dependency,
+    waiver, producer self-approval or retroactively fabricated RED/receipt.
 
-**Files**: Two owned tests only; keep fixture helpers local and bounded.
+**Files**: Three owned tests only; keep fixture helpers local and bounded.
 No edits to consumed writer/reducer/test seams or shared architectural config.
 
 **Validation commands**, future execution only from resolved absolute workspace:
 
 ```bash
-SPEC_KITTY_ENABLE_SAAS_SYNC=0 CI=true PYTEST_ADDOPTS= PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -q -n0 tests/architectural/test_archive_root_byte_identical.py tests/architectural/test_upgrade_recovery_preservation.py -ra -p no:cacheprovider
+SPEC_KITTY_ENABLE_SAAS_SYNC=0 CI=true PYTEST_ADDOPTS= PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -q -n0 tests/architectural/test_archive_root_byte_identical.py tests/architectural/test_upgrade_recovery_preservation.py tests/upgrade/test_mission_corpus_recovery.py -ra -p no:cacheprovider
 SPEC_KITTY_ENABLE_SAAS_SYNC=0 CI=true PYTEST_ADDOPTS= PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -n0 tests/architectural/ -v -ra -p no:cacheprovider
 SPEC_KITTY_ENABLE_SAAS_SYNC=0 PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest tests/specify_cli/invocation/test_lifecycle_pairing.py tests/specify_cli/next/test_next_invocation_lifecycle_seam.py tests/status/test_shared_reducer_materialization.py -q -ra -p no:cacheprovider
+SPEC_KITTY_ENABLE_SAAS_SYNC=0 PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest tests/upgrade/ tests/audit/ tests/status/ tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/cli/commands/test_doctor_mission_state.py -q -ra -p no:cacheprovider
 SPEC_KITTY_ENABLE_SAAS_SYNC=0 PATH="$PWD/.venv/bin:$PATH" make test-fast
-.venv/bin/ruff check tests/architectural/test_archive_root_byte_identical.py tests/architectural/test_upgrade_recovery_preservation.py
-.venv/bin/mypy --strict tests/architectural/test_archive_root_byte_identical.py tests/architectural/test_upgrade_recovery_preservation.py
+.venv/bin/ruff check tests/architectural/test_archive_root_byte_identical.py tests/architectural/test_upgrade_recovery_preservation.py tests/upgrade/test_mission_corpus_recovery.py
+.venv/bin/mypy --strict tests/architectural/test_archive_root_byte_identical.py tests/architectural/test_upgrade_recovery_preservation.py tests/upgrade/test_mission_corpus_recovery.py
 ```
+
+Full-corpus witness, future only from the isolated recovered absolute root:
+`SPEC_KITTY_ENABLE_SAAS_SYNC=0 .venv/bin/spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json`.
+Repeat after parent landing; never run mutation/repair on this authoring checkout.
 
 Run every added/changed test and retain the full architectural sweep; no
 make test-full. These are prescribed checks, not claimed results.
@@ -434,7 +538,9 @@ skip counts, stdout/stderr, RED/fix commits and independent reviewer evidence.
   genuine unchanged recovery remains protected after landing.
 - T064 passes real writer/public lifecycle controls, self-mutations, focused
   regressions, full architectural subsystem and lint/types with honest outcomes.
-- Only two test paths changed; no receipt/data/runtime/governance modifications.
+- T062/T064 retain full 31/2/2/eight-verdict, no-churn, counterfactual and
+  whole-corpus zero-blocker regression coverage from WP11 without acceptance waiver.
+- Only three test paths changed; no receipt/data/runtime/governance modifications.
 - Parent receives independent review and evidence; no fabricated completed gates.
 
 Canonical implementation command, for later execution only:
@@ -475,5 +581,5 @@ new-row parser, pure replay calls and protected relocation endpoints.
 Verify the candidate cannot choose its trusted receipt or rewrite historical pins.
 Check all negative controls, post-landing baseline and nonempty-root floor.
 Reject path-only exemptions, shifted real refs, skip waivers and self-repairing gates.
-Verify scope against both manifest paths and exact five subtask IDs.
+Verify scope against all three manifest paths and exact five subtask IDs.
 Return findings/evidence to the parent; do not self-approve or start WP13.
