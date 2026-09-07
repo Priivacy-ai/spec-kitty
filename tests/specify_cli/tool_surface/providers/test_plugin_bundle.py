@@ -38,15 +38,19 @@ def _write_attempts() -> Iterator[list[str]]:
 
     attempts: list[str] = []
     active = True
+
     def observe(event: str, values: tuple[object, ...]) -> None:
         if not active:
             return
         writing = event == "open" and (
-            isinstance(values[1], str) and any(flag in values[1] for flag in "wax+")
-            or isinstance(values[2], int) and bool(values[2] & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND))
+            isinstance(values[1], str)
+            and any(flag in values[1] for flag in "wax+")
+            or isinstance(values[2], int)
+            and bool(values[2] & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND))
         )
         if event in EVENTS or writing:
             attempts.append(f"{event}: {values}")
+
     sys.addaudithook(observe)
     try:
         yield attempts
@@ -71,16 +75,24 @@ def _selected(provider: PluginBundleProvider, project: Path, targets: tuple[str,
     from specify_cli.tool_surface.bundles.model import BundleSources
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
 
-    return provider.assess(AssessmentInputs(
-        OperationRoot("project", "project", project),
-        projected=BundleSources(selected_targets=targets or tuple(i.owner for i in provider.expand(
-            plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, project))),
-        consent=ApplyConsent(automatic=True)), (), selections=())
+    return provider.assess(
+        AssessmentInputs(
+            OperationRoot("project", "project", project),
+            projected=BundleSources(
+                selected_targets=targets or tuple(i.owner for i in provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, project))
+            ),
+            consent=ApplyConsent(automatic=True),
+        ),
+        (),
+        selections=(),
+    )
 
 
 @pytest.mark.parametrize("configured", [("gemini", "codex"), (), ("codex", "gemini", "codex")])
 def test_configured_consumer_calls_approved_helper_without_writes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, configured: tuple[str, ...],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    configured: tuple[str, ...],
 ) -> None:
     from collections.abc import Sequence
     from specify_cli.core.agent_config import AgentConfig, save_agent_config
@@ -91,9 +103,11 @@ def test_configured_consumer_calls_approved_helper_without_writes(
     save_agent_config(tmp_path, AgentConfig(available=list(configured), auto_commit=False))
     real_helper = service.build_plans_for_bundles
     calls: list[tuple[str, ...] | None] = []
+
     def observing_helper(project_root: Path, *, tool_keys: Sequence[str] | None = None) -> list[SurfacePlan]:
         calls.append(None if tool_keys is None else tuple(tool_keys))
         return real_helper(project_root, tool_keys=tool_keys)
+
     monkeypatch.setattr(service, "build_plans_for_bundles", observing_helper)
     before = snapshot({"project": tmp_path, "home": Path.home()})
     with _write_attempts() as attempted:
@@ -110,7 +124,8 @@ def test_configured_consumer_calls_approved_helper_without_writes(
 
 
 def test_canonical_selected_bundle_exact_effects_and_read_only_assessment(
-    tmp_path: Path, canonical_bundle_tree: Path,
+    tmp_path: Path,
+    canonical_bundle_tree: Path,
 ) -> None:
     from specify_cli.tool_surface.operations import OwnerAssessment
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
@@ -189,8 +204,9 @@ def test_equivalent_independent_canonical_copies_have_exact_effects(tmp_path: Pa
         assert assessment.complete and assessment.effects, assessment.diagnostics
         result = provider.apply(assessment, assessment.consent)
         assert result.outcome == "applied", result
-        delta = {(e.root, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode)
-                 for e in net_delta(before, snapshot({"project": project, "home": Path.home()}))}
+        delta = {
+            (e.root, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in net_delta(before, snapshot({"project": project, "home": Path.home()}))
+        }
         assert delta == {(e.root.root_id, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in assessment.effects}
         deltas.append(delta)
     assert deltas[0] == deltas[1]
@@ -224,12 +240,17 @@ def test_disabled_assessment_never_reads_inventory(tmp_path: Path, monkeypatch: 
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
     provider = PluginBundleProvider()
+
     def forbidden(root: Path) -> list[object]:
         raise AssertionError("Disabled bundle inventoried its sources")
+
     monkeypatch.setattr(provider, "_plans_for_projection", forbidden)
     before = snapshot({"project": tmp_path})
-    result = provider.assess(AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=ApplyConsent(automatic=True)), (),
-                             selections=(SurfaceSelection(PLUGIN_BUNDLE_TOOL_KEY, plugin_manifest_definition()),))
+    result = provider.assess(
+        AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=ApplyConsent(automatic=True)),
+        (),
+        selections=(SurfaceSelection(PLUGIN_BUNDLE_TOOL_KEY, plugin_manifest_definition()),),
+    )
     assert result.complete and not result.effects
     assert [d.state for d in result.dispositions] == ["not_applicable"]
     assert_unchanged(before, snapshot({"project": tmp_path}))
@@ -251,13 +272,11 @@ def test_retired_command_is_not_copied_from_pre_repair_source(tmp_path: Path, mo
     initial = command_installer.prepare_commands(inputs, ("codex",))
     assert initial.complete
     assert command_installer.apply_commands(initial, consent).outcome == "applied"
-    plans = SurfacePlanBuilder(build_registry(("codex",)), build_providers()).build(
-        ("codex",), tmp_path, kinds=(ToolSurfaceKind.COMMAND_SKILL,))
+    plans = SurfacePlanBuilder(build_registry(("codex",)), build_providers()).build(("codex",), tmp_path, kinds=(ToolSurfaceKind.COMMAND_SKILL,))
     original = ClaudeCodeBundleProjector().entries(plans, tmp_path)
     stale = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
     assert any(stale in entry.sources for entry in original)
-    monkeypatch.setattr(command_installer, "CANONICAL_COMMANDS",
-                        tuple(name for name in command_installer.CANONICAL_COMMANDS if name != "plan"))
+    monkeypatch.setattr(command_installer, "CANONICAL_COMMANDS", tuple(name for name in command_installer.CANONICAL_COMMANDS if name != "plan"))
     retirement = command_installer.prepare_commands(inputs, ("codex",), prune=True)
     assert retirement.complete, retirement.diagnostics
     assert any(effect.destination == stale and effect.after.kind == "absent" for effect in retirement.effects)
@@ -284,8 +303,7 @@ def test_shared_codex_vibe_inventory_has_one_effect_with_both_owners(tmp_path: P
     source = prepare_commands(AssessmentInputs(root, consent=consent), ("codex", "vibe"))
     assert source.complete
     assert apply_commands(source, consent).outcome == "applied"
-    plans = SurfacePlanBuilder(build_registry(("codex", "vibe")), build_providers()).build(
-        ("codex", "vibe"), tmp_path, kinds=(ToolSurfaceKind.COMMAND_SKILL,))
+    plans = SurfacePlanBuilder(build_registry(("codex", "vibe")), build_providers()).build(("codex", "vibe"), tmp_path, kinds=(ToolSurfaceKind.COMMAND_SKILL,))
     entries = ClaudeCodeBundleProjector().entries(plans, tmp_path)
     observations = []
     files = files_for_entries(entries, tmp_path / "dist", root, observations)
@@ -297,7 +315,9 @@ def test_shared_codex_vibe_inventory_has_one_effect_with_both_owners(tmp_path: P
 
 @pytest.mark.parametrize("known", [False, True])
 def test_custom_member_and_unknown_link_are_not_adopted_by_manifest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, known: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    known: bool,
 ) -> None:
     from specify_cli.tool_surface.bundles.model import BundleSources
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
@@ -315,8 +335,7 @@ def test_custom_member_and_unknown_link_are_not_adopted_by_manifest(
     sentinel.write_bytes(b"unknown link target")
     destination.symlink_to(sentinel)
     consent = ApplyConsent(automatic=True, overwrite_paths=(path,))
-    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path),
-                              projected=BundleSources(selected_targets=("claude_code_plugin",)), consent=consent)
+    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path), projected=BundleSources(selected_targets=("claude_code_plugin",)), consent=consent)
     assessment = provider.assess(inputs, (), selections=())
     assert assessment.complete
     assert any(d.path == path and d.state == "preserve" for d in assessment.dispositions)
@@ -338,8 +357,11 @@ def test_managed_drift_requires_exact_consent(tmp_path: Path, monkeypatch: pytes
     assert any(d.path == path and d.state == "consent_required" for d in pending.dispositions)
     assert not any(e.path == path for e in pending.effects)
     consent = ApplyConsent(automatic=True, overwrite_paths=(path,))
-    assessment = provider.assess(AssessmentInputs(OperationRoot("project", "project", tmp_path),
-        projected=BundleSources(selected_targets=("claude_code_plugin",)), consent=consent), (), selections=())
+    assessment = provider.assess(
+        AssessmentInputs(OperationRoot("project", "project", tmp_path), projected=BundleSources(selected_targets=("claude_code_plugin",)), consent=consent),
+        (),
+        selections=(),
+    )
     assert assessment.complete
     assert any(e.path == path and e.action == "update" for e in assessment.effects)
     assert provider.apply(assessment, consent).outcome == "applied"
@@ -348,7 +370,9 @@ def test_managed_drift_requires_exact_consent(tmp_path: Path, monkeypatch: pytes
 
 @pytest.mark.parametrize("change", ["source", "manifest", "destination", "parent_link", "parent_mode", "config"])
 def test_whole_selected_batch_refuses_each_changed_precondition(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
 ) -> None:
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
@@ -385,7 +409,8 @@ def test_whole_selected_batch_refuses_each_changed_precondition(
 
 
 def test_prepared_missing_command_is_used_without_second_render(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from specify_cli.skills import command_installer
     from specify_cli.tool_surface.bundles.model import BundleSources
@@ -407,8 +432,10 @@ def test_prepared_missing_command_is_used_without_second_render(
     assessment = provider.assess(inputs, (), selections=())
     assert assessment.complete, assessment.diagnostics
     assert_unchanged(before, snapshot({"project": tmp_path, "home": Path.home()}))
+
     def forbidden(*args: object, **kwargs: object) -> bytes:
         raise AssertionError("Apply rendered commands again")
+
     monkeypatch.setattr(command_installer, "_render_command_skill", forbidden)
     result = provider.apply(assessment, inputs.consent)
     assert result.outcome == "applied", result
@@ -426,12 +453,14 @@ def test_partial_io_reports_only_real_completed_effect_ids(tmp_path: Path, monke
     before = snapshot({"project": tmp_path})
     real_replace = projection.os.replace
     count = 0
+
     def fail_second(source: Path, destination: Path) -> None:
         nonlocal count
         count += 1
         if count == 2:
             raise OSError("WP08 bounded second atomic replacement failure")
         real_replace(source, destination)
+
     monkeypatch.setattr(projection.os, "replace", fail_second)
     result = provider.apply(assessment, assessment.consent)
     assert result.outcome == "partial" and len(result.failed) == 1
@@ -454,24 +483,29 @@ def test_legacy_repair_keeps_physical_ids_separate_from_diagnostics(tmp_path: Pa
     before = snapshot({"project": tmp_path})
     real_replace = projection.os.replace
     count = 0
+
     def fail_second(source: Path, destination: Path) -> None:
         nonlocal count
         count += 1
         if count == 2:
             raise OSError("WP08 legacy caller partial failure")
         real_replace(source, destination)
+
     monkeypatch.setattr(projection.os, "replace", fail_second)
     result = provider.repair(tmp_path, (status,))
     assert len(result.failed) == 1 and result.skipped and result.findings_after
     assert set(result.repaired + result.failed + result.skipped) == {effect.id for effect in assessment.effects}
     assert {effect.path for effect in assessment.effects if effect.id in result.repaired} == {
-        effect.path for effect in net_delta(before, snapshot({"project": tmp_path}))}
+        effect.path for effect in net_delta(before, snapshot({"project": tmp_path}))
+    }
     assert any("WP08 legacy caller partial failure" in finding.message for finding in result.findings_after)
 
 
 @pytest.mark.parametrize("mutation", ["none", "manifest", "member", "custom", "same_bytes"])
 def test_independent_oracle_kills_omission_and_churn_mutants(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
 ) -> None:
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
@@ -489,9 +523,10 @@ def test_independent_oracle_kills_omission_and_churn_mutants(
     if mutation == "custom":
         custom.write_bytes(b"destructive mutation")
     actual = net_delta(before, snapshot({"project": tmp_path}))
+
     def compare() -> None:
-        assert {(e.path, e.action, e.after.sha256, e.after.mode) for e in assessment.effects} == {
-            (e.path, e.action, e.after.sha256, e.after.mode) for e in actual}
+        assert {(e.path, e.action, e.after.sha256, e.after.mode) for e in assessment.effects} == {(e.path, e.action, e.after.sha256, e.after.mode) for e in actual}
+
     if mutation in {"manifest", "member", "custom"}:
         with pytest.raises(AssertionError):
             compare()
@@ -505,7 +540,8 @@ def test_independent_oracle_kills_omission_and_churn_mutants(
 
 
 def test_probe_detects_one_missing_member_among_surviving_kinds(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from tests.specify_cli.tool_surface.bundles._support import full_plans
 
@@ -550,6 +586,7 @@ def test_plugin_bundle_repair_is_staging_only_and_dry_run_is_inert(
     repaired = provider.expand(definition, PLUGIN_BUNDLE_TOOL_KEY, tmp_path)
     assert {provider.probe(instance).state for instance in repaired} == {STATE_PRESENT}
 
+
 @pytest.fixture(scope="module")
 def selected_codex_seed(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
     from typer.testing import CliRunner
@@ -589,15 +626,21 @@ def _selected_skill_preparation(
     providers = build_providers()
     builder = SurfacePlanBuilder(build_registry(("codex", PLUGIN_BUNDLE_TOOL_KEY)), providers)
     installation = assess_skill_installation(
-        AssessmentInputs(root, projected=descriptor, consent=consent), SkillRegistry.from_package(), ("codex",),
-        runtime=True, commands=True, command_agent_keys=[key for key in ("codex",) if key in AGENT_COMMAND_CONFIG],
+        AssessmentInputs(root, projected=descriptor, consent=consent),
+        SkillRegistry.from_package(),
+        ("codex",),
+        runtime=True,
+        commands=True,
+        command_agent_keys=[key for key in ("codex",) if key in AGENT_COMMAND_CONFIG],
     )
     commands = builder.assess(
-        ("codex",), AssessmentInputs(root, projected=descriptor, consent=consent),
+        ("codex",),
+        AssessmentInputs(root, projected=descriptor, consent=consent),
         kinds=(ToolSurfaceKind.COMMAND_SKILL,),
     ).assessments[0]
     doctrine = builder.assess(
-        ("codex",), AssessmentInputs(root, projected=installation, consent=consent),
+        ("codex",),
+        AssessmentInputs(root, projected=installation, consent=consent),
         kinds=(ToolSurfaceKind.DOCTRINE_SKILL,),
     ).assessments[0]
     assert doctrine == installation.project_skills
@@ -607,7 +650,10 @@ def _selected_skill_preparation(
     sources = BundleSources((installation.project_skills, commands), ("claude_code_plugin",))
     inputs = AssessmentInputs(root, projected=sources, consent=consent)
     disabled = builder.assess(
-        (PLUGIN_BUNDLE_TOOL_KEY,), inputs, kinds=(ToolSurfaceKind.PLUGIN_MANIFEST,), configured_tools=("codex",),
+        (PLUGIN_BUNDLE_TOOL_KEY,),
+        inputs,
+        kinds=(ToolSurfaceKind.PLUGIN_MANIFEST,),
+        configured_tools=("codex",),
     )
     assert all(not owner.effects for owner in disabled.assessments)  # Generic selection stays disabled.
     plans = builder.build((PLUGIN_BUNDLE_TOOL_KEY,), project, kinds=(ToolSurfaceKind.PLUGIN_MANIFEST,))
@@ -620,8 +666,13 @@ def _selected_skill_preparation(
 
 
 def _selected_skill_project(
-    seed: tuple[Path, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-    *, key_present: bool, dist_present: bool, pointer: bool = False,
+    seed: tuple[Path, Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    key_present: bool,
+    dist_present: bool,
+    pointer: bool = False,
 ) -> tuple[Path, dict[str, Path]]:
     import yaml
 
@@ -659,15 +710,23 @@ def _assert_selected_delta(effects: tuple, before: Snapshot, after: Snapshot) ->
 @pytest.mark.parametrize("key_present", [False, True], ids=["missing-key", "explicit-empty"])
 @pytest.mark.parametrize("dist_present", [False, True], ids=["absent-dist", "existing-dist"])
 def test_selected_bundle_skill_transitions(
-    selected_codex_seed: tuple[Path, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-    record_property: Callable[[str, object], None], key_present: bool, dist_present: bool,
+    selected_codex_seed: tuple[Path, Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[[str, object], None],
+    key_present: bool,
+    dist_present: bool,
 ) -> None:
     from dataclasses import asdict
     from specify_cli.tool_surface.providers.command_skills import CommandSkillsProvider
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
     project, roots = _selected_skill_project(
-        selected_codex_seed, tmp_path, monkeypatch, key_present=key_present, dist_present=dist_present,
+        selected_codex_seed,
+        tmp_path,
+        monkeypatch,
+        key_present=key_present,
+        dist_present=dist_present,
     )
     before = snapshot(roots)
     with _write_attempts() as writes:

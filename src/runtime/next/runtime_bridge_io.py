@@ -257,9 +257,7 @@ def _load_run_index(repo_root: Path) -> tuple[dict[str, _FeatureRunEntry], bool]
     return _canonicalize_run_index(_rb._load_feature_runs(repo_root))
 
 
-def _entry_for_mission(
-    index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None
-) -> _FeatureRunEntry | None:
+def _entry_for_mission(index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None) -> _FeatureRunEntry | None:
     """Resolve identity without treating an unbound legacy run as absent.
 
     Identity backfill updates mission metadata, not the runtime index. A

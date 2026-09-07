@@ -14,9 +14,7 @@ pytestmark = [pytest.mark.distribution, pytest.mark.integration, pytest.mark.slo
 CHECKOUT = Path(__file__).resolve().parents[2]
 
 
-def test_installed_wheel_full_preview_has_no_source_leak(
-    installed_wheel_venv: dict[str, Path], tmp_path: Path
-) -> None:
+def test_installed_wheel_full_preview_has_no_source_leak(installed_wheel_venv: dict[str, Path], tmp_path: Path) -> None:
     venv = installed_wheel_venv["venv_dir"]
     executable = venv / ("Scripts/spec-kitty.exe" if os.name == "nt" else "bin/spec-kitty")
     python = installed_wheel_venv["python"]
@@ -28,18 +26,30 @@ def test_installed_wheel_full_preview_has_no_source_leak(
     subprocess.run(["git", "init", "-q", "-b", "wheel"], cwd=project, check=True, env=env)
     initialized = subprocess.run(
         [str(executable), "init", "--ai", "claude,codex", "--non-interactive"],
-        cwd=project, env=env, text=True, capture_output=True, check=False,
+        cwd=project,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
     )
     assert initialized.returncode == 0, initialized.stderr
     probe = subprocess.run(
         [str(python), "-c", "import json,specify_cli; print(json.dumps({'module':specify_cli.__file__}))"],
-        cwd=project, env=env, text=True, capture_output=True, check=True,
+        cwd=project,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=True,
     )
     module = Path(json.loads(probe.stdout)["module"]).resolve()
     assert module.is_relative_to(venv.resolve()) and not module.is_relative_to(CHECKOUT.resolve())
     result = subprocess.run(
         [str(executable), "upgrade", "--plan-json", "--no-worktrees"],
-        cwd=project, env=env, text=True, capture_output=True, check=False,
+        cwd=project,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)

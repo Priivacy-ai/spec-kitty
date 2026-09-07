@@ -81,18 +81,35 @@ class PreparedUpgradeRepairs:
             return ()
         proof = (OwnershipProof("managed_path", "charter.activation.compiler:mission_type_activations"),)
         effects = tuple(
-            PhysicalEffect("provisioning", "provisioning", self.root, parent.relative_to(self.root.path).as_posix(),
-                           "create", FileState("absent"), FileState("directory", mode=0o755),
-                           "Activation target parent", proof, ("project",))
+            PhysicalEffect(
+                "provisioning",
+                "provisioning",
+                self.root,
+                parent.relative_to(self.root.path).as_posix(),
+                "create",
+                FileState("absent"),
+                FileState("directory", mode=0o755),
+                "Activation target parent",
+                proof,
+                ("project",),
+            )
             for parent in write.absent_parents
         )
         before = FileState("absent") if write.before_bytes is None else FileState("file", sha256=sha256(write.before_bytes).hexdigest(), mode=write.mode)
-        return effects + (PhysicalEffect(
-            "provisioning", "provisioning", self.root, write.target.relative_to(self.root.path).as_posix(),
-            "create" if write.before_bytes is None else "update", before,
-            FileState("file", sha256=write.desired_sha256, mode=write.mode),
-            self.provisioning.reason, proof, ("project",),
-        ),)
+        return effects + (
+            PhysicalEffect(
+                "provisioning",
+                "provisioning",
+                self.root,
+                write.target.relative_to(self.root.path).as_posix(),
+                "create" if write.before_bytes is None else "update",
+                before,
+                FileState("file", sha256=write.desired_sha256, mode=write.mode),
+                self.provisioning.reason,
+                proof,
+                ("project",),
+            ),
+        )
 
 
 def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> PreparedUpgradeRepairs:
@@ -112,9 +129,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
         commands=True,
         command_agent_keys=slash_command_agents,
     )
-    managed = builder.assess(
-        agents, AssessmentInputs(root, projected=installation, consent=consent), kinds=(ToolSurfaceKind.DOCTRINE_SKILL,)
-    )
+    managed = builder.assess(agents, AssessmentInputs(root, projected=installation, consent=consent), kinds=(ToolSurfaceKind.DOCTRINE_SKILL,))
     commands = builder.assess(
         command_skill_agents,
         AssessmentInputs(root, projected=provisioning, consent=consent),
@@ -122,12 +137,21 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
     ).assessments
     # Slash-command preparation is already in the paired coordinated global
     # batch. Do not assess a second cold global writer for those definitions.
-    remaining_kinds = tuple(kind for kind in ToolSurfaceKind if kind not in {
-        ToolSurfaceKind.DOCTRINE_SKILL, ToolSurfaceKind.COMMAND_SKILL, ToolSurfaceKind.COMMAND_FILE,
-    })
+    remaining_kinds = tuple(
+        kind
+        for kind in ToolSurfaceKind
+        if kind
+        not in {
+            ToolSurfaceKind.DOCTRINE_SKILL,
+            ToolSurfaceKind.COMMAND_SKILL,
+            ToolSurfaceKind.COMMAND_FILE,
+        }
+    )
     remaining = builder.assess(
-        (*agents, PLUGIN_BUNDLE_TOOL_KEY), AssessmentInputs(root, consent=consent),
-        kinds=remaining_kinds, configured_tools=agents,
+        (*agents, PLUGIN_BUNDLE_TOOL_KEY),
+        AssessmentInputs(root, consent=consent),
+        kinds=remaining_kinds,
+        configured_tools=agents,
     ).assessments
     owners = (installation.global_assets, installation.project_skills, *managed.assessments, *commands, *remaining)
     diagnostics = tuple(d for owner in owners for d in owner.diagnostics)

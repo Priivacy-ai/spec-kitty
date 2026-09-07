@@ -81,7 +81,8 @@ class PreparedBundle:
         """Bound the existing per-file atomic writer's apply-only temporary paths."""
         return tuple(
             (str(Path(member.path).parent), f".{Path(member.path).name}." + "[0-9a-f]" * 32 + ".tmp", "atomic_write")
-            for member in self.files if member.path in self.write_paths
+            for member in self.files
+            if member.path in self.write_paths
         )
 
 
