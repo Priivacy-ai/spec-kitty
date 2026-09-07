@@ -108,8 +108,7 @@ def test_router_src_filters_derive_from_scrub_verbatim() -> None:
     )
 
     problems = [
-        f"group {group!r}: router globs {list(router.filters[group])} "
-        f"!= scrub roots {scrub_roots[group]}"
+        f"group {group!r}: router globs {list(router.filters[group])} != scrub roots {scrub_roots[group]}"
         for group in sorted(src_groups)
         if list(router.filters[group]) != scrub_roots[group]
     ]
@@ -157,8 +156,7 @@ def test_unmatched_union_covers_every_src_backed_group() -> None:
     union = _unmatched_union_groups(workflow)
     src = set(router.src_backed_groups)
     assert union == src, (
-        "the unmatched fail-closed union diverges from the src-backed groups — "
-        f"only-in-loop={sorted(union - src)}, only-in-src-groups={sorted(src - union)}"
+        f"the unmatched fail-closed union diverges from the src-backed groups — only-in-loop={sorted(union - src)}, only-in-src-groups={sorted(src - union)}"
     )
 
 

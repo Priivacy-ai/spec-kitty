@@ -289,8 +289,7 @@ def test_oracle_proves_wiring_not_runtime() -> None:
 
     # Single authority: oracle.load_router is not a look-alike re-implementation.
     assert oracle.load_router is gate_selection.load_router, (
-        "oracle.load_router must be the exact single-authority function from "
-        "scripts.ci.gate_selection, not a locally reimplemented parser"
+        "oracle.load_router must be the exact single-authority function from scripts.ci.gate_selection, not a locally reimplemented parser"
     )
 
     # The oracle's own group->gate map must match calling gate_selection.select_gates
@@ -309,10 +308,7 @@ def test_oracle_proves_wiring_not_runtime() -> None:
     # live namespace under any import spelling -- the oracle re-parses no YAML,
     # shells out to nothing, and reads no job result/conclusion.
     forbidden_module_names = {"yaml", "subprocess"}
-    bound = {
-        name: getattr(value, "__name__", None)
-        for name, value in vars(oracle).items()
-    }
+    bound = {name: getattr(value, "__name__", None) for name, value in vars(oracle).items()}
     leaked = {name: mod for name, mod in bound.items() if name in forbidden_module_names or mod in forbidden_module_names}
     assert not leaked, (
         f"the oracle module must never itself bind a yaml/subprocess name (found: {leaked}) -- "

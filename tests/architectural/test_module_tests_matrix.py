@@ -54,10 +54,7 @@ _FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 # ---------------------------------------------------------------------------
 def _load_module_tests() -> dict[Any, Any]:
     if not _MODULE_TESTS_PATH.exists():
-        pytest.fail(
-            f"reusable module-tests workflow missing: "
-            f"{_MODULE_TESTS_PATH.relative_to(_REPO_ROOT)} (WP09 T046 not yet delivered)"
-        )
+        pytest.fail(f"reusable module-tests workflow missing: {_MODULE_TESTS_PATH.relative_to(_REPO_ROOT)} (WP09 T046 not yet delivered)")
     import yaml  # local import: keep this gate's collection cost near-zero
 
     payload = yaml.safe_load(_MODULE_TESTS_PATH.read_text(encoding="utf-8"))
@@ -73,9 +70,7 @@ def _module_tests_text() -> str:
 
 def _load_ci_modules() -> dict[Any, Any]:
     if not _CI_MODULES_PATH.exists():
-        pytest.fail(
-            f"matrix caller workflow missing: {_CI_MODULES_PATH.relative_to(_REPO_ROOT)} (WP09 T047 not yet delivered)"
-        )
+        pytest.fail(f"matrix caller workflow missing: {_CI_MODULES_PATH.relative_to(_REPO_ROOT)} (WP09 T047 not yet delivered)")
     import yaml
 
     payload = yaml.safe_load(_CI_MODULES_PATH.read_text(encoding="utf-8"))
@@ -161,12 +156,7 @@ def test_module_tests_consumes_the_warmup_composite() -> None:
     assert _WARMUP_ACTION_PATH.exists(), "WP04 warmup composite must exist for module-tests.yml to consume"
     payload = _load_module_tests()
     jobs = _yaml_jobs(payload)
-    warmup_steps = [
-        step
-        for job in jobs.values()
-        for step in job.get("steps", [])
-        if str(step.get("uses", "")).startswith("./.github/actions/warmup")
-    ]
+    warmup_steps = [step for job in jobs.values() for step in job.get("steps", []) if str(step.get("uses", "")).startswith("./.github/actions/warmup")]
     assert warmup_steps, "expected a step using './.github/actions/warmup' in module-tests.yml"
 
 
@@ -232,9 +222,7 @@ def test_ci_modules_calls_module_tests_workflow_exactly_once() -> None:
     payload = _load_ci_modules()
     jobs = _yaml_jobs(payload)
     uses_module_tests = [
-        job.get("uses", "")
-        for job in jobs.values()
-        if str(job.get("uses", "")).endswith("module-tests.yml") or "module-tests.yml" in str(job.get("uses", ""))
+        job.get("uses", "") for job in jobs.values() if str(job.get("uses", "")).endswith("module-tests.yml") or "module-tests.yml" in str(job.get("uses", ""))
     ]
     assert len(uses_module_tests) == 1, (  # golden-count: cardinality-is-contract
         f"expected exactly one job calling module-tests.yml (bounded matrix realization), got {uses_module_tests!r}"
@@ -269,9 +257,9 @@ def test_ci_modules_matrix_realizes_every_registry_module_name() -> None:
     # loads all `modules[].module` entries generically. We assert the script
     # iterates the registry's `modules` key rather than a hand-picked list.
     assert "modules" in text
-    assert re.search(r"registry\[.?modules.?\]|registry\.get\(.?modules.?\)|\[.?modules.?\]", text) or (
-        "for " in text and "module" in text
-    ), "matrix generation must iterate the registry's modules list, not a hand-picked subset"
+    assert re.search(r"registry\[.?modules.?\]|registry\.get\(.?modules.?\)|\[.?modules.?\]", text) or ("for " in text and "module" in text), (
+        "matrix generation must iterate the registry's modules list, not a hand-picked subset"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -285,12 +273,7 @@ def test_every_uses_step_is_pinned_to_a_full_commit_sha(path: Path) -> None:
 
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     jobs = payload.get("jobs", {})
-    uses_values = [
-        str(step["uses"])
-        for job in jobs.values()
-        for step in job.get("steps", [])
-        if "uses" in step and not str(step["uses"]).startswith("./")
-    ]
+    uses_values = [str(step["uses"]) for job in jobs.values() for step in job.get("steps", []) if "uses" in step and not str(step["uses"]).startswith("./")]
     for uses in uses_values:
         _, _, ref = uses.partition("@")
         assert ref and _FULL_SHA_RE.match(ref), f"'{uses}' in {path.name} is not pinned to a full commit SHA (DIR-051)"
@@ -317,12 +300,7 @@ def test_module_tests_coverage_and_xunit_paths_match_contract() -> None:
 def test_module_tests_upload_artifact_name_ends_reports_and_runs_always() -> None:
     payload = _load_module_tests()
     jobs = _yaml_jobs(payload)
-    upload_steps = [
-        step
-        for job in jobs.values()
-        for step in job.get("steps", [])
-        if str(step.get("uses", "")).startswith("actions/upload-artifact")
-    ]
+    upload_steps = [step for job in jobs.values() for step in job.get("steps", []) if str(step.get("uses", "")).startswith("actions/upload-artifact")]
     assert upload_steps, "expected an actions/upload-artifact step"
     for step in upload_steps:
         name = str(step.get("with", {}).get("name", ""))

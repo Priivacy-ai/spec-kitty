@@ -175,10 +175,7 @@ def test_every_present_reinstated_workflow_threads_a_pr_full_mode_input(
             "(path-scoped fail-fast is the ordinary per-PR case; full run-all is opt-in)"
         )
     else:
-        assert default in {"pr", "full"}, (
-            f"{workflow_path.name}: schedule/dispatch-only workflow mode default "
-            f"must be 'pr' or 'full', got {default!r}"
-        )
+        assert default in {"pr", "full"}, f"{workflow_path.name}: schedule/dispatch-only workflow mode default must be 'pr' or 'full', got {default!r}"
     mode_type = mode.get("type")
     if mode_type == "choice":
         options = mode.get("options")

@@ -180,15 +180,11 @@ def test_sonar_skips_green_without_token_never_hard_fails() -> None:
     assert scan_steps, "sonar.yml must run SonarSource/sonarqube-scan-action"
     for step in scan_steps:
         condition = str(step.get("if", ""))
-        assert "enabled" in condition or "SONAR_TOKEN" in condition, (
-            f"sonar.yml: the scan step must be gated on token availability, got if: {condition!r}"
-        )
+        assert "enabled" in condition or "SONAR_TOKEN" in condition, f"sonar.yml: the scan step must be gated on token availability, got if: {condition!r}"
 
     # A missing-token run must not be a bare unconditional job -- there must be
     # a non-fatal notice path (never a `exit 1` unconditional on token absence).
-    assert "::error::" not in text.split("SONAR_TOKEN")[0] or "enabled=false" in text, (
-        "sonar.yml must not hard-fail before the token-availability check"
-    )
+    assert "::error::" not in text.split("SONAR_TOKEN")[0] or "enabled=false" in text, "sonar.yml must not hard-fail before the token-availability check"
     assert "enabled=false" in text, "sonar.yml must emit an explicit disabled/skip signal when SONAR_TOKEN is absent"
 
 
@@ -215,9 +211,9 @@ def test_sonar_never_echoes_the_token_value() -> None:
     text = _workflow_text()
     leak_patterns = (
         "echo ${{ secrets.SONAR_TOKEN",
-        "echo \"${{ secrets.SONAR_TOKEN",
+        'echo "${{ secrets.SONAR_TOKEN',
         "echo $SONAR_TOKEN",
-        "echo \"$SONAR_TOKEN",
+        'echo "$SONAR_TOKEN',
         "echo ${SONAR_TOKEN}",
     )
     for line in text.splitlines():
