@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import json
 import shutil
+import stat
 import subprocess
 import sys
 from kernel.clock import now_utc
@@ -30,6 +32,8 @@ from specify_cli.core.vcs import (
 from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.core.agent_config import (
     AgentConfig,
+    AgentConfigError,
+    load_agent_config,
     save_agent_config,
 )
 from .init_help import INIT_COMMAND_DOC
@@ -87,6 +91,95 @@ _REVIEW_CYCLE_GITATTRIBUTES_ENTRY = (
     "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"
 )
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
+_PENDING_COMMAND_SKILLS = ".kittify/init-command-skills.pending.json"
+
+
+def _pending_command_skills(project: Path) -> tuple[str, ...] | None:
+    """Read init's exact pending-delivery record, never an authored config flag."""
+    path = project / _PENDING_COMMAND_SKILLS
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return None
+    if path.parent.is_symlink() or not stat.S_ISREG(mode):
+        raise ValueError(f"Unsafe pending command-delivery record: {path}")
+    data = json.loads(path.read_bytes())
+    if not isinstance(data, dict) or set(data) != {"schema_version", "agents"} or type(data["schema_version"]) is not int or data["schema_version"] != 1:
+        raise ValueError(f"Unrecognized pending command-delivery record: {path}")
+    agents = data["agents"]
+    if not isinstance(agents, list) or not agents or any(not isinstance(a, str) or a not in _COMMAND_SKILL_AGENTS for a in agents):
+        raise ValueError(f"Invalid pending command-delivery agents: {path}")
+    if agents != sorted(set(agents)):
+        raise ValueError(f"Noncanonical pending command-delivery agents: {path}")
+    return tuple(agents)
+
+
+def _start_command_delivery(project: Path, agents: list[str]) -> None:
+    """Reserve recovery only for new init, after runtime-root protection."""
+    if not agents:
+        return
+    expected = tuple(sorted(set(agents)))
+    pending = _pending_command_skills(project)
+    if pending is not None:
+        if pending != expected:
+            raise ValueError("Pending command delivery has a different agent selection")
+        return
+    path = project / _PENDING_COMMAND_SKILLS
+    with path.open("x", encoding="utf-8") as stream:
+        json.dump({"schema_version": 1, "agents": list(expected)}, stream, sort_keys=True)
+        stream.write("\n")
+
+
+def _finish_command_delivery(project: Path, agents: list[str] | tuple[str, ...]) -> None:
+    if not agents:
+        return
+    if _pending_command_skills(project) != tuple(sorted(set(agents))):
+        raise ValueError("Pending command-delivery record changed; preserving it")
+    (project / _PENDING_COMMAND_SKILLS).unlink()
+
+
+def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
+    """Retain init's per-agent warnings and the installer's ownership checks."""
+    from specify_cli.skills import command_installer
+    from specify_cli.skills.vibe_config import ensure_project_skill_path
+
+    assert _console is not None
+    complete = True
+    for agent_key in agents:
+        try:
+            report = command_installer.install(project, agent_key)
+            if agent_key == "vibe":
+                ensure_project_skill_path(project)
+            installed = len(report.added) + len(report.reused_shared)
+            _console.print(f"[dim]{AI_CHOICES[agent_key]}: {installed} command skills installed[/dim]")
+        except Exception as exc:
+            complete = False
+            _console.print(f"[yellow]Warning:[/yellow] Could not install skills for {AI_CHOICES[agent_key]}: {exc}")
+    return complete
+
+
+def _resume_command_delivery(project: Path) -> bool:
+    """Finish only interrupted command delivery; never rewrite saved config."""
+    pending = _pending_command_skills(project)
+    if pending is None:
+        return False
+    assert _console is not None
+    config = project / ".kittify/config.yaml"
+    data = YAML(typ="safe").load(config.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("agents"), dict) or "available" not in data["agents"]:
+        raise ValueError("Initialization stopped before agent selection was saved; inspect .kittify/config.yaml before retrying")
+    configured = load_agent_config(project)
+    agents = [agent for agent in pending if agent in configured.available]
+    protected = GitignoreManager(project).protect_all_agents()
+    if not protected.success:
+        raise ValueError("Cannot resume command delivery: " + "; ".join(protected.errors))
+    _console.print("[yellow]Resuming interrupted command-skill delivery from saved configuration.[/yellow]")
+    if not _install_command_skill_agents(project, agents):
+        raise ValueError("Command delivery remains incomplete; resolve the reported collision or error before retrying init")
+    _finish_command_delivery(project, pending)
+    return True
+
+
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
     "kitty-specs/**/status.events.jsonl linguist-generated=true",
@@ -585,6 +678,13 @@ def init(  # noqa: C901
     # This prevents silent re-init and makes CI-driven init safe to re-run.
     _config_yaml = project_path / ".kittify" / "config.yaml"
     if _config_yaml.exists():
+        try:
+            resumed = _resume_command_delivery(project_path)
+        except (OSError, ValueError, AgentConfigError) as exc:
+            _console.print(f"[red]Initialization incomplete:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        if resumed:
+            raise typer.Exit(0)
         _console.print(
             Panel(
                 "[yellow]Already initialized.[/yellow]\n"
@@ -714,6 +814,7 @@ def init(  # noqa: C901
 
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
+    command_skill_agents: list[str] = []
 
     with Live(tracker.render(), console=_console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
@@ -829,19 +930,12 @@ def init(  # noqa: C901
                         # WRAPPER agents have no installable root.
                         tracker.complete(f"{agent_key}-skills", "skipped (wrapper)")
                     elif agent_key in ("codex", "vibe", "pi", "letta"):
-                        # Command-skill agents receive Spec Kitty's slash
-                        # commands as Agent Skills packages rendered into
-                        # .agents/skills/.
-                        from specify_cli.skills import command_installer  # noqa: PLC0415
-                        from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
-
-                        report = command_installer.install(project_path, agent_key)
-                        if agent_key == "vibe":
-                            ensure_project_skill_path(project_path)
-                        installed = len(report.added) + len(report.reused_shared)
+                        # Render only after config is finalized: an absent config
+                        # intentionally has different REASONS activation semantics.
+                        command_skill_agents.append(agent_key)
                         tracker.complete(
                             f"{agent_key}-skills",
-                            f"{installed} command skills installed",
+                            "queued until project configuration is saved",
                         )
                     elif agent_skill_class == SKILL_CLASS_SHARED:
                         # Other SHARED-class agents install their canonical skills
@@ -900,6 +994,10 @@ def init(  # noqa: C901
                 _console.print(f"[red]❌ {error}[/red]")
             if not result.success:
                 raise typer.Exit(1)
+
+            # Config existence alone must not hide a newly interrupted command
+            # delivery. Authored pre-existing config never reaches this boundary.
+            _start_command_delivery(project_path, command_skill_agents)
 
             # T001: No git initialization. init is file-creation-only.
             # Git management is the user's responsibility. Running init inside
@@ -1172,12 +1270,23 @@ def init(  # noqa: C901
             _console.print(f"[dim]Note: Could not save VCS config: {e}[/dim]")
 
     # Save agent configuration to config.yaml
+    agent_config_saved = False
     try:
         save_agent_config(project_path, agent_config)
+        agent_config_saved = True
         _console.print("[dim]Saved agent configuration[/dim]")
     except Exception as e:
         # Don't fail init if agent config creation fails
         _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")
+
+    # Install each selected command-skill owner once, with final render inputs.
+    # Keep config creation after runtime-root protection (the resumability gate),
+    # and reuse the installer for shared-root ownership and collision protection.
+    commands_complete = _install_command_skill_agents(project_path, command_skill_agents)
+    if agent_config_saved and commands_complete:
+        _finish_command_delivery(project_path, command_skill_agents)
+    elif command_skill_agents:
+        _console.print("[yellow]Command delivery is incomplete; retry init after resolving the reported error.[/yellow]")
 
     # Write session presence orientation for each configured agent (FR-003).
     try:

@@ -91,6 +91,15 @@ your project's agent configuration. It is **safe and conservative**:
   (reported as *unsafe*).
 - It leaves files it does not own alone.
 
+`spec-kitty upgrade` uses the same owner assessments in its finalizer. Inspect
+them without writing via `spec-kitty upgrade --plan-json`: `effects` are exact
+owned writes, while `dispositions` explain unchanged, preserved,
+consent-required, or inapplicable paths. Supporting manifests and parent
+directories appear as effects rather than hidden side effects. Global roots are
+independent of `--no-worktrees`; that option excludes worktree discovery and
+repair only. An incomplete required owner blocks apply instead of becoming an
+empty successful plan.
+
 If the report flagged drift or unsafe paths, the repair will decline and tell
 you why. Reconcile those entries by hand, then run `--fix` again.
 
