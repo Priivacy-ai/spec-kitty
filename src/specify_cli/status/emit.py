@@ -317,8 +317,9 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
     """The ``dependencies`` a WP prompt file declares on the PRIMARY planning surface.
 
     WP files are authored on the primary checkout (``cli/commands/implement.py::
-    find_wp_file``), never on the coordination write surface, so the caller
-    passes the planning dir. A WP without a prompt file declares nothing.
+    find_wp_file``), never on the coordination write surface. Resolve that
+    planning surface even when a flat caller supplies a coord write dir.
+    A WP without a prompt file declares nothing.
 
     Only the ``dependencies`` key is read, from the raw frontmatter: the typed
     ``read_wp_frontmatter`` re-points runtime fields from a reduced snapshot
@@ -335,6 +336,21 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
     refused (fail-closed where the guard has an opinion, ``force`` bypassable)
     and every other edge is unaffected.
     """
+    # The plain door can also write a registered coord surface (the
+    # transactional fallback). WP prompts remain PRIMARY artifacts there;
+    # reading the coord copy would treat an absent prompt as no dependencies.
+    from mission_runtime import MissionArtifactKind  # noqa: PLC0415
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
+    from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root  # noqa: PLC0415
+
+    try:
+        primary_root = resolve_canonical_root(planning_feature_dir)
+    except WorkspaceRootNotFound:
+        pass  # Non-repository/bootstrap callers already supply their planning dir.
+    else:
+        planning_feature_dir = resolve_planning_read_dir(
+            primary_root, planning_feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
     wp_file = _find_wp_file(planning_feature_dir, wp_id)
     if wp_file is None:
         return ()
@@ -836,8 +852,8 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         from_lane = _derive_from_lane(canonical_feature_dir, request.wp_id, snapshot=snapshot)
 
         # Step 3: the dependency verdict, in-lock, against the write surface
-        # (FR-013). For the flat shell the planning surface that carries the
-        # WP file IS the canonical primary dir.
+        # (FR-013). The declaration reader resolves PRIMARY WP prompts even
+        # when this flat shell writes a coord fallback surface.
         readiness = _resolve_dependency_readiness(canonical_feature_dir, request.wp_id, snapshot)
 
         # Step 4: the status-owned pipeline (validate + build; pure).
@@ -1067,7 +1083,7 @@ def emit_inner_state_changed(
         wp_id: Target work-package id (e.g. ``"WP01"``).
         delta: Typed partial runtime-state payload. An empty delta is refused.
         actor: Identity of the actor causing the change.
-        mission_slug: Mission identifier — used only as the status-lock key.
+        mission_slug: Mission identifier used for resolved-binding fan-out.
         at: Optional ISO-8601 occurrence timestamp; defaults to now.
         repo_root: Optional repo root for status-lock resolution.
 
@@ -1089,7 +1105,7 @@ def emit_inner_state_changed(
     )
 
     lock_root = _feature_status_lock_root(feature_dir, repo_root)
-    with feature_status_lock(lock_root, mission_slug):
+    with feature_status_lock(lock_root, feature_dir.name):
         _store.append_annotations_atomic_verified(feature_dir, [event])
         try:
             _reducer.materialize(feature_dir)
@@ -1325,7 +1341,7 @@ def emit_resolved_binding(
     Args:
         feature_dir: kitty-specs feature directory (canonicalized by the emit).
         wp_id: Target work-package id (e.g. ``"WP01"``).
-        mission_slug: Mission identifier — used only as the status-lock key.
+        mission_slug: Mission identifier used for resolved-binding fan-out.
         actor: Identity of the actor performing the claim (the annotation actor).
         role: The *actual* role that ran at this seam (``"implementer"`` /
             ``"reviewer"``) — never the authored recommendation.

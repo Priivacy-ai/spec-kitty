@@ -295,3 +295,24 @@ def _seed_in_progress_on_coord(repo_root: Path) -> None:
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", "seed genesis->in_progress")
     _git(repo_root, "worktree", "remove", "-f", str(worktree))
+
+
+@pytest.mark.parametrize("emit", [_emit_single, _emit_batch], ids=["single", "batch"])
+@pytest.mark.parametrize("fallback", [False, True], ids=["transaction", "fallback"])
+def test_coord_claim_reads_dependencies_from_primary(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, emit: Any, fallback: bool
+) -> None:
+    """Coord status is current, but PRIMARY owns the WP's declared dependencies."""
+    from specify_cli.status.emit import TransitionError
+
+    _seed_planned_on_coord(repo)
+    primary_tasks = repo / "kitty-specs" / MISSION_DIRNAME / "tasks"
+    primary_tasks.mkdir()
+    (primary_tasks / "WP01-test.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\ndependencies: [WP02]\n---\n", encoding="utf-8"
+    )
+    if fallback:
+        _force_fallback_path(monkeypatch)
+    with pytest.raises(TransitionError, match="unsatisfied dependencies"):
+        emit(repo)
+    assert '"to_lane": "claimed"' not in _coord_events_path(repo).read_text(encoding="utf-8")
