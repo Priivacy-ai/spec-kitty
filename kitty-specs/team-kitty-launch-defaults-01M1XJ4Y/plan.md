@@ -41,11 +41,11 @@ Charter: `.kittify/charter/charter.md` (loaded via `charter context --action pla
 | Architectural alignment / layer rules | PASS | all edits inside `specify_cli`; no new cross-layer import |
 | ATDD-first / red-first | PASS | contracts/acceptance.md A1–A11 each name an entry point on the base |
 | Terminology canon | PASS | new names use Team Kitty vocabulary; `[sync]` and `SYNC_*` retired; `docs/context/team-kitty.md` is the term authority |
-| Decision documentation (DIRECTIVE_003) | PASS with action | D-5 reversal ADR is WP-owned, must land before the target change (C-005) |
+| Decision documentation (DIRECTIVE_003) | PASS with action | D-5 reversal ADR is WP01, lands before the target-authority change (WP02 → WP01); independent lanes (WP05, WP06) may start in parallel (C-005) |
 | Bulk-edit guardrail (DIRECTIVE_035) | PASS | `occurrence_map.yaml` present, all 8 categories, archives excepted |
 | Smallest viable diff / locality | PASS | no refactor of the moment path; the readiness coordinator gains one marker, nothing else |
 | Adversarial squad cadence | PLANNED | post-tasks anti-laziness squad before implement; pre-merge squad before hand-off |
-| Mission hygiene / tracker | ACTION | claim #1621, #3980, #2875, #2695 with a comment naming this mission; issue-matrix rows (C-006) |
+| Mission hygiene / tracker | DONE at planning close-out | #1621, #3980, #2875, #2695 claimed (assignee + comment naming this mission); issue-matrix rows and verdicts in WP10 (C-006) |
 | Supply-chain safety | N/A, recorded | no dependency change (research §Supply-chain) |
 
 Re-check after Phase 1 design: no new violations; Complexity Tracking stays empty.
@@ -123,11 +123,11 @@ tests/
 | ID | Concern | Requirements | Owned surfaces | Notes |
 |---|---|---|---|---|
 | IC-01 | Record the D-5 reversal | C-005 | new ADR in `docs/adr/3.x/`, `docs/adr` README index | must merge before IC-02 lands; states packaged default, precedence, why D-5 no longer applies |
-| IC-02 | Target authority: packaged default, `[team_kitty]` key, source | FR-001, FR-002, FR-003, FR-012 | `auth/config.py`, `auth/server_target.py`, `tests/auth/test_server_target.py` | `[sync]` never read; split-brain unchanged; `MISSING_HOST_CONFIG` path removed downstream (IC-06) |
+| IC-02 | Target authority: packaged default, `[team_kitty]` key, source | FR-001, FR-002, FR-003, FR-012 | `auth/config.py`, `auth/server_target.py`, `saas_client/auth.py`, `tests/auth/test_server_target.py` | `[sync]` never read; split-brain unchanged; `MISSING_HOST_CONFIG` removed by IC-04 once this lands |
 | IC-03 | Target visibility | FR-004, NFR-004 | `_auth_saas_target.py`, `_auth_login.py`, `_auth_status.py` tests | one printer; JSON fields `target.url`/`target.source`; redaction test |
-| IC-04 | Delete the gate and the owned-checkout refusal | FR-007, FR-008, FR-009, FR-012 | `core/saas_sync_config.py` (delete), `tracker/feature_flags.py` (delete), `tasks_move_task.py`, `tasks_mark_status.py`, `mission_type.py`, `tracker.py`, `cli/helpers.py` | red-first: owned-checkout move publishes; tracker logged-out → guidance |
+| IC-04 | Delete the gate and the owned-checkout refusal | FR-007, FR-008, FR-009, FR-010, FR-012 | `core/saas_sync_config.py` (delete), `tracker/feature_flags.py` (delete), `tracker/saas_readiness.py` (gate #1 + `MISSING_HOST_CONFIG`), `tasks_move_task.py`, `tasks_mark_status.py`, `mission_type.py`, `tracker.py`, `cli/helpers.py` | red-first: owned-checkout move publishes; tracker logged-out → guidance |
 | IC-05 | Named opt-outs | FR-011, C-002 | `core/env.py`, `status/adapters.py`, `agent/tasks.py`, `tasks_move_task.py:1208`, isolation fixtures, `spk-run-implement-review/SKILL.md`, `tests/specify_cli/core/test_env.py` | keep `--skip-pre-review-gate` flag; env accessor per name |
-| IC-06 | Readiness: always evaluated, one-time hint, logged-out degrade | FR-005, FR-006, FR-013, NFR-003 | `readiness/coordinator.py`, `readiness/render.py`, `cli/helpers.py`, `tracker/saas_readiness.py`, `_auth_logout.py` | marker under runtime state root; non-TTY unchanged; #2875/#2695 evidence |
+| IC-06 | Readiness: always evaluated, one-time hint, logged-out degrade | FR-005, FR-006, FR-010, FR-013, NFR-003 | `readiness/coordinator.py`, `readiness/render.py`, `readiness/hint_state.py`, `cli/helpers.py`, `_auth_logout.py` | marker under runtime state root; non-TTY unchanged; #2875/#2695 evidence |
 | IC-07 | Provisioning, redaction, registry follow | FR-014, FR-012 | `m_3_2_8_provision_kitty_env.py`, `secret_redaction.py`, `completion.py`, `docs/api/environment-variables.md` | never seed retired names; never invent values |
 | IC-08 | Vocabulary sweep under the occurrence map | C-002, C-003, SC-005 | live `src/`, `docs/` (non-archive), skills, `CHANGELOG.md`, `docs/context/team-kitty.md` | archives untouched; `git grep` witness A10 |
 | IC-09 | Acceptance and gates | NFR-001, NFR-002, NFR-005, SC-001–SC-006 | `tests/integration/test_launch_defaults_acceptance.py` (new), recording stubs, `tests/architectural/` full | A1–A11 in contracts/acceptance.md |
@@ -169,7 +169,7 @@ IC-07 provisioning ─┘         IC-08 vocabulary sweep (after IC-04/IC-05 sett
 
 ### Coordination Points
 
-- Consolidation via `spec-kitty merge` into local `main` after every lane is approved; then the compact/rebase and a PR from `issue-1621-team-kitty-launch-defaults` targeting `main` per the charter.
+- Consolidation via `spec-kitty merge` into local `main` after every lane is approved; then compaction and rebase; the PR opens from the PR-bound mission branch `feat/team-kitty-launch-defaults` targeting `main` (the mission was created PR-bound on that branch; no `issue-<n>` rename).
 - Integration evidence: A1–A11 run on the consolidated branch; `tests/architectural/` full; terminology guard.
 - Squads: post-tasks anti-laziness pass (fakeable DoDs), pre-merge cross-base sweep.
 

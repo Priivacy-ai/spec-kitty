@@ -242,7 +242,7 @@ the tracker command group.
 | C-002 | Vocabulary | New identifiers (the two opt-outs) use Team Kitty vocabulary; no new `SAAS_`, `SYNC_`, or `TEAMSPACE` identifiers. `SPEC_KITTY_SAAS_URL` and `SPEC_KITTY_SAAS_TOKEN` keep their names as overrides. | Terminology | High | Approved |
 | C-003 | Bulk edit governed | Retirement of the named identifiers runs through the occurrence-classification workflow; historical archives are not rewritten. | Process | High | Approved |
 | C-004 | Scope | No version bump, no SaaS-side change, no relay change, no non-interactive CI sign-in (#3277), no tracker control-plane redesign, no first-run announcement copy. | Scope | High | Approved |
-| C-005 | Decision record | The packaged default is a reversal of decision D-5 and is recorded as its own architecture decision record before implementation. | Governance | High | Approved |
+| C-005 | Decision record | The packaged default is a reversal of decision D-5 and is recorded as its own architecture decision record before the target-authority change lands; work that does not depend on the packaged default may proceed in parallel. | Governance | High | Approved |
 | C-006 | Tracker hygiene | Issues #1621, #3980, #2875, #2695 are claimed with a comment naming this mission and carry issue-matrix rows; #3154 and #3892 are referenced, not closed. | Process | Medium | Approved |
 
 ### Key Entities *(include if feature involves data)*
