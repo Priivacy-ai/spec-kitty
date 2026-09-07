@@ -1628,14 +1628,34 @@ def _run_planner_json(
     if latest_version_provider is not None:
         kwargs["latest_version_provider"] = latest_version_provider
 
-    result = plan(invocation, **kwargs)  # type: ignore[arg-type]
+    from specify_cli.upgrade.detector import VersionDetector
+    from specify_cli.upgrade.runner import validate_upgrade_target
+
+    current_version = VersionDetector(project_path).detect_version()
+    validation_error = validate_upgrade_target(current_version, target_version)
+    result = plan(invocation, read_only=True, include_migrations=False, **kwargs)  # type: ignore[arg-type]
 
     payload = dict(result.rendered_json)
-    payload["pending_migrations"] = _real_pending_migrations_contract(project_path, target_version)
+    semantic_code = result.exit_code
+    if validation_error:
+        payload["pending_migrations"] = []
+        semantic_code = _legacy_target_refusal(payload, validation_error, semantic_code)
+    else:
+        payload["pending_migrations"] = _real_pending_migrations_contract(project_path, target_version)
 
-    exit_code = 0 if dry_run else result.exit_code
+    exit_code = 0 if dry_run and semantic_code != 5 else semantic_code
     print(json.dumps(payload, indent=2))
     raise typer.Exit(exit_code)
+
+
+def _legacy_target_refusal(payload: dict[str, object], reason: str, semantic_code: int) -> int:
+    """Project target refusal without changing truthful schema compatibility."""
+    stronger = {"BLOCK_PROJECT_CORRUPT", "BLOCK_CLI_UPGRADE", "BLOCK_PROJECT_MIGRATION"}
+    if payload["decision"] in stronger:
+        payload["rendered_human"] = str(payload["rendered_human"])[:512] + "\n" + reason[:511]
+        return semantic_code
+    payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, rendered_human=reason)
+    return 2
 
 
 __all__ = ["upgrade"]

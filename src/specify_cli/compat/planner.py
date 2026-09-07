@@ -716,6 +716,8 @@ def plan(
     config: Any = None,
     now: datetime | None = None,
     project_root_resolver: Callable[[Path], Path | None] | None = None,
+    read_only: bool = False,
+    include_migrations: bool = True,
 ) -> Plan:
     """Build the compatibility plan for this invocation.
 
@@ -737,6 +739,10 @@ def plan(
         project_root_resolver: Override for the project root resolver.
             Defaults to ``locate_project_root`` from
             ``specify_cli.core.project_resolver``.
+        read_only: Read existing cache only; never resolve/call a latest provider
+            or persist data. Unsupported legacy cache sources become none.
+        include_migrations: False when the upgrade caller owns validated target
+            selection, so invalid targets cannot trigger implicit discovery.
 
     Returns:
         A :class:`Plan`.  Never raises.
@@ -749,6 +755,8 @@ def plan(
             config=config,
             now=now,
             project_root_resolver=project_root_resolver,
+            read_only=read_only,
+            include_migrations=include_migrations,
         )
     except Exception:  # noqa: BLE001 — fail-closed
         # Build the minimal fail-closed plan
@@ -869,6 +877,7 @@ def _resolve_latest_version(
     installed_version: str,
     now: datetime,
     prerelease: bool = False,
+    read_only: bool = False,
 ) -> tuple[str | None, Literal["pypi", "simple_index", "none"], datetime | None]:
     """Return ``(latest_version, cli_source, fetched_at)`` for the CLI status.
 
@@ -888,6 +897,10 @@ def _resolve_latest_version(
             ``latest_version_provider.get_latest`` unchanged. Default False
             reproduces the pre-WP05 provider call byte-for-byte (C-CHN-1).
     """
+    if read_only:
+        if cache_record is not None and cache_record.latest_source == "pypi":
+            return cache_record.latest_version, "pypi", cache_record.fetched_at
+        return None, "none", None
     if cache_data_fresh:
         # Cache data is fresh — trust it; no network call.
         latest_version = cache_record.latest_version if cache_record is not None else None
@@ -963,6 +976,8 @@ def _plan_impl(
     config: Any,
     now: datetime | None,
     project_root_resolver: Callable[[Path], Path | None] | None,
+    read_only: bool = False,
+    include_migrations: bool = True,
 ) -> Plan:
     """Inner implementation of plan() — may raise; caller wraps in try/except."""
     from specify_cli.compat._detect.runtime import detect_runtime
@@ -993,7 +1008,7 @@ def _plan_impl(
 
     profile = resolve_distribution_profile()
 
-    if latest_version_provider is None:
+    if latest_version_provider is None and not read_only:
         latest_version_provider = _default_latest_provider(
             network_suppressed=invocation.suppresses_network(),
             profile=profile,
@@ -1067,6 +1082,7 @@ def _plan_impl(
         installed_version=cache_version_key,
         now=now,
         prerelease=channel_prerelease,
+        read_only=read_only,
     )
 
     is_outdated = _version_is_outdated(installed_version, latest_version)
@@ -1114,7 +1130,10 @@ def _plan_impl(
     # decision here to keep the general per-command compat check off the
     # migration-discovery hot path. The `upgrade` preview overrides this with
     # the unconditional real set (see cli/commands/upgrade.py).
-    pending_migrations = _pending_migrations_for(project_status, cli_status.installed_version) if decision == Decision.BLOCK_PROJECT_MIGRATION else ()  # noqa: SIM108
+    pending_migrations = (
+        _pending_migrations_for(project_status, cli_status.installed_version)
+        if include_migrations and decision == Decision.BLOCK_PROJECT_MIGRATION else ()
+    )
 
     # --- Step 10: Exit code ---
     exit_code = _EXIT_CODE_MAP.get(decision, 0)

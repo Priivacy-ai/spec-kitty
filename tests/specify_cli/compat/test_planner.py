@@ -51,7 +51,9 @@ _MAX = 3
 
 
 @pytest.mark.parametrize("cached_source", ["pypi", "simple_index"])
-def test_read_only_plan_preserves_cache_without_calling_provider(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cached_source: Literal["pypi", "simple_index"]) -> None:
+def test_read_only_plan_preserves_cache_without_calling_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cached_source: Literal["pypi", "simple_index"],
+) -> None:
     from specify_cli.compat.cache import NagCacheRecord
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
