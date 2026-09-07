@@ -6,6 +6,7 @@ updated: '2026-08-12'
 related:
 - docs/plans/code-quality/index.md
 - docs/plans/domains/index.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/changelog/release-goals.md
@@ -25,10 +26,9 @@ epics and roadmaps for the "what ships when" rather than duplicating them. Epics
 release/milestone-scoped tracking, not the throughline. Unlike the working notes
 below, a throughline does not retire when a milestone closes.
 
-- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881): the local
-  sync transport was removed and the hosted surface re-homed to the authoritative upstream
-  repos (`spec-kitty/zeitgeist`, `spec-kitty/saas`); this repo consumes their clients. See the
-  [convergence-retirement ADR](../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
+- **SaaS & hosted sync** — [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md):
+  sync & event-envelope integrity, consent & identity boundary, auth & token
+  lifecycle, and hosted rollout readiness.
 - **Doctrine & charter** — [Doctrine & Charter — Domain Plan](domains/doctrine-charter-domain-plan.md):
   charter lifecycle & sole-door access, pack extensibility, activation-driven
   availability, meta.json fail-closed reads, the public API surface, and

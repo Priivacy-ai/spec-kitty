@@ -18,7 +18,7 @@ date: '2026-06-26'
 **Technical Story:**
 - Mission `integration-boundary-01KW0PBE` — fix and enforce the CORE/INTEGRATION boundary
 - ADR `docs/adr/3.x/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md` — context for deferred physical extraction
-- Historical ownership context: [ownership map](../../architecture/05_ownership_map.md) (narrative only; current enforced sources are listed under More Information).
+- `docs/architecture/05_ownership_manifest.yaml` — package ownership map
 
 ---
 
@@ -279,7 +279,5 @@ This decision is correct when:
 - Contract: [`kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md`](../../../kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md)
 - Enforcement test: `tests/architectural/test_integration_boundary.py`
 - Physical extraction deferral: [`docs/adr/3.x/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md`](./2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md)
-- Current package inventory: [`pyproject.toml`](../../../pyproject.toml) `[tool.hatch.build.targets.wheel].packages`, enforced by [`test_pyproject_shape.py`](../../../tests/architectural/test_pyproject_shape.py).
-- Current import direction: the `landscape` fixture in [`conftest.py`](../../../tests/architectural/conftest.py) and [`test_layer_rules.py`](../../../tests/architectural/test_layer_rules.py).
-- Historical ownership narrative: [`05_ownership_map.md`](../../architecture/05_ownership_map.md). Its companion manifest was deleted; the map is narrative only and does not define current package inventory or import direction.
+- Ownership manifest: [`docs/architecture/05_ownership_manifest.yaml`](../../architecture/05_ownership_manifest.yaml)
 - Shared-package-boundary precedent: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](2026-04-25-1-shared-package-boundary.md)

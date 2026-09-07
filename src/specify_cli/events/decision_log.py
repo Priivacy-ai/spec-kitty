@@ -38,7 +38,6 @@ from runtime.next._internal_runtime.events import (
     NextStepAutoCompletedPayload,
     NextStepIssuedPayload,
     RuntimeEventEmitter,
-    seed_runtime_emitter,
 )
 from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
@@ -189,10 +188,6 @@ class DecisionGitLog:
         self, payload: TimeoutExpiredPayload
     ) -> None:
         self._inner.emit_decision_timeout_expired(payload)
-
-    def seed_from_snapshot(self, snapshot: Any) -> None:
-        """Delegate optional seeding; producer failures cannot block mission work."""
-        seed_runtime_emitter(self._inner, snapshot)
 
     # ------------------------------------------------------------------
     # Internal helpers

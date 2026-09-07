@@ -55,7 +55,15 @@ def _local_only_sync_emitter(monkeypatch: pytest.MonkeyPatch) -> None:
     from runtime.next import runtime_bridge
     from runtime.next._internal_runtime.events import NullEmitter
 
-    monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
+    class LocalOnlyEmitter(NullEmitter):
+        def seed_from_snapshot(self, *_args, **_kwargs) -> None:
+            return None
+
+    monkeypatch.setattr(
+        runtime_bridge.RuntimeEventEmitter,
+        "for_feature",
+        staticmethod(lambda **_: LocalOnlyEmitter()),
+    )
 
 
 _KNOWN_ACTION_SEQUENCES: dict[str, list[str]] = {

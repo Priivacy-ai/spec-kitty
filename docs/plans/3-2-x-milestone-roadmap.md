@@ -9,6 +9,7 @@ related:
 - docs/plans/code-quality/index.md
 - docs/plans/testing/qa-tidy-first-sequencing.md
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/changelog/release-goals.md
 ---
@@ -18,7 +19,7 @@ related:
 
 ## Intent of 3.2.x
 
-3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the SaaS & Hosted Sync domain plan was the domain's canonical map of that split (retired 2026-09-06 (Convergence #3881): the hosted-sync surface re-homed to the authoritative upstream repos; see the convergence-retirement ADR).
+3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md) is the domain's canonical map of that split.
 
 ## Addendum 2026-09-04 — milestone-taxonomy re-anchor (the delayed Action R)
 

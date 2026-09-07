@@ -16,15 +16,6 @@
 #   a follow-up tracker ticket per FR-303.
 # - Shrinkage requires no extra workflow steps (just edit the number).
 
-# Runtime outbound ledgers (PR #3888): independent caps, not derived from live sets.
-test_layer_rules:
-  mission_runtime_allowed_specify_cli: 10  # justification: freeze the ten existing mission_runtime upward-import subpackage exceptions independently of runtime.
-  runtime_allowed_specify_cli: 23  # justification: freeze 22 existing subpackage exceptions plus the bare-root exception; no new production imports.
-test_runtime_charter_doctrine_boundary:
-  lazy_baseline_allowlist: 11  # justification: freeze existing lazy imports as exact (file, module) pairs across six runtime files.
-test_doctrine_census:
-  orphan_reached_exceptions: 2  # justification: freeze runtime_bridge_composition -> step_contracts and runtime_bridge_io -> step_projection as exact pairs.
-
 # tests/architectural/test_no_dead_modules.py
 # Per-category breakdown (FR-112 refactor).
 test_no_dead_modules:

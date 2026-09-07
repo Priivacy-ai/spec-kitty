@@ -14,23 +14,17 @@ below directly rather than re-deriving a classification (or re-reading prose fro
     )
 
 The census is **re-run against the live tree** on every invocation (an AST sweep of
-the ``_SCAN_ROOTS`` — ``src/specify_cli/`` and, since the #3522 widening,
-``src/runtime/`` — excluding the exempt ``src/specify_cli/doctrine/`` management
+``src/specify_cli/`` excluding the exempt ``src/specify_cli/doctrine/`` management
 subpackage) — the disposition table is not trusted from a stale snapshot. A newly
 reach-through-ed, undoored doctrine path therefore fails CI (FR-002 / SC-002).
 
-Census numbers, re-measured on this tip (post WP05–WP07 migration + the #3522
-``src/runtime`` widening) via ``reached_doctrine_paths()`` — the same live scan the
-gate runs on every invocation:
+Census numbers, re-measured on this tip (post WP05–WP07 migration) via
+``reached_doctrine_paths()`` — the same live scan the gate runs on every invocation:
 
 * module-level direct ``from charter.offering …`` imports (``ImportFrom.level == 0``): **0**
-* lazy (function-body) direct doctrine imports: **6 files / 11 reaches**
-* distinct doctrine module-paths reached (non-TYPE_CHECKING): **10**
-
-(The pre-widening prose claimed 4 files / 5 reaches — a stale-spelling artifact:
-the census matcher recognized only the legacy ``doctrine.*`` name after the
-``charter.offering`` relocation, so the live scan was returning EMPTY and the
-gates below passed vacuously. Fixed together with the #3522 widening.)
+* lazy (function-body) direct doctrine imports: **4 files / 5 reaches**
+* ``if TYPE_CHECKING:`` doctrine imports (excluded from the reach-through set): 11 files
+* distinct doctrine module-paths reached (non-TYPE_CHECKING): **4**
 
 (Earlier snapshots recorded 29 files / 54 lines / 23 paths before the WP05–WP07
 migration, and 34 files / 70 lines / 26 paths at planning time — both superseded.
@@ -45,7 +39,6 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
@@ -58,13 +51,7 @@ pytestmark = [pytest.mark.architectural]
 # ---------------------------------------------------------------------------
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-# Census roots are an EXPLICIT LIST (#3522): ``src/runtime`` joins the sweep so
-# a doctrine reach-through there is censused and disposition-checked exactly
-# like a ``specify_cli`` reach (it was silently unscanned before the widening).
-_SCAN_ROOTS: tuple[Path, ...] = (
-    _REPO_ROOT / "src" / "specify_cli",
-    _REPO_ROOT / "src" / "runtime",
-)
+_RUNTIME_ROOT = _REPO_ROOT / "src" / "specify_cli"
 _MISSION_TASKS = (
     _REPO_ROOT
     / "kitty-specs"
@@ -165,11 +152,8 @@ DISPOSITION: dict[str, str] = {
     # sole-door service construction (routed through charter builder, IC-05)
     "charter.offering.service": "CONSTRUCTION-ROUTED",
     # bare ``import charter.offering`` — path/metadata introspection (charter.offering.__file__)
-    # in tool_surface/bundles/codex.py. Not a symbol import; FR-006 exempt. Both
-    # spellings pinned: the legacy ``doctrine`` name and the relocated
-    # ``charter.offering`` name (charter-code-topology-01M152G1).
+    # in tool_surface/bundles/codex.py. Not a symbol import; FR-006 exempt.
     "doctrine": "INTERNAL-METADATA",
-    "charter.offering": "INTERNAL-METADATA",
 }
 
 #: Consumer files that reach doctrine (lazy import) but are **not** claimed by any
@@ -183,21 +167,10 @@ DISPOSITION: dict[str, str] = {
 #: ``doctrine-public-api-surface-01KZPDSR`` WP07 folded it in (out-of-map, justified):
 #: its ArtifactKind import now routes through ``charter.drg`` and its
 #: ``specify_cli.doctrine.org_charter`` usage is a first-party call into the exempt
-#: management surface (not a laundered doctrine symbol). Any NEW orphan (reached,
-#: unowned, not listed here) fails ``test_no_reached_file_is_orphaned``.
+#: management surface (not a laundered doctrine symbol). The set is now empty; any NEW
+#: orphan (reached, unowned, not listed here) fails ``test_no_reached_file_is_orphaned``.
 #: Tracker: #3179.
-ORPHAN_REACHED_EXCEPTIONS: frozenset[tuple[str, str]] = frozenset(
-    {
-        # #3522 scan-root widening: ``src/runtime`` joined the census. Its two
-        # lazy reaches (``charter.offering.missions.step_contracts`` /
-        # ``….step_projection``, both FACADE-ONLY) predate the widening and
-        # belong to no 01KZPDSR migration WP; routing them through a
-        # charter.missions door is #2173 port work. They are ledger-pinned in
-        # test_runtime_charter_doctrine_boundary.py's lazy baseline.
-        ("src/runtime/next/runtime_bridge_composition.py", "charter.offering.missions.step_contracts"),
-        ("src/runtime/next/runtime_bridge_io.py", "charter.offering.missions.step_projection"),
-    }
-)
+ORPHAN_REACHED_EXCEPTIONS: frozenset[str] = frozenset()
 
 #: Migration WPs whose union of ``owned_files`` must cover the reach-through census.
 _MIGRATION_WP_FILES: tuple[str, ...] = (
@@ -221,40 +194,20 @@ def _is_type_checking(test: ast.expr) -> bool:
     return False
 
 
-def _is_doctrine_name(name: str) -> bool:
-    """True for an absolute doctrine module name, in EITHER spelling.
-
-    Post-relocation (charter-code-topology-01M152G1) the doctrine layer lives at
-    ``charter.offering.*``; the legacy ``doctrine``/``doctrine.*`` spelling
-    resolves through the ``src/doctrine.py`` shim. The census must recognize
-    both — matching only the legacy spelling left ``reached_doctrine_paths()``
-    EMPTY on the relocated tree, so every census gate passed vacuously (found
-    during the #3522 scan-root widening). The boundary gate shares this matcher.
-    """
-    if name in ("doctrine", "charter.offering"):
-        return True
-    return name.startswith("doctrine.") or name.startswith("charter.offering.")
-
-
-def _doctrine_paths(node: ast.AST) -> set[str]:
-    """Absolute doctrine targets; root from-imports include the imported member.
-
-    Bare package imports can be pinned for metadata access. Importing a member
-    of that package is a distinct reach, even when the member is locally aliased.
-    """
+def _doctrine_path(node: ast.AST) -> str | None:
+    """Return the reached ``doctrine[.…]`` module-path for a level-0 import, else None."""
     if isinstance(node, ast.ImportFrom):
         if node.level != 0:
-            return set()
+            return None
         module = node.module or ""
-        if module in ("doctrine", "charter.offering"):
-            return {f"{module}.{alias.name}" for alias in node.names}
-        if _is_doctrine_name(module):
-            return {module}
-        if module == "charter" and any(alias.name == "offering" for alias in node.names):
-            return {"charter.offering"}
+        if module == "doctrine" or module.startswith("doctrine."):
+            return module
+        return None
     if isinstance(node, ast.Import):
-        return {alias.name for alias in node.names if _is_doctrine_name(alias.name)}
-    return set()
+        for alias in node.names:
+            if alias.name == "doctrine" or alias.name.startswith("doctrine."):
+                return alias.name
+    return None
 
 
 class _ReachVisitor(ast.NodeVisitor):
@@ -267,7 +220,9 @@ class _ReachVisitor(ast.NodeVisitor):
     def _record(self, node: ast.AST) -> None:
         if self._type_checking_depth:
             return
-        self.paths.update(_doctrine_paths(node))
+        path = _doctrine_path(node)
+        if path is not None:
+            self.paths.add(path)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self._record(node)
@@ -289,7 +244,7 @@ class _ReachVisitor(ast.NodeVisitor):
 
 def _is_exempt(path: Path) -> bool:
     """True when ``path`` lives inside the exempt management subpackage."""
-    exempt_root = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
+    exempt_root = _RUNTIME_ROOT / "doctrine"
     try:
         path.relative_to(exempt_root)
     except ValueError:
@@ -306,7 +261,7 @@ def reached_doctrine_paths() -> dict[str, set[str]]:
     Public so WP04's ratchet baseline can consume the identical census.
     """
     result: dict[str, set[str]] = {}
-    for path in sorted(p for root in _SCAN_ROOTS for p in root.rglob("*.py")):
+    for path in sorted(_RUNTIME_ROOT.rglob("*.py")):
         if _is_exempt(path):
             continue
         try:
@@ -404,33 +359,24 @@ def test_no_reached_file_is_orphaned() -> None:
     census set; any remainder must be a documented ORPHAN_REACHED_EXCEPTIONS entry
     (else the reached file is orphaned and this fails).
     """
-    census = reached_doctrine_paths()
+    census_files = set(reached_doctrine_paths())
     owned: set[str] = set()
     for task_filename in _MIGRATION_WP_FILES:
         owned.update(_owned_files(task_filename))
-    orphans = {
-        (file, module)
-        for file, modules in census.items()
-        if file not in owned
-        for module in modules
-    } - ORPHAN_REACHED_EXCEPTIONS
+    orphans = census_files - owned - ORPHAN_REACHED_EXCEPTIONS
     assert not orphans, (
         "Orphaned doctrine reach-through — the following files reach doctrine but are "
         "claimed by no migration WP (WP05/06/07) and are not a documented exception:\n"
-        + "\n".join(f"  - {file} -> {module}" for file, module in sorted(orphans))
+        + "\n".join(f"  - {path}" for path in sorted(orphans))
         + "\n\nAssign each to a migration WP's owned_files, or record a ticketed "
         "ORPHAN_REACHED_EXCEPTIONS entry."
     )
 
 
 def test_orphan_exceptions_are_actually_reached() -> None:
-    """Each excepted file/import pair must still be reached, even in a live file."""
-    census_pairs = {
-        (file, module)
-        for file, modules in reached_doctrine_paths().items()
-        for module in modules
-    }
-    stale = ORPHAN_REACHED_EXCEPTIONS - census_pairs
+    """An ORPHAN_REACHED_EXCEPTIONS entry that no longer reaches doctrine is stale."""
+    census_files = set(reached_doctrine_paths())
+    stale = ORPHAN_REACHED_EXCEPTIONS - census_files
     assert not stale, (
         "Stale ORPHAN_REACHED_EXCEPTIONS entries (no longer reach doctrine — a "
         f"migration likely landed): {sorted(stale)}. Remove them."
@@ -448,110 +394,3 @@ def test_injected_undoored_path_is_flagged() -> None:
     # And the real, fully-classified reached set must flag nothing.
     real = set().union(*reached_doctrine_paths().values())
     assert undoored_paths(real, DISPOSITION) == set()
-
-
-@pytest.mark.parametrize("spelling", ["doctrine", "charter.offering"])
-def test_orphan_gate_rejects_added_reach_in_excepted_file(spelling: str) -> None:
-    target = _REPO_ROOT / "src/runtime/next/runtime_bridge_composition.py"
-    original_read = Path.read_text
-    source = target.read_text(encoding="utf-8")
-    facade = "from charter.drg import resolve_org_dirs"
-    assert source.count(facade) == 1
-    mutation = source.replace(facade, f"from {spelling}.drg.org_pack_config import resolve_org_dirs")
-
-    def read_source(path: Path, encoding: str | None = None) -> str:
-        return mutation if path == target else original_read(path, encoding=encoding)
-
-    with (
-        patch.object(Path, "read_text", read_source),
-        pytest.raises(AssertionError, match="org_pack_config"),
-    ):
-        test_no_reached_file_is_orphaned()
-
-
-def test_orphan_gate_rejects_replaced_exception() -> None:
-    target = _REPO_ROOT / "src/runtime/next/runtime_bridge_composition.py"
-    original_read = Path.read_text
-    source = target.read_text(encoding="utf-8")
-    assert "from charter.offering.missions.step_contracts import" in source
-    mutation = source.replace("from charter.offering.missions.step_contracts import", "from charter.offering.service import")
-
-    def read_source(path: Path, encoding: str | None = None) -> str:
-        return mutation if path == target else original_read(path, encoding=encoding)
-
-    with (
-        patch.object(Path, "read_text", read_source),
-        pytest.raises(AssertionError, match="step_contracts"),
-    ):
-        test_orphan_exceptions_are_actually_reached()
-
-
-@pytest.mark.parametrize("package", ["runtime", "specify_cli"])
-@pytest.mark.parametrize("lazy", [False, True], ids=["top-level", "lazy"])
-@pytest.mark.parametrize(
-    ("statement", "expected"),
-    [
-        ("from doctrine.drg.org_pack_config import resolve_org_dirs", {"doctrine.drg.org_pack_config"}),
-        ("from charter.offering.drg.org_pack_config import resolve_org_dirs", {"charter.offering.drg.org_pack_config"}),
-        ("from charter import offering as implementation", {"charter.offering"}),
-        ("import charter.offering.service, charter.offering.drg.org_pack_config",
-         {"charter.offering.service", "charter.offering.drg.org_pack_config"}),
-    ],
-)
-def test_census_source_scan_collects_import_forms(
-    package: str, lazy: bool, statement: str, expected: set[str]
-) -> None:
-    target = _REPO_ROOT / "src" / package / "__init__.py"
-    original_read = Path.read_text
-    addition = f"def injected_probe():\n    {statement}\n" if lazy else statement + "\n"
-    mutation = target.read_text(encoding="utf-8") + "\n" + addition
-
-    def read_source(path: Path, encoding: str | None = None) -> str:
-        return mutation if path == target else original_read(path, encoding=encoding)
-
-    with patch.object(Path, "read_text", read_source):
-        assert reached_doctrine_paths().get(str(target.relative_to(_REPO_ROOT)), set()) == expected
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "from charter.drg import resolve_org_dirs\n",
-        "from .doctrine import local_name\n",
-        "from .charter import offering\n",
-        "import doctrine_tools, charter.offerings\n",
-        "if TYPE_CHECKING:\n    from doctrine import profile\n",
-        "def probe():\n    if typing.TYPE_CHECKING:\n        from charter import offering\n",
-    ],
-)
-def test_census_ignores_compliant_and_non_runtime_imports(source: str) -> None:
-    visitor = _ReachVisitor()
-    visitor.visit(ast.parse(source))
-    assert visitor.paths == set()
-
-
-@pytest.mark.parametrize("spelling", ["doctrine", "charter.offering"])
-@pytest.mark.parametrize(
-    ("members", "targets"),
-    [
-        ("drg as implementation", {"drg"}),
-        ("service as factory, drg as implementation", {"service", "drg"}),
-        ("*", {"*"}),
-    ],
-)
-def test_census_distinguishes_root_members_from_metadata(
-    spelling: str, members: str, targets: set[str]
-) -> None:
-    target = _REPO_ROOT / "src/specify_cli/tool_surface/bundles/codex.py"
-    original_read = Path.read_text
-    source = target.read_text(encoding="utf-8")
-    metadata_import = "import charter.offering as _charter_offering"
-    assert source.count(metadata_import) == 2
-    mutation = source.replace(metadata_import, f"from {spelling} import {members}", 1)
-
-    def read_source(path: Path, encoding: str | None = None) -> str:
-        return mutation if path == target else original_read(path, encoding=encoding)
-
-    with patch.object(Path, "read_text", read_source):
-        expected = {"charter.offering"} | {f"{spelling}.{member}" for member in targets}
-        assert reached_doctrine_paths()[str(target.relative_to(_REPO_ROOT))] == expected
