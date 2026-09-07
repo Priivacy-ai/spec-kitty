@@ -65,12 +65,7 @@ _SCAN_ROOTS: tuple[Path, ...] = (
     _REPO_ROOT / "src" / "specify_cli",
     _REPO_ROOT / "src" / "runtime",
 )
-_MISSION_TASKS = (
-    _REPO_ROOT
-    / "kitty-specs"
-    / "doctrine-public-api-surface-01KZPDSR"
-    / "tasks"
-)
+_MISSION_TASKS = _REPO_ROOT / "kitty-specs" / "doctrine-public-api-surface-01KZPDSR" / "tasks"
 
 # ---------------------------------------------------------------------------
 # Manifest — the machine-readable disposition surface (imported by WP02 / WP04)
@@ -104,13 +99,10 @@ TAXONOMY: frozenset[str] = frozenset(
 #: mission's intent. WP03 owes no door for these; WP05 keeps them allowlisted.
 TICKETED_BASELINE: dict[str, str] = {
     "charter.offering.drg.override_policy": (
-        "Doctrine-management internal consumed by _doctrine_collect.py "
-        "(override-audit paths); no clean charter door. Ratchet allowlist, #3179."
+        "Doctrine-management internal consumed by _doctrine_collect.py (override-audit paths); no clean charter door. Ratchet allowlist, #3179."
     ),
     "charter.offering.drg.migration.hand_authored_overlay": (
-        "write_reference_graph_with_overlay is a DRG-regeneration internal "
-        "consumed by cli/commands/doctrine.py; no clean charter door. "
-        "Ratchet allowlist, #3179."
+        "write_reference_graph_with_overlay is a DRG-regeneration internal consumed by cli/commands/doctrine.py; no clean charter door. Ratchet allowlist, #3179."
     ),
 }
 
@@ -392,9 +384,7 @@ def test_management_surface_is_frozen() -> None:
 def test_ticketed_baseline_paths_are_classified() -> None:
     """The two doorless management internals are TICKETED-BASELINE, not MANAGEMENT."""
     for path in TICKETED_BASELINE:
-        assert DISPOSITION.get(path) == "TICKETED-BASELINE", (
-            f"{path} must be TICKETED-BASELINE in DISPOSITION (see WP01 T004)"
-        )
+        assert DISPOSITION.get(path) == "TICKETED-BASELINE", f"{path} must be TICKETED-BASELINE in DISPOSITION (see WP01 T004)"
 
 
 def test_no_reached_file_is_orphaned() -> None:
@@ -408,12 +398,7 @@ def test_no_reached_file_is_orphaned() -> None:
     owned: set[str] = set()
     for task_filename in _MIGRATION_WP_FILES:
         owned.update(_owned_files(task_filename))
-    orphans = {
-        (file, module)
-        for file, modules in census.items()
-        if file not in owned
-        for module in modules
-    } - ORPHAN_REACHED_EXCEPTIONS
+    orphans = {(file, module) for file, modules in census.items() if file not in owned for module in modules} - ORPHAN_REACHED_EXCEPTIONS
     assert not orphans, (
         "Orphaned doctrine reach-through — the following files reach doctrine but are "
         "claimed by no migration WP (WP05/06/07) and are not a documented exception:\n"
@@ -425,16 +410,9 @@ def test_no_reached_file_is_orphaned() -> None:
 
 def test_orphan_exceptions_are_actually_reached() -> None:
     """Each excepted file/import pair must still be reached, even in a live file."""
-    census_pairs = {
-        (file, module)
-        for file, modules in reached_doctrine_paths().items()
-        for module in modules
-    }
+    census_pairs = {(file, module) for file, modules in reached_doctrine_paths().items() for module in modules}
     stale = ORPHAN_REACHED_EXCEPTIONS - census_pairs
-    assert not stale, (
-        "Stale ORPHAN_REACHED_EXCEPTIONS entries (no longer reach doctrine — a "
-        f"migration likely landed): {sorted(stale)}. Remove them."
-    )
+    assert not stale, f"Stale ORPHAN_REACHED_EXCEPTIONS entries (no longer reach doctrine — a migration likely landed): {sorted(stale)}. Remove them."
 
 
 def test_injected_undoored_path_is_flagged() -> None:
@@ -494,13 +472,10 @@ def test_orphan_gate_rejects_replaced_exception() -> None:
         ("from doctrine.drg.org_pack_config import resolve_org_dirs", {"doctrine.drg.org_pack_config"}),
         ("from charter.offering.drg.org_pack_config import resolve_org_dirs", {"charter.offering.drg.org_pack_config"}),
         ("from charter import offering as implementation", {"charter.offering"}),
-        ("import charter.offering.service, charter.offering.drg.org_pack_config",
-         {"charter.offering.service", "charter.offering.drg.org_pack_config"}),
+        ("import charter.offering.service, charter.offering.drg.org_pack_config", {"charter.offering.service", "charter.offering.drg.org_pack_config"}),
     ],
 )
-def test_census_source_scan_collects_import_forms(
-    package: str, lazy: bool, statement: str, expected: set[str]
-) -> None:
+def test_census_source_scan_collects_import_forms(package: str, lazy: bool, statement: str, expected: set[str]) -> None:
     target = _REPO_ROOT / "src" / package / "__init__.py"
     original_read = Path.read_text
     addition = f"def injected_probe():\n    {statement}\n" if lazy else statement + "\n"
@@ -539,13 +514,11 @@ def test_census_ignores_compliant_and_non_runtime_imports(source: str) -> None:
         ("*", {"*"}),
     ],
 )
-def test_census_distinguishes_root_members_from_metadata(
-    spelling: str, members: str, targets: set[str]
-) -> None:
+def test_census_distinguishes_root_members_from_metadata(spelling: str, members: str, targets: set[str]) -> None:
     target = _REPO_ROOT / "src/specify_cli/tool_surface/bundles/codex.py"
     original_read = Path.read_text
-    source = target.read_text(encoding="utf-8")
     metadata_import = "import charter.offering as _charter_offering"
+    source = target.read_text(encoding="utf-8") + f"\n{metadata_import}\n{metadata_import}\n"
     assert source.count(metadata_import) == 2
     mutation = source.replace(metadata_import, f"from {spelling} import {members}", 1)
 

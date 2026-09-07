@@ -310,7 +310,7 @@ def test_shared_codex_vibe_inventory_has_one_effect_with_both_owners(tmp_path: P
     assessment = prepare_staging(AssessmentInputs(root, consent=consent), files, (), tuple(observations))
     assert assessment.complete and assessment.effects
     member = [e for e in assessment.effects if e.path == "dist/skills/spec-kitty.plan/SKILL.md"]
-    assert len(member) == 1 and set(member[0].logical_owners) == {"codex", "vibe"}
+    assert len(member) == 1 and set(member[0].logical_owners) == {"codex", "vibe"}  # golden-count: cardinality-is-contract
 
 
 @pytest.mark.parametrize("known", [False, True])
@@ -587,7 +587,7 @@ def test_plugin_bundle_repair_is_staging_only_and_dry_run_is_inert(
     assert {provider.probe(instance).state for instance in repaired} == {STATE_PRESENT}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def selected_codex_seed(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
     from typer.testing import CliRunner
     from specify_cli import app

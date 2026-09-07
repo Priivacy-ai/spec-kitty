@@ -29,6 +29,7 @@ _SCAN_ROOTS: tuple[Path, ...] = (
 )
 _EXEMPT_SUBPACKAGE = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
 
+
 def _has_module_level_doctrine_import(source: str) -> bool:
     visitor = _LazyDoctrineVisitor()
     visitor.visit(ast.parse(source))
@@ -255,9 +256,7 @@ def _lazy_doctrine_violators() -> set[tuple[str, str]]:
     return violators
 
 
-def _format_lazy_ratchet_failure(
-    *, new_violators: list[tuple[str, str]], stale_allowlist_entries: list[tuple[str, str]]
-) -> str:
+def _format_lazy_ratchet_failure(*, new_violators: list[tuple[str, str]], stale_allowlist_entries: list[tuple[str, str]]) -> str:
     parts: list[str] = []
     if new_violators:
         bullets = "\n  - ".join(f"{file} -> {module}" for file, module in new_violators)
@@ -298,11 +297,7 @@ def _declared_all(tree: ast.Module) -> set[str] | None:
             continue
         value = node.value
         if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
-            return {
-                elt.value
-                for elt in value.elts
-                if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-            }
+            return {elt.value for elt in value.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)}
     return None
 
 
@@ -398,11 +393,9 @@ def test_runtime_has_no_new_lazy_doctrine_imports() -> None:
     new_violators = sorted(actual_violators - _LAZY_BASELINE_ALLOWLIST)
     stale_allowlist_entries = sorted(_LAZY_BASELINE_ALLOWLIST - actual_violators)
 
-    assert not new_violators and not stale_allowlist_entries, (
-        _format_lazy_ratchet_failure(
-            new_violators=new_violators,
-            stale_allowlist_entries=stale_allowlist_entries,
-        )
+    assert not new_violators and not stale_allowlist_entries, _format_lazy_ratchet_failure(
+        new_violators=new_violators,
+        stale_allowlist_entries=stale_allowlist_entries,
     )
 
 
@@ -520,10 +513,7 @@ def test_source_scan_rejects_direct_import_forms(package: str, lazy: bool, state
 
 
 def test_parent_import_laundering_tracks_only_offering_binding() -> None:
-    tree = ast.parse(
-        "from charter import offering as implementation, drg\n"
-        "__all__ = ['implementation', 'drg']\n"
-    )
+    tree = ast.parse("from charter import offering as implementation, drg\n__all__ = ['implementation', 'drg']\n")
     assert _laundered_symbols(tree) == {"implementation"}
 
 
@@ -540,8 +530,8 @@ def test_metadata_exception_rejects_root_member_import(spelling: str, members: s
     """A bare-package metadata exception must not grant access to its members."""
     target = _REPO_ROOT / "src/specify_cli/tool_surface/bundles/codex.py"
     original_read = Path.read_text
-    source = target.read_text(encoding="utf-8")
     metadata_import = "import charter.offering as _charter_offering"
+    source = target.read_text(encoding="utf-8") + (f"\ndef injected_metadata_probe():\n    {metadata_import}\n    {metadata_import}\n")
     assert source.count(metadata_import) == 2
     mutation = source.replace(metadata_import, f"from {spelling} import {members}", 1)
 
@@ -592,8 +582,7 @@ def test_source_scan_rejects_module_control_flow_import(spelling: str, block: st
         ("if True:\n    class Probe:\n        import charter.offering.service\n", False, True),
         ("if TYPE_CHECKING:\n    def probe():\n        import doctrine.service\n", False, False),
     ],
-    ids=["facade", "type-checking", "try-type-checking", "runtime-else", "handler", "finally",
-         "function", "async-function", "class", "type-checking-function"],
+    ids=["facade", "type-checking", "try-type-checking", "runtime-else", "handler", "finally", "function", "async-function", "class", "type-checking-function"],
 )
 def test_control_flow_preserves_import_scope(source: str, module_level: bool, lazy: bool) -> None:
     assert _has_module_level_doctrine_import(source) is module_level
