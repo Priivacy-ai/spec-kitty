@@ -34,11 +34,15 @@ provider accepts only the bounded exact expected transition afterward, retaining
 the existing paired global locks and project lock. This is not a transaction,
 rollback guarantee, cross-process project lock or causal-writer authentication.
 
-Independent review is in progress, scoped to this new boundary, actual consumer
-effects and adjacent refusal controls. Existing broad WP05 evidence is reused.
-Supplier approval and actual WP10 composer review are still pending; the Op
+Independent review approved this supplier after four actual consumer cases
+(38.47 seconds) and four adjacent refusal/cleanup controls (30.62 seconds).
+Each consumer matched all 315 physical skill effects and succeeded IDs, with
+provisioning reported separately and repeat apply showing no churn. Existing
+broad WP05 and author static/coverage evidence was reused, not freshly rerun.
+Parent verified all 18 review seal entries and fast-forwarded the exact supplier
+RED/GREEN chain into WP10. Actual WP10 composer review is still pending; the Op
 remains open. Reported commits are lane-local until mission consolidation.
-External handoff: managed-provisioning-projection-handoff.md.
+External report: managed-provisioning-projection-independent-review.md.
 
 ## Command Provisioning Projection: Open
 
