@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-09-06T09:12:45.055775+00:00",
+  "flattened": false,
+  "friendly_name": "Dead-Port Disposition",
+  "mission_id": "01M1TZVNQZKCQFX3NVJ8DKXN78",
+  "mission_number": null,
+  "mission_slug": "dead-port-disposition-01M1TZVN",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Dead-Port Disposition on missions/coreloop-proto-missions so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Retire the dormant mission-DSL and its hot-path transitions dependency, repair the glossary-runner design story, and stage the ADR-gated emitter cleanup",
+  "slug": "dead-port-disposition-01M1TZVN",
+  "target_branch": "missions/coreloop-proto-missions",
+  "topology": "single_branch"
+}
