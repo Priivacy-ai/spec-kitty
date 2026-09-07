@@ -228,9 +228,7 @@ class AssetPreparation:
         )
         previous = self.writes.get(path)
         if previous is not None and previous.effect.after != after:
-            provisional_parent = previous.effect.before.kind == "absent" and previous.effect.after.kind == "directory" and after.kind == "directory"
-            if not provisional_parent:
-                raise ValueError(f"Conflicting global asset outputs: {path}")
+            raise ValueError(f"Conflicting global asset outputs: {path}")
         self.writes[path] = AssetWrite(effect, content)
 
     def parents(self, path: Path) -> None:
@@ -319,7 +317,9 @@ class AssetPreparation:
         if dest_state.kind not in {"directory", "absent"}:
             self.preserve(destination, "Unproven asset tree replacement")
             return
-        self.asset(destination, None, source_state.mode or 0o755, managed_tree=managed_tree)
+        # Package directory modes are not portable (notably through pipx on Windows).
+        # Destination parents must remain traversable and writable while children land.
+        self.asset(destination, None, 0o755, managed_tree=managed_tree)
         for child in sorted(source.iterdir()):
             state = self.observe(child)
             target = destination / child.name

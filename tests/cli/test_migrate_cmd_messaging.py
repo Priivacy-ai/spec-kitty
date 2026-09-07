@@ -16,6 +16,8 @@ Spec IDs: FR-006, FR-012, FR-013, NFR-005
 
 from __future__ import annotations
 
+import traceback
+
 import pytest
 from typer.testing import CliRunner
 
@@ -40,7 +42,7 @@ def test_migrate_windows_moved_output(tmp_path, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["migrate", "--force"])
 
-    assert result.exception is None, repr(result.exception)
+    assert result.exception is None, "".join(traceback.format_exception(*result.exc_info))
     output = result.stdout or ""
 
     # Contract: migration summary banner must appear
@@ -76,7 +78,7 @@ def test_migrate_windows_quarantined_output(tmp_path, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["migrate", "--force"])
 
-    assert result.exception is None, repr(result.exception)
+    assert result.exception is None, "".join(traceback.format_exception(*result.exc_info))
     output = result.stdout or ""
 
     # Contract: quarantine message variants
