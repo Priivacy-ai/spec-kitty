@@ -296,6 +296,47 @@ def test_register_runtime_emitter_factory_same_object_twice_is_idempotent() -> N
 
 
 @pytest.mark.usefixtures("clean_emitter_factory")
+def test_register_runtime_emitter_factory_classmethod_reregistration_is_idempotent() -> None:
+    """Red-first regression: the module's own documented registration form is
+
+        register_runtime_emitter_factory(MyProducer.for_mission)
+
+    a *classmethod*. Every attribute access on a classmethod mints a fresh
+    bound-method object (``MyProducer.for_mission is MyProducer.for_mission``
+    is ``False``), so an identity (``is``) guard treats a benign re-import of
+    the exact same producer as a conflicting registrant. This must be a
+    no-op, exactly like re-registering the same plain-function object above.
+    """
+
+    class ZeitgeistRuntimeEmitterProducer:
+        """Realistic producer shape: constructs the seam via a classmethod,
+        mirroring the documented registration example at this module's
+        registry-seam comment block."""
+
+        def __init__(self, *, mission_slug: str, mission_type: str) -> None:
+            self.mission_slug = mission_slug
+            self.mission_type = mission_type
+
+        @classmethod
+        def for_mission(
+            cls, *, feature_dir: Path, mission_slug: str, mission_type: str
+        ) -> ZeitgeistRuntimeEmitterProducer:
+            del feature_dir
+            return cls(mission_slug=mission_slug, mission_type=mission_type)
+
+    # Sanity check on the premise: repeated attribute access on a classmethod
+    # is never the same object.
+    assert (
+        ZeitgeistRuntimeEmitterProducer.for_mission
+        is not ZeitgeistRuntimeEmitterProducer.for_mission
+    )
+
+    events_mod.register_runtime_emitter_factory(ZeitgeistRuntimeEmitterProducer.for_mission)
+    # A second import tail re-running the same registration line must not raise.
+    events_mod.register_runtime_emitter_factory(ZeitgeistRuntimeEmitterProducer.for_mission)
+
+
+@pytest.mark.usefixtures("clean_emitter_factory")
 def test_register_runtime_emitter_factory_rejects_a_conflicting_registrant() -> None:
     """Registering a *different* factory while one is already registered is
     almost always an accidental double-registration -- reject it."""
@@ -310,6 +351,35 @@ def test_register_runtime_emitter_factory_rejects_a_conflicting_registrant() -> 
 
     with pytest.raises(RuntimeError, match="already registered"):
         events_mod.register_runtime_emitter_factory(_second)
+
+
+@pytest.mark.usefixtures("clean_emitter_factory")
+def test_register_runtime_emitter_factory_rejects_a_conflicting_classmethod_registrant() -> None:
+    """Guard against over-correction into last-writer-wins: a genuinely
+    *different* producer's classmethod (different ``__module__``/
+    ``__qualname__``) must still raise, even though both registrants are
+    classmethod-bound methods rather than plain functions."""
+
+    class FirstProducer:
+        @classmethod
+        def for_mission(
+            cls, *, feature_dir: Path, mission_slug: str, mission_type: str
+        ) -> FirstProducer:
+            del feature_dir, mission_slug, mission_type
+            return cls()
+
+    class SecondProducer:
+        @classmethod
+        def for_mission(
+            cls, *, feature_dir: Path, mission_slug: str, mission_type: str
+        ) -> SecondProducer:
+            del feature_dir, mission_slug, mission_type
+            return cls()
+
+    events_mod.register_runtime_emitter_factory(FirstProducer.for_mission)
+
+    with pytest.raises(RuntimeError, match="already registered"):
+        events_mod.register_runtime_emitter_factory(SecondProducer.for_mission)
 
 
 @pytest.mark.usefixtures("clean_emitter_factory")
