@@ -442,3 +442,56 @@ def test_progress_query_logs_when_weighted_progress_is_unavailable(tmp_path: Pat
     assert counts is not None and counts["planned_wps"] == 1
     assert "weighted_percentage" not in counts
     assert any("weighted progress unavailable" in rec.getMessage() and "weights exploded" in rec.getMessage() for rec in caplog.records)
+
+
+@pytest.mark.parametrize("legacy_key", [_SLUG, f"legacy-{_SLUG}"])
+@pytest.mark.parametrize("with_state", [True, False])
+def test_identity_backfill_never_silently_restarts_legacy_run(
+    tmp_path: Path, fake_engine: _FakeEngine, legacy_key: str, with_state: bool
+) -> None:
+    """Backfill cannot prove a no-ID run's ownership; require repair before resuming."""
+    from specify_cli.migration.backfill_identity import backfill_mission
+
+    run_dir = _make_run_dir(tmp_path, "run-legacy", with_state=with_state)
+    journal = run_dir / "events.jsonl"
+    journal.write_text('{"event_type":"old-history"}\n', encoding="utf-8")
+    _write_meta(tmp_path, _SLUG, None)
+    _write_index(tmp_path, {legacy_key: _entry("run-legacy", run_dir, mission_id=None)})
+    result = backfill_mission(tmp_path / "kitty-specs" / _SLUG)
+    assert result.action == "wrote" and result.mission_id
+    index_before = _index_path(tmp_path).read_bytes()
+    journal_before = journal.read_bytes()
+
+    for resolve in (
+        lambda: io_seam._existing_run_ref(_SLUG, tmp_path, _MISSION_TYPE),
+        lambda: io_seam._resolve_run_dir_for_mission(tmp_path, _SLUG),
+        lambda: io_seam.get_or_start_run(_SLUG, tmp_path, _MISSION_TYPE),
+    ):
+        with pytest.raises(MissionRuntimeError) as excinfo:
+            resolve()
+        assert excinfo.value.to_dict()["error_code"] == "RUN_IDENTITY_MIGRATION_REQUIRED"
+        assert "run-legacy" in str(excinfo.value)
+        assert result.mission_id in str(excinfo.value)
+
+    assert fake_engine.started == []
+    assert _index_path(tmp_path).read_bytes() == index_before
+    assert journal.read_bytes() == journal_before
+
+
+def test_verified_legacy_identity_binding_resumes_original_run(tmp_path: Path, fake_engine: _FakeEngine) -> None:
+    """The repair described by the error keeps the original cursor and journal."""
+    from specify_cli.migration.backfill_identity import backfill_mission
+
+    run_dir = _make_run_dir(tmp_path, "run-legacy")
+    _write_meta(tmp_path, _SLUG, None)
+    _write_index(tmp_path, {_SLUG: _entry("run-legacy", run_dir, mission_id=None)})
+    result = backfill_mission(tmp_path / "kitty-specs" / _SLUG)
+    assert result.mission_id
+    entry = _read_index(tmp_path)[_SLUG]
+    entry["mission_id"] = result.mission_id
+    _write_index(tmp_path, {result.mission_id: entry})
+
+    ref = io_seam.get_or_start_run(_SLUG, tmp_path, _MISSION_TYPE)
+
+    assert ref.run_id == "run-legacy"
+    assert fake_engine.started == []
