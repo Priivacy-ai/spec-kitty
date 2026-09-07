@@ -71,8 +71,10 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
 
 def _context_command_args(ctx: click.Context) -> list[str]:
     """Read command arguments across Click 8 and Click 9 contexts."""
-    protected = getattr(ctx, "protected_args", ())  # noqa: B009 - cross-version optional attribute
-    return [*protected, *ctx.args]
+    protected = getattr(ctx, "protected_args", None)  # noqa: B009 - cross-version optional attribute
+    if protected is not None:
+        return [*protected, *ctx.args]
+    return [ctx.invoked_subcommand, *ctx.args] if ctx.invoked_subcommand else list(ctx.args)
 
 
 class BannerGroup(TyperGroup):

@@ -160,7 +160,7 @@ def test_intent_uses_actual_definitions(argv: list[str], available: bool, mode: 
 def test_root_parser_supports_click_context_without_protected_args() -> None:
     from specify_cli.cli.helpers import _context_command_args
 
-    context = cast(click.Context, SimpleNamespace(args=["upgrade", "--plan-json"]))
+    context = cast(click.Context, SimpleNamespace(args=["--plan-json"], invoked_subcommand="upgrade"))
     assert _context_command_args(context) == ["upgrade", "--plan-json"]
 
 
