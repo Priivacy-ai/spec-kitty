@@ -56,7 +56,7 @@ as Python modules within a single-process CLI application.
 | **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Playwright-based local browser kanban. Read-only against Event Store. |
 | **Agent Tool Connectors** | `packs/built-in/missions/mission-steps/*/*/prompt.md` (source) → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `charter` (offering source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent. Source templates live under `packs/built-in/missions/`; doctrine code lives at `src/charter/offering/`. |
 | **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in mission 055. `SkillRegistry` discovers canonical skills from `src/charter/offering/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
-| **Doctrine (offering)** | doctrine code at `src/charter/offering/` (models/repository/validation per kind, `drg/`, `artifact_kinds.py`, `schemas/`) + `src/charter/offering/skills/` (canonical skill packs); pack content at `packs/built-in/` | `charter` (the former standalone `doctrine` package was absorbed here in the convergence) | JSON Schema validation, Pydantic models, repository pattern. Skill packs deployed from `src/charter/offering/skills/`. |
+| **Doctrine** | doctrine code at `src/charter/offering/` (models/repository/validation per kind, `drg/`, `artifact_kinds.py`, `schemas/`) + `src/charter/offering/skills/` (canonical skill packs); pack content at `packs/built-in/` | `charter` (the former standalone `doctrine` package was absorbed here in the convergence) | JSON Schema validation, Pydantic models, repository pattern. Skill packs deployed from `src/charter/offering/skills/`. |
 | **Charter** | `src/charter/` | `charter` (standalone package) | Interview flow, compiler, action context resolver with depth semantics and action index intersection. Produces `.kittify/charter/` bundles. Context bootstrap injects governance at every execution boundary. |
 
 ### Key structural observation
@@ -213,7 +213,7 @@ Orchestration lifecycle event triggers:
 | **Workflow Command Set** | `cli/commands/` | `specify.py`, `plan.py`, `tasks.py`, `implement.py`, `review.py`, `merge.py`. Canon terminology: `--mission-type` is the flag for mission-type selection (renamed from `--mission` in 5 type-selection commands, 2026-03-25; old `--mission` alias raises hard error). `--mission` remains the slug selector on all other commands. `--feature` is a hidden deprecated alias everywhere. |
 | **Status Mutation Command Set** | `cli/commands/` | `status.py`, lane transition commands |
 | **Governance Command Set** | `cli/commands/` | `charter.py` |
-| **Next Loop Coordinator** | `next/` | `next/__init__.py` — per-agent action sequencing |
+| **Next Loop Coordinator** | `src/runtime/next/` | `_internal_runtime/engine.py` + `planner.py` — per-agent action sequencing (the `src/specify_cli/next/` shim was deleted in `93dcbd7548`, 2026-07-03) |
 | **Mission Discovery and Resolution** | `core/`, `mission.py`, `mission_v1/` | Mission context detection, asset loading |
 | **Runtime Asset Lifecycle Coordinator** | `runtime/` | Bootstrap, tier selection, compatibility |
 | **Tiered Template Resolution Pipeline** | `template/` | Prompt/template resolution by configured precedence |
