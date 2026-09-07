@@ -265,31 +265,33 @@
     "WP08": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01M1WQAX7EBTN8Y8A8ZGMCQXCJ",
       "last_transition_at": "2026-09-07T01:22:15.918121+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Implementation9d78799b94f3c4df0f2e68d4ca8dda4ef3661801 ready for FIRST independent review. Final145ownedtests91.07pct changed-line coverage, Ruff/strictmypy, actualpinnedClaudeplugin/catalogstrictvalidation pass withnegativecontrol. Earlier924subsystem1642fast evidence frozen/reused; WP10intentarchitecturedebt unwaived. Approvedhelperintegration requires independentconsumerverdict beforeOpclosure."
+        "Implementation9d78799b94f3c4df0f2e68d4ca8dda4ef3661801 ready for FIRST independent review. Final145ownedtests91.07pct changed-line coverage, Ruff/strictmypy, actualpinnedClaudeplugin/catalogstrictvalidation pass withnegativecontrol. Earlier924subsystem1642fast evidence frozen/reused; WP10intentarchitecturedebt unwaived. Approvedhelperintegration requires independentconsumerverdict beforeOpclosure.",
+        "First review REJECT F1: public Codex build broadens source hook directories0700 to0755. Retain observed directory modes in prepared effects/writer; preserve unknown existing dirs. Corrective review only F1/diff/adjacentrisk. Separate configuredhelperconsumer APPROVE; finalgates unwaived."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260906-130341-7O3Frc/spec-kitty/kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP08-staged-bundle-assessment/review-cycle-1.md",
         "reference": "review-cycle://upgrade-preview-mission-health-01M1V6E1/WP08-staged-bundle-assessment/review-cycle-1.md",
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 26467,
-      "shell_pid_created_at": "1788590156.364464",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T039": "done",
-        "T040": "done",
-        "T041": "done",
-        "T042": "done"
+        "T039": "planned",
+        "T040": "planned",
+        "T041": "planned",
+        "T042": "planned"
       }
     },
     "WP09": {
