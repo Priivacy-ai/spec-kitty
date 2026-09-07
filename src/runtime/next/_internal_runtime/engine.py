@@ -116,10 +116,10 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
         "timestamp": now_utc_iso(),
         "payload": payload,
     }
-    # FR-015: the whole line is serialized first, then appended with ONE write
-    # and fsynced -- a crash leaves the journal with either the complete line
-    # or nothing (never a half-line), and the file is opened in append mode so
-    # earlier lines are never truncated. The journal is per-run, single-writer.
+    # Serialize before appending, then flush and fsync for durability. Append
+    # mode preserves earlier records, but a failed write or crash can still
+    # leave a partial final line; this is not an atomic record publication.
+    # The journal is per-run, single-writer.
     line = json.dumps(event, sort_keys=True, default=str) + "\n"
     with open(event_file, "a", encoding="utf-8") as handle:
         handle.write(line)
