@@ -277,7 +277,8 @@
         "First review REJECT F1: public Codex build broadens source hook directories0700 to0755. Retain observed directory modes in prepared effects/writer; preserve unknown existing dirs. Corrective review only F1/diff/adjacentrisk. Separate configuredhelperconsumer APPROVE; finalgates unwaived.",
         "F1 correction 451af47d: retain source directory modes; preserve existing directories. Targeted evidence only; independent focused Review 2 pending.",
         "Review 2 rejects F1b only: final 0555 parent mode blocks child creation; original 0700 witness passes. Preserve readable trees with safe final-mode ordering.",
-        "F1b fix70937456 delivered: child-first restrictive directory finalization and truthful partial IDs. Targeted evidence only; blocker-only Review 3 pending."
+        "F1b fix70937456 delivered: child-first restrictive directory finalization and truthful partial IDs. Targeted evidence only; blocker-only Review 3 pending.",
+        "Independent blocker-only Review 3 APPROVE 70937456: unchanged 0555 public witness passes; fault/static evidence inspected and reused. Prior broad evidence retained; integrated gates pending."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
