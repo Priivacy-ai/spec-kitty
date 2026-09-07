@@ -1,12 +1,13 @@
 """``specify_cli.mission_v1`` -- the surviving mission-event observability module.
 
-Only :mod:`specify_cli.mission_v1.events` lives here now. Its two functions,
-:func:`emit_event` and :func:`read_events`, are the provisional JSONL mission
-event log consumed by the runtime loop:
-
-* ``runtime/next/next_invocation_lifecycle.py`` emits the ``MissionNextInvoked``
-  observability event through :func:`emit_event`;
-* ``runtime/next/decision.py`` reads the log through :func:`read_events`.
+Only :mod:`specify_cli.mission_v1.events` lives here now. Its
+:func:`emit_event` is the provisional JSONL mission event log written by the
+runtime loop (``runtime/next/next_invocation_lifecycle.py`` emits the
+``MissionNextInvoked`` observability event through it). The companion reader
+:func:`specify_cli.mission_v1.events._read_events` has no production caller
+since ``runtime/next/decision.py``'s legacy readers were deleted (WP04 of the
+same mission); it stays on the ``events`` module, underscore-private, for the
+event-log tests.
 
 The mission-DSL v1 state machine that used to share this package
 (``compat`` / ``runner`` / ``guards`` / ``schema``, backed by the
@@ -22,6 +23,6 @@ retired stack (or its transitive ``six``) back in --
 ``tests/specify_cli/mission_v1/test_import_hygiene.py`` pins that invariant.
 """
 
-from specify_cli.mission_v1.events import emit_event, read_events
+from specify_cli.mission_v1.events import emit_event
 
-__all__ = ["emit_event", "read_events"]
+__all__ = ["emit_event"]
