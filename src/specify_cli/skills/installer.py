@@ -565,6 +565,8 @@ class _ProjectSkillPreparation:
         owners: tuple[ManagedFileEntry, ...], order: int, reason: str, proof_kind: str = "manifest",
         *, consumers: tuple[ManagedFileEntry, ...] | None = None,
     ) -> None:
+        if before.kind == after.kind == "absent":
+            return
         if before.kind == "absent":
             action = "create"
         elif after.kind == "absent":

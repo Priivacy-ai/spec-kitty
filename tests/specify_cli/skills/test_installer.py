@@ -1073,7 +1073,9 @@ def test_project_owner_exact_effects_shared_and_idempotent(tmp_path: Path) -> No
 @pytest.mark.parametrize("file_present", [False, True])
 @pytest.mark.parametrize("unselected_owner", [False, True])
 def test_retirement_reconciles_absent_file_manifest_without_phantom_effect(
-    tmp_path: Path, file_present: bool, unselected_owner: bool,
+    tmp_path: Path,
+    file_present: bool,
+    unselected_owner: bool,
 ) -> None:
     from specify_cli.skills import installer
     from specify_cli.skills.manifest import load_manifest
@@ -1113,8 +1115,7 @@ def test_retirement_reconciles_absent_file_manifest_without_phantom_effect(
     assert [e.agent_key for e in manifest.find_by_skill("alpha")] == (["copilot"] if unselected_owner else [])
     assert retired.exists() is (file_present and unselected_owner)
     expected = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for e in assessment.effects}
-    actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode)
-              for e in net_delta(before, snapshot({"project": project}))}
+    actual = {(e.path, e.action, e.after.kind, e.after.sha256, e.after.target, e.after.mode) for e in net_delta(before, snapshot({"project": project}))}
     assert actual == expected
     settled = snapshot({"project": project})
     again = installer.assess_project_skills(inputs, registry, agents)
