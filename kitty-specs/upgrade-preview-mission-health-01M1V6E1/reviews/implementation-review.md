@@ -15,8 +15,9 @@ approved: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP11 and WP12. WP05 approval
 tests and four independent controls passed, changed Ruff/strict mypy passed.
 Real paired provider dispatch matches 169 exact effects and refuses changed
 inputs before writes. Consumer input Op is complete at the owner boundary.
-WP08's first independent review rejected a directory-mode regression; its author
-is correcting that finding only. All five approved dependency lanes are included;
+WP08's second independent review confirmed original mode preservation but found
+premature restrictive directory permissions; its author is correcting ordering
+only. All five approved dependency lanes are included;
 WP10 and WP13 remain pending. No mission acceptance or consolidation is complete.
 
 WP08 implementation `9d78799b94f3c4df0f2e68d4ca8dda4ef3661801` reports 145 final
@@ -37,6 +38,25 @@ unknown existing directories. Original evidence is in wp08-independent-review.md
 #3901 comment5563708583 reports the finding. Follow-up review is limited to this
 finding, corrective diff and adjacent risk. The separately tested configured-helper
 consumer passed three controls; its supporting Op is complete, not WP08 itself.
+
+WP08 Review 2 rejected `451af47d3d18c0802debbb75298e2a16b09ee687` under
+event `01M1WSKAJ9HQZ93E6A9D06C026`. The unchanged independent `0755`/`0700`
+witness now passes both cases. An adjacent real public build with readable
+`0555` source directories fails because final parent permissions are applied
+before descendants. The same-input copytree primitive succeeds; this is not a
+historical baseline execution claim. Original author correction evidence has
+eleven selected passing cases across two runs, not one clean eleven-test run.
+The new failure and complete provenance remain in wp08-cycle2-independent-review.md
+and its external raw evidence; #3901 comment5563958182 records the finding.
+Correction and Review 3 are restricted to finalization ordering, exact final
+modes, truthful partial effects and preservation of existing/custom directories.
+No broad suite, validator or settled helper review is being restarted.
+
+External friction F045 records missing installed Click/annotated-doc files in
+previously populated environments. Locked dependency reinstallation restored
+parent status and reviewer execution; missing RECORD warnings and unknown cause
+remain recorded. This installation is not isolated zero-write product evidence.
+No source, lockfile or configuration change was required for that recovery.
 
 WP05 author reports 161 owned tests, all-12-path Ruff and strict mypy passing,
 plus real coordinated global/project consumer checks. Supplier dependency files
