@@ -181,7 +181,7 @@ The delivery itself is sound: all eleven FRs trace spec → WP → test → code
 ### Open items (non-blocking unless marked)
 
 1. DRIFT-1: file a follow-up issue and amend ADR 2026-09-06-2 §Consequences/Positive ("Net LOC still drops") to record +56 under `src/runtime/next/`; the spec's NFR-003 row already records the deviation.
-2. DRIFT-2: commit the uncommitted `RetrospectiveCaptured` line in `kitty-specs/dead-port-disposition-01M1VRA2/status.events.jsonl` (working tree at HEAD is dirty); reconcile `status.json`/`retrospective.yaml` `mission_number` with `meta.json` (198) or note the discrepancy.
+2. ~~DRIFT-2: commit the uncommitted `RetrospectiveCaptured` line in `kitty-specs/dead-port-disposition-01M1VRA2/status.events.jsonl` (working tree at HEAD is dirty); reconcile `status.json`/`retrospective.yaml` `mission_number` with `meta.json` (198) or note the discrepancy.~~ **Resolved 2026-09-07 (PR #3983):** the `RetrospectiveCaptured` line landed with the mission merge (`d6e8fe4238`), and `status.json` + `retrospective.yaml` now both carry `mission_number: 198`, matching `meta.json`.
 3. RISK-1: consider one integration test running the real `advance_run_state_after_composition` against a real `DecisionGitLog` over `NullEmitter` (asserting one `DecisionInputRequested` line), so the WP02/WP03 seeding chain is proven by a test rather than by composition. Suitable as part of the E3 producer work.
 4. RISK-2: note in the E3 work item that `register_runtime_emitter_factory` performs no Protocol-conformance check; the producer-conformance test is the intended net.
 5. Category-1 pre-existing: 8 `mypy` `call-arg` errors in `runtime_bridge_engine.py:158,186,216,268` (payload `mission_id`/`mission_slug`), identical base→HEAD; not this mission's.
