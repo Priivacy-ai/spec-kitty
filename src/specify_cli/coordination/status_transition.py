@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.errors import StructuredError
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.coordination.status_service import (
     EventLogReadContract,
     read_event_log,
@@ -474,6 +475,12 @@ def _emit_on_coord_then_commit(
                 coord_feature_dir=coord_fd,
             )
             committed = True
+        except SafeCommitRecoveryFailed as exc:
+            # A landed commit remains authoritative even when restoring the
+            # caller's staging failed. Match BookkeepingTransaction: retain
+            # its artifacts and propagate the recovery error without fan-out.
+            committed = exc.commit_sha is not None
+            raise
         finally:
             if not committed:
                 _restore_coord_status_artifacts(

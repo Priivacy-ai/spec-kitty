@@ -193,6 +193,44 @@ def test_coord_fallback_holds_lock_through_commit_and_restore_but_not_fanout(
         assert restored == [] and announced == [True]
 
 
+@pytest.mark.parametrize("commit_landed", [False, True])
+def test_coord_recovery_failure_preserves_only_landed_status(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    commit_landed: bool,
+) -> None:
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+
+    _seed_planned_on_coord(repo)
+    _force_fallback_path(monkeypatch)
+    CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    events = _coord_events_path(repo)
+    status = events.with_name("status.json")
+
+    def snapshot() -> tuple[bytes, bytes | None]:
+        return events.read_bytes(), status.read_bytes() if status.exists() else None
+
+    before = snapshot()
+    emitted: list[tuple[bytes, bytes]] = []
+    announced: list[bool] = []
+    real_commit = st._commit_status_artifacts_to_coord
+
+    def recovery_failure(**kwargs: Any) -> None:
+        emitted.append((events.read_bytes(), status.read_bytes()))
+        sha = None
+        if commit_landed:
+            real_commit(**kwargs)
+            sha = _git(repo, "rev-parse", COORD_BRANCH).stdout.strip()
+        raise SafeCommitRecoveryFailed("injected staging recovery failure", commit_sha=sha)
+
+    monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", recovery_failure)
+    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda *a, **k: announced.append(True))
+    with pytest.raises(SafeCommitRecoveryFailed, match="injected staging recovery failure"):
+        _emit_single(repo)
+    assert snapshot() == (emitted[0] if commit_landed else before)
+    assert announced == []
+
+
 # ---------------------------------------------------------------------------
 # SC-002: commit failure => truncated back AND zero fan-out (single + batch).
 # ---------------------------------------------------------------------------
