@@ -185,6 +185,18 @@ _RETIRED_SURFACE_RE = re.compile(
     r"|(?<![\w])event_journal(?![\w])"
 )
 
+# Mission dead-port-disposition-01M1TZVN retired the mission-DSL v1 runtime and
+# deleted the ``states:``/``transitions:`` blocks from every shipped
+# ``mission.yaml``. Unlike ``_RETIRED_SURFACE_RE`` above (arbitrary prose,
+# anywhere in a matched surface file), this key is only ever a *top-level*
+# YAML mapping key re-appearing in a ``mission.yaml`` — so the detector is
+# scoped to that filename and anchored to column 0, and it does not fire on
+# the word appearing in prose or nested/indented YAML. Third-party packs and
+# project ``.kittify/overrides`` mission.yaml files are intentionally out of
+# scope: MISSION_COMPAT_IGNORED_FIELDS tolerates the keys there by design
+# (src/specify_cli/mission.py); this gate governs only our shipped surface.
+_MISSION_DSL_V1_KEY_RE = re.compile(r"^(states|transitions):")
+
 
 def _retired_path_violations(root: Path) -> list[str]:
     violations = {path for path in _RETIRED_PATHS if (root / path).exists()}
@@ -321,6 +333,27 @@ def _retired_surface_violations(root: Path) -> list[str]:
     return sorted(violations)
 
 
+def _mission_dsl_v1_violations(root: Path) -> list[str]:
+    violations: list[str] = []
+    for surface in _SHIPPED_SURFACE_ROOTS:
+        path = root / surface
+        if path.is_file():
+            candidates = [path] if path.name == "mission.yaml" else []
+        elif path.exists():
+            candidates = sorted(path.rglob("mission.yaml"))
+        else:
+            candidates = []
+        for file_path in candidates:
+            relative_path = file_path.relative_to(root)
+            if _is_historical_surface(relative_path):
+                continue
+            for line_number, line in enumerate(file_path.read_text(encoding="utf-8", errors="replace").splitlines(), start=1):
+                match = _MISSION_DSL_V1_KEY_RE.match(line)
+                if match:
+                    violations.append(f"{relative_path.as_posix()}:{line_number}: {match.group(0)}")
+    return sorted(violations)
+
+
 def _retired_ruff_ignore_violations(path: Path) -> list[str]:
     config = tomllib.loads(path.read_text(encoding="utf-8"))
     lint = config.get("lint", {})
@@ -432,6 +465,49 @@ def test_cli_guard_rejects_planted_fixture(tmp_path: Path) -> None:
 
 def test_shipped_prose_has_no_retired_surface() -> None:
     assert _retired_surface_violations(_REPO_ROOT) == []
+
+
+def test_shipped_mission_yaml_has_no_mission_dsl_v1_keys() -> None:
+    assert _mission_dsl_v1_violations(_REPO_ROOT) == []
+
+
+def test_mission_dsl_v1_guard_rejects_planted_blocks_but_ignores_indented_and_prose_uses(
+    tmp_path: Path,
+) -> None:
+    planted_mission = tmp_path / "packs/mission-x"
+    planted_mission.mkdir(parents=True)
+    (planted_mission / "mission.yaml").write_text(
+        "\n".join(
+            (
+                "mission:",
+                "  name: mission-x",
+                "",
+                "initial: start",
+                "",
+                "states:",
+                "  - name: start",
+                "",
+                "transitions:",
+                "  - trigger: advance",
+                "",
+                "workflow:",
+                "  # indented occurrences of the same words must not fire",
+                "  states: nested",
+                "  transitions: nested",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    # A non-mission.yaml file using the same words in prose is out of scope.
+    other_dir = tmp_path / "packs/mission-x/docs"
+    other_dir.mkdir(parents=True)
+    (other_dir / "notes.md").write_text("states: and transitions: are retired.\n", encoding="utf-8")
+    violations = _mission_dsl_v1_violations(tmp_path)
+    assert violations == [
+        "packs/mission-x/mission.yaml:6: states:",
+        "packs/mission-x/mission.yaml:9: transitions:",
+    ]
 
 
 def test_ruff_has_no_retired_per_file_ignores() -> None:
