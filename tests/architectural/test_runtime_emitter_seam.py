@@ -40,6 +40,13 @@ _DELETED_MODULE_IMPORT_RE = re.compile(r"runtime\.next\.event_emitter\b|from run
 # ``ctx.emitter_for_engine``; passing the plain seam reintroduces the bypass.
 _BRIDGE_BYPASS_NEEDLES = ("flush(ctx.sync_emitter)", "sync_emitter=ctx.sync_emitter")
 
+# The ADR's headline scope boundary: "no live producer is wired". A second
+# call site of this name under src/ would be exactly that -- a producer
+# registering itself -- so the invariant is "this text appears in exactly
+# one file", not "this text never appears" (the definition and its own
+# illustrative comment both live in the canonical seam module).
+_REGISTRATION_CALL_NEEDLE = "register_runtime_emitter_factory("
+
 
 def _py_files(root: Path) -> list[Path]:
     """Every ``.py`` file under ``root``, skipping virtualenvs and this guard."""
@@ -81,6 +88,9 @@ def _bridge_function(source: str, name: str) -> ast.FunctionDef:
     functions = [node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == name]
     assert [node.name for node in functions] == [name], f"missing or duplicate bridge function {name}; see {_ADR}"
     return functions[0]
+
+def _registration_sites(root: Path) -> list[str]:
+    return [_relative(p) for p in _py_files(root) if _REGISTRATION_CALL_NEEDLE in p.read_text(encoding="utf-8")]
 
 
 def test_exactly_one_runtime_event_emitter_class() -> None:
@@ -143,6 +153,17 @@ def test_bridge_never_hands_engine_paths_the_plain_seam(needle: str) -> None:
     )
 
 
+def test_only_events_module_registers_the_runtime_emitter_factory() -> None:
+    """ADR scope boundary: "no live producer is wired". The only file under
+    ``src/`` containing ``register_runtime_emitter_factory(`` is the seam's
+    own module -- both the ``def`` and its illustrative registration-example
+    comment live there; a second call site anywhere else under ``src/`` would
+    be a live E3 producer registering itself, which is out of scope for this
+    ADR and must be caught here rather than discovered by hand at the next
+    review."""
+    assert _registration_sites(_REPO_ROOT / "src") == [_CANONICAL_SEAM], f"a live producer registration site was added outside {_CANONICAL_SEAM}; see {_ADR}"
+
+
 # --- helper self-checks (the guard's own branches, exercised on synthetic trees) ---
 
 
@@ -155,6 +176,20 @@ def test_seam_class_scan_reports_duplicates(tmp_path: Path) -> None:
     (tmp_path / "src/runtime/next/other.py").write_text("class RuntimeEventEmitterSpy:\n    pass\n", encoding="utf-8")
     hits = [p.relative_to(tmp_path).as_posix() for p in _py_files(tmp_path) if _SEAM_CLASS_RE.search(p.read_text(encoding="utf-8"))]
     assert hits == [_CANONICAL_SEAM, "src/runtime/next/event_emitter.py"]
+
+
+def test_registration_site_scan_flags_a_second_site(tmp_path: Path) -> None:
+    """Non-vacuity proof for ``test_only_events_module_registers_the_runtime_emitter_factory``:
+    a synthetic tree with a second registration site must report both files,
+    proving the scan actually detects a live producer rather than trivially
+    passing on any input."""
+    canonical = tmp_path / "src/runtime/next/_internal_runtime/events.py"
+    canonical.parent.mkdir(parents=True, exist_ok=True)
+    canonical.write_text("def register_runtime_emitter_factory(factory):\n    ...\n", encoding="utf-8")
+    producer = tmp_path / "src/runtime/next/_internal_runtime/some_producer.py"
+    producer.write_text("register_runtime_emitter_factory(MyProducer.for_mission)\n", encoding="utf-8")
+    hits = [p.relative_to(tmp_path).as_posix() for p in _py_files(tmp_path) if _REGISTRATION_CALL_NEEDLE in p.read_text(encoding="utf-8")]
+    assert hits == [_CANONICAL_SEAM, "src/runtime/next/_internal_runtime/some_producer.py"]
 
 
 def test_relative_falls_back_to_absolute_outside_repo(tmp_path: Path) -> None:
