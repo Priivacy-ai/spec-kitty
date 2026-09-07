@@ -603,9 +603,7 @@ def _selected_skill_preparation(
     assert doctrine == installation.project_skills
     managed = next(p for p in providers if isinstance(p, ManagedSkillsProvider))
     bundle_provider = next(p for p in providers if isinstance(p, PluginBundleProvider))
-    composition = managed.compose_installation(installation, commands)
     assert commands.prepared is not None and installation.project_skills.prepared is not None
-    assert composition.commands is commands and composition.installation is installation
     sources = BundleSources((installation.project_skills, commands), ("claude_code_plugin",))
     inputs = AssessmentInputs(root, projected=sources, consent=consent)
     disabled = builder.assess(
@@ -616,6 +614,8 @@ def _selected_skill_preparation(
     selections = tuple(SurfaceSelection(plan.tool_key, definition) for plan in plans for definition in plan.definitions)
     bundle = bundle_provider.assess(inputs, disabled.report.surfaces, selections=selections)
     assert bundle.complete, bundle.diagnostics
+    composition = managed.compose_installation(installation, commands, staged_bundle=bundle)
+    assert composition.commands is commands and composition.installation is installation
     return descriptor, consent, managed, composition, bundle_provider, bundle
 
 

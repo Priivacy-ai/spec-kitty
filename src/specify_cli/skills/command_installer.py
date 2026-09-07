@@ -62,6 +62,7 @@ from specify_cli.shims.registry import CONSUMER_SKILLS
 from kernel.paths import to_posix
 
 if TYPE_CHECKING:
+    from specify_cli.tool_surface.bundles.model import BundleObservation
     from charter.activation.compiler import _PreparedMissionTypeActivations
 
 # ---------------------------------------------------------------------------
@@ -394,6 +395,29 @@ class CommandInput:
     path: Path
     state: FileState
     children: tuple[str, ...] | None = None
+
+
+_BUNDLE_PARENTS: ContextVar[tuple[OwnerAssessment, tuple[CommandInput, ...]] | None] = ContextVar(
+    "command_completed_bundle_parents", default=None,
+)
+
+
+@contextlib.contextmanager
+def _completed_bundle_parents(assessment: OwnerAssessment, parents: tuple[BundleObservation, ...]) -> Iterator[None]:
+    """Scope actual selected-staging receipts to the original command assessment."""
+    inputs = tuple(CommandInput(p.path, p.state, p.children) for p in parents)
+    token = _BUNDLE_PARENTS.set((assessment, inputs))
+    try:
+        yield
+    finally:
+        _BUNDLE_PARENTS.reset(token)
+
+
+def _bundle_parent_input(assessment: OwnerAssessment, path: Path) -> CommandInput | None:
+    active = _BUNDLE_PARENTS.get()
+    if active is None or active[0] != assessment:
+        return None
+    return next((p for p in active[1] if p.path == path), None)
 
 
 @dataclass(frozen=True)
@@ -830,6 +854,8 @@ def recheck_commands(assessment: OwnerAssessment, *, phase: Literal["preflight",
         if any(_resolve_template(assessment.root.path, command) != path for command, path in payload.template_paths):
             raise InstallerError("precondition_changed", detail="Command source selection changed")
         for item in payload.observations:
+            if phase != "preflight":
+                item = _bundle_parent_input(assessment, item.path) or item
             current = _state(item.path)
             if provisioned_target is not None and _resolve_observed_input(item.path) == provisioned_target and item.state.kind == "file":
                 assert payload.provisioning is not None

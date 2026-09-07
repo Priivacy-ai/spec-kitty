@@ -19,10 +19,13 @@ import os
 import stat
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import ExitStack, contextmanager
-from dataclasses import replace
+from contextvars import ContextVar
+from dataclasses import dataclass, field, replace
 from hashlib import sha256  # noqa: TID251 -- exact staging byte integrity.
 from pathlib import Path
 from uuid import uuid4
+
+from specify_cli.skills import command_installer
 
 from ..enums import ActivationMode, ToolSurfaceKind
 from ..model import SurfacePlan
@@ -36,6 +39,147 @@ from .model import BundleEntry, BundleObservation, PreparedBundle, StagedFile
 
 OWNER = "plugin_bundle"
 _LEDGER = ".spec-kitty-bundle.json"
+
+
+@dataclass(frozen=True)
+class SelectedSkillBundle:
+    """Original selected staging and command supplier, with shared parent inputs."""
+
+    assessment: OwnerAssessment
+    commands: OwnerAssessment
+    parents: tuple[BundleObservation, ...]
+
+    @classmethod
+    def prepare(cls, assessment: OwnerAssessment, commands: OwnerAssessment) -> SelectedSkillBundle:
+        prepared = assessment.prepared
+        if (
+            not assessment.complete or any(d.severity == "error" for d in assessment.diagnostics)
+            or assessment.owner_key != OWNER or not isinstance(prepared, PreparedBundle)
+            or assessment.root != commands.root or assessment.consent != commands.consent
+            or not any(s is commands for s in prepared.suppliers)
+            or not isinstance(commands.prepared, command_installer.PreparedCommands)
+        ):
+            raise ValueError("Selected staging requires the original command supplier and matching consent/root")
+        parents = tuple(observe_bundle_path(item.path, members=True) for item in prepared.observations
+                        if item.state.kind == "directory")
+        return cls(assessment, commands, parents)
+
+
+@dataclass
+class _SelectedBundleRun:
+    inputs: SelectedSkillBundle
+    parents: dict[Path, BundleObservation]
+    written: dict[Path, BundleObservation] = field(default_factory=dict)
+    completed: tuple[BundleObservation, ...] | None = None
+    attempted: bool = False
+
+
+_SELECTED_SKILL_BUNDLE: ContextVar[_SelectedBundleRun | None] = ContextVar("selected_skill_bundle", default=None)
+
+
+@contextmanager
+def selected_skill_bundle_guard(selected: SelectedSkillBundle | None) -> Iterator[tuple[Diagnostic, ...]]:
+    """Require original staging/supplier observations before any provisioning."""
+    if selected is None:
+        yield ()
+        return
+    with staging_guard(selected.assessment) as errors:
+        try:
+            if SelectedSkillBundle.prepare(selected.assessment, selected.commands) != selected:
+                raise ValueError("Selected bundle parent inputs changed")
+            errors += command_installer.recheck_commands(selected.commands, phase="preflight")
+        except (OSError, ValueError) as exc:
+            errors += (Diagnostic("precondition_changed", OWNER, "error", str(exc)),)
+        token = _SELECTED_SKILL_BUNDLE.set(None if errors else _SelectedBundleRun(selected, {p.path: p for p in selected.parents}))
+        try:
+            yield errors
+        finally:
+            _SELECTED_SKILL_BUNDLE.reset(token)
+
+
+def _selected_provisioned_observation(assessment: OwnerAssessment, item: BundleObservation) -> BundleObservation:
+    run = _SELECTED_SKILL_BUNDLE.get()
+    if run is None or run.inputs.assessment is not assessment:
+        return item
+    payload = run.inputs.commands.prepared
+    assert isinstance(payload, command_installer.PreparedCommands)
+    target = command_installer._recheck_command_provisioning(payload, "apply")
+    if target != item.path:
+        return item
+    assert payload.provisioning is not None
+    current = observe_bundle_path(item.path)
+    return replace(item, state=replace(item.state, sha256=payload.provisioning.write.desired_sha256,
+                                      mtime_ns=current.state.mtime_ns))
+
+
+def _record_selected_stage(assessment: OwnerAssessment, effect: PhysicalEffect, *, before: bool) -> None:
+    """Capture identities at the real writer, never authorize a caller-supplied hash."""
+    run = _SELECTED_SKILL_BUNDLE.get()
+    if run is None or run.inputs.assessment is not assessment:
+        return
+    parent = run.parents.get(effect.destination.parent)
+    if parent is not None:
+        current = observe_bundle_path(parent.path, members=True)
+        expected = parent
+        if not before:
+            names = set(parent.children or ())
+            names.add(effect.destination.name)
+            expected = replace(parent, children=tuple(sorted(names)), state=replace(parent.state, mtime_ns=current.state.mtime_ns))
+        if current != expected:
+            raise ValueError(f"Selected bundle parent changed: {parent.path}")
+        run.parents[parent.path] = current
+    if not before:
+        run.written[effect.destination] = observe_bundle_path(effect.destination)
+        if effect.after.kind == "directory":
+            run.parents[effect.destination] = observe_bundle_path(effect.destination, members=True)
+
+
+def _finish_selected_stage(assessment: OwnerAssessment) -> None:
+    run = _SELECTED_SKILL_BUNDLE.get()
+    if run is None or run.inputs.assessment is not assessment:
+        return
+    prepared = assessment.prepared
+    assert isinstance(prepared, PreparedBundle)
+    effects = {e.destination: e for e in assessment.effects}
+    observations = {o.path: o for o in prepared.observations}
+    observations.update(run.parents)
+    completed = []
+    for path, original in observations.items():
+        effect = effects.get(path)
+        if effect is not None and path in run.parents:
+            original = replace(original, state=replace(original.state, mode=effect.after.mode))
+        if effect is not None and path not in run.parents:
+            written = run.written[path]
+            original = replace(written, state=replace(effect.after, mtime_ns=written.state.mtime_ns))
+        elif path not in run.parents:
+            original = _selected_provisioned_observation(assessment, original)
+        current = observe_bundle_path(path, members=original.children is not None)
+        if not same_observation(current, original):
+            raise ValueError(f"Selected staged output/input changed: {path}")
+        if path in run.parents:
+            run.parents[path] = current
+        completed.append(current)
+    run.completed = tuple(completed)
+
+
+@contextmanager
+def completed_selected_skill_bundle(selected: SelectedSkillBundle | None) -> Iterator[tuple[Diagnostic, ...]]:
+    """Admit only this guarded staging's checked receipts before upstream writes."""
+    if selected is None:
+        yield ()
+        return
+    run = _SELECTED_SKILL_BUNDLE.get()
+    try:
+        if run is None or run.inputs is not selected or run.completed is None:
+            raise ValueError("Selected bundle staging must complete before upstream repair")
+        for item in run.completed:
+            if observe_bundle_path(item.path, members=item.children is not None) != item:
+                raise ValueError(f"Completed selected bundle changed: {item.path}")
+    except (OSError, ValueError) as exc:
+        yield (Diagnostic("precondition_changed", OWNER, "error", str(exc)),)
+        return
+    with command_installer._completed_bundle_parents(selected.commands, tuple(run.parents.values())):
+        yield ()
 
 # Surface kinds that belong in a plugin bundle. Session-presence kinds
 # (CONTEXT_FILE, RULE) are deliberately excluded -- they are project-install
@@ -582,7 +726,7 @@ def recheck_staging(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
                 raise ValueError("Bundle package version changed")
         for item in prepared.observations:
             current = observe_bundle_path(item.path, members=item.children is not None)
-            if not same_observation(current, item):
+            if not same_observation(current, _selected_provisioned_observation(assessment, item)):
                 raise ValueError(f"Bundle precondition changed: {item.path}")
     except (OSError, ValueError) as exc:
         return (Diagnostic("precondition_changed", OWNER, "error", str(exc)),)
@@ -637,10 +781,22 @@ def apply_staging(assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerAp
     ids = tuple(e.id for e in assessment.effects)
     if not consent.automatic or consent.overwrite_paths != assessment.consent.overwrite_paths:
         return OwnerApplyResult(OWNER, skipped=ids, outcome="skipped")
+    run = _SELECTED_SKILL_BUNDLE.get()
+    if run is not None and run.inputs.assessment is assessment:
+        if run.attempted:
+            return OwnerApplyResult(OWNER, skipped=ids, outcome="precondition_changed", diagnostics=(
+                Diagnostic("precondition_changed", OWNER, "error", "Selected bundle application is single-consumption"),))
+        run.attempted = True
     with staging_guard(assessment) as errors:
         if errors:
             return OwnerApplyResult(OWNER, skipped=ids, diagnostics=errors, outcome="precondition_changed")
-        return _apply_staged_effects(assessment)
+        result = _apply_staged_effects(assessment)
+        if result.outcome == "applied":
+            try:
+                _finish_selected_stage(assessment)
+            except (OSError, ValueError, KeyError) as exc:
+                return replace(result, outcome="partial", diagnostics=(Diagnostic("precondition_changed", OWNER, "error", str(exc)),))
+        return result
 
 
 def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
@@ -662,6 +818,7 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
             if failed:
                 break
         try:
+            _record_selected_stage(assessment, effect, before=True)
             current = observe_confined(assessment.root.path, effect.destination)[-1].state
             if current != effect.before:
                 raise ValueError(f"Staged destination changed during apply: {effect.path}")
@@ -674,6 +831,7 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
                 effect.destination.chmod(mode)
                 if deferred:
                     pending.append((effect, observe_confined(assessment.root.path, effect.destination)[-1]))
+                    _record_selected_stage(assessment, effect, before=False)
                     continue
             else:
                 member = members[effect.path]
@@ -688,6 +846,7 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
                     write_json(effect.destination, member.content, mode=member.mode)
                 else:
                     write_staged_file(effect.destination, member.content, member.mode)
+            _record_selected_stage(assessment, effect, before=False)
         except (OSError, ValueError) as exc:
             failed.append(effect.id)
             diagnostics.append(Diagnostic("bundle_write_failed", OWNER, "error", str(exc)))
