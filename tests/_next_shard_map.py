@@ -116,6 +116,14 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_workspace_context_unit.py",
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
+    # 2026-09-07 (#3995 landing fold): test_upgrade_preview_bootstrap.py landed on
+    # main via the #3923 codex/upgrade-preview-mission-health merge without a
+    # _next_shard_map registration. The `next` group has no auto-fallback (unlike
+    # `arch`), so the GC-1 completeness guard
+    # (test_arch_shard_marker_completeness::...[next]) went red on main. shard_2 and
+    # shard_3 were tied lightest (16 rows each) when this landed; shard_2 is the
+    # convention's first pick on a tie.
+    "tests/runtime/test_upgrade_preview_bootstrap.py",
     "tests/runtime/next/test_advance_guard_uninitialized_wp.py",  # 2026-09-07 (#3981 landing)
     "tests/runtime/next/test_pertype_presence_gate.py",
     "tests/runtime/next/test_composed_guard_launder.py",
