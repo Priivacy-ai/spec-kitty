@@ -1,0 +1,39 @@
+{
+  "accept_commit": "4ab0d35ec182d094ba01cd8568dd91b2f7de7e7b",
+  "acceptance_history": [
+    {
+      "accept_commit": "3adf31f1396e1598804e5d9d60717fc32e24f522",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-07T17:49:03.943333+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "56293781314be113160eeee0363053cc79d35b82"
+    },
+    {
+      "accept_commit": "4ab0d35ec182d094ba01cd8568dd91b2f7de7e7b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-07T17:49:20.647430+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "5d8eebb2375b76b2037b6f2c0c47d976a7fdfb08"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-07T17:49:20.647430+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "5d8eebb2375b76b2037b6f2c0c47d976a7fdfb08",
+  "baseline_merge_commit": "29571e7b34f55263aee17b03a126b337ab9dcc9e",
+  "created_at": "2026-09-07T04:48:59.790157+00:00",
+  "flattened": true,
+  "friendly_name": "CI Pipeline Reinstatement",
+  "mission_id": "01M1X35ECDJMKSSHC5KACHXP2T",
+  "mission_number": null,
+  "mission_slug": "ci-pipeline-reinstatement-01M1X35E",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "After the Convergence event stripped CI to a lint-only husk, the full test suite no longer runs on the public/contributor tree and coverage/quality scanning is gone. This mission rebuilds CI as a lean, modular, path-scoped set of artefact-sharing workflows (fast where it can be, thorough where it must be), restores SonarCloud/SonarQube scanning, adds a separate packs workflow, and deliberately excludes dead-code and low-ROI shape tests so the suite protects change instead of obstructing it.",
+  "purpose_tldr": "Give Spec Kitty's test suite a real public CI home again: a lean, fast set of GitHub Actions checks plus code-quality scanning that catch real regressions without taxing every change.",
+  "slug": "ci-pipeline-reinstatement-01M1X35E",
+  "status_phase": "1",
+  "target_branch": "feat/ci-pipeline-reinstatement",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-07T10:01:48.827934+00:00"
+}
