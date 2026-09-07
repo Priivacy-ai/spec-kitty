@@ -1,5 +1,25 @@
 # Supporting Operation Reviews
 
+## Managed Installation Provisioning Projection: Open
+
+Op `01M1XKAK3SXPCAWP6PN9STTA20` addresses WP10's next concrete owner gap.
+Legitimate WP09 provisioning updates legacy config, invalidating the retained
+managed-skill installation. Paired global/project preflight correctly refuses
+both owners before writes. The actual projected compiler result is currently
+rejected as unsupported. Real-conftest reproduction: one failed, three passed
+in 38.60 seconds; pointer and explicit-empty controls apply 315 effects.
+
+The original managed-skill owner is extending admission and exact-transition
+checks in a separate worktree. Strict original paired preflight, retained bytes,
+caller registry/selection, locks, consent and unrelated-change refusal remain
+mandatory. The reviewed command supplier stays unchanged. Supplier and actual
+WP10 consumer review precede closure. External request/reproduction: wp10-handoff.md
+and wp10-evidence/test_managed_provisioning_composition.py.
+
+WP10 also committed public JSON downgrade RED `dd83882a826190f42dea09d89acd611c731e3087`
+and separate formatting-only `18aca7992798effddfeb7d249cfc9139e7c46ee0` on its
+lane. No production composition or public GREEN is claimed yet.
+
 ## Command Provisioning Projection: Open
 
 Op `01M1XF4MQ2JPFAVDK15SYGVK8Q` addresses the concrete WP10 integration gap:
