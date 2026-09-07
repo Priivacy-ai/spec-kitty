@@ -1,5 +1,23 @@
 # Supporting Operation Reviews
 
+## Local Shared-Package CI: Open
+
+Op `01M1XPKV2DYTY49TC3K0H8Y5M5` addresses the recurring #3979 failure on
+PR #3923 head `e1ce3817fd92d8dde93dd55b4c102cb8367449b4`, CI run
+34110105314/job101704189922. The validator reports four mismatches between
+the current public CLI train and the retired SaaS repository's pins.
+Evidence is attached to #3979 comment5569112104; no duplicate issue was filed.
+
+Scope is the shared-package CI workflow and focused existing regression tests:
+remove its retired-consumer fetch/comparison and secret-dependent skip while
+preserving local range/lockfile/compatibility-manifest/retired-package validation,
+trusted validation scripts, candidate artifacts and existing job identities.
+Dependency pins, release publishing, secrets and other #3979 retirement work
+remain outside this Op. No claim that the full issue is closed or CI passed.
+RED-first tests, offline real-validator positive/negative controls, independent
+review and parent integration precede closure. Dispatch retains the known #3908
+unresolved-governance diagnostic, not an empty-governance approval.
+
 ## Managed Installation Provisioning Projection: Open
 
 Op `01M1XKAK3SXPCAWP6PN9STTA20` addresses WP10's next concrete owner gap.
