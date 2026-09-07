@@ -26,11 +26,13 @@ env:
 
 jobs:
   suite:
-    # This is the private EXPERIMENTAL factory producer. The public promotion
-    # repository carries the same tree but must use its public release gates.
-    # Within EXPERIMENTAL, only squad-passed/exhausted heads (and main) run.
+    # This is the factory's deterministic CI producer for the CLI. The CLI moved
+    # from spec-kitty/EXPERIMENTAL-spec-kitty (archived 2026-09-05) to
+    # spec-kitty/spec-kitty on 2026-09-07 (planning#1914); the gate names the
+    # repository explicitly so a fork cannot trigger the producer against the
+    # planning repo. Only squad-passed/exhausted heads (and main) run.
     if: >-
-      github.repository == 'spec-kitty/EXPERIMENTAL-spec-kitty' &&
+      github.repository == 'spec-kitty/spec-kitty' &&
       (
         github.event_name != 'pull_request' ||
         contains(github.event.pull_request.labels.*.name, 'squad:passed') ||
@@ -81,7 +83,7 @@ jobs:
           mkdir -p "$SK_HOME"
           planning_repo="${GITHUB_REPOSITORY%/*}/EXPERIMENTAL-${REPO}-planning"
           git clone -q "https://github.com/${planning_repo}.git" "$SK_HOME/spec-kitty-planning"
-          git clone -q https://github.com/spec-kitty/EXPERIMENTAL-$REPO.git "$SK_HOME/$REPO"
+          git clone -q "https://github.com/${GITHUB_REPOSITORY}.git" "$SK_HOME/$REPO"
           git -C "$SK_HOME/$REPO" fetch -q origin "${{ steps.t.outputs.sha }}"
       - name: Run the suite (bin/ci-run.sh --sync)
         working-directory: ${{ env.SK_HOME }}/spec-kitty-planning
