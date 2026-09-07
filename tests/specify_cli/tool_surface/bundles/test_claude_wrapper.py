@@ -280,10 +280,13 @@ class TestMarketplaceJson:
             (tmp_path / "dist" / "marketplace.json").read_text(encoding="utf-8")
         )
         assert payload["name"] == "spec-kitty-plugins"
+        assert payload.get("owner") == {"name": "Priivacy AI"}
+        assert "interface" not in payload
         assert "plugins" in payload
         assert len(payload["plugins"]) == 1
         plugin = payload["plugins"][0]
         assert plugin["name"] == "spec-kitty"
+        assert "policy" not in plugin
         assert plugin["source"]["source"] == "git-subdir"
         assert "spec-kitty.git" in plugin["source"]["url"]
 
