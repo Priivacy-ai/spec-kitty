@@ -2120,6 +2120,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/context/team-kitty.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/context/technology-foundations.md
   tag: current
   divio_type: none
