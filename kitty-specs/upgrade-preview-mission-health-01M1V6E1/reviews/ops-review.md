@@ -1,5 +1,29 @@
 # Supporting Operation Reviews
 
+## Shared Skill Parent Composition: Open
+
+Op `01M1XREZBGQTCZWW1X1WB8EBHR` addresses the next concrete WP10 boundary.
+Both managed and command owners claim creation of cold project `.agents` and
+`.agents/skills` directories. The existing coalescer correctly refuses different
+executable-owner claims; suppressing duplicate reporting cannot repair retained
+writer preconditions. A separate existing-parent witness shows managed-first
+dispatch invalidating command ancestor observations, not that every order fails.
+
+Corrected real-owner witness: two failures in 7.64 seconds at reviewed supplier
+`7bd158a2ed105e18f6e53a19ced2e23f1dad4eca`; exact evidence and caveats are on
+#3901 comment5569640940 and in the external wp10-handoff.md. The diagnostic cold
+witness continued after recording a conflict; production must stop before writes.
+No implemented production composer or approved consumer is implied.
+
+The bounded owner extension must provide single physical shared-directory
+execution, retain both logical claims and original preflights, and support valid
+dispatch order without reassessment, blanket observation exemptions or a generic
+transaction. Independent supplier and actual WP10 consumer review precede closure.
+WP10's separate narrow public JSON correction passes two new regressions, but
+root/composer/full-plan implementation remains incomplete. Its disclosed external
+runtime-namespace and PTY harness problems are being corrected separately; failed
+gates are not reclassified as passing.
+
 ## Local Shared-Package CI: Complete
 
 Op `01M1XPKV2DYTY49TC3K0H8Y5M5` addresses the recurring #3979 failure on
