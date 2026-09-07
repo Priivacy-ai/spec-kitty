@@ -103,3 +103,29 @@ class TestT007RegressionPinsUnanchoredOnly:
 
         assert isinstance(state, UninitializedState)
         assert state.lane is Lane.UNINITIALIZED
+
+
+class TestGenesisLaneBlocksImplement:
+    """Landing fold (#3981): Lane.GENESIS is the symmetric partner of
+    Lane.UNINITIALIZED -- the other member of ``NON_DISPLAY_LANES``.
+
+    ``GenesisState`` reports ``is_blocked=False`` and ``is_run_affecting=False``
+    (a WP created but never lifecycled past genesis has entered no active lane),
+    so before this fold it fell through the same ``implement``-branch disjunct
+    the UNINITIALIZED fix closed and returned ``False`` (did not block) -- the
+    exact fail-open class #3884 exists to close. A genesis-lane WP is pending
+    work and must block the ``implement -> review`` advance.
+    """
+
+    def test_wp_blocks_step_blocks_genesis_for_implement(self) -> None:
+        state = wp_state_for("genesis")
+
+        assert state.is_blocked is False
+        assert state.is_run_affecting is False
+        assert _wp_blocks_step("implement", state, has_provenance=False) is True
+
+    def test_genesis_still_advances_when_handed_off_partners_do_not_regress(self) -> None:
+        # Guard-rail: the fold widens only the never-lifecycled case; genuinely
+        # handed-off / accepted lanes must still NOT block (no over-blocking).
+        for lane in ("for_review", "approved"):
+            assert _wp_blocks_step("implement", wp_state_for(lane)) is False
