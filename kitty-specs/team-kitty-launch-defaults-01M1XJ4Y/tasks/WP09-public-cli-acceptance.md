@@ -137,7 +137,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 ### Subtask T047 – Gates
 
-- **Steps**: `PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/ -q` (full) and `make test-fast`; classify any red per the baseline-red gotcha; paste counts into the Activity Log.
+- **Steps**: `PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/ -q` (full) and `make test-fast`; classify any red per the baseline-red gotcha — `tests/architectural/test_golden_count_ban.py` is already red on `main` (#3977, `tests/architectural` at 15 vs ceiling 14) and counts as pre-existing unless this mission adds un-annotated sites; paste counts into the Activity Log.
 - **Parallel?**: No.
 
 ## Test Strategy

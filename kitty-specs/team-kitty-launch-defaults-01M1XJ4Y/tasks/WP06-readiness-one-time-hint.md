@@ -5,6 +5,7 @@ dependencies: []
 requirement_refs:
 - FR-005
 - FR-006
+- FR-010
 - FR-013
 - NFR-003
 planning_base_branch: feat/team-kitty-launch-defaults
@@ -101,6 +102,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 ## Context & Constraints
 
+- Identifiers such as `AuthStatus.LOGGED_OUT_IN_TEAMSPACE`, `NOT_IN_TEAMSPACE`, and the stderr line `logged_out_on_connected_teamspace` are compatibility identifiers (#3154); keep them verbatim — the canonical prose term is "team workspace".
 - `src/specify_cli/readiness/coordinator.py::_evaluate_uncached` (~225–300): the disabled branch returns `enabled=False` and only invokes the legacy nag; the enabled branch probes, renders guidance only for `LOGGED_OUT_IN_TEAMSPACE`, then `_invoke_upgrade_ux`. `AuthStatus` enum at ~50.
 - `readiness/render.py::render_auth_guidance` renders the connected-team case for INTERACTIVE and NON_INTERACTIVE policies; the structured stderr line `logged_out_on_connected_teamspace` must stay byte-identical (CI classifies on it).
 - `cli/helpers.py::_render_nag_if_needed` (~173–240) is the compat nag with its own `NagCache`; do not reuse it for the hint — the hint has different semantics (once per machine, reset on logout). Put the marker in a new small module `readiness/hint_state.py` using the runtime state root (`get_runtime_root()` / the same root the stored session uses) and an atomic write (`core/atomic.py` has `atomic_write`).

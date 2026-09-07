@@ -8,6 +8,7 @@ dependencies:
 requirement_refs:
 - C-001
 - FR-009
+- FR-010
 - FR-012
 - FR-013
 planning_base_branch: feat/team-kitty-launch-defaults
@@ -16,6 +17,7 @@ branch_strategy: Planning artifacts for this mission were generated on feat/team
 subtasks:
 - T015
 - T016
+- T008
 - T017
 - T018
 - T019
@@ -101,7 +103,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 ## Context & Constraints
 
 - **Order matters**: WP02 (saas_readiness), WP05 (agent tasks, env), WP06 (readiness coordinator) remove their imports first; this WP deletes the module and the remaining consumers. If any of them is not approved, stop and wait.
-- Consumers to remove here: `cli/commands/tracker.py::tracker_callback` (~396–409) and `issue_search_command` (~417–420); `cli/commands/mission_type.py` (~287–295); `tracker/__init__.py` re-export; `cli/helpers.py` only if a comment references the flag (WP06 owns that file — leave a note instead of editing).
+- Consumers to remove here: `tracker/saas_readiness.py` gate #1 and `MISSING_HOST_CONFIG` (T008, moved from WP02 by analysis finding O1); `cli/commands/tracker.py::tracker_callback` (~396–409) and `issue_search_command` (~417–420); `cli/commands/mission_type.py` (~287–295); `tracker/__init__.py` re-export; `cli/helpers.py` only if a comment references the flag (WP06 owns that file — leave a note instead of editing).
 - `tests/conftest.py:230–243` sets the flag collection-wide (#3213) and `:460` in a fixture; `tests/architectural/test_saas_sync_gate_selection_invariance.py` pins that authority. Replace that test with `test_no_retired_hosted_flag_in_tests.py`-style guards (same file, rewritten): (1) `SPEC_KITTY_ENABLE_SAAS_SYNC` is not present in `os.environ` at collection; (2) no test module contains the retired name.
 - Tracker tests: `tests/agent/cli/commands/test_tracker.py`, `test_tracker_discover.py`, `test_tracker_status.py` assert the disabled message; `mission create --from-ticket` tests live near `tests/specify_cli/cli/commands/` — grep `from-ticket`.
 - Keep `contracts/saas_rollout.md` under `kitty-specs/082-…` untouched (archive); `core/saas_sync_config.py` cites it in its docstring, which disappears with the module.
@@ -127,6 +129,16 @@ Use language identifiers in code blocks: ````python`,````bash`
   3. Remove the now-unused imports.
 - **Files**: `src/specify_cli/cli/commands/tracker.py`, `src/specify_cli/cli/commands/mission_type.py`.
 - **Parallel?**: No.
+
+### Subtask T008 – `tracker/saas_readiness.py` (moved here from WP02 after analysis O1)
+
+- **Purpose**: The readiness ladder can no longer report a missing host and must not import the enable gate.
+- **Steps**:
+  1. Remove the `is_saas_sync_enabled` import and the gate #1 branch (`~132–135`, `~267`); the ladder starts at the auth probe.
+  2. Delete `ReadinessState.MISSING_HOST_CONFIG`, its message table entry (~87), `_probe_host_config` (~160–180), and the `MISSING_HOST_CONFIG` branch in `evaluate_readiness` (~304–312); the resolver always yields a target or raises split-brain, which the existing split-brain branch (#305) already renders.
+  3. Update the tracker readiness expectations in `tests/agent/cli/commands/test_tracker_status.py` where they assert `MISSING_HOST_CONFIG` (you own that file); `tests/tracker/test_server_target_fail_closed.py` belongs to WP02 and should already be green — if it reds, report rather than edit.
+- **Files**: `src/specify_cli/tracker/saas_readiness.py`, `tests/agent/cli/commands/test_tracker_status.py`.
+- **Parallel?**: No (before T017, which deletes the module it imports).
 
 ### Subtask T017 – Delete the gate module and re-export
 

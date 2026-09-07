@@ -131,7 +131,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 ### Subtask T034 – Environment-variable reference
 
 - **Purpose**: The user-facing source of truth.
-- **Steps**: Rewrite the hosted section: "Team Kitty target" (packaged default, `[team_kitty] server_url`, `SPEC_KITTY_SAAS_URL` override, split-brain rule, `auth status` shows the source), "Authentication is the switch" (no enable flag; `auth login`/`auth logout`; service token counts), the two opt-outs with their exact scope, and remove every `SPEC_KITTY_ENABLE_SAAS_SYNC` / `SYNC_*` mention including the `.kitty.env` examples (~172–178, ~293–294). Keep the description within the docs band; bump `updated`.
+- **Steps**: Rewrite the hosted section: "Team Kitty target" (packaged default, `[team_kitty] server_url`, `SPEC_KITTY_SAAS_URL` override, split-brain rule, `auth status` shows the source), "Authentication is the switch" (no enable flag; `auth login`/`auth logout`; service token counts), the two opt-outs with their exact scope, and remove every `SPEC_KITTY_ENABLE_SAAS_SYNC` / `SYNC_*` mention including the `.kitty.env` examples (~172–178, ~293–294). Keep the description within the docs band; bump `updated`. If `tests/docs/test_docs_index_freshness.py` reds for this page, regenerate `docs/development/3-2-docs-retrieval-index.yaml` and log the out-of-map edit with a one-line rationale.
 - **Files**: `docs/api/environment-variables.md`.
 - **Parallel?**: Yes.
 
