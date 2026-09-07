@@ -52,7 +52,7 @@ as Python modules within a single-process CLI application.
 | **Control Plane** | `src/specify_cli/cli/` | `specify_cli` | Typer-based CLI. Single user entry point for all commands. |
 | **Kitty-core** | `src/specify_cli/core/`, `mission.py`, `mission_v1/`, `missions/`, `next/`, `template/`, `runtime/` | `specify_cli` | Planning pipeline (specify→plan→tasks) and next-action loop. |
 | **Event Store** | `src/specify_cli/status/` | `specify_cli` | JSONL event logs (`store.py`), reducer (`reducer.py`), WP frontmatter, `meta.json`. Filesystem-only today. |
-| **Orchestration** | `src/specify_cli/orchestrator/`, `orchestrator_api/`, `merge/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, merge execution, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
+| **Orchestration** | `src/specify_cli/orchestrator_api/`, `merge/`, `post_merge/`, `lanes/`, `workspace/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, merge execution, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
 | **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Playwright-based local browser kanban. Read-only against Event Store. |
 | **Agent Tool Connectors** | `packs/built-in/missions/mission-steps/*/*/prompt.md` (source) → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `charter` (offering source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent. Source templates live under `packs/built-in/missions/`; doctrine code lives at `src/charter/offering/`. |
 | **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in feature 055. `SkillRegistry` discovers canonical skills from `src/charter/offering/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
@@ -135,7 +135,7 @@ User runs: spec-kitty specify / plan / tasks
 ```
 User runs: spec-kitty implement WP01
   → src/specify_cli/cli/commands/ (Control Plane)
-  → src/specify_cli/orchestrator/ (Orchestration)
+  → src/specify_cli/lanes/ + workspace/ (Orchestration)
   → src/specify_cli/status/store.py (Event Store read — WP state)
   → packs/built-in/missions/mission-steps/software-dev/implement/prompt.md (Connector)
   → Agent executes work (external)
@@ -147,9 +147,9 @@ User runs: spec-kitty implement WP01
 ```
 User runs: spec-kitty charter interview / generate
   → src/specify_cli/cli/commands/ (Control Plane)
-  → src/charter/interview.py (Charter interview)
-  → src/charter/compiler.py (Charter compiler)
-  → src/charter/reference_resolver.py (transitive DFS: directive → tactic → styleguide/toolguide)
+  → src/charter/activation/interview.py (Charter interview)
+  → src/charter/activation/compiler.py (Charter compiler)
+  → src/charter/activation/reference_resolver.py (transitive DFS: directive → tactic → styleguide/toolguide)
   → src/charter/offering/service.py → per-artifact repositories (Doctrine read)
   → .kittify/charter/ (compiled governance bundle)
 ```
@@ -158,7 +158,7 @@ User runs: spec-kitty charter interview / generate
 
 ```
 Agent calls: spec-kitty charter context --action implement
-  → src/charter/context.py (Action Context Resolver)
+  → src/charter/activation/context.py (Action Context Resolver)
   → Load action index: packs/built-in/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
   → src/charter/offering/service.py (DoctrineService) → fetch directive/tactic content by depth
@@ -217,9 +217,9 @@ Orchestration lifecycle event triggers:
 | **Doctrine Catalog Loader** | `src/charter/offering/service.py` | `DoctrineService` — lazy aggregation facade |
 | **Schema Validation Gate** | `src/charter/offering/*/validation.py`, `src/charter/offering/schemas/` | JSON Schema + Pydantic validation |
 | **Glossary Hook Coordinator** | `src/charter/offering/missions/glossary_hook.py`, `specify_cli/glossary/` | Glossary checks during mission execution |
-| **Charter Interview Flow** | `charter/interview.py` | Guided Q&A for governance capture |
-| **Charter Compiler** | `charter/compiler.py` | Doctrine→charter bundle compilation |
-| **`Action Context Resolver`** | `charter/context.py`, `resolver.py`, `reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
+| **Charter Interview Flow** | `charter/activation/interview.py` | Guided Q&A for governance capture |
+| **Charter Compiler** | `charter/activation/compiler.py` | Doctrine→charter bundle compilation |
+| **`Action Context Resolver`** | `charter/activation/context.py`, `charter/activation/resolver.py`, `charter/activation/reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
 | **Action Index** | `packs/built-in/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `src/charter/offering/missions/action_index.py` |
 | **Execution Dispatch** | `packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054; content now ships from `packs/built-in/`, not `src/charter/offering/`) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |
@@ -375,14 +375,14 @@ update and a valid fixture update.
 | Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage (40 doctrine tests) |
 | Tension/rejection modeling (`in_tension_with`/`reconciles_tension`/`rejects` DRG edges) | ✅ Complete | Hand-authored edges in `packs/built-in/*.graph.yaml`; validated via `assert_valid` |
 | DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
-| Cycle detection at resolution boundary (raises `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/reference_resolver.py` `_Walker`; `tests/doctrine/test_cycle_detection.py` |
+| Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `DoctrineResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/doctrine/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
 | Shared schema loading (`SchemaUtilities`) | ✅ Complete | `src/charter/offering/shared/schema_utils.py`; replaces 6 duplicated per-type loaders |
 | Domain exceptions (`DoctrineArtifactLoadError`, `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/offering/shared/exceptions.py` |
 | `DoctrineService` aggregation facade | ✅ Complete | `src/charter/offering/service.py` |
-| Charter compiler consumes Doctrine | ✅ Complete | `src/charter/compiler.py` |
+| Charter compiler consumes Doctrine | ✅ Complete | `src/charter/activation/compiler.py` |
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
-| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/reference_resolver.py` (feature 054) |
-| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (feature 054) |
+| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/activation/reference_resolver.py` (feature 054) |
+| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/activation/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (feature 054) |
 | Per-action guidelines extraction from templates | ✅ Complete | `packs/built-in/missions/software-dev/actions/*/guidelines.md` (feature 054) |
 | ArtifactKind canonical enum | ✅ Complete | `src/charter/offering/artifact_kinds.py` (feature 054, WP09-WP10) |
 | MissionRepository package relocation | ✅ Complete | `packs/built-in/missions/` is the authoritative source for all shipped mission assets (YAML, mission-step prompt templates, content templates, expected-artifacts); `src/charter/offering/missions/` holds only the Python repository/loader code that reads them. `src/specify_cli/missions/` retains only Python code modules (`primitives.py`, `glossary_hook.py`, `.contextive.yml`) for the glossary subsystem per ADR 2026-03-25-1. |
