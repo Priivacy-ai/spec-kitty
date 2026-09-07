@@ -16,7 +16,6 @@ subtasks:
 - T005
 - T006
 - T007
-- T008
 - T009
 phase: Phase 1 - Target
 history:
@@ -91,14 +90,14 @@ Use language identifiers in code blocks: ````python`,````bash`
 - `resolve_server_target()` never raises for "no target": with nothing configured it returns the packaged default `https://team.spec-kitty.ai` with `source = packaged_default`.
 - It reads `config.toml [team_kitty] server_url`, never `[sync]`; precedence env > configuration > packaged default; env-vs-config disagreement still raises `ServerTargetSplitBrainError`.
 - `ResolvedServerTarget` carries `source` (`environment | configuration | packaged_default`) and exposes it in `to_diagnostics_dict()`.
-- `get_saas_base_url()` returns the env value or `None`; `MISSING_HOST_CONFIG` no longer exists in `tracker/saas_readiness.py`.
+- `get_saas_base_url()` returns the env value or `None`. (`tracker/saas_readiness.py` is untouched here: WP04 removes its gate and `MISSING_HOST_CONFIG` once this resolver lands.)
 - Every test in `contracts/target-resolution.md` is red on the base and green at head.
 
 ## Context & Constraints
 
 - Read `src/specify_cli/auth/server_target.py` end to end. Today: `_read_configured_server_url()` reads `data.get("sync")` from `get_runtime_root().base / "config.toml"`; `resolve_server_target` raises `ConfigurationError(_NO_TARGET_MESSAGE)` when both sources are absent; `_classify_override` and `_guard_split_brain` implement the disagreement rule; `_warn_process_override` logs with `[sync].server_url` wording.
 - `src/specify_cli/auth/config.py`: `EXAMPLE_HOSTED_SAAS_URL` is example-only per D-5; `get_saas_base_url()` raises `ConfigurationError` when the env var is unset. WP01's ADR supersedes D-5; update the module docstring to cite it.
-- `src/specify_cli/saas_client/auth.py::_server_target_url` and `load_auth_context` consume the resolver for the stored-session bridge; `src/specify_cli/tracker/saas_readiness.py::_probe_host_config` is the "D-5 opt-in gate" mirror and yields `MISSING_HOST_CONFIG`; its gate #1 (`is_saas_sync_enabled`, lines ~132–135 and ~267) must go here so WP04 can delete the module.
+- `src/specify_cli/saas_client/auth.py::_server_target_url` and `load_auth_context` consume the resolver for the stored-session bridge. `tracker/saas_readiness.py::_probe_host_config` calls `get_saas_base_url()`; with the accessor returning `None` instead of raising it still yields `MISSING_HOST_CONFIG` until WP04 removes that state — verify `tests/tracker/test_server_target_fail_closed.py` and adjust only that file.
 - Existing tests: `tests/auth/test_server_target.py`, `tests/integration/test_spec_kitty_home_cli.py` (expects `ConfigurationError` when `SPEC_KITTY_HOME` has no config — that expectation flips), `tests/tracker/test_server_target_fail_closed.py`.
 - C-001: this file stays the only resolver; do not add a second reading in `saas_client`, `readiness`, or `zeitgeist_client`.
 
@@ -139,16 +138,6 @@ Use language identifiers in code blocks: ````python`,````bash`
 - **Parallel?**: No.
 - **Notes**: Keep `process_wide_override` semantics untouched; `_auth_saas_target.py` (WP03) relies on `process_wide_override=False` to surface split-brain descriptively.
 
-### Subtask T008 – `tracker/saas_readiness.py`
-
-- **Purpose**: The readiness ladder can no longer report a missing host and must not import the enable gate.
-- **Steps**:
-  1. Remove the `is_saas_sync_enabled` import and the gate #1 branch (`~132–135`, `~267`); the ladder starts at the auth probe.
-  2. Delete `ReadinessState.MISSING_HOST_CONFIG`, its message table entry (~87), `_probe_host_config` (~160–180), and the `MISSING_HOST_CONFIG` branch in `evaluate_readiness` (~304–312); the resolver always yields a target or raises split-brain, which the existing split-brain branch (#305) already renders.
-  3. Update `tests/tracker/test_server_target_fail_closed.py` and the tracker readiness expectations in `tests/agent/cli/commands/test_tracker_status.py` **only where they assert `MISSING_HOST_CONFIG`** (WP04 owns those files' gate assertions; coordinate by leaving a one-line Activity Log note if you must touch them).
-- **Files**: `src/specify_cli/tracker/saas_readiness.py`, `tests/tracker/test_server_target_fail_closed.py`.
-- **Parallel?**: Yes, after T007.
-
 ### Subtask T009 – Downstream consumers and integration test
 
 - **Purpose**: Callers that treated "no target" as an error path follow the new contract.
@@ -172,7 +161,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 - Matrix tests exist and were red on the base (commit order proves it).
 - No second resolver appeared; `git grep -n '"sync"' src/specify_cli/auth` is empty.
-- `saas_readiness.py` has no `MISSING_HOST_CONFIG` and no gate import.
+- `tracker/saas_readiness.py` is not in the diff (WP04 owns it).
 
 ## Branch Strategy
 

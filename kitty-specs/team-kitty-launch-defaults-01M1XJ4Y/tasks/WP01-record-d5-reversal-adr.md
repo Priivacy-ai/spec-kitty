@@ -126,7 +126,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 ### Subtask T004 – Run the docs gates
 
 - **Purpose**: Prove the pages pass before review.
-- **Steps**: `PYTHONPATH=. .venv/bin/python scripts/docs/docs_index.py --write` is **not** yours (WP08 owns the retrieval index); instead run `PWHEADLESS=1 .venv/bin/python -m pytest tests/docs/test_docs_seo.py tests/docs/test_description_length_gate.py tests/docs/test_docs_index_freshness.py -q` and fix any finding on your files only. If `test_docs_index_freshness.py` reds solely because the index lacks the new ADR, note it in the Activity Log for WP08 rather than regenerating the index here.
+- **Steps**: Run `PWHEADLESS=1 .venv/bin/python -m pytest tests/docs/test_docs_seo.py tests/docs/test_description_length_gate.py tests/docs/test_docs_index_freshness.py -q` and fix any finding on your files. `docs/development/3-2-docs-retrieval-index.yaml` is a derived artifact owned by WP08: if the freshness test reds only because the index lacks your pages, regenerate it with `PYTHONPATH=. .venv/bin/python scripts/docs/docs_index.py --write` and record the out-of-map edit with a one-line rationale in the Activity Log (ownership leeway; the file merges trivially).
 - **Files**: none new.
 - **Parallel?**: No.
 

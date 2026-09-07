@@ -139,7 +139,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 ### Subtask T014 – Documentation of the output
 
 - **Purpose**: `docs/api/auth-whoami-output.md` is the reference for the output shape.
-- **Steps**: Document the target line and the JSON `target` object with the three source values; remove any mention of "not configured" and of `SPEC_KITTY_ENABLE_SAAS_SYNC`; keep the description within the docs gate band.
+- **Steps**: Document the target line and the JSON `target` object with the three source values; remove any mention of "not configured" and of `SPEC_KITTY_ENABLE_SAAS_SYNC`; keep the description within the docs gate band. If `tests/docs/test_docs_index_freshness.py` reds for this page, regenerate `docs/development/3-2-docs-retrieval-index.yaml` (`PYTHONPATH=. .venv/bin/python scripts/docs/docs_index.py --write`) and log the out-of-map edit with a one-line rationale.
 - **Files**: `docs/api/auth-whoami-output.md`.
 - **Parallel?**: Yes.
 

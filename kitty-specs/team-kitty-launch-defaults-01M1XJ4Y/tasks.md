@@ -62,7 +62,6 @@ T004 Run the docs gates for the touched pages
 T005 Red-first: extend `tests/auth/test_server_target.py` with the precedence matrix, `source`, `[team_kitty]` key, and `[sync]` ignored
 T006 `src/specify_cli/auth/config.py`: `DEFAULT_HOSTED_SAAS_URL`; `get_saas_base_url` returns env or `None`
 T007 `src/specify_cli/auth/server_target.py`: `[team_kitty] server_url`, packaged default, `source` on `ResolvedServerTarget`, no-target error removed
-T008 [P] `src/specify_cli/tracker/saas_readiness.py`: drop the enable gate and `MISSING_HOST_CONFIG`; consume the resolver
 T009 [P] `src/specify_cli/saas_client/auth.py` and `tests/integration/test_spec_kitty_home_cli.py`, `tests/tracker/test_server_target_fail_closed.py`: follow the new contract
 
 ### Implementation Notes
@@ -71,7 +70,7 @@ T009 [P] `src/specify_cli/saas_client/auth.py` and `tests/integration/test_spec_
 
 ### Parallel Opportunities
 
-- T008 and T009 after T007.
+- T009 after T007.
 
 ### Dependencies
 
@@ -79,7 +78,7 @@ T009 [P] `src/specify_cli/saas_client/auth.py` and `tests/integration/test_spec_
 
 ### Risks & Mitigations
 
-- Hidden callers that catch `ConfigurationError` for "no target": grep before deleting the error path; A3 covers the matrix.
+- Hidden callers that catch `ConfigurationError` for "no target": grep before deleting the error path; A3 covers the matrix. `tracker/saas_readiness.py` is WP04's.
 
 ---
 
@@ -121,12 +120,13 @@ T014 [P] `docs/api/auth-whoami-output.md`: document the line and fields
 **Goal**: Remove `core/saas_sync_config.py`, its re-export, and every remaining consumer, so hosted features are always present and auth decides; the test suite no longer arms a flag.
 **Independent Test**: `git grep is_saas_sync_enabled` is empty; tracker commands logged out fail with sign-in guidance; `tests/conftest.py` sets no flag.
 **Prompt**: `/tasks/WP04-delete-enable-gate.md`
-**Requirement Refs**: FR-009, FR-012, FR-013, C-001
+**Requirement Refs**: FR-009, FR-010, FR-012, FR-013, C-001
 
 ### Included Subtasks
 
 T015 Red-first: tracker command group and `mission create --from-ticket` logged out return sign-in guidance, never the "not enabled" message (`tests/agent/cli/commands/test_tracker*.py`)
 T016 `src/specify_cli/cli/commands/tracker.py` and `mission_type.py`: remove the gate; readiness ladder and auth errors carry the guidance
+T008 `src/specify_cli/tracker/saas_readiness.py`: drop the enable gate and `MISSING_HOST_CONFIG`; consume the resolver (moved from WP02, analysis O1)
 T017 Delete `src/specify_cli/core/saas_sync_config.py` and `src/specify_cli/tracker/feature_flags.py`; update `tracker/__init__.py`
 T018 [P] `tests/conftest.py`, `tests/e2e/conftest.py`, `tests/integration/conftest.py`: remove the flag arming; replace `tests/architectural/test_saas_sync_gate_selection_invariance.py` with a guard that the retired name is never set by any test
 T019 Verify no live reader of the retired name remains (`git grep`) and run the blast radius
@@ -188,7 +188,7 @@ T025 [P] `src/charter/offering/skills/spk-run-implement-review/SKILL.md` and `do
 **Goal**: The startup readiness coordinator no longer has a disabled path; a machine with no session gets one non-blocking hint, once, interactively; `auth logout` resets it; machine output stays clean.
 **Independent Test**: tests/readiness matrix: first interactive run hints, second does not, JSON/help/version/non-TTY never do; logout resets.
 **Prompt**: `/tasks/WP06-readiness-one-time-hint.md`
-**Requirement Refs**: FR-005, FR-006, FR-013, NFR-003
+**Requirement Refs**: FR-005, FR-006, FR-010, FR-013, NFR-003
 
 ### Included Subtasks
 
@@ -369,7 +369,7 @@ T050 Append the tracer files (`traces/`) with implementation friction and decisi
 | FR-007 | WP05 |
 | FR-008 | WP05 |
 | FR-009 | WP04 |
-| FR-010 | WP09 |
+| FR-010 | WP04, WP06, WP09 |
 | FR-011 | WP05, WP07 |
 | FR-012 | WP02, WP04 |
 | FR-013 | WP04, WP06 |
@@ -399,7 +399,7 @@ T050 Append the tracer files (`traces/`) with implementation friction and decisi
 | T005 | Resolver red-first tests | WP02 | P1 | No |
 | T006 | auth/config.py default | WP02 | P1 | No |
 | T007 | server_target.py resolution | WP02 | P1 | No |
-| T008 | saas_readiness gate removal | WP02 | P1 | Yes |
+| T008 | saas_readiness gate removal (moved to WP04) | WP04 | P1 | No |
 | T009 | saas_client/auth + integration tests | WP02 | P1 | Yes |
 | T010 | Visibility red-first tests | WP03 | P1 | No |
 | T011 | Printer provenance | WP03 | P1 | No |
