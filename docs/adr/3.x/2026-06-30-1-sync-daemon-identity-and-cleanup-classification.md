@@ -1,9 +1,15 @@
 ---
 title: 'ADR: Sync Daemon Identity Contract and Cleanup Classification'
 description: 'The `--spec-kitty-daemon-root` scope marker becomes the sole kill authority for sync daemons; `owner.json` is health reporting and interpreter identity only stale-version evidence.'
-status: Accepted
+status: Superseded
 date: '2026-06-30'
+superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 ---
+
+> **Superseded (2026-09-06)** by
+> [`2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
+> The sync daemon this ADR governs was retired by the Convergence (#3881 / #3824); daemon identity,
+> `owner.json`, and orphan reaping no longer exist. Retained as historical record.
 
 ## Context and Problem Statement
 

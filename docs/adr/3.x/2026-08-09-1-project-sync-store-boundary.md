@@ -1,9 +1,15 @@
 ---
 title: 'ADR: One Project UUID Owns One Sync Store and One Consent Decision'
 description: 'Hosted-sync state is isolated by project UUID behind one ProjectSyncStore unit of work; ambient checkout, identity, target, or environment cannot select another project.'
-status: Accepted
+status: Superseded
 date: '2026-08-09'
+superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 ---
+
+> **Superseded (2026-09-06)** by
+> [`2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
+> The `ProjectSyncStore` / `sync/project_store.py` boundary this ADR governs was deleted with the sync
+> transport by the Convergence (#3881 / #3824). Retained as historical record.
 
 ## Context and Problem Statement
 

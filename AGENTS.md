@@ -199,6 +199,26 @@ docs/             # User documentation
 
 New architectural designs → `architecture/` following `docs/architecture/README.md` template.
 
+### Modularity SSOT (canonical)
+
+The **single source of truth for the module set and its import direction is the enforced pair**,
+not any prose map:
+
+- **Inventory** — `pyproject.toml` `[tool.hatch.build.targets.wheel].packages` (enforced by
+  `tests/architectural/test_pyproject_shape.py`).
+- **Direction** — the `landscape` fixture in `tests/architectural/conftest.py` +
+  `tests/architectural/test_layer_rules.py` (pytestarch `LayerRule`s + the shrink-only
+  `mission_runtime` and `runtime` outbound ledgers). The enforced chain is
+  `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`.
+
+Every other module map (this file, `docs/architecture/00_landscape`, `04_implementation_mapping`,
+the demoted `05_ownership_map.md`) is a **derived view**; on conflict the enforced pair wins. The
+former self-declared authority `docs/architecture/05_ownership_manifest.yaml` was deleted (mission
+`post-convergence-governance-01M1TMPH`). `src/specify_cli/zeitgeist_client/` and `saas_client/` are
+**clients** of the upstream authoritative repos `spec-kitty/zeitgeist` + `spec-kitty/saas`
+(consumer code; API authored upstream) — see ADR
+`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`.
+
 ## Commands
 
 ```bash

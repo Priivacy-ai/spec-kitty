@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#1868": {
+      "evidence_ref": "Parent candidate epic (context). Follow-up: WP02 FR-010 drafts the FR-020 enforcement-honesty note in design-notes/WP02-glossary.md; the operator posts it on #1868",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#3888": {
+      "evidence_ref": "PR #3888 merged into main (c0054153b) and into this branch (ba58652f0); C-002 satisfied; WP03 FR-013 lands the constitution-exclusion deletion after it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP03"
+    },
+    "#3898": {
+      "evidence_ref": "PR #3898 (RuntimeEventEmitter disposition ADR) open/Proposed at plan+tasks time; WP03 ships the shrunk variant and research/emitter-adr-inputs.md (FR-011); emitter execution minted as a follow-up once the ADR is merged and Accepted (decision OD7)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    },
+    "#3899": {
+      "evidence_ref": "PR #3899 (quick-wins, draft) owns truststore + scripts/prose residue; this mission owns the src/mission_runtime residue (OD8); whichever lands second rebases pyproject.toml/uv.lock",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
