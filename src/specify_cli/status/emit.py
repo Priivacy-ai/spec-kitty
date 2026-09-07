@@ -929,6 +929,15 @@ def _prepare_batch(
     *dependencies'* lanes, which the batch cannot change -- so the verdict
     resolved against the write surface at acquisition is the verdict for every
     member, including those reached through the accumulated in-memory state.
+
+    Fail-closed on a missing workspace (#946): this door alone passes
+    ``default_workspace_context=False``, so a member that omits
+    ``workspace_context`` on ``claimed -> in_progress`` is refused by the
+    pipeline's guard ("requires workspace context") instead of being handed a
+    synthetic ``<execution_mode>:<root>``. WP02 of mission
+    ``fsm-write-path-integrity-01M1TZV6`` dropped that skip for door parity
+    (D-2); operator decision 2026-09-07 reinstated it (mission-review
+    DRIFT-3). The rule lives in the pipeline as a policy knob, not here.
     """
     built: list[tuple[StatusEvent, PreparedTransition, TransitionRequest]] = []
     batch_started_at = now_utc()
@@ -942,6 +951,7 @@ def _prepare_batch(
             readiness=readiness,
             at=(batch_started_at + timedelta(microseconds=len(built))).isoformat(),
             resolve_subtasks_dir=_flat_subtasks_dir_resolver,
+            default_workspace_context=False,
         )
         if prepared.event is None:
             continue

@@ -33,9 +33,8 @@ Design notes
   ``to_dict()`` paths.
 - The former surface 5 (the sync ``EventEmitter``'s mission-lifecycle
   emissions) died with the sync transport (issue #5); when epic E3 registers
-  a real producer on the consolidated ``runtime.next._internal_runtime.events``
-  seam (``RuntimeEventEmitterRegistry``; ADR 2026-09-06-2) it must rejoin this
-  matrix.
+  a new producer via ``register_runtime_emitter_factory``
+  (``runtime.next._internal_runtime.events``) it must rejoin this matrix.
 - Each parametrised case emits an assertion with a clear surface name so
   a regression immediately identifies the offending payload.
 """

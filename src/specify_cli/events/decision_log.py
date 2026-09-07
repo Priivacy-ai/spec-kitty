@@ -163,16 +163,6 @@ class DecisionGitLog:
     # Delegating methods (all other events pass through unchanged)
     # ------------------------------------------------------------------
 
-    def seed_from_snapshot(self, snapshot: Any) -> None:
-        """Pass the run snapshot through to ``inner`` (seam surface, no log write).
-
-        The consolidated ``RuntimeEventEmitter`` seam carries
-        ``seed_from_snapshot`` (ADR 2026-09-06-2 (b)); the composition-path
-        engine adapter seeds the emitter it is handed, and since the flush-target
-        fix (ADR (c)) that emitter is this wrapper.
-        """
-        self._inner.seed_from_snapshot(snapshot)
-
     def emit_mission_run_started(self, payload: MissionRunStartedPayload) -> None:
         self._inner.emit_mission_run_started(payload)
 
@@ -198,6 +188,12 @@ class DecisionGitLog:
         self, payload: TimeoutExpiredPayload
     ) -> None:
         self._inner.emit_decision_timeout_expired(payload)
+
+    def seed_from_snapshot(self, snapshot: Any) -> None:
+        """Pass-through: seeding is the inner seam's concern; a sink without it is fine."""
+        seed = getattr(self._inner, "seed_from_snapshot", None)
+        if seed is not None:
+            seed(snapshot)
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -2207,24 +2207,40 @@ class TestBatchShellLock:
             )
         assert read_events(feature_dir) == before
 
-    def test_batch_claimed_to_in_progress_defaults_workspace_context_like_every_other_door(self, feature_dir: Path) -> None:
-        """Parity pin (FR-007 / D-2 in design-notes/WP02-pipeline.md).
+    def test_batch_claimed_to_in_progress_without_workspace_context_is_refused(self, feature_dir: Path) -> None:
+        """Fail-closed pin (#946; D-2 in design-notes/WP02-pipeline.md; mission-review DRIFT-3).
 
-        Before the promotion the plain batch door alone skipped the
+        The plain batch door deliberately does NOT synthesise the
         ``<execution_mode>:<root>`` workspace-context default on
-        ``claimed -> in_progress`` (#946); ``_prepare_event`` (and therefore
-        the transactional batch) always applied it. Composing the one pipeline
-        makes the batch door behave like the single door and the transactional
-        batch. Production callers always supply ``workspace_context`` for this
-        edge (``status/work_package_lifecycle.py``), so only direct callers
-        that omitted it observe the change.
+        ``claimed -> in_progress`` (#946). Mission
+        ``fsm-write-path-integrity-01M1TZV6`` WP02 dropped that skip for
+        parity with the other doors; the operator reverted it on 2026-09-07
+        (DRIFT-3). The pipeline stays the single validation authority: the
+        batch door passes ``default_workspace_context=False`` and the guard
+        refuses with the historical message, persisting nothing. Production
+        callers always supply ``workspace_context`` for this edge
+        (``status/work_package_lifecycle.py``); the flat single door and both
+        transactional doors keep applying the default.
         """
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        before = read_events(feature_dir)
+        with patch.object(emit_module, "_saas_fan_out"), pytest.raises(TransitionError, match="requires workspace context"):
+            emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "in_progress"),
+                ]
+            )
+        assert read_events(feature_dir) == before
+
+    def test_batch_claimed_to_in_progress_with_explicit_workspace_context_succeeds(self, feature_dir: Path) -> None:
+        """The #946 refusal is only for an OMITTED context; an explicit one passes."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with patch.object(emit_module, "_saas_fan_out"):
             events = emit_status_transition_batch(
                 [
                     _wp02_request(feature_dir, "claimed"),
-                    _wp02_request(feature_dir, "in_progress"),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
                 ]
             )
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]

@@ -2790,7 +2790,6 @@ exclude = [
     "tests/status/test_doctor_husks.py",
     "tests/status/test_doctor_uninitialized.py",
     "tests/status/test_dup_key_repair.py",
-    "tests/status/test_emit.py",
     "tests/status/test_emit_backward_transition.py",
     "tests/status/test_emit_durability.py",
     "tests/status/test_event_log_merge.py",

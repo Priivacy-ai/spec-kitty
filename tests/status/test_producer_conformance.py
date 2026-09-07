@@ -10,9 +10,9 @@ with zero ``model_violations`` and zero ``schema_violations``.
 
 (The former second section pinned the sync ``EventEmitter``'s ``emit_*``
 methods; that producer died with the sync transport, issue #5. When epic E3
-registers a real producer on the consolidated
-``runtime.next._internal_runtime.events`` seam (``RuntimeEventEmitterRegistry``;
-ADR 2026-09-06-2) its payloads belong back in this file.)
+registers a real producer via
+``runtime.next._internal_runtime.events.register_runtime_emitter_factory``
+its payloads belong back in this file.)
 
 The intent: bind every producer's payload shape to the canonical contract
 so future drift is an emit-time error caught here in CI, not an RC-canary

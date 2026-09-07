@@ -118,10 +118,10 @@
       "criterion_id": "FR-012",
       "description": "Verify FR-012 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "WP05 approved (lane-c ec77ba471, cycle 1): Accepted ADR (PR #3898) executed \u2014 runtime_event_emitter_for_mission factory + RuntimeEventEmitterRegistry in _internal_runtime/events.py, NullEmitter.for_mission (no for_feature alias), seed_from_snapshot on Protocol/NullEmitter/DecisionGitLog, flush target fixed to ctx.emitter_for_engine on both paths (throwaway revert makes the real-DecisionGitLog pins fail 2/3), runtime/next/event_emitter.py deleted; 779+755+439 tests green; mypy 21==21 (#3913 baseline). Deferred: sync_emitter parameter rename (allowed defer per WP prompt item 6; follow-up issue).",
+      "evidence": "Superseded execution (operator decision 2026-09-07): PR #3921 (feat/dead-port-disposition, mission dead-port-disposition-01M1VRA2, CI green) is the canonical execution of ADR 2026-09-06-2 and is merged into this branch at d8259dcae; this mission's WP05 (lane-c ec77ba471, approved cycle 1) executed the same ADR with a divergent API and its emitter commits are resolved toward #3921 (runtime_emitter_for_mission / register_runtime_emitter_factory; flush target fixed on both paths; runtime/next/event_emitter.py deleted). Pinned by tests/architectural/test_runtime_emitter_seam.py + tests/runtime/test_bridge_decision_log_flush.py (from #3921). WP05's step-0 prune of WP04's orphaned dead-symbol rows survives.",
       "pass_fail": "pass",
       "verified_by": "claude-fable-5-1",
-      "verified_at": "2026-09-06T22:39:41.048438+00:00",
+      "verified_at": "2026-09-07T07:05:22.651075+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {

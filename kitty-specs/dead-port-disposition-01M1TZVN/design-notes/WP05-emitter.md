@@ -153,3 +153,5 @@ Recorded here so the mission review does not have to rediscover it.
 - The WP05 prompt's anchor `~:3244-3245` for the grandfathered rows was off by 27 lines (actual `:3217-3218`).
 - `ruff format --check --force-exclude` silently skips formatter-debt files ("5 files already formatted" for 15 inputs) — expected but easy
   to misread as partial coverage.
+
+> **Superseded (2026-09-07, operator decision):** PR #3921 (`feat/dead-port-disposition`, mission `dead-port-disposition-01M1VRA2`) executed the same ADR with `runtime_emitter_for_mission` / `register_runtime_emitter_factory` and was adopted as canonical; it was merged into this branch at `d8259dcae`, the ten conflicting files resolved toward it, and this WP's two test files replaced by #3921's `tests/architectural/test_runtime_emitter_seam.py` and `tests/runtime/test_bridge_decision_log_flush.py`. The step-0 lane-d merge and orphaned-row prune from this WP remain. The `sync_emitter` rename defer (deviation 4) therefore transfers to #3921's lineage (#3929).
