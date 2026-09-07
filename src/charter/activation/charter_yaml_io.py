@@ -29,6 +29,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.events import DocumentEndEvent, DocumentStartEvent
 from ruamel.yaml.nodes import MappingNode
 from ruamel.yaml.tokens import AliasToken, KeyToken
 
@@ -184,6 +185,18 @@ def _yaml_value_events(value: Any) -> tuple[tuple[Any, ...], ...]:
     )
 
 
+def _dump_fragment(document: Any, yaml: YAML) -> str:
+    """Use the existing emitter without reinserting its document framing."""
+    rendered = _dump_document(document, yaml)
+    start, end = 0, len(rendered)
+    for event in _yaml_loader().parse(rendered):
+        if isinstance(event, DocumentStartEvent) and event.explicit:
+            start = event.end_mark.index
+        elif isinstance(event, DocumentEndEvent) and event.explicit:
+            end = event.start_mark.index
+    return rendered[start:end].lstrip("\r\n")
+
+
 def yaml_documents_equal(left: Any, right: Any) -> bool:
     """Compare supported YAML values, including opaque tagged round-trip keys.
 
@@ -226,7 +239,7 @@ def _render_empty_document(text: str, document: Any, yaml: YAML) -> str:
     prefix = text[:start] + text[end:insertion]
     if prefix and not prefix.endswith("\n"):
         prefix += "\n"
-    return prefix + _dump_document(document, yaml) + text[insertion:]
+    return prefix + _dump_fragment(document, yaml) + text[insertion:]
 
 
 def _yaml_key_events(key: Any) -> tuple[tuple[Any, ...], ...]:
@@ -276,12 +289,19 @@ def _mapping_spans(text: str, document: Any, node: MappingNode, *, rendered_comm
     return spans
 
 
-def _render_owned_entries(document: Any, original_spans: dict[Any, tuple[int, int]], yaml: YAML) -> str:
+def _render_owned_entries(document: Any, original: Any, original_spans: dict[Any, tuple[int, int]], yaml: YAML) -> str:
     rendering_document = copy.deepcopy(document)
     if isinstance(rendering_document, CommentedMap):
         # Document-prefix comments stay in the untouched source. Any leading
         # comments in the rendered document therefore belong to its first entry.
         rendering_document.ca.comment = None
+        # Existing key comments belong to the current source being replaced.
+        # A reused caller document still has positions from its initial load,
+        # including comments now moved outside an entry by an earlier save.
+        for key in original:
+            rendering_document.ca.items.pop(key, None)
+            if key in rendering_document and key in original.ca.items:
+                rendering_document.ca.items[key] = copy.deepcopy(original.ca.items[key])
         for key, comments in rendering_document.ca.items.items():
             bounds = original_spans.get(_yaml_key_events(key))
             if bounds is None:
@@ -311,7 +331,7 @@ def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML
         raise ValueError("YAML root must be a mapping")
     # Render the actual round-trip document once, retaining key metadata.
     original_spans = _mapping_spans(text, original, node)
-    rendered = _render_owned_entries(document, original_spans, yaml)
+    rendered = _render_owned_entries(document, original, original_spans, yaml)
     rendered_node = _yaml_loader().compose(rendered)
     if not isinstance(rendered_node, MappingNode):
         raise ValueError("YAML root must be a mapping")
@@ -342,7 +362,7 @@ def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML
             addition = separator + _dump_flow_entries(additions)
         else:
             end = node.end_mark.index
-            addition = ("" if end == 0 or text[end - 1] in "\r\n" else "\n") + _dump_document(additions, yaml)
+            addition = ("" if end == 0 or text[end - 1] in "\r\n" else "\n") + _dump_fragment(additions, yaml)
         edits.append((end, end, addition))
     for start, end, replacement in sorted(edits, reverse=True):
         text = text[:start] + replacement + text[end:]
