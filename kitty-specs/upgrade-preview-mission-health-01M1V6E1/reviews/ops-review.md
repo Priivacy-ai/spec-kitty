@@ -1,6 +1,6 @@
 # Supporting Operation Reviews
 
-## Configured Bundle Source Tools: Open
+## Configured Bundle Source Tools: Complete
 
 Op `01M1WM2PAB09HACQVJEDDR422H` addresses WP08's observed shared planner gap:
 `build_plans_for_bundles` hardcodes four representative tool keys, while the
@@ -20,7 +20,12 @@ Supplier `e35cdc494237f55ef73b36cb6f979e0c56772bfe` is independently approved:
 six focused tests, three independent controls and static checks passed. The
 complete RED/GREEN chain is integrated into WP08 with the two supplier files
 unchanged. Actual configured/empty/duplicate consumer cases pass in author tests;
-independent consumer review is pending alongside WP08. This Op remains open.
+independent consumer review passed all three actual configured/empty/duplicate
+controls with approved supplier bytes unchanged. Parent completed this Op with
+consumer commit `9d78799b94f3c4df0f2e68d4ca8dda4ef3661801` and the separate
+consumer verdict in wp08-independent-review.md. WP08 itself was rejected for an
+unrelated supporting-directory mode regression; this Op closure does not approve
+WP08, root wiring, or final integrated gates.
 
 External Claude validation was recovered using only a pinned standalone 2.1.263
 executable copied into the disposable workspace, with host-home and network

@@ -15,9 +15,9 @@ approved: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP11 and WP12. WP05 approval
 tests and four independent controls passed, changed Ruff/strict mypy passed.
 Real paired provider dispatch matches 169 exact effects and refuses changed
 inputs before writes. Consumer input Op is complete at the owner boundary.
-WP08 is in its first independent review with all five approved dependency lanes
-included; WP10 and WP13 remain pending. No mission acceptance or consolidation
-is complete.
+WP08's first independent review rejected a directory-mode regression; its author
+is correcting that finding only. All five approved dependency lanes are included;
+WP10 and WP13 remain pending. No mission acceptance or consolidation is complete.
 
 WP08 implementation `9d78799b94f3c4df0f2e68d4ca8dda4ef3661801` reports 145 final
 owned tests passing and 91.07% changed-line coverage, plus clean Ruff/strict mypy.
@@ -27,6 +27,16 @@ Claude validation passes the generated plugin and marketplace under strict mode;
 the malformed-name control fails as intended. These await independent review.
 Canonical for-review event `01M1WPGAMH5BFZE037QFKS7A4R` has `no_coverage`, not a
 test pass. Known WP10 intent wiring and all final integrated gates remain open.
+
+WP08 rejection `01M1WQAX7EBTN8Y8A8ZGMCQXCJ`: real public Codex build changes
+source hook directories and an empty descendant from `0700` to `0755`. Independent
+default-mode control passes; nondefault-mode control fails. Preparation and apply
+agree on the wrong mode, so delta agreement alone did not catch the regression.
+Correction must retain observed directory modes without adopting or chmodding
+unknown existing directories. Original evidence is in wp08-independent-review.md;
+#3901 comment5563708583 reports the finding. Follow-up review is limited to this
+finding, corrective diff and adjacent risk. The separately tested configured-helper
+consumer passed three controls; its supporting Op is complete, not WP08 itself.
 
 WP05 author reports 161 owned tests, all-12-path Ruff and strict mypy passing,
 plus real coordinated global/project consumer checks. Supplier dependency files
