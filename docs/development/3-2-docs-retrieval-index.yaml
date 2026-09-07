@@ -3024,7 +3024,7 @@ pages:
   - path: "docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md"
     title: "ADR: Convergence Retirement and Client-Repo Inversion"
     divio_type: "none"
-    abstract: "The Convergence (#3881) retired the CLI→SaaS sync, daemon and delivery stack and inverted ownership: this repo is now a client of upstream spec-kitty/zeitgeist and spec-kitty/saas."
+    abstract: "The Convergence (#3881) retired the CLI→SaaS sync/daemon/delivery stack; this repo now inverts ownership as a client of upstream spec-kitty/zeitgeist and spec-kitty/saas."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -3032,7 +3032,7 @@ pages:
   - path: "docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md"
     title: "ADR: RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement"
     divio_type: "none"
-    abstract: "Keeps the no-op runtime.next.event_emitter as the reserved E3 producer seam, folds its duplicate class into the _internal_runtime NullEmitter, and defers live wiring."
+    abstract: "Keeps runtime.next.event_emitter as the reserved E3 seam, merges its duplicate class into _internal_runtime NullEmitter, fixes the flush-target bug, and bounds Mission B scope."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -5492,6 +5492,7 @@ pages:
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
     - {slug: "unreleased-3-2-7rc1", text: "[Unreleased] - 3.2.7rc1", level: 2}
+    - {slug: "removed", text: "Removed", level: 3}
     - {slug: "added", text: "Added", level: 3}
     - {slug: "fixed", text: "Fixed", level: 3}
     - {slug: "3-2-6-2026-09-03", text: "[3.2.6] - 2026-09-03", level: 2}
@@ -5624,7 +5625,7 @@ pages:
     - {slug: "fixed-26", text: "Fixed", level: 3}
     - {slug: "documentation-2", text: "Documentation", level: 3}
     - {slug: "deferred-2", text: "Deferred", level: 3}
-    - {slug: "removed", text: "Removed", level: 3}
+    - {slug: "removed-2", text: "Removed", level: 3}
     - {slug: "3-2-0rc8-2026-05-14", text: "[3.2.0rc8] - 2026-05-14", level: 2}
     - {slug: "changed-22", text: "Changed", level: 3}
     - {slug: "fixed-27", text: "Fixed", level: 3}
@@ -5669,11 +5670,11 @@ pages:
     - {slug: "3-2-0a5-2026-04-27", text: "[3.2.0a5] - 2026-04-27", level: 2}
     - {slug: "fixed-38", text: "Fixed", level: 3}
     - {slug: "changed-28", text: "Changed", level: 3}
-    - {slug: "removed-2", text: "Removed", level: 3}
+    - {slug: "removed-3", text: "Removed", level: 3}
     - {slug: "internal-6", text: "Internal", level: 3}
     - {slug: "added-23", text: "Added", level: 3}
     - {slug: "changed-29", text: "Changed", level: 3}
-    - {slug: "removed-3", text: "Removed", level: 3}
+    - {slug: "removed-4", text: "Removed", level: 3}
     - {slug: "fixed-39", text: "Fixed", level: 3}
     - {slug: "added-documentation-mission-composition-rewrite-502-461-phase-6-wp6-4", text: "Added - Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)", level: 3}
     - {slug: "added-24", text: "Added", level: 3}
@@ -5691,12 +5692,12 @@ pages:
     - {slug: "fixed-41", text: "Fixed", level: 3}
     - {slug: "3-2-0a2-2026-04-21", text: "[3.2.0a2] - 2026-04-21", level: 2}
     - {slug: "changed-32", text: "Changed", level: 3}
-    - {slug: "removed-4", text: "Removed", level: 3}
+    - {slug: "removed-5", text: "Removed", level: 3}
     - {slug: "3-2-0a1-2026-04-20", text: "[3.2.0a1] - 2026-04-20", level: 2}
     - {slug: "added-27", text: "Added", level: 3}
     - {slug: "changed-33", text: "Changed", level: 3}
     - {slug: "fixed-42", text: "Fixed", level: 3}
-    - {slug: "removed-5", text: "Removed", level: 3}
+    - {slug: "removed-6", text: "Removed", level: 3}
     - {slug: "3-1-8-2026-04-29", text: "[3.1.8] - 2026-04-29", level: 2}
     - {slug: "fixed-43", text: "Fixed", level: 3}
     - {slug: "3-1-7-2026-04-28", text: "[3.1.7] - 2026-04-28", level: 2}
@@ -5784,7 +5785,7 @@ pages:
     - {slug: "3-0-0-2026-03-30", text: "[3.0.0] - 2026-03-30", level: 2}
     - {slug: "breaking-changes-7", text: "Breaking Changes", level: 3}
     - {slug: "added-44", text: "Added", level: 3}
-    - {slug: "removed-6", text: "Removed", level: 3}
+    - {slug: "removed-7", text: "Removed", level: 3}
     - {slug: "fixed-66", text: "Fixed", level: 3}
     - {slug: "2-1-4-2026-03-27", text: "[2.1.4] - 2026-03-27", level: 2}
     - {slug: "added-45", text: "Added", level: 3}
@@ -5801,7 +5802,7 @@ pages:
     - {slug: "added-47", text: "✅ Added", level: 3}
     - {slug: "changed-45", text: "🔧 Changed", level: 3}
     - {slug: "deprecated", text: "⚠️ Deprecated", level: 3}
-    - {slug: "removed-7", text: "🗑️ Removed", level: 3}
+    - {slug: "removed-8", text: "🗑️ Removed", level: 3}
     - {slug: "2-0-11-2026-03-20", text: "[2.0.11] - 2026-03-20", level: 2}
     - {slug: "documentation-4", text: "📄 Documentation", level: 3}
     - {slug: "2-0-10-2026-03-20", text: "[2.0.10] - 2026-03-20", level: 2}
@@ -5995,7 +5996,7 @@ pages:
     - {slug: "changed-61", text: "Changed", level: 3}
     - {slug: "added-70", text: "Added", level: 3}
     - {slug: "changed-62", text: "Changed", level: 3}
-    - {slug: "removed-8", text: "Removed", level: 3}
+    - {slug: "removed-9", text: "Removed", level: 3}
     - {slug: "0-5-2-2025-11-14", text: "[0.5.2] - 2025-11-14", level: 2}
     - {slug: "fixed-122", text: "Fixed", level: 3}
     - {slug: "changed-63", text: "Changed", level: 3}
@@ -6045,7 +6046,7 @@ pages:
     - {slug: "changed-72", text: "Changed", level: 3}
     - {slug: "fixed-129", text: "Fixed", level: 3}
     - {slug: "security-2", text: "Security", level: 3}
-    - {slug: "removed-9", text: "Removed", level: 3}
+    - {slug: "removed-10", text: "Removed", level: 3}
     - {slug: "0-4-7-2025-11-07", text: "[0.4.7] - 2025-11-07", level: 2}
     - {slug: "added-81", text: "Added", level: 3}
     - {slug: "changed-73", text: "Changed", level: 3}
@@ -6087,7 +6088,7 @@ pages:
     - {slug: "added-89", text: "Added", level: 3}
     - {slug: "changed-83", text: "Changed", level: 3}
     - {slug: "fixed-133", text: "Fixed", level: 3}
-    - {slug: "removed-10", text: "Removed", level: 3}
+    - {slug: "removed-11", text: "Removed", level: 3}
     - {slug: "0-1-3-2025-10-28", text: "[0.1.3] - 2025-10-28", level: 2}
     - {slug: "fixed-134", text: "Fixed", level: 3}
     - {slug: "0-1-2-2025-10-28", text: "[0.1.2] - 2025-10-28", level: 2}
