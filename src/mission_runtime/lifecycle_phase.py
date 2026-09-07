@@ -35,9 +35,11 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
+# ``content_present_at_primary_tip`` is deliberately NOT exported: its only
+# caller is in-package (``mission_runtime.resolution``), which imports it by
+# module path (demoted, never deleted -- dead-port-disposition-01M1TZVN, FR-014).
 __all__ = [
     "LifecyclePhase",
-    "content_present_at_primary_tip",
     "resolve_lifecycle_phase",
 ]
 

@@ -151,3 +151,20 @@ class TestAvatarImageSchema:
         data = self._base()
         errors = list(self.v.iter_errors(data))
         assert not errors, [e.message for e in errors]
+
+
+def test_mission_schema_has_no_orchestration_state_machine() -> None:
+    """The ``MissionOrchestration`` family is gone from ``mission.schema.yaml``.
+
+    Mission dead-port-disposition-01M1TZVN, WP03 rider T014b (decision
+    ``01M1W4WZEZZM8DM21JN1ZQY9E6``): the charter ``Mission`` model's
+    ``orchestration`` state machine was schema-generation-only dead code whose
+    last name-only producer (the packs' mission-DSL v1 blocks) WP01 retired.
+    Neither the required key, the property, nor the three definitions may
+    come back.
+    """
+    schema = _load_yaml(SCHEMA_FILES["mission"])
+    assert "orchestration" not in schema["required"]
+    assert "orchestration" not in schema["properties"]
+    retired_definitions = {"mission_orchestration", "mission_state_object", "mission_transition"}
+    assert not retired_definitions & set(schema["definitions"])

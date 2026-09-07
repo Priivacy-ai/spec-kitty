@@ -76,8 +76,8 @@ from spec_kitty_events.mission_next import (
 if TYPE_CHECKING:
     from runtime.next._internal_runtime import MissionRunRef, NextDecision
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
+    from runtime.next._internal_runtime.events import RuntimeEventEmitter
     from runtime.next.decision import Decision
-    from runtime.next.event_emitter import RuntimeEventEmitter
 
 # ---------------------------------------------------------------------------
 # T011 — grep-complete engine/planner private-access wrappers

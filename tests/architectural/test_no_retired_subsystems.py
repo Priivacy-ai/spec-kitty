@@ -36,8 +36,10 @@ _RETIRED_PATHS = (
     "src/specify_cli/saas_client/admission.py",
     "src/specify_cli/dossier/emitter_adapter.py",
     "src/specify_cli/dossier/drift_detector.py",
-    "src/specify_cli/team_projection/write.py",
-    "src/specify_cli/team_projection/attestation.py",
+    # The whole package: after the D1 publish pipeline was retired only an
+    # 8-line docstring tombstone survived (mission dead-port-disposition-01M1TZVN,
+    # FR-014). A package-level ban subsumes the former write/attestation rows.
+    "src/specify_cli/team_projection",
     "src/specify_cli/core/batch_partition.py",
     "src/specify_cli/migration/envelope_seam.py",
     "src/specify_cli/cli/commands/agent/setup_plan_hosted.py",
@@ -96,8 +98,7 @@ _BANNED_IMPORT_PREFIXES = (
     _SPECIFY_CLI + "cli.commands._daemon_doctor",
     _SPECIFY_CLI + "dossier.emitter_adapter",
     _SPECIFY_CLI + "dossier.drift_detector",
-    _SPECIFY_CLI + "team_projection.write",
-    _SPECIFY_CLI + "team_projection.attestation",
+    _SPECIFY_CLI + "team_projection",
     _SPECIFY_CLI + "core.batch_partition",
     _SPECIFY_CLI + "migration.envelope_seam",
     "websockets",

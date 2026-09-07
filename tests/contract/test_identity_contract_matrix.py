@@ -32,8 +32,9 @@ Design notes
   whenever possible.  The tests emit synthetic payloads through the real
   ``to_dict()`` paths.
 - The former surface 5 (the sync ``EventEmitter``'s mission-lifecycle
-  emissions) died with the sync transport (issue #5); when epic E3 wires a
-  new emitter at the ``runtime.next.event_emitter`` seam it must rejoin this
+  emissions) died with the sync transport (issue #5); when epic E3 registers
+  a real producer on the consolidated ``runtime.next._internal_runtime.events``
+  seam (``RuntimeEventEmitterRegistry``; ADR 2026-09-06-2) it must rejoin this
   matrix.
 - Each parametrised case emits an assertion with a clear surface name so
   a regression immediately identifies the offending payload.

@@ -9,55 +9,6 @@ mission:
 
 initial: discovery
 
-states:
-  - name: discovery
-    display_name: "Discovery & Research"
-    on_enter: [on_enter_state]
-  - name: specify
-    display_name: "Specification"
-    on_enter: [on_enter_state]
-  - name: plan
-    display_name: "Implementation Planning"
-    on_enter: [on_enter_state]
-  - name: implement
-    display_name: "Implementation"
-    on_enter: [on_enter_state]
-  - name: review
-    display_name: "Code Review"
-    on_enter: [on_enter_state]
-  - name: done
-    display_name: "Complete"
-    on_enter: [on_enter_state]
-
-transitions:
-  - trigger: advance
-    source: discovery
-    dest: specify
-  - trigger: advance
-    source: specify
-    dest: plan
-    conditions:
-      - 'artifact_exists("spec.md")'
-  - trigger: advance
-    source: plan
-    dest: implement
-    conditions:
-      - 'artifact_exists("plan.md")'
-      - 'artifact_exists("tasks.md")'
-  - trigger: advance
-    source: implement
-    dest: review
-    conditions:
-      - 'all_wp_status("approved_or_done")'
-  - trigger: advance
-    source: review
-    dest: done
-    conditions:
-      - 'gate_passed("review_approved")'
-  - trigger: rework
-    source: review
-    dest: implement
-
 guards:
   has_spec:
     description: "Specification document must exist"

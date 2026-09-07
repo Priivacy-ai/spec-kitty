@@ -1,9 +1,12 @@
 """rc3 M5 WP04 — #2901 WP-frontmatter tolerant-reader fold (verify + anti-divergence pin).
 
 Verify-first finding: the fold is already landed. ``status/wp_metadata.py`` is the
-single tolerant reader; the mission_v1 lane guard (``mission_v1/guards.py``),
-bootstrap, and the dossier indexer route through it. The retired sync import
-scanner is intentionally not part of this convergence surface.
+single tolerant reader; status bootstrap and the dossier indexer route through
+it. The mission_v1 lane guard (``mission_v1/guards.py``) used to be the third
+routed consumer; it was retired with the mission-DSL v1 runtime in mission
+``dead-port-disposition-01M1TZVN``, so the pin below now names the two live
+consumers. The retired sync import scanner is intentionally not part of this
+convergence surface.
 
 ``audit/classifiers/wp_files.py`` legitimately does NOT route through the typed
 tolerant reader: it is a CLASSIFIER that needs the raw frontmatter dict to detect
@@ -57,7 +60,8 @@ class TestSingleTolerantReaderAuthority:
     @pytest.mark.parametrize(
         ("module", "shared_reader_call"),
         [
-            ("specify_cli.mission_v1.guards", "read_wp_frontmatter"),
+            ("specify_cli.status.bootstrap", "read_wp_frontmatter"),
+            ("specify_cli.dossier.indexer", "read_wp_frontmatter"),
         ],
     )
     def test_consumer_actually_calls_shared_reader(self, module: str, shared_reader_call: str) -> None:

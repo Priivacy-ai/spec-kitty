@@ -1,5 +1,9 @@
 """Tests for mission_v1 event emission (WP05).
 
+The MissionModel callback-wiring half of this module was retired with the
+mission-DSL v1 runtime (mission dead-port-disposition-01M1TZVN); only the
+events module survives.
+
 Covers:
 - emit_event writes correct JSONL structure
 - Read-back produces correct event dicts
@@ -9,12 +13,10 @@ Covers:
 - read_events on non-existent file returns empty list
 - read_events skips corrupt lines gracefully
 - Timestamps are ISO 8601 UTC
-- MissionModel callbacks emit events during state transitions
 """
 
 from __future__ import annotations
 
-import copy
 import json
 import logging
 import stat
@@ -190,133 +192,3 @@ class TestReadEvents:
         events = read_events(tmp_path)
         assert len(events) == 2
 
-
-# ---------------------------------------------------------------------------
-# Shared config for callback tests (MarkupMachine mutates state dicts,
-# so every test MUST deepcopy before passing to StateMachineMission).
-# ---------------------------------------------------------------------------
-
-_CALLBACK_CONFIG: dict = {
-    "mission": {
-        "name": "callback-test",
-        "version": "1.0.0",
-        "description": "Tests callback wiring",
-    },
-    "initial": "alpha",
-    "states": [
-        {"name": "alpha"},
-        {"name": "beta"},
-        {"name": "done"},
-    ],
-    "transitions": [
-        {"trigger": "advance", "source": "alpha", "dest": "beta"},
-        {"trigger": "advance", "source": "beta", "dest": "done"},
-    ],
-}
-
-
-# ---------------------------------------------------------------------------
-# T021 -- MissionModel callback wiring
-# ---------------------------------------------------------------------------
-
-
-class TestMissionModelCallbackWiring:
-    """Tests that MissionModel callbacks emit events during transitions."""
-
-    def test_enter_event_emitted_on_transition(self, tmp_path: Path) -> None:
-        """Transitioning to a new state emits a phase_entered event."""
-        from specify_cli.mission_v1.runner import StateMachineMission
-
-        mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
-        )
-
-        mission.trigger("advance")  # alpha -> beta
-        assert mission.state == "beta"
-
-        events = read_events(tmp_path)
-        entered = [e for e in events if e["type"] == "phase_entered"]
-        assert len(entered) >= 1
-        assert any(e["payload"]["state"] == "beta" for e in entered)
-
-    def test_exit_event_emitted_on_transition(self, tmp_path: Path) -> None:
-        """Leaving a state emits a phase_exited event."""
-        from specify_cli.mission_v1.runner import StateMachineMission
-
-        mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
-        )
-
-        mission.trigger("advance")  # alpha -> beta
-
-        events = read_events(tmp_path)
-        exited = [e for e in events if e["type"] == "phase_exited"]
-        assert len(exited) >= 1
-        assert any(e["payload"]["state"] == "alpha" for e in exited)
-
-    def test_mission_name_in_emitted_events(self, tmp_path: Path) -> None:
-        """Events contain the mission name from the config."""
-        from specify_cli.mission_v1.runner import StateMachineMission
-
-        mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
-        )
-
-        mission.trigger("advance")  # alpha -> beta
-
-        events = read_events(tmp_path)
-        assert len(events) >= 1
-        assert all(e["mission"] == "callback-test" for e in events)
-
-    def test_no_feature_dir_callbacks_no_error(self) -> None:
-        """Callbacks with no feature_dir do not raise."""
-        from specify_cli.mission_v1.runner import StateMachineMission
-
-        # No feature_dir -- events not persisted, but no crash
-        mission = StateMachineMission(copy.deepcopy(_CALLBACK_CONFIG))
-        mission.trigger("advance")  # alpha -> beta
-        assert mission.state == "beta"
-
-    def test_transition_produces_exit_then_enter(self, tmp_path: Path) -> None:
-        """A single transition produces phase_exited then phase_entered in order."""
-        from specify_cli.mission_v1.runner import StateMachineMission
-
-        mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
-        )
-
-        mission.trigger("advance")  # alpha -> beta
-
-        events = read_events(tmp_path)
-        # Filter to only transition events (exit alpha + enter beta)
-        transition_events = [
-            e for e in events
-            if e["type"] in ("phase_exited", "phase_entered")
-        ]
-        assert len(transition_events) == 2
-        assert transition_events[0]["type"] == "phase_exited"
-        assert transition_events[0]["payload"]["state"] == "alpha"
-        assert transition_events[1]["type"] == "phase_entered"
-        assert transition_events[1]["payload"]["state"] == "beta"
-
-    def test_multiple_transitions_accumulate_events(self, tmp_path: Path) -> None:
-        """Two transitions produce 4 events (2 exits + 2 enters)."""
-        from specify_cli.mission_v1.runner import StateMachineMission
-
-        mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
-        )
-
-        mission.trigger("advance")  # alpha -> beta
-        mission.trigger("advance")  # beta -> done
-        assert mission.state == "done"
-
-        events = read_events(tmp_path)
-        assert len(events) == 4
-        types = [e["type"] for e in events]
-        assert types == [
-            "phase_exited",   # exit alpha
-            "phase_entered",  # enter beta
-            "phase_exited",   # exit beta
-            "phase_entered",  # enter done
-        ]

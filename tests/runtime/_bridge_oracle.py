@@ -462,23 +462,21 @@ def capture_side_effects(
     """
     capture = SideEffectCapture()
 
-    # decide_next's own sync emitter (bridge:2556) vs the answer-path's
-    # (bridge:3410) share one production classmethod. A single harness call
-    # only ever drives one public entry, so route by an explicit "current
-    # sink" toggle the harness sets before invoking the entry.
+    # decide_next's own runtime emitter vs the answer-path's share one
+    # production construction seam: ``runtime_event_emitter_for_mission``
+    # (the consolidated ``_internal_runtime.events`` factory, ADR
+    # 2026-09-06-2). A single harness call only ever drives one public entry,
+    # so route by an explicit "current sink" toggle the harness sets before
+    # invoking the entry.
     active_sink_holder = {"sync": capture.sync_emitter_calls, "coord": capture.coord_commit_calls}
 
-    real_for_feature = bridge_module.RuntimeEventEmitter.for_feature
+    real_factory = bridge_module.runtime_event_emitter_for_mission
 
-    def _for_feature_spy(**kwargs: Any) -> Any:
-        emitter = real_for_feature(**kwargs)
+    def _factory_spy(**kwargs: Any) -> Any:
+        emitter = real_factory(**kwargs)
         return _RecordingProxy(emitter, active_sink_holder["sync"])
 
-    monkeypatch.setattr(
-        bridge_module.RuntimeEventEmitter,
-        "for_feature",
-        staticmethod(_for_feature_spy),
-    )
+    monkeypatch.setattr(bridge_module, "runtime_event_emitter_for_mission", _factory_spy)
 
     real_wrap = bridge_module._wrap_with_decision_git_log
 

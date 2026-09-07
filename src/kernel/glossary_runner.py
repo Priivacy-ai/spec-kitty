@@ -2,23 +2,31 @@
 
 This module defines the ``GlossaryRunnerProtocol`` — the abstract contract
 that any concrete glossary-aware primitive runner must satisfy — and a
-module-level registry so that ``doctrine`` can invoke the runner without
-depending on ``specify_cli``.
+module-level registry (``register()`` / ``get_runner()`` / ``clear_registry()``,
+the last one test-only) so that ``doctrine``-layer consumers can invoke the
+runner without importing the ``glossary`` package eagerly.
+
+Registration contract — the lazy self-bootstrap
+------------------------------------------------
+**Nobody registers at import or startup.**  The only production provider is
+the consumer itself: ``charter.offering.missions.glossary_hook`` calls
+``get_runner()`` on first use and, on ``None``, self-bootstraps the registry
+in ``_ensure_runner_registered()`` — ``import_module("glossary.attachment")``
+(which exposes ``GlossaryAwarePrimitiveRunner`` and registers nothing when
+imported), ``register(GlossaryAwarePrimitiveRunner)``, then a ``get_runner()``
+retry.  ``specify_cli`` plays no role.
+
+Degradation rule: the hook runs the primitive without glossary checks only
+when ``import_module("glossary.attachment")`` raises ``ImportError``
+(pure-doctrine environments without the ``glossary`` package).  "No runner
+registered" is not a steady state in a full install — the first enabled call
+populates the registry.
 
 Dependency direction
 --------------------
 ::
 
-    doctrine  →  kernel.glossary_runner  ←  specify_cli
-
-``doctrine`` calls ``get_runner()`` to obtain whatever runner
-``specify_cli`` has registered.  ``specify_cli`` calls ``register()`` at
-import time to install the concrete ``GlossaryAwarePrimitiveRunner``.
-
-If no runner has been registered, ``get_runner()`` returns ``None`` and
-``doctrine`` falls back to calling the primitive directly (graceful
-degradation when spec-kitty is not the host, e.g. in tests or third-party
-integrations).
+    doctrine  →  kernel.glossary_runner  ←  charter.offering.missions.glossary_hook (lazy provider)  ←  glossary.attachment
 
 Usage — consumer (doctrine)::
 
@@ -30,12 +38,20 @@ Usage — consumer (doctrine)::
         return runner.execute(primitive_fn, context, *args, **kwargs)
     return primitive_fn(context, *args, **kwargs)
 
-Usage — provider (specify_cli)::
+Usage — the self-bootstrap in ``glossary_hook._ensure_runner_registered()``::
 
-    from kernel.glossary_runner import register
-    from glossary.attachment import GlossaryAwarePrimitiveRunner
+    from importlib import import_module
 
-    register(GlossaryAwarePrimitiveRunner)
+    from kernel.glossary_runner import get_runner, register
+
+    runner_cls = get_runner()
+    if runner_cls is None:
+        try:
+            module = import_module("glossary.attachment")
+            register(module.GlossaryAwarePrimitiveRunner)
+            runner_cls = get_runner()
+        except Exception:
+            runner_cls = None  # degrade: run the primitive without glossary checks
 """
 
 from __future__ import annotations
@@ -76,8 +92,9 @@ _registry: type[GlossaryRunnerProtocol] | None = None
 def register(runner_cls: type[GlossaryRunnerProtocol]) -> None:
     """Register the concrete glossary runner class.
 
-    Called by ``specify_cli`` at import time.  Calling this more than once
-    with the same class is a no-op.  Calling it with a different class
+    Called on first use by the consumer's lazy self-bootstrap
+    (``charter.offering.missions.glossary_hook._ensure_runner_registered``),
+    never eagerly.  Calling this more than once with the same class is a no-op.  Calling it with a different class
     raises ``RuntimeError`` to catch accidental double-registration.
 
     Args:

@@ -382,27 +382,15 @@ register(
 
 
 # --- Mission ---
-def _mission_fixups(schema: dict) -> dict:
-    """Convert anyOf → oneOf for state items (string | object union)."""
-    defs = schema.get("definitions", {})
-    orch = defs.get("mission_orchestration", {})
-    orch_props = orch.get("properties", {})
-    if "states" in orch_props:
-        states = orch_props["states"]
-        items = states.get("items", {})
-        # Pydantic generates anyOf for str | MissionStateObject; schema uses oneOf
-        if "anyOf" in items:
-            items["oneOf"] = items.pop("anyOf")
-    return schema
-
-
+# No fixup: the former `_mission_fixups` (anyOf -> oneOf on the orchestration
+# `states` union) went with the MissionOrchestration family
+# (dead-port-disposition-01M1TZVN, T014b).
 register(
     "mission",
     "charter.offering.missions.models",
     "Mission",
     "Mission",
     "Minimal schema for doctrine mission definitions.",
-    extra=_mission_fixups,
     by_alias=True,
 )
 
