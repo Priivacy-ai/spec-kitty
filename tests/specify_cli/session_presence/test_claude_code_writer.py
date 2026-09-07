@@ -27,21 +27,21 @@ def _content() -> SessionPresenceContent:
 
 class TestWrite:
     def test_write_calls_super_and_hook_registrar(self, tmp_path: Path) -> None:
-        """write() must call MarkdownRulesWriter.write() AND ClaudeCodeHookRegistrar.register()."""
+        """The real writer produces orientation and both hooks as one batch."""
+        import json
+        from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
         writer = ClaudeCodeWriter()
-        with (
-            patch(
-                "specify_cli.session_presence.writers.claude_code.MarkdownRulesWriter.write"
-            ) as mock_md_write,
-            patch(
-                "specify_cli.session_presence.writers.claude_code.ClaudeCodeHookRegistrar.register"
-            ) as mock_hook_reg,
-        ):
-            writer.write(tmp_path, _content())
-        mock_md_write.assert_called_once_with(tmp_path, _content())
-        registered = [call.args for call in mock_hook_reg.call_args_list]
-        assert (tmp_path, SESSION_START_CMD) in registered
-        assert (tmp_path, SESSION_STOP_CMD) in registered
+        writer.write(tmp_path, _content())
+        assert (tmp_path / ".claude/CLAUDE.md").read_text() == _content().render()
+        data = json.loads((tmp_path / ".claude/settings.json").read_bytes())
+        assert data["hooks"] == {
+            "SessionStart": [{"hooks": [{"type": "command", "command": SESSION_START_CMD}]}],
+            "Stop": [{"hooks": [{"type": "command", "command": SESSION_STOP_CMD}]}],
+        }
+        before = snapshot({"project": tmp_path})
+        writer.write(tmp_path, _content())
+        assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
 class TestRemove:
@@ -49,12 +49,8 @@ class TestRemove:
         """remove() must call MarkdownRulesWriter.remove() AND ClaudeCodeHookRegistrar.unregister()."""
         writer = ClaudeCodeWriter()
         with (
-            patch(
-                "specify_cli.session_presence.writers.claude_code.MarkdownRulesWriter.remove"
-            ) as mock_md_remove,
-            patch(
-                "specify_cli.session_presence.writers.claude_code.ClaudeCodeHookRegistrar.unregister"
-            ) as mock_hook_unreg,
+            patch("specify_cli.session_presence.writers.claude_code.MarkdownRulesWriter.remove") as mock_md_remove,
+            patch("specify_cli.session_presence.writers.claude_code.ClaudeCodeHookRegistrar.unregister") as mock_hook_unreg,
         ):
             writer.remove(tmp_path)
         mock_md_remove.assert_called_once_with(tmp_path)
@@ -70,9 +66,7 @@ class TestHasPresenceStopHook:
         """A pre-WP06 project (SessionStart only) reports incomplete presence."""
         from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN
 
-        (claude_project / ".claude" / "CLAUDE.md").write_text(
-            f"{SECTION_OPEN}\nSome content\n{SECTION_CLOSE}\n", encoding="utf-8"
-        )
+        (claude_project / ".claude" / "CLAUDE.md").write_text(f"{SECTION_OPEN}\nSome content\n{SECTION_CLOSE}\n", encoding="utf-8")
         (claude_project / ".claude" / "settings.json").write_text(
             '{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "spec-kitty session-start"}]}]}}',
             encoding="utf-8",
@@ -83,12 +77,8 @@ class TestHasPresenceStopHook:
         import json as _json
 
         ClaudeCodeWriter().write(claude_project, _content())
-        data = _json.loads(
-            (claude_project / ".claude" / "settings.json").read_text(encoding="utf-8")
-        )
-        stop_commands = [
-            h["command"] for entry in data["hooks"]["Stop"] for h in entry["hooks"]
-        ]
+        data = _json.loads((claude_project / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        stop_commands = [h["command"] for entry in data["hooks"]["Stop"] for h in entry["hooks"]]
         assert stop_commands == [SESSION_STOP_CMD]
 
 
@@ -109,9 +99,7 @@ class TestHasPresence:
         from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN
 
         claude_md = claude_project / ".claude" / "CLAUDE.md"
-        claude_md.write_text(
-            f"{SECTION_OPEN}\nSome content\n{SECTION_CLOSE}\n", encoding="utf-8"
-        )
+        claude_md.write_text(f"{SECTION_OPEN}\nSome content\n{SECTION_CLOSE}\n", encoding="utf-8")
         # No settings.json
         writer = ClaudeCodeWriter()
         assert writer.has_presence(claude_project) is False

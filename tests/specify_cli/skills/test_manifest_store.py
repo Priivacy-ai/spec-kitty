@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -62,17 +63,16 @@ def _make_entry(
     )
 
 
-def _write_raw(repo_root: Path, data: dict) -> None:
+def _write_raw(repo_root: Path, data: dict[str, Any]) -> None:
     """Write arbitrary JSON to the manifest file without going through save()."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "command-skills-manifest.json").write_text(
-        json.dumps(data, indent=2) + "\n", encoding="utf-8"
-    )
+    (kittify / "command-skills-manifest.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
-def _read_raw(repo_root: Path) -> dict:
-    return json.loads((repo_root / ".kittify" / "command-skills-manifest.json").read_text())
+def _read_raw(repo_root: Path) -> dict[str, Any]:
+    data: dict[str, Any] = json.loads((repo_root / ".kittify" / "command-skills-manifest.json").read_text())
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +158,32 @@ class TestSkillsManifest:
 # ---------------------------------------------------------------------------
 
 
+def test_wp04_serialization_is_read_only_and_prepared_save_exact(tmp_path: Path) -> None:
+    from specify_cli.skills import manifest_store
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    manifest = SkillsManifest(entries=[_make_entry(_VALID_PATH_1)])
+    before = snapshot({"project": tmp_path})
+    encoded = manifest_store.serialize(manifest)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    (tmp_path / ".kittify").mkdir()
+    manifest_store.save_prepared(tmp_path, encoded, mode=0o400)
+    path = tmp_path / ".kittify/command-skills-manifest.json"
+    assert path.read_bytes() == encoded
+    assert path.stat().st_mode & 0o777 == 0o400
+
+
+def test_wp04_prepared_save_preserves_existing_temp_occupant(tmp_path: Path) -> None:
+    from specify_cli.skills import manifest_store
+
+    (tmp_path / ".kittify").mkdir()
+    temporary = tmp_path / ".kittify/command-skills-manifest.tmp"
+    temporary.write_bytes(b"custom temporary occupant")
+    with pytest.raises(FileExistsError):
+        manifest_store.save_prepared(tmp_path, manifest_store.serialize(SkillsManifest()))
+    assert temporary.read_bytes() == b"custom temporary occupant"
+
+
 def test_absent_file_returns_empty(tmp_path: Path) -> None:
     """load() on a repo with no .kittify/ returns an empty manifest."""
     manifest = load(tmp_path)
@@ -192,9 +218,7 @@ def test_round_trip_identity(tmp_path: Path) -> None:
     loaded = load(tmp_path)
 
     # Entries must be sorted by path
-    assert [e.path for e in loaded.entries] == sorted(
-        [_VALID_PATH_1, _VALID_PATH_2, _VALID_PATH_3]
-    )
+    assert [e.path for e in loaded.entries] == sorted([_VALID_PATH_1, _VALID_PATH_2, _VALID_PATH_3])
 
     # Content equality (compare as sets to ignore order differences from in-memory state)
     original_by_path = {e.path: e for e in m.entries}
