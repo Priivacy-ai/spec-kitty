@@ -264,23 +264,59 @@ def test_unwired_must_run_gate_reds_the_oracle() -> None:
 def test_oracle_proves_wiring_not_runtime() -> None:
     """The oracle proves static WIRING; runtime is each job's own result (SC-004).
 
-    Evidenced structurally: the oracle consumes the single ``gate_selection``
-    authority (no second parser — it never imports ``yaml`` or re-parses the
-    workflow), runs no subprocess, and inspects no job result/conclusion. It can
-    therefore never over-claim that a gate ran green — only that it is wired.
-    """
-    import inspect
+    Evidenced BEHAVIORALLY, not by grepping the oracle's source text (a substring
+    scan is fakeable — an alias import or a refactor that preserves behavior can
+    dodge or break it without changing what the oracle actually does):
 
+    * **Single authority, no second parser** — ``oracle.load_router`` must be the
+      *exact same function object* as ``scripts.ci.gate_selection.load_router``
+      (an identity check, not a name match), and the oracle's own per-group gate
+      map must reproduce exactly what calling ``gate_selection.select_gates``
+      directly produces for the same representative diff. A reimplemented
+      second parser could still satisfy a source-text grep for the right
+      import line while silently answering differently; it cannot satisfy
+      either of these.
+    * **Proves-wiring, not runtime** — the oracle module's live namespace binds
+      no ``yaml`` or ``subprocess`` name under any spelling (bare import,
+      ``from``-import, or alias); a functional probe on the actual imported
+      objects, not the text that produced them.
+    """
+    from scripts.ci import gate_selection
     from tests.architectural import _ci_integrity_oracle as oracle
 
-    src = inspect.getsource(oracle)
-    # Single authority, no second parser (reviewer anti-#2476 check).
-    assert "from scripts.ci.gate_selection import" in src
-    assert "select_gates(" in src
-    # Proves-wiring, not runtime: the oracle does not re-parse YAML, shell out,
-    # or read a job's runtime outcome. Match the import/call machinery, not the
-    # prose (the docstring legitimately explains *why* it imports no parser).
-    assert "import yaml" not in src
-    assert "safe_load(" not in src
-    assert "import subprocess" not in src
+    router = gate_selection.load_router()
+    assert router.src_backed_groups, "need a non-empty real router to exercise the cross-check"
+
+    # Single authority: oracle.load_router is not a look-alike re-implementation.
+    assert oracle.load_router is gate_selection.load_router, (
+        "oracle.load_router must be the exact single-authority function from "
+        "scripts.ci.gate_selection, not a locally reimplemented parser"
+    )
+
+    # The oracle's own group->gate map must match calling gate_selection.select_gates
+    # directly, for every src-backed group on the real, on-disk router.
+    oracle_map = oracle.build_group_gate_map(router)
+    for group in sorted(router.src_backed_groups):
+        path = oracle.representative_path(router.filters[group])
+        direct = gate_selection.select_gates([path], router=router, mode="pr").selected_code_shards
+        assert oracle_map[group] == direct, (
+            f"oracle's gate map for group {group!r} diverges from calling "
+            "gate_selection.select_gates directly for the same representative diff -- "
+            "the oracle must delegate to the single authority, never reimplement routing"
+        )
+
+    # Proves-wiring, not runtime: no yaml/subprocess name bound in the oracle's
+    # live namespace under any import spelling -- the oracle re-parses no YAML,
+    # shells out to nothing, and reads no job result/conclusion.
+    forbidden_module_names = {"yaml", "subprocess"}
+    bound = {
+        name: getattr(value, "__name__", None)
+        for name, value in vars(oracle).items()
+    }
+    leaked = {name: mod for name, mod in bound.items() if name in forbidden_module_names or mod in forbidden_module_names}
+    assert not leaked, (
+        f"the oracle module must never itself bind a yaml/subprocess name (found: {leaked}) -- "
+        "it must resolve routing exclusively through scripts.ci.gate_selection (no second "
+        "parser) and never shell out; runtime is each job's own result (SC-004)"
+    )
     assert oracle.RUNTIME_EVIDENCE_BOUNDARY  # documented boundary constant
