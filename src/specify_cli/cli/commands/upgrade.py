@@ -1483,8 +1483,11 @@ def upgrade(  # noqa: C901 - public command preserves legacy routing while addin
                 )
             from specify_cli.compat.planner import Invocation, plan
 
-            payload = dict(plan(Invocation(command_path=("upgrade",), raw_args=("--cli", "--project")), read_only=True,
-                                project_root_resolver=lambda _path: None, include_migrations=False).rendered_json)
+            payload = dict(plan(Invocation(
+                command_path=("upgrade",), raw_args=("--cli", "--project"),
+                is_help=False, is_version=False, flag_no_nag=True,
+                env_ci=True, stdout_is_tty=False,
+            ), read_only=True, project_root_resolver=lambda _path: Path.cwd(), include_migrations=False).rendered_json)
             payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, pending_migrations=[], rendered_human=message[:1024])
             print(json.dumps(payload))
         else:

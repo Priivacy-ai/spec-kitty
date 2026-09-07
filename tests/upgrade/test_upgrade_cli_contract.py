@@ -99,7 +99,7 @@ def test_cold_preview_and_valid_actual_apply_share_complete_preparation(tmp_path
     assert applied.returncode == 0, applied
     assert applied.json()["success"] is True
     assert any(effect.root == "home" for effect in net_delta(after_preview, after_apply))
-    for marker in ("version.lock", "agent-skills.lock", "agent-commands.lock"):
+    for marker in ("version.lock", "global_skills-assets.json", "slash_commands-assets.json"):
         assert list(Path(case.env["HOME"]).rglob(marker)), marker
 
     repeated = case.run("upgrade", "--json", "--yes", "--no-worktrees")
