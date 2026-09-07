@@ -298,3 +298,19 @@ class TestT012NoOpRegressionPins:
         )
 
         assert result is True
+
+
+class TestAnchoringRequiresExplicitMissionSlug:
+    """Landing fold (#3981): anchoring (``repo_root=``) must be given an explicit
+    ``mission_slug``. The removed silent ``feature_dir.name`` fallback would feed
+    a non-handle (a coord-worktree / status dir name) into ``placement_seam``;
+    fail closed instead, consistent with the function's no-silent-fallback stance
+    on ``MissionSelectorAmbiguous`` (C-009)."""
+
+    def test_repo_root_without_mission_slug_fails_closed(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="mission_slug is required when repo_root"):
+            rb._should_advance_wp_step("implement", tmp_path, repo_root=tmp_path)
+
+    def test_unanchored_call_is_unaffected(self, tmp_path: Path) -> None:
+        # No repo_root -> no anchoring -> no raise (an empty dir has no tasks/).
+        assert rb._should_advance_wp_step("implement", tmp_path) is True

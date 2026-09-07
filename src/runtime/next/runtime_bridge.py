@@ -776,8 +776,19 @@ def _should_advance_wp_step(
     if repo_root is not None:
         from mission_runtime import MissionArtifactKind, placement_seam
 
-        resolved_mission_slug = mission_slug if mission_slug is not None else feature_dir.name
-        anchor_dir = placement_seam(repo_root, resolved_mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        # Fail closed on a missing handle rather than silently falling back to
+        # ``feature_dir.name`` (#3981): at this call ``feature_dir`` is a
+        # coord-worktree / status dir whose ``.name`` is NOT a kitty-specs
+        # mission handle, so the old fallback would feed a wrong (and possibly
+        # ambiguous) handle into ``placement_seam``. Matches this function's own
+        # no-silent-fallback stance on ``MissionSelectorAmbiguous`` (C-009): a
+        # caller that anchors (``repo_root=``) must name the mission explicitly.
+        if mission_slug is None:
+            raise ValueError(
+                "_should_advance_wp_step: mission_slug is required when repo_root "
+                "is supplied (anchoring); feature_dir.name is not a mission handle."
+            )
+        anchor_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
     tasks_dir = anchor_dir / "tasks"
     if not tasks_dir.is_dir():
