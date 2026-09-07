@@ -76,8 +76,8 @@ from spec_kitty_events.mission_next import (
 if TYPE_CHECKING:
     from runtime.next._internal_runtime import MissionRunRef, NextDecision
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
-    from runtime.next._internal_runtime.events import RuntimeEventEmitter
     from runtime.next.decision import Decision
+    from runtime.next._internal_runtime.events import RuntimeEventEmitter
 
 # ---------------------------------------------------------------------------
 # T011 — grep-complete engine/planner private-access wrappers
@@ -309,6 +309,19 @@ def _apply_decision_effects(
     return snapshot.model_copy(update={"issued_step_id": issued_step_id, "pending_decisions": pending_decisions})
 
 
+def _seed_emitter(sync_emitter: RuntimeEventEmitter, snapshot: Any) -> None:
+    """Seed ``sync_emitter`` from ``snapshot`` when the seam exposes seeding.
+
+    ``RuntimeEventEmitter`` is the eight ``emit_*`` methods only;
+    ``seed_from_snapshot`` is an optional member the factory's product *may*
+    carry (``contracts/emitter-seam.md``, research R-2). Mirrors the bridge's
+    own tolerance at its two seeding sites: no member, no seeding, no raise.
+    """
+    seed = getattr(sync_emitter, "seed_from_snapshot", None)
+    if seed is not None:
+        seed(snapshot)
+
+
 def advance_run_state_after_composition(
     *,
     run_ref: MissionRunRef,
@@ -341,7 +354,7 @@ def advance_run_state_after_composition(
 
     run_dir = Path(run_ref.run_dir)
     snapshot = _read_snapshot(run_dir)
-    sync_emitter.seed_from_snapshot(snapshot)
+    _seed_emitter(sync_emitter, snapshot)
 
     snapshot, did_complete_step = _mark_step_completed(run_dir, snapshot, agent, sync_emitter)
 

@@ -202,11 +202,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(
-                rb,
-                "runtime_event_emitter_for_mission",
-                return_value=SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None),
-            ),
+            patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
@@ -222,6 +218,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
+            sync_factory.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,
@@ -258,11 +257,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(
-                rb,
-                "runtime_event_emitter_for_mission",
-                return_value=SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None),
-            ),
+            patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
@@ -278,6 +273,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
+            sync_factory.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,
@@ -310,11 +308,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(
-                rb,
-                "runtime_event_emitter_for_mission",
-                return_value=SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None),
-            ),
+            patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
@@ -331,6 +325,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
+            sync_factory.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,
@@ -362,11 +359,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(
-                rb,
-                "runtime_event_emitter_for_mission",
-                return_value=SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None),
-            ),
+            patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["exotic_guard_failure"]),
@@ -377,6 +370,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
+            sync_factory.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,

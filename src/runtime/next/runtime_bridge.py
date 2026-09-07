@@ -192,10 +192,7 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
 )
-from runtime.next._internal_runtime.events import (
-    RuntimeEventEmitter,
-    runtime_event_emitter_for_mission,
-)
+from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission
 from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
@@ -1552,8 +1549,8 @@ def _dn_bootstrap(
                 reason="Mission is already completed",
             )
         )
-    sync_emitter = runtime_event_emitter_for_mission(
-        mission_dir=feature_dir,
+    sync_emitter = runtime_emitter_for_mission(
+        feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
     )
@@ -1961,10 +1958,12 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
         # Composition succeeded; advance run state via the
         # composition-specific advancement helper and short-circuit the
         # legacy ``runtime_next_step`` fall-through (FR-001/FR-002). The
-        # helper emits the same lane / state events the legacy path emits;
-        # any error from it surfaces through the existing ``Decision``
-        # ``blocked`` shape (EDGE-003) — the legacy DAG dispatch handler is
-        # **not** entered as a fallback.
+        # helper emits the same lane / state events the legacy path emits,
+        # through the decision-log-wrapped engine emitter so a
+        # ``DecisionInputRequested`` it raises is durably recorded
+        # (ADR 2026-09-06-2 (c)); any error from it surfaces through the
+        # existing ``Decision`` ``blocked`` shape (EDGE-003) — the legacy
+        # DAG dispatch handler is **not** entered as a fallback.
         try:
             return _advance_run_state_after_composition(
                 run_ref=run_ref,
@@ -1976,12 +1975,6 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                 timestamp=now,
                 progress=progress,
                 origin=origin,
-                # The DecisionGitLog-wrapped emitter, not the plain inner
-                # ``ctx.sync_emitter``: the adapter's ``_emit_decision_required``
-                # emits straight into what it is handed, so decision events on
-                # this path only reach decisions.events.jsonl through the wrap
-                # (ADR 2026-09-06-2 (c), composition bypass; pinned by
-                # tests/runtime/test_decision_flush_target.py).
                 sync_emitter=ctx.emitter_for_engine,
             )
         except Exception as exc:  # noqa: BLE001 — EDGE-003 contract: any
@@ -2190,14 +2183,9 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
             return gate_decision
 
     # Gate either passed (terminal allow) or never ran (non-terminal /
-    # not opted in): flush any buffered emit calls into the SAME emitter the
-    # non-gated path hands the engine -- the DecisionGitLog-wrapped
-    # ``emitter_for_engine`` -- so observers receive them in original order
-    # AND a buffered DecisionInputRequested reaches decisions.events.jsonl.
-    # Flushing into the plain ``ctx.sync_emitter`` (the inner no-op) silently
-    # dropped strict-gated decision events from the git log (ADR
-    # 2026-09-06-2 (c), pinned by tests/runtime/test_decision_flush_target.py).
-    # No double-emit: on the gated path the engine wrote only into the buffer.
+    # not opted in): flush any buffered emit calls into the decision-log-
+    # wrapped engine emitter so decision events are durably recorded and
+    # observers receive them in original order (ADR 2026-09-06-2 (c)).
     if buffer is not None:
         buffer.flush(ctx.emitter_for_engine)
 
@@ -2751,8 +2739,8 @@ def answer_decision_via_runtime(
         raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
-    sync_emitter = runtime_event_emitter_for_mission(
-        mission_dir=feature_dir,
+    sync_emitter = runtime_emitter_for_mission(
+        feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
     )

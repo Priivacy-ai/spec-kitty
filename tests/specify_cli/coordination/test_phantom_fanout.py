@@ -107,6 +107,10 @@ def _batch(repo_root: Path) -> list[TransitionRequest]:
     claim = _request(repo_root)
     start = _request(repo_root)
     start.to_lane = "in_progress"
+    # The forced fallback arm reaches the plain batch door, which fails closed
+    # on an omitted workspace context for claimed -> in_progress (#946);
+    # production callers (work_package_lifecycle) always supply one.
+    start.workspace_context = "worktree:/nonexistent/wp01"
     start.annotation_delta = WPInnerStateDelta(note="batch binding")
     return [claim, start]
 

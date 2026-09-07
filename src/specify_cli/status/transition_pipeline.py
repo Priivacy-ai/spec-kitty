@@ -186,6 +186,7 @@ def prepare_transition(
     resolve_subtasks_dir: SubtasksDirResolver | None = None,
     infer_subtasks_complete: SubtasksCompleteInferrer | None = None,
     infer_implementation_evidence: ImplementationEvidenceInferrer | None = None,
+    default_workspace_context: bool = True,
 ) -> PreparedTransition:
     """Validate *request* against *from_lane* and build its event (pure).
 
@@ -215,6 +216,22 @@ def prepare_transition(
             selects ``emit._infer_subtasks_complete``.
         infer_implementation_evidence: Injected evidence reader. ``None``
             selects ``emit._infer_implementation_evidence``.
+        default_workspace_context: Policy knob for a request that omits
+            ``workspace_context``. ``True`` (the default; the flat single
+            door and both transactional doors) synthesises
+            ``<execution_mode>:<repo_root or feature_dir>`` so the
+            ``claimed -> in_progress`` guard is satisfied. ``False`` leaves
+            it ``None`` and the guard refuses that edge with the historical
+            ``"requires workspace context"`` message (``wp_state.py``), the
+            only guard that reads it -- every other edge is unaffected.
+            Provenance: the plain batch door (``emit._prepare_batch``)
+            deliberately skipped the default on that edge (#946); mission
+            ``fsm-write-path-integrity-01M1TZV6`` WP02 dropped the skip for
+            door parity (``design-notes/WP02-pipeline.md`` §6 row D-2;
+            mission-review DRIFT-3); operator decision 2026-09-07 reverted
+            it to fail-closed, expressed here so the pipeline stays the
+            single validation authority instead of re-inlining the rule in
+            the shell.
 
     Returns:
         A :class:`PreparedTransition`. ``event is None`` is the alias-collapse
@@ -232,7 +249,7 @@ def prepare_transition(
     resolved_lane = resolve_lane_alias(str(request.to_lane))
 
     workspace_context = request.workspace_context
-    if workspace_context is None:
+    if workspace_context is None and default_workspace_context:
         context_root = request.repo_root if request.repo_root is not None else feature_dir
         workspace_context = f"{request.execution_mode}:{context_root}"
 

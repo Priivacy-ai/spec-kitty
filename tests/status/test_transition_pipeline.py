@@ -243,6 +243,55 @@ class TestEventConstruction:
         assert prepared.event.to_lane == Lane.IN_PROGRESS
 
 
+class TestDefaultWorkspaceContextKnob:
+    """``prepare_transition(default_workspace_context=...)`` (#946, D-2, DRIFT-3).
+
+    The pipeline is the single validation authority, so the plain batch
+    door's deliberate #946 fail-closed skip lives here as an explicit policy
+    knob rather than as shell-side logic. ``True`` (the default every other
+    door relies on) synthesises ``<execution_mode>:<repo_root or feature_dir>``
+    when the request omits ``workspace_context``; ``False`` leaves it ``None``
+    so the ``claimed -> in_progress`` guard refuses with the historical
+    message. Operator decision 2026-09-07 reverted WP02's parity change.
+    """
+
+    def test_true_synthesises_the_default_for_claimed_to_in_progress(self, feature_dir: Path, tmp_path: Path) -> None:
+        prepared = _prepare(
+            feature_dir,
+            _request(to_lane="in_progress", repo_root=tmp_path),
+            Lane.CLAIMED,
+            default_workspace_context=True,
+        )
+        assert prepared.event is not None
+        assert prepared.event.to_lane == Lane.IN_PROGRESS
+
+    def test_false_refuses_claimed_to_in_progress_without_a_context(self, feature_dir: Path, tmp_path: Path) -> None:
+        with pytest.raises(TransitionError, match="requires workspace context"):
+            _prepare(
+                feature_dir,
+                _request(to_lane="in_progress", repo_root=tmp_path),
+                Lane.CLAIMED,
+                default_workspace_context=False,
+            )
+
+    def test_false_honours_an_explicit_context(self, feature_dir: Path) -> None:
+        prepared = _prepare(
+            feature_dir,
+            _request(to_lane="in_progress", workspace_context="worktree:/nonexistent/wp01"),
+            Lane.CLAIMED,
+            default_workspace_context=False,
+        )
+        assert prepared.event is not None
+        assert prepared.event.to_lane == Lane.IN_PROGRESS
+
+    def test_false_leaves_edges_without_a_context_guard_untouched(self, feature_dir: Path) -> None:
+        # Only the claimed -> in_progress guard reads workspace_context
+        # (``wp_state.py``); every other edge is unaffected by the knob.
+        prepared = _prepare(feature_dir, _request(to_lane="claimed"), Lane.PLANNED, default_workspace_context=False)
+        assert prepared.event is not None
+        assert prepared.event.to_lane == Lane.CLAIMED
+
+
 class TestValidation:
     def test_validate_transition_called_exactly_once(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[tuple[Any, ...]] = []

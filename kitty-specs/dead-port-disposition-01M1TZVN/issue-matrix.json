@@ -37,7 +37,7 @@
       "wp": "WP03"
     },
     "#3898": {
-      "evidence_ref": "PR #3898 (RuntimeEventEmitter disposition ADR) open/Proposed at plan+tasks time; WP03 ships the shrunk variant and research/emitter-adr-inputs.md (FR-011); emitter execution minted as a follow-up once the ADR is merged and Accepted (decision OD7)",
+      "evidence_ref": "ADR merged Accepted via PR #3898 on 2026-09-06; executed canonically by PR #3921 (adopted into this branch at d8259dcae by operator decision 2026-09-07), with this mission's WP05 execution superseded; FR-011 record research/emitter-adr-inputs.md was the input.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "deferred-with-followup",
-      "wp": "WP03"
+      "verdict": "verified-already-fixed",
+      "wp": "WP05"
     },
     "#3899": {
       "evidence_ref": "PR #3899 (quick-wins, draft) owns truststore + scripts/prose residue; this mission owns the src/mission_runtime residue (OD8); whichever lands second rebases pyproject.toml/uv.lock",
