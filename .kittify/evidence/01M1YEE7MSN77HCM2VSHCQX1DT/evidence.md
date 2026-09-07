@@ -1,0 +1,1 @@
+#3992; Windows CI exposed pre-migrate global output conflict; callback unit regression 4 passed
