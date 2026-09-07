@@ -1,16 +1,16 @@
 {
-  "event_count": 30,
-  "last_event_id": "01M1WDZ7FCETQTVX4N7ZM0F5Z4",
-  "materialized_at": "2026-09-06T22:38:36.012176+00:00",
+  "event_count": 35,
+  "last_event_id": "01M1WE3JTKC4VGDRS1F3WJAXEG",
+  "materialized_at": "2026-09-06T22:40:58.707932+00:00",
   "mission_number": "",
   "mission_slug": "dead-port-disposition-01M1TZVN",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 5,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 5,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,14 +18,14 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01M1W4NDYD0EFWRGHB05NY3GRA",
-      "last_transition_at": "2026-09-06T19:55:57.773299+00:00",
+      "lane": "done",
+      "last_event_id": "01M1WE3B6W5QQG7PX3KSMSV2A0",
+      "last_transition_at": "2026-09-06T22:40:50.908285+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: mission-DSL v1 retired (FULL), transitions dropped, ratchet RED->GREEN, all same-WP gates moved; open item: inert-slot rows owned by Mission B need a WP03/WP05 rider or re-owning (see design note).",
@@ -51,14 +51,14 @@
       }
     },
     "WP02": {
-      "actor": "user",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01M1W2YAVXSMB9FD0WPN863DKB",
-      "last_transition_at": "2026-09-06T19:25:52.381174+00:00",
+      "lane": "done",
+      "last_event_id": "01M1WE3D3KS0WCWTA7CHW9666S",
+      "last_transition_at": "2026-09-06T22:40:52.851861+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: four glossary-runner sites canonicalized to the lazy self-bootstrap (SC-004 grep zero matches), bootstrap extracted into _ensure_runner_registered() (pure motion), FR-009 pins + SC-004 design-story pins green (33), FR-020 honesty note in glossary_hook.py, #1868 tracker text drafted in the WP02 design note. Commits d6af84a09 (ATDD) + 09f68d46d (repair).",
@@ -80,14 +80,14 @@
       }
     },
     "WP03": {
-      "actor": "user",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01M1W90PXW5A6DP08NX9Q296A3",
-      "last_transition_at": "2026-09-06T21:12:01.724149+00:00",
+      "lane": "done",
+      "last_event_id": "01M1WE3GW5E3FSPHK6TY6F7M55",
+      "last_transition_at": "2026-09-06T22:40:56.709938+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: T011-T015 + rider T014b landed on lane-c (6 commits 9f8d3a0b3..d18b0c98c, RED-first); final-HEAD sweep 1319 passed/4 skipped",
@@ -111,14 +111,14 @@
       }
     },
     "WP04": {
-      "actor": "user",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01M1W1ZY2HBFTSP2CGS7NYVW5N",
-      "last_transition_at": "2026-09-06T19:09:16.245931+00:00",
+      "lane": "done",
+      "last_event_id": "01M1WE3EZTK54X0TCZMRAN05XP",
+      "last_transition_at": "2026-09-06T22:40:54.778114+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: derive_mission_state/evaluate_guards (+ private helper _describe_guard, lazy read_events import, unused SimpleNamespace import) deleted from runtime/next/decision.py; legacy test sections removed; third file tests/next/test_query_mode_unit.py held an undocumented consumer and was trimmed (see Activity Log). 661 runtime + 89 architectural tests passed; ruff/format/mypy clean.",
@@ -139,14 +139,14 @@
       }
     },
     "WP05": {
-      "actor": "user",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01M1WDZ7FCETQTVX4N7ZM0F5Z4",
-      "last_transition_at": "2026-09-06T22:38:36.012176+00:00",
+      "lane": "done",
+      "last_event_id": "01M1WE3JTKC4VGDRS1F3WJAXEG",
+      "last_transition_at": "2026-09-06T22:40:58.707932+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: ADR 2026-09-06-2 executed -- seam consolidated onto _internal_runtime (one RuntimeEventEmitter; factory + registry; for_mission; seed_from_snapshot), event_emitter.py deleted, flush target fixed on both paths with red-first pins; step-0 lane-d merge + orphan-row prune. HEAD ec77ba471.",
