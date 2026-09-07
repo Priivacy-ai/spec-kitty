@@ -145,8 +145,12 @@ op invocations) travel the same path through `fire_lifecycle_saas_fanout`.
 ## What `SPEC_KITTY_ENABLE_SAAS_SYNC` still gates (and what it does not)
 
 The moment path above is **not** gated by this flag. Moments go out by
-default whenever a credential resolves. The flag (via `sync_active()` in
-`src/specify_cli/core/saas_sync_config.py`) still switches on four leftovers:
+default whenever a credential resolves. The flag still switches on four
+leftovers. Two gate functions in `src/specify_cli/core/saas_sync_config.py`
+read it: leftovers 1-2 check the bare `is_saas_sync_enabled()`, while leftover
+3 checks `sync_active()` (`is_saas_sync_enabled()` **and** no
+`SPEC_KITTY_SYNC_DISABLE` set) -- so `SPEC_KITTY_SYNC_DISABLE` lifts only
+leftover 3, not the readiness nag, the tracker group, or `--from-ticket`:
 
 1. the startup readiness/auth nag (`readiness/coordinator.py`);
 2. the `tracker` command group and `mission create --from-ticket`;
