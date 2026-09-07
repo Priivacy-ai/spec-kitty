@@ -1082,9 +1082,7 @@ def git_diff_names(
         Tuple of stripped, non-empty repo-relative paths; empty tuple on
         non-zero exit.
     """
-    result = git_diff_names_checked(
-        repo, base, head, pathspec=pathspec, diff_filter=diff_filter, timeout=timeout
-    )
+    result = git_diff_names_checked(repo, base, head, pathspec=pathspec, diff_filter=diff_filter, timeout=timeout)
     return () if result is None else result
 
 
@@ -1130,6 +1128,50 @@ def git_diff_names_checked(
 
     result = subprocess.run(
         cmd,
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        return None
+    return tuple(line.strip() for line in result.stdout.splitlines() if line.strip())
+
+
+def git_ls_tree_names_checked(
+    repo: Path,
+    rev: str,
+    path: str,
+    *,
+    timeout: float | None = None,
+) -> tuple[str, ...] | None:
+    """Fail-distinguishing ``git ls-tree --name-only <rev> <path>``.
+
+    Lists the tree entries recorded at *rev* for *path* (a directory path
+    with a trailing ``/`` lists that directory's direct children; without one
+    it names the entry itself). The failure mode is *distinguishable*:
+    returns ``None`` when ``git ls-tree`` exits non-zero (unknown *rev*,
+    not a repository), versus an empty tuple when *rev* simply records
+    nothing at *path*. Use it from fail-closed callers that must not read an
+    unreadable base tree as "nothing there".
+
+    Args:
+        repo: Repository/worktree path to run the command in.
+        rev: Tree-ish to inspect (commit-ish or tree SHA).
+        path: Repo-relative path to list. Passed verbatim; callers own the
+            safety of the segments they compose into it.
+        timeout: Optional subprocess timeout (seconds); ``TimeoutExpired``
+            propagates (not swallowed).
+
+    Returns:
+        Tuple of stripped, non-empty repo-relative entry names on success
+        (possibly empty); ``None`` on non-zero exit.
+    """
+    result = subprocess.run(
+        ["git", "ls-tree", "--name-only", rev, path],
         cwd=str(repo),
         capture_output=True,
         text=True,
