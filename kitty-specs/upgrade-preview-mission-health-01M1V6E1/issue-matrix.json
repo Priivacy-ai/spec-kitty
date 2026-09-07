@@ -85,7 +85,7 @@
       "wp": "WP13"
     },
     "#3903": {
-      "evidence_ref": "WP11 recovery8e2d40bc0 reports full423mission zero-blocker audit; independent WP11 review, WP12 preservation tests and WP13 integrated gate pending.",
+      "evidence_ref": "WP11 recovery plus final full corpus audit: 423 missions, 0 errors, 0 TeamSpace blockers, exit 0; audit artifact /tmp/wp13-corpus-audit.json.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,7 +93,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP13"
     },
     "#3908": {
