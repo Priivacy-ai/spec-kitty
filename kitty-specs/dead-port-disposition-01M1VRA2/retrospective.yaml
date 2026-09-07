@@ -1,7 +1,7 @@
 schema_version: 1
 mission_id: 01M1VRA2VWSET7NAR2M5Z6TZ5M
 mission_slug: dead-port-disposition-01M1VRA2
-mission_number:
+mission_number: 198
 friendly_name: 'Dead-Port Disposition: RuntimeEventEmitter Seam Consolidation'
 mission_type: software-dev
 target_branch: feat/dead-port-disposition
