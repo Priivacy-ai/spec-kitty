@@ -49,7 +49,7 @@
       "wp": null
     },
     "#3900": {
-      "evidence_ref": "WP01 independent original G0/G1 RED retained; WP03/WP10 implement startup and preview purity; WP13 final matrix pending.",
+      "evidence_ref": "WP13 source acceptance: 10 preview/target cells plus prior WP10 public 7-cell contract; cold/stale previews write-free and healthy; commits f56047dc0,9ad122826.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP13"
     },
     "#3901": {
