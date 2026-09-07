@@ -121,7 +121,7 @@
       "wp": null
     },
     "#3911": {
-      "evidence_ref": "WP12 owns exact evidence-bound archive preservation gate and counterfactual tests; observed baseline gate failures remain pending, no waiver.",
+      "evidence_ref": "WP12 independent focused cycle2 approval d74cb9e1b76dd525a9c567acfc2b937f42e5ee92; 21 targeted passes, scanner mutant killed, 11 retained audits verified.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -129,8 +129,8 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
-      "wp": "WP12"
+      "verdict": "fixed",
+      "wp": "WP13"
     },
     "#3912": {
       "evidence_ref": "be5a58f55 integrated independently reviewed planning-root ancestry fix;10 focused plus406 adjacent passes and actual E2E lifecycle1 passed333.98s; original RED71a76f497 retained.",
