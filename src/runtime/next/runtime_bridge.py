@@ -192,7 +192,7 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
 )
-from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission
+from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
 from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
@@ -1611,9 +1611,10 @@ def _dn_bootstrap(
     try:
         snapshot = _engine_adapter._read_snapshot(run_dir)
         current_step_id = snapshot.issued_step_id
-        sync_emitter.seed_from_snapshot(snapshot)
     except Exception:
         current_step_id = None
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
 
     # FR-017: populate the runtime OperationalContext at the `next` decision
     # boundary via the extracted helper (keeps the bootstrap phase flat). The
@@ -2745,13 +2746,15 @@ def answer_decision_via_runtime(
         mission_type=mission_type,
     )
     try:
-        sync_emitter.seed_from_snapshot(_engine_adapter._read_snapshot(Path(run_ref.run_dir)))
+        snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
     except Exception as exc:
         logger.warning(
             "answer_decision_via_runtime: failed to seed emitter from snapshot for run %r: %s",
             run_ref.run_dir,
             exc,
         )
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
     answer_emitter: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)

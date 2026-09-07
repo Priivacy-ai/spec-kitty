@@ -35,9 +35,16 @@ implementation-agnostic:
 | Event Store | Filesystem (JSONL, frontmatter, meta.json) | Database, cloud event store |
 | Orchestration | Python modules (lifecycle engine, status) | Same — domain logic |
 | Agent Tool Connectors | In-tool (`spec-kitty implement`) | Async shell, SDK, remote API |
-| Doctrine | YAML artifacts in `src/doctrine/`; canonical skill packs in `src/doctrine/skills/`; deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
-| Charter | Compiled governance bundle in `.kittify/` | Same — governance artifacts |
+| Doctrine | Pack content in `packs/built-in/`; doctrine code + canonical skill packs in `src/charter/offering/` (incl. `src/charter/offering/skills/`); deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
+| Charter | Governance authority in `src/charter/` (absorbed the former `src/doctrine/` package at `src/charter/offering/`); compiled Charter Bundle in `.kittify/charter/` | Same — governance artifacts |
+| Glossary | Terminology / semantic-integrity pipeline + DRG glossary bridge in `src/glossary/` | Same — knowledge artifacts |
+| Runtime | Canonical mission control loop in `src/runtime/next/_internal_runtime/` | Same — domain logic |
+| Mission Runtime | Artifact-placement seam in `src/mission_runtime/` (PlacementSeam, resolver port, identity, lifecycle_phase) | Same — domain logic |
 | Kernel | Zero-dependency shared primitives in `src/kernel/` | Same — utility layer |
+
+> **Note:** Kernel, Glossary, Runtime, and Mission Runtime are layer packages in
+> the enforced import chain (`tests/architectural/test_layer_rules.py`), not
+> narrated Domain Containers — they have no matching `###` section below.
 
 Whether a module is in-process, a separate service, or a remote API is an
 implementation detail — the contracts between them remain stable regardless.
@@ -159,8 +166,10 @@ scope which artifacts apply to each execution phase within a mission.
 Consumed by Charter (compilation source and action-scoped intersection)
 and by Agent Tool Connectors (execution-time governance context). The Skills
 Installer (`specify_cli/skills/`) deploys canonical skill packs from
-`doctrine/skills/` into agent directories during `spec-kitty init`. Doctrine
-itself is standalone — it does not depend on any other container.
+`src/charter/offering/skills/` into agent directories during `spec-kitty init`.
+The doctrine code now lives under `src/charter/offering/` (the former top-level
+`src/doctrine/` package was absorbed there in the convergence; `src/doctrine.py`
+is a deprecation shim) — it depends on nothing except Kernel.
 
 ### Charter
 
@@ -266,15 +275,14 @@ flowchart TB
 | Orchestration | Event Store | ↔ read/write | Reads state for scheduling; writes lifecycle/execution events |
 | Dashboard | Event Store | ← read | WP status, mission progress, execution history |
 | Orchestration | Agent Tool Connectors | → | Work dispatch (WP prompt, context, constraints) |
-| Agent Tool Connectors | Doctrine | ← uses | Directive/tactic/paradigm context at execution time |
+| Agent Tool Connectors | Doctrine | ← uses | Directive/tactic/paradigm context at execution time (served through Charter's offering surface) |
 | Agent Tool Connectors | Charter | ← uses | Governance rules at execution time |
-| Charter | Doctrine | ← uses | Source material for governance compilation |
 
 ## Dependency Rules
 
 1. **Kernel is a root dependency** — zero-dependency shared primitives (`atomic_write`, etc.) consumed by `specify_cli`, `charter`, and `doctrine`. Nothing imports from Kernel except to use its utilities; Kernel imports nothing from them.
-2. **Doctrine is a root knowledge dependency** — consumed by Charter and Agent Tool Connectors; depends on nothing except Kernel.
-3. **Charter depends only on Doctrine and Kernel** — never on Kitty-core, Orchestration, or Event Store.
+2. **Doctrine ships inside Charter, not as a separate dependency peer** — the knowledge store lives at `src/charter/offering/` and depends on nothing except Kernel. Agent Tool Connectors still consume Doctrine content (directive/tactic/paradigm context) through Charter's offering surface at execution time.
+3. **Charter depends only on Kernel** — never on Kitty-core, Orchestration, or Event Store. (Doctrine's content is carried internally within Charter, not consumed as an external dependency.)
 4. **Event Store is a shared persistence boundary** — writers (Kitty-core, Orchestration) and readers (Dashboard, Orchestration) interact through interface contracts, never directly with each other through the store.
 5. **Dashboard has no write path** — strictly read-only against Event Store.
 6. **Agent Tool Connectors are leaf nodes** — they execute work and consume governance context; they do not write to other containers except through Orchestration (results/events flow back through Orchestration to Event Store).

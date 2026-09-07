@@ -48,7 +48,7 @@ A producer registers once at import tail, mirroring `status/adapters.py:364-365`
 if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
     register_runtime_emitter_factory(MyProducer.for_mission)
 ```
-The registered callable must accept `feature_dir`, `mission_slug`, `mission_type` as keywords and return an object satisfying the Protocol. It *should* also provide `seed_from_snapshot(snapshot)`; the bridge calls it inside a `try` and logs on failure.
+The registered callable must accept `feature_dir`, `mission_slug`, `mission_type` as keywords and return an object satisfying the Protocol. It *should* also provide `seed_from_snapshot(snapshot)`; the bridge tolerates its absence. Hook lookup and invocation failures are logged and ignored through `seed_runtime_emitter`; failed instrumentation must not erase a successfully read mission phase or block composition advancement.
 
 ## Test substitution contract
 
