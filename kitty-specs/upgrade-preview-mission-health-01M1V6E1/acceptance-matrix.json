@@ -2,7 +2,7 @@
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -108,10 +108,10 @@
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP13-integrated-preview-acceptance/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-07T17:06:30.491344+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
