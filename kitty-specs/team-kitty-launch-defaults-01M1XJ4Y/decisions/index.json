@@ -146,6 +146,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-09-07T09:52:35.599715Z",
+      "decision_id": "01M1XMHB8FWZJR23540JXM6817",
+      "final_answer": "Introduce [team_kitty] server_url as the only key; remove [sync].server_url outright, no alias and no deprecation period (only developers ever set it; sync is dead).",
+      "input_key": "target_config_key",
+      "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+      "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+      "opened_by": "cli",
+      "options": [
+        "Introduce [team_kitty] server_url; keep [sync].server_url as a read-only deprecated alias with a one-time notice",
+        "Keep [sync].server_url unchanged; no rename",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": true,
+      "question": "The configured server address today is config.toml [sync].server_url. Keep that key as-is, or introduce a Team Kitty-vocabulary key with [sync].server_url read as a deprecated alias?",
+      "rationale": null,
+      "resolved_at": "2026-09-07T09:53:54.778309Z",
+      "resolved_by": null,
+      "slot_key": "plan.config.target-key-name",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",

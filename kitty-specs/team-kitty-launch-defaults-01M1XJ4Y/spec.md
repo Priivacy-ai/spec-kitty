@@ -48,7 +48,8 @@ Canonical terms from [Context: Team Kitty and Zeitgeist](../../docs/context/team
 ## Bulk-edit declaration
 
 This mission retires the identifiers `SPEC_KITTY_ENABLE_SAAS_SYNC`,
-`SPEC_KITTY_SYNC_DISABLE`, `SPEC_KITTY_SYNC_MINIMAL_IMPORT`, the error code
+`SPEC_KITTY_SYNC_DISABLE`, `SPEC_KITTY_SYNC_MINIMAL_IMPORT`, the
+configuration table `[sync]` (`server_url`), the error code
 `OWNED_SYNC_UNSUPPORTED`, and the `sync_active` / `is_saas_sync_enabled`
 gate across the codebase, replacing them with authentication state and two
 explicitly named opt-outs. Per-category rules are captured in
@@ -157,8 +158,8 @@ opt-out in isolation.
 2. **Given** an authenticated machine, **When** `auth logout` runs, **Then**
    subsequent commands attempt no hosted request until `auth login`.
 3. **Given** the retired enable flag is present in the environment, **When**
-   any command runs, **Then** it has no effect and a one-time deprecation
-   notice names authentication as the switch.
+   any command runs, **Then** it has no effect; the CLI does not know the
+   name.
 4. **Given** the pre-review gate opt-out, **When** a work package moves to
    review, **Then** only the gate is skipped and nothing hosted changes.
 
@@ -209,7 +210,7 @@ the tracker command group.
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | Packaged hosted default | As a person on a launch build, I want sign-in and capability minting to target the packaged hosted address when nothing is configured, so that no setup step precedes first use. | High | Approved |
-| FR-002 | Target precedence | As a developer or self-hoster, I want the environment override to win over the configured address, and the configured address to win over the packaged default, so that existing setups keep their target. | High | Approved |
+| FR-002 | Target precedence | As a developer or self-hoster, I want the environment override to win over the configured address (`config.toml [team_kitty] server_url`), and the configured address to win over the packaged default, so that existing setups keep their target once re-keyed. | High | Approved |
 | FR-003 | Disagreement fails closed | As an operator, I want an environment override that disagrees with the configured address to fail closed naming both, so that a wrong target is never chosen silently. | High | Approved |
 | FR-004 | Target visibility | As a user, I want `auth login` and `auth status` to show the resolved target and its source, so that I can tell where hosted traffic goes. | High | Approved |
 | FR-005 | One-time sign-in hint | As a person without a session, I want ordinary interactive commands to complete and show one non-blocking sign-in hint once per machine, so that I am informed without being interrupted. | High | Approved |
@@ -219,7 +220,7 @@ the tracker command group.
 | FR-009 | Enable flag deleted | As an operator, I want hosted features always available without an enable flag, with sign-in guidance when logged out, so that "not enabled" never appears. | High | Approved |
 | FR-010 | Authentication is the switch | As an operator, I want no hosted request of any kind, including moments and readiness probes, whenever I hold no session and no service token, and `auth logout` to restore that state, so that air-gapped and CI use needs no extra switch. | High | Approved |
 | FR-011 | Named opt-outs | As an orchestrator, I want the pre-review gate skip and the moment-handler import gate to have their own explicitly named switches, so that neither borrows a retired name. | Medium | Approved |
-| FR-012 | Deprecation notice | As a user with the retired names in my environment, I want them ignored with a one-time notice naming authentication as the switch, so that migration is discoverable. | Medium | Approved |
+| FR-012 | Retired names unknown | As a maintainer, I want the retired names and the `[sync]` configuration table to be unknown to the CLI, with no alias and no deprecation period, so that the dead vocabulary cannot be revived by configuration. | Medium | Approved |
 | FR-013 | Logged out degrades | As a person whose session lapsed or membership ended, I want local mission commands to complete and hosted-only commands to fail with sign-in guidance, so that I am never wedged. | High | Approved |
 | FR-014 | Provisioning follows | As an upgrader, I want the environment-file provisioning to stop seeding retired names, so that new machines carry no dead configuration. | Medium | Approved |
 
