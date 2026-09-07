@@ -327,6 +327,20 @@ def test_registry_rows_never_declare_a_dedicated_workflow_file() -> None:
 # ---------------------------------------------------------------------------
 # T044(b): the realization stays within GitHub's 20-reusable-workflows-per-
 # caller ceiling — NOT ~40 separate module-*.yml files.
+#
+# Folds in the intent of the retired
+# ``test_module_count_would_breach_ceiling_if_realized_one_file_per_module``,
+# which asserted ``assert True`` inside an ``if len(modules) > ceiling:``
+# guard — a tautology that passed unconditionally regardless of the actual
+# module count, since the branch not taken asserted nothing at all. The
+# module count is data-driven (currently 17, below the declared ceiling of
+# 20), so asserting "would breach the ceiling" outright would be a false
+# claim, not a real bound. What IS a genuine, checkable property is that the
+# module set stays large enough for the "no per-module workflow file"
+# anti-pattern check below to be worth running at all — below that floor,
+# the ceiling could never be at risk regardless of realization strategy, and
+# the check would be vacuous for a different reason (too few rows to ever
+# fail it).
 # ---------------------------------------------------------------------------
 def test_reusable_workflow_ceiling_respected() -> None:
     registry = _load_registry()
@@ -340,6 +354,15 @@ def test_reusable_workflow_ceiling_respected() -> None:
     )
 
     modules = _modules(registry)
+    non_vacuity_floor = ceiling // 2
+    assert len(modules) > non_vacuity_floor, (
+        f"module count ({len(modules)}) has shrunk to <= half the declared ceiling "
+        f"({ceiling}) -- the one-file-per-module anti-pattern check below is no longer "
+        "meaningful (there are too few modules for a per-module-file realization to ever "
+        "threaten the ceiling); revisit this test's premise instead of letting it pass "
+        "vacuously"
+    )
+
     per_module_workflow_files = [
         f"module-{row.get('module')}.yml" for row in modules if (_WORKFLOWS_DIR / f"module-{row.get('module')}.yml").exists()
     ]
@@ -347,22 +370,3 @@ def test_reusable_workflow_ceiling_respected() -> None:
         "one-workflow-file-per-module anti-pattern detected (breaches the ceiling for any "
         f"non-trivial module count): {per_module_workflow_files}"
     )
-
-
-def test_module_count_would_breach_ceiling_if_realized_one_file_per_module() -> None:
-    """Sanity: the module set is large enough that the ceiling constraint is real.
-
-    If this ever shrinks to <=20 the matrix-over-registry design is still
-    correct, but the "not ~40 files" framing loses its bite — this is a
-    documentation/non-vacuity check, not a hard failure gate, so it only
-    warns via a soft assertion tied to the DoD's own framing.
-    """
-    registry = _load_registry()
-    modules = _modules(registry)
-    ceiling = registry.get("reusable_workflow_ceiling", 20)
-    assert len(modules) >= 1
-    # The whole point of the matrix realization is that module count is
-    # allowed to exceed the ceiling without needing one workflow file each.
-    if len(modules) > ceiling:
-        # Expected/allowed — this is exactly the case the design defends against.
-        assert True
