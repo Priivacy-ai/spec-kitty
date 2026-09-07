@@ -52,6 +52,7 @@ import ulid as _ulid_mod
 from pydantic import ValidationError
 
 from kernel.clock import now_utc, now_utc_iso, timedelta
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 from specify_cli.workspace import canonicalize_feature_dir
@@ -343,14 +344,18 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
     from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
     from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root  # noqa: PLC0415
 
-    try:
-        primary_root = resolve_canonical_root(planning_feature_dir)
-    except WorkspaceRootNotFound:
-        pass  # Non-repository/bootstrap callers already supply their planning dir.
-    else:
-        planning_feature_dir = resolve_planning_read_dir(
-            primary_root, planning_feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+    # Preserve the plain door's explicit ad-hoc dirs and primary bootstrap
+    # surfaces. Only a kitty-specs dir in another checkout needs re-anchoring.
+    if planning_feature_dir.parent.name == KITTY_SPECS_DIR:
+        try:
+            primary_root = resolve_canonical_root(planning_feature_dir)
+        except WorkspaceRootNotFound:
+            pass
+        else:
+            if planning_feature_dir.parent.parent.resolve() != primary_root.resolve():
+                planning_feature_dir = resolve_planning_read_dir(
+                    primary_root, planning_feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+                )
     wp_file = _find_wp_file(planning_feature_dir, wp_id)
     if wp_file is None:
         return ()
