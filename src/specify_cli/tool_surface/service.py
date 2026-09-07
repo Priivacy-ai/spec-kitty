@@ -89,17 +89,19 @@ def build_registry(tool_keys: Sequence[str]) -> ToolSurfaceRegistry:
     return SurfaceProviderRegistry.build_registry(tool_keys)
 
 
-def build_plans_for_bundles(project_root: Path) -> list[SurfacePlan]:
+def build_plans_for_bundles(project_root: Path, *, tool_keys: Sequence[str] | None = None) -> list[SurfacePlan]:
     """Build the canonical surface plans consumed by plugin bundle projection.
 
-    Used by :class:`PluginBundleProvider` during ``--fix`` repair. Excludes the
-    plugin-manifest kind itself (a bundle never contains another bundle) and the
-    session-presence kinds (project-install surfaces, not bundle components).
+    Uses the existing registry and builder without additional kind filtering.
+
+    Omitted or None tool keys use the representative bundle sources. Explicit
+    keys, including an empty sequence, retain the builder's order and duplicates.
     """
+    tools = _BUNDLE_SOURCE_TOOL_KEYS if tool_keys is None else tuple(tool_keys)
     providers = build_providers()
-    registry = build_registry(_BUNDLE_SOURCE_TOOL_KEYS)
+    registry = build_registry(tools)
     builder = SurfacePlanBuilder(registry, providers)
-    return builder.build(_BUNDLE_SOURCE_TOOL_KEYS, project_root)
+    return builder.build(tools, project_root)
 
 
 def build_docs_linter() -> DocsLinter:

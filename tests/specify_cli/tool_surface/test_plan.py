@@ -27,8 +27,58 @@ def test_bundle_plans_respect_configured_tools(tmp_path: Path) -> None:
     from specify_cli.tool_surface.service import build_plans_for_bundles
 
     configured_tools = ("gemini", "codex")
-    plans = build_plans_for_bundles(tmp_path)
+    plans = build_plans_for_bundles(tmp_path, tool_keys=configured_tools)
     assert tuple(plan.tool_key for plan in plans) == configured_tools
+
+
+@pytest.mark.parametrize("tool_keys", [None, ("gemini", "codex"), (), ["codex", "gemini", "codex"]])
+def test_bundle_plans_match_real_assembly_without_writes(tmp_path: Path, canonical_home: None, tool_keys: Sequence[str] | None) -> None:
+    from dataclasses import replace
+
+    from specify_cli.tool_surface.service import build_plans_for_bundles, build_providers, build_registry
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    tools = ("codex", "claude", "copilot", "vibe") if tool_keys is None else tuple(tool_keys)
+    (tmp_path / "user-notes.txt").write_text("Preserve user bytes.\n", encoding="utf-8")
+    roots = {"project": tmp_path, "user-home": Path.home()}
+    before = snapshot(roots)
+    plans = build_plans_for_bundles(tmp_path, tool_keys=tool_keys)
+    assert_unchanged(before, snapshot(roots))
+    expected = SurfacePlanBuilder(build_registry(tools), build_providers()).build(tools, tmp_path)
+    assert tuple(plan.tool_key for plan in plans) == tools
+    assert [replace(plan, computed_at="") for plan in plans] == [replace(plan, computed_at="") for plan in expected]
+    if tools:
+        assert all(plan.definitions and plan.instances and not plan.diagnostics for plan in plans)
+        assert all(instance.owner == plan.tool_key for plan in plans for instance in plan.instances)
+    else:
+        assert plans == []
+    if tool_keys is None:
+        defaults = build_plans_for_bundles(tmp_path)
+        assert [replace(plan, computed_at="") for plan in defaults] == [replace(plan, computed_at="") for plan in plans]
+    assert_unchanged(before, snapshot(roots))
+
+
+def test_bundle_plans_retain_healthy_configured_surface(tmp_path: Path, canonical_home: None) -> None:
+    from importlib.metadata import version
+
+    from specify_cli.session_presence.content import SessionPresenceContent
+    from specify_cli.tool_surface.service import build_plans_for_bundles, build_providers
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    target = tmp_path / "GEMINI.md"
+    target.write_text(SessionPresenceContent(version("spec-kitty-cli"), "project", "healthy", None).render(), encoding="utf-8")
+    roots = {"project": tmp_path, "user-home": Path.home()}
+    before = snapshot(roots)
+    plans = build_plans_for_bundles(tmp_path, tool_keys=("gemini",))
+    assert len(plans) == 1 and plans[0].tool_key == "gemini"
+    instances = [instance for instance in plans[0].instances if instance.path == target]
+    assert len(instances) == 1
+    instance = instances[0]
+    assert instance.exists and instance.definition.kind == ToolSurfaceKind.CONTEXT_FILE
+    provider = next(provider for provider in build_providers() if provider.can_handle(instance.definition))
+    status = provider.probe(instance)
+    assert status.state == "present" and not status.findings
+    assert_unchanged(before, snapshot(roots))
 
 
 def _definition(kind: ToolSurfaceKind, provider_key: str) -> SurfaceDefinition:
