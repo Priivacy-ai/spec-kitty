@@ -25,6 +25,7 @@
   "purpose_context": "Resolve Priivacy-ai/spec-kitty issues #3900, #3901, #3902, and #3903 through a full specified, planned, independently reviewed mission. Preserve user-owned assets, JSON compatibility, historical evidence, and separate mission-state repair consent. Track tooling friction outside the repository.",
   "purpose_tldr": "Fix upgrade preview side effects, incomplete repair plans, downgrade verdict parity, and four mission-state blockers.",
   "slug": "upgrade-preview-mission-health-01M1V6E1",
+  "status_phase": "1",
   "target_branch": "codex/upgrade-preview-mission-health",
   "topology": "coord",
   "vcs": "git",
