@@ -227,6 +227,33 @@ def test_activation_errors_and_surface_drift_feed_effective_success() -> None:
     assert result.exit_code == 1
 
 
+def test_provisioning_refusal_prevents_dependent_writes_and_commit(tmp_path: Path) -> None:
+    """A failed prerequisite cannot fall through to the surface writer."""
+    output = tmp_path / "surface.txt"
+    commits: list[str] = []
+
+    def repair_surface() -> bool:
+        output.write_text("dependent output\n")
+        return False
+
+    def commit() -> bool:
+        commits.append("commit")
+        return True
+
+    outcome = finalize_upgrade(
+        UpgradeOutcome(result=_synthesized_result()),
+        provision_activations=lambda: ["Provisioning inputs changed"],
+        run_surface_repair=repair_surface,
+        offer_repair=lambda: RepairOutcome(pending=True),
+        commit_churn=commit,
+        should_commit=True,
+    )
+    assert not output.exists()
+    assert commits == []
+    assert outcome.activation_errors == ["Provisioning inputs changed"]
+    assert outcome.exit_code == 1
+
+
 # ---------------------------------------------------------------------------
 # One-commit property + repair exclusion (D-4, #2491/SC-008) — filesystem
 # ---------------------------------------------------------------------------

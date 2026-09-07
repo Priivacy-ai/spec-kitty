@@ -48,7 +48,7 @@ def test_project_json_downgrade_refuses_without_dry_run(tmp_path: Path, target: 
 
 @pytest.mark.parametrize(
     "hidden",
-    [("--agent-check",), ("--agent-choice", "skip"), ("--agent-latest", "9.0.0")],
+    [("--agent-check",), ("--agent-choice", "not_now", "--agent-latest", "9.0.0"), ("--agent-latest", "9.0.0")],
     ids=["check", "choice", "latest"],
 )
 def test_implicit_project_preview_rejects_hidden_operations(tmp_path: Path, hidden: tuple[str, ...]) -> None:
