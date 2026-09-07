@@ -190,7 +190,7 @@ for agent_root, subdir in agent_dirs:
 docs/adr/         # ADRs (governance decision records)
 docs/architecture/ # Technical specs and C4 arch docs
 src/kernel/       # Foundation primitives (clock, paths, atomic, git_topology) — root layer
-src/charter/      # Governance/doctrine authority; absorbed former src/doctrine/ at src/charter/offering/
+src/charter/      # Governance authority; absorbed former src/doctrine/ at src/charter/offering/
 src/glossary/     # Glossary semantic-integrity pipeline + DRG glossary bridge
 src/mission_runtime/ # Artifact-placement seam (PlacementSeam, resolver port, identity, lifecycle_phase)
 src/runtime/      # Canonical mission control loop — runtime/next/_internal_runtime/
@@ -241,7 +241,7 @@ Both make targets set `PWHEADLESS=1` themselves and need the synced dev environm
 **Computing your blast radius — run this in addition to `make test-fast`:**
 
 1. For every source module your diff touches, run its own test file(s). The test tree mirrors the source tree (`src/specify_cli/status/store.py` → `tests/status/`), and when the mirror is not obvious, find the tests that exercise the module: `grep -rl "<module_name>" tests/ --include="*.py"`.
-2. Plus the full test directory of each owning subsystem: touching `src/charter/offering/**` ⇒ `tests/charter/` (and `tests/doctrine/`).
+2. Plus the full test directory of each owning subsystem: touching `src/charter/offering/**` ⇒ both `tests/charter/` and `tests/doctrine/` — the doctrine test tree did not move when the package absorbed `src/doctrine/` into `src/charter/offering/`, so both directories still cover that code and both count as "each owning subsystem."
 3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/`.
 
 Record the exact commands and passed/failed counts under the PR's *Tests run* section. A failure you did not cause and cannot explain is not yours to chase — classify it via the baseline-red gotcha below and note it in the PR.
@@ -300,7 +300,7 @@ Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require 
 
 **New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
 
-**Pre-push: run the terminology guard when touching `src/charter/offering/` or user-facing prose.** The heavyweight GitHub-hosted test matrix was retired in the convergence; the full suite now runs externally on Blacksmith (`ci.yml` → the private planning repo's `bin/ci-run.sh`), so a forbidden-term regression can pass a local `src/charter/offering/`-or-prose run and only surface at CI. Before pushing such changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it gates exactly two retired terms — canonical `status commit`, never `ceremony` or `status-writing`. It does **not** check `Mission` vs `feature` — that half of the Terminology Canon is review-enforced, not gated. The full `tests/architectural/` suite is the complete safety net.
+**Pre-push: run the terminology guard when touching `src/charter/offering/` or user-facing prose.** The heavyweight GitHub-hosted test matrix was retired in The Convergence (PR #3881; see [`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)); the full suite now runs externally on Blacksmith (`ci.yml` → the private planning repo's `bin/ci-run.sh`), so a forbidden-term regression can pass a local `src/charter/offering/`-or-prose run and only surface at CI. Before pushing such changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it gates exactly two retired terms — canonical `status commit`, never `ceremony` or `status-writing`. It does **not** check `Mission` vs `feature` — that half of the Terminology Canon is review-enforced, not gated. The full `tests/architectural/` suite is the complete safety net.
 
 ## Code Hygiene Expectations (SonarCloud retired)
 
