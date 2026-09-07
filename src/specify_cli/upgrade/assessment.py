@@ -16,7 +16,7 @@ from charter.activation.compiler import _PreparedMissionTypeActivations, prepare
 
 from specify_cli.core.agent_config import load_agent_config
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
-from specify_cli.skills.command_installer import PreparedCommands
+from specify_cli.skills.command_installer import PreparedCommands, SUPPORTED_AGENTS
 from specify_cli.skills.installer import SkillInstallationAssessment, assess_skill_installation
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.tool_surface.enums import ToolSurfaceKind
@@ -99,6 +99,8 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
     """Read actual configured inventory and retain each owner's prepared bytes."""
     root = OperationRoot("project", "project", project_path.resolve())
     agents = tuple(load_agent_config(root.path).available)
+    slash_command_agents = tuple(agent for agent in agents if agent in AGENT_COMMAND_CONFIG)
+    command_skill_agents = tuple(agent for agent in agents if agent in SUPPORTED_AGENTS)
     provisioning = prepare_mission_type_activations(root.path)
     providers = build_providers()
     builder = SurfacePlanBuilder(build_registry((*agents, PLUGIN_BUNDLE_TOOL_KEY)), providers)
@@ -108,13 +110,15 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
         agents,
         runtime=True,
         commands=True,
-        command_agent_keys=[agent for agent in agents if agent in AGENT_COMMAND_CONFIG],
+        command_agent_keys=slash_command_agents,
     )
     managed = builder.assess(
         agents, AssessmentInputs(root, projected=installation, consent=consent), kinds=(ToolSurfaceKind.DOCTRINE_SKILL,)
     )
     commands = builder.assess(
-        agents, AssessmentInputs(root, projected=provisioning, consent=consent), kinds=(ToolSurfaceKind.COMMAND_SKILL,)
+        command_skill_agents,
+        AssessmentInputs(root, projected=provisioning, consent=consent),
+        kinds=(ToolSurfaceKind.COMMAND_SKILL,),
     ).assessments
     # Slash-command preparation is already in the paired coordinated global
     # batch. Do not assess a second cold global writer for those definitions.
