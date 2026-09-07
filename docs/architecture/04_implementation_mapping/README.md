@@ -216,7 +216,7 @@ Orchestration lifecycle event triggers:
 | **Kanban View** | `dashboard/` | `server.py`, `scanner.py`, `templates/`, `static/` |
 | **Doctrine Catalog Loader** | `src/charter/offering/service.py` | `DoctrineService` — lazy aggregation facade |
 | **Schema Validation Gate** | `src/charter/offering/*/validation.py`, `src/charter/offering/schemas/` | JSON Schema + Pydantic validation |
-| **Glossary Hook Coordinator** | `src/charter/offering/missions/glossary_hook.py`, `specify_cli/glossary/` | Glossary checks during mission execution |
+| **Glossary Hook Coordinator** | `src/charter/offering/missions/glossary_hook.py`, `src/glossary/` | Glossary checks during mission execution |
 | **Charter Interview Flow** | `charter/activation/interview.py` | Guided Q&A for governance capture |
 | **Charter Compiler** | `charter/activation/compiler.py` | Doctrine→charter bundle compilation |
 | **`Action Context Resolver`** | `charter/activation/context.py`, `charter/activation/resolver.py`, `charter/activation/reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
@@ -385,7 +385,7 @@ update and a valid fixture update.
 | Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/activation/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (feature 054) |
 | Per-action guidelines extraction from templates | ✅ Complete | `packs/built-in/missions/software-dev/actions/*/guidelines.md` (feature 054) |
 | ArtifactKind canonical enum | ✅ Complete | `src/charter/offering/artifact_kinds.py` (feature 054, WP09-WP10) |
-| MissionRepository package relocation | ✅ Complete | `packs/built-in/missions/` is the authoritative source for all shipped mission assets (YAML, mission-step prompt templates, content templates, expected-artifacts); `src/charter/offering/missions/` holds only the Python repository/loader code that reads them. `src/specify_cli/missions/` retains only Python code modules (`primitives.py`, `glossary_hook.py`, `.contextive.yml`) for the glossary subsystem per ADR 2026-03-25-1. |
+| MissionRepository package relocation | ✅ Complete | `packs/built-in/missions/` is the authoritative source for all shipped mission assets (YAML, mission-step prompt templates, content templates, expected-artifacts); `src/charter/offering/missions/` holds only the Python repository/loader code that reads them. `src/specify_cli/missions/` survives only as a stale legacy asset tree the resolver deliberately no longer falls back to (`src/kernel/paths.py`, DR-2); its Python mission code moved to `src/charter/offering/missions/` (`primitives.py`, `glossary_hook.py`). |
 | Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 55 canonical skill packs in `src/charter/offering/skills/`. Deployed to agent directories during `spec-kitty init` (feature 055). |
 | Agent Profile shaping connector behavior | ✅ Complete | Models, repository, schema, profile-aware resolution wired in `resolver.py`; workflow profile injection at execution boundary enabled (feature 055). |
 | `kernel` zero-dependency floor (`paths`, `glossary_runner`, `glossary_types`) | ✅ Complete | `src/kernel/` — `paths.py`, `glossary_runner.py`, `glossary_types.py`. Backward-compat re-export shim at `specify_cli/runtime/home.py`. DIV-5 (glossary runner boundary) resolved. ADR: `2026-03-25-1-glossary-type-ownership`. |
