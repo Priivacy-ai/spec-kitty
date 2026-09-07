@@ -210,7 +210,13 @@ class AgentProfilesProvider:
             current = _input_states(prepared.input_roots)
             for path, state in prepared.destinations:
                 confined_path(path, assessment.root.path)
-                if observe_node(path) != state:
+                observed = observe_node(path)
+                # Sibling owners may create files in a retained parent during
+                # the same guarded composition. Directory mtime is not an
+                # ownership or confinement identity; kind/mode still are.
+                if state.kind == "directory" and observed.kind == "directory":
+                    observed = replace(observed, mtime_ns=state.mtime_ns)
+                if observed != state:
                     raise ValueError(f"Profile destination changed: {path}")
             if current != prepared.input_states:
                 raise ValueError("Profile source/config input root changed")
