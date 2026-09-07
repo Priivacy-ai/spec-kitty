@@ -486,7 +486,8 @@ def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, 
     coord = coord_feature_dir(repo, _MISSION, meta["mid8"])
     subprocess.run(
         ["git", "worktree", "add", "-q", "-b", coord_branch, str(coord.parents[1]), "main"],
-        cwd=repo, check=True,
+        cwd=repo,
+        check=True,
     )
     coord.mkdir(parents=True)
     _seed_wp_event(coord, "WP01", "in_progress")
