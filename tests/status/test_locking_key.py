@@ -198,3 +198,41 @@ def test_unbounded_default_is_preserved(repo: Path) -> None:
     import inspect
 
     assert inspect.signature(feature_status_lock).parameters["timeout"].default == -1
+
+
+def test_annotation_waits_for_transition_directory_lock(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Annotations cannot bypass a transition holding the same mission's lock."""
+    from specify_cli.status.models import WPInnerStateDelta
+
+    fd = _mission_dir(repo, "foo-01AAAAAA", "foo")
+    entered = threading.Event()
+    completed = threading.Event()
+    errors: list[BaseException] = []
+    original = emit_module.feature_status_lock
+
+    def _recording(root: Path, key: str, **kwargs: Any) -> Any:
+        entered.set()
+        return original(root, key, **kwargs)
+
+    monkeypatch.setattr(emit_module, "feature_status_lock", _recording)
+
+    def _write() -> None:
+        try:
+            emit_module.emit_inner_state_changed(
+                fd, "WP01", WPInnerStateDelta(note="annotation"), actor="test", mission_slug="foo", repo_root=repo
+            )
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            completed.set()
+
+    thread = threading.Thread(target=_write)
+    with feature_status_lock(repo, fd.name):
+        thread.start()
+        assert entered.wait(timeout=5)
+        wrote_inside_lock = completed.wait(timeout=0.3)
+    thread.join(timeout=5)
+    assert not errors
+    assert not thread.is_alive()
+    assert not wrote_inside_lock, "annotation wrote while the transition lock was held"
+    assert (fd / "status.events.jsonl").exists()
