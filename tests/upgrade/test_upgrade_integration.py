@@ -43,6 +43,30 @@ from specify_cli.upgrade.runner import UpgradeResult
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+
+@pytest.mark.parametrize("current", ["unknown", "3.2.7rc1"])
+@pytest.mark.parametrize("target", ["", "not-a-version", "3.2.7\\x1b[31m"])
+def test_target_validator_refuses_malformed_before_selection(current: str, target: str) -> None:
+    from specify_cli.upgrade.runner import validate_upgrade_target
+
+    error = validate_upgrade_target(current, target)
+    assert error is not None
+    assert error.startswith("Invalid upgrade target version: ")
+    assert all(character.isprintable() for character in error)
+
+
+@pytest.mark.parametrize("target", ["3.2.7rc1", "3.2.7rc2", "3.2.7", "3.2.8", "99.0"])
+def test_target_validator_keeps_equal_and_higher_eligibility(target: str) -> None:
+    from specify_cli.upgrade.runner import validate_upgrade_target
+
+    assert validate_upgrade_target("3.2.7rc1", target) is None
+
+
+def test_target_validator_diagnoses_malformed_known_current() -> None:
+    from specify_cli.upgrade.runner import validate_upgrade_target
+
+    assert validate_upgrade_target("broken", "3.2.7rc1") == "Invalid project metadata version: broken"
+
 _test_app = typer.Typer(add_completion=False)
 _test_app.command()(upgrade)
 _runner = CliRunner()
