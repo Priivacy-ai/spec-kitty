@@ -18,7 +18,7 @@
   "flattened": false,
   "friendly_name": "Upgrade preview reliability and mission corpus health",
   "mission_id": "01M1V6E1A1Z8H2Y360MJHVKX5B",
-  "mission_number": null,
+  "mission_number": 199,
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "software-dev",
   "pr_bound": true,
