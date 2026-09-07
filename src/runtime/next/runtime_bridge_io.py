@@ -151,6 +151,12 @@ class _FeatureRunEntry(TypedDict, total=False):
     mission_slug: str
 
 
+class RunIdentityMigrationRequired(MissionRuntimeError):
+    """A legacy run has no identity proving that it belongs to this mission."""
+
+    error_code = "RUN_IDENTITY_MIGRATION_REQUIRED"
+
+
 class RunStateMissing(MissionRuntimeError):
     """A live ``feature-runs.json`` entry points at a run whose ``state.json`` is gone.
 
@@ -241,6 +247,29 @@ def _load_run_index(repo_root: Path) -> tuple[dict[str, _FeatureRunEntry], bool]
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     return _canonicalize_run_index(_rb._load_feature_runs(repo_root))
+
+
+def _entry_for_mission(
+    index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None
+) -> _FeatureRunEntry | None:
+    """Resolve identity without treating an unbound legacy run as absent.
+
+    Identity backfill updates mission metadata, not the runtime index. A
+    no-ID entry cannot distinguish that upgrade from reuse of the same slug,
+    so require explicit ownership repair instead of restarting or adopting it.
+    """
+    entry = index.get(run_index_key(mission_slug, mission_id))
+    if entry is None and mission_id:
+        for candidate in index.values():
+            if not candidate.get("mission_id") and candidate.get("mission_slug") == mission_slug:
+                raise RunIdentityMigrationRequired(
+                    f"Legacy run {candidate['run_id']!r} for mission {mission_slug!r} has no mission_id, "
+                    f"but mission metadata now identifies {mission_id!r}. Verify ownership before resuming: "
+                    f"in .kittify/runtime/{_FEATURE_RUNS_FILE}, move the verified run entry to key "
+                    f"{mission_id!r} and set its mission_id to that value. If it belongs to a different "
+                    "mission, preserve it under that mission's verified identity. No new run was started."
+                )
+    return entry
 
 
 def _require_run_state(entry: _FeatureRunEntry, *, mission_slug: str, mission_id: str | None) -> Path:
@@ -650,7 +679,7 @@ def _existing_run_ref(
 
     mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
     index, _rekeyed = _load_run_index(repo_root)
-    entry = index.get(run_index_key(mission_slug, mission_id))
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if entry is None:
         return None
     _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id)
@@ -725,7 +754,7 @@ def get_or_start_run(
     index, rekeyed = _load_run_index(repo_root)
     index_key = run_index_key(mission_slug, resolved_mission_id)
 
-    entry = index.get(index_key)
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
     if entry is not None:
         _require_run_state(entry, mission_slug=mission_slug, mission_id=resolved_mission_id)
         if rekeyed:
@@ -791,7 +820,7 @@ def _resolve_run_dir_for_mission(
 
     mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
     index, _rekeyed = _load_run_index(repo_root)
-    entry = index.get(run_index_key(mission_slug, mission_id))
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if not entry:
         return None
     run_dir_raw = entry.get("run_dir")
