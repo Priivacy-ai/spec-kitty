@@ -31,6 +31,7 @@ def test_migrate_windows_moved_output(tmp_path, monkeypatch):
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
     monkeypatch.setenv("USERPROFILE", str(tmp_path / "User"))
     monkeypatch.setenv("HOME", str(tmp_path / "User"))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "LocalAppData" / "spec-kitty"))
 
     # Create a legacy ~/.spec-kitty tree with content
     legacy = tmp_path / "User" / ".spec-kitty"
@@ -62,6 +63,7 @@ def test_migrate_windows_quarantined_output(tmp_path, monkeypatch):
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
     monkeypatch.setenv("USERPROFILE", str(tmp_path / "User"))
     monkeypatch.setenv("HOME", str(tmp_path / "User"))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "LocalAppData" / "spec-kitty"))
 
     # Create legacy tree
     legacy = tmp_path / "User" / ".spec-kitty"

@@ -317,9 +317,7 @@ class AssetPreparation:
         if dest_state.kind not in {"directory", "absent"}:
             self.preserve(destination, "Unproven asset tree replacement")
             return
-        # Package directory modes are not portable (notably through pipx on Windows).
-        # Destination parents must remain traversable and writable while children land.
-        self.asset(destination, None, 0o755, managed_tree=managed_tree)
+        self.asset(destination, None, source_state.mode or 0o755, managed_tree=managed_tree)
         for child in sorted(source.iterdir()):
             state = self.observe(child)
             target = destination / child.name
