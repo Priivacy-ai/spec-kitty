@@ -73,7 +73,7 @@
       "wp": "WP13"
     },
     "#3902": {
-      "evidence_ref": "WP01 independently reproduced ALLOW for lower target; WP10 semantic parity and WP13 explicit metadata target matrix pending.",
+      "evidence_ref": "WP10 target contract and WP13 lower/equal/higher/malformed full-plan cells passed; legacy downgrade/malformed cells passed with pinned schema and exits.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP13"
     },
     "#3903": {
