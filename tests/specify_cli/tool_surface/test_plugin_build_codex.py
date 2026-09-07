@@ -24,6 +24,34 @@ from specify_cli.tool_surface.bundles.codex import CodexBundleProjector
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+@pytest.mark.parametrize("target", ["codex", "claude"])
+def test_explicit_build_assessment_exact_full_delta(tmp_path: Path, target: str) -> None:
+    from specify_cli.tool_surface.bundles.claude import ClaudeBundleProjector
+    from specify_cli.tool_surface.bundles.projection import apply_staging
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    projector = CodexBundleProjector(tmp_path / "dist") if target == "codex" else ClaudeBundleProjector(tmp_path / "dist")
+    before = snapshot({"staging": tmp_path, "home": Path.home()})
+    assessment = projector.prepare(ApplyConsent(automatic=True))
+    assert assessment.complete and assessment.effects, assessment.diagnostics
+    assert_unchanged(before, snapshot({"staging": tmp_path, "home": Path.home()}))
+    result = apply_staging(assessment, assessment.consent)
+    assert result.outcome == "applied", result
+    actual = net_delta(before, snapshot({"staging": tmp_path, "home": Path.home()}))
+    assert {(e.root.root_id, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in assessment.effects} == {
+        (e.root, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in actual}
+    assert any(e.path.endswith("marketplace.json") for e in assessment.effects)
+    if target == "claude":
+        assert any(e.path.endswith("bin/spec-kitty-wrapper") and e.after.mode == 0o700 for e in assessment.effects)
+        assert any(e.path == "dist/marketplace.json" for e in assessment.effects)
+    settled = snapshot({"staging": tmp_path, "home": Path.home()})
+    repeated = projector.prepare(ApplyConsent(automatic=True))
+    assert repeated.complete and not repeated.effects, repeated.diagnostics
+    assert apply_staging(repeated, repeated.consent).outcome == "applied"
+    assert_unchanged(settled, snapshot({"staging": tmp_path, "home": Path.home()}))
+
+
 def test_full_codex_build_preserves_all_node_mtimes(tmp_path: Path) -> None:
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
@@ -411,9 +439,8 @@ class TestMcpCompanion:
     ) -> None:
         """Present MCP source: companion copied and ``mcpServers`` pointer set.
 
-        Drives the two MCP-aware units directly (``_copy_mcp_if_present`` then
-        ``_generate_plugin_json``) so the doctrine-root monkeypatch only
-        affects the MCP companion lookup and not the unrelated skill renderer.
+        Drives the public build boundary, including canonical skill preparation,
+        so the manifest pointer is checked against the actually staged companion.
         """
         import charter.offering as doctrine  # shim retired; code reads charter.offering.__file__
 
@@ -429,9 +456,7 @@ class TestMcpCompanion:
         )
 
         projector = CodexBundleProjector(tmp_path / "dist")
-        projector.bundle_dir.mkdir(parents=True, exist_ok=True)
-        projector._copy_mcp_if_present()
-        projector._generate_plugin_json("3.2.0")
+        projector.build(skip_validate=True)
 
         staged = projector.bundle_dir / ".mcp.json"
         assert staged.is_file(), ".mcp.json must be staged when a source is present"

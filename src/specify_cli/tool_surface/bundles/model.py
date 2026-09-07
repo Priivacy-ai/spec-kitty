@@ -12,6 +12,7 @@ from pathlib import Path
 
 from ..enums import ToolSurfaceKind
 from ..findings import SurfaceFinding
+from ..operations import ApplyConsent, FileState, OperationRoot, OwnerAssessment
 
 # Stable distribution-target keys. These are inert label values used to tag a
 # projected bundle; they never name an install/publish channel.
@@ -27,6 +28,68 @@ class BundleEntry:
     surface_kind: ToolSurfaceKind
     source_path: Path
     bundle_relative_path: str
+    content: bytes | None = None
+    mode: int = 0o644
+    logical_owners: tuple[str, ...] = ()
+    surface_ids: tuple[str, ...] = ()
+    sources: tuple[Path, ...] = ()
+    source_root: Path | None = None
+    retained: tuple[tuple[Path, bytes, int], ...] = ()
+    claims: tuple[tuple[Path, str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class BundleObservation:
+    """An exact no-follow observation, optionally including directory members."""
+
+    path: Path
+    state: FileState
+    device: int | None
+    inode: int | None
+    children: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
+class StagedFile:
+    """One retained bundle output, including supporting files and manifests."""
+
+    path: str
+    content: bytes
+    mode: int = 0o644
+    logical_owners: tuple[str, ...] = ("plugin_bundle",)
+    surface_ids: tuple[str, ...] = ()
+    manifest: bool = False
+    managed: bool = True
+    wrapper: bool = False
+
+
+@dataclass(frozen=True)
+class PreparedBundle:
+    """One whole-root owner batch; apply consumes these bytes without rendering."""
+
+    root: OperationRoot
+    consent: ApplyConsent
+    files: tuple[StagedFile, ...]
+    observations: tuple[BundleObservation, ...]
+    suppliers: tuple[OwnerAssessment, ...] = ()
+    version: str | None = None
+    write_paths: tuple[str, ...] = ()
+
+    @property
+    def execution_artifacts(self) -> tuple[tuple[str, str, str], ...]:
+        """Bound the existing per-file atomic writer's apply-only temporary paths."""
+        return tuple(
+            (str(Path(member.path).parent), f".{Path(member.path).name}." + "[0-9a-f]" * 32 + ".tmp", "atomic_write")
+            for member in self.files if member.path in self.write_paths
+        )
+
+
+@dataclass(frozen=True)
+class BundleSources:
+    """Concrete upstream owner outputs and explicit staging selection."""
+
+    assessments: tuple[OwnerAssessment, ...] = ()
+    selected_targets: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

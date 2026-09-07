@@ -75,6 +75,21 @@ class TestWriteWrappers:
         with pytest.raises(ValueError, match="non-empty"):
             write_wrappers(tmp_path, "")
 
+    def test_retained_wrapper_apply_does_not_render(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.tool_surface.bundles import claude_wrapper
+
+        def forbidden(*args: object, **kwargs: object) -> str:
+            raise AssertionError("Retained wrapper rendered again")
+        monkeypatch.setattr(claude_wrapper, "wrapper_bash_content", forbidden)
+        monkeypatch.setattr(claude_wrapper, "wrapper_cmd_content", forbidden)
+        (tmp_path / "bin").mkdir()
+        path = tmp_path / "bin/spec-kitty-wrapper"
+        write_wrappers(tmp_path, prepared=(path, b"retained bytes", 0o700))
+        assert path.read_bytes() == b"retained bytes"
+        assert stat.S_IMODE(path.stat().st_mode) == 0o700
+        with pytest.raises(ValueError, match="outside the wrapper layout"):
+            write_wrappers(tmp_path, prepared=(tmp_path / "other", b"invalid", 0o644))
+
     def test_idempotent_second_write(self, tmp_path: Path) -> None:
         write_wrappers(tmp_path, "3.2.0")
         first = (tmp_path / "bin" / "spec-kitty-wrapper").read_bytes()
