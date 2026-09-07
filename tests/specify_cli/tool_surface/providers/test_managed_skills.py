@@ -1128,3 +1128,77 @@ def test_run_tool_surfaces_kind_filter_doctrine_only(
     outcome = run_tool_surfaces(tmp_path, ["codex"], kinds=[kind])
     kinds = {s.instance.definition.kind for s in outcome.report.surfaces}
     assert kinds == {ToolSurfaceKind.DOCTRINE_SKILL}
+
+
+def _shared_parent_case(tmp_path, monkeypatch, *, parents=False, pointer=False, empty=False):
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.skills.installer import assess_skill_installation
+    from specify_cli.skills.registry import SkillRegistry
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from specify_cli.tool_surface.plan import SurfacePlanBuilder
+    from specify_cli.tool_surface.service import build_providers, build_registry
+    from tests.upgrade.preview_support.snapshot import snapshot
+
+    home = tmp_path / "home"
+    home.mkdir()
+    for key in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(key, str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    project = tmp_path / "project"
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text("agents:\n  available: [codex]\n")
+    target = config
+    if pointer:
+        target = project / "authored.yaml"
+        target.write_text("custom: preserved\n")
+        config.write_text(config.read_text() + "charter: authored.yaml\n")
+    if empty:
+        target.write_text(target.read_text() + "mission_type_activations: []\n")
+    if parents:
+        (project / ".agents/skills").mkdir(parents=True)
+    roots = {"project": project, "home": home}
+    before = snapshot(roots)
+    provisioning = prepare_mission_type_activations(project)
+    consent = ApplyConsent(automatic=True)
+    root = OperationRoot("project", "project", project)
+    registry = SkillRegistry.from_package()
+    slash_agents = [key for key in ("codex",) if key in AGENT_COMMAND_CONFIG]
+    assert slash_agents == []
+    installation = assess_skill_installation(
+        AssessmentInputs(root, projected=provisioning, consent=consent),
+        registry, ("codex",), runtime=True, commands=True, command_agent_keys=slash_agents,
+    )
+    providers = build_providers()
+    builder = SurfacePlanBuilder(build_registry(("codex",)), providers)
+    commands = builder.assess(
+        ("codex",), AssessmentInputs(root, projected=provisioning, consent=consent),
+        kinds=(ToolSurfaceKind.COMMAND_SKILL,),
+    ).assessments[0]
+    managed = builder.assess(
+        ("codex",), AssessmentInputs(root, projected=installation, consent=consent),
+        kinds=(ToolSurfaceKind.DOCTRINE_SKILL,),
+    ).assessments[0]
+    assert managed == installation.project_skills
+    assert all(a.complete for a in (installation.global_assets, managed, commands))
+    provider = next(p for p in providers if isinstance(p, ManagedSkillsProvider))
+    return roots, before, provisioning, consent, installation, commands, provider
+
+
+def test_shared_parent_composition_cold_real_owners(tmp_path, monkeypatch):
+    from specify_cli.tool_surface.operations import coalesce_effects
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(
+        tmp_path, monkeypatch,
+    )
+    owners = (installation.global_assets, installation.project_skills, commands)
+    effects = tuple(e for a in owners for e in a.effects)
+    conflict = None
+    try:
+        coalesce_effects(effects)
+    except ValueError as exc:
+        conflict = str(exc)
+    assert_unchanged(before, snapshot(roots))
+    assert conflict is None, conflict
