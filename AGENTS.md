@@ -84,9 +84,9 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 
 ## Supported AI Agents
 
-19 agents total: 13 slash-command, 6 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
+16 agents total: 12 slash-command, 4 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
 
-### Slash-Command Agents (13)
+### Slash-Command Agents (12)
 
 | Agent | Directory | Subdirectory | Format |
 |-------|-----------|--------------|--------|
@@ -99,14 +99,13 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 | Windsurf | `.windsurf/` | `workflows/` | Markdown |
 | Kilocode | `.kilocode/` | `workflows/` | Markdown |
 | Augment Code | `.augment/` | `commands/` | Markdown |
-| Roo Cline | `.roo/` | `commands/` | Markdown |
 | Amazon Q | `.amazonq/` | `prompts/` | Markdown |
 | Kiro | `.kiro/` | `prompts/` | Markdown |
 | Google Antigravity | `.agent/` | `workflows/` | Markdown |
 
 **Argument placeholders:** Markdown agents use `$ARGUMENTS`; TOML agents use `{{args}}`; `{SCRIPT}` is replaced with the actual script path; `__AGENT__` is replaced with the agent name.
 
-### Agent Skills Agents (6)
+### Agent Skills Agents (4)
 
 | Agent | Skills Root | Command Surface | Key |
 |-------|-------------|-----------------|-----|
