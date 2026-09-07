@@ -20,6 +20,7 @@ from ..model import SurfacePlan
 from .claude import _validate_bundle
 from .model import (
     TARGET_COPILOT,
+    BundleEntry,
     BundleValidationResult,
     PluginBundle,
 )
@@ -64,6 +65,13 @@ class CopilotBundleProjector:
     manifest_relative_path = _MANIFEST_NAME
     layout: dict[ToolSurfaceKind, str] = _COPILOT_LAYOUT
 
+    def entries(self, plan: Sequence[SurfacePlan], project_root: Path) -> tuple[BundleEntry, ...]:
+        """Select the canonical members without writing the staging tree."""
+        return bundle_entries_for_plans(
+            plan, project_root, layout=self.layout,
+            agent_filename=_agent_filename, bundle_kinds=BUNDLE_SURFACE_KINDS,
+        )
+
     def project(
         self,
         plan: Sequence[SurfacePlan],
@@ -71,13 +79,7 @@ class CopilotBundleProjector:
         output_dir: Path,
     ) -> PluginBundle:
         """Project all bundleable surfaces into the Copilot/VS Code layout."""
-        entries = bundle_entries_for_plans(
-            plan,
-            project_root,
-            layout=self.layout,
-            agent_filename=_agent_filename,
-            bundle_kinds=BUNDLE_SURFACE_KINDS,
-        )  # project_root scopes bundling to the project tree.
+        entries = self.entries(plan, project_root)
         manifest = plugin_manifest_payload(self.distribution_target)
         write_bundle(output_dir, entries, _MANIFEST_NAME, manifest)
         return PluginBundle(

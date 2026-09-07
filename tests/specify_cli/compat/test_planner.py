@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
@@ -48,6 +48,43 @@ _INSTALLED = "2.0.11"
 _LATEST = "2.0.14"
 _MIN = 3
 _MAX = 3
+
+
+@pytest.mark.parametrize("cached_source", ["pypi", "simple_index"])
+def test_read_only_plan_preserves_cache_without_calling_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cached_source: Literal["pypi", "simple_index"],
+) -> None:
+    from specify_cli.compat.cache import NagCacheRecord
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    monkeypatch.setattr("specify_cli.compat.planner._get_installed_version", lambda: _INSTALLED)
+    monkeypatch.setattr("specify_cli.core.channel.prerelease_enabled", lambda: False)
+    cache = NagCache(tmp_path / "cache/nag.json")
+    cache.write(
+        NagCacheRecord(
+            cli_version_key=_INSTALLED,
+            latest_version=_LATEST,
+            latest_source=cached_source,
+            fetched_at=_NOW - timedelta(days=2),
+            last_shown_at=None,
+        )
+    )
+    resolver = _make_project_root_resolver(tmp_path)
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Read-only planning cannot fetch or persist")
+
+    provider = FakeLatestVersionProvider(version="99.0")
+    monkeypatch.setattr(provider, "get_latest", forbidden)
+    monkeypatch.setattr(cache, "write", forbidden)
+    before = snapshot({"fixture": tmp_path})
+    result = plan(_make_invocation(), latest_version_provider=provider, nag_cache=cache, now=_NOW, project_root_resolver=resolver, read_only=True)
+    assert result.project_status.state == ProjectState.COMPATIBLE
+    assert result.cli_status.latest_source == ("pypi" if cached_source == "pypi" else "none")
+    assert result.cli_status.latest_version == (_LATEST if cached_source == "pypi" else None)
+    assert_unchanged(before, snapshot({"fixture": tmp_path}))
 
 
 # ---------------------------------------------------------------------------

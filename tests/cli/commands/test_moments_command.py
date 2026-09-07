@@ -19,6 +19,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.moments import moments_app
+from specify_cli.cli.console import console
 
 pytestmark = pytest.mark.fast
 
@@ -90,13 +91,38 @@ def test_status_reports_a_malformed_filter_as_invalid_not_as_no_filter(kittify_h
     assert "no filter" not in result.stdout.split("teammates:")[1].split("\n")[0]
 
 
-def test_status_prints_config_values_as_literal_text(kittify_home: Path) -> None:
+def _assert_literal_config_status(stdout: str) -> None:
+    assert "invalid value '[/]'; failing closed to off" in " ".join(stdout.split())
+    assert "teammates: [/]" in stdout
+
+
+@pytest.mark.parametrize("home_name", ["home", "h" * 132], ids=["short-path", "wrapped-path"])
+def test_status_prints_config_values_as_literal_text(kittify_home: Path, monkeypatch: pytest.MonkeyPatch, home_name: str) -> None:
     """PR #201 MAJOR: Rich markup in config must not crash status."""
+    # Relative config provenance makes wrapping independent of the host temp path.
+    monkeypatch.chdir(kittify_home)
+    kittify_home = Path(home_name)
+    kittify_home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", home_name)
+    monkeypatch.setattr(console, "size", (80, 25))
     (kittify_home / "config.toml").write_text('[moments]\nagents = "[/]"\nteammates = ["[/]"]\n')
     result = runner.invoke(moments_app, ["status"])
     assert result.exit_code == 0
-    assert "invalid value" in result.stdout
-    assert "teammates: [/]" in result.stdout
+    _assert_literal_config_status(result.stdout)
+
+    # Corrupt real rendered output: whitespace tolerance must not hide lost content.
+    for original, replacement in (
+        ("invalid", ""),
+        ("value", ""),
+        ("invalid", "in valid"),
+        ("'[/]'", "''"),
+        ("teammates: [/]", "teammates: "),
+        ("[/]", ""),
+    ):
+        damaged = result.stdout.replace(original, replacement)
+        assert damaged != result.stdout
+        with pytest.raises(AssertionError):
+            _assert_literal_config_status(damaged)
 
 
 def test_status_json_reports_invalid_filters_as_a_sorted_list(kittify_home: Path) -> None:

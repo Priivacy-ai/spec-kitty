@@ -4,7 +4,7 @@
   "materialized_at": "2026-08-23T08:39:14.262051+00:00",
   "mission_number": "",
   "mission_slug": "doctrine-drg-silent-drop-boundary-01M0PE7E",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,77 +20,156 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0PWC1DPBXFZV7RFR41A5AK5",
       "last_transition_at": "2026-08-23T08:39:07.446389+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: enum-derived node kinds + behaviour drift-guard; 6 dropped kinds resolve; layer-rules green",
+        "Review PASS; matrix triaged (incl #3525)"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review PASS; matrix triaged (incl #3525)",
         "reviewer": "ATDD",
         "verdict": "approved"
       },
-      "shell_pid": 3974396,
-      "shell_pid_created_at": "1787467529.6"
+      "role": "reviewer",
+      "shell_pid": 4001729,
+      "shell_pid_created_at": "1787468855.85",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0PWC354K4CNFCSC87S9119Y",
       "last_transition_at": "2026-08-23T08:39:09.220367+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: context-sources removed, 25 profiles migrated (set-merge), golden regenerated + pedro/034 ledgered, divergent-fixture + C-006 golden-diff tests, CHANGELOG+version",
+        "Review passed: context-sources removed + 25 migrated (grep empty), all consumers updated. Golden 3-edge delta ledgered (pedro/034 requires+suggests diamond eager-wins; daisy toolguides suggests), 0 removed - C-006 golden-diff test pins vs frozen before-edges. Divergent-user fixture exercises real data-moving branch; snapshot proves no id lost; extra=forbid fail-loud. renata binding re-homed to supply-chain tactic rationale. SC-011 rewritten to exact 12-file intersection (stronger). DIR-009 done (CHANGELOG+pyproject rc4+m_3_3_1). 760 passed/1 skip, ruff clean, mypy no new issues. Nit: 2 SKILL.md prose stale (non-blocking)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: context-sources removed + 25 migrated (grep empty), all consumers updated. Golden 3-edge delta ledgered (pedro/034 requires+suggests diamond eager-wins; daisy toolguides suggests), 0 removed - C-006 golden-diff test pins vs frozen before-edges. Divergent-user fixture exercises real data-moving branch; snapshot proves no id lost; extra=forbid fail-loud. renata binding re-homed to supply-chain tactic rationale. SC-011 rewritten to exact 12-file intersection (stronger). DIR-009 done (CHANGELOG+pyproject rc4+m_3_3_1). 760 passed/1 skip, ruff clean, mypy no new issues. Nit: 2 SKILL.md prose stale (non-blocking).",
         "reviewer": "ATDD",
         "verdict": "approved"
       },
-      "shell_pid": 3984675,
-      "shell_pid_created_at": "1787468051.37"
+      "role": "reviewer",
+      "shell_pid": 4062865,
+      "shell_pid_created_at": "1787471853.3",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0PWC4SC8HGEX1NJR8G4T84B",
       "last_transition_at": "2026-08-23T08:39:10.892323+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: built-in e2e pin + net-new org-tier governance extraction + validator.py post-merge fail-loud",
+        "Review PASS: built-in e2e pin + org-tier extraction (imports constant) + validator.py post-merge fail-loud parity, merge WARN intact, 7+496 tests green, scope clean"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review PASS: built-in e2e pin + org-tier extraction (imports constant) + validator.py post-merge fail-loud parity, merge WARN intact, 7+496 tests green, scope clean",
         "reviewer": "ATDD",
         "verdict": "approved"
       },
-      "shell_pid": 3988727,
-      "shell_pid_created_at": "1787468212.94"
+      "role": "reviewer",
+      "shell_pid": 4020900,
+      "shell_pid_created_at": "1787469562.88",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0PWC6E1MVF9H51K3W5MPNZ6",
       "last_transition_at": "2026-08-23T08:39:12.577906+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: org fragment reaches executor+action-bundle (valid-fragment red test + no-double-fold), governance guard wired, README refreshed",
+        "Review passed: org_fragments threaded at both callers (executor.py:368 + action_doctrine_bundle.py:194 via load_org_drg strict=False); _drg_helpers seam + :245 DoctrineService seam untouched; valid fragment-only pack node reaches merged DRG via both paths (red-first confirmed); no-double-fold n==1 node+edge asserted in both tests; warning honesty verified; WP03 assert_governance_scope_resolves wired post-merge at both callers; README refreshed. ruff+mypy --strict clean, terminology guard green, 167 targeted tests pass."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: org_fragments threaded at both callers (executor.py:368 + action_doctrine_bundle.py:194 via load_org_drg strict=False); _drg_helpers seam + :245 DoctrineService seam untouched; valid fragment-only pack node reaches merged DRG via both paths (red-first confirmed); no-double-fold n==1 node+edge asserted in both tests; warning honesty verified; WP03 assert_governance_scope_resolves wired post-merge at both callers; README refreshed. ruff+mypy --strict clean, terminology guard green, 167 targeted tests pass.",
         "reviewer": "ATDD",
         "verdict": "approved"
       },
-      "shell_pid": 4033885,
-      "shell_pid_created_at": "1787470282.04"
+      "role": "reviewer",
+      "shell_pid": 4072710,
+      "shell_pid_created_at": "1787472304.91",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0PWC82PQ4602JK6KE5T1AQF",
       "last_transition_at": "2026-08-23T08:39:14.262051+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: class-b internal delivery + class-a 2nd-fixture multi-org fold + 3 enumerated misconfigs fail loud; #3530 closing condition evidenced",
+        "Review passed: class-b internal delivery via real WP04 executor seam (_load_graph_degrading_malformed_org_pack threads org_fragments; not a bypass), class-a pack#2 fold proven (URN directive:MINIMAL_ORG_2_MARKER + provenance org:minimal-org-2 + fragment-order assertion + negative control), 3 misconfigs raise (OrgDRGConflictError/OrgPackSchemaError x2 with fault-naming messages) vs graphless warn; G10 fixtures fragment-only; #3530 closing condition evidenced"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: class-b internal delivery via real WP04 executor seam (_load_graph_degrading_malformed_org_pack threads org_fragments; not a bypass), class-a pack#2 fold proven (URN directive:MINIMAL_ORG_2_MARKER + provenance org:minimal-org-2 + fragment-order assertion + negative control), 3 misconfigs raise (OrgDRGConflictError/OrgPackSchemaError x2 with fault-naming messages) vs graphless warn; G10 fixtures fragment-only; #3530 closing condition evidenced",
         "reviewer": "ATDD",
         "verdict": "approved"
       },
-      "shell_pid": 4079241,
-      "shell_pid_created_at": "1787472596.72"
+      "role": "reviewer",
+      "shell_pid": 4089681,
+      "shell_pid_created_at": "1787473648.63",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
     }
   }
 }

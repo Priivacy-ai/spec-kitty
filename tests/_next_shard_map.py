@@ -95,6 +95,7 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/next/test_import_paths.py",
     "tests/runtime/next/test_runtime_bridge_cancel_provenance.py",
     "tests/runtime/test_agent_skills.py",
+    "tests/runtime/test_artifact_presence_placement.py",
     "tests/runtime/test_bridge_cores.py",
     "tests/runtime/test_bridge_decide_next.py",
     "tests/runtime/test_cli_guard_family.py",

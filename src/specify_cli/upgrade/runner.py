@@ -56,17 +56,26 @@ class UpgradeResult:
     migration_results: dict[str, MigrationResult] = field(default_factory=dict)
 
 
+def _display_version(value: str) -> str:
+    """Bound untrusted version text without emitting terminal control characters."""
+    escaped = value.encode("unicode_escape").decode("ascii")
+    return escaped if len(escaped) <= 256 else escaped[:253] + "..."
+
+
 def validate_upgrade_target(from_version: str, target_version: str) -> str | None:
-    """Return an error message when the requested target would downgrade state."""
+    """Validate PEP 440 before selection; equal and future targets remain eligible."""
+    try:
+        requested = Version(target_version)
+    except InvalidVersion:
+        return f"Invalid upgrade target version: {_display_version(target_version)}"
     if from_version == "unknown":
         return None
-
     try:
-        if Version(target_version) < Version(from_version):
-            return f"Refusing to downgrade project metadata from {from_version} to {target_version}"
+        current = Version(from_version)
     except InvalidVersion:
-        return None
-
+        return f"Invalid project metadata version: {_display_version(from_version)}"
+    if requested < current:
+        return f"Refusing to downgrade project metadata from {_display_version(from_version)} to {_display_version(target_version)}"
     return None
 
 

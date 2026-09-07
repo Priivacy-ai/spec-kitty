@@ -12,5 +12,7 @@
   "purpose_tldr": "Fix upgrade preview side effects, incomplete repair plans, downgrade verdict parity, and four mission-state blockers.",
   "slug": "upgrade-preview-mission-health-01M1V6E1",
   "target_branch": "codex/upgrade-preview-mission-health",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-06T13:45:28.213261+00:00"
 }

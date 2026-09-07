@@ -162,9 +162,7 @@ def test_native_un_cut_over_mission_is_flagged(tmp_path: Path) -> None:
     assert any("status_phase" in reason for reason in failure.reasons)
 
 
-def test_native_un_cut_over_mission_reds_the_cli(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_native_un_cut_over_mission_reds_the_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Same fixture, driven through the actual Typer command (integration seam).
 
     ``SPECIFY_REPO_ROOT`` is the documented deterministic override for
@@ -193,9 +191,7 @@ def test_native_un_cut_over_mission_reds_the_cli(
     assert remedy_command(slug) in normalized_output
 
 
-def test_all_cut_over_diff_passes_through_the_cli(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_all_cut_over_diff_passes_through_the_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     corpus = tmp_path / "kitty-specs"
     corpus.mkdir()
     slug = "cut-over-clean-cli-01KZQXTZ"
@@ -212,9 +208,7 @@ def test_all_cut_over_diff_passes_through_the_cli(
     assert result.exit_code == 0
 
 
-def test_neither_base_ref_nor_paths_from_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_neither_base_ref_nor_paths_from_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / ".kittify").mkdir()
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     runner = CliRunner()
@@ -222,17 +216,13 @@ def test_neither_base_ref_nor_paths_from_fails_closed(
     assert result.exit_code == 1
 
 
-def test_both_base_ref_and_paths_from_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_both_base_ref_and_paths_from_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / ".kittify").mkdir()
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     paths_file = tmp_path / "changed-paths.txt"
     paths_file.write_text("kitty-specs/whatever/meta.json\n", encoding="utf-8")
     runner = CliRunner()
-    result = runner.invoke(
-        _guard_app, ["--base-ref", "origin/main", "--paths-from", str(paths_file)]
-    )
+    result = runner.invoke(_guard_app, ["--base-ref", "origin/main", "--paths-from", str(paths_file)])
     assert result.exit_code == 1
 
 
@@ -326,9 +316,7 @@ def test_touched_mission_slugs_dedupes_and_ignores_non_kitty_specs_paths() -> No
 
 
 def test_remedy_command_is_exact() -> None:
-    assert remedy_command("my-mission-01ABCD") == (
-        "spec-kitty migrate backfill-runtime-state --mission my-mission-01ABCD"
-    )
+    assert remedy_command("my-mission-01ABCD") == ("spec-kitty migrate backfill-runtime-state --mission my-mission-01ABCD")
 
 
 # ---------------------------------------------------------------------------
@@ -342,9 +330,7 @@ def test_remedy_command_is_exact() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_unresolvable_merge_base_raises_rather_than_reporting_no_changes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unresolvable_merge_base_raises_rather_than_reporting_no_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An unknown --base-ref must raise, not degrade to an empty diff."""
     monkeypatch.setattr(cutover_guard_mod, "git_merge_base", lambda *a, **k: None)
 
@@ -354,9 +340,7 @@ def test_unresolvable_merge_base_raises_rather_than_reporting_no_changes(
     assert "merge-base" in str(excinfo.value)
 
 
-def test_failed_diff_raises_rather_than_reporting_no_changes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_failed_diff_raises_rather_than_reporting_no_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A failed git diff must raise: an empty tuple would read as 'nothing touched, pass'."""
     monkeypatch.setattr(cutover_guard_mod, "git_merge_base", lambda *a, **k: "abc123")
     monkeypatch.setattr(cutover_guard_mod, "git_diff_names_checked", lambda *a, **k: None)
@@ -398,16 +382,12 @@ def test_predicate_error_fails_closed(tmp_path: Path, monkeypatch: pytest.Monkey
 
 def test_unreadable_paths_from_file_exits_one(tmp_path: Path) -> None:
     """An unreadable --paths-from is a fail-closed exit(1), not an empty diff."""
-    result = CliRunner().invoke(
-        _guard_app, ["--paths-from", str(tmp_path / "does-not-exist.txt")]
-    )
+    result = CliRunner().invoke(_guard_app, ["--paths-from", str(tmp_path / "does-not-exist.txt")])
 
     assert result.exit_code == 1
 
 
-def test_cli_surfaces_guard_error_as_exit_one(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cli_surfaces_guard_error_as_exit_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A CutoverGuardError from the diff resolution reaches the operator as exit 1."""
     monkeypatch.setattr(cutover_guard_mod, "locate_project_root", lambda *a, **k: tmp_path)
 
@@ -419,3 +399,175 @@ def test_cli_surfaces_guard_error_as_exit_one(
     result = CliRunner().invoke(_guard_app, ["--base-ref", "origin/main"])
 
     assert result.exit_code == 1
+
+
+# --- Non-mission relocation out of the corpus --------------------------------
+#
+# A diff that moves an identity-less, event-log-less directory OUT of
+# ``kitty-specs/`` (FR-007 relocation of non-mission artifacts) names a slug
+# whose directory no longer exists at HEAD. That slug was never inside the
+# guard's domain — there is no mission identity and no runtime evidence at
+# the merge-base for it to enforce — so it is reported as a relocation, not an
+# un-cut-over mission. A directory that DID carry mission artifacts at the
+# merge-base still fails closed when the diff removes it.
+
+
+def _git(repo: Path, *args: str) -> str:
+    import subprocess  # noqa: PLC0415 — test-local helper
+
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return result.stdout.strip()
+
+
+def _init_relocation_repo(tmp_path: Path, *, base_files: dict[str, str]) -> tuple[Path, str]:
+    """A real repo: ``main`` holds ``kitty-specs/legacy-notes/<base_files>``;
+    ``topic`` relocates every one of them under ``docs/archive/`` (pure rename).
+
+    Returns ``(repo, base_sha)`` with ``topic`` checked out.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "guard@example.com")
+    _git(repo, "config", "user.name", "guard")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    legacy = repo / "kitty-specs" / "legacy-notes"
+    legacy.mkdir(parents=True)
+    for name, body in base_files.items():
+        (legacy / name).parent.mkdir(parents=True, exist_ok=True)
+        (legacy / name).write_text(body, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "base corpus")
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "-b", "topic")
+    dest = repo / "docs" / "archive" / "legacy-notes"
+    dest.mkdir(parents=True)
+    for name in base_files:
+        (dest / name).parent.mkdir(parents=True, exist_ok=True)
+        _git(repo, "mv", f"kitty-specs/legacy-notes/{name}", f"docs/archive/legacy-notes/{name}")
+    # ``git mv`` leaves the emptied source directory on disk; a real checkout
+    # of the relocating commit has no such directory, so mirror that shape.
+    if legacy.exists():
+        for stale in sorted(legacy.rglob("*"), reverse=True):
+            if stale.is_dir() and not any(stale.iterdir()):
+                stale.rmdir()
+        if not any(legacy.iterdir()):
+            legacy.rmdir()
+    _git(repo, "commit", "-q", "-m", "relocate non-mission evidence")
+    return repo, base_sha
+
+
+def test_changed_paths_from_git_reports_the_merge_base(tmp_path: Path) -> None:
+    repo, base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n"})
+
+    scope = cutover_guard_mod.changed_paths_from_git(repo, "main")
+
+    assert scope.merge_base == base_sha
+    assert scope.paths == ("kitty-specs/legacy-notes/notes.md",)
+
+
+def test_relocation_of_identityless_non_mission_directory_passes(tmp_path: Path) -> None:
+    repo, base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n", "manifest.md": "scope\n"})
+    changed_paths = [
+        "kitty-specs/legacy-notes/notes.md",
+        "kitty-specs/legacy-notes/manifest.md",
+    ]
+
+    verdict = evaluate_touched_missions(repo, changed_paths, merge_base=base_sha)
+
+    assert verdict.passed is True
+    assert verdict.failures == ()
+    assert verdict.touched_slugs == ("legacy-notes",)
+    assert verdict.non_mission_slugs == ("legacy-notes",)
+
+
+@pytest.mark.parametrize(
+    "mission_artifact",
+    ["meta.json", "status.events.jsonl"],
+    ids=["identity-at-base", "event-log-at-base"],
+)
+def test_relocation_of_a_directory_carrying_mission_artifacts_fails_closed(tmp_path: Path, mission_artifact: str) -> None:
+    """The negative control: a removed directory that WAS a mission at the base."""
+    repo, base_sha = _init_relocation_repo(
+        tmp_path,
+        base_files={"notes.md": "historical\n", mission_artifact: "{}\n"},
+    )
+    changed_paths = [
+        "kitty-specs/legacy-notes/notes.md",
+        f"kitty-specs/legacy-notes/{mission_artifact}",
+    ]
+
+    verdict = evaluate_touched_missions(repo, changed_paths, merge_base=base_sha)
+
+    assert verdict.passed is False
+    assert verdict.non_mission_slugs == ()
+    assert len(verdict.failures) == 1
+    failure = verdict.failures[0]
+    assert failure.mission_slug == "legacy-notes"
+    assert any(base_sha[:12] in reason for reason in failure.reasons)
+    assert any(mission_artifact in reason for reason in failure.reasons)
+
+
+def test_removed_directory_with_a_nested_mission_artifact_fails_closed(tmp_path: Path) -> None:
+    """The base listing is recursive: an artifact below the root keeps the dir in domain."""
+    repo, base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n", "sub/meta.json": "{}\n"})
+    changed_paths = ["kitty-specs/legacy-notes/notes.md", "kitty-specs/legacy-notes/sub/meta.json"]
+
+    verdict = evaluate_touched_missions(repo, changed_paths, merge_base=base_sha)
+
+    assert verdict.passed is False
+    assert verdict.non_mission_slugs == ()
+    assert any("meta.json" in reason for reason in verdict.failures[0].reasons)
+
+
+def test_missing_directory_without_a_merge_base_still_fails_closed(tmp_path: Path) -> None:
+    """``--paths-from`` mode has no base tree to consult: uncertainty stays closed."""
+    repo, _base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n"})
+
+    verdict = evaluate_touched_missions(repo, ["kitty-specs/legacy-notes/notes.md"])
+
+    assert verdict.passed is False
+    assert verdict.non_mission_slugs == ()
+    assert verdict.failures[0].mission_slug == "legacy-notes"
+
+
+def test_slug_absent_from_both_trees_fails_closed_even_with_a_merge_base(tmp_path: Path) -> None:
+    repo, base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n"})
+
+    verdict = evaluate_touched_missions(repo, ["kitty-specs/never-existed-01KZQXTY/meta.json"], merge_base=base_sha)
+
+    assert verdict.passed is False
+    assert verdict.failures[0].mission_slug == "never-existed-01KZQXTY"
+
+
+def test_unreadable_merge_base_tree_fails_closed(tmp_path: Path) -> None:
+    repo, _base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n"})
+
+    verdict = evaluate_touched_missions(repo, ["kitty-specs/legacy-notes/notes.md"], merge_base="0" * 40)
+
+    assert verdict.passed is False
+    assert verdict.non_mission_slugs == ()
+    assert any("merge-base" in reason for reason in verdict.failures[0].reasons)
+
+
+def test_relocation_passes_through_the_cli_with_base_ref(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _base_sha = _init_relocation_repo(tmp_path, base_files={"notes.md": "historical\n"})
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+
+    runner = CliRunner()
+    result = runner.invoke(_guard_app, ["--base-ref", "main", "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is True
+    assert payload["non_mission_slugs"] == ["legacy-notes"]
+    assert payload["failures"] == []

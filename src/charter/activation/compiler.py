@@ -15,7 +15,15 @@ from ruamel.yaml import YAML
 
 from charter.activation._io import load_charter_file
 from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
-from charter.activation.charter_yaml_io import save_charter_yaml, update_charter_yaml_section
+from charter.activation.charter_yaml_io import (
+    PreparedYamlWrite,
+    apply_yaml_write,
+    observe_yaml_input,
+    _YamlInput,
+    prepare_yaml_write,
+    save_charter_yaml,
+    update_charter_yaml_section,
+)
 from kernel.clock import now_utc_stamp
 from charter.activation.interview import (
     CharterInterview,
@@ -62,7 +70,6 @@ _MISSION_TYPE_ACTIVATIONS_KEY = "mission_type_activations"
 # itself; only its own test module imports it directly, which does not
 # count as a caller under ``test_no_public_symbol_in_all_is_unimported``
 # (WP05/T021b, mission unify-charter-activation-surfaces-01KX5SJ9).
-
 
 
 @dataclass(frozen=True)
@@ -143,10 +150,7 @@ def _resolve_config_activated_ids(
     if activated_stems is None:
         return sorted(fallback_ids)
 
-    resolved = {
-        resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root, org_roots=org_roots).split(":", 1)[1]
-        for stem in activated_stems
-    }
+    resolved = {resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root, org_roots=org_roots).split(":", 1)[1] for stem in activated_stems}
     return sorted(resolved)
 
 
@@ -168,9 +172,7 @@ def _resolve_config_activated_roots(
     # per-artifact activation at all -- a scaffold with no charter) keeps the
     # all-built-ins convenience default, which is not a per-project delivery
     # boundary.
-    project_configured = pack_context is not None and any(
-        getattr(pack_context, field) is not None for field in _CONFIG_ACTIVATION_FIELDS
-    )
+    project_configured = pack_context is not None and any(getattr(pack_context, field) is not None for field in _CONFIG_ACTIVATION_FIELDS)
 
     def _stems(field_name: str) -> frozenset[str] | None:
         if pack_context is None:
@@ -515,9 +517,7 @@ def write_compiled_charter(
         update_charter_yaml_section(charter_yaml_path, "catalog", catalog)
         update_charter_yaml_section(charter_yaml_path, "metadata", metadata)
     else:
-        _bootstrap_charter_yaml(
-            charter_yaml_path, catalog=catalog, metadata=metadata, repo_root=repo_root
-        )
+        _bootstrap_charter_yaml(charter_yaml_path, catalog=catalog, metadata=metadata, repo_root=repo_root)
 
     # WP04 (charter-activation-authority): the generated charter is the SOLE
     # mission-type activation authority, so generation MUST emit
@@ -532,6 +532,48 @@ def write_compiled_charter(
         provision_mission_type_activations(repo_root)
 
     return WriteBundleResult(files_written=["charter.yaml"])
+
+
+@dataclass(frozen=True)
+class _PreparedMissionTypeActivations:
+    """Charter-owned projection; upgrade may adapt its write into an effect."""
+
+    write: PreparedYamlWrite
+    mission_type_activations: tuple[str, ...]
+    reason: str
+
+    def apply(self) -> bool:
+        """Apply the retained bytes, refusing changed inputs without retry."""
+        return apply_yaml_write(self.write)
+
+
+def prepare_mission_type_activations(repo_root: Path) -> _PreparedMissionTypeActivations:
+    """Read missing-key policy and prepare exact bytes without provisioning."""
+    from charter.activation.default_pack import _default_pack_yaml_path
+    from charter.activation.pack_manager import prepare_activation_write, resolve_activation_write_target
+
+    repo_root = repo_root.resolve()
+    initial = prepare_activation_write(repo_root, {})
+    _, data, _save = resolve_activation_write_target(repo_root)
+    initial.recheck()
+    present = _MISSION_TYPE_ACTIVATIONS_KEY in data
+    source_inputs: tuple[_YamlInput, ...] = ()
+    if present:
+        values = data[_MISSION_TYPE_ACTIVATIONS_KEY]
+    else:
+        seed = _default_pack_yaml_path(None)
+        source_inputs = tuple(observe_yaml_input(path) for path in (*reversed(seed.parents), seed))
+        values = load_default_mission_type_activations()
+    if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+        raise ValueError(f"{_MISSION_TYPE_ACTIVATIONS_KEY} must be a list of strings")
+    prepared = initial if present else prepare_activation_write(repo_root, {_MISSION_TYPE_ACTIVATIONS_KEY: values})
+    write = prepare_yaml_write(
+        prepared.target,
+        prepared.desired_bytes,
+        section="activation",
+        inputs=initial.observations + source_inputs,
+    )
+    return _PreparedMissionTypeActivations(write, tuple(values), "key_present" if present else "key_missing")
 
 
 def provision_mission_type_activations(repo_root: Path) -> bool:
@@ -575,17 +617,7 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
         (also consumed by ``spec-kitty init``/``upgrade`` provisioning), so
         both provisioners fail closed on the identical condition.
     """
-    # Lazy import breaks the ``pack_manager`` <-> ``compiler`` cycle (mirrors
-    # :func:`_legacy_activation_keys`).
-    from charter.activation.pack_manager import resolve_activation_write_target  # noqa: PLC0415
-
-    target_path, data, save = resolve_activation_write_target(repo_root)
-    if _MISSION_TYPE_ACTIVATIONS_KEY in data:
-        return False
-
-    data[_MISSION_TYPE_ACTIVATIONS_KEY] = load_default_mission_type_activations()
-    save(target_path, data)
-    return True
+    return prepare_mission_type_activations(repo_root).apply()
 
 
 def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
@@ -766,9 +798,7 @@ def _mint_config_charter_pointer(repo_root: Path, charter_yaml_path: Path) -> No
         data = {}
 
     try:
-        pointer = charter_yaml_path.resolve(strict=False).relative_to(
-            repo_root.resolve(strict=False)
-        ).as_posix()
+        pointer = charter_yaml_path.resolve(strict=False).relative_to(repo_root.resolve(strict=False)).as_posix()
     except ValueError:
         # charter_yaml_path is outside repo_root (should not happen given
         # _assert_safe_charter_output_dir already rejected that case) --
@@ -790,8 +820,7 @@ def _assert_safe_charter_output_dir(
     if repo_root is None:
         if output_dir.is_symlink():
             raise FileExistsError(
-                f"Charter output directory {output_dir} is a symlink. Replace it "
-                "with a normal .kittify/charter directory before running charter generate."
+                f"Charter output directory {output_dir} is a symlink. Replace it with a normal .kittify/charter directory before running charter generate."
             )
         return
 
@@ -800,26 +829,21 @@ def _assert_safe_charter_output_dir(
     try:
         relative = candidate.relative_to(root)
     except ValueError as exc:
-        raise FileExistsError(
-            f"Charter output directory {output_dir} is outside repository root {repo_root}."
-        ) from exc
+        raise FileExistsError(f"Charter output directory {output_dir} is outside repository root {repo_root}.") from exc
 
     current = root
     for part in relative.parts:
         current = current / part
         if current.is_symlink():
             raise FileExistsError(
-                f"Charter output path {current} is a symlink. Replace it with a normal "
-                ".kittify/charter directory before running charter generate."
+                f"Charter output path {current} is a symlink. Replace it with a normal .kittify/charter directory before running charter generate."
             )
 
     resolved = candidate.resolve(strict=False)
     try:
         resolved.relative_to(root)
     except ValueError as exc:
-        raise FileExistsError(
-            f"Charter output directory {output_dir} resolves outside repository root {repo_root}."
-        ) from exc
+        raise FileExistsError(f"Charter output directory {output_dir} resolves outside repository root {repo_root}.") from exc
 
 
 def _resolve_template_set(
@@ -1071,9 +1095,7 @@ def _render_kind_references(
                 )
             )
         else:
-            references.append(
-                _doctrine_yaml_reference(kind=kind, raw_id=raw_id, source=None, project_root=project_root)
-            )
+            references.append(_doctrine_yaml_reference(kind=kind, raw_id=raw_id, source=None, project_root=project_root))
     return references
 
 
@@ -1269,12 +1291,7 @@ def _build_local_support_references(
     diagnostics: list[str],
 ) -> list[CharterReference]:
     """Build CharterReference entries for local support file declarations."""
-    return [
-        _build_local_support_reference(
-            decl, built_in_ids=built_in_ids, diagnostics=diagnostics
-        )
-        for decl in declarations
-    ]
+    return [_build_local_support_reference(decl, built_in_ids=built_in_ids, diagnostics=diagnostics) for decl in declarations]
 
 
 def _build_local_support_reference(
@@ -1309,10 +1326,7 @@ def _detect_local_support_overlap(
     overlap_key = f"{decl.target_kind.upper()}:{decl.target_id.upper()}"
     if overlap_key not in {k.upper() for k in built_in_ids}:
         return None
-    warning = (
-        f"Local support file overlaps built-in {decl.target_kind} "
-        f"{decl.target_id}; built-in content remains primary."
-    )
+    warning = f"Local support file overlaps built-in {decl.target_kind} {decl.target_id}; built-in content remains primary."
     diagnostics.append(f"local_supporting_files '{decl.path}': {warning}")
     return warning
 
@@ -1497,11 +1511,7 @@ def _template_reference(*, mission: str, template_set: str) -> CharterReference:
     config = repo.get_mission_config(mission)
     mission_path = repo._mission_config_path(mission) or (repo._missions_root / mission / "mission.yaml")
     raw_parsed = config.parsed if config is not None else {"name": mission}
-    source: dict[str, object] = (
-        {str(key): value for key, value in raw_parsed.items()}
-        if isinstance(raw_parsed, dict)
-        else {"name": mission}
-    )
+    source: dict[str, object] = {str(key): value for key, value in raw_parsed.items()} if isinstance(raw_parsed, dict) else {"name": mission}
 
     summary = str(source.get("description") or f"Mission template set for {mission}.")
     content = (
@@ -1598,9 +1608,7 @@ def _render_charter_markdown(
 
     reference_rows = ["| Reference ID | Kind | Summary | Local Doc |", "|---|---|---|---|"]
     for reference in references:
-        reference_rows.append(
-            f"| `{reference.id}` | {reference.kind} | {reference.summary} | `{reference.local_path}` |"
-        )
+        reference_rows.append(f"| `{reference.id}` | {reference.kind} | {reference.summary} | `{reference.local_path}` |")
 
     activation_lines = [f"mission: {mission}"]
     if interview.agent_profile:
@@ -1617,12 +1625,8 @@ def _render_charter_markdown(
         ]
     )
 
-    amendment = interview.answers.get(
-        "amendment_process", "Amendments are proposed by PR and reviewed before adoption."
-    )
-    exception_policy = interview.answers.get(
-        "exception_policy", "Exceptions must include rationale and expiration criteria."
-    )
+    amendment = interview.answers.get("amendment_process", "Amendments are proposed by PR and reviewed before adoption.")
+    exception_policy = interview.answers.get("exception_policy", "Exceptions must include rationale and expiration criteria.")
     return (
         "# Project Charter\n\n"
         "<!-- Generated by `spec-kitty charter generate` -->\n\n"
@@ -1689,7 +1693,6 @@ def _render_directives(
         lines.append("1. Keep specification, plan, tasks, implementation, and review artifacts consistent.")
 
     return "\n".join(lines)
-
 
 
 def _dump_yaml(data: dict[str, object]) -> str:

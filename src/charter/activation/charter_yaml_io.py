@@ -14,14 +14,24 @@ that belong to the named section.
 
 Layer rule: this module MUST NOT import ``specify_cli`` (C-002 / INV-7).
 """
+
 from __future__ import annotations
 
 import functools
+import copy
+from dataclasses import dataclass
+import hashlib
+from io import StringIO
+import os
 from pathlib import Path
+import stat
 from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.events import DocumentEndEvent, DocumentStartEvent
+from ruamel.yaml.nodes import MappingNode
+from ruamel.yaml.tokens import AliasToken, KeyToken
 
 __all__ = [
     "OWNED_SECTIONS",
@@ -29,7 +39,340 @@ __all__ = [
     "load_charter_yaml",
     "save_charter_yaml",
     "update_charter_yaml_section",
+    "PreparedYamlWrite",
+    "observe_yaml_input",
+    "prepare_yaml_write",
+    "apply_yaml_write",
+    "render_yaml_document",
+    "prepare_charter_yaml_section",
+    "yaml_documents_equal",
 ]
+
+
+@dataclass(frozen=True)
+class _YamlInput:
+    path: Path
+    identity: tuple[int, ...] | None
+    content: bytes | None
+
+
+def observe_yaml_input(path: Path) -> _YamlInput:
+    """Observe a regular file or parent without following a destination link."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return _YamlInput(path, None, None)
+    if stat.S_ISLNK(info.st_mode) or not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
+        raise ValueError(f"Unsafe YAML input kind: {path}")
+    identity: tuple[int, ...] = (info.st_dev, info.st_ino, info.st_mode)
+    if stat.S_ISDIR(info.st_mode):
+        return _YamlInput(path, identity, None)
+    content = path.read_bytes()
+    identity += (info.st_mtime_ns, info.st_ctime_ns, info.st_size, info.st_nlink)
+    after = path.lstat()
+    if (after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns) != (info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns):
+        raise ValueError(f"precondition_changed: {path}")
+    return _YamlInput(path, identity, content)
+
+
+@dataclass(frozen=True)
+class PreparedYamlWrite:
+    """Exact YAML bytes and the complete bounded input set for one writer."""
+
+    target: Path
+    before_bytes: bytes | None
+    desired_bytes: bytes
+    mode: int
+    observations: tuple[_YamlInput, ...]
+    absent_parents: tuple[Path, ...]
+    section: str
+    desired_sha256: str
+    kind: str = "file"
+
+    @property
+    def changed(self) -> bool:
+        return self.before_bytes != self.desired_bytes
+
+    def recheck(self) -> None:
+        """Refuse stale inputs, even when an intervening rewrite kept the bytes."""
+        if _bytes_digest(self.desired_bytes) != self.desired_sha256:
+            raise ValueError("precondition_changed: prepared bytes")
+        for observation in self.observations:
+            if observe_yaml_input(observation.path) != observation:
+                raise ValueError(f"precondition_changed: {observation.path}")
+
+
+def _bytes_digest(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()  # noqa: TID251 -- exact file bytes, not charter semantic hashing
+
+
+def prepare_yaml_write(
+    target: Path,
+    desired: bytes,
+    *,
+    section: str,
+    inputs: tuple[_YamlInput, ...] = (),
+) -> PreparedYamlWrite:
+    """Retain bytes and input identities without creating directories or files."""
+    parents = tuple(reversed(target.parents))
+    observations = list(inputs)
+    seen = {item.path for item in observations}
+    for path in (*parents, target):
+        if path not in seen:
+            observations.append(observe_yaml_input(path))
+            seen.add(path)
+    before = next(item for item in observations if item.path == target)
+    if before.identity is not None and before.content is None:
+        raise ValueError(f"YAML target must be a regular file: {target}")
+    decoded = _yaml_loader().load(desired)
+    if not isinstance(decoded, dict) and not (decoded is None and desired == before.content):
+        raise ValueError("YAML root must be a mapping")
+    mode = stat.S_IMODE(before.identity[2]) if before.identity else 0o644
+    prepared = PreparedYamlWrite(
+        target,
+        before.content,
+        desired,
+        mode,
+        tuple(observations),
+        tuple(item.path for item in observations if item.path in parents and item.identity is None),
+        section,
+        _bytes_digest(desired),
+    )
+    prepared.recheck()
+    return prepared
+
+
+def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
+    """Recheck the whole input set, then use the existing direct-file boundary."""
+    prepared.recheck()
+    if not prepared.changed:
+        return False
+    for parent in prepared.absent_parents:
+        parent.mkdir(mode=0o755)
+        parent.chmod(0o755)
+    flags = os.O_WRONLY | (os.O_EXCL | os.O_CREAT if prepared.before_bytes is None else os.O_TRUNC)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(prepared.target, flags, prepared.mode)
+    with os.fdopen(descriptor, "wb") as stream:
+        if prepared.before_bytes is None:
+            prepared.target.chmod(prepared.mode)
+        stream.write(prepared.desired_bytes)
+    return True
+
+
+def _dump_document(document: Any, yaml: YAML) -> str:
+    document = copy.deepcopy(document)
+    if isinstance(document, CommentedMap):
+        for key, comments in document.ca.items.items():
+            if isinstance(key, str) and comments[0] is not None:
+                # The emitter simplifies explicit scalar keys. A key-line
+                # comment would then separate that implicit key from its colon.
+                # Use ruamel's pre-key comment slot instead, without losing it.
+                comments[1] = [*(comments[1] or []), comments[0]]
+                comments[0] = None
+    stream = StringIO()
+    yaml.dump(document, stream)
+    return stream.getvalue()
+
+
+def _yaml_value_events(value: Any) -> tuple[tuple[Any, ...], ...]:
+    """Compare ruamel-constructed values, not object identity or lexical keys."""
+    # _dump_document isolates ruamel's mutable comment emission state.
+    rendered = _dump_document(value, _yaml_loader())
+    return tuple(
+        (type(event).__name__, getattr(event, "anchor", None), getattr(event, "tag", None), getattr(event, "value", None))
+        for event in _yaml_loader().parse(rendered)
+    )
+
+
+def _dump_fragment(document: Any, yaml: YAML) -> str:
+    """Use the existing emitter without reinserting its document framing."""
+    rendered = _dump_document(document, yaml)
+    start, end = 0, len(rendered)
+    for event in _yaml_loader().parse(rendered):
+        if isinstance(event, DocumentStartEvent) and event.explicit:
+            start = event.end_mark.index
+        elif isinstance(event, DocumentEndEvent) and event.explicit:
+            end = event.start_mark.index
+    return rendered[start:end].lstrip("\r\n")
+
+
+def yaml_documents_equal(left: Any, right: Any) -> bool:
+    """Compare supported YAML values, including opaque tagged round-trip keys.
+
+    Comments remain a raw-span preservation obligation, not a value comparison.
+    The existing ruamel representer normalizes constructed scalars before parsing.
+    """
+    return bool(left == right) or _yaml_value_events(left) == _yaml_value_events(right)
+
+
+def render_yaml_document(before: bytes | None, document: Any, yaml: YAML) -> bytes:
+    """Render changed top-level entries, retaining every untouched source span."""
+    if not isinstance(document, dict):
+        raise ValueError("YAML root must be a mapping")
+    if before is None:
+        text = _dump_document(document, yaml)
+    else:
+        text = before.decode("utf-8")
+        original = _yaml_loader().load(text)
+        if yaml_documents_equal(original, document) or (original is None and document == {}):
+            return before
+        text = _render_empty_document(text, document, yaml) if original is None else _render_mapping_document(text, original, document, yaml)
+    decoded = _yaml_loader().load(text)
+    if not isinstance(decoded, dict) or not yaml_documents_equal(decoded, document):
+        raise ValueError("Cannot preserve YAML aliases or section boundaries")
+    return text.encode("utf-8")
+
+
+def _render_empty_document(text: str, document: Any, yaml: YAML) -> str:
+    """Replace the parsed-null scalar, not its comments or document framing."""
+    node = _yaml_loader().compose(text)
+    start = end = len(text)
+    if node is not None:
+        start, end = node.start_mark.index, node.end_mark.index
+    insertion = end
+    if start != end:
+        # Keep the scalar's line comment before the new mapping. An empty
+        # explicit document has a zero-width node before its end marker.
+        newline = text.find("\n", end)
+        insertion = len(text) if newline < 0 else newline + 1
+    prefix = text[:start] + text[end:insertion]
+    if prefix and not prefix.endswith("\n"):
+        prefix += "\n"
+    return prefix + _dump_fragment(document, yaml) + text[insertion:]
+
+
+def _yaml_key_events(key: Any) -> tuple[tuple[Any, ...], ...]:
+    return _yaml_value_events(CommentedMap({key: None}))
+
+
+def _entry_comments(document: Any, key: Any) -> list[Any]:
+    comments = list(document.ca.items.get(key, ()))
+    if key == next(iter(document)):
+        comments.extend(document.ca.comment or ())
+    return [token for slot in comments if slot is not None for token in (slot if isinstance(slot, list) else [slot])]
+
+
+def _mapping_spans(text: str, document: Any, node: MappingNode, *, rendered_comments: bool = False) -> dict[Any, tuple[int, int]]:
+    # ruamel's constructed keys and their locations are the authority, including
+    # numeric/tagged/complex keys. Merge pseudo-keys have no authored map entry.
+    keys = {document.lc.key(key): key for key, _ in document.non_merged_items()}
+    tokens = list(_yaml_loader().scan(text))
+    aliases = [token for token in tokens if isinstance(token, AliasToken)]
+    indicators = [token for token in tokens if isinstance(token, KeyToken)]
+    spans = {}
+    for key_node, value_node in node.value:
+        location = (key_node.start_mark.line, key_node.start_mark.column)
+        if location not in keys:
+            continue
+        start, end_mark = key_node.start_mark.index, value_node.end_mark
+        start = next(token.start_mark.index for token in reversed(indicators) if token.end_mark.index <= start)
+        if value_node.start_mark.index < key_node.end_mark.index:
+            # compose resolves aliases to the anchor node; scan retains the
+            # actual alias occurrence needed for a bounded replacement span.
+            end_mark = next(token.end_mark for token in aliases if token.start_mark.index >= key_node.end_mark.index)
+        end = end_mark.index
+        comment = document.ca.items.get(keys[location], [None, None, None, None])[2]
+        if comment is not None and comment.start_mark.line == end_mark.line and comment.start_mark.index >= end:
+            newline = text.find("\n", comment.start_mark.index)
+            end = len(text) if newline < 0 else newline
+            if end and text[end - 1] == "\r":
+                end -= 1
+        lines = text[start:end].splitlines(keepends=True)
+        while lines and (not lines[-1].strip() or lines[-1].lstrip().startswith("#")):
+            end -= len(lines.pop())
+        if rendered_comments:
+            for token in _entry_comments(document, keys[location]):
+                start = min(start, token.start_mark.index)
+                end = max(end, token.start_mark.index + len(token.value.lstrip("\r\n")))
+        spans[_yaml_key_events(keys[location])] = (start, end)
+    return spans
+
+
+def _render_owned_entries(document: Any, original: Any, original_spans: dict[Any, tuple[int, int]], yaml: YAML) -> str:
+    rendering_document = copy.deepcopy(document)
+    if isinstance(rendering_document, CommentedMap):
+        # Document-prefix comments stay in the untouched source. Any leading
+        # comments in the rendered document therefore belong to its first entry.
+        rendering_document.ca.comment = None
+        # Existing key comments belong to the current source being replaced.
+        # A reused caller document still has positions from its initial load,
+        # including comments now moved outside an entry by an earlier save.
+        for key in original:
+            rendering_document.ca.items.pop(key, None)
+            if key in rendering_document and key in original.ca.items:
+                rendering_document.ca.items[key] = copy.deepcopy(original.ca.items[key])
+        for key, comments in rendering_document.ca.items.items():
+            bounds = original_spans.get(_yaml_key_events(key))
+            if bounds is None:
+                continue
+            for index, slot in enumerate(comments):
+                if isinstance(slot, list):
+                    comments[index] = [token for token in slot if _bound_entry_comment(token, *bounds)] or None
+                elif slot is not None and not _bound_entry_comment(slot, *bounds):
+                    comments[index] = None
+    return _dump_document(rendering_document, yaml)
+
+
+def _bound_entry_comment(token: Any, start: int, end: int) -> bool:
+    # Keep only comments removed with this entry. Separators outside it remain
+    # in the original source; key continuations inside it must be rendered.
+    position = token.start_mark.index
+    if not start <= position < end:
+        return False
+    prefix = len(token.value) - len(token.value.lstrip("\r\n"))
+    token.value = token.value[: prefix + end - position]
+    return True
+
+
+def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML) -> str:
+    node = _yaml_loader().compose(text)
+    if not isinstance(original, dict) or not isinstance(node, MappingNode):
+        raise ValueError("YAML root must be a mapping")
+    # Render the actual round-trip document once, retaining key metadata.
+    original_spans = _mapping_spans(text, original, node)
+    rendered = _render_owned_entries(document, original, original_spans, yaml)
+    rendered_node = _yaml_loader().compose(rendered)
+    if not isinstance(rendered_node, MappingNode):
+        raise ValueError("YAML root must be a mapping")
+    replacements = _mapping_spans(rendered, _yaml_loader().load(rendered), rendered_node, rendered_comments=True)
+    original_keys = {_yaml_key_events(key): key for key in original}
+    desired_keys = {_yaml_key_events(key): key for key in document}
+    edits: list[tuple[int, int, str]] = []
+    for key, (start, end) in original_spans.items():
+        if key in desired_keys and yaml_documents_equal(original[original_keys[key]], document[desired_keys[key]]):
+            continue
+        if key not in desired_keys and node.flow_style:
+            raise ValueError("Cannot preserve deletion from flow-style YAML root")
+        replacement = rendered[slice(*replacements[key])] if key in desired_keys else ""
+        if replacement and end and text[end - 1] in "\r\n":
+            replacement = replacement.rstrip("\r\n") + ("\r\n" if text[:end].endswith("\r\n") else "\n")
+        elif end:
+            replacement = replacement.rstrip("\r\n")
+        edits.append((start, end, replacement))
+    additions = CommentedMap({desired_keys[key]: document[desired_keys[key]] for key in replacements if key not in original_spans})
+    if isinstance(document, CommentedMap):
+        for key in additions:
+            if key in document.ca.items:
+                additions.ca.items[key] = copy.deepcopy(document.ca.items[key])
+    if additions:
+        if node.flow_style:
+            end = node.end_mark.index - 1
+            separator = ", " if original and not text[:end].rstrip().endswith(",") else ""
+            addition = separator + _dump_flow_entries(additions)
+        else:
+            end = node.end_mark.index
+            addition = ("" if end == 0 or text[end - 1] in "\r\n" else "\n") + _dump_fragment(additions, yaml)
+        edits.append((end, end, addition))
+    for start, end, replacement in sorted(edits, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    return text
+
+
+def _dump_flow_entries(document: Any) -> str:
+    yaml = _yaml_loader()
+    yaml.default_flow_style = True
+    return _dump_document(document, yaml).strip()[1:-1]
 
 
 #: The activation section is a LOGICAL grouping: on disk these flat keys are
@@ -83,9 +426,7 @@ def __getattr__(name: str) -> object:
 
 #: Sections whose owned content is a single top-level scalar/mapping key —
 #: mutating one of these REPLACES that key's entire value.
-_SCALAR_SECTIONS: frozenset[str] = frozenset(
-    {"governance", "directives", "catalog", "metadata", "overrides"}
-)
+_SCALAR_SECTIONS: frozenset[str] = frozenset({"governance", "directives", "catalog", "metadata", "overrides"})
 
 #: All section names callers may mutate via :func:`update_charter_yaml_section`.
 OWNED_SECTIONS: frozenset[str] = _SCALAR_SECTIONS | {"activation"}
@@ -129,16 +470,46 @@ def load_charter_yaml(path: Path) -> Any:
 
 
 def save_charter_yaml(path: Path, document: Any) -> None:
-    """Write ``document`` back to ``path`` via ruamel round-trip dump."""
-    yaml = _yaml_loader()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        yaml.dump(document, fh)
+    """Prepare and apply a round-trip document without unchanged-file churn."""
+    before = observe_yaml_input(path)
+    desired = render_yaml_document(before.content, document, _yaml_loader())
+    apply_yaml_write(prepare_yaml_write(path, desired, section="document", inputs=(before,)))
 
 
-def update_charter_yaml_section(
-    path: Path, section: str, values: dict[str, Any]
-) -> None:
+def _validate_section(section: str, values: dict[str, Any]) -> None:
+    """Validate ownership before loading or mutating the document."""
+    if section not in OWNED_SECTIONS:
+        raise UnknownCharterYamlSectionError(section)
+    if section == "activation":
+        unknown_keys = sorted(set(values) - set(_activation_keys()))
+        if unknown_keys:
+            raise ValueError(f"Unknown activation key(s): {unknown_keys}")
+
+
+def prepare_charter_yaml_section(
+    path: Path,
+    section: str,
+    values: dict[str, Any],
+) -> PreparedYamlWrite:
+    """Validate and prepare one owned section without any filesystem mutation."""
+    _validate_section(section, values)
+    before = observe_yaml_input(path)
+    if before.content is None:
+        raise FileNotFoundError(path)
+    document = _yaml_loader().load(before.content)
+    if document is None:
+        document = CommentedMap()
+    if not isinstance(document, dict):
+        raise ValueError("YAML root must be a mapping")
+    changes = values if section == "activation" else {section: values}
+    for key, value in changes.items():
+        if key not in document or document[key] != value:
+            document[key] = copy.deepcopy(value)
+    desired = render_yaml_document(before.content, document, _yaml_loader())
+    return prepare_yaml_write(path, desired, section=section, inputs=(before,))
+
+
+def update_charter_yaml_section(path: Path, section: str, values: dict[str, Any]) -> None:
     """Load ``charter.yaml`` -> mutate ONE owned section -> round-trip save.
 
     This is the ONLY writer path ``activation_engine.commit_plan``,
@@ -173,25 +544,4 @@ def update_charter_yaml_section(
         ``section == "activation"`` and ``values`` contains a key outside
         :data:`_ACTIVATION_KEYS`.
     """
-    if section not in OWNED_SECTIONS:
-        raise UnknownCharterYamlSectionError(section)
-
-    if section == "activation":
-        unknown_keys = sorted(set(values) - set(_activation_keys()))
-        if unknown_keys:
-            raise ValueError(f"Unknown activation key(s): {unknown_keys}")
-
-    yaml = _yaml_loader()
-    with path.open("r", encoding="utf-8") as fh:
-        document = yaml.load(fh)
-    if document is None:
-        document = CommentedMap()
-
-    if section == "activation":
-        for key, value in values.items():
-            document[key] = value
-    else:
-        document[section] = values
-
-    with path.open("w", encoding="utf-8") as fh:
-        yaml.dump(document, fh)
+    apply_yaml_write(prepare_charter_yaml_section(path, section, values))

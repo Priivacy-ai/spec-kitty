@@ -1,5 +1,388 @@
 # Supporting Operation Reviews
 
+## Selected Bundle Composition: Open
+
+Op `01M1XXTXV3NK7P3WAPRA4T6TZG` addresses two reproduced conditional #3901
+transitions outside the approved shared-skill-parent capability. The actual
+explicit bundle provider admits the selected Claude plugin target in a
+Codex-configured project with an owned command repair. All original owner
+preflights pass. When required provisioning updates legacy config, retained
+bundle staging refuses its config observation. With an explicit empty activation
+key and initially absent `dist`, bundle staging succeeds but command composition
+refuses the changed root directory mtime. Existing `dist` with unchanged config
+succeeds and a fresh repeat has no churn.
+
+The four diagnostic assertions passed in 38.44 seconds, representing three actual
+refusals and one successful control, not four successful applies. Earlier writes
+remain in refused operations; no rollback is claimed. Full raw physical deltas
+match each completed phase. The initial disabled generic-builder selection was
+a caller error, preserved separately rather than attributed to either defect.
+Evidence: `wp10-selected-bundle-diagnosis.md` and its 25-entry external SHA256 seal,
+all verified by the parent.
+
+Implementation starts from reviewed integration
+`5c5c1c6fadd8859271e6069d1d53864137985d49` in a separate worktree. Scope is
+precise retained compiler-transition and actual staged-parent admission. Preserve
+original assessments, strict preflight before writes, explicit selection,
+staging-before-upstream order, unrelated-drift refusal and physical accounting.
+No reassessment, broad timestamp exemption or dropped selected owner is permitted.
+Stable RED, minimal GREEN, focused independent review and actual WP10 consumer
+follow-through precede closure. WP10 continues its non-overlapping owned CLI and
+composition work while this supplier extension is implemented.
+
+## Migration Follow-Through: Open
+
+Issue #3985 records two distinct failures diagnosed through exact existing
+migration nodes after correcting external fixture namespace isolation. The
+relinking fixture supplies differing bytes without prior manifest ownership;
+preservation is correct. Its legacy caller treats the empty manifest as failure
+and loses the global-change disposition. The retirement path separately emits
+an invalid `create` effect for absent-to-absent and cannot finish stale manifest
+entry removal. No shared-parent or namespace explanation substitutes for these
+observed mechanisms. Diagnosis: managed-migration-diagnosis.md and #3985
+comment5569908298; no historical baseline PASS is claimed.
+
+Op `01M1XSSJ92CX6AX0D54AVM3Z5H` routes the retirement no-op guard to the active
+installer owner, with a separate RED/GREEN change. PhysicalEffect invariants and
+the original migration witness stay intact; absent-file retirement bookkeeping
+must still execute. This avoids concurrent edits to the same installer file.
+
+Test-only Op `01M1XSWCBB4APC84TS8Z8XTTYA` establishes real prior ownership for
+the intended managed-snapshot fixture and adds an untracked-content preservation
+control. It also reconciles #3986's orientation-refresh wording assertions with
+verified current usage semantics, preserving refresh/custom-content regressions
+and adding meaningful negative controls. Only the two existing test modules may
+change; no producer/policy relaxation. Legacy all-preserved caller-reporting
+policy remains explicitly separate. Independent bounded review precedes either
+Op closure; these records do not imply WP10 or full issue completion.
+
+The test-only Op is complete: fixture commit
+`37e854d36c2d07a4fab5ae1524453c076aa2f08b` and orientation commit
+`74d2037417cfc84293677ac5393b91d3b2d6b55f` change only the two authorized
+test modules. Author: 28 passed, Ruff check and format check passed. Independent
+review: 11 focused cases passed, including genuine prior ownership, untracked
+preservation, both writer routes and corrupted-output oracle controls. Parent
+verified all 17 review seal entries, fast-forwarded the exact reviewed tree into
+WP10 and ran four focused cases there: 4 passed, 24 deselected in 28.04 seconds.
+Evidence: migration-test-contracts-independent-review.md and
+parent-lane-verification/invocations.jsonl. No production or reporting-policy fix.
+
+The initial #3986 wording diagnosis was corrected: the producer still emits
+`ALWAYS run`; the old single-line body is preserved as unproven, not refreshed
+with alternative generated wording. The old body remains a negative case; a
+literal recognized stale-version body now tests refresh. Original report wording
+incorrectly implied an orientation-specific parent ruling; a sealed correction
+withdraws that implication. Generic test-only authorization was not new policy
+arbitration. Historical overwrite and false-change reporting remain unapproved.
+These test commits are lane-local until consolidation; retirement Op remains open.
+
+The retirement supplier is independently approved at
+`f48c00b3b8914c5c27a483227301a27a7cf3e774`: separate RED
+`5a0b612a45a01592d9227f4f47332769d2855d58` and GREEN
+`5a747b5bcb811c4365d8eb2e3b7704f9c443b865`. The two-line absent-to-absent
+guard returns only from write construction, preserving manifest retirement and
+parent pruning. The unchanged migration witness passes on the delivered source
+and fails when its exact BASE write method is restored in memory. This proves
+the narrow mechanism, not a complete historical checkout test. Independent
+selected checks also preserve real-file and unselected shared-owner behavior.
+Consumer integration remains pending; this does not close the reporting defects.
+
+## Shared Skill Parent Composition: Open
+
+Op `01M1XREZBGQTCZWW1X1WB8EBHR` addresses the next concrete WP10 boundary.
+Both managed and command owners claim creation of cold project `.agents` and
+`.agents/skills` directories. The existing coalescer correctly refuses different
+executable-owner claims; suppressing duplicate reporting cannot repair retained
+writer preconditions. A separate existing-parent witness shows managed-first
+dispatch invalidating command ancestor observations, not that every order fails.
+
+Corrected real-owner witness: two failures in 7.64 seconds at reviewed supplier
+`7bd158a2ed105e18f6e53a19ced2e23f1dad4eca`; exact evidence and caveats are on
+#3901 comment5569640940 and in the external wp10-handoff.md. The diagnostic cold
+witness continued after recording a conflict; production must stop before writes.
+No implemented production composer or approved consumer is implied.
+
+The bounded owner extension must provide single physical shared-directory
+execution, retain both logical claims and original preflights, and support valid
+dispatch order without reassessment, blanket observation exemptions or a generic
+transaction. Independent supplier and actual WP10 consumer review precede closure.
+WP10's separate narrow public JSON correction passes two new regressions, but
+root/composer/full-plan implementation remains incomplete. Its disclosed external
+runtime-namespace and PTY harness problems are being corrected separately; failed
+gates are not reclassified as passing.
+
+### Shared Supplier Independently Approved
+
+Shared RED `3d04d26405cb50e4e69bfb3157ca3976d4c1c220` and GREEN
+`c3bc086189e523a9fe48a4886706952e34d4fb91` are followed by constructor-admission
+RED `dcbd2e3de5086a5820afa3ec1f342c2cd62e01b8` and final
+`f48c00b3b8914c5c27a483227301a27a7cf3e774`. The composition retains original
+assessments and the same compiler descriptor, admits only equivalent shared
+directory creation, and keeps both logical claims on one physical command effect.
+Strict `preflight_composition` precedes provisioning; `apply_composition` executes
+commands first and verifies exact created-parent receipts before paired managed
+application. It does not weaken ordinary coalescing or command mtime observations.
+
+Independent review approved both bounded supplier Ops: seven newly authored
+consumer/partial-failure/cleanup/namespace checks plus nine selected retirement,
+receipt and consent checks passed. Four real layouts matched complete raw
+physical deltas and succeeded IDs: 483 cold legacy, 481 existing parents, 483
+cold pointer, 483 pointer with explicit empty activation. Provisioning is separate;
+counts summarize full destination/action/state/hash/link/mode equality, not a
+count-only oracle. Partial command failure prevents later owner writes and
+accounts for each physical ID exactly once.
+
+Parent read the full review and verified all 29 evidence-seal entries. Source
+formatting debt and final WP10/root/bundle/wheel/E2E gates remain explicit, not
+waived. Selected-bundle interactions are undergoing a separate bounded diagnostic;
+no new failure is inferred from source concerns alone. Both Ops remain open until
+actual WP10 consumer follow-through. Evidence:
+`shared-skill-parent-composition-independent-review.md` and its external sealed
+evidence directory. These supplier commits are not yet consolidated into this PR.
+
+Parent subsequently integrated the exact approved supplier chain into WP10 with
+normal merge `5c5c1c6fadd8859271e6069d1d53864137985d49`, preserving later
+formatting and test-contract commits. The merge tree equals the conflict-free
+preflight tree; all five supplier files remain byte-identical to reviewed HEAD.
+Fresh lane verification passed four shared layouts and the unchanged retirement
+migration witness: five passed in 44.18 seconds. This verifies lane integration,
+not full public WP10 composition. Both supporting Ops remain open pending that
+consumer review, and implementation commits remain lane-local until consolidation.
+
+## Local Shared-Package CI: Complete
+
+Op `01M1XPKV2DYTY49TC3K0H8Y5M5` addresses the recurring #3979 failure on
+PR #3923 head `e1ce3817fd92d8dde93dd55b4c102cb8367449b4`, CI run
+34110105314/job101704189922. The validator reports four mismatches between
+the current public CLI train and the retired SaaS repository's pins.
+Evidence is attached to #3979 comment5569112104; no duplicate issue was filed.
+
+Scope is the shared-package CI workflow and focused existing regression tests:
+remove its retired-consumer fetch/comparison and secret-dependent skip while
+preserving local range/lockfile/compatibility-manifest/retired-package validation,
+trusted validation scripts, candidate artifacts and existing job identities.
+Dependency pins, release publishing, secrets and other #3979 retirement work
+remain outside this Op. No claim that the full issue is closed or CI passed.
+RED-first tests, offline real-validator positive/negative controls, independent
+review and parent integration precede closure. Dispatch retains the known #3908
+unresolved-governance diagnostic, not an empty-governance approval.
+
+The bounded correction is independently approved: RED
+`54a6c3a424136f17d67c88d28613034db0061dd7`, GREEN
+`c3c22c56f4a749badc14a4b30c63441e195ea538`. Author release selection:
+146 passed, five existing dogfood opt-in skips; canonical fast: 1643 passed;
+Ruff and strict mypy passed. Reviewer ran eight focused tests plus six independent
+real BASE-validator controls, including invalid/missing candidate metadata,
+retired runtime dependency and untrusted candidate-script refusal. Broad suites
+were inspected, not repeated. No validator or dependency changes.
+
+Parent verified the review seal, integrated the exact two-commit patch chain with
+provenance as `aa547eb19` / `afd61036b`, and confirmed the delivered files and
+validator/metadata inputs remain byte-identical. On the target checkout, eight
+focused tests passed in 28.07 seconds, with real conftest and enforced isolated
+home/network/sync boundaries. External evidence:
+local-shared-package-ci-independent-review.md and
+local-shared-package-ci-parent/invocations.jsonl. This closes only the bounded
+CI Op, not all of #3979, hosted CI confirmation or mission acceptance.
+
+Hosted shared-package validation subsequently passed in run34114297726,
+job101717504446. Quality run34114297607 still failed: Ruff check passed but
+format check rejected the changed test file (one file, 1542 already formatted).
+This is an introduced formatting miss, not baseline debt. Corrective Op
+`01M1XRQZ7E1W8DGYPMDSQDECCM` requires a test-file-only formatting change,
+exact AST equality and independent parent formatter verification. Existing
+behavior evidence remains valid but does not certify formatting. No broad
+repeat or gate waiver; the corrective Op remains open.
+
+Formatting correction `6f54f1e01560710b6b1b2bf9b8efe3157e459a61` changes only
+that test file. Parent independently verified exact AST equality against
+`c3c22c56f4a749badc14a4b30c63441e195ea538`, single-file scope and the evidence
+seal, then integrated with provenance as `01a1ecbb8`. Fresh target Ruff format
+check and Ruff check both passed. No behavioral test rerun was needed for this
+AST-identical correction. This completes the corrective formatting Op; the
+original hosted failure remains recorded on #3952 comment5569693289.
+Parent verification is retained in local-shared-package-ci-parent/invocations.jsonl.
+
+## Managed Installation Provisioning Projection: Open
+
+Op `01M1XKAK3SXPCAWP6PN9STTA20` addresses WP10's next concrete owner gap.
+Legitimate WP09 provisioning updates legacy config, invalidating the retained
+managed-skill installation. Paired global/project preflight correctly refuses
+both owners before writes. The actual projected compiler result is currently
+rejected as unsupported. Real-conftest reproduction: one failed, three passed
+in 38.60 seconds; pointer and explicit-empty controls apply 315 effects.
+
+The original managed-skill owner extended admission and exact-transition
+checks in a separate worktree. Strict original paired preflight, retained bytes,
+caller registry/selection, locks, consent and unrelated-change refusal remain
+mandatory. The reviewed command supplier stays unchanged. Supplier and actual
+WP10 consumer review precede closure. External request/reproduction: wp10-handoff.md
+and wp10-evidence/test_managed_provisioning_composition.py.
+
+WP10 also committed public JSON downgrade RED `dd83882a826190f42dea09d89acd611c731e3087`
+and separate formatting-only `18aca7992798effddfeb7d249cfc9139e7c46ee0` on its
+lane. No production composition or public GREEN is claimed yet.
+
+Supplier RED `250662c11c3086925222200bb639f684adaa01a2` precedes candidate
+`7bd158a2ed105e18f6e53a19ced2e23f1dad4eca`, changing only the managed installer,
+provider and their two existing test files. Final frozen targeted verification:
+51 passed, 83 deselected in 77.91 seconds; Ruff and strict mypy passed.
+Intermediate failures remain recorded rather than relabeled as passing runs.
+Command and global supplier dependencies remain byte-identical.
+
+The actual compiler descriptor is admitted during preparation. The caller must
+hold `preflight_installation(installation, consent)` across provisioning and
+paired apply, aborting on original-state diagnostics before any write. The
+provider accepts only the bounded exact expected transition afterward, retaining
+the existing paired global locks and project lock. This is not a transaction,
+rollback guarantee, cross-process project lock or causal-writer authentication.
+
+Independent review approved this supplier after four actual consumer cases
+(38.47 seconds) and four adjacent refusal/cleanup controls (30.62 seconds).
+Each consumer matched all 315 physical skill effects and succeeded IDs, with
+provisioning reported separately and repeat apply showing no churn. Existing
+broad WP05 and author static/coverage evidence was reused, not freshly rerun.
+Parent verified all 18 review seal entries and fast-forwarded the exact supplier
+RED/GREEN chain into WP10. Actual WP10 composer review is still pending; the Op
+remains open. Reported commits are lane-local until mission consolidation.
+External report: managed-provisioning-projection-independent-review.md.
+
+## Command Provisioning Projection: Open
+
+Op `01M1XF4MQ2JPFAVDK15SYGVK8Q` addresses the concrete WP10 integration gap:
+command assessment renders from live configuration and cannot consume retained
+WP09 provisioning state. Applying required provisioning before command repair
+correctly invalidates original observations. In the real-conftest reproduction,
+legacy/pointer missing-key cases both refuse all 33 command effects; explicit
+empty controls both succeed. Result: two failed, two passed in 30.24 seconds.
+
+The original command owner is implementing a bounded immutable projected-input
+extension in a separate worktree. Original preflight and unrelated-change
+refusals, exact prepared bytes and finalizer ordering must remain intact.
+No preview writes, post-write rerender or blanket observation bypass is allowed.
+Supplier review and real WP10 consumer verification precede closure. External
+reproduction and API request: wp10-handoff.md and wp10-evidence/. Tracked on
+#3901 comment5567579677. WP10 made no product changes before reporting the gap.
+
+Supplier extension `bc950c6af76f2d2a5238e5dc9c53dc037b6c4f5b` is independently
+approved, preceded by RED `b349cc947389f841090ce18d66e0c040d66eed13`. Six existing
+command-owner source/test files changed. Mission-type-only provisioning preserves
+ordinary command bytes; no mission-to-command selection policy was introduced.
+The API admits the actual immutable compiler result and requires strict original
+preflight before provisioning, then validates only the exact supported completed
+transition. Unrelated changes still refuse before command writes.
+
+Independent review ran the unchanged four-cell consumer, 39 selected guard
+tests and adversarial controls, with narrow static checks. One external sentinel
+placement error was corrected and only its affected test rerun. The older
+262-pass author run is invalid for final coverage mapping because source moved;
+the final frozen 76-case gate and coverage are recorded separately. Parent
+verified all 42 evidence seal hashes and fast-forwarded the exact RED/GREEN chain
+into WP10. Report: command-provisioning-projection-independent-review.md.
+Actual composer consumption is still unreviewed, so this Op remains open.
+
+## WP09 YAML Preservation Arbitration: Complete
+
+Op `01M1XCGBK5AFYA6T2AE7CBRB3X` records explicit user authorization to fix
+both remaining WP09 defects after its third rejection: comments lost when the
+same loaded YAML document is saved repeatedly, and the already-reproduced
+YAML-directive compatibility failures. This supersedes the human-arbitration
+pause, not the preservation contract or review requirements.
+
+The original author resumed the existing lane through the canonical implement
+command. Scope remains WP09-owned YAML I/O and tests, with genuine RED evidence
+for both defects before the fix. Follow-up review is limited to these corrections
+and immediate preservation risks; unchanged broader evidence is reused. No
+automatic approval, broad review restart, dependency change or acceptance waiver.
+The durable Op record is included in this PR. Closure requires the actual fix
+commit and independent focused review evidence. WP10 integration, WP13 acceptance
+matrices and all final mission gates remain pending.
+
+The bounded correction is complete at `0eff16b1a8a1329363b21f8964bb188e59cf8054`,
+preceded by RED `62cd04d9f61ec210bd93a8a57abea011e9130f1e` (eight failures,
+eight passing controls). Author YAML suite: 136 passed. Independent review
+replayed the exact saved reuse/directive/explicit-key cases, ran 25 targeted
+tests and static checks, and approved both defect classes. Report and sealed
+evidence: wp09-op-independent-review.md. Parent recorded WP09 approval
+`01M1XE81YCJ0RNB0JA4800DTH3` and completed the Op with that fix/report.
+These are lane-local results until consolidation, not public-preview or final
+PR acceptance. No full review restart or acceptance waiver was used.
+
+## Configured Bundle Source Tools: Complete
+
+Op `01M1WM2PAB09HACQVJEDDR422H` addresses WP08's observed shared planner gap:
+`build_plans_for_bundles` hardcodes four representative tool keys, while the
+bundle contract requires caller-configured source tools. The bounded extension
+will preserve the existing default and explicit-empty selection, with one
+canonical registry/builder path. Scope: service.py and existing test_plan.py.
+Independent supplier review and real WP08 consumer verification precede closure.
+No dead-code exemption, dummy caller or approved-WP source edit is authorized.
+
+WP08 reported 924 subsystem tests passing; required architecture yielded 85
+passes and two failures, including this dead helper and unwired upgrade intent.
+The latter remains WP10 work, not a waived gate. Exact reproduction and source
+snapshot are retained externally in wp08-evidence/owner-api-request.md and
+architecture.log. WP08 continues non-overlapping owned verification meanwhile.
+
+Supplier `e35cdc494237f55ef73b36cb6f979e0c56772bfe` is independently approved:
+six focused tests, three independent controls and static checks passed. The
+complete RED/GREEN chain is integrated into WP08 with the two supplier files
+unchanged. Actual configured/empty/duplicate consumer cases pass in author tests;
+independent consumer review passed all three actual configured/empty/duplicate
+controls with approved supplier bytes unchanged. Parent completed this Op with
+consumer commit `9d78799b94f3c4df0f2e68d4ca8dda4ef3661801` and the separate
+consumer verdict in wp08-independent-review.md. WP08 itself was rejected for an
+unrelated supporting-directory mode regression; this Op closure does not approve
+WP08, root wiring, or final integrated gates.
+
+External Claude validation was recovered using only a pinned standalone 2.1.263
+executable copied into the disposable workspace, with host-home and network
+denial retained. The real marketplace initially failed strict validation; source
+comparison shows the bad payload existed in the frozen baseline. WP08's owned
+Claude-only correction now passes real strict plugin and marketplace validation,
+while a malformed-name control fails. Original failures remain in the external
+ledger and #3901 comment5563531342. No member-coverage claim is inferred from the
+validator's empty contents list; independent effects/member tests are separate.
+
+## Caller-Resolved Global Skill Inputs: Complete
+
+Op `01M1W6MA0EWJ38MJDQG2D50ZJ3` supplies the missing WP03 input needed by
+WP05's existing direct installers. Their caller-resolved registry, concrete
+skill selection and skill-agent selection must remain authoritative; default
+package/all-agent behavior must remain unchanged. One coordinated preparation,
+retained observations/bytes/owners and existing WP02 guards remain mandatory.
+Scoped runtime extension and independent review precede consumer integration.
+External reproduction and scope: wp05-interface-request.md.
+
+Independent verdict: APPROVE at `2b653bc511b81a1b4ccbf06d60f491b044831633`.
+Full dependency chain: RED `6650023b2eed23889637d35ecc99fabf00fdc188`,
+tidy `8a3f1b90207027d24cbedf75c0ffe41e150fae5d`, implementation
+`ea1f12e182753555bba17b6b30606e742ff4a774`, then the final test commit.
+Three changed paths: runtime agent_skills.py, asset_preparation.py and
+test_upgrade_preview_bootstrap.py. Fresh review: 37 focused plus six independent
+tests passed; Ruff, formatting and strict mypy passed. Actual coordinated
+dispatch retained 167 exact effects and 460 observations across three families;
+selected input does not authorize overwriting differing untracked content.
+Unchanged WP03 locking and owner evidence reused, not broad-suite rerun.
+Initial reviewer run had 37 setup errors from an external fixture-hook missing
+return; corrected externally without relaxing sandbox, fixtures or assertions.
+Original failure retained in global-skill-selection-independent-review.md.
+WP05 full-chain integration is verified with approved supplier bytes unchanged.
+The original consumer review rejected aggregate preflight and shared-owner
+metadata; correction `a458fc01fae48d80946f450ce90ab09ab19e8f1c` passed focused
+independent review: 11 targeted tests plus four independent controls, real
+169-effect provider dispatch and changed-input zero-write refusal. Separate
+consumer-seam verdict is closure-ready; parent completed this Op through the
+canonical CLI with that commit and wp05-cycle2-independent-review.md as evidence.
+This closes the owner/provider input extension, not WP10 root wiring or final
+public acceptance. Original failures and intermediate fixes remain recorded.
+
+Operator isolation incident F038 is disclosed in the external friction ledger
+and #3900 comment5561980379: earlier governance/parent CLI calls inherited live
+HOME; exact global changes are unknown without before snapshots. They are not
+claimed isolated. Future parent calls use an externally verified isolated-home
+wrapper with OS real-home and network denial. No blind rollback was attempted.
+
 Audience: agentic-framework-core-team. Updated: 2026-09-06.
 These are bounded workflow/test repairs, not completion of #3900-#3903.
 Detailed friction and raw command logs remain in the operator's external ledger.
@@ -99,3 +482,253 @@ gates must execute on the eventual integrated implementation.
   programme squad review belong to the existing CI/merge agents after handoff.
   PR is ready-for-squad, not locally squad-approved or merged. The current
   core mission's final five-case E2E floor still requires integrated execution.
+
+## Contract-Drift Pass-One Correction
+
+- Correction Op: `01M1VEJSZMGHJAE5C6G4SD0RY7`.
+- PR414 correction head: `50d47d634123e865033762fd676db66a2043b454`.
+  The original operation above records its historical initial handoff, not
+  approval of this later correction or programme merge.
+- Programme pass one identified Git-locked events8.0.0 unavailable through
+  the previous PyPI-only install, an unsupported provenance import, and two
+  reproduction commands missing explicit pytest plugin-autoload isolation.
+- Distinct implementer fixed immutable registry/Git source selection and
+  PEP610 source/commit verification, limited provenance imports to the selected
+  Event model, and preserved existing trusted system Git transport while
+  isolating user/global Git configuration. No new proxy or dependency change.
+- Parent independently reviewed the fixed diff and ran 42 focused tests
+  (0.17s). Owning offline suite: 297 passed, 2 known baseline failures
+  (#412/#413), 3 skipped, 362 deselected in130.95s. No full-green claim.
+- Public source c3657a86a/events9.1.6: scenario1 passed23.11s. Actual CI source
+  e4a083107/events8.0.0: parent final-patch scenario1 passed29.81s using
+  authenticated-read exact-commit local mirrors, not the remote CI platform.
+  Both runs preserve identical29 control identities, exactly the intended
+  required-field assertion failure plus28 passes after mutation, no errors or
+  skips, and exact original-model restoration. No credentials copied to tests.
+- Parent published the corrected five-section PR body with both Op IDs,
+  executable reproduction, evidence limits and deferred gates. Verified new
+  head and open PR; programme review is running. Old ci:green is not evidence
+  for this head. Programme pass two, remote CI and merge remain external.
+- Separate nested-checkout fixture gap filed E2E#416. Source selection is
+  explicitly bound in these witnesses; missing prerequisite skips never count
+  as completing acceptance. Static advisories and missing mypy remain disclosed.
+- External evidence: `drift-harness-evidence/parent-pass1-review.md`,
+  `pass1-fix-handoff.md`, `parent-pass1-ci-final*`, and `pr-body-pass1.md`
+  under the timestamped workspace's parent directory. This operation closes
+  only the tested correction handoff, not core mission acceptance or merge.
+
+### Programme Merge and CI Coverage Limitation
+
+Programme merged PR414 as `cb6939eb700f05845a8adf48546e11ab897182c2` after
+pass-two squad review and exact-head CI at50d47d6. Reported full CI:
+737 passed,6 skipped,371 deselected in1467.00s. However, the scenario leg
+explicitly skipped contract_drift_caught.py because source checkout discovery
+failed (four passed,one skipped). This confirms E2E#416 in the actual runner.
+The remote green label does not prove execution of this changed witness.
+Local explicit-source control/mutation evidence above remains distinct.
+Final core mission E2E acceptance must bind the source and execute every
+required floor case rather than count a missing prerequisite as coverage.
+Evidence and follow-up:
+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/issues/416#issuecomment-5560076553.
+
+## Pre-review Identity Partition Repair
+
+- Supporting Op: `01M1VKFGEXZEZK9E4PRSGA8TJ2`; core issue #3915.
+- Exact independent worker RED646f7c488 and GREENdac638afe integrated as
+  402947d5a and ea6324cc8. Three-file scope; production changes only the
+  metadata-read directory in `_mt_resolve_active_gate_bindings`.
+- Identity reads use canonical PRIMARY_METADATA placement; COORD continues to
+  own status. Owned effective_root and activation operation-root policy remain
+  unchanged. No hardcoded software-dev fallback or activation bypass.
+- Independent Renata/Darwin APPROVE: 65 fresh checks, plus exact-baseline replay
+  with eight expected failures and five passing controls. Real declared failing
+  subprocess executes through the selected binding. Four linked-owned-worktree
+  controls retain correct identity; actual corrupt metadata keeps existing
+  visible unverified-error behavior. Ruff clean. Two strict mypy diagnostics
+  reproduce with byte-exact baseline shadow files; full-file mypy is not green.
+- Parent integrated suite: 32 passed in45.52s. Actual mission binding probe
+  resolves active/spec-kitty-pre-review despite absent coord metadata, using
+  the canonical PRIMARY directory. Both status file hashes remain unchanged.
+  This probe is resolution-only, not a live gate execution or transition.
+- Tests use disposable real Git topology and real gate subprocesses, but the
+  integration bookkeeping port records rather than persists transitions.
+  Live work-package coverage must still be inspected at the next real handoff;
+  previous NO_COVERAGE results are not retroactively converted to passes.
+- External evidence: `pre-review-identity-handoff.md` and independent
+  `pre-review-identity-independent-review.md` beside this checkout. Worker
+  process-tree readiness timing failure remains disclosed, not represented as
+  fresh reviewer reproduction. No source suppression or timeout extension.
+
+## Canonical Agent Config Shape Repair: Reviewed and Integrated
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3917.
+- Supporting Op: `01M1VV3PYTR3HESCVHEXG9W7TQ`.
+- WP07 identified load_agent_config using yaml.load(f) or {} before shape
+  validation. Parent independently reproduced [], false, 0 and empty-string
+  documents returning successful empty AgentConfig instead of AgentConfigError.
+- This can make selected native/session assessment report complete/not_applicable
+  rather than incomplete. Shared canonical loader is outside WP07/WP10 ownership;
+  no provider-local schema or default change is authorized as a workaround.
+- Required correction: typed canonical failure for malformed root/selected-section
+  shapes, preserving absent/null/default mapping behavior and documented valid
+  agents/tools precedence. Separate RED/GREEN and independent consumer checks
+  remain required before the malformed-config contract is complete.
+- Independent scoped verdict: APPROVE. Reviewer reproduced the original
+  33-failure RED and passed 61 fresh tests plus 98 independent controls.
+  Original RED/GREEN: f04dece22f66c4e79a33965f32556c8723bd6377 /
+  59ee50ec05f6d68b5a8511a5c3f80ce151f4581a. Parent integration preserves that
+  sequence as 4ab373e0e / eab71296f; both files match reviewed bytes exactly.
+- Parent post-integration loader and doctor-envelope run: 61 passed in 47.44
+  seconds, terminal exit 0. External independent report:
+  agent-config-shape-independent-review.md beside this checkout.
+- This completes only root/selected-section mapping validation. Existing nested
+  roster-element TypeErrors for available: [1] and available: [{}] remain
+  reported on #3917. The 64 hosted tracker test failures under required sync=0
+  remain disclosed, not waived or represented as broad-suite green.
+- WP07 must still verify real native/session consumers after dependency uptake
+  and resolve its separate review findings. No WP07 or mission approval follows
+  from this supporting operation's completion.
+
+## Canonical Org Profile Diagnostics: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3918.
+- Supporting Op: `01M1VW15S0RR4AC182V3KJSNBS`, open; no fix or closure yet.
+- Parent reproduced a real corrupt org sibling through the existing resolver
+  fixture. The activation-aware repository reports an org SkippedProfile, while
+  resolve_activated_org_profiles returns only admitted records without that
+  diagnostic. Admission filtering remains correct; source-health evidence is lost.
+- WP06 T030/T033 remain incomplete pending the canonical diagnostic seam and
+  consumer integration. Preserve activation, provenance, deterministic results,
+  list-caller compatibility and the no-org fast path. No raw-org admission or
+  provider-local schema validation may substitute for canonical diagnostics.
+- Require RED/GREEN controls and independent review before integration/closure.
+  External reproduction: org-profile-diagnostic-probe.py beside this checkout.
+- Resolver implementation independently approved at 251c4a7f2dbe6d571cdc6a4d0d0ad6340521cdbc:
+  29 focused, 13 adversarial, 499 integration and 1642 fast-tier tests passed.
+  Parent integrated RED/GREEN as 79096a52a / 371bc7b83 and reran resolver plus
+  activation-gate tests: 29 passed, one legacy-config warning, terminal exit 0
+  in 57.61 seconds. WP06 consumer integration is running; Op remains open.
+
+## Supporting Test Integration: Open
+
+- Supporting Op: `01M1VWE1HPYDDSHAAZ4Z1HYK83`; related #3910 and #3912.
+- Parent reproduced the live next-shard completeness failure: all 19 artifact
+  placement nodes lacked a shard marker, one failed gate in 54.89 seconds.
+  Ruff also required formatting the artifact-placement and planning-self-heal
+  test files. These are valid integration failures, not waived baseline debt.
+- Correction registers the new runtime test in the existing next-shard map
+  and formats only those two tests. Their complete location-independent ASTs
+  remain identical to HEAD. No assertion, gate exemption or runtime change.
+- Three-file Ruff, format and strict typing checks pass. Combined live next-shard
+  completeness and both affected test files passed: 26 tests in 334.32 seconds,
+  terminal exit 0. The process remained live briefly after printing its summary;
+  the parent waited for its actual exit, without restart or termination.
+- Independent review APPROVE at 910940be0209d3115a0d1bf216e83e64a10cf0dc:
+  complete real collection has 1536 unique nodes and a total, disjoint partition;
+  exactly the 19 newly registered nodes change markers. Parent-map replay and
+  duplicate-marker negative control both reject through the unchanged gate.
+  Both formatted test modules independently passed 25 tests in 12 seconds,
+  terminal exit 0; full AST equality and Ruff checks passed.
+- Existing duplicate declaration for test_cli_guard_family.py is unchanged;
+  actual collection remains single-assignment. No claim that the entire source
+  registry is duplicate-free or that hosted CI/full architecture ran green.
+  Evidence: supporting-test-integration-independent-review.md beside checkout.
+
+## Init Command Rendering Order: Open
+
+Independent corrective review now approves `e9907343ba82782a91cb940df7c027d60dbdee9a`
+separately from WP04. Exact interrupted-save RED and normal/shared/edited-selector
+recovery controls pass, with preserved config, unknown content and original test
+prefix. Target integration and post-integration checks with WP04's command owner
+remain pending; Op stays open. Report: `wp04-cycle2-independent-review.md`.
+This is bounded command-delivery recovery, not full-init transactionality.
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3920.
+- Op: `01M1VXP7D4P42AJRTXEWW7JB42`, open. Separate supporting correction,
+  not a waiver of WP04's remaining subsystem failure.
+- Actual unchanged init/truncate-manifest/upgrade witness expects fifteen
+  entries but obtains ten. Init renders before final REASONS activation; later
+  canonical bytes differ in five files after manifest ownership is truncated.
+- Correct init composition while ownership is still authoritative. Preserve
+  explicit deactivation, authored configuration, unknown content and the original
+  public regression test. Do not adopt historical variants without proof or
+  change counts to hide the defect. RED/GREEN and independent review required.
+
+## Terminology Gate Path Boundary: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3919.
+- Op: `01M1VZW11T9T6YXGNKGZ5Q235W`, open. Existing gate matches excluded
+  path fragments against the entire hit, allowing active prose to suppress
+  violations merely by mentioning an excluded directory.
+- Repair actual source-path parsing and path boundaries. Preserve positive
+  historical exclusions and active-source negative controls, including content
+  injection and lookalike paths. Exercise the real scanner as well as pure seams.
+- Classify immutable recovery evidence narrowly without changing receipt bytes,
+  adding a broad archive exemption, or exempting arbitrary active prose.
+  RED-first regressions, independent review and postintegration verification
+  are required before closing this Op. No gate waiver is authorized.
+- Dispatch exited successfully; governance hash `da91c778426bd64d` still reports
+  unresolved directives (#3908). This is not full governance-resolution success.
+
+- Independent review rejected candidate `447b4864bf94bece5a66724f66b7af961127bfb5`:
+  real Git skips staged leaf symlinks while byte checks follow their targets.
+  All 79 existing tests pass despite three failing real-Git rejection controls,
+  one per frozen evidence path. Enforce the regular-file/no-symlink boundary
+  independently of source hits. Original author is correcting this one finding;
+  follow-up review targets the corrective diff and adjacent path regressions.
+  Report: `terminology-gate-independent-review.md`; #3919 comment5561704532.
+
+### Terminology Correction Approved And Integrated
+
+Independent cycle-two review approved `a00ab6aeb452a51de7b384d500c3a8a6867f9be7`:
+21 independent controls and 12 targeted repository tests passed. The original
+three real-Git symlink counterexamples fail on RED and pass GREEN. Frozen bytes,
+original test ASTs, scanner policy and baseline remain unchanged.
+Parent integrated all four RED/GREEN commits with provenance, ending at
+`cf2eaf1b1`; the complete 88-test terminology module passed in 49.84s on the
+target checkout. This closes the bounded #3919 repair, not mission acceptance.
+External reports: `terminology-gate-cycle2-independent-review.md` and
+`terminology-gate-evidence/parent-integration.log`. Exact isolated command:
+`terminology-parent-integration.sh`. Op completion follows this evidence record.
+
+## Moments Literal-Output Test: Open
+
+- Issue: https://github.com/Priivacy-ai/spec-kitty/issues/3924.
+- Op: `01M1W32WPQW15E6YQXZDG91ZFA`, open. Normal Rich wrapping splits
+  the invalid-value diagnostic across lines under long isolated config paths;
+  the test incorrectly requires a contiguous substring. The literal markup
+  value and semantic diagnostic remain present in actual output.
+- Scope: `tests/cli/commands/test_moments_command.py` only. Preserve the
+  existing no-crash, diagnostic and literal-markup requirements. Add real
+  wrapping coverage and negative controls for lost/interpreted content.
+- No production changes, widened-console workaround, skip, xfail or assertion
+  deletion. RED-first proof, scoped static/full affected tests, canonical fast
+  verification and independent review are required before integration/closure.
+- The prior 1641-pass/one-failure fast run remains red. Source diagnosis and
+  evidence are retained externally in `moments-wrapping-issue.md` and
+  `terminology-gate-evidence/moments-probe.json`. Governance degradation #3908
+  remains explicit despite successful dispatch.
+
+### Moments Repair Approved And Integrated
+
+RED `5dc39d1880fafc052c9bafc7602d19f6412b6c9e`, GREEN
+`1a4c441f0c28cf8aa79b5d937c82176bf7cef516`; only the permitted test changed.
+Independent reviewer approved after 19 affected tests, static checks, real
+wrapping and mutation controls. Author's single canonical fast run passed 1643
+tests; reviewer inspected that receipt rather than rerunning it. Parent integrated
+with provenance as `f0f843ae2` / `c938e1905` and independently ran all 19 affected
+tests on the target checkout: 19 passed in 28.49s, terminal exit 0.
+The original diagnostic, literal-markup and no-crash obligations are retained;
+no production changes or widened-console workaround. Historical RED remains
+historical, not retrospectively green. External evidence:
+`moments-wrapping-independent-review.md`, `moments-parent-integration.sh`,
+`terminology-gate-evidence/parent-moments-integration.log`.
+
+### Org Diagnostics Consumer Follow-Through Complete
+
+The previously approved and integrated #3918 supplier remains byte-identical.
+Independent WP06 review verified actual consumer health handling before list
+copying/truthiness; its separate corrective review closed all other WP06 findings
+without changing the supplier or that consumer seam. WP06 approved event:
+`01M1W5N34C35V1989GAREFJ5ZS`. This satisfies the pending consumer follow-through
+for Op `01M1VW15S0RR4AC182V3KJSNBS`; full public integration remains pending.

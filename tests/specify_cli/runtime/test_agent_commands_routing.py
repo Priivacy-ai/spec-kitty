@@ -26,6 +26,7 @@ import pytest
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.runtime.agent_commands import (
+    _get_command_templates_dir,
     _sync_agent_commands,
     ensure_global_agent_commands,
     get_global_command_dir,
@@ -38,6 +39,8 @@ from specify_cli.runtime.agent_commands import (
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def test_command_skill_agents_absent_from_command_config() -> None:
     """The loop in ``ensure_runtime`` iterates ``AGENT_COMMAND_CONFIG``.
 
@@ -81,11 +84,11 @@ def test_claude_still_routes_to_command_files(tmp_path: Path) -> None:
 
 
 def test_sync_writes_parseable_gemini_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    templates_dir = tmp_path / "templates"
-    templates_dir.mkdir()
+    templates_dir = _get_command_templates_dir()
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
 
     _sync_agent_commands("gemini", templates_dir, "sh")
 
@@ -97,11 +100,11 @@ def test_sync_writes_parseable_gemini_toml(tmp_path: Path, monkeypatch: pytest.M
 
 
 def test_sync_writes_parseable_qwen_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    templates_dir = tmp_path / "templates"
-    templates_dir.mkdir()
+    templates_dir = _get_command_templates_dir()
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
 
     _sync_agent_commands("qwen", templates_dir, "sh")
 
@@ -159,10 +162,7 @@ def test_current_version_lock_does_not_mask_partial_global_commands(
         "tasks-finalize",
     ):
         (claude_commands / f"spec-kitty.{command}.md").write_text(
-            "---\n"
-            f"description: {command}\n"
-            "---\n"
-            f"<!-- spec-kitty-command-version: {cli_version} -->\n",
+            f"---\ndescription: {command}\n---\n<!-- spec-kitty-command-version: {cli_version} -->\n",
             encoding="utf-8",
         )
 
@@ -193,7 +193,7 @@ def test_partial_global_command_sync_does_not_write_current_lock(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """If templates are incomplete, retry on the next CLI invocation."""
+    """Incomplete required templates refuse before stamping or installing."""
     home = tmp_path / "home"
     kittify_home = tmp_path / "kittify"
     templates_dir = tmp_path / "templates" / "software-dev" / "command-templates"
@@ -208,6 +208,8 @@ def test_partial_global_command_sync_does_not_write_current_lock(
     monkeypatch.delenv("OPENCODE_CONFIG_DIR", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
 
-    ensure_global_agent_commands()
+    with pytest.raises(RuntimeError):
+        ensure_global_agent_commands()
 
     assert not (kittify_home / "cache" / "agent-commands.lock").exists()
+    assert not (home / ".claude/commands").exists()

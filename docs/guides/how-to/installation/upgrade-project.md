@@ -24,7 +24,9 @@ Run a project upgrade when:
 - A spec-kitty command exits with code **4** and says `This project needs Spec Kitty project migrations`.
 - You opened an older project on a newer CLI for the first time.
 
-If your project is already current, `spec-kitty upgrade` is a no-op.
+If migrations are current, upgrade can still repair missing managed surfaces or
+provision missing activation metadata. A second successful run is a no-op only
+after those owners are current too.
 
 ## The upgrade flow
 
@@ -52,6 +54,17 @@ For machine-readable output:
 ```bash
 spec-kitty upgrade --dry-run --json
 ```
+
+That command preserves the legacy compatibility schema. For the complete,
+preview-only owner plan use:
+
+```bash
+spec-kitty upgrade --plan-json
+```
+
+The full plan reports roots, exact physical effects, preserved dispositions,
+diagnostics, apply-only temporary artifacts, and commit policy. It cannot be
+replayed or used as consent. `--yes` and `--force` never make a preview write.
 
 ## What `spec-kitty upgrade` does
 
@@ -104,6 +117,10 @@ git commit -m "chore: upgrade Spec Kitty project to <version>"
 | 4    | Project needs migration | Run `spec-kitty upgrade` (this command). |
 | 5    | Project too new for CLI | Upgrade the CLI first (`pipx upgrade spec-kitty-cli`). |
 | 6    | Project metadata corrupt | Check `.kittify/metadata.yaml` exists and is valid YAML. |
+
+For legacy `--dry-run --json`, a target refusal has semantic exit code 2 in the
+document but process code 0; the too-new-project exception remains process code
+5. `--plan-json` reports its process code directly in `process_exit_code`.
 
 ## Troubleshooting
 
