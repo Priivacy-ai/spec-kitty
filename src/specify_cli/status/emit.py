@@ -340,20 +340,31 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
     # The plain door can also write a registered coord surface (the
     # transactional fallback). WP prompts remain PRIMARY artifacts there;
     # reading the coord copy would treat an absent prompt as no dependencies.
-    from mission_runtime import MissionArtifactKind  # noqa: PLC0415
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
+    from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
     from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root  # noqa: PLC0415
 
     # Preserve the plain door's explicit ad-hoc dirs and primary bootstrap
-    # surfaces. Only a kitty-specs dir in another checkout needs re-anchoring.
+    # surfaces. Only a kitty-specs dir names the durable primary planning home
+    # this re-anchor exists to protect; an ad-hoc caller-supplied dir (outside
+    # kitty-specs) is left untouched.
+    #
+    # No hand-rolled root-walk comparison here (the prior `parent.parent`
+    # equality gate a write-side gate correctly flags as re-derivation):
+    # WORK_PACKAGE_TASK is a PRIMARY-partition kind (mission_runtime.artifacts),
+    # so `PlacementSeam.read_dir` resolves the primary mission dir for EVERY
+    # topology and coord state (it never transits coord, never raises
+    # CoordinationBranchDeleted) -- calling it unconditionally is idempotent
+    # when `planning_feature_dir` already IS the canonical primary dir (the
+    # canonicalizer's `meta.json`-exists short-circuit returns the handle
+    # unchanged), so dropping the "already anchored" fast path costs nothing
+    # beyond a redundant resolve.
     if planning_feature_dir.parent.name == KITTY_SPECS_DIR:
         try:
             primary_root = resolve_canonical_root(planning_feature_dir)
         except WorkspaceRootNotFound:
             pass
         else:
-            if planning_feature_dir.parent.parent.resolve() != primary_root.resolve():
-                planning_feature_dir = resolve_planning_read_dir(primary_root, planning_feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
+            planning_feature_dir = placement_seam(primary_root, planning_feature_dir.name).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     wp_file = _find_wp_file(planning_feature_dir, wp_id)
     if wp_file is None:
         return ()
