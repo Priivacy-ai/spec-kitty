@@ -87,7 +87,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
-from mission_runtime import CommitTarget, MissionArtifactKind, kind_for_mission_file, placement_seam
+from mission_runtime import (
+    ActionContextError,
+    CommitTarget,
+    MissionArtifactKind,
+    PlacementSeam,
+    kind_for_mission_file,
+    placement_seam,
+)
 from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
@@ -101,6 +108,7 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
 if TYPE_CHECKING:
@@ -387,8 +395,7 @@ def _warn_non_builtin_sidecar_pairs(candidates: list[Path], mission_type: str) -
         if _is_builtin_missions_dir(parent):
             continue
         _logger.warning(
-            "Walk B: non-built-in tier at %s ships both %s and %s for "
-            "mission %r; %s wins (existing sidecar preference unchanged).",
+            "Walk B: non-built-in tier at %s ships both %s and %s for mission %r; %s wins (existing sidecar preference unchanged).",
             parent,
             MISSION_YAML,
             MISSION_RUNTIME_YAML,
@@ -477,11 +484,7 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     ]
     global_tier = [context.user_home / KITTIFY_DIR / "missions"]
     builtin_tier = list(context.builtin_roots)
-    tiers = (
-        project_tiers + [builtin_tier, global_tier]
-        if mission_type == MISSION_TYPE_SOFTWARE_DEV
-        else project_tiers + [global_tier, builtin_tier]
-    )
+    tiers = project_tiers + [builtin_tier, global_tier] if mission_type == MISSION_TYPE_SOFTWARE_DEV else project_tiers + [global_tier, builtin_tier]
 
     for roots in tiers:
         for root in roots:
@@ -578,9 +581,7 @@ def _start_ephemeral_query_run(
     run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
     try:
         template_key = _rb._runtime_template_key(mission_type, repo_root)
-        template_override, template_path_override = _workflow_runtime_template(
-            mission_slug, mission_type, repo_root, template_key
-        )
+        template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
         context = _rb._build_discovery_context(repo_root)
 
         run_ref = start_mission_run(
@@ -629,9 +630,7 @@ def get_or_start_run(
     # Start a new run
     run_store = repo_root / KITTIFY_DIR / "runtime" / "runs"
     template_key = _rb._runtime_template_key(mission_type, repo_root)
-    template_override, template_path_override = _workflow_runtime_template(
-        mission_slug, mission_type, repo_root, template_key
-    )
+    template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
     context = _rb._build_discovery_context(repo_root)
 
     run_ref = start_mission_run(
@@ -666,9 +665,7 @@ def get_or_start_run(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_run_dir_for_mission(
-    repo_root: Path, mission_slug: str
-) -> Path | None:
+def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | None:
     """Return the persisted run directory for ``mission_slug``, read-only.
 
     Looks the run up in the durable ``feature-runs.json`` index without
@@ -688,9 +685,7 @@ def _resolve_run_dir_for_mission(
     return Path(run_dir_raw)
 
 
-def _resolve_tech_stack_for_profile(
-    repo_root: Path, profile_id: str | None
-) -> frozenset[str]:
+def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
     """Best-effort resolution of the in-scope tech stack for ``profile_id``.
 
     The tech stack is sourced from the resolved agent profile's
@@ -779,9 +774,7 @@ def build_operational_context_for_claim(
         try:
             run_dir = _rb._resolve_run_dir_for_mission(repo_root, mission_slug)
             if run_dir is not None:
-                resolved_profile = _rb._resolve_step_agent_profile(
-                    run_dir, current_activity
-                )
+                resolved_profile = _rb._resolve_step_agent_profile(run_dir, current_activity)
         except Exception:
             resolved_profile = None
 
@@ -818,9 +811,7 @@ def _build_operational_context_for_decision(
     resolved_profile: str | None = None
     if step_id is not None:
         try:
-            resolved_profile = _rb._resolve_step_agent_profile(
-                Path(run_ref.run_dir), step_id
-            )
+            resolved_profile = _rb._resolve_step_agent_profile(Path(run_ref.run_dir), step_id)
         except Exception:
             resolved_profile = None
 
@@ -838,9 +829,7 @@ def _build_operational_context_for_decision(
 # ---------------------------------------------------------------------------
 
 
-def _presence_filenames_for(
-    mission_family: str, repo_root: Path | None = None
-) -> frozenset[str]:
+def _presence_filenames_for(mission_family: str, repo_root: Path | None = None) -> frozenset[str]:
     """Resolve the per-type presence filename set for *mission_family* (FR-011, #3597).
 
     Sources filenames from the single per-type ``expected-artifacts.yaml``
@@ -995,18 +984,73 @@ class ArtifactPresenceSnapshot:
     blocking_artifact_names: frozenset[str] | None = None
 
 
-def _artifact_presence_read_dir(feature_dir: Path, name: str, repo_root: Path | None) -> Path:
-    """Resolve classified inputs; unclassified filenames retain their caller's home."""
-    kind = kind_for_mission_file(feature_dir / name)
-    if repo_root is None or kind is None:
-        return feature_dir
-    seam = placement_seam(repo_root, feature_dir.name)
-    # Bootstrap supplies the resolved STATUS home. Preserve an explicit owned
-    # checkout when that home differs from the ordinary topology-aware result;
-    # a normal linked/coord caller still uses canonical placement.
-    if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() != feature_dir.resolve():
-        seam = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
-    return seam.read_dir(kind)
+#: The seam failures a presence read degrades on. ``ActionContextError`` is the
+#: seam refusing explicit placement outside ``single_branch``;
+#: ``StatusReadPathNotFound`` (incl. ``CoordinationBranchDeleted``) is a
+#: coord-partition probe failing on coordination-branch liveness;
+#: ``MissionSelectorAmbiguous`` is the seam's declared selector failure on
+#: ``feature_dir.name``. None is a fact about the PRIMARY artifact being asked
+#: for, so none may escape a fact port whose two production callers invoke it
+#: outside their ``try``.
+_PRESENCE_SEAM_DEGRADES = (ActionContextError, StatusReadPathNotFound, MissionSelectorAmbiguous)
+
+
+def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> PlacementSeam | None:
+    """Return the placement seam whose STATUS home is ``feature_dir``, else ``None``.
+
+    Bootstrap supplies the resolved STATUS home, so the ordinary
+    topology-aware seam matches for a linked/coord caller. An owned
+    ``single_branch`` checkout matches only under explicit placement, which
+    is *verified* the same way rather than assumed from the first mismatch.
+    ``None`` means the caller's directory is not a recognised STATUS home:
+    every artifact then resolves to the supplied directory (the pre-#3910
+    behaviour) instead of a guessed placement — see
+    :data:`_PRESENCE_SEAM_DEGRADES` for why a seam failure lands here too.
+    """
+    if repo_root is None:
+        return None
+    try:
+        seam = placement_seam(repo_root, feature_dir.name)
+        if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
+            return seam
+        owned = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
+        if owned.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
+            return owned
+    except _PRESENCE_SEAM_DEGRADES as exc:
+        _logger.debug("artifact presence: seam degraded for %s, keeping supplied directory: %s", feature_dir, exc)
+        return None
+    _logger.debug("artifact presence: %s is not a recognised STATUS home, keeping supplied directory", feature_dir)
+    return None
+
+
+class _ArtifactPresenceHomes:
+    """Per-``gather_artifact_presence`` memo of artifact kind -> read directory.
+
+    One seam resolution per kind per call (the module's one-read-per-call
+    discipline, cf. ``_presence_filenames_for``), instead of one per filename.
+    Classified inputs read from their canonical home; unclassified/custom
+    filenames, callers without a recognised seam, and any degraded seam read
+    keep the supplied directory.
+    """
+
+    def __init__(self, feature_dir: Path, seam: PlacementSeam | None) -> None:
+        self._feature_dir = feature_dir
+        self._seam = seam
+        self._by_kind: dict[MissionArtifactKind, Path] = {}
+
+    def read_dir(self, name: str) -> Path:
+        kind = kind_for_mission_file(self._feature_dir / name)
+        if self._seam is None or kind is None:
+            return self._feature_dir
+        home = self._by_kind.get(kind)
+        if home is None:
+            try:
+                home = self._seam.read_dir(kind)
+            except _PRESENCE_SEAM_DEGRADES as exc:
+                _logger.debug("artifact presence: read of %s degraded to supplied directory: %s", kind, exc)
+                home = self._feature_dir
+            self._by_kind[kind] = home
+        return home
 
 
 def gather_artifact_presence(
@@ -1046,19 +1090,24 @@ def gather_artifact_presence(
     ``repo_root`` enables kind-aware artifact placement as well as org-tier
     manifest resolution. Classified planning inputs use their canonical home;
     lifecycle facts continue to use ``feature_dir`` (the STATUS authority).
-    Unclassified/custom filenames and callers without ``repo_root`` retain
-    their supplied directory; no alternate copies are searched.
+    Unclassified/custom filenames, callers without ``repo_root``, and callers
+    whose ``feature_dir`` is not a recognised STATUS home retain their
+    supplied directory; no alternate copies are searched. This is a total
+    function: a seam refusal or a coordination-branch liveness failure while
+    resolving a home degrades to the supplied directory rather than raising
+    (:class:`_ArtifactPresenceHomes`).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
+    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root))
     present: set[str] = set()
     for tag in _presence_filenames_for(mission_family, repo_root=repo_root):
-        if (_artifact_presence_read_dir(feature_dir, tag, repo_root) / tag).is_file():
+        if (homes.read_dir(tag) / tag).is_file():
             present.add(tag)
 
-    planning_dir = _artifact_presence_read_dir(feature_dir, "spec.md", repo_root)
-    tasks_dir = _artifact_presence_read_dir(feature_dir, "tasks", repo_root) / "tasks"
+    planning_dir = homes.read_dir("spec.md")
+    tasks_dir = homes.read_dir("tasks") / "tasks"
     tasks_dir_is_dir = tasks_dir.is_dir()
     wp_files = sorted(tasks_dir.glob("WP*.md")) if tasks_dir_is_dir else []
     if wp_files:
@@ -1121,9 +1170,7 @@ def gather_artifact_presence(
     if _expected_artifacts_manifest_resolves(mission_family, repo_root):
         from specify_cli.runtime.resolver import required_artifacts_for  # noqa: PLC0415
 
-        blocking_artifact_names = frozenset(
-            required_artifacts_for(step_id, mission_family, repo_root=repo_root)
-        )
+        blocking_artifact_names = frozenset(required_artifacts_for(step_id, mission_family, repo_root=repo_root))
 
     return ArtifactPresenceSnapshot(
         present_artifacts=frozenset(present),

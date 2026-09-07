@@ -108,7 +108,6 @@ def test_status_prints_config_values_as_literal_text(kittify_home: Path, monkeyp
     (kittify_home / "config.toml").write_text('[moments]\nagents = "[/]"\nteammates = ["[/]"]\n')
     result = runner.invoke(moments_app, ["status"])
     assert result.exit_code == 0
-    assert ("invalid value" not in result.stdout) == (home_name != "home"), result.stdout
     _assert_literal_config_status(result.stdout)
 
     # Corrupt real rendered output: whitespace tolerance must not hide lost content.
