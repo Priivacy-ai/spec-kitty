@@ -1,0 +1,84 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M1W80H51DDFC202Z68000BNG",
+  "materialized_at": "2026-09-06T20:54:27.233291+00:00",
+  "mission_number": "",
+  "mission_slug": "dead-port-disposition-01M1VRA2",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M1W809Y2K5KZS3DVF7EDH91J",
+      "last_transition_at": "2026-09-06T20:54:19.842815+00:00",
+      "review_result": {
+        "reference": "Review passed: S1-S6 each map to a non-vacuous named test (corrupt-meta probe confirmed MissionMetaReadError reaches the except branch); Protocol body byte-identical to base (25 lines, 8 emit_*); event_emitter.py untouched; only 3 owned files changed; no for_feature, no new feature* identifiers, single inline-justified BLE001 noqa; factory/for_mission keywords exactly feature_dir/mission_slug/mission_type; env gate read at call time via is_truthy (same import as status/adapters.py:25), S2 test toggles via monkeypatch without reload; T006 docstring names status/adapters.py fan-out + register_runtime_emitter_factory + ADR 2026-09-06-2. Tests: 226 passed across test_internal_runtime_coverage/test_bridge_parity/test_decision_log/test_layer_rules; ruff clean; mypy 0 issues. Zero production callers expected (WP03 rewires).",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "shell_pid": 66704,
+      "shell_pid_created_at": "1788719077.266666"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M1W80CBC2M4BBJ0FF8Z333HZ",
+      "last_transition_at": "2026-09-06T20:54:22.316658+00:00",
+      "review_result": {
+        "feedback_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260906-172008-obQo0B/spec-kitty/kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP02-flush-target-fixes/review-cycle-1.md",
+        "reference": "review-cycle://dead-port-disposition-01M1VRA2/WP02-flush-target-fixes/review-cycle-1.md",
+        "reviewer": "user",
+        "verdict": "approved"
+      },
+      "shell_pid": 84185,
+      "shell_pid_created_at": "1788719457.645802"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M1W80ESDHA2A17ERG3KYPPH0",
+      "last_transition_at": "2026-09-06T20:54:24.813533+00:00",
+      "review_result": {
+        "feedback_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260906-172008-obQo0B/spec-kitty/kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP03-bridge-rewiring-and-test-migration/review-cycle-1.md",
+        "reference": "review-cycle://dead-port-disposition-01M1VRA2/WP03-bridge-rewiring-and-test-migration/review-cycle-1.md",
+        "reviewer": "user",
+        "verdict": "approved"
+      },
+      "shell_pid": 32059,
+      "shell_pid_created_at": "1788723092.598289"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M1W80H51DDFC202Z68000BNG",
+      "last_transition_at": "2026-09-06T20:54:27.233291+00:00",
+      "review_result": {
+        "feedback_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260906-172008-obQo0B/spec-kitty/kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP04-deletion-guard-and-disclosure/review-cycle-1.md",
+        "reference": "review-cycle://dead-port-disposition-01M1VRA2/WP04-deletion-guard-and-disclosure/review-cycle-1.md",
+        "reviewer": "user",
+        "verdict": "approved"
+      },
+      "shell_pid": 93120,
+      "shell_pid_created_at": "1788725779.319304"
+    }
+  }
+}
