@@ -67,6 +67,7 @@ def test_target_validator_diagnoses_malformed_known_current() -> None:
 
     assert validate_upgrade_target("broken", "3.2.7rc1") == "Invalid project metadata version: broken"
 
+
 _test_app = typer.Typer(add_completion=False)
 _test_app.command()(upgrade)
 _runner = CliRunner()

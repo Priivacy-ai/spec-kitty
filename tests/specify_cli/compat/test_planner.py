@@ -52,7 +52,9 @@ _MAX = 3
 
 @pytest.mark.parametrize("cached_source", ["pypi", "simple_index"])
 def test_read_only_plan_preserves_cache_without_calling_provider(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cached_source: Literal["pypi", "simple_index"],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cached_source: Literal["pypi", "simple_index"],
 ) -> None:
     from specify_cli.compat.cache import NagCacheRecord
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
@@ -60,10 +62,15 @@ def test_read_only_plan_preserves_cache_without_calling_provider(
     monkeypatch.setattr("specify_cli.compat.planner._get_installed_version", lambda: _INSTALLED)
     monkeypatch.setattr("specify_cli.core.channel.prerelease_enabled", lambda: False)
     cache = NagCache(tmp_path / "cache/nag.json")
-    cache.write(NagCacheRecord(
-        cli_version_key=_INSTALLED, latest_version=_LATEST, latest_source=cached_source,
-        fetched_at=_NOW - timedelta(days=2), last_shown_at=None,
-    ))
+    cache.write(
+        NagCacheRecord(
+            cli_version_key=_INSTALLED,
+            latest_version=_LATEST,
+            latest_source=cached_source,
+            fetched_at=_NOW - timedelta(days=2),
+            last_shown_at=None,
+        )
+    )
     resolver = _make_project_root_resolver(tmp_path)
 
     def forbidden(*args: object, **kwargs: object) -> None:
@@ -73,8 +80,7 @@ def test_read_only_plan_preserves_cache_without_calling_provider(
     monkeypatch.setattr(provider, "get_latest", forbidden)
     monkeypatch.setattr(cache, "write", forbidden)
     before = snapshot({"fixture": tmp_path})
-    result = plan(_make_invocation(), latest_version_provider=provider, nag_cache=cache,
-                  now=_NOW, project_root_resolver=resolver, read_only=True)
+    result = plan(_make_invocation(), latest_version_provider=provider, nag_cache=cache, now=_NOW, project_root_resolver=resolver, read_only=True)
     assert result.project_status.state == ProjectState.COMPATIBLE
     assert result.cli_status.latest_source == ("pypi" if cached_source == "pypi" else "none")
     assert result.cli_status.latest_version == (_LATEST if cached_source == "pypi" else None)

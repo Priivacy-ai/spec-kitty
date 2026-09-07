@@ -1131,8 +1131,7 @@ def _plan_impl(
     # migration-discovery hot path. The `upgrade` preview overrides this with
     # the unconditional real set (see cli/commands/upgrade.py).
     pending_migrations = (
-        _pending_migrations_for(project_status, cli_status.installed_version)
-        if include_migrations and decision == Decision.BLOCK_PROJECT_MIGRATION else ()
+        _pending_migrations_for(project_status, cli_status.installed_version) if include_migrations and decision == Decision.BLOCK_PROJECT_MIGRATION else ()
     )
 
     # --- Step 10: Exit code ---
