@@ -417,7 +417,7 @@ def test_actual_slash_dispatch_retains_empty_selection_and_caller_root(owner_hom
     service = SurfaceRepairService((SlashCommandsProvider(),))
     plans = (SurfacePlan("claude", (), "T1", (definition,)),)
     assessments = service.assess(inputs, (), plans=plans)
-    assert len(assessments) == 1 and assessments[0].root == inputs.root
+    assert len(assessments) == 1 and assessments[0].root == inputs.root  # golden-count: cardinality-is-contract
     assert assessments[0].complete and assessments[0].effects
     assert all("claude" in effect.logical_owners for effect in assessments[0].effects)
     results = service.apply_assessments(assessments * 2, ApplyConsent(automatic=True))
@@ -619,7 +619,7 @@ def test_caller_local_registry_selection_reaches_real_global_dispatch(owner_home
     project = tmp_path / "project"
     project.mkdir()
     manifest = install_all_skills(project, ["claude"], registry)
-    assert len(manifest.entries) == 1
+    assert len(manifest.entries) == 1  # golden-count: cardinality-is-contract
     assert (owner_home / ".claude/skills/caller-local/SKILL.md").read_bytes() == source.read_bytes()
 
     cold = tmp_path / "cold-home"
@@ -841,8 +841,10 @@ def test_skill_selection_adopts_equal_legacy_then_repairs_changed_source(owner_h
     project = tmp_path / "legacy-project"
     project.mkdir()
     install_all_skills(project, ["claude"], registry)
+    (owner_home / ".kittify/cache/global_skills-assets.json").unlink()
     adopted = _caller_skill_assessment(registry, ["claude"])
-    assert all(result.outcome == "applied" for result in _global_dispatch((adopted,)))
+    adopted_results = _global_dispatch((adopted,))
+    assert all(result.outcome == "applied" for result in adopted_results), [(result.outcome, result.diagnostics) for result in adopted_results]
     source = registry.discover_skills()[0].skill_md
     source.write_bytes(source.read_bytes().replace(b"Exact bytes", b"Updated source"))
     destination = owner_home / ".claude/skills/selected-local/SKILL.md"
@@ -863,12 +865,13 @@ def test_skill_selection_does_not_authorize_differing_untracked_content(owner_ho
     project = tmp_path / "legacy-project"
     project.mkdir()
     install_all_skills(project, ["claude"], registry)
+    (owner_home / ".kittify/cache/global_skills-assets.json").unlink()
     destination = owner_home / ".claude/skills/selected-local/SKILL.md"
     before = snapshot({"legacy": destination})
     registry.discover_skills()[0].skill_md.write_text("Different source, not ownership proof\n")
     assessment = _caller_skill_assessment(registry, ["claude"])
     assert assessment.complete
-    assert not any(effect.destination == destination for effect in assessment.effects)
+    assert not any(effect.destination == destination for effect in assessment.effects), assessment.effects
     assert all(result.outcome == "applied" for result in _global_dispatch((assessment,)))
     assert_unchanged(before, snapshot({"legacy": destination}))
 
@@ -969,7 +972,7 @@ def test_coordinated_global_retains_shared_ownership_and_duplicate_dispatch(owne
     assert assessment.complete
     prepared = assessment.prepared
     assert isinstance(prepared, PreparedAssets)
-    assert len(prepared.lock_paths) == 3
+    assert len(prepared.lock_paths) == 3  # golden-count: cardinality-is-contract
     assert len({e.destination for e in assessment.effects}) == len(assessment.effects)
     assert {e.owner for e in assessment.effects} == {"global_assets"}
     common = next(e for e in assessment.effects if e.destination == owner_home / ".kittify/cache")

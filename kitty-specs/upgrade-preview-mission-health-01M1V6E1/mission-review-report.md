@@ -1,7 +1,7 @@
 ---
-verdict: fail
+verdict: pass_with_notes
 mode: post-merge
-reviewed_at: 2026-09-07T18:42:35.656764+00:00
+reviewed_at: 2026-09-07T20:44:34.903928+00:00
 findings: 38
 gates_recorded:
   - id: gate_1
@@ -34,10 +34,10 @@ mission_exception_present: false
 
 ### Gate 2 - Architectural tests
 
-- Command: `.venv/bin/pytest tests/architectural/ -q`
-- Exit code: non-zero (run interrupted after failure set was established)
-- Result: **FAIL**
-- Notes: 12 failures were observed among the first 718 passes. The failures cover shard markers, archive preservation, built-in path authority, the charter agent-profile sole door, doctrine census, golden-count ratchets, and a scope-explicit inert-form scan. Full evidence and exact test names are tracked in [#3997](https://github.com/spec-kitty/spec-kitty/issues/3997); the missing pre-merge full-suite gate is tracked in [#3943](https://github.com/spec-kitty/spec-kitty/issues/3943).
+- Command: `.venv/bin/pytest -n auto -q tests/architectural`
+- Exit code: `0`
+- Result: **PASS**
+- Notes: 2,125 passed, 2 skipped, and 2 expected failures in 776.45 seconds after Op `01M1YNJMYNXMYG31HZGTR4AM0V` repaired the seven original defect groups and second-order stale controls. Ruff lint and whole-repo format checks also passed. Root defect and remediation evidence are tracked in [#3997](https://github.com/spec-kitty/spec-kitty/issues/3997); the missing pre-merge full-suite gate remains tracked in [#3943](https://github.com/spec-kitty/spec-kitty/issues/3943).
 
 ### Gate 3 - Cross-repo E2E
 
@@ -54,11 +54,11 @@ mission_exception_present: false
 - Deferred rows missing follow-up handles: 0
 - Result: **PASS**
 
-The architectural hard-gate failure forces the overall mission-review verdict to **FAIL**. No operator exception is permitted for Gate 2.
+All hard gates pass. The overall mission-review verdict is **PASS WITH NOTES** because the built-in dead-code scan retains advisory findings and the pre-merge process gap remains tracked in #3943.
 
 ## Findings
 
-- **architectural_gate**: Full architectural suite has 12 observed failures. See [#3997](https://github.com/spec-kitty/spec-kitty/issues/3997).
+- **architectural_gate_resolved**: Op `01M1YNJMYNXMYG31HZGTR4AM0V` repaired all observed architecture failures; the full suite now passes with 2,125 passed, 2 skipped, and 2 expected failures. See [#3997](https://github.com/spec-kitty/spec-kitty/issues/3997).
 - **baseline_provenance**: Late finalization replaced the absent creation baseline with a post-implementation reconciliation merge, initially making review undeterminable. The verified scaffold parent `c0054153b9bce0778cf41a85d11ecd4e9650031d` was restored; root defect tracked in [#3996](https://github.com/spec-kitty/spec-kitty/issues/3996).
 - **dead_code** `src/runtime/next/runtime_bridge_io.py` — `RunIdentityMigrationRequired`: no non-test callers found
 - **dead_code** `src/runtime/next/runtime_bridge_io.py` — `RunStateMissing`: no non-test callers found

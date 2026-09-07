@@ -32,6 +32,7 @@ import pytest
 
 from specify_cli.invocation.lifecycle import LIFECYCLE_LOG_RELATIVE_PATH
 from specify_cli.invocation.record import ProfileInvocationRecord
+from specify_cli.missions._archive import ARCHIVE_REGISTRY_RELPATH
 from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -189,6 +190,90 @@ def _check_lifecycle(baseline: dict[str, Blob], index: dict[str, Blob]) -> None:
     before = old.read()
     _lifecycle_prefix(path, before, index[path].read())
     _lifecycle_prefix(path, before, _disk(path, old.mode))
+
+
+def _json_object(raw: bytes) -> dict[str, Any]:
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    value = json.loads(raw, object_pairs_hook=unique)
+    if not isinstance(value, dict):
+        raise ValueError("expected JSON object")
+    return value
+
+
+def _status_event_prefix(path: str, before: bytes, after: bytes) -> None:
+    assert after.startswith(before), f"{path}: historical byte prefix changed"
+    assert before.endswith(b"\n") and after.endswith(b"\n"), f"{path}: incomplete event boundary"
+    suffix = after[len(before) :]
+    assert suffix, f"{path}: terminal transition added no events"
+    for line in suffix.splitlines():
+        _json_object(line)
+
+
+def _terminal_lifecycle_paths(  # noqa: C901 - fail-closed evidence validation is linear
+    baseline: dict[str, Blob], index: dict[str, Blob]
+) -> set[str]:
+    """Admit one canonical active-to-terminal transition, never proof edits."""
+    admitted: set[str] = set()
+    mission_dirs = {path.rsplit("/", 1)[0] for path in baseline if path.startswith("kitty-specs/") and path.endswith("/meta.json")}
+    for directory in mission_dirs:
+        names = {name: f"{directory}/{name}" for name in ("meta.json", "status.events.jsonl", "status.json")}
+        if not all(path in baseline and path in index for path in names.values()):
+            continue
+        try:
+            old_meta = _json_object(baseline[names["meta.json"]].read())
+            new_meta = _json_object(index[names["meta.json"]].read())
+            old_status = _json_object(baseline[names["status.json"]].read())
+            mission_id = old_meta.get("mission_id")
+            if not isinstance(mission_id, str) or not mission_id:
+                continue
+            if old_meta.get("mission_number") is not None:
+                continue
+            old_packages = old_status.get("work_packages")
+            if not isinstance(old_packages, dict) or not old_packages:
+                continue
+            if all(isinstance(row, dict) and row.get("lane") == "done" for row in old_packages.values()):
+                continue
+            registry = baseline.get(ARCHIVE_REGISTRY_RELPATH.as_posix())
+            if registry is not None and any(_json_object(line).get("mission_id") == mission_id for line in registry.read().splitlines() if line):
+                continue
+
+            changed_meta = {key for key in old_meta.keys() | new_meta.keys() if old_meta.get(key) != new_meta.get(key)}
+            if not changed_meta or not changed_meta <= {"baseline_merge_commit", "mission_number"}:
+                continue
+            if not isinstance(new_meta.get("mission_number"), int) or new_meta["mission_number"] <= 0:
+                continue
+            merge_commit = new_meta.get("baseline_merge_commit")
+            if not isinstance(merge_commit, str) or len(merge_commit) != 40:
+                continue
+
+            events_path = names["status.events.jsonl"]
+            before = baseline[events_path].read()
+            after = index[events_path].read()
+            _status_event_prefix(events_path, before, after)
+            current_dir = REPO_ROOT / directory
+            canonical = materialize_to_json(materialize_snapshot(current_dir)).encode("utf-8")
+            status_path = names["status.json"]
+            if canonical != index[status_path].read():
+                continue
+            new_status = _json_object(canonical)
+            packages = new_status.get("work_packages")
+            if not isinstance(packages, dict) or not packages or not all(isinstance(row, dict) and row.get("lane") == "done" for row in packages.values()):
+                continue
+            if str(new_meta["mission_number"]) != new_status.get("mission_number"):
+                continue
+            if any(index[path].read() != _disk(path, index[path].mode) for path in names.values()):
+                continue
+        except (AssertionError, KeyError, OSError, TypeError, ValueError):
+            continue
+        admitted.update(names.values())
+    return admitted
 
 
 # WP11 independent review, persisted by parent event 01M1VMFHA7K9XJAK0Y2MJR6NRV.
@@ -399,6 +484,7 @@ def test_no_preexisting_archived_file_was_modified() -> None:
     index = _index()
     _check_lifecycle(baseline, index)
     admitted = _check_recovery(index) if _recovery_present(baseline, index) else set()
+    admitted |= _terminal_lifecycle_paths(baseline, index)
     violations: list[str] = []
     for status, paths in [*_changes(port_base_rev), *_changes(port_base_rev, cached=True)]:
         for path in paths:

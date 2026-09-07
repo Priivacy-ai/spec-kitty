@@ -657,7 +657,7 @@ def test_canonical_verb_beats_domain_keyword_regardless_of_priority() -> None:
 
     assert decision.profile_id == "implementer-low-priority"
     assert decision.confidence == "canonical_verb"
-    assert len(decision.alternatives) == 1
+    assert len(decision.alternatives) == 1  # golden-count: cardinality-is-contract
     alt = decision.alternatives[0]
     assert alt["profile_id"] == "reviewer-weak-verb"
     assert alt["confidence"] == "domain_keyword"
@@ -757,7 +757,7 @@ def test_two_plus_domain_keyword_candidates_priority_tiebreak_selects_higher_pri
     assert decision.profile_id == "reviewer-high-priority-keyword"
     assert decision.confidence == "domain_keyword"
     assert "routing_priority" in decision.match_reason
-    assert len(decision.alternatives) == 1
+    assert len(decision.alternatives) == 1  # golden-count: cardinality-is-contract
     assert decision.alternatives[0]["profile_id"] == "curator-low-priority-keyword"
 
 

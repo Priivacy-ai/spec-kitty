@@ -48,8 +48,13 @@ from .projection import (
     bundle_entries_for_plans,
     plugin_manifest_payload,
     write_bundle,
-    confined_output, json_bytes, observe_confined, observe_tree, prepare_staging,
-    read_observed_file, staging_root,
+    confined_output,
+    json_bytes,
+    observe_confined,
+    observe_tree,
+    prepare_staging,
+    read_observed_file,
+    staging_root,
 )
 from ._builder import (
     BuildError,
@@ -98,8 +103,11 @@ class ClaudeCodeBundleProjector:
     def entries(self, plan: Sequence[SurfacePlan], project_root: Path) -> tuple[BundleEntry, ...]:
         """Select the canonical members without writing the staging tree."""
         return bundle_entries_for_plans(
-            plan, project_root, layout=_CLAUDE_LAYOUT,
-            agent_filename=_agent_filename, bundle_kinds=BUNDLE_SURFACE_KINDS,
+            plan,
+            project_root,
+            layout=_CLAUDE_LAYOUT,
+            agent_filename=_agent_filename,
+            bundle_kinds=BUNDLE_SURFACE_KINDS,
         )
 
     def project(
@@ -129,11 +137,7 @@ class ClaudeCodeBundleProjector:
         required_surface_kinds: set[ToolSurfaceKind] | None = None,
     ) -> BundleValidationResult:
         """Validate that every required surface kind is present in ``bundle``."""
-        required = (
-            frozenset(required_surface_kinds)
-            if required_surface_kinds is not None
-            else _REQUIRED_KINDS
-        )
+        required = frozenset(required_surface_kinds) if required_surface_kinds is not None else _REQUIRED_KINDS
         return _validate_bundle(bundle, required)
 
 
@@ -150,18 +154,13 @@ def _validate_bundle(
             make_finding(
                 BUNDLE_COMPONENT_MISSING,
                 SEVERITY_ERROR,
-                (
-                    f"Plugin bundle for {bundle.distribution_target} is missing "
-                    f"required surface kind: {kind}"
-                ),
+                (f"Plugin bundle for {bundle.distribution_target} is missing required surface kind: {kind}"),
                 surface_id=f"{bundle.distribution_target}.{kind}",
                 details={"distribution_target": bundle.distribution_target},
             )
         )
     if bundle.manifest_path is None:
-        warnings.append(
-            f"Bundle for {bundle.distribution_target} has no manifest path."
-        )
+        warnings.append(f"Bundle for {bundle.distribution_target} has no manifest path.")
     return BundleValidationResult(
         passed=not missing,
         missing_surfaces=tuple(missing),
@@ -236,42 +235,48 @@ class ClaudeBundleProjector:
             hook_data = json.loads(hooks)
             if not isinstance(hook_data, dict):
                 raise BuildError("Required Claude hooks must be a JSON object")
-            skills = sorted("./" + (root.path / f.path).parent.relative_to(directory).as_posix()
-                            for f in files if Path(f.path).name == "SKILL.md")
+            skills = sorted("./" + (root.path / f.path).parent.relative_to(directory).as_posix() for f in files if Path(f.path).name == "SKILL.md")
             agents = sorted("./" + (root.path / f.path).relative_to(directory).as_posix() for f in profiles)
             manifest = self._manifest_payload(version, skills, agents, bool(hook_data) and hook_data != {"hooks": {}})
             files += (
-                StagedFile(hooks_path.relative_to(root.path).as_posix(), hooks, hook_state.mode or 0o644,
-                           managed=hook_state.kind == "absent"),
-                StagedFile((directory / "bin/spec-kitty-wrapper").relative_to(root.path).as_posix(),
-                           wrapper_bash_content(version).encode("utf-8"), 0o700, wrapper=True),
-                StagedFile((directory / "bin/spec-kitty-wrapper.cmd").relative_to(root.path).as_posix(),
-                           wrapper_cmd_content(version).encode("utf-8"), wrapper=True),
-                StagedFile((directory / ".claude-plugin/plugin.json").relative_to(root.path).as_posix(),
-                           json_bytes(manifest, legacy=True), manifest=True),
-                StagedFile((output / "marketplace.json").relative_to(root.path).as_posix(),
-                           json_bytes(self._marketplace_payload(version), legacy=True), manifest=True),
+                StagedFile(hooks_path.relative_to(root.path).as_posix(), hooks, hook_state.mode or 0o644, managed=hook_state.kind == "absent"),
+                StagedFile(
+                    (directory / "bin/spec-kitty-wrapper").relative_to(root.path).as_posix(), wrapper_bash_content(version).encode("utf-8"), 0o700, wrapper=True
+                ),
+                StagedFile(
+                    (directory / "bin/spec-kitty-wrapper.cmd").relative_to(root.path).as_posix(), wrapper_cmd_content(version).encode("utf-8"), wrapper=True
+                ),
+                StagedFile((directory / ".claude-plugin/plugin.json").relative_to(root.path).as_posix(), json_bytes(manifest, legacy=True), manifest=True),
+                StagedFile(
+                    (output / "marketplace.json").relative_to(root.path).as_posix(), json_bytes(self._marketplace_payload(version), legacy=True), manifest=True
+                ),
             )
             return prepare_staging(inputs, files, (output,), observations, suppliers=(commands,), version=version)
         except (OSError, ValueError, BuildError) as exc:
-            return OwnerAssessment("plugin_bundle", root, complete=False, consent=consent,
-                                   diagnostics=(Diagnostic("bundle_input_invalid", "plugin_bundle", "error", str(exc)),))
+            return OwnerAssessment(
+                "plugin_bundle", root, complete=False, consent=consent, diagnostics=(Diagnostic("bundle_input_invalid", "plugin_bundle", "error", str(exc)),)
+            )
 
     @staticmethod
     def _profile_members(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...]]:
-        from charter.profiles import AgentProfileRepository
+        from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
         from ..profiles.projection import ProfileProjector
 
         source = _built_in_profiles_dir().resolve()
         observations = observe_tree(source)
-        repository = AgentProfileRepository(built_in_dir=source)
+        repository = _build_activation_aware_doctrine_service(
+            root.path,
+            org_roots=[],
+        ).agent_profile_repository
         if repository.skipped_profiles():
             raise BuildError(f"Invalid built-in profile sources: {repository.skipped_profiles()}")
         projections = ProfileProjector(repository).prepare("claude", root.path)
         if not projections:
             raise BuildError(f"No built-in agent profiles found under {source}. Bundle must include profiles per FR-020.")
-        files = tuple(StagedFile((directory / "agents" / item.native.output_path.name).relative_to(root.path).as_posix(),
-                                 item.content, logical_owners=("agent_profiles",)) for item in projections)
+        files = tuple(
+            StagedFile((directory / "agents" / item.native.output_path.name).relative_to(root.path).as_posix(), item.content, logical_owners=("agent_profiles",))
+            for item in projections
+        )
         return files, observations
 
     @staticmethod
@@ -286,9 +291,7 @@ class ClaudeBundleProjector:
             "name": "spec-kitty",
             "displayName": "Spec Kitty",
             "version": version,
-            "description": (
-                "Spec-Driven Development toolkit — spec, plan, implement, review, merge."
-            ),
+            "description": ("Spec-Driven Development toolkit — spec, plan, implement, review, merge."),
             "author": {
                 "name": "Priivacy AI",
                 "url": "https://github.com/Priivacy-ai/spec-kitty",
@@ -357,8 +360,7 @@ class ClaudeBundleProjector:
             )
         except FileNotFoundError:
             typer.echo(
-                "Warning: claude CLI not found — skipping validation. "
-                "Install claude CLI to validate.",
+                "Warning: claude CLI not found — skipping validation. Install claude CLI to validate.",
                 err=True,
             )
             return

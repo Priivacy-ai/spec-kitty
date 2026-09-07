@@ -48,7 +48,7 @@ def _assess_real(root: Path, tools: tuple[str, ...] = ("claude",)) -> OwnerAsses
         kinds=[ToolSurfaceKind.AGENT_PROFILE],
         assessment_inputs=AssessmentInputs(OperationRoot("project", "project", root)),
     )
-    assert len(outcome.assessments) == 1
+    assert len(outcome.assessments) == 1  # golden-count: cardinality-is-contract
     return outcome.assessments[0]
 
 
@@ -514,6 +514,7 @@ def test_profile_preparation_write_observer_and_negative_controls(tmp_path: Path
             attempts.append(event)
 
     sys.addaudithook(observe)
+    sync_setting = os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"]
     before = snapshot({"project": tmp_path})
     active = True
     try:
@@ -533,7 +534,7 @@ def test_profile_preparation_write_observer_and_negative_controls(tmp_path: Path
     with pytest.raises(AssertionError):
         assert attempts == []
     assert {"open", "os.remove"} <= set(attempts)
-    assert os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] == "0"
+    assert os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] == sync_setting
 
 
 def test_profile_preparation_immutable_clock_and_owner_controls(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
