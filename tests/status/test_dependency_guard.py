@@ -308,6 +308,26 @@ class TestVerdictHelpers:
     def test_declared_dependencies_missing_file_declares_nothing(self, feature_dir: Path) -> None:
         assert emit_module._declared_dependencies(feature_dir, "WP09") == ()
 
+    def test_declared_dependencies_ambiguous_match_fails_closed(self, feature_dir: Path) -> None:
+        """Case (b): a stale rename leftover (two files matching WP03) is NOT 'no declarations'.
+
+        ``_find_wp_file`` returns ``None`` for both zero-match (a) and
+        multi-match (b); case (a) must stay an empty tuple, but case (b) means
+        the declarations are unresolvable, not absent, and must fail closed.
+        """
+        tasks = feature_dir / "tasks"
+        tasks.mkdir()
+        (tasks / "WP03.md").write_text(
+            "---\nwork_package_id: WP03\ntitle: Run-state persistence\ndependencies: [WP02]\nsubtasks: []\n---\n\n# WP03\n",
+            encoding="utf-8",
+        )
+        (tasks / "WP03-run-state.md").write_text(
+            "---\nwork_package_id: WP03\ntitle: Run-state persistence (renamed)\ndependencies: [WP02]\nsubtasks: []\n---\n\n# WP03\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(TransitionError, match="ambiguous"):
+            emit_module._declared_dependencies(feature_dir, "WP03")
+
     def test_declared_dependencies_reads_only_the_dependencies_key(self, feature_dir: Path) -> None:
         tasks = feature_dir / "tasks"
         tasks.mkdir()
@@ -434,6 +454,77 @@ class TestLegacyAndCorruptWpFiles:
         canceled = emit_status_transition(_claim_request(feature_dir, "WP02", to_lane="canceled", force=True, reason="operator: abandon"))
         assert canceled.to_lane == Lane.CANCELED
         assert reduce(read_events(feature_dir)).work_packages["WP02"]["lane"] == Lane.CANCELED
+
+
+# ── Ambiguous WP file: a rename leftover must fail CLOSED like the unreadable case ──
+
+
+class TestAmbiguousWpFileDependencyGuard:
+    """``tasks/WP03.md`` renamed to ``tasks/WP03-run-state.md`` with the old file left behind.
+
+    Both match the ``WP03`` pattern, so ``_find_wp_file`` cannot resolve one
+    canonical file (case (b), distinct from the genuinely-absent case (a) at
+    :308). The declared dependencies are unresolvable, not empty, so this
+    must refuse the guarded entry edges exactly like an unreadable WP file
+    does (``force`` + actor + reason still bypasses; non-guarded edges are
+    unaffected).
+    """
+
+    @staticmethod
+    def _seed_ambiguous_wp03(feature_dir: Path) -> None:
+        _write_wp(feature_dir, "WP02")
+        tasks = feature_dir / "tasks"
+        for name in ("WP03.md", "WP03-run-state.md"):
+            (tasks / name).write_text(
+                "---\nwork_package_id: WP03\ntitle: Run-state persistence\ndependencies: [WP02]\nsubtasks: []\n---\n\n# WP03\n",
+                encoding="utf-8",
+            )
+        seed_wp_to_planned(feature_dir, "WP02", slug=_SLUG)
+        seed_wp_to_planned(feature_dir, "WP03", slug=_SLUG)
+        _advance(feature_dir, "WP02", Lane.CLAIMED, Lane.IN_PROGRESS)  # WP02 unfinished
+
+    def test_ambiguous_wp_file_refuses_planned_to_claimed(self, feature_dir: Path) -> None:
+        self._seed_ambiguous_wp03(feature_dir)
+        before = len(read_events(feature_dir))
+        with pytest.raises(TransitionError, match="planned -> claimed blocked: unsatisfied dependencies"):
+            emit_status_transition(_claim_request(feature_dir, "WP03"))
+        assert len(read_events(feature_dir)) == before
+
+    def test_ambiguous_wp_file_refuses_claimed_to_in_progress(self, feature_dir: Path) -> None:
+        self._seed_ambiguous_wp03(feature_dir)
+        _advance(feature_dir, "WP03", Lane.CLAIMED)  # a claim that predates the rename leftover
+        with pytest.raises(TransitionError, match="claimed -> in_progress blocked"):
+            emit_status_transition(_claim_request(feature_dir, "WP03", to_lane="in_progress", workspace_context="worktree:/x"))
+
+    def test_ambiguous_wp_file_entry_edge_is_force_bypassable(self, feature_dir: Path) -> None:
+        self._seed_ambiguous_wp03(feature_dir)
+        event = emit_status_transition(_claim_request(feature_dir, "WP03", force=True, reason="operator: rename leftover, claiming anyway"))
+        assert event.force is True and event.to_lane == Lane.CLAIMED
+
+    def test_ambiguous_wp_file_never_affects_non_guarded_edges(self, feature_dir: Path) -> None:
+        self._seed_ambiguous_wp03(feature_dir)
+        blocked = emit_status_transition(_claim_request(feature_dir, "WP03", to_lane="blocked", reason="waiting on operator"))
+        assert blocked.to_lane == Lane.BLOCKED
+        canceled = emit_status_transition(_claim_request(feature_dir, "WP03", to_lane="canceled", force=True, reason="operator: abandon"))
+        assert canceled.to_lane == Lane.CANCELED
+
+    def test_ambiguous_wp_file_verdict_carries_the_unresolvable_marker(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
+        self._seed_ambiguous_wp03(feature_dir)
+        snapshot = reduce(read_events(feature_dir))
+        with caplog.at_level(logging.WARNING, logger=emit_module.__name__):
+            verdict = emit_module._resolve_dependency_readiness(feature_dir, "WP03", snapshot)
+        assert verdict.satisfied is False
+        assert verdict.dependencies == ()
+        assert len(verdict.unsatisfied) == 1 and verdict.unsatisfied[0].startswith(UNRESOLVABLE_MARKER)  # golden-count: cardinality-is-contract
+        assert "ambiguous" in verdict.unsatisfied[0]
+        assert any("ambiguous" in record.getMessage() for record in caplog.records)
+
+    def test_unambiguous_zero_match_case_a_stays_satisfied(self, feature_dir: Path) -> None:
+        """Case (a), genuinely no file, is unaffected by the case-(b) fix (pin at :308)."""
+        _write_wp(feature_dir, "WP02")
+        seed_wp_to_planned(feature_dir, "WP02", slug=_SLUG)
+        seed_wp_to_planned(feature_dir, "WP03", slug=_SLUG)  # WP03 has no prompt file at all
+        assert emit_status_transition(_claim_request(feature_dir, "WP03")).to_lane == Lane.CLAIMED
 
 
 # ── T024 step 2: the same-mission chain matrix through the flat shell ─────────

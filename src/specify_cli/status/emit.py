@@ -330,10 +330,13 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
     ``WPMetadata`` applies (:func:`wp_metadata.coerce_legacy_dependencies`), so
     the shells accept exactly the files the pre-flight sites accept (FR-014).
 
-    Raises ``TransitionError`` when the frontmatter cannot be parsed or the
-    ``dependencies`` value is one ``WPMetadata`` would also refuse. The shells
-    do not let that raise escape: :func:`_resolve_dependency_readiness` maps
-    it to an *unsatisfied* verdict, so only the guarded entry edges are
+    Raises ``TransitionError`` when the frontmatter cannot be parsed, the
+    ``dependencies`` value is one ``WPMetadata`` would also refuse, or MORE
+    THAN ONE ``tasks/`` file matches ``wp_id`` (a rename leftover: the
+    declarations are unresolvable, not absent -- distinct from the
+    genuinely-absent case of zero matches, which still declares nothing).
+    The shells do not let that raise escape: :func:`_resolve_dependency_readiness`
+    maps it to an *unsatisfied* verdict, so only the guarded entry edges are
     refused (fail-closed where the guard has an opinion, ``force`` bypassable)
     and every other edge is unaffected.
     """
@@ -365,9 +368,20 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
             pass
         else:
             planning_feature_dir = placement_seam(primary_root, planning_feature_dir.name).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
-    wp_file = _find_wp_file(planning_feature_dir, wp_id)
-    if wp_file is None:
+    matches = _match_wp_files(planning_feature_dir, wp_id)
+    if len(matches) > 1:
+        names = ", ".join(sorted(path.name for path in matches))
+        logger.warning(
+            "Multiple work package files matched %s in %s; dependency declarations are ambiguous",
+            wp_id,
+            planning_feature_dir,
+        )
+        raise TransitionError(
+            f"Cannot resolve the declared dependencies of {wp_id}: ambiguous match ({len(matches)} files in {planning_feature_dir / 'tasks'}: {names})"
+        )
+    if not matches:
         return ()
+    wp_file = matches[0]
     try:
         frontmatter, _body = read_frontmatter(wp_file)
     except FrontmatterError as exc:
@@ -545,14 +559,34 @@ def _legacy_lane_mirror_enabled(feature_dir: Path) -> bool:
     return phase is not None and phase >= 1
 
 
-def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
-    """Locate the canonical WP markdown file for *wp_id* under tasks/."""
+def _match_wp_files(feature_dir: Path, wp_id: str) -> list[Path]:
+    """Every ``tasks/`` markdown file whose name matches *wp_id* (pure, no logging).
+
+    Zero matches means genuinely no WP file (case (a)); more than one means
+    the canonical file is ambiguous, e.g. a rename leftover such as
+    ``WP03.md`` alongside a surviving ``WP03-run-state.md`` (case (b)). The
+    two cases carry different meaning to different callers -- :func:`_find_wp_file`
+    collapses both to "no lane mirror to touch", while the dependency-guard
+    read in :func:`_declared_dependencies` must not collapse them, since case
+    (b) means the declarations are unresolvable, not absent.
+    """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
-        return None
+        return []
 
     wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
-    matches = [path for path in tasks_dir.glob("*.md") if path.name.lower() != "readme.md" and wp_pattern.match(path.name)]
+    return [path for path in tasks_dir.glob("*.md") if path.name.lower() != "readme.md" and wp_pattern.match(path.name)]
+
+
+def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
+    """Locate the canonical WP markdown file for *wp_id* under tasks/.
+
+    Used only by the phase-1 lane mirror: both zero matches and multiple
+    matches collapse to ``None`` there (skip quietly) -- unlike the
+    dependency-guard read, which must distinguish the two (see
+    :func:`_match_wp_files`).
+    """
+    matches = _match_wp_files(feature_dir, wp_id)
     if len(matches) != 1:
         if len(matches) > 1:
             logger.warning(
