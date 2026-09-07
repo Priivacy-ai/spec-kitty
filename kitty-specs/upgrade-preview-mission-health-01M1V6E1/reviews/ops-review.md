@@ -60,6 +60,24 @@ local-shared-package-ci-independent-review.md and
 local-shared-package-ci-parent/invocations.jsonl. This closes only the bounded
 CI Op, not all of #3979, hosted CI confirmation or mission acceptance.
 
+Hosted shared-package validation subsequently passed in run34114297726,
+job101717504446. Quality run34114297607 still failed: Ruff check passed but
+format check rejected the changed test file (one file, 1542 already formatted).
+This is an introduced formatting miss, not baseline debt. Corrective Op
+`01M1XRQZ7E1W8DGYPMDSQDECCM` requires a test-file-only formatting change,
+exact AST equality and independent parent formatter verification. Existing
+behavior evidence remains valid but does not certify formatting. No broad
+repeat or gate waiver; the corrective Op remains open.
+
+Formatting correction `6f54f1e01560710b6b1b2bf9b8efe3157e459a61` changes only
+that test file. Parent independently verified exact AST equality against
+`c3c22c56f4a749badc14a4b30c63441e195ea538`, single-file scope and the evidence
+seal, then integrated with provenance as `01a1ecbb8`. Fresh target Ruff format
+check and Ruff check both passed. No behavioral test rerun was needed for this
+AST-identical correction. This completes the corrective formatting Op; the
+original hosted failure remains recorded on #3952 comment5569693289.
+Parent verification is retained in local-shared-package-ci-parent/invocations.jsonl.
+
 ## Managed Installation Provisioning Projection: Open
 
 Op `01M1XKAK3SXPCAWP6PN9STTA20` addresses WP10's next concrete owner gap.
