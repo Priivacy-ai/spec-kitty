@@ -746,3 +746,13 @@ class TestCoordSurfaceResolution:
         assert surfaces["reduced"] == surfaces["txn"]
         assert surfaces["txn"] != repo / "kitty-specs" / _COORD_DIRNAME  # the coord worktree, not primary
         assert surfaces["planning"] == repo / "kitty-specs" / _COORD_DIRNAME  # WP file read on primary
+
+
+def test_flat_ad_hoc_directory_keeps_its_declared_dependencies(tmp_path: Path) -> None:
+    """The flat door accepts an explicit mission dir outside kitty-specs in git."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, capture_output=True)
+    feature_dir = tmp_path / "ad-hoc"
+    feature_dir.mkdir()
+    _dependent_pair(feature_dir)
+    with pytest.raises(TransitionError, match="unsatisfied dependencies"):
+        emit_status_transition(_claim_request(feature_dir, "WP02"), ensure_sync_daemon=False)
