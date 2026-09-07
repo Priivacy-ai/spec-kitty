@@ -1,7 +1,7 @@
 {
-  "event_count": 115,
-  "last_event_id": "01M1WQDAW2E36TJB2CDTPBFTB5",
-  "materialized_at": "2026-09-07T01:23:35.375770+00:00",
+  "event_count": 117,
+  "last_event_id": "01M1WS05YFVAA20W0B4T9MKXWD",
+  "materialized_at": "2026-09-07T01:51:21.551964+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
@@ -265,16 +265,17 @@
     "WP08": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "python-pedro",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01M1WQDAW2E36TJB2CDTPBFTB5",
-      "last_transition_at": "2026-09-07T01:23:35.375770+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M1WS05YFVAA20W0B4T9MKXWD",
+      "last_transition_at": "2026-09-07T01:51:21.551964+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation9d78799b94f3c4df0f2e68d4ca8dda4ef3661801 ready for FIRST independent review. Final145ownedtests91.07pct changed-line coverage, Ruff/strictmypy, actualpinnedClaudeplugin/catalogstrictvalidation pass withnegativecontrol. Earlier924subsystem1642fast evidence frozen/reused; WP10intentarchitecturedebt unwaived. Approvedhelperintegration requires independentconsumerverdict beforeOpclosure.",
-        "First review REJECT F1: public Codex build broadens source hook directories0700 to0755. Retain observed directory modes in prepared effects/writer; preserve unknown existing dirs. Corrective review only F1/diff/adjacentrisk. Separate configuredhelperconsumer APPROVE; finalgates unwaived."
+        "First review REJECT F1: public Codex build broadens source hook directories0700 to0755. Retain observed directory modes in prepared effects/writer; preserve unknown existing dirs. Corrective review only F1/diff/adjacentrisk. Separate configuredhelperconsumer APPROVE; finalgates unwaived.",
+        "F1 correction 451af47d: retain source directory modes; preserve existing directories. Targeted evidence only; independent focused Review 2 pending."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -284,14 +285,14 @@
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464",
       "subtasks": {
-        "T039": "planned",
-        "T040": "planned",
-        "T041": "planned",
-        "T042": "planned"
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
       }
     },
     "WP09": {
