@@ -10,8 +10,8 @@ Covers:
 - Multiple events produce multiple JSONL lines
 - emit_event with feature_dir=None does not write a file
 - emit_event with read-only directory logs warning, no exception
-- read_events on non-existent file returns empty list
-- read_events skips corrupt lines gracefully
+- _read_events on non-existent file returns empty list
+- _read_events skips corrupt lines gracefully
 - Timestamps are ISO 8601 UTC
 """
 
@@ -28,7 +28,7 @@ import pytest
 from specify_cli.mission_v1.events import (
     MISSION_EVENTS_FILE,
     emit_event,
-    read_events,
+    _read_events,
 )
 
 
@@ -38,6 +38,7 @@ from specify_cli.mission_v1.events import (
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 class TestEmitEvent:
     """Tests for the emit_event function."""
@@ -62,7 +63,7 @@ class TestEmitEvent:
         """Emitted event has exactly the expected keys."""
         emit_event("guard_failed", {"guard": "has_spec"}, "my-mission", tmp_path)
 
-        events = read_events(tmp_path)
+        events = _read_events(tmp_path)
         assert len(events) == 1
 
         event = events[0]
@@ -75,7 +76,7 @@ class TestEmitEvent:
         """Timestamp is a valid ISO 8601 string in UTC."""
         emit_event("phase_entered", {"state": "alpha"}, "ts-test", tmp_path)
 
-        events = read_events(tmp_path)
+        events = _read_events(tmp_path)
         ts = events[0]["timestamp"]
 
         # Must parse as ISO 8601
@@ -90,7 +91,7 @@ class TestEmitEvent:
         emit_event("phase_exited", {"state": "alpha"}, "multi", tmp_path)
         emit_event("phase_entered", {"state": "beta"}, "multi", tmp_path)
 
-        events = read_events(tmp_path)
+        events = _read_events(tmp_path)
         assert len(events) == 3
         assert events[0]["type"] == "phase_entered"
         assert events[0]["payload"]["state"] == "alpha"
@@ -115,9 +116,7 @@ class TestEmitEvent:
         events_file = tmp_path / MISSION_EVENTS_FILE
         assert not events_file.exists()
 
-    def test_readonly_dir_logs_warning_no_exception(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_readonly_dir_logs_warning_no_exception(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """emit_event on a read-only directory logs a warning but does not raise."""
         readonly_dir = tmp_path / "readonly"
         readonly_dir.mkdir()
@@ -139,30 +138,28 @@ class TestEmitEvent:
         """Default mission_name is empty string."""
         emit_event("phase_entered", {"state": "x"}, feature_dir=tmp_path)
 
-        events = read_events(tmp_path)
+        events = _read_events(tmp_path)
         assert events[0]["mission"] == ""
 
 
 # ---------------------------------------------------------------------------
-# T020 -- read_events
+# T020 -- _read_events
 # ---------------------------------------------------------------------------
 
 
 class TestReadEvents:
-    """Tests for the read_events function."""
+    """Tests for the _read_events function."""
 
     def test_nonexistent_file_returns_empty(self, tmp_path: Path) -> None:
-        """read_events on a directory with no events file returns []."""
-        assert read_events(tmp_path) == []
+        """_read_events on a directory with no events file returns []."""
+        assert _read_events(tmp_path) == []
 
     def test_empty_file_returns_empty(self, tmp_path: Path) -> None:
-        """read_events on an empty file returns []."""
+        """_read_events on an empty file returns []."""
         (tmp_path / MISSION_EVENTS_FILE).write_text("")
-        assert read_events(tmp_path) == []
+        assert _read_events(tmp_path) == []
 
-    def test_corrupt_line_skipped(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_corrupt_line_skipped(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Corrupt JSONL lines are skipped with a warning, valid lines returned."""
         events_file = tmp_path / MISSION_EVENTS_FILE
         events_file.write_text(
@@ -172,7 +169,7 @@ class TestReadEvents:
         )
 
         with caplog.at_level(logging.WARNING):
-            events = read_events(tmp_path)
+            events = _read_events(tmp_path)
 
         assert len(events) == 2
         assert events[0]["type"] == "good"
@@ -189,6 +186,5 @@ class TestReadEvents:
             '{"type":"b","timestamp":"2026-01-01T00:00:01+00:00","mission":"t","payload":{}}\n'
         )
 
-        events = read_events(tmp_path)
+        events = _read_events(tmp_path)
         assert len(events) == 2
-
