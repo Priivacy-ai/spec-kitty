@@ -10,6 +10,7 @@ Uses canonical event constants and payload models from spec-kitty-events v2.3.1.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections.abc import Callable
 from pathlib import Path
@@ -65,6 +66,7 @@ __all__ = [
     "RuntimeEventEmitter",
     "NullEmitter",
     "JsonlEventLog",
+    "seed_runtime_emitter",
     "runtime_emitter_for_mission",
     "register_runtime_emitter_factory",
     "reset_runtime_emitter_factory",
@@ -97,6 +99,20 @@ class RuntimeEventEmitter(Protocol):
     def emit_significance_evaluated(self, payload: SignificanceEvaluatedPayload) -> None: ...
 
     def emit_decision_timeout_expired(self, payload: TimeoutExpiredPayload) -> None: ...
+
+
+def seed_runtime_emitter(emitter: RuntimeEventEmitter, snapshot: Any) -> None:
+    """Seed optional producer state without affecting mission control flow.
+
+    Protocol-only products need no hook. Lookup and invocation failures are
+    logged and ignored, including when a decision-log wrapper delegates inward.
+    """
+    try:
+        seed = getattr(emitter, "seed_from_snapshot", None)
+        if seed is not None:
+            seed(snapshot)
+    except Exception as exc:  # noqa: BLE001 — optional instrumentation must not alter mission state
+        logging.getLogger(__name__).warning("Failed to seed runtime emitter from snapshot: %s", exc)
 
 
 # ---------------------------------------------------------------------------
