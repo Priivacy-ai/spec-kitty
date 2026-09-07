@@ -53,9 +53,12 @@ def finalize_upgrade(
     (D-5) — no other site in the upgrade flow may compute it independently.
     """
     outcome.activation_errors = list(provision_activations())
-    outcome.surface_drift_failed = bool(run_surface_repair())
+    # Surface preparations depend on successful activation provisioning.
+    # A refusal must not write dependent output or commit partial preparation.
+    if not outcome.activation_errors:
+        outcome.surface_drift_failed = bool(run_surface_repair())
 
-    if should_commit:
+    if should_commit and not outcome.activation_errors:
         outcome.committed = bool(commit_churn())
 
     outcome.repair = _run_repair_isolated(offer_repair)

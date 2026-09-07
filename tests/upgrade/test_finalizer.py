@@ -222,7 +222,7 @@ def test_activation_errors_and_surface_drift_feed_effective_success() -> None:
         should_commit=False,
     )
     assert result.activation_errors == ["mission-type X activation failed"]
-    assert result.surface_drift_failed is True
+    assert result.surface_drift_failed is False
     assert result.effective_success is False
     assert result.exit_code == 1
 
