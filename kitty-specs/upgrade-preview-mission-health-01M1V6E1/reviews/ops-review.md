@@ -17,6 +17,23 @@ Supplier review and real WP10 consumer verification precede closure. External
 reproduction and API request: wp10-handoff.md and wp10-evidence/. Tracked on
 #3901 comment5567579677. WP10 made no product changes before reporting the gap.
 
+Supplier extension `bc950c6af76f2d2a5238e5dc9c53dc037b6c4f5b` is independently
+approved, preceded by RED `b349cc947389f841090ce18d66e0c040d66eed13`. Six existing
+command-owner source/test files changed. Mission-type-only provisioning preserves
+ordinary command bytes; no mission-to-command selection policy was introduced.
+The API admits the actual immutable compiler result and requires strict original
+preflight before provisioning, then validates only the exact supported completed
+transition. Unrelated changes still refuse before command writes.
+
+Independent review ran the unchanged four-cell consumer, 39 selected guard
+tests and adversarial controls, with narrow static checks. One external sentinel
+placement error was corrected and only its affected test rerun. The older
+262-pass author run is invalid for final coverage mapping because source moved;
+the final frozen 76-case gate and coverage are recorded separately. Parent
+verified all 42 evidence seal hashes and fast-forwarded the exact RED/GREEN chain
+into WP10. Report: command-provisioning-projection-independent-review.md.
+Actual composer consumption is still unreviewed, so this Op remains open.
+
 ## WP09 YAML Preservation Arbitration: Complete
 
 Op `01M1XCGBK5AFYA6T2AE7CBRB3X` records explicit user authorization to fix
