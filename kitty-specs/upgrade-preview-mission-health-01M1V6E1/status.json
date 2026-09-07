@@ -1,16 +1,16 @@
 {
-  "event_count": 149,
-  "last_event_id": "01M1YJMCB0WK0FMYMCEQK61BNJ",
-  "materialized_at": "2026-09-07T18:38:32.288377+00:00",
+  "event_count": 150,
+  "last_event_id": "01M1YJMEM2S4BBW6BC0P9Q1JXE",
+  "materialized_at": "2026-09-07T18:38:34.626731+00:00",
   "mission_number": "199",
   "mission_slug": "upgrade-preview-mission-health-01M1V6E1",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 11,
+    "done": 12,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -343,14 +343,14 @@
       }
     },
     "WP10": {
-      "actor": "user",
+      "actor": "merge",
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01M1Y9PP517WPA6Y3P4ZMB84C6",
-      "last_transition_at": "2026-09-07T16:02:30.689201+00:00",
+      "lane": "done",
+      "last_event_id": "01M1YJMEM2S4BBW6BC0P9Q1JXE",
+      "last_transition_at": "2026-09-07T18:38:34.626731+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Focused cycle: full-plan schema, hidden conflict JSON, cold apply owner markers, and no-write snapshots verified inline."
