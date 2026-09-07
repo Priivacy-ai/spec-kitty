@@ -1039,6 +1039,26 @@ def test_coordinated_global_selection_is_explicit(owner_home: Path, skill_source
     assert not assess_global_assets(runtime=False, commands=False, skills=False).complete
 
 
+def test_canonical_directory_mode_refines_provisional_parent(owner_home: Path) -> None:
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root
+
+    destination = owner_home / "missions/software-dev"
+    prepared = AssetPreparation(
+        "runtime_bootstrap",
+        global_asset_root("runtime_bootstrap", (owner_home,)),
+        owner_home / "cache",
+        ".update.lock",
+        ApplyConsent(),
+    )
+
+    prepared.parents(destination / "command-templates")
+    prepared.asset(destination, None, 0o777)
+
+    write = prepared.writes[destination]
+    assert write.effect.before.kind == "absent"
+    assert write.effect.after.mode == 0o777
+
+
 @pytest.mark.parametrize("conflict", ["bytes", "state", "membership", "environment"])
 def test_global_builder_refuses_contradictory_family_inputs(owner_home: Path, monkeypatch: pytest.MonkeyPatch, conflict: str) -> None:
     from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation, global_asset_root

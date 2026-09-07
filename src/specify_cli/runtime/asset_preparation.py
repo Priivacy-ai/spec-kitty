@@ -228,7 +228,9 @@ class AssetPreparation:
         )
         previous = self.writes.get(path)
         if previous is not None and previous.effect.after != after:
-            raise ValueError(f"Conflicting global asset outputs: {path}")
+            provisional_parent = previous.effect.before.kind == "absent" and previous.effect.after.kind == "directory" and after.kind == "directory"
+            if not provisional_parent:
+                raise ValueError(f"Conflicting global asset outputs: {path}")
         self.writes[path] = AssetWrite(effect, content)
 
     def parents(self, path: Path) -> None:
