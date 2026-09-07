@@ -26,6 +26,26 @@ change; no producer/policy relaxation. Legacy all-preserved caller-reporting
 policy remains explicitly separate. Independent bounded review precedes either
 Op closure; these records do not imply WP10 or full issue completion.
 
+The test-only Op is complete: fixture commit
+`37e854d36c2d07a4fab5ae1524453c076aa2f08b` and orientation commit
+`74d2037417cfc84293677ac5393b91d3b2d6b55f` change only the two authorized
+test modules. Author: 28 passed, Ruff check and format check passed. Independent
+review: 11 focused cases passed, including genuine prior ownership, untracked
+preservation, both writer routes and corrupted-output oracle controls. Parent
+verified all 17 review seal entries, fast-forwarded the exact reviewed tree into
+WP10 and ran four focused cases there: 4 passed, 24 deselected in 28.04 seconds.
+Evidence: migration-test-contracts-independent-review.md and
+parent-lane-verification/invocations.jsonl. No production or reporting-policy fix.
+
+The initial #3986 wording diagnosis was corrected: the producer still emits
+`ALWAYS run`; the old single-line body is preserved as unproven, not refreshed
+with alternative generated wording. The old body remains a negative case; a
+literal recognized stale-version body now tests refresh. Original report wording
+incorrectly implied an orientation-specific parent ruling; a sealed correction
+withdraws that implication. Generic test-only authorization was not new policy
+arbitration. Historical overwrite and false-change reporting remain unapproved.
+These test commits are lane-local until consolidation; retirement Op remains open.
+
 ## Shared Skill Parent Composition: Open
 
 Op `01M1XREZBGQTCZWW1X1WB8EBHR` addresses the next concrete WP10 boundary.
