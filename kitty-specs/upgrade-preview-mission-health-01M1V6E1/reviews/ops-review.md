@@ -1,6 +1,6 @@
 # Supporting Operation Reviews
 
-## Local Shared-Package CI: Open
+## Local Shared-Package CI: Complete
 
 Op `01M1XPKV2DYTY49TC3K0H8Y5M5` addresses the recurring #3979 failure on
 PR #3923 head `e1ce3817fd92d8dde93dd55b4c102cb8367449b4`, CI run
@@ -17,6 +17,24 @@ remain outside this Op. No claim that the full issue is closed or CI passed.
 RED-first tests, offline real-validator positive/negative controls, independent
 review and parent integration precede closure. Dispatch retains the known #3908
 unresolved-governance diagnostic, not an empty-governance approval.
+
+The bounded correction is independently approved: RED
+`54a6c3a424136f17d67c88d28613034db0061dd7`, GREEN
+`c3c22c56f4a749badc14a4b30c63441e195ea538`. Author release selection:
+146 passed, five existing dogfood opt-in skips; canonical fast: 1643 passed;
+Ruff and strict mypy passed. Reviewer ran eight focused tests plus six independent
+real BASE-validator controls, including invalid/missing candidate metadata,
+retired runtime dependency and untrusted candidate-script refusal. Broad suites
+were inspected, not repeated. No validator or dependency changes.
+
+Parent verified the review seal, integrated the exact two-commit patch chain with
+provenance as `aa547eb19` / `afd61036b`, and confirmed the delivered files and
+validator/metadata inputs remain byte-identical. On the target checkout, eight
+focused tests passed in 28.07 seconds, with real conftest and enforced isolated
+home/network/sync boundaries. External evidence:
+local-shared-package-ci-independent-review.md and
+local-shared-package-ci-parent/invocations.jsonl. This closes only the bounded
+CI Op, not all of #3979, hosted CI confirmation or mission acceptance.
 
 ## Managed Installation Provisioning Projection: Open
 
