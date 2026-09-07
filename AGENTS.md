@@ -305,7 +305,7 @@ Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require 
 
 ## Sonar (retired)
 
-**SonarCloud was removed from CI in the convergence** (the `sonarcloud` job died with the 4118-line `ci-quality.yml` in commit `e8cc2f444f`, 2026-08-27; the restored minimal `ci-quality.yml` does not reintroduce it). No workflow references Sonar in any form, and there is no longer a coverage or new-code-coverage gate in GitHub CI — coverage, if enforced at all, lives only in the external Blacksmith suite. `sonar-project.properties` and `scripts/ci/sonar_project_version.py` remain on disk as **orphans** referencing the deleted job; do not treat them as live gates.
+**SonarCloud was removed from CI in the convergence** (the `sonarcloud` job died with the 4118-line `ci-quality.yml` in commit `e8cc2f444f`, 2026-08-27; the restored minimal `ci-quality.yml` does not reintroduce it). No workflow references Sonar in any form, and there is no longer a coverage or new-code-coverage gate in GitHub CI — coverage, if enforced at all, lives only in the external Blacksmith suite. `sonar-project.properties` remains on disk as an **orphan** referencing the deleted job (its companion `scripts/ci/sonar_project_version.py` was swept in `7f2251d984`); do not treat it as a live gate.
 
 The maintainability instincts the old Sonar section encoded still hold as plain code hygiene (complexity ≤15 via Ruff `C901`, hoist literals repeated ≥3×, no empty `except` blocks, tests for every new branch/helper, prefer real fixes over `# noqa`/`# type: ignore`), but they are now enforced by Ruff/mypy and review — not by a Sonar quality gate.
 
