@@ -78,15 +78,15 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 - Do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
 - Historical archived artifacts may retain legacy wording only as immutable snapshots, explicitly marked legacy.
 - **Overloaded terms `primary` and `merge` — footgun.** `primary` carries four senses (PRIMARY partition / Primary Branch / repository-root checkout / Target Ref) and `merge` three operations (lane consolidation / branch integration / publish to origin). The load-bearing trap is reading a **PRIMARY-partition** verdict as a **Primary-Branch (`main`)** instruction — and treating `spec-kitty merge` (local lane consolidation) as a **publish to origin**. Always name the sense; the canonical definitions and "Do NOT use when" guards live in the glossary: [`docs/context/orchestration.md`](docs/context/orchestration.md) (`#primary-partition`, `#primary-branch`, `#target-ref--commit-target`, `#lane-consolidation`, `#branch-integration--git-merge`, `#publish-to-originmain`) and [`docs/context/execution.md`](docs/context/execution.md#repository-root-checkout).
-- **Overloaded term `routing` — footgun (cf. #2653, the `primary`/`merge` disambiguation this entry extends).** "Routing" names at least six distinct, governed decisions — placement (kind + topology → surface), branch-target (which branch a change commits to), commit (coord-worktree materialization inside `commit_for_mission`), dispatch/profile (`invocation/router.py`), model/task (`src/doctrine/model_task_routing/`), and scope routing — plus infrastructural senses named explicitly out of scope (event routing, HTTP request routing, significance routing bands). The sync-fan-out sense (`sync/routing.py`) was retired with the sync transport (issue #115) and is no longer a live governed decision. Never write bare "routing"; name the sense. Full disambiguation with "do NOT use when" guards: [`docs/context/orchestration.md#routing`](docs/context/orchestration.md#routing). Placement-sense explanation: [`docs/architecture/artifact-placement-seam.md`](docs/architecture/artifact-placement-seam.md).
+- **Overloaded term `routing` — footgun (cf. #2653, the `primary`/`merge` disambiguation this entry extends).** "Routing" names at least six distinct, governed decisions — placement (kind + topology → surface), branch-target (which branch a change commits to), commit (coord-worktree materialization inside `commit_for_mission`), dispatch/profile (`invocation/router.py`), model/task (`src/charter/offering/model_task_routing/`), and scope routing — plus infrastructural senses named explicitly out of scope (event routing, HTTP request routing, significance routing bands). The sync-fan-out sense (`sync/routing.py`) was retired with the sync transport (issue #115) and is no longer a live governed decision. Never write bare "routing"; name the sense. Full disambiguation with "do NOT use when" guards: [`docs/context/orchestration.md#routing`](docs/context/orchestration.md#routing). Placement-sense explanation: [`docs/architecture/artifact-placement-seam.md`](docs/architecture/artifact-placement-seam.md).
 
 ---
 
 ## Supported AI Agents
 
-19 agents total: 13 slash-command, 6 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
+16 agents total: 12 slash-command, 4 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
 
-### Slash-Command Agents (13)
+### Slash-Command Agents (12)
 
 | Agent | Directory | Subdirectory | Format |
 |-------|-----------|--------------|--------|
@@ -99,14 +99,13 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 | Windsurf | `.windsurf/` | `workflows/` | Markdown |
 | Kilocode | `.kilocode/` | `workflows/` | Markdown |
 | Augment Code | `.augment/` | `commands/` | Markdown |
-| Roo Cline | `.roo/` | `commands/` | Markdown |
 | Amazon Q | `.amazonq/` | `prompts/` | Markdown |
 | Kiro | `.kiro/` | `prompts/` | Markdown |
 | Google Antigravity | `.agent/` | `workflows/` | Markdown |
 
 **Argument placeholders:** Markdown agents use `$ARGUMENTS`; TOML agents use `{{args}}`; `{SCRIPT}` is replaced with the actual script path; `__AGENT__` is replaced with the agent name.
 
-### Agent Skills Agents (6)
+### Agent Skills Agents (4)
 
 | Agent | Skills Root | Command Surface | Key |
 |-------|-------------|-----------------|-----|
@@ -157,7 +156,7 @@ for agent_root, subdir in agent_dirs:
 - `get_agent_dirs_for_project(project_path)` — (dir, subdir) tuples for configured agents
 - `load_agent_config(repo_root)` / `save_agent_config(repo_root, config)` — config I/O
 
-**See also:** ADR #6, `tests/specify_cli/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
+**See also:** ADR #6, `tests/agent/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
 
 ### Adding New Agent Support
 
@@ -188,16 +187,20 @@ for agent_root, subdir in agent_dirs:
 ## Project Structure
 
 ```
-architecture/     # ADRs and technical specs
-src/specify_cli/
-  glossary/       # Glossary semantic integrity pipeline
-  next/           # Canonical mission-next command loop (shim — see Shared Package Boundary)
+docs/adr/         # ADRs (governance decision records)
+docs/architecture/ # Technical specs and C4 arch docs
+src/kernel/       # Foundation primitives (clock, paths, atomic, git_topology) — root layer
+src/charter/      # Governance authority; absorbed former src/doctrine/ at src/charter/offering/
+src/glossary/     # Glossary semantic-integrity pipeline + DRG glossary bridge
+src/mission_runtime/ # Artifact-placement seam (PlacementSeam, resolver port, identity, lifecycle_phase)
+src/runtime/      # Canonical mission control loop — runtime/next/_internal_runtime/
+src/specify_cli/  # Top adapter/application layer: CLI, status, merge, lanes, workspace, tracker clients
 tests/            # Test suite
 kitty-specs/      # Mission specs (dogfooding)
 docs/             # User documentation
 ```
 
-New architectural designs → `architecture/` following `docs/architecture/README.md` template.
+New architectural designs → `docs/architecture/` following `docs/architecture/README.md` template.
 
 ### Modularity SSOT (canonical)
 
@@ -238,7 +241,7 @@ Both make targets set `PWHEADLESS=1` themselves and need the synced dev environm
 **Computing your blast radius — run this in addition to `make test-fast`:**
 
 1. For every source module your diff touches, run its own test file(s). The test tree mirrors the source tree (`src/specify_cli/status/store.py` → `tests/status/`), and when the mirror is not obvious, find the tests that exercise the module: `grep -rl "<module_name>" tests/ --include="*.py"`.
-2. Plus the full test directory of each owning subsystem: touching `src/doctrine/**` ⇒ `tests/doctrine/`.
+2. Plus the full test directory of each owning subsystem: touching `src/charter/offering/**` ⇒ both `tests/charter/` and `tests/doctrine/` — the doctrine test tree did not move when the package absorbed `src/doctrine/` into `src/charter/offering/`, so both directories still cover that code and both count as "each owning subsystem."
 3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/`.
 
 Record the exact commands and passed/failed counts under the PR's *Tests run* section. A failure you did not cause and cannot explain is not yours to chase — classify it via the baseline-red gotcha below and note it in the PR.
@@ -297,25 +300,18 @@ Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require 
 
 **New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
 
-**Pre-push: run the terminology guard when touching `src/doctrine/` or user-facing prose.** Some repo-wide gates run only in CI's `integration-tests-core-misc` job, NOT in the `fast-tests-*` suites — so a forbidden-term regression passes local doctrine runs and only fails at CI. Before pushing doctrine/prose changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it enforces the Terminology Canon (e.g. canonical `status commit` not `ceremony`; `Mission` not `feature`). The full `tests/architectural/` suite is the complete safety net.
+**Pre-push: run the terminology guard when touching `src/charter/offering/` or user-facing prose.** The heavyweight GitHub-hosted test matrix was retired in The Convergence (PR #3881; see [`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)); the full suite now runs externally on Blacksmith (`ci.yml` → the private planning repo's `bin/ci-run.sh`), so a forbidden-term regression can pass a local `src/charter/offering/`-or-prose run and only surface at CI. Before pushing such changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it gates exactly two retired terms — canonical `status commit`, never `ceremony` or `status-writing`. It does **not** check `Mission` vs `feature` — that half of the Terminology Canon is review-enforced, not gated. The full `tests/architectural/` suite is the complete safety net.
 
-## Sonar Expectations
+## Code Hygiene Expectations (SonarCloud retired)
 
-Treat these as code-shaping constraints, not post-hoc cleanup:
+**SonarCloud was removed from CI in the convergence** (the `sonarcloud` job died with the 4118-line `ci-quality.yml` in commit `e8cc2f444f`, 2026-08-27; the restored minimal `ci-quality.yml` does not reintroduce it). No workflow references Sonar in any form, and there is no longer a coverage or new-code-coverage gate in GitHub CI — coverage, if enforced at all, lives only in the external Blacksmith suite. Several surviving orphans reference the deleted job or the retired SaaS integration and are not live gates: `sonar-project.properties` (its companion `scripts/ci/sonar_project_version.py` was swept in `7f2251d984`), the manual read-only REST helper `scripts/ci/sonarcloud_branch_review.sh`, and its test `tests/ci/test_sonarcloud_branch_review.py`. Do not treat any of these as live gates.
 
-- **Complexity ceiling is 15.** Ruff `C901` and Sonar `S3776` are aligned (`[tool.ruff.lint.mccabe].max-complexity = 15`). When touching a function near that limit, keep it at `<=15` by extracting small helpers, flattening nested conditionals, or separating lookup/build/emit phases. Do **not** leave a function at 16+ and assume "tests passing" is enough.
-- **Repeated non-trivial literals become constants.** If a string/path/message/help text appears `>=3` times in the same module, hoist it to a named module constant instead of duplicating it. This is the default response to Sonar `S1192`.
-- **Do not leave empty or effect-free exception handlers.** If an `except` block does nothing meaningful, either remove it and let the exception propagate, or add the concrete recovery/logging/translation logic Sonar expects.
-- **Every new branch/helper needs tests in the same PR.** Sonar's project gate is dominated by new-code coverage; extracting helpers without adding focused tests simply moves the failure. When you add or refactor logic, add narrow tests that execute the new branches/helpers directly.
-- **Prefer testable extractions.** Sonar generally rewards pure/helper extraction plus focused tests. If a function is large, extract deterministic subroutines with stable inputs/outputs, then test those paths instead of only relying on a broad integration test.
-- **Prefer real fixes over suppression.** Do not add `# noqa`, `# type: ignore`, or Sonar suppression comments to silence maintainability findings unless the tool is materially wrong about correct code. If suppression is unavoidable, keep it narrow and explain why the code is safe.
-- **Loopback/local-only HTTP is a special case.** Do not "fix" localhost/127.0.0.1 control-plane URLs by forcing HTTPS when the transport is intentionally loopback-only. Keep the safe loopback semantics, add/keep regression tests, and record the rationale in the PR if Sonar raises a hotspot. Code change and hotspot review are separate actions.
-- **PR description must call out remaining Sonar UI work.** If the code is correct but Sonar still needs hotspot review or UI-side rationale application, say so explicitly in the PR body so a later agent does not waste time trying to "fix" it in code.
+The maintainability instincts the old Sonar section encoded still hold as plain code hygiene (complexity ≤15 via Ruff `C901`, hoist literals repeated ≥3×, no empty `except` blocks, tests for every new branch/helper, prefer real fixes over `# noqa`/`# type: ignore`), but they are now enforced by Ruff/mypy and review — not by a Sonar quality gate.
 
 ## Recent Changes
 
 - **068**: `src/specify_cli/post_merge/` (AST-based stale-assertion analyzer), `agent tests` CLI subgroup, `agent/release.py prep` subcommand, FR-019 safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` + `implement --base`
-- **047**: Added typer, rich, ruamel.yaml, requests, pytest, mypy; SQLite OfflineQueue sibling table
+- **047**: Added typer, rich, ruamel.yaml, requests, pytest, mypy (the SQLite OfflineQueue sibling table shipped here was retired with the sync transport in the convergence)
 - **023**: Documentation sprint / agent management cleanup
 
 ---
@@ -393,7 +389,7 @@ spec-kitty merge --dry-run         # conflict forecast
 spec-kitty merge --feature 017-my-feature
 ```
 
-**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/status_resolver.py`, `cli/commands/merge.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
+**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/resolve.py`, `merge/retention.py`, `merge/bookkeeping_projection.py`, `cli/commands/merge.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
 
 ---
 
@@ -410,11 +406,10 @@ Append-only event log (`status.events.jsonl`) is the **sole authority** for WP l
 
 | Function | Module | Purpose |
 |----------|--------|---------|
-| `emit_status_transition()` | `status.emit` | Single entry point: validate → persist → materialize → views → SaaS |
+| `emit_status_transition()` | `status.emit` | Flat/primary shell over the status-owned `transition_pipeline` (validation runs once there); the transactional shell lives in `coordination/status_transition.py` |
 | `reduce()` | `status.reducer` | Deterministic event → snapshot |
 | `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
 | `validate_transition()` | `status.transitions` | Check (from, to) against matrix + guards |
-| `resolve_phase()` | `status.phase` | meta.json > config.yaml > default(1) |
 | `resolve_lane_alias()` | `status.transitions` | `doing` → `in_progress` at input boundaries |
 
 **9-lane state machine:**
@@ -431,7 +426,7 @@ spec-kitty agent tasks status
 spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 
-**Package:** `src/specify_cli/status/` — `models.py`, `transitions.py`, `reducer.py`, `store.py`, `phase.py`, `emit.py`, `lane_reader.py`, `bootstrap.py`, `legacy_bridge.py`, `validate.py`, `doctor.py`, `reconcile.py`, `migrate.py` (migration-only), `history_parser.py` (migration-only).
+**Package:** `src/specify_cli/status/` — `models.py`, `transitions.py`, `reducer.py`, `store.py`, `emit.py`, `lane_reader.py`, `bootstrap.py`, `validate.py`, `doctor.py`, `aggregate.py`, `lifecycle.py`, `lifecycle_events.py`, `tail_reader.py`, `views.py`, `preflight.py`, `work_package_lifecycle.py`, `zeitgeist_bridge.py` (status→Zeitgeist ephemeral-status seam), plus `wp_*` view/metadata helpers and migration utilities (`migrate_lifecycle_envelope.py`).
 
 **Common operations:**
 ```python
@@ -480,7 +475,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 
 ## Shared Package Boundary (2026-04-25)
 
-- **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
+- **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). The `src/specify_cli/next/` deprecation shim was **removed in commit `93dcbd75481c` (2026-07-03, "feat(unshim)!: delete 5 legacy shim namespaces …")**, two months before the convergence, and remains absent at 3.2.7rc1 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
 - **Events / Tracker:** Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies are removed. In the EXPERIMENTAL programme, these packages resolve from exact git-rev pins per [planning `PROGRAM.md` §2](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) and the [internal-distribution ADR](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/decisions/ADR-INTERNAL-PYTHON-PACKAGE-DISTRIBUTION-2026-08-27.md); PyPI ranges return with [#830 Phase 3](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830).
 - **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/how-to/local-overrides.md](docs/development/how-to/local-overrides.md).
 
@@ -494,16 +489,16 @@ ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](docs/adr/3.x/2026-
 
 Governing ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 
-### Activation Engine (`charter.activation_engine`)
+### Activation Engine (`charter.activation.activation_engine`)
 
-Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_activation()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed.
+Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
 
 ```python
 plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx)
-commit_activation(plan, project_root=Path("."))
+commit_plan(plan, project_root=Path("."))
 ```
 
-### Charter Cascade (`charter.cascade`)
+### Charter Cascade (`charter.activation.cascade`)
 
 Follows DRG `requires`/`suggests` edges (not hardcoded per-kind logic).
 
@@ -517,7 +512,7 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 
 ### Canonical Kind Vocabulary
 
-`charter.kind_vocabulary.from_operator_token` normalizes operator-facing tokens at input boundaries:
+`ArtifactKind.from_operator_token` (`charter.offering.artifact_kinds`) normalizes operator-facing tokens at input boundaries (`charter.activation.kind_vocabulary` only re-exports the token set + error type):
 
 | Token | Canonical kind |
 |-------|----------------|
@@ -527,7 +522,7 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 | `directive` / `tactic` / `styleguide` / `toolguide` / `paradigm` / `procedure` | (same) |
 | `mission-type` | raises `MissionTypeNotAnArtifactKind` |
 
-`template`, `asset`, and `anti_pattern` are `ArtifactKind` members that are **not** charter-activatable — they resolve specially and are excluded via `_NON_AUGMENTATION_ELIGIBLE_KINDS` (`src/doctrine/artifact_kinds.py`). The tokens above (plus `mission-type`) are the charter-activatable vocabulary (`CHARTER_KIND_TOKENS`).
+`template`, `asset`, and `anti_pattern` are `ArtifactKind` members that are **not** charter-activatable — they resolve specially and are excluded via `_NON_AUGMENTATION_ELIGIBLE_KINDS` (`src/charter/offering/artifact_kinds.py`). The tokens above (plus `mission-type`) are the charter-activatable vocabulary (`CHARTER_KIND_TOKENS`).
 
 ### `specializes_from` DRG Lineage
 
@@ -539,7 +534,7 @@ edges:
     relation: specializes_from
 ```
 
-**Endpoint form matters.** An endpoint is either a **DRG URN** — `<kind>:<id>`, where `<kind>` is a `NodeKind` member such as `agent_profile`, `directive` or `styleguide` — or a **bare id** that the fragment's own `nodes:` block declares. Anything else is refused at merge time with an `unresolved_edge_endpoint` conflict naming the token. (Before mission `doctrine-silence-guards-01KYFV7Q` this snippet read `urn:profile:…`, a shape that exists nowhere in the vocabulary; the bridge dropped it in silence, so the documented declaration was inert. See `src/doctrine/drg/merge.py:_resolve_edge_endpoint`.)
+**Endpoint form matters.** An endpoint is either a **DRG URN** — `<kind>:<id>`, where `<kind>` is a `NodeKind` member such as `agent_profile`, `directive` or `styleguide` — or a **bare id** that the fragment's own `nodes:` block declares. Anything else is refused at merge time with an `unresolved_edge_endpoint` conflict naming the token. (Before mission `doctrine-silence-guards-01KYFV7Q` this snippet read `urn:profile:…`, a shape that exists nowhere in the vocabulary; the bridge dropped it in silence, so the documented declaration was inert. See `src/charter/offering/drg/merge.py:_resolve_edge_endpoint`.)
 
 - Distinct from `delegates_to` (runtime work handoff).
 - Resolved via `AgentProfileRepository.resolve_profile` DRG traversal. Retired per-profile field form rejected at load time.

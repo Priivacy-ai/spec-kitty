@@ -59,8 +59,7 @@ def write_json(path: Path, payload: dict[str, object] | bytes, *, mode: int = 0o
     root = staging_root(path.parent)
     normalized = confined_output(path.parent, root) / path.name
     inputs = AssessmentInputs(root, consent=ApplyConsent(automatic=True))
-    assessment = prepare_staging(inputs, (StagedFile(normalized.relative_to(root.path).as_posix(),
-                                                    json_bytes(payload, legacy=True), mode, manifest=True),), ())
+    assessment = prepare_staging(inputs, (StagedFile(normalized.relative_to(root.path).as_posix(), json_bytes(payload, legacy=True), mode, manifest=True),), ())
     finish_build(assessment)
 
 
@@ -73,9 +72,9 @@ def command_members(prefix: Path, root: OperationRoot) -> tuple[tuple[StagedFile
     if not supplier.complete or not isinstance(payload, PreparedCommands):
         raise BuildError("; ".join(d.message for d in supplier.diagnostics))
     files = tuple(
-        StagedFile((prefix / Path(command.path).parent.name / "SKILL.md").relative_to(root.path).as_posix(),
-                   command.content, logical_owners=("command_skills",))
-        for command in payload.commands if command.content is not None
+        StagedFile((prefix / Path(command.path).parent.name / "SKILL.md").relative_to(root.path).as_posix(), command.content, logical_owners=("command_skills",))
+        for command in payload.commands
+        if command.content is not None
     )
     if len(files) < MIN_SKILL_COUNT:
         raise BuildError(f"Expected at least {MIN_SKILL_COUNT} skills, found {len(files)}. Check CANONICAL_COMMANDS in command_installer.")

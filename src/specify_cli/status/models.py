@@ -901,6 +901,16 @@ class GuardContext:
     force: bool = False
     review_result: Any = None
     current_actor: str | None = None
+    # Dependency readiness verdict (FR-012, tri-state). ``None`` = no verdict
+    # supplied => the guard PASSES (fail-OPEN, C-004 / decision Q8
+    # ``01M1V8HVDQH36X06JDK22SZV02``): the crash-recovery progression probe and
+    # the FR-015 backward-edge probe build bare contexts on exactly the guarded
+    # edges. ``False`` refuses ``planned -> claimed`` and
+    # ``claimed -> in_progress`` (force with actor+reason bypasses at
+    # ``check_transition``); ``True`` passes. The emit shells always supply a
+    # verdict, resolved in-lock against their write surface (FR-013). Do NOT
+    # copy ``subtasks_complete``'s fail-closed ``is not True`` polarity here.
+    dependency_ready: bool | None = None
 
 
 # ---------------------------------------------------------------------------

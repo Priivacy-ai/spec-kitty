@@ -569,14 +569,16 @@ def test_next_run_identity_identical_across_handle_forms(
     assert run_ref.run_dir == baseline.run_dir
 
     index = _feature_runs_index(repo)
-    assert set(index) == {_FULL_SLUG}, (
+    # WP05 / FR-016 (C-003): the index is keyed by mission_id; the slug is
+    # display-only and a raw handle must leak into neither.
+    assert set(index) == {_MISSION_ID}, (
         f"handle {handle!r} leaked a raw-handle key into feature-runs.json: "
         f"{sorted(index)}"
     )
-    assert index[_FULL_SLUG]["mission_slug"] == _FULL_SLUG, (
+    assert index[_MISSION_ID]["mission_slug"] == _FULL_SLUG, (
         f"raw handle {handle!r} leaked into the persisted mission_slug"
     )
-    assert index[_FULL_SLUG]["mission_id"] == _MISSION_ID
+    assert index[_MISSION_ID]["mission_id"] == _MISSION_ID
 
 
 def test_next_resolve_mission_slug_preserves_unresolvable_handle(
@@ -835,11 +837,12 @@ def test_mission_run_identity_identical_across_handle_forms(
     )
 
     index = _feature_runs_index(repo)
-    assert set(index) == {_FULL_SLUG}, (
+    # WP05 / FR-016 (C-003): keyed by mission_id; slug is display-only.
+    assert set(index) == {_MISSION_ID}, (
         f"handle {handle!r} leaked a raw-handle key into feature-runs.json: "
         f"{sorted(index)}"
     )
-    assert index[_FULL_SLUG]["mission_slug"] == _FULL_SLUG, (
+    assert index[_MISSION_ID]["mission_slug"] == _FULL_SLUG, (
         f"raw handle {handle!r} leaked into the persisted mission_slug"
     )
 

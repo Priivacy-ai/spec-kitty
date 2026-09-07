@@ -1,0 +1,11 @@
+schema_version: "1.0"
+key: software-dev
+name: Software Development
+# The orchestration state machine was retired (dead-port-disposition-01M1TZVN
+# T014b); additionalProperties: false must reject it if it ever comes back.
+orchestration:
+  states: [planned]
+  transitions:
+    - from: planned
+      to: doing
+  required_artifacts: [spec.md]

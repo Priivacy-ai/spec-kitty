@@ -242,9 +242,9 @@ class TestWorkflowRuntimeTemplate:
         from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: runtime_bridge._BufferingRuntimeEmitter()),
+            runtime_bridge,
+            "runtime_emitter_for_mission",
+            lambda **_: runtime_bridge._BufferingRuntimeEmitter(),
         )
 
         runtime_bridge.decide_next_via_runtime(
@@ -390,8 +390,11 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        assert "042-test-feature" in index
-        assert "run_id" in index["042-test-feature"]
+        # WP05 / FR-016 (C-003): the index is keyed by mission_id; a mission
+        # without one (this scaffold's meta.json) lands under ``legacy-<slug>``
+        # and the bare slug is never a key.
+        assert set(index) == {"legacy-042-test-feature"}
+        assert "run_id" in index["legacy-042-test-feature"]
 
     def test_feature_runs_index_includes_mission_id_and_slug(self, tmp_path: Path) -> None:
         """FR-028: feature-runs.json entries must include mission_id and mission_slug (WP06)."""
@@ -401,8 +404,8 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        entry = index["042-test-feature"]
-        # mission_slug must always be present and match the key
+        entry = index["legacy-042-test-feature"]
+        # mission_slug is display-only (WP05) but must always be present
         assert entry.get("mission_slug") == "042-test-feature"
         # mission_id may be None when no meta.json exists, but the key must be present
         assert "mission_id" in entry
@@ -606,11 +609,7 @@ class TestAnswerDecisionViaRuntime:
 
         monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
         monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type: fake_run_ref)
-        monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: FakeEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: FakeEmitter())
 
         provided: list[tuple[object, str, str, object, object]] = []
 
@@ -850,15 +849,7 @@ class TestFullLoop:
         from runtime.next import runtime_bridge
         from runtime.next._internal_runtime.events import NullEmitter
 
-        class LocalOnlyEmitter(NullEmitter):
-            def seed_from_snapshot(self, *_args, **_kwargs) -> None:
-                return None
-
-        monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: LocalOnlyEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
 
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
@@ -2151,15 +2142,7 @@ class TestDecideNextViaRuntimeOwnedCheckout:
         from runtime.next import runtime_bridge
         from runtime.next._internal_runtime.events import NullEmitter
 
-        class LocalOnlyEmitter(NullEmitter):
-            def seed_from_snapshot(self, *_args: object, **_kwargs: object) -> None:
-                return None
-
-        monkeypatch.setattr(
-            runtime_bridge.RuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: LocalOnlyEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
 
     def test_owned_checkout_resolves_and_advances_the_mission(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import decide_next_via_runtime

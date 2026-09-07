@@ -425,8 +425,10 @@ _EVENT_LOG = "status.events.jsonl"
 #: key -- a previously-inert slot became live). ``unassigned`` is the one owner the
 #: anti-weasel test can never fire for, so an uncapped hatch lets a new finding
 #: satisfy the growth rule without anyone taking responsibility for it. This number
-#: may only ever go DOWN.
-MAX_UNASSIGNED_ENTRIES = 19
+#: may only ever go DOWN. 19 -> 9 (dead-port-disposition-01M1TZVN T014b): the
+#: ten provisional `unassigned` rows of the deleted `orchestration` family left
+#: with their declarations.
+MAX_UNASSIGNED_ENTRIES = 9
 
 #: Concrete floors (charter §5, ``architectural-gate-non-vacuity`` failure mode #1).
 #: Every shipped-tree assertion in this gate is an *absence* assertion — ``new ==

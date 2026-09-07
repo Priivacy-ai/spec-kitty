@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from specify_cli.status.emit import build_claim_policy_metadata, emit_status_transition
 from specify_cli.status.models import AgentAssignment
-from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+from specify_cli.status.wp_metadata import WPMetadata, coerce_legacy_dependencies, read_wp_frontmatter
 
 from tests.status.conftest import seed_wp_to_planned
 
@@ -524,6 +524,38 @@ class TestWPMetadataLegacyNormalization:
             }
         )
         assert meta.dependencies == ["WP01", "WP02"]
+
+    def test_dependencies_bare_scalar(self) -> None:
+        """A bare scalar ``dependencies: WP01`` is a one-element list."""
+        meta = WPMetadata.model_validate({"work_package_id": "WP01", "title": "T", "dependencies": "WP01"})
+        assert meta.dependencies == ["WP01"]
+
+
+class TestCoerceLegacyDependencies:
+    """The shared pure coercion behind ``WPMetadata`` and the FSM shells (single parser, FR-014)."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("[]", []),
+            ("  []  ", []),
+            ("WP01, WP02", ["WP01", "WP02"]),
+            ("WP01", ["WP01"]),
+            ("  WP03 ,WP04 , ", ["WP03", "WP04"]),
+            ("", []),
+        ],
+    )
+    def test_string_forms(self, raw: str, expected: list[str]) -> None:
+        assert coerce_legacy_dependencies(raw) == expected
+
+    @pytest.mark.parametrize("raw", [None, [], ["WP01"], [1, 2], 3, {"a": 1}])
+    def test_non_strings_pass_through_unchanged(self, raw: object) -> None:
+        assert coerce_legacy_dependencies(raw) is raw
+
+    @pytest.mark.parametrize("raw", ["[]", "WP01, WP02", "WP01"])
+    def test_model_uses_the_same_coercion(self, raw: str) -> None:
+        meta = WPMetadata.model_validate({"work_package_id": "WP01", "title": "T", "dependencies": raw})
+        assert meta.dependencies == coerce_legacy_dependencies(raw)
 
 
 class TestWPMetadataRoundTrip:

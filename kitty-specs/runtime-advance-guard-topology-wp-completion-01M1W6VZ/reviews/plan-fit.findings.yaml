@@ -1,0 +1,138 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fit
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-FIT-001
+    lens: spec-fidelity / architecture (C-001 mixed-kind anchoring trap)
+    severity: 4
+    title: >-
+      _should_advance_wp_step's own tasks_dir/wp_files glob is unanchored and will
+      short-circuit to True on a coord worktree, making FR-004's _wp_blocks_step
+      fix unreachable for the real coord-topology production scenario this
+      mission is fixing.
+    evidence:
+      - artifact: "plan.md § 'FR-005 exactly, verified, not assumed' (lines 469-471)"
+      - artifact: "plan.md § FR-003 call-site threading table, row 1 (lines 361, 823-859)"
+      - code: "src/runtime/next/runtime_bridge.py:753-755 (_should_advance_wp_step: `tasks_dir = feature_dir / \"tasks\"` then `if not tasks_dir.is_dir(): return True`)"
+      - code: "src/runtime/next/runtime_bridge.py:858 (_check_cli_guards calls `_should_advance_wp_step(step_id, feature_dir)` with the SAME raw, unanchored feature_dir it forwards to gather_artifact_presence three lines above)"
+      - code: "src/runtime/next/runtime_bridge.py:1680 (_dn_dependency_gate WP-iteration branch: `should_advance = _should_advance_wp_step(current_step_id, feature_dir)`)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:557 (_check_composed_action_guard: `_rb._should_advance_wp_step(action, feature_dir)`)"
+    claim: >-
+      FR-004/FR-005 land the fix entirely inside `_wp_blocks_step`'s per-WP
+      fall-through logic (`runtime_bridge.py:781-810`). But `_wp_blocks_step` is
+      only ever reached via `_should_advance_wp_step`'s per-WP loop, and that
+      loop is gated by `_should_advance_wp_step`'s OWN `tasks_dir = feature_dir /
+      "tasks"` / `wp_files = sorted(tasks_dir.glob(TASKS_GLOB))` read
+      (runtime_bridge.py:753-757) — the exact same PRIMARY-partition-off-raw-
+      feature_dir read pattern that FR-001 explicitly re-anchors inside
+      `gather_artifact_presence`'s own `tasks_dir`/`wp_files` glob (per C-001's
+      correction that `WORK_PACKAGE_TASK` is a PRIMARY-partition kind). Every
+      one of `_should_advance_wp_step`'s three call sites
+      (`_check_cli_guards:858`, `_dn_dependency_gate`'s WP-iteration
+      branch:1680, `_check_composed_action_guard`:557 in
+      runtime_bridge_composition.py) passes the SAME raw `feature_dir` that,
+      per this mission's own fixture (Independent Test / US1 AC1-2), is the
+      bare coordination worktree holding only `status.events.jsonl` — no
+      `tasks/` directory at all for a genuinely COORD-topology mission (per
+      `context.py:53`, `COORD = "coord, no lanes"` — a real, live topology
+      value, not a hypothetical). For that mission, `tasks_dir.is_dir()` is
+      `False` on the coord worktree even though `tasks/WP*.md` exist on
+      primary, so `_should_advance_wp_step` hits its own early return
+      (`runtime_bridge.py:753-755`, `if not tasks_dir.is_dir(): return True`)
+      and returns `True` UNCONDITIONALLY — the per-WP loop that calls
+      `_wp_blocks_step` (where FR-004's new `lane is Lane.UNINITIALIZED`
+      disjunct lives) is never reached. FR-004's fix is therefore structurally
+      inert for a real COORD-topology mission with a never-claimed WP — exactly
+      the "sliding through unblocked" scenario spec.md's own Edge Cases /
+      Rollout-impact text (lines 239-250) claims FR-004 will "newly (and
+      correctly) re-block." The plan's own justification text
+      (lines 469-471) treats this early return as the AC-3 "mission type with
+      genuinely no tasks/ directory" case (e.g. the `plan` family) — but a
+      COORD-topology `software-dev` mission is NOT that case: `tasks/`
+      genuinely exists for the mission, just not on the `feature_dir` being
+      read, which is precisely the false-negative anchoring bug C-001 is
+      about, manifesting in a sibling function neither FR-001 (scoped only to
+      `gather_artifact_presence`) nor FR-004/005 (scoped only to
+      `_wp_blocks_step`'s branch logic) touches. Note this is orthogonal to
+      whether `feature_dir.name` resolves correctly via `placement_seam` (the
+      WP1 residual-uncertainty item) — even a perfect mission_slug fallback
+      does nothing here because `_should_advance_wp_step` is never anchored at
+      all under this plan's design.
+    remediation: >-
+      Either (a) extend FR-001's anchoring scope (or add a companion FR
+      explicitly in scope) so `_should_advance_wp_step`'s `tasks_dir`/`wp_files`
+      resolution is ALSO anchored via the same `anchor_dir` /
+      `placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)`
+      mechanism `gather_artifact_presence` uses — threading `repo_root`/
+      `mission_slug` into `_should_advance_wp_step` itself (it would need the
+      same two new parameters, since it is called from the same three sites
+      already being touched for `mission_slug` threading); or (b) if that is
+      judged out of scope for this mission, spec.md and plan.md must say so
+      explicitly and narrow FR-004/005's claimed effect — correcting the
+      Rollout-impact Edge Case text (spec.md lines 239-250) and this plan's
+      AC-3 justification (lines 469-471) to state that FR-004's fix is
+      verified only for topologies where `feature_dir` already contains
+      `tasks/` directly (SINGLE_BRANCH/LANES/a lane worktree with the
+      FR-009/#2993 backfill) and that COORD-topology missions remain
+      unprotected against #3884 until a follow-up mission anchors
+      `_should_advance_wp_step` the same way. Either way this must be resolved
+      before implementation, not discovered post-merge.
+
+  - id: PLAN-FIT-002
+    lens: architecture (verify code claims against live code)
+    severity: 2
+    title: >-
+      Plan's own new citation for the FR-006 broad-except precedent
+      (runtime_bridge_composition.py:672-682) points at the wrong lines — the
+      actual `except Exception as exc:` block with that exact rationale text
+      is at approximately lines 650-660.
+    evidence:
+      - artifact: "plan.md line 258 (inline code comment: `mirrors the existing broad-catch-and-translate idiom at runtime_bridge_composition.py:672-682`)"
+      - artifact: "plan.md line 344 (prose: `mirroring the existing precedent at runtime_bridge_composition.py:672-682`)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:650-660 (the actual `except Exception as exc:  # noqa: BLE001 — FR-009 contract: any executor exception class must surface...` block matching the plan's quoted rationale almost verbatim)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:665-682 (what actually lives at the cited line range: invocation_id/logger.info forwarding, unrelated to exception handling)"
+    claim: >-
+      Lines 672-682 of runtime_bridge_composition.py are the FR-008
+      invocation_id-forwarding/logging block, not the broad `except Exception`
+      handler the plan describes and quotes almost verbatim. The correct
+      citation is the `except StepContractExecutionError` / `except Exception
+      as exc:` pair starting at line 646, with the `noqa: BLE001` comment
+      block the plan paraphrases sitting at roughly lines 650-660. This is a
+      plan-original citation (not carried over from spec.md, so it falls
+      outside the "Flagged Deviations" self-check, which only re-verified
+      spec.md's own citations) — a new drift the plan's own "all line
+      citations below were re-verified" claim (line 10-15) does not actually
+      hold for, at least here.
+    remediation: >-
+      Correct both citations in plan.md (lines 258 and 344) from
+      `runtime_bridge_composition.py:672-682` to the actual line range of the
+      `except StepContractExecutionError` / `except Exception as exc:` pair
+      (approximately `:646-660`, to be pinned exactly in the tasks phase) so
+      an implementer referencing this precedent lands on the right code.
+
+  - id: PLAN-FIT-003
+    lens: spec-fidelity (citation accuracy)
+    severity: 1
+    title: >-
+      Plan's own `_STATE_MAP["uninitialized"]` line citation
+      (wp_state.py:672) is off by one — the actual line is 673.
+    evidence:
+      - artifact: "plan.md line 433 (`UninitializedState (registered at _STATE_MAP[\"uninitialized\"], :672) does not override...`)"
+      - code: "src/specify_cli/status/wp_state.py:673 (`\"uninitialized\": UninitializedState,`)"
+    claim: >-
+      The dict entry `"uninitialized": UninitializedState,` is at line 673,
+      not 672, in the live checkout. Immaterial to the fix's substance (the
+      described behavior is correct), but the plan explicitly claims an
+      "exhaustive line-by-line sweep" of every citation found only one
+      deviation (the `:763-767` vs `:768-773` one it flags); this is a second,
+      unflagged one-line drift in the plan's own prose (not carried from
+      spec.md).
+    remediation: >-
+      Correct `:672` to `:673` in plan.md line 433 before the tasks/implement
+      phase cites it further.
+findings_count_by_severity:
+  "4": 1
+  "2": 1
+  "1": 1

@@ -12,19 +12,24 @@ from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta
 
 pytestmark = pytest.mark.integration
 CHECKOUT = Path(__file__).resolve().parents[2]
-SOURCE_CHECKOUT = Path(
-    subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"], cwd=CHECKOUT,
-        check=True, capture_output=True, text=True,
-    ).stdout.strip()
-).resolve().parent
+SOURCE_CHECKOUT = (
+    Path(
+        subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=CHECKOUT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    )
+    .resolve()
+    .parent
+)
 
 
 @pytest.mark.parametrize("global_state", ["G0", "G1", "G5"])
 @pytest.mark.parametrize("args", [("--dry-run", "--json"), ("--plan-json",)])
-def test_preview_matrix_is_healthy_and_write_free(
-    tmp_path: Path, global_state: str, args: tuple[str, ...]
-) -> None:
+def test_preview_matrix_is_healthy_and_write_free(tmp_path: Path, global_state: str, args: tuple[str, ...]) -> None:
     case = prepare_case(tmp_path / global_state, SOURCE_CHECKOUT, global_state=global_state)
     before = case.observe()
     result = case.run("upgrade", *args, "--no-worktrees")

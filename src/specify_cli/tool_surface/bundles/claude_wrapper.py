@@ -89,7 +89,10 @@ _EXECUTABLE_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
 
 
 def write_wrappers(
-    bundle_dir: Path, version: str | None = None, *, prepared: tuple[Path, bytes, int] | None = None,
+    bundle_dir: Path,
+    version: str | None = None,
+    *,
+    prepared: tuple[Path, bytes, int] | None = None,
 ) -> None:
     """Write ``bin/spec-kitty-wrapper`` and ``bin/spec-kitty-wrapper.cmd``.
 
@@ -131,10 +134,10 @@ def write_wrappers(
     directory = confined_output(bundle_dir, root)
     inputs = AssessmentInputs(root, consent=ApplyConsent(automatic=True))
     files = (
-        StagedFile((directory / "bin/spec-kitty-wrapper").relative_to(root.path).as_posix(),
-                   wrapper_bash_content(version).encode("utf-8"), _EXECUTABLE_MODE, wrapper=True),
-        StagedFile((directory / "bin/spec-kitty-wrapper.cmd").relative_to(root.path).as_posix(),
-                   wrapper_cmd_content(version).encode("utf-8"), wrapper=True),
+        StagedFile(
+            (directory / "bin/spec-kitty-wrapper").relative_to(root.path).as_posix(), wrapper_bash_content(version).encode("utf-8"), _EXECUTABLE_MODE, wrapper=True
+        ),
+        StagedFile((directory / "bin/spec-kitty-wrapper.cmd").relative_to(root.path).as_posix(), wrapper_cmd_content(version).encode("utf-8"), wrapper=True),
     )
     finish_build(prepare_staging(inputs, files, ()))
 

@@ -102,7 +102,11 @@ from runtime.next._internal_runtime import (
     NullEmitter,
     start_mission_run,
 )
-from runtime.next._internal_runtime.schema import MissionTemplate, load_mission_template_file
+from runtime.next._internal_runtime.schema import (
+    MissionRuntimeError,
+    MissionTemplate,
+    load_mission_template_file,
+)
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
@@ -155,6 +159,49 @@ class _FeatureRunEntry(TypedDict, total=False):
     mission_slug: str
 
 
+class RunIdentityMigrationRequired(MissionRuntimeError):
+    """A legacy run has no identity proving that it belongs to this mission."""
+
+    error_code = "RUN_IDENTITY_MIGRATION_REQUIRED"
+
+
+class RunStateMissing(MissionRuntimeError):
+    """A live ``feature-runs.json`` entry points at a run whose ``state.json`` is gone.
+
+    FR-016 (mission fsm-write-path-integrity-01M1TZV6, WP05): resolving such an
+    entry used to fall through to "start a new run", silently orphaning the
+    run's journal and cursor history. It is now loud and structured so the
+    operator can repair the index or the run directory deliberately.
+    """
+
+    error_code = "RUN_STATE_MISSING"
+
+    def __init__(self, *, mission_id: str | None, mission_slug: str, run_id: str, run_dir: Path) -> None:
+        self.mission_id = mission_id
+        self.mission_slug = mission_slug
+        self.run_id = run_id
+        self.run_dir = run_dir
+        super().__init__(
+            f"Run {run_id!r} for mission {mission_slug!r} (mission_id={mission_id!r}) is indexed in "
+            f"{_FEATURE_RUNS_FILE} but {run_dir / STATE_FILE} is missing. Restore the run directory "
+            f"or remove the stale index entry (`spec-kitty doctor`); the run will not be silently restarted."
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        # Local annotation re-narrows the specify_cli.* base's result from Any
+        # (follow_imports = "skip" mypy override for the runtime layer).
+        payload: dict[str, Any] = super().to_dict()
+        payload.update(
+            {
+                "mission_id": self.mission_id,
+                "mission_slug": self.mission_slug,
+                "run_id": self.run_id,
+                "run_dir": str(self.run_dir),
+            }
+        )
+        return payload
+
+
 # ---------------------------------------------------------------------------
 # Feature -> Run index (T017)
 # ---------------------------------------------------------------------------
@@ -163,6 +210,85 @@ class _FeatureRunEntry(TypedDict, total=False):
 def _feature_runs_path(repo_root: Path) -> Path:
     """Untracked helper (no test binds this name) — repo_root -> index path."""
     return repo_root / KITTIFY_DIR / "runtime" / _FEATURE_RUNS_FILE
+
+
+# WP05 / FR-016 / C-003: the index is keyed by the canonical ULID ``mission_id``
+# (083 identity model). A mission with no ``mission_id`` yet is keyed under the
+# ``legacy-<slug>`` precedent already used for the transactional status lock
+# (``coordination/status_transition.py``). The bare slug is NEVER a key any more
+# (decision ``01M1V8J842E7CJR6MGZ0MW3DQF``; ``design-notes/WP05-run-state.md``).
+_LEGACY_RUN_KEY_PREFIX = "legacy-"
+
+
+def run_index_key(mission_slug: str, mission_id: str | None) -> str:
+    """Return the canonical ``feature-runs.json`` key for a mission."""
+    if mission_id:
+        return mission_id
+    return f"{_LEGACY_RUN_KEY_PREFIX}{mission_slug}"
+
+
+def _canonicalize_run_index(
+    index: dict[str, _FeatureRunEntry],
+) -> tuple[dict[str, _FeatureRunEntry], bool]:
+    """Rekey pre-WP05 slug-keyed entries under their canonical key (Q9: in-place, on touch).
+
+    Idempotent and lossless: an entry already under its canonical key is left
+    alone, and an entry whose canonical slot is already occupied stays where it
+    is rather than overwriting the occupant. The second element reports whether
+    anything moved, so callers persist only when there is something to persist.
+    """
+    rekeyed: dict[str, _FeatureRunEntry] = {}
+    changed = False
+    for key, entry in index.items():
+        slug = entry.get("mission_slug") or key
+        canonical = run_index_key(slug, entry.get("mission_id"))
+        target = key if canonical == key or canonical in index or canonical in rekeyed else canonical
+        if target != key:
+            entry = {**entry, "mission_slug": slug}
+            changed = True
+        rekeyed[target] = entry
+    return rekeyed, changed
+
+
+def _load_run_index(repo_root: Path) -> tuple[dict[str, _FeatureRunEntry], bool]:
+    """Load the index through the canonical view; report whether it needed rekeying."""
+    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+
+    return _canonicalize_run_index(_rb._load_feature_runs(repo_root))
+
+
+def _entry_for_mission(index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None) -> _FeatureRunEntry | None:
+    """Resolve identity without treating an unbound legacy run as absent.
+
+    Identity backfill updates mission metadata, not the runtime index. A
+    no-ID entry cannot distinguish that upgrade from reuse of the same slug,
+    so require explicit ownership repair instead of restarting or adopting it.
+    """
+    entry = index.get(run_index_key(mission_slug, mission_id))
+    if entry is None and mission_id:
+        for candidate in index.values():
+            if not candidate.get("mission_id") and candidate.get("mission_slug") == mission_slug:
+                raise RunIdentityMigrationRequired(
+                    f"Legacy run {candidate['run_id']!r} for mission {mission_slug!r} has no mission_id, "
+                    f"but mission metadata now identifies {mission_id!r}. Verify ownership before resuming: "
+                    f"in .kittify/runtime/{_FEATURE_RUNS_FILE}, move the verified run entry to key "
+                    f"{mission_id!r} and set its mission_id to that value. If it belongs to a different "
+                    "mission, preserve it under that mission's verified identity. No new run was started."
+                )
+    return entry
+
+
+def _require_run_state(entry: _FeatureRunEntry, *, mission_slug: str, mission_id: str | None) -> Path:
+    """Return the entry's run directory, or raise :class:`RunStateMissing` when its cursor is gone."""
+    run_dir = Path(entry["run_dir"])
+    if not (run_dir / STATE_FILE).exists():
+        raise RunStateMissing(
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            run_id=entry["run_id"],
+            run_dir=run_dir,
+        )
+    return run_dir
 
 
 def load_feature_runs(path: Path) -> dict[str, _FeatureRunEntry]:
@@ -543,18 +669,21 @@ def _existing_run_ref(
     repo_root: Path,
     mission_type: str,
 ) -> MissionRunRef | None:
-    """Return an existing run without creating a new one."""
+    """Return an existing run without creating a new one.
+
+    Read-only: the canonical (rekeyed) view of the index is computed in
+    memory and never persisted here, so query mode stays non-mutating for
+    ``feature-runs.json``. A live entry with a missing cursor raises
+    :class:`RunStateMissing` (FR-016) rather than masquerading as "no run".
+    """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
-
-    if mission_slug not in index:
+    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, _rekeyed = _load_run_index(repo_root)
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
+    if entry is None:
         return None
-
-    entry = index[mission_slug]
-    run_dir = Path(entry["run_dir"])
-    if not (run_dir / STATE_FILE).exists():
-        return None
+    _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id)
 
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
     return _rb._build_run_ref(
@@ -609,23 +738,32 @@ def get_or_start_run(
 ) -> MissionRunRef:
     """Load existing run or start a new one.
 
-    Run mapping stored in .kittify/runtime/feature-runs.json:
-    { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
+    Run mapping stored in .kittify/runtime/feature-runs.json, keyed by the
+    canonical ``mission_id`` (``legacy-<slug>`` for a mission without one):
+    { "01HULID...": { "run_id": "abc", "run_dir": "...", "mission_slug": "042-test-mission" } }
+
+    This is the index's single writer: a pre-WP05 slug-keyed index is rekeyed
+    in place on the first touch (Q9, ``01M1V8J842E7CJR6MGZ0MW3DQF``). A live
+    entry whose ``state.json`` is gone raises :class:`RunStateMissing` -- it is
+    never silently replaced by a fresh run (FR-016).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
+    resolved_mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, rekeyed = _load_run_index(repo_root)
+    index_key = run_index_key(mission_slug, resolved_mission_id)
 
-    if mission_slug in index:
-        entry = index[mission_slug]
-        run_dir = Path(entry["run_dir"])
-        if (run_dir / STATE_FILE).exists():
-            stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-            return _rb._build_run_ref(
-                run_id=entry["run_id"],
-                run_dir=entry["run_dir"],
-                mission_type=stored_mission_type,
-            )
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
+    if entry is not None:
+        _require_run_state(entry, mission_slug=mission_slug, mission_id=resolved_mission_id)
+        if rekeyed:
+            save_feature_runs(_feature_runs_path(repo_root), index)
+        stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
+        return _rb._build_run_ref(
+            run_id=entry["run_id"],
+            run_dir=entry["run_dir"],
+            mission_type=stored_mission_type,
+        )
 
     # Start a new run
     run_store = repo_root / KITTIFY_DIR / "runtime" / "runs"
@@ -644,10 +782,9 @@ def get_or_start_run(
         template_path_override=template_path_override,
     )
 
-    # Persist to index
+    # Persist to index under the canonical key (slug is display-only)
     resolved_mission_type = _rb._mission_key_for_run_ref(run_ref, mission_type)
-    resolved_mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
-    index[mission_slug] = {
+    index[index_key] = {
         "run_id": run_ref.run_id,
         "run_dir": run_ref.run_dir,
         "mission_type": resolved_mission_type,
@@ -671,12 +808,14 @@ def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | N
     Looks the run up in the durable ``feature-runs.json`` index without
     starting a new run (unlike :func:`get_or_start_run`). Returns ``None`` when
     no run has been recorded yet. This keeps OC construction at the claim sites
-    free of any run-start side effect (NFR-004).
+    free of any run-start side effect (NFR-004). The canonical (rekeyed) view
+    is computed in memory only; nothing is persisted here.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
-    entry = index.get(mission_slug)
+    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, _rekeyed = _load_run_index(repo_root)
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if not entry:
         return None
     run_dir_raw = entry.get("run_dir")

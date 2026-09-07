@@ -183,6 +183,27 @@ def _resolve_agent_from_dict(
     )
 
 
+def coerce_legacy_dependencies(raw: object) -> object:
+    """Apply the legacy string coercion ``WPMetadata`` uses for ``dependencies`` (pure).
+
+    Older WP files store the list as a string: ``"[]"`` becomes ``[]``; any
+    other string is split on commas (``"WP01, WP02"`` -> ``["WP01", "WP02"]``,
+    bare ``"WP01"`` -> ``["WP01"]``). Every non-string value is returned
+    unchanged for the model's own field validation to accept or refuse.
+
+    This is the single canonical parser for the legacy forms: the FSM shells'
+    declared-dependencies reader (``status.emit._coerce_declared_dependencies``)
+    calls it too, so the write path accepts exactly the files the pre-flight
+    sites (``core.dependency_graph.parse_wp_dependencies``) accept (FR-014).
+    """
+    if not isinstance(raw, str):
+        return raw
+    stripped = raw.strip()
+    if stripped == "[]":
+        return []
+    return [s.strip() for s in stripped.split(",") if s.strip()]
+
+
 class WPMetadata(BaseModel):
     """Typed schema for WP frontmatter.
 
@@ -303,15 +324,11 @@ class WPMetadata(BaseModel):
         if "title" not in data and "work_package_title" in data:
             data["title"] = data["work_package_title"]
 
-        # Legacy: some files store dependencies as string '[]' instead of list
-        deps = data.get("dependencies")
-        if isinstance(deps, str):
-            stripped = deps.strip()
-            if stripped == "[]":
-                data["dependencies"] = []
-            else:
-                # Attempt comma-separated: "WP01, WP02"
-                data["dependencies"] = [s.strip() for s in stripped.split(",") if s.strip()]
+        # Legacy: some files store dependencies as string '[]' or "WP01, WP02"
+        # instead of a list -- one canonical coercion, shared with the FSM
+        # shells' declared-deps reader (``status.emit``).
+        if "dependencies" in data:
+            data["dependencies"] = coerce_legacy_dependencies(data["dependencies"])
 
         # Legacy: some files store requirement_refs as scalar string
         refs = data.get("requirement_refs")
@@ -710,6 +727,7 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
 
 __all__ = [
     "WPMetadata",
+    "coerce_legacy_dependencies",
     "read_authored_wp_frontmatter",
     "read_authored_wp_frontmatter_lenient",
     "read_wp_frontmatter",

@@ -283,9 +283,13 @@ def test_finalizer_keeps_preflight_around_writes_not_commit_or_mission_repair() 
         return RepairOutcome()
 
     result = finalize_upgrade(
-        UpgradeOutcome(result=_synthesized_result()), provision_activations=provision,
-        run_surface_repair=surfaces, commit_churn=commit, offer_repair=repair,
-        should_commit=True, repair_preflight=preflight(),
+        UpgradeOutcome(result=_synthesized_result()),
+        provision_activations=provision,
+        run_surface_repair=surfaces,
+        commit_churn=commit,
+        offer_repair=repair,
+        should_commit=True,
+        repair_preflight=preflight(),
     )
     assert result.exit_code == 0
     assert calls == ["preflight", "provision", "surfaces", "release", "commit", "mission"]

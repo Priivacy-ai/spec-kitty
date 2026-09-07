@@ -89,3 +89,17 @@ class TestTransitionContextEquality:
         ctx1 = TransitionContext(actor="agent", reason="test")
         ctx2 = TransitionContext(actor="agent", reason="test")
         assert hash(ctx1) == hash(ctx2)
+
+
+class TestDependencyReadyField:
+    """fsm-write-path-integrity WP04 (FR-012): the tri-state verdict field."""
+
+    def test_defaults_to_none_no_verdict(self):
+        assert TransitionContext(actor="agent").dependency_ready is None
+
+    @pytest.mark.parametrize("verdict", [True, False, None])
+    def test_round_trips_all_three_states(self, verdict):
+        assert TransitionContext(actor="agent", dependency_ready=verdict).dependency_ready is verdict
+
+    def test_participates_in_equality(self):
+        assert TransitionContext(actor="agent", dependency_ready=False) != TransitionContext(actor="agent", dependency_ready=None)

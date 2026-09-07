@@ -15,13 +15,8 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-from mission_runtime import (
-    ActionContextError,
-    BranchRefFragment,
-    CommitTarget,
-    IdentityFragment,
-    MissionExecutionContext,
-)
+from mission_runtime import ActionContextError, CommitTarget, MissionExecutionContext
+from mission_runtime.context import BranchRefFragment, IdentityFragment
 from mission_runtime.resolution import build_execution_context
 
 # Production-shaped 26-char ULID (NFR-002): never a 3-char stand-in.

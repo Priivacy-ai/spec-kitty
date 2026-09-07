@@ -157,13 +157,6 @@ def test_intent_uses_actual_definitions(argv: list[str], available: bool, mode: 
     assert (intent.mode, intent.representation, intent.conflicts) == (mode, representation, ())
 
 
-def test_root_parser_supports_click_context_without_protected_args() -> None:
-    from specify_cli.cli.helpers import _context_command_args
-
-    context = cast(click.Context, SimpleNamespace(args=["upgrade", "--plan-json"]))
-    assert _context_command_args(context) == ["upgrade", "--plan-json"]
-
-
 @pytest.mark.parametrize("argv", [["--target"], ["--unknown"], ["extra"]])
 def test_intent_retains_click_usage_errors(argv: list[str]) -> None:
     with pytest.raises(click.UsageError):
@@ -1044,6 +1037,53 @@ def test_coordinated_global_selection_is_explicit(owner_home: Path, skill_source
     assert all(proof.reference.startswith("slash_commands") for e in selected.effects for proof in e.ownership)
     assert all(e.destination != owner_home / ".kittify/cache/agent-commands.lock" for e in selected.effects)
     assert not assess_global_assets(runtime=False, commands=False, skills=False).complete
+
+
+def test_managed_tree_uses_portable_directory_mode(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root
+
+    source = tmp_path / "readonly-package-tree"
+    source.mkdir()
+    (source / "asset.txt").write_text("asset")
+    source.chmod(0o555)
+    destination = owner_home / "missions/software-dev"
+    prepared = AssetPreparation(
+        "runtime_bootstrap",
+        global_asset_root("runtime_bootstrap", (owner_home,)),
+        owner_home / "cache",
+        ".update.lock",
+        ApplyConsent(),
+    )
+
+    prepared.tree(source, destination, managed_tree=True)
+
+    write = prepared.writes[destination]
+    assert write.effect.before.kind == "absent"
+    assert write.effect.after.mode == 0o755
+
+
+def test_skill_tree_uses_portable_directory_mode(owner_home: Path, tmp_path: Path) -> None:
+    from specify_cli.runtime.agent_skills import _prepare_skill_tree
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root
+
+    source = tmp_path / "readonly-skill"
+    source.mkdir()
+    (source / "SKILL.md").write_text("---\nname: portable\n---\n")
+    source.chmod(0o555)
+    destination = owner_home / ".claude/skills/portable"
+    prepared = AssetPreparation(
+        "global_skills",
+        global_asset_root("global_skills", (owner_home,)),
+        owner_home / "cache",
+        ".skills.lock",
+        ApplyConsent(),
+    )
+
+    _prepare_skill_tree(prepared, source, destination, "portable")
+
+    write = prepared.writes[destination]
+    assert write.effect.before.kind == "absent"
+    assert write.effect.after.mode == 0o755
 
 
 @pytest.mark.parametrize("conflict", ["bytes", "state", "membership", "environment"])

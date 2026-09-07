@@ -650,6 +650,8 @@ def implement_check_dependency_gate(
     # the gate so a canceled-with-operator-provenance dependency counts as
     # resolved (FR-009). Collapsing to the lane-only map here would make the
     # provenance-aware authority inert at the CLI claim path (pedro HIGH).
+    # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+    # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
     readiness = dependency_readiness_for_wp(
         normalized_wp_id,
         wp_meta.dependencies,
@@ -1670,7 +1672,7 @@ def review_claim_transition(
         binding=resolved_binding,
     )
 
-    with w.feature_status_lock(main_repo_root, mission_slug):
+    with w.feature_status_lock(main_repo_root, feature_dir.name):
         # WP06 T027: capture pre-emit event-log size for
         # surgical rollback on commit failure.
         events_path_pre_rev = feature_dir / w._STATUS_EVENTS_FILENAME

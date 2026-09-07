@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M1YEE7MSN77HCM2VSHCQX1DT",
+  "completed_at": "2026-09-07T17:33:06.251931+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "#3992; Windows CI exposed pre-migrate global output conflict; callback unit regression 4 passed"
+}

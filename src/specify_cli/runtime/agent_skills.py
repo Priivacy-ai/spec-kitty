@@ -139,7 +139,8 @@ def _prepare_skill_tree(
     if prepared.observe(destination).kind not in {"directory", "absent"}:
         prepared.preserve(destination, "Unproven canonical skill path replacement")
         return
-    prepared.asset(destination, None, state.mode or 0o755)
+    # Package directory modes are not portable through every installer.
+    prepared.asset(destination, None, 0o755)
     for child in sorted(source.iterdir()):
         child_state = prepared.observe(child)
         target = destination / child.name

@@ -38,8 +38,8 @@ FAST_TIER_MARKERS = (fast or unit) and not slow and not e2e and not integration 
 # Parallel-unsafe marker families (pytest.ini): `stress` spawns real
 # multi-process/subprocess concurrency and `timing` measures wall-clock — both
 # are corrupted by co-scheduled xdist workers, so they are deselected from the
-# parallel pass below and get their own dedicated -n0 passes mirroring the
-# stress-tests-serial / timing-nfr-serial CI jobs (.github/workflows/ci-quality.yml).
+# parallel pass below and get their own dedicated -n0 passes in the
+# `test-full` target below.
 PARALLEL_UNSAFE_MARKERS = not stress and not timing
 
 test-fast: ## Run fast tier of the typical blast-radius dirs (target <2 min)
@@ -59,9 +59,9 @@ test-full: ## Run everything: one parallel pass + serial marker passes
 	@rm -f $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
 	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q || echo parallel >> $(TEST_FULL_STATUS)
-	# Serial passes: the two parallel-unsafe marker families, mirroring the
-	# stress-tests-serial / timing-nfr-serial CI jobs (--timeout guards a hung
-	# fork/process from stalling the lane indefinitely).
+	# Serial passes: the two parallel-unsafe marker families run serially under
+	# -n0 (--timeout guards a hung fork/process from stalling the lane
+	# indefinitely).
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
 	  -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q || echo stress >> $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \

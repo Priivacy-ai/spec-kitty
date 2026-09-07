@@ -30,9 +30,9 @@ from specify_cli.status import (
     Lane,
     WPInnerStateDelta,
     annotate,
-    append_annotations_atomic_verified,
     emit_inner_state_changed,
 )
+from specify_cli.status._unsafe import append_annotations_atomic_verified
 from tests.unit.migration._backfill_fixture import (
     CLAIMED_AT,
     IN_PROGRESS_AT,

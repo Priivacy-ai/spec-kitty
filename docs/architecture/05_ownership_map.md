@@ -1,6 +1,6 @@
 ---
 title: Functional Ownership Map (demoted — narrative only)
-description: 'Historical functional-ownership narrative. NOT authoritative for module boundaries: the canonical modularity SSOT is the enforced pair (pyproject wheel packages + the conftest landscape / test_layer_rules layer chain).'
+description: 'Historical functional-ownership narrative. Not authoritative: module boundaries are owned by the enforced pyproject wheel packages plus the test_layer_rules layer chain.'
 doc_status: superseded
 updated: '2026-09-06'
 related:

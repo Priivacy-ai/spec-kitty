@@ -1,0 +1,273 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: merged
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+- id: PLAN-FIT-001
+  lens: spec-fidelity / architecture (C-001 mixed-kind anchoring trap)
+  severity: 4
+  title: _should_advance_wp_step's own tasks_dir/wp_files glob is unanchored and will short-circuit to
+    True on a coord worktree, making FR-004's _wp_blocks_step fix unreachable for the real coord-topology
+    production scenario this mission is fixing.
+  evidence:
+  - artifact: plan.md § 'FR-005 exactly, verified, not assumed' (lines 469-471)
+  - artifact: plan.md § FR-003 call-site threading table, row 1 (lines 361, 823-859)
+  - code: 'src/runtime/next/runtime_bridge.py:753-755 (_should_advance_wp_step: `tasks_dir = feature_dir
+      / "tasks"` then `if not tasks_dir.is_dir(): return True`)'
+  - code: src/runtime/next/runtime_bridge.py:858 (_check_cli_guards calls `_should_advance_wp_step(step_id,
+      feature_dir)` with the SAME raw, unanchored feature_dir it forwards to gather_artifact_presence
+      three lines above)
+  - code: 'src/runtime/next/runtime_bridge.py:1680 (_dn_dependency_gate WP-iteration branch: `should_advance
+      = _should_advance_wp_step(current_step_id, feature_dir)`)'
+  - code: 'src/runtime/next/runtime_bridge_composition.py:557 (_check_composed_action_guard: `_rb._should_advance_wp_step(action,
+      feature_dir)`)'
+  claim: 'FR-004/FR-005 land the fix entirely inside `_wp_blocks_step`''s per-WP fall-through logic (`runtime_bridge.py:781-810`).
+    But `_wp_blocks_step` is only ever reached via `_should_advance_wp_step`''s per-WP loop, and that
+    loop is gated by `_should_advance_wp_step`''s OWN `tasks_dir = feature_dir / "tasks"` / `wp_files
+    = sorted(tasks_dir.glob(TASKS_GLOB))` read (runtime_bridge.py:753-757) — the exact same PRIMARY-partition-off-raw-
+    feature_dir read pattern that FR-001 explicitly re-anchors inside `gather_artifact_presence`''s own
+    `tasks_dir`/`wp_files` glob (per C-001''s correction that `WORK_PACKAGE_TASK` is a PRIMARY-partition
+    kind). Every one of `_should_advance_wp_step`''s three call sites (`_check_cli_guards:858`, `_dn_dependency_gate`''s
+    WP-iteration branch:1680, `_check_composed_action_guard`:557 in runtime_bridge_composition.py) passes
+    the SAME raw `feature_dir` that, per this mission''s own fixture (Independent Test / US1 AC1-2), is
+    the bare coordination worktree holding only `status.events.jsonl` — no `tasks/` directory at all for
+    a genuinely COORD-topology mission (per `context.py:53`, `COORD = "coord, no lanes"` — a real, live
+    topology value, not a hypothetical). For that mission, `tasks_dir.is_dir()` is `False` on the coord
+    worktree even though `tasks/WP*.md` exist on primary, so `_should_advance_wp_step` hits its own early
+    return (`runtime_bridge.py:753-755`, `if not tasks_dir.is_dir(): return True`) and returns `True`
+    UNCONDITIONALLY — the per-WP loop that calls `_wp_blocks_step` (where FR-004''s new `lane is Lane.UNINITIALIZED`
+    disjunct lives) is never reached. FR-004''s fix is therefore structurally inert for a real COORD-topology
+    mission with a never-claimed WP — exactly the "sliding through unblocked" scenario spec.md''s own
+    Edge Cases / Rollout-impact text (lines 239-250) claims FR-004 will "newly (and correctly) re-block."
+    The plan''s own justification text (lines 469-471) treats this early return as the AC-3 "mission type
+    with genuinely no tasks/ directory" case (e.g. the `plan` family) — but a COORD-topology `software-dev`
+    mission is NOT that case: `tasks/` genuinely exists for the mission, just not on the `feature_dir`
+    being read, which is precisely the false-negative anchoring bug C-001 is about, manifesting in a sibling
+    function neither FR-001 (scoped only to `gather_artifact_presence`) nor FR-004/005 (scoped only to
+    `_wp_blocks_step`''s branch logic) touches. Note this is orthogonal to whether `feature_dir.name`
+    resolves correctly via `placement_seam` (the WP1 residual-uncertainty item) — even a perfect mission_slug
+    fallback does nothing here because `_should_advance_wp_step` is never anchored at all under this plan''s
+    design.'
+  remediation: 'Either (a) extend FR-001''s anchoring scope (or add a companion FR explicitly in scope)
+    so `_should_advance_wp_step`''s `tasks_dir`/`wp_files` resolution is ALSO anchored via the same `anchor_dir`
+    / `placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)` mechanism `gather_artifact_presence`
+    uses — threading `repo_root`/ `mission_slug` into `_should_advance_wp_step` itself (it would need
+    the same two new parameters, since it is called from the same three sites already being touched for
+    `mission_slug` threading); or (b) if that is judged out of scope for this mission, spec.md and plan.md
+    must say so explicitly and narrow FR-004/005''s claimed effect — correcting the Rollout-impact Edge
+    Case text (spec.md lines 239-250) and this plan''s AC-3 justification (lines 469-471) to state that
+    FR-004''s fix is verified only for topologies where `feature_dir` already contains `tasks/` directly
+    (SINGLE_BRANCH/LANES/a lane worktree with the FR-009/#2993 backfill) and that COORD-topology missions
+    remain unprotected against #3884 until a follow-up mission anchors `_should_advance_wp_step` the same
+    way. Either way this must be resolved before implementation, not discovered post-merge.'
+- id: PLAN-FIT-002
+  lens: architecture (verify code claims against live code)
+  severity: 2
+  title: Plan's own new citation for the FR-006 broad-except precedent (runtime_bridge_composition.py:672-682)
+    points at the wrong lines — the actual `except Exception as exc:` block with that exact rationale
+    text is at approximately lines 650-660.
+  evidence:
+  - artifact: 'plan.md line 258 (inline code comment: `mirrors the existing broad-catch-and-translate
+      idiom at runtime_bridge_composition.py:672-682`)'
+  - artifact: 'plan.md line 344 (prose: `mirroring the existing precedent at runtime_bridge_composition.py:672-682`)'
+  - code: 'src/runtime/next/runtime_bridge_composition.py:650-660 (the actual `except Exception as exc:  #
+      noqa: BLE001 — FR-009 contract: any executor exception class must surface...` block matching the
+      plan''s quoted rationale almost verbatim)'
+  - code: 'src/runtime/next/runtime_bridge_composition.py:665-682 (what actually lives at the cited line
+      range: invocation_id/logger.info forwarding, unrelated to exception handling)'
+  claim: 'Lines 672-682 of runtime_bridge_composition.py are the FR-008 invocation_id-forwarding/logging
+    block, not the broad `except Exception` handler the plan describes and quotes almost verbatim. The
+    correct citation is the `except StepContractExecutionError` / `except Exception as exc:` pair starting
+    at line 646, with the `noqa: BLE001` comment block the plan paraphrases sitting at roughly lines 650-660.
+    This is a plan-original citation (not carried over from spec.md, so it falls outside the "Flagged
+    Deviations" self-check, which only re-verified spec.md''s own citations) — a new drift the plan''s
+    own "all line citations below were re-verified" claim (line 10-15) does not actually hold for, at
+    least here.'
+  remediation: Correct both citations in plan.md (lines 258 and 344) from `runtime_bridge_composition.py:672-682`
+    to the actual line range of the `except StepContractExecutionError` / `except Exception as exc:` pair
+    (approximately `:646-660`, to be pinned exactly in the tasks phase) so an implementer referencing
+    this precedent lands on the right code.
+- id: PLAN-FIT-003
+  lens: spec-fidelity (citation accuracy)
+  severity: 1
+  title: Plan's own `_STATE_MAP["uninitialized"]` line citation (wp_state.py:672) is off by one — the
+    actual line is 673.
+  evidence:
+  - artifact: plan.md line 433 (`UninitializedState (registered at _STATE_MAP["uninitialized"], :672)
+      does not override...`)
+  - code: 'src/specify_cli/status/wp_state.py:673 (`"uninitialized": UninitializedState,`)'
+  claim: 'The dict entry `"uninitialized": UninitializedState,` is at line 673, not 672, in the live checkout.
+    Immaterial to the fix''s substance (the described behavior is correct), but the plan explicitly claims
+    an "exhaustive line-by-line sweep" of every citation found only one deviation (the `:763-767` vs `:768-773`
+    one it flags); this is a second, unflagged one-line drift in the plan''s own prose (not carried from
+    spec.md).'
+  remediation: Correct `:672` to `:673` in plan.md line 433 before the tasks/implement phase cites it
+    further.
+- id: PLAN-SEQ-001
+  lens: Phasing
+  severity: 3
+  title: WP1 bundles the trivial US2 (#3884) red-first reproduction with the genuinely-risky US1 (#3883)
+    empirical spike, serializing an independent fix behind unrelated unknowns
+  evidence:
+  - artifact: 'plan.md § Work package ordering (lines 678-692), § Design decision: gather_artifact_presence
+      needs ONE new parameter (lines 304-319)'
+  - artifact: 'plan.md § Test Strategy, reproduction #3 (lines 571-577)'
+  - code: src/runtime/next/runtime_bridge.py:781-810 (_wp_blocks_step, WP2's sole target)
+  claim: 'WP1 is scoped to build the coord-topology fixture, resolve two empirical unknowns specific to
+    Seam 1/#3883 (whether `feature_dir.name` reliably equals the `mission_slug` `placement_seam` expects
+    for a real coord worktree; which concrete exception `placement_seam(...).read_dir(...)` raises for
+    a corrupt `meta.json`), AND write all three C-008 reproductions -- including reproduction #3, the
+    US2/#3884 red test. Plan.md states explicitly (line 319): "either way, WP1 produces a passing fixture
+    before WP2/WP3 touch production code." But reproduction #3 (a WP file under `tasks/` with zero events,
+    calling `_wp_blocks_step`/`_should_advance_wp_step` directly) has zero dependency on either empirical
+    unknown, on `placement_seam`, on `mission_slug`, or on the coord-topology fixture WP1 builds for US1
+    -- it is a self-contained fixture entirely inside `runtime_bridge.py`. The plan''s own Phasing section
+    even frames WP2 as "small, fully isolated ... Landed early for an independent, low-risk confidence
+    signal" -- yet WP2 is still gated behind ALL of WP1''s US1-specific spike work, which is the one part
+    of the mission the plan itself flags as carrying real unknown risk. This couples an independent, zero-unknown
+    fix to unrelated investigative work for no dependency reason, and forecloses the tasks phase''s option
+    to schedule the #3884 fix in a parallel lane or land it first.
+
+    '
+  remediation: 'Split WP1 into two smaller units: WP1a -- write reproduction #3 (US2''s red test) standalone
+    (no coord-topology fixture, no placement_seam/ mission_slug work needed) and land the FR-004/005 `_wp_blocks_step`
+    fix against it (today''s WP2, promoted to run independently/first). WP1b -- build the coord-topology
+    fixture, resolve the two Seam-1 empirical unknowns, and write reproductions #1/#2 (US1 dual-path +
+    FR-006), feeding what is currently WP3 (renumbered WP2). This preserves risky/unknown-work-first sequencing
+    for Seam 1 while letting the genuinely independent #3884 fix ship (or run in a parallel tasks-phase
+    lane) without waiting on unrelated spike work.
+
+    '
+- id: PLAN-SEQ-002
+  lens: Write scopes / Chokepoints
+  severity: 3
+  title: WP2 and WP3 both touch runtime_bridge.py (disjoint line ranges, same file) with no flag for the
+    tasks phase to serialize or coordinate the lanes
+  evidence:
+  - artifact: plan.md § Project Structure > Source Code (lines 123-137)
+  - artifact: plan.md § FR-003 call-site threading table (lines 359-368)
+  - code: src/runtime/next/runtime_bridge.py:781-810 (_wp_blocks_step, WP2)
+  - code: src/runtime/next/runtime_bridge.py:823-859,1138-1187,1659-1830,1888-2003 (six WP3 call-site
+      edits, same file)
+  claim: 'The plan''s own Project Structure table lists `runtime_bridge.py` once, annotated with BOTH
+    "FR-004/005: _wp_blocks_step" (WP2''s target) and "FR-003/006: _check_cli_guards signature + _dn_dependency_gate''s
+    two call sites ... + _check_composed_action_guard compat delegate + _dispatch_via_composition compat
+    delegate + _dn_composition_dispatch call site" (WP3''s targets) -- i.e. it already knows both WPs
+    land in the same file, but never states this as a write-scope/lane-assignment concern anywhere in
+    the document. No `dependencies:` edge between WP2 and WP3 is declared or even discussed in the Phasing
+    section (the ordering is narrative "WP2, then WP3", not a stated dependency). If the tasks phase''s
+    `finalize-tasks` dependency-graph builder does not see an explicit dependency between WP2 and WP3
+    (both are logically independent per the plan''s own Summary: "land in disjoint functions... independently
+    testable"), it may assign them to parallel lanes/ worktrees per spec-kitty''s default behavior for
+    undeclared-dependency WPs -- producing a same-file merge conflict at `spec-kitty merge` time even
+    though the line ranges themselves never overlap.
+
+    '
+  remediation: 'Add an explicit note (a short "Write scopes" or "Lane coordination" subsection, mirroring
+    the existing "Explicitly not touched" section''s style) stating that WP2 and WP3 both touch `runtime_bridge.py`
+    and instructing the tasks phase to either (a) declare an explicit `dependencies:` edge (WP3 depends
+    on WP2, matching the plan''s own stated order) so `finalize-tasks` serializes them into one lane,
+    or (b) if parallel lanes are used anyway, name `runtime_bridge.py` explicitly in both WP prompts as
+    a shared-file rebase/merge risk so implementers coordinate before the lane-consolidation merge.
+
+    '
+- id: PLAN-SEQ-003
+  lens: Chokepoints
+  severity: 2
+  title: Plan never makes an explicit "no chokepoint applies" statement, despite acknowledging a real
+    shared resource (the test-venv lock) in its own Technical Context
+  evidence:
+  - artifact: plan.md § Technical Context, NFR-003 (line 65)
+  - artifact: 'plan.md § Campsite-clean scope (lines 638-657, contrast: this section IS explicit)'
+  - artifact: plan.md (repo-wide grep for 'chokepoint'/'serializ' inside this file returns zero hits)
+  claim: 'The plan explicitly and deliberately states "no campsite-clean opening step applies" (Standing
+    Order #2) with reasoning, and explicitly states "no research.md/data-model.md/contracts/ are warranted"
+    -- but it never makes the analogous explicit statement for CI-gate/migration-chain/ schema serialization
+    points, even though NFR-003 already names a real shared resource in this mission''s own blast radius:
+    "shared test-venv lock contention is environmental, not attributable" (#3283). That NFR frames the
+    lock purely as a pass/fail-classification concern (is a red test mine or not), never as a WP-scheduling
+    concern -- it does not say whether the tasks phase should avoid running multiple WPs'' test suites
+    concurrently in separate lanes because of this exact lock. Given three of this mission''s own explicit-scope-statement
+    patterns exist elsewhere in the document (campsite-clean, docs generation, "explicitly not touched"),
+    the absence of a parallel one-line statement here reads as an oversight rather than a considered "none
+    apply."
+
+    '
+  remediation: 'Add a short explicit statement (e.g. adjacent to the Campsite-clean scope section) confirming
+    no CI gate, migration chain, or runtime-state schema is a serialization point for this mission''s
+    WPs, and separately note that the one shared resource in scope -- the test-venv lock (#3283, NFR-003)
+    -- means the tasks phase should avoid scheduling multiple WPs'' pytest invocations to run concurrently
+    in separate lanes if it can be avoided, and that any lock-contention timeout observed during concurrent
+    WP execution must be classified per the baseline-red gotcha, not folded into this mission''s own accounting.
+
+    '
+- id: PLAN-VERIFY-001
+  lens: C-008's three red-first reproductions
+  severity: 3
+  title: US1 reproduction's "call (b)" names decide_next_via_runtime as the entry point but cites a sibling-test
+    pattern that actually bypasses it, leaving the exact fixture-construction approach unresolved
+  evidence:
+  - artifact: plan.md § Test Strategy, 'C-008's three named red-first reproductions', item 1, Call (b)
+  - artifact: plan.md § Project Structure, tests/runtime/next/test_cli_guard_family.py — "existing sibling
+      fixture — pattern to follow"
+  - code: tests/runtime/next/test_cli_guard_family.py:487-544 (test_cli_pre_check_threads_real_repo_root)
+      — builds a DecideNextContext directly and calls rb._dn_dependency_gate(ctx) directly; decide_next_via_runtime
+      is never invoked
+  - code: src/runtime/next/runtime_bridge.py:2293-2352 (decide_next_via_runtime) — real invocation requires
+      _merged_mission_short_circuit, _dn_bootstrap (get_or_start_run, meta.json resolution, run_ref construction)
+      to succeed before _dn_dependency_gate ever runs
+  - code: 'tests/runtime/test_bridge_decide_next.py:158-166 — a third, lighter pattern: monkeypatch _dn_bootstrap
+      to return a synthetic ctx, then call decide_next_via_runtime for real'
+  claim: 'Plan''s Test Strategy item 1 Call (b) says "a decide_next_via_runtime invocation reaching _dn_dependency_gate''s
+    non-WP-iteration software-dev-only pre-check ... via _check_cli_guards" — language lifted near-verbatim
+    from spec.md''s Independent Test/C-003 text. But the plan''s own "pattern to follow" citation (test_cli_guard_family.py)
+    does NOT call decide_next_via_runtime at all; it constructs a DecideNextContext by hand and calls
+    _dn_dependency_gate(ctx) directly, skipping the full mission-bootstrap chain (_merged_mission_short_circuit,
+    _dn_bootstrap/get_or_start_run) that a literal decide_next_via_runtime call would require. The repo
+    has at least three materially different ways to satisfy the words "reproduction through decide_next_via_runtime":
+    (1) full real bootstrap with a genuine mission scaffold (heaviest, matches the words literally), (2)
+    monkeypatch _dn_bootstrap to shortcut straight to _dn_dependency_gate while still nominally calling
+    decide_next_via_runtime (test_bridge_decide_next.py''s pattern), or (3) skip decide_next_via_runtime
+    entirely and construct DecideNextContext + call _dn_dependency_gate(ctx) directly (the plan''s own
+    cited "pattern to follow"). The plan does not say which of these WP1 should build, so an implementer
+    following "the pattern to follow" citation will produce a test that does not literally exercise decide_next_via_runtime
+    — silently diverging from C-003''s own stated dual-path requirement and from the words in the plan''s
+    own Test Strategy section. This is exactly the kind of ambiguity C-008 asks the plan to close before
+    implementation.'
+  remediation: 'In plan.md''s Test Strategy item 1, Call (b), name the exact construction method explicitly
+    rather than paraphrasing spec.md''s Independent Test text. Recommended: state that Call (b) uses the
+    test_cli_guard_family.py:487 pattern (construct DecideNextContext by hand with current_step_id="tasks",
+    mission_type="software-dev", result="success", and the coord-worktree feature_dir; call rb._dn_dependency_gate(ctx)
+    directly) as functionally equivalent dual-path coverage of the guard chain, OR explicitly require
+    the heavier real decide_next_via_runtime path if literal entry-point fidelity is actually required
+    by C-003''s "reproduction through decide_next_via_runtime" wording — and if so, say what mission scaffold
+    (meta.json, run_dir/run_ref, get_or_start_run) WP1 must build for that. Either choice is acceptable;
+    the plan currently makes neither choice explicit.'
+- id: PLAN-VERIFY-002
+  lens: New-code coverage claim
+  severity: 2
+  title: Gate Set's SonarCloud row invokes "CLAUDE.md's Sonar Expectations" (no percentage) instead of
+    the charter's actual binding new-code coverage floor
+  evidence:
+  - artifact: plan.md § Gate Set, row 'SonarCloud Quality Gate'
+  - artifact: .kittify/charter/charter.md:262 — "pytest with 90%+ test coverage for new code" (Testing
+      Requirements, binding)
+  - artifact: AGENTS.md:309 — "Sonar's project gate is dominated by new-code coverage" (no percentage
+      stated there either)
+  claim: The plan's Gate Set justifies the SonarCloud row by citing "CLAUDE.md's Sonar Expectations,"
+    which states qualitative rules (every new branch/helper needs tests) but never a percentage. The charter
+    itself (charter.md:262, Testing Requirements) states a concrete, binding floor — "90%+ test coverage
+    for new code" — that the review lens asked the plan to check its test list against. The plan's "Additional
+    narrow unit tests" section (Test Strategy) does, on inspection, plausibly cover essentially all new
+    lines (the anchor_dir try/success/except branches, all three FR-006 catch sites, and the new Lane.UNINITIALIZED
+    disjunct each have a named direct test) — so the substance is very likely fine — but the plan itself
+    never states the floor it is being held to or does the arithmetic (approximate new-line count vs.
+    named tests) to show it plausibly clears 90%, leaving that connection implicit rather than verified
+    in the artifact itself.
+  remediation: In the Gate Set's SonarCloud row (or the "Additional narrow unit tests" subsection), cite
+    charter.md's actual "90%+ test coverage for new code" requirement explicitly (not only CLAUDE.md's
+    qualitative Sonar Expectations), and add one sentence enumerating the new lines/branches introduced
+    (the anchor_dir resolution block's 3 paths, the 3 FR-006 catch-site arms, the 8 threaded-parameter
+    signatures, and the 1 new Lane.UNINITIALIZED disjunct) against the named tests that exercise each,
+    so the 90%+ claim is demonstrated rather than assumed.

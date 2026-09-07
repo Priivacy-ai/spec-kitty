@@ -524,97 +524,6 @@ class TestTransitionHappyPath:
         assert from_lane == "genesis"
         assert current_actor == "claude"
 
-    def test_resolve_workspace_context_prefers_request_value(self, tmp_path: Path) -> None:
-        """Explicit workspace context must bypass aggregate inference."""
-        from specify_cli.status import TransitionRequest
-        from specify_cli.status.aggregate import MissionStatus
-
-        ms = MissionStatus(
-            mission_slug="034-workspace-context",
-            mission_id=None,
-            mid8="",
-            topology="legacy",
-            read_dir=tmp_path,
-            repo_root=tmp_path,
-        )
-        request = TransitionRequest(
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="claude",
-            feature_dir=tmp_path,
-            mission_slug=ms.mission_slug,
-            workspace_context="explicit-context",
-        )
-
-        assert ms._resolve_workspace_context(request) == "explicit-context"
-
-    def test_resolve_review_gate_inputs_infers_missing_review_guards(self, tmp_path: Path) -> None:
-        """Entering review infers both guard inputs when omitted.
-
-        WP02/T010: ``_resolve_review_gate_inputs`` now threads the
-        subtasks-completeness read through ``resolve_planning_read_dir(...,
-        kind=TASKS_INDEX)`` (the PRIMARY-partition resolver) instead of the
-        raw ``self.read_dir`` -- so the completeness check reaches
-        ``repo_root / "kitty-specs" / mission_slug``, not ``repo_root``
-        itself, even though this fixture's ``read_dir == repo_root ==
-        tmp_path`` (a legacy/no-coord-husk topology where the two happen to
-        coincide pre-resolution). Both inferred guards consume the same
-        canonical event stream.
-        """
-        from specify_cli.status import TransitionRequest
-        from specify_cli.status.aggregate import MissionStatus
-        from specify_cli.status.models import Lane
-
-        ms = MissionStatus(
-            mission_slug="034-review-gate-inputs",
-            mission_id=None,
-            mid8="",
-            topology="legacy",
-            read_dir=tmp_path,
-            repo_root=tmp_path,
-        )
-        request = TransitionRequest(
-            wp_id="WP07",
-            to_lane="for_review",
-            actor="claude",
-            feature_dir=tmp_path,
-            mission_slug=ms.mission_slug,
-        )
-        expected_primary_subtasks_dir = tmp_path / "kitty-specs" / ms.mission_slug
-
-        class _StatusEmit:
-            @staticmethod
-            def _infer_subtasks_complete(
-                read_dir: Path,
-                wp_id: str,
-                *,
-                event_stream: object,
-            ) -> bool:
-                assert read_dir == expected_primary_subtasks_dir
-                assert wp_id == "WP07"
-                assert event_stream is not None
-                return True
-
-            @staticmethod
-            def _infer_implementation_evidence_from_event_stream(
-                event_stream: object, wp_id: str
-            ) -> bool:
-                assert event_stream is not None
-                assert wp_id == "WP07"
-                return True
-
-        subtasks_complete, implementation_evidence_present = ms._resolve_review_gate_inputs(
-            request=request,
-            from_lane_str=str(Lane.IN_PROGRESS),
-            resolved_to_lane=str(Lane.FOR_REVIEW),
-            status_emit=_StatusEmit,
-            lane_in_progress=Lane.IN_PROGRESS,
-            lane_for_review=Lane.FOR_REVIEW,
-        )
-
-        assert subtasks_complete is True
-        assert implementation_evidence_present is True
-
     def test_transition_validates_then_applies(self, tmp_path: Path) -> None:
         """transition() rejects illegal transitions before calling BookkeepingTransaction."""
         slug = "034-transition-test"
@@ -820,23 +729,34 @@ class TestTransitionHappyPath:
     def test_transition_rejects_empty_event_log_as_genesis(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Empty canonical log is unseeded; claim must not bypass genesis."""
+        """Empty canonical log is unseeded; claim must not bypass genesis.
+
+        WP06 (``fsm-write-path-integrity-01M1TZV6``): the refusal is raised by
+        the status-owned pipeline INSIDE the transactional door (validation
+        runs once, in-lock), so the door is entered exactly once and nothing
+        is persisted.
+        """
         slug = "034-empty-log-transition"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [])
+        before = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
 
         from specify_cli.status import TransitionRequest
         from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
         import specify_cli.coordination.status_transition as status_transition
 
-        def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
-            raise AssertionError("unseeded transition must fail before transactional emit")
+        entered: list[str] = []
+        real_transactional = status_transition.emit_status_transition_transactional
+
+        def _spy_transactional(request, **kwargs):  # noqa: ANN001, ANN003
+            entered.append(request.wp_id)
+            return real_transactional(request, **kwargs)
 
         monkeypatch.setattr(
             status_transition,
             "emit_status_transition_transactional",
-            _fake_transactional,
+            _spy_transactional,
         )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
@@ -850,30 +770,27 @@ class TestTransitionHappyPath:
                     mission_slug=slug,
                 )
             )
+        assert entered == ["WP01"]
+        assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == before
 
     def test_transition_rejects_unknown_wp_in_nonempty_log_as_genesis(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Unknown WP rows are unseeded; claim must not bypass genesis."""
+        """Unknown WP rows are unseeded; claim must not bypass genesis.
+
+        The refusal comes from the pipeline inside the transactional door
+        (WP06); the log is left untouched.
+        """
         slug = "034-unknown-wp-transition"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [
             _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH22"),
         ])
+        before = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
 
         from specify_cli.status import TransitionRequest
         from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
-        import specify_cli.coordination.status_transition as status_transition
-
-        def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
-            raise AssertionError("unknown WP transition must fail before transactional emit")
-
-        monkeypatch.setattr(
-            status_transition,
-            "emit_status_transition_transactional",
-            _fake_transactional,
-        )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
         with pytest.raises(TransitionError, match="Illegal transition: genesis -> claimed"):
@@ -886,11 +803,18 @@ class TestTransitionHappyPath:
                     mission_slug=slug,
                 )
             )
+        assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == before
 
     def test_transition_infers_workspace_context_for_claimed_to_in_progress(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path
     ) -> None:
-        """Aggregate pre-validation mirrors legacy workspace-context inference."""
+        """The pipeline (not the aggregate) defaults the workspace context (#946).
+
+        ``claimed -> in_progress`` requires a workspace context; the request
+        carries none, and the emit still succeeds because the status-owned
+        pipeline applies the ``<execution_mode>:<root>`` default inside the
+        shell (WP06: the aggregate's own inference was deleted).
+        """
         slug = "034-claimed-to-progress"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [
@@ -899,17 +823,9 @@ class TestTransitionHappyPath:
 
         from specify_cli.status import TransitionRequest
         from specify_cli.status.aggregate import MissionStatus
-        import specify_cli.coordination.status_transition as status_transition
-
-        marker = object()
-        monkeypatch.setattr(
-            status_transition,
-            "emit_status_transition_transactional",
-            lambda *args, **kwargs: marker,
-        )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
-        result = ms.transition(
+        event = ms.transition(
             TransitionRequest(
                 wp_id="WP01",
                 to_lane="in_progress",
@@ -919,12 +835,19 @@ class TestTransitionHappyPath:
             )
         )
 
-        assert result is marker
+        assert str(event.to_lane) == "in_progress"
+        assert event.event_id in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
 
     def test_transition_infers_for_review_guards(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path
     ) -> None:
-        """Aggregate pre-validation mirrors legacy for_review guard inference."""
+        """The pipeline (not the aggregate) infers the two review gates.
+
+        Neither ``subtasks_complete`` nor ``implementation_evidence_present``
+        is supplied; the emit succeeds because the status-owned pipeline
+        infers both inside the shell from the authored roster + the event
+        log (WP06: the aggregate's own inference was deleted).
+        """
         slug = "034-progress-to-review"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [
@@ -942,8 +865,8 @@ class TestTransitionHappyPath:
             InnerStateChanged,
             Status,
             WPInnerStateDelta,
-            append_annotations_atomic_verified,
         )
+        from specify_cli.status._unsafe import append_annotations_atomic_verified
 
         append_annotations_atomic_verified(
             mission_dir,
@@ -960,17 +883,9 @@ class TestTransitionHappyPath:
 
         from specify_cli.status import TransitionRequest
         from specify_cli.status.aggregate import MissionStatus
-        import specify_cli.coordination.status_transition as status_transition
-
-        marker = object()
-        monkeypatch.setattr(
-            status_transition,
-            "emit_status_transition_transactional",
-            lambda *args, **kwargs: marker,
-        )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
-        result = ms.transition(
+        event = ms.transition(
             TransitionRequest(
                 wp_id="WP01",
                 to_lane="for_review",
@@ -980,7 +895,8 @@ class TestTransitionHappyPath:
             )
         )
 
-        assert result is marker
+        assert str(event.to_lane) == "for_review"
+        assert event.event_id in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
 
 
 class TestSaveReturnType:

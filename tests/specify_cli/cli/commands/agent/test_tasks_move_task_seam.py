@@ -50,7 +50,8 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_approval_policy_metadata,
     _mt_hop_policy_metadata,
 )
-from specify_cli.status import Lane, ReviewResult, ReviewResultLookup, StatusEvent, append_event
+from specify_cli.status import Lane, ReviewResult, ReviewResultLookup, StatusEvent
+from specify_cli.status._unsafe import append_event
 from specify_cli.status.resolved_binding import ResolvedBinding
 
 pytestmark = pytest.mark.fast

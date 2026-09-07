@@ -86,10 +86,7 @@ def activate_mission(project_path: Path, mission_type: str, mission_display: str
     if mission_path.exists():
         return f"{mission_display} (per-feature selection)"
     else:
-        console.print(
-            f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be "
-            f"available when you run [cyan]/spec-kitty.specify[/cyan]."
-        )
+        console.print(f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be available when you run [cyan]/spec-kitty.specify[/cyan].")
         return f"{mission_display} (templates pending)"
 
 
@@ -111,6 +108,7 @@ def version_callback(value: bool) -> None:
         )
         raise typer.Exit()
 
+
 def main_callback(
     ctx: typer.Context,
     version: bool = typer.Option(  # noqa: ARG001
@@ -123,6 +121,10 @@ def main_callback(
     if "upgrade_intent" in ctx.meta:
         # The actual upgrade tail performs validated, configured global repair.
         # Even apply intent must not bootstrap before target/schema admission.
+        return
+
+    if ctx.meta.get("defer_root_bootstrap") is True:
+        # Windows migration must relocate legacy state before global runtime reads.
         return
 
     next_fast_path = _is_next_invocation(sys.argv)
@@ -167,10 +169,7 @@ def _build_app() -> typer.Typer:
 
     app = typer.Typer(
         name="spec-kitty",
-        help=(
-            "Setup tool for Spec Kitty spec-driven development projects.\n\n"
-            "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
-        ),
+        help=("Setup tool for Spec Kitty spec-driven development projects.\n\nSet SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."),
         add_completion=True,
         context_settings={"help_option_names": ["--help", "-h"]},
         invoke_without_command=True,
