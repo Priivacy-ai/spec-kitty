@@ -62,7 +62,9 @@ def test_full_codex_build_preserves_all_node_mtimes(tmp_path: Path) -> None:
     assert_unchanged(before, snapshot({"stage": tmp_path}))
 
 
-@pytest.mark.parametrize("directory_mode,empty_mode", [(0o755, 0o755), (0o700, 0o700), (0o700, 0o710)])
+@pytest.mark.parametrize("directory_mode,empty_mode", [
+    (0o755, 0o755), (0o700, 0o700), (0o700, 0o710), pytest.param(0o555, 0o555, id="readonly"),
+])
 def test_codex_build_preserves_source_directory_modes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, directory_mode: int, empty_mode: int,
 ) -> None:
@@ -74,11 +76,11 @@ def test_codex_build_preserves_source_directory_modes(
     hooks = source / "hooks"
     empty = hooks / "private-empty"
     empty.mkdir(parents=True)
-    hooks.chmod(directory_mode)
-    empty.chmod(empty_mode)
     script = hooks / "run.sh"
     script.write_bytes(b"#!/bin/sh\nexit 0\n")
     script.chmod(0o750)
+    hooks.chmod(directory_mode)
+    empty.chmod(empty_mode)
     monkeypatch.setattr(offering, "__file__", str(source / "__init__.py"))
 
     projector = CodexBundleProjector(tmp_path / "dist")
