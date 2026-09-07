@@ -1128,6 +1128,14 @@ def _finalizer_step_offer_repair(
     )
 
 
+def _resolve_upgrade_target(target: str | None) -> str:
+    if target is not None:
+        return target
+    from specify_cli import __version__
+
+    return __version__
+
+
 def _reject_downgrade_target(validation_error: str | None, *, current_version: str, target_version: str, json_output: bool) -> None:
     """Raise ``typer.Exit(1)`` when *validation_error* is set (a downgrade
     target); a no-op otherwise. Pure extraction — this is a legitimate
@@ -1261,17 +1269,11 @@ def upgrade(
         # Emit compat-planner contract. FR-009: the pending set is computed
         # against the same target the real run would use (explicit --target, or
         # the installed CLI version) so the preview matches the applied set.
-        if target is None:
-            from specify_cli import __version__ as _installed_version
-
-            planner_target = _installed_version
-        else:
-            planner_target = target
         _run_planner_json(
             dry_run=dry_run,
             no_nag=no_nag,
             project_path=project_path,
-            target_version=planner_target,
+            target_version=_resolve_upgrade_target(target),
         )
         return  # _run_planner_json always raises typer.Exit
 
@@ -1294,12 +1296,7 @@ def upgrade(
     current_version = detector.detect_version()
 
     # Determine target version
-    if target is None:
-        from specify_cli import __version__
-
-        target_version = __version__
-    else:
-        target_version = target
+    target_version = _resolve_upgrade_target(target)
 
     validation_error = validate_upgrade_target(current_version, target_version)
     _reject_downgrade_target(
