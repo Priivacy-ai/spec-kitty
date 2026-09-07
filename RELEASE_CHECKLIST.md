@@ -76,7 +76,9 @@ before tagging; do not rely on the tag-time publish workflow to run live
 canary or cross-repo end-to-end suites.
 
 - [ ] Record the full CLI test-suite result from `pytest tests/ -v`.
-- [ ] Run the cross-repo end-to-end suite locally:
+- [ ] Run the cross-repo end-to-end suite locally. The suite lives in
+  `spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing` (it moved to the
+  programme org; clone it beside this checkout):
   ```bash
   cd ../../spec-kitty-end-to-end-testing
   uv sync
