@@ -85,9 +85,14 @@ runs:
         set -euo pipefail
         # data-model E8: cache key = hash(uv.lock + resolved spec_kitty_events rev),
         # deterministic per (lockfile, rev) — reused via actions/cache below, not
-        # a generic build-artifact upload (research D2).
+        # a generic build-artifact upload (research D2). `mode` is part of the key
+        # because the two modes build DIFFERENT environments (pr: a frozen
+        # install; full: an upgrade-package install); when the resolved rev
+        # coincides (latest published == pinned) a mode-less key would let a
+        # pr-built frozen env satisfy a full run and skip the upstream-drift
+        # resolution that full mode exists to run.
         lock_hash="$(sha256sum uv.lock | cut -d ' ' -f1)"
-        echo "key=warmup-venv-${lock_hash}-${{ steps.resolve-rev.outputs.resolved-events-rev }}" >> "$GITHUB_OUTPUT"
+        echo "key=warmup-venv-${{ inputs.mode }}-${lock_hash}-${{ steps.resolve-rev.outputs.resolved-events-rev }}" >> "$GITHUB_OUTPUT"
 
     - name: Restore cached environment
       id: restore-cache
