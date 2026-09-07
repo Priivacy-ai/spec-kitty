@@ -90,6 +90,21 @@ class SkillCommandComposition:
     commands: OwnerAssessment
     parents: tuple[SkillPathObservation, ...]
 
+    def __post_init__(self) -> None:
+        installation, commands = self.installation, self.commands
+        project, payload = installation.project_skills, commands.prepared
+        if (
+            commands.owner_key != "command_skills"
+            or commands.root != project.root
+            or commands.consent != project.consent
+            or not isinstance(payload, command_installer.PreparedCommands)
+            or not isinstance(project.prepared, skill_installer.PreparedProjectSkills)
+            or payload.provisioning is not project.prepared.provisioning
+            or not all(a.complete and not any(d.severity == "error" for d in a.diagnostics) for a in (commands, project, installation.global_assets))
+        ):
+            raise ValueError("Complete commands and the exact paired provisioning input required")
+        _ = self.effects  # Static conflicts abort before provisioning, including replace().
+
     @property
     def effects(self) -> tuple[PhysicalEffect, ...]:
         """Unique physical effects, retaining both owners' logical claims."""
@@ -249,25 +264,11 @@ class ManagedSkillsProvider:
         commands: OwnerAssessment,
     ) -> SkillCommandComposition:
         """Admit the original command/managed pair, without reassessment or writes."""
-        project = installation.project_skills
-        payload = commands.prepared
-        if (
-            commands.owner_key != "command_skills"
-            or commands.root != project.root
-            or commands.consent != project.consent
-            or not isinstance(payload, command_installer.PreparedCommands)
-            or not isinstance(project.prepared, skill_installer.PreparedProjectSkills)
-            or payload.provisioning is not project.prepared.provisioning
-            or not all(a.complete for a in (commands, project, installation.global_assets))
-        ):
-            raise ValueError("Complete commands and the exact paired provisioning input required")
-        composition = SkillCommandComposition(
+        return SkillCommandComposition(
             installation,
             commands,
             tuple(observe_skill_path(path, members=True) for path in _composition_parents(installation, commands)),
         )
-        _ = composition.effects  # Static conflicts abort before provisioning.
-        return composition
 
     @contextmanager
     def preflight_composition(
