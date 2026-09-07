@@ -89,6 +89,7 @@ def _bridge_function(source: str, name: str) -> ast.FunctionDef:
     assert [node.name for node in functions] == [name], f"missing or duplicate bridge function {name}; see {_ADR}"
     return functions[0]
 
+
 def _registration_sites(root: Path) -> list[str]:
     return [_relative(p) for p in _py_files(root) if _REGISTRATION_CALL_NEEDLE in p.read_text(encoding="utf-8")]
 

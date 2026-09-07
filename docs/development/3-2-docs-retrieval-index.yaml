@@ -3032,7 +3032,7 @@ pages:
   - path: "docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md"
     title: "ADR: RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement"
     divio_type: "none"
-    abstract: "Keeps runtime.next.event_emitter as the reserved E3 seam, merges its duplicate class into _internal_runtime NullEmitter, fixes the flush-target bug, and bounds Mission B scope."
+    abstract: "Keeps the reserved E3 seam behind a factory, deletes the duplicate runtime.next.event_emitter class, fixes the flush-target bug, and bounds Mission B scope."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -7009,7 +7009,7 @@ pages:
   - path: "docs/development/how-to/manage-issue-tracker.md"
     title: "Managing the Issue Tracker"
     divio_type: "how-to"
-    abstract: "Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, native sub-issue parenting, blocked_by dependencies, and triage (type, severity, release-blocking bugs)."
+    abstract: "Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, native sub-issue parenting, blocked_by dependencies, triage (type, severity, release-blocking bugs), and the label taxonomy."
     anchors:
     - {slug: "functional-epics-versus-meta-trackers", text: "Functional epics versus meta-trackers", level: 2}
     - {slug: "parent-and-child-are-native-sub-issue-links", text: "Parent and child are native sub-issue links", level: 2}
@@ -7022,6 +7022,13 @@ pages:
     - {slug: "priority-and-what-makes-a-p0", text: "Priority, and what makes a P0", level: 3}
     - {slug: "a-p0-bug-should-carry-a-failing-reproduction-test", text: "A P0 bug should carry a failing reproduction test", level: 3}
     - {slug: "what-good-first-issue-means-here", text: "What \"good first issue\" means here", level: 3}
+    - {slug: "label-taxonomy", text: "Label taxonomy", level: 2}
+    - {slug: "classification-labels-what-kind-of-work-it-is", text: "Classification labels — what *kind of work* it is", level: 3}
+    - {slug: "subsystem-domain-labels-where-the-work-lives", text: "Subsystem / domain labels — *where* the work lives", level: 3}
+    - {slug: "triage-state-labels-transient-hygiene-state-not-classification", text: "Triage-state labels — transient hygiene state, not classification", level: 3}
+    - {slug: "pr-workflow-labels-for-pull-requests-not-issues", text: "PR-workflow labels — for pull requests, not issues", level: 3}
+    - {slug: "lifecycle-community-labels", text: "Lifecycle & community labels", level: 3}
+    - {slug: "grouping-labels-documented-above", text: "Grouping labels (documented above)", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/pr-landing.md"
     title: "Landing Contributor PRs: The Maintainer Runbook"
