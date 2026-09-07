@@ -137,7 +137,7 @@ User runs: spec-kitty implement WP01
   → src/specify_cli/cli/commands/ (Control Plane)
   → src/specify_cli/orchestrator/ (Orchestration)
   → src/specify_cli/status/store.py (Event Store read — WP state)
-  → src/charter/offering/missions/*/command-templates/implement.md (Connector)
+  → packs/built-in/missions/mission-steps/software-dev/implement/prompt.md (Connector)
   → Agent executes work (external)
   → src/specify_cli/status/emit.py (Event Store write — lifecycle event)
 ```
@@ -159,10 +159,10 @@ User runs: spec-kitty charter interview / generate
 ```
 Agent calls: spec-kitty charter context --action implement
   → src/charter/context.py (Action Context Resolver)
-  → Load action index: src/charter/offering/missions/software-dev/actions/implement/index.yaml
+  → Load action index: packs/built-in/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
   → src/charter/offering/service.py (DoctrineService) → fetch directive/tactic content by depth
-  → Load action guidelines: src/charter/offering/missions/software-dev/actions/implement/guidelines.md
+  → Load action guidelines: packs/built-in/missions/software-dev/actions/implement/guidelines.md
   → Render CharterContextResult (governance text injected into agent prompt)
   → Persist context-state.json (first-load tracking for depth semantics)
 ```
@@ -220,8 +220,8 @@ Orchestration lifecycle event triggers:
 | **Charter Interview Flow** | `charter/interview.py` | Guided Q&A for governance capture |
 | **Charter Compiler** | `charter/compiler.py` | Doctrine→charter bundle compilation |
 | **`Action Context Resolver`** | `charter/context.py`, `resolver.py`, `reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
-| **Action Index** | `src/charter/offering/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `src/charter/offering/missions/action_index.py` |
-| **Execution Dispatch** | `src/charter/offering/missions/*/command-templates/implement.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054) |
+| **Action Index** | `packs/built-in/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `src/charter/offering/missions/action_index.py` |
+| **Execution Dispatch** | `packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054; content now ships from `packs/built-in/`, not `src/charter/offering/`) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |
 | **Path Resolver** | `src/kernel/paths.py` | `get_kittify_home()`, `get_package_asset_root()` — zero-dependency path resolution shared across all packages (moved from `specify_cli.runtime.home` in WP09, 2026-03-25; re-export shim at `specify_cli/runtime/home.py` preserves backward compatibility). **Dependency note (Windows):** `kernel` is stdlib-only on Linux/macOS. On Windows, `platformdirs` is imported lazily in `kernel/paths.py` for platform-appropriate home directory resolution. This is the only sanctioned third-party import in `kernel/`. |
 | **Glossary Runner Registry** | `src/kernel/glossary_runner.py` | `GlossaryRunnerProtocol`, `register()`, `get_runner()` — plugin registry allowing `doctrine` to register its runner without creating a `specify_cli` import dependency. Resolves DIV-5 (docs/adr/2.x/2026-03-25-1-glossary-type-ownership.md). |
@@ -258,15 +258,15 @@ layers are strictly defined.
 
 | Layer | Artifact Type | Location | Count (shipped) | Purpose |
 |---|---|---|---|---|
-| **Mental Models** | Paradigm | `src/charter/offering/paradigms/` | 1 (`test-first`) | High-level approaches that frame *how you think about a problem*. Not executable. |
-| **Rules** | Directive | `src/charter/offering/directives/` | 27 (001–026 + test-first) | Enforceable governance rules. `enforcement: required\|advisory`. |
-| **Procedures** | Tactic | `src/charter/offering/tactics/` | 4 | Step-by-step execution procedures. Agent-consumable. |
-| **Output Shapes** | Styleguide | `src/charter/offering/styleguides/` | shipped set | Define *what output looks like* — formatting, naming, structure. |
-| **Tool Contracts** | Toolguide | `src/charter/offering/toolguides/` | shipped set | Define *how tools are used* — config, invocation, constraints. |
-| **Execution Identity** | Agent Profile | `src/charter/offering/agent_profiles/shipped/` | 7 (architect, curator, designer, implementer, planner, researcher, reviewer) | Agent capabilities, constraints, collaboration contracts. Injected by `SkillRegistry` at `init` time. |
-| **Deployable Governance Packs** | Skill | `src/charter/offering/skills/` | 8 (charter-doctrine, git-workflow, glossary-context, mission-system, orchestrator-api-operator, runtime-next, runtime-review, setup-doctor) | Self-contained governance bundles (SKILL.md + optional references/scripts/assets) deployed to agent directories during `spec-kitty init` by `specify_cli/skills/`. |
-| **Process Templates** | Mission Template | `src/charter/offering/missions/` | 3 types (software-dev, documentation, research) + plan | Define the SDD process stages for different mission types. Also carries per-action governance indexes. |
-| **Process Templates** | Expected Artifacts Manifest | `src/charter/offering/missions/*/expected-artifacts.yaml` | 3 (software-dev, documentation, research) | Per-step, class-tagged (`input`, `output`, `workflow`, `evidence`), blocking-semantics artifact requirements consumed by dossier `ManifestRegistry` via `MissionRepository.get_expected_artifacts()`. |
+| **Mental Models** | Paradigm | `packs/built-in/paradigms/` (Python at `src/charter/offering/paradigms/`) | 13 | High-level approaches that frame *how you think about a problem*. Not executable. |
+| **Rules** | Directive | `packs/built-in/directives/` (Python at `src/charter/offering/directives/`) | 34 | Enforceable governance rules. `enforcement: required\|advisory`. |
+| **Procedures** | Tactic | `packs/built-in/tactics/` (Python at `src/charter/offering/tactics/`) | 124 | Step-by-step execution procedures. Agent-consumable. |
+| **Output Shapes** | Styleguide | `packs/built-in/styleguides/` (Python at `src/charter/offering/styleguides/`) | 23 | Define *what output looks like* — formatting, naming, structure. |
+| **Tool Contracts** | Toolguide | `packs/built-in/toolguides/` (Python at `src/charter/offering/toolguides/`) | 15 | Define *how tools are used* — config, invocation, constraints. |
+| **Execution Identity** | Agent Profile | `packs/built-in/agent_profiles/` (Python at `src/charter/offering/agent_profiles/`; no `shipped/` subdirectory) | 25 | Agent capabilities, constraints, collaboration contracts. Injected by `SkillRegistry` at `init` time. |
+| **Deployable Governance Packs** | Skill | `src/charter/offering/skills/` | 55 | Self-contained governance bundles (SKILL.md + optional references/scripts/assets) deployed to agent directories during `spec-kitty init` by `specify_cli/skills/`. |
+| **Process Templates** | Mission Template | `packs/built-in/missions/` (Python at `src/charter/offering/missions/`) | 4 types (software-dev, documentation, research, plan) | Define the SDD process stages for different mission types. Also carries per-action governance indexes. |
+| **Process Templates** | Expected Artifacts Manifest | `packs/built-in/missions/*/expected-artifacts.yaml` | 4 (software-dev, documentation, research, plan) | Per-step, class-tagged (`input`, `output`, `workflow`, `evidence`), blocking-semantics artifact requirements consumed by dossier `ManifestRegistry` via `MissionRepository.get_expected_artifacts()`. |
 
 ### Reference Direction Rules
 
@@ -301,17 +301,20 @@ field + its shared model (mission doctrine-tension-edges-01KY1WPC).
 
 ### Repository Implementation Pattern
 
-Every artifact type follows an identical internal structure:
+Every artifact type follows an identical internal structure, split across a
+Python package and a shipped-content directory — the two no longer live
+under the same tree:
 
 ```
-src/charter/offering/<artifact_type>/
+src/charter/offering/<artifact_type>/    # Python package — code only
   ├── __init__.py          # Exports
   ├── models.py            # Pydantic model (e.g., Directive, Tactic, Paradigm)
   ├── repository.py        # Two-source YAML loader (shipped + project)
-  ├── validation.py        # Schema validation — delegates to SchemaUtilities
-  └── shipped/             # Built-in artifacts (YAML files)
-      ├── 001-xxx.<type>.yaml
-      └── ...
+  └── validation.py        # Schema validation — delegates to SchemaUtilities
+
+packs/built-in/<artifact_type>/          # Shipped content (YAML files)
+  ├── 001-xxx.<type>.yaml
+  └── ...
 ```
 
 ### Shared Utilities (`src/charter/offering/shared/`)
@@ -379,11 +382,11 @@ update and a valid fixture update.
 | Charter compiler consumes Doctrine | ✅ Complete | `src/charter/compiler.py` |
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
 | Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/reference_resolver.py` (feature 054) |
-| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/context.py` + `src/charter/offering/missions/*/actions/*/index.yaml` (feature 054) |
-| Per-action guidelines extraction from templates | ✅ Complete | `src/charter/offering/missions/software-dev/actions/*/guidelines.md` (feature 054) |
+| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (feature 054) |
+| Per-action guidelines extraction from templates | ✅ Complete | `packs/built-in/missions/software-dev/actions/*/guidelines.md` (feature 054) |
 | ArtifactKind canonical enum | ✅ Complete | `src/charter/offering/artifact_kinds.py` (feature 054, WP09-WP10) |
-| MissionRepository package relocation | ✅ Complete | `src/charter/offering/missions/` is the authoritative source for all mission assets (YAML, command templates, content templates, expected-artifacts). `src/specify_cli/missions/` retains only Python code modules (`primitives.py`, `glossary_hook.py`, `.contextive.yml`) for the glossary subsystem per ADR 2026-03-25-1. |
-| Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 6 canonical skills in `src/charter/offering/skills/`. Deployed to agent directories during `spec-kitty init` (feature 055). |
+| MissionRepository package relocation | ✅ Complete | `packs/built-in/missions/` is the authoritative source for all shipped mission assets (YAML, mission-step prompt templates, content templates, expected-artifacts); `src/charter/offering/missions/` holds only the Python repository/loader code that reads them. `src/specify_cli/missions/` retains only Python code modules (`primitives.py`, `glossary_hook.py`, `.contextive.yml`) for the glossary subsystem per ADR 2026-03-25-1. |
+| Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 55 canonical skill packs in `src/charter/offering/skills/`. Deployed to agent directories during `spec-kitty init` (feature 055). |
 | Agent Profile shaping connector behavior | ✅ Complete | Models, repository, schema, profile-aware resolution wired in `resolver.py`; workflow profile injection at execution boundary enabled (feature 055). |
 | `kernel` zero-dependency floor (`paths`, `glossary_runner`, `glossary_types`) | ✅ Complete | `src/kernel/` — `paths.py`, `glossary_runner.py`, `glossary_types.py`. Backward-compat re-export shim at `specify_cli/runtime/home.py`. DIV-5 (glossary runner boundary) resolved. ADR: `2026-03-25-1-glossary-type-ownership`. |
 | `--mission-type` flag on type-selection commands | ✅ Complete | 5 commands renamed from `--mission` to `--mission-type` (2026-03-25). Old `--mission` alias on those commands raises `typer.Exit(1)`. `--mission` (slug selector) and `--feature` (hidden deprecated alias) unchanged on all other commands. |
@@ -394,7 +397,7 @@ update and a valid fixture update.
 |---|---|---|
 | Glossary integration at execution boundary | 🟡 Partial | `glossary_hook.py` exists; full Glossary Hook Coordinator loop is early-stage |
 | Slimmed agent templates (governance-free) | 🟡 Partial | Bootstrap section added to templates. Residual inline governance prose not yet stripped. Migration `m_2_0_2` pending. |
-| Mission templates as first-class doctrine artifacts | 🟡 Partial | Templates relocated to `src/charter/offering/missions/` (feature 054). Action indexes operational. Formal `MissionTemplateRepository` deferred. |
+| Mission templates as first-class doctrine artifacts | 🟡 Partial | Templates relocated to `packs/built-in/missions/` (feature 054; loader code at `src/charter/offering/missions/`). Action indexes operational. Formal `MissionTemplateRepository` deferred. |
 | Explicit per-agent connector adapters | 🟡 Partial | 12-agent command template system is the seed. Architecture envisions SDK/shell/remote adapters (Phase 2). |
 | Non-software-dev mission parity | 🟡 Partial | `documentation`, `plan`, `research` missions have action directories but thinner indexes than `software-dev`. |
 | Event Store behind interface contract | 🟡 Partial | `store.py`/`reducer.py` provide the interface pattern. Not yet formally abstracted for alternative backends (Phase 3). |
