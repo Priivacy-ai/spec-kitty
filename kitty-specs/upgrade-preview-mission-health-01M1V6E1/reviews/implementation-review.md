@@ -8,6 +8,19 @@ updated: 2026-09-06
 
 ## Current Status
 
+> **Reachability caveat (pre-merge review squad, 2026-09-07).** The commit
+> SHAs and approval event IDs cited throughout this file (for example
+> `a458fc01f`, `9d78799b9`, `709374560`, `451af47d3`, `e81927a40`) live on the
+> mission's coordination branch and lane worktrees. Those refs are not
+> published to origin and are not reachable from the branch behind PR #3923
+> (`codex/upgrade-preview-mission-health`), which carries only WP11 and the
+> supporting fixes #3910, #3912, #3915, #3917, #3918, #3919 and #3924.
+> WP01–WP10, WP12 and WP13 are absent from that branch, and WP12's
+> authoritative surface (`tests/architectural/test_archive_root_byte_identical.py`)
+> is red on it. The approval statements below therefore describe lane-local
+> state and cannot be verified from the PR; they must not be read as branch
+> content. The convergent squad findings are recorded on PR #3923.
+
 This summary supersedes historical readiness statements below. Ten WPs are
 approved: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP08, WP11 and WP12. WP05 approval
 `01M1WDR51BWCKKKXGB3HGEY6VJ` follows focused independent review of
