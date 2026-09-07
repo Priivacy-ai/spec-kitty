@@ -42,9 +42,6 @@ import ulid as _ulid_mod
 
 from kernel.clock import now_utc
 from specify_cli.decisions.models import IndexEntry
-from specify_cli.status import feature_status_lock
-from specify_cli.status._unsafe import append_raw_rows_atomic
-from specify_cli.workspace.root_resolver import resolve_status_lock_root
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
@@ -88,9 +85,7 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     writes agree on where the coord-owned decision/status log lives under
     every topology, closing a prior read/write split-brain risk.
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
 
 
@@ -131,6 +126,13 @@ def _append_raw_event(events_path: Path, event_dict: dict[str, Any]) -> int:
     Creates parent directories if needed. Returns the 1-based line count
     after the append.
     """
+    # Function-local on purpose: ``decisions.emit`` sits on the ``charter`` command's
+    # cold-import path and must not pull status orchestration in at import time
+    # (tests/architectural/test_cold_import_status_boundary.py, #1461).
+    from specify_cli.status import feature_status_lock  # noqa: PLC0415
+    from specify_cli.status._unsafe import append_raw_rows_atomic  # noqa: PLC0415
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415
+
     feature_dir = events_path.parent
     feature_dir.mkdir(parents=True, exist_ok=True)
     with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):

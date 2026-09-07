@@ -87,9 +87,7 @@ def verdict_feature_dir(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_verdict_backfill_reads_and_appends_under_one_lock(
-    verdict_feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_verdict_backfill_reads_and_appends_under_one_lock(verdict_feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     observer = _LockObserver(monkeypatch, vpb, ("event_sourced_review_result",))
     outcome = vpb.backfill_verdict_provenance(verdict_feature_dir)
     assert outcome.appended_wp_ids == ("WP01",)
@@ -148,9 +146,7 @@ def test_runtime_backfill_reads_and_appends_under_one_lock(tmp_path: Path, monke
     assert expected not in _get_thread_locks()
 
 
-def test_runtime_backfill_single_write_carries_transitions_and_annotations(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_runtime_backfill_single_write_carries_transitions_and_annotations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     feature_dir = build_mission(tmp_path)
     calls: list[list[Any]] = []
     original = brs.append_event_stream_atomic_verified
@@ -166,9 +162,7 @@ def test_runtime_backfill_single_write_carries_transitions_and_annotations(
     assert kinds == {"StatusEvent", "InnerStateChanged"}
     assert len(calls[0]) == result.seeded_count
     stream = read_event_stream(feature_dir)
-    assert {a.event_id for a in stream.annotations} >= {
-        e.event_id for e in calls[0] if type(e).__name__ == "InnerStateChanged"
-    }
+    assert {a.event_id for a in stream.annotations} >= {e.event_id for e in calls[0] if type(e).__name__ == "InnerStateChanged"}
 
 
 def test_runtime_backfill_is_idempotent(tmp_path: Path) -> None:

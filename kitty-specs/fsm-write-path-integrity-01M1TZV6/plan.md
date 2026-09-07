@@ -23,9 +23,7 @@ Harden the mission status write path without redesign. Every writer of `status.e
 **Constraints**: C-001..C-010 from the spec verbatim; NFR-001 no new lock-across-git; NFR-002 replay purity (zero `validate_transition`/`GuardContext` in `reducer.py`); NFR-003 bounded waits on L3-reachable and merge-path L1 takes; layering `status` never imports `coordination` (`test_status_module_boundary.py`); `test_2093_authority_invariant.py` — the phase-gated frontmatter `lane` mirror stays the tree's only `write_frontmatter` of `lane`; `test_runtime_ledger_has_no_stale_entries` reds if a ledgered lazy reach is removed (budget the ledger edit in-PR)
 **Scale/Scope**: 5 WPs; WP02 is the core at 4–5 days (binding); ~12 source modules touched, 2 new modules (`status/<pipeline>.py`, `status/_unsafe.py`), 2 new architectural gates; every WP ships its red-first repro, its unit tests for new helpers, and deletes/relocates the repro on green (C-009)
 
-**Deferred decisions (markers, implementation detail only — do not block planning):**
-
-- [NEEDS CLARIFICATION: Q6 — landing spot for the five `_emit` privates (`_derive_from_lane`, `_generate_ulid`, `_mirror_phase1_frontmatter_lane`, `build_status_event`, `_infer_subtasks_complete`): pipeline-internal vs narrow public helpers; hard constraint: the frontmatter `lane` mirror remains the tree's only `write_frontmatter` of `lane`] <!-- decision_id: 01M1V8J667A286GPHKTWYB1WCS -->
+**Deferred decisions**: Q6 and Q9 were resolved during implementation (WP02 / WP05 design notes; decision records `01M1V8J667A286GPHKTWYB1WCS`, `01M1V8J842E7CJR6MGZ0MW3DQF`).
 
 ## Charter Check
 

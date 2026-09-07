@@ -160,9 +160,7 @@ def test_run_index_key_is_mission_id_or_legacy_slug() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_legacy_slug_entry_without_mission_id_still_resolves_and_is_rekeyed(
-    tmp_path: Path, fake_engine: _FakeEngine
-) -> None:
+def test_legacy_slug_entry_without_mission_id_still_resolves_and_is_rekeyed(tmp_path: Path, fake_engine: _FakeEngine) -> None:
     """Given a pre-WP05 slug-keyed entry with no ``mission_id`` for a mission
     that still has none, When the run is resolved, Then the same run comes
     back and the entry now lives under ``legacy-<slug>``."""
@@ -180,9 +178,7 @@ def test_legacy_slug_entry_without_mission_id_still_resolves_and_is_rekeyed(
     assert index[f"legacy-{_SLUG}"]["mission_slug"] == _SLUG
 
 
-def test_slug_entry_with_matching_mission_id_is_adopted_and_rekeyed(
-    tmp_path: Path, fake_engine: _FakeEngine
-) -> None:
+def test_slug_entry_with_matching_mission_id_is_adopted_and_rekeyed(tmp_path: Path, fake_engine: _FakeEngine) -> None:
     """Given a pre-WP05 slug-keyed entry whose stored ``mission_id`` is the
     caller's, When the run is resolved, Then it is reused (no fresh run) and
     moved under the ``mission_id`` key."""
@@ -269,9 +265,7 @@ def test_read_only_resolvers_do_not_adopt_another_missions_slug_entry(tmp_path: 
 # ---------------------------------------------------------------------------
 
 
-def test_missing_state_with_live_entry_raises_and_starts_nothing(
-    tmp_path: Path, fake_engine: _FakeEngine
-) -> None:
+def test_missing_state_with_live_entry_raises_and_starts_nothing(tmp_path: Path, fake_engine: _FakeEngine) -> None:
     """Given a live index entry whose ``state.json`` is gone, When the run is
     resolved, Then a structured error is raised, no run is started and the
     index is untouched."""
@@ -311,9 +305,7 @@ def test_existing_run_ref_raises_on_missing_state_instead_of_none(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
-def test_write_snapshot_crash_window_keeps_previous_cursor(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_write_snapshot_crash_window_keeps_previous_cursor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Given a persisted cursor, When the process dies between writing the new
     bytes and publishing them, Then ``state.json`` still holds the previous
     complete cursor; a later successful write publishes the new one cleanly."""
@@ -359,9 +351,7 @@ def test_write_snapshot_stages_tmp_in_the_run_directory(tmp_path: Path, monkeypa
     assert seen == [(str(run_dir / "state.json.tmp"), str(run_dir / "state.json"))]
 
 
-def test_append_event_journal_lines_are_whole_even_when_fsync_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_append_event_journal_lines_are_whole_even_when_fsync_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Given a journal with one event, When a second append dies at the
     durability barrier, Then every line on disk is still a complete JSON
     record (the whole line is written in one write; earlier lines untouched)."""
@@ -432,9 +422,7 @@ def test_progress_query_leaves_tracked_status_json_byte_identical(tmp_path: Path
     assert status_json.read_bytes() == before, "progress query rewrote tracked status.json"
 
 
-def test_progress_query_logs_when_weighted_progress_is_unavailable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_progress_query_logs_when_weighted_progress_is_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """The fallback is a logged warning, never a silent swallow; the lane
     counts are still returned."""
     import specify_cli.status as status_pkg

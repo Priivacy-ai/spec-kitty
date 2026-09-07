@@ -321,10 +321,9 @@ def prepare_transition(
     )
 
 
+# The three injected-I/O callable aliases stay module-level for annotations but are
+# not exported: no src/ caller names them (dead-symbol gate, #470).
 __all__ = [
-    "ImplementationEvidenceInferrer",
     "PreparedTransition",
-    "SubtasksCompleteInferrer",
-    "SubtasksDirResolver",
     "prepare_transition",
 ]

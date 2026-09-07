@@ -72,9 +72,7 @@ def test_append_runs_while_mission_lock_is_held(feature_dir: Path, monkeypatch: 
     assert str(expected) not in _get_thread_locks()
 
 
-def test_materialize_runs_after_the_append_outside_the_critical_section(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_materialize_runs_after_the_append_outside_the_critical_section(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The critical section is the append only; ``materialize`` follows it."""
     import specify_cli.status as status_facade
 
