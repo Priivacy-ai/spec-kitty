@@ -414,7 +414,7 @@ def prepare_staging(
     inputs: AssessmentInputs, files: tuple[StagedFile, ...], bundle_dirs: tuple[Path, ...],
     observations: tuple[BundleObservation, ...] = (), *, suppliers: tuple[OwnerAssessment, ...] = (),
     version: str | None = None,
-    supporting_dirs: tuple[str, ...] = (),
+    supporting_dirs: tuple[tuple[str, int], ...] = (),
 ) -> OwnerAssessment:
     """Compare one complete staged batch and retain every byte before any write."""
     try:
@@ -429,19 +429,20 @@ def prepare_staging(
 def _prepare_staging(
     inputs: AssessmentInputs, files: tuple[StagedFile, ...], bundle_dirs: tuple[Path, ...],
     observations: tuple[BundleObservation, ...], suppliers: tuple[OwnerAssessment, ...],
-    version: str | None, supporting_dirs: tuple[str, ...],
+    version: str | None, supporting_dirs: tuple[tuple[str, int], ...],
 ) -> OwnerAssessment:
     root = inputs.root
     observed = list(observations)
     known, ledgers = _ledger_state(root, bundle_dirs, observed)
     effects: list[PhysicalEffect] = []
     dispositions: list[Disposition] = []
-    for relative in supporting_dirs:
+    directory_modes = dict(supporting_dirs)
+    for relative, mode in supporting_dirs:
         observed.extend(observe_confined(root.path, root.path / relative))
         before = observed[-1].state
         if before.kind == "absent":
             effects.append(PhysicalEffect(OWNER, "surface_repair", root, relative, "create", before,
-                                          FileState("directory", mode=0o755), "Create selected supporting directory",
+                                          FileState("directory", mode=mode), "Create selected supporting directory",
                                           (OwnershipProof("managed_path", f"selected supporting directory:{relative}"),), (OWNER,)))
         elif before.kind != "directory":
             raise ValueError(f"Unsafe supporting directory: {relative}")
@@ -481,7 +482,7 @@ def _prepare_staging(
             before = observed[-1].state
             if before.kind == "absent":
                 effects.append(PhysicalEffect(OWNER, "surface_repair", root, path.as_posix(), "create",
-                                              before, FileState("directory", mode=0o755), "Create staged parent",
+                                              before, FileState("directory", mode=directory_modes.get(path.as_posix(), 0o755)), "Create staged parent",
                                               effect.ownership, effect.logical_owners, effect.surface_ids))
     retained: dict[Path, BundleObservation] = {}
     for item in observed:
@@ -489,7 +490,7 @@ def _prepare_staging(
         if prior_observation != item:
             raise ValueError(f"Staging input changed during preparation: {item.path}")
     prepared = PreparedBundle(root, inputs.consent, tuple(unique.values()), tuple(retained.values()), suppliers, version,
-                              tuple(sorted({effect.path for effect in effects if effect.after.kind == "file"})))
+                              tuple(sorted({effect.path for effect in effects if effect.after.kind == "file"})), supporting_dirs)
     return OwnerAssessment(OWNER, root, coalesce_effects(tuple(effects)), tuple(dispositions),
                            inputs_fingerprint=(InputObservation("bundle_inputs", prepared.observations),
                                                InputObservation("bundle_supplier_inputs", tuple(s.inputs_fingerprint for s in suppliers))),
@@ -658,8 +659,9 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
             if current != effect.before:
                 raise ValueError(f"Staged destination changed during apply: {effect.path}")
             if effect.after.kind == "directory":
-                effect.destination.mkdir(mode=0o755)
-                effect.destination.chmod(0o755)
+                assert effect.after.mode is not None
+                effect.destination.mkdir(mode=effect.after.mode)
+                effect.destination.chmod(effect.after.mode)
             else:
                 member = members[effect.path]
                 if member.wrapper:

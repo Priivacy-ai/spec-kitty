@@ -131,13 +131,13 @@ class CodexBundleProjector:
                                    diagnostics=(Diagnostic("bundle_input_invalid", "plugin_bundle", "error", str(exc)),))
 
     @staticmethod
-    def _companions(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...], tuple[str, ...]]:
+    def _companions(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...], tuple[tuple[str, int], ...]]:
         import charter.offering as offering
 
         source = Path(offering.__file__).parent.resolve()
         observations = [observe_bundle_path(source / _MCP_JSON_NAME), observe_bundle_path(source / "hooks", members=True)]
         files: list[StagedFile] = []
-        directories: list[str] = []
+        directories: list[tuple[str, int]] = []
         for observation in observations:
             if observation.state.kind == "symlink":
                 raise ValueError(f"Unsafe optional bundle source: {observation.path}")
@@ -156,7 +156,9 @@ class CodexBundleProjector:
             for observed in observe_tree(hooks):
                 observations.append(observed)
                 if observed.state.kind == "directory":
-                    directories.append((directory / "hooks" / observed.path.relative_to(hooks)).relative_to(root.path).as_posix())
+                    assert observed.state.mode is not None
+                    directories.append(((directory / "hooks" / observed.path.relative_to(hooks)).relative_to(root.path).as_posix(),
+                                        observed.state.mode))
                 if observed.state.kind == "file":
                     files.append(StagedFile((directory / "hooks" / observed.path.relative_to(hooks)).relative_to(root.path).as_posix(),
                                             read_observed_file(observed), observed.state.mode or 0o644))

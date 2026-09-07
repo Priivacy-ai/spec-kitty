@@ -94,6 +94,80 @@ def test_codex_build_preserves_source_directory_modes(
     assert_unchanged(settled, snapshot({"stage": tmp_path}))
 
 
+@pytest.mark.parametrize("scenario", ["missing", "chmod-root", "chmod-empty", "existing"])
+def test_codex_prepared_directory_modes_and_guards(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: str,
+) -> None:
+    import stat
+    import charter.offering as offering
+    from specify_cli.tool_surface.bundles.model import PreparedBundle
+    from specify_cli.tool_surface.bundles.projection import apply_staging
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    source = tmp_path / "source"
+    hooks = source / "hooks"
+    empty = hooks / "private-empty"
+    empty.mkdir(parents=True)
+    hooks.chmod(0o700)
+    empty.chmod(0o710)
+    (hooks / "run.sh").write_bytes(b"#!/bin/sh\nexit 0\n")
+    (hooks / "run.sh").chmod(0o750)
+    monkeypatch.setattr(offering, "__file__", str(source / "__init__.py"))
+    projector = CodexBundleProjector(tmp_path / "dist")
+    expected_modes = {"dist/codex/hooks": 0o700, "dist/codex/hooks/private-empty": 0o710}
+    if scenario == "existing":
+        existing = projector.bundle_dir / "hooks/private-empty"
+        existing.mkdir(parents=True)
+        existing.parent.chmod(0o751)
+        existing.chmod(0o755)
+        (existing / "custom.txt").write_bytes(b"unknown directory contents remain unowned")
+
+    before = snapshot({"staging": tmp_path, "home": Path.home()})
+    assessment = projector.prepare(ApplyConsent(automatic=True))
+    assert assessment.complete and assessment.effects, assessment.diagnostics
+    assert_unchanged(before, snapshot({"staging": tmp_path, "home": Path.home()}))
+    assert isinstance(assessment.prepared, PreparedBundle)
+    relative_modes = {(tmp_path / path).relative_to(assessment.root.path).as_posix(): mode
+                      for path, mode in expected_modes.items()}
+    assert dict(assessment.prepared.supporting_dirs) == relative_modes
+    directory_effects = {e.path: e.after.mode for e in assessment.effects if e.path in relative_modes}
+    assert directory_effects == ({} if scenario == "existing" else relative_modes)
+
+    if scenario.startswith("chmod-"):
+        changed = hooks if scenario == "chmod-root" else empty
+        changed.chmod(0o750)
+        stale = snapshot({"staging": tmp_path, "home": Path.home()})
+        result = apply_staging(assessment, assessment.consent)
+        assert result.outcome == "precondition_changed", result
+        assert not result.succeeded and not result.failed
+        assert set(result.skipped) == {e.id for e in assessment.effects}
+        assert_unchanged(stale, snapshot({"staging": tmp_path, "home": Path.home()}))
+        assert not projector.bundle_dir.exists()
+        return
+
+    result = apply_staging(assessment, assessment.consent)
+    assert result.outcome == "applied", result
+    assert set(result.succeeded) == {e.id for e in assessment.effects}
+    actual = net_delta(before, snapshot({"staging": tmp_path, "home": Path.home()}))
+    assert {(e.root.root_id, e.destination.relative_to(tmp_path).as_posix(), e.action, e.after.kind, e.after.sha256, e.after.mode)
+            for e in assessment.effects} == {
+        (e.root, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in actual}
+    for relative, mode in expected_modes.items():
+        if scenario == "existing":
+            mode = 0o751 if relative.endswith("/hooks") else 0o755
+        assert stat.S_IMODE((tmp_path / relative).stat().st_mode) == mode
+    assert (projector.bundle_dir / "hooks/run.sh").read_bytes() == (hooks / "run.sh").read_bytes()
+    assert stat.S_IMODE((projector.bundle_dir / "hooks/run.sh").stat().st_mode) == 0o750
+    if scenario == "existing":
+        assert (projector.bundle_dir / "hooks/private-empty/custom.txt").read_bytes() == b"unknown directory contents remain unowned"
+    settled = snapshot({"staging": tmp_path, "home": Path.home()})
+    repeated = projector.prepare(assessment.consent)
+    assert repeated.complete and not repeated.effects, repeated.diagnostics
+    assert apply_staging(repeated, repeated.consent).outcome == "applied"
+    assert_unchanged(settled, snapshot({"staging": tmp_path, "home": Path.home()}))
+
+
 def test_codex_hook_copy_preserves_unknown_descendant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import charter.offering as offering
 

@@ -74,6 +74,7 @@ class PreparedBundle:
     suppliers: tuple[OwnerAssessment, ...] = ()
     version: str | None = None
     write_paths: tuple[str, ...] = ()
+    supporting_dirs: tuple[tuple[str, int], ...] = ()
 
     @property
     def execution_artifacts(self) -> tuple[tuple[str, str, str], ...]:
