@@ -1,4 +1,4 @@
-<!-- Provenance: copied from work/post-convergence/29-missionB-research-dossier.md (main repo, /home/stijn/Documents/_code/SDD/fork/spec-kitty). -->
+<!-- Provenance: copied from work/post-convergence/29-missionB-research-dossier.md (spec-kitty repo) -->
 <!-- Copied: 2026-09-06 for mission dead-port-disposition-01M1TZVN; content unmodified below this header. -->
 <!-- Verified-at: repo HEAD e721763759 (tree 3.2.7rc1), per the dossier's own verification log. -->
 # 29 — Mission B Research Dossier: `dead-port-disposition` (Researcher Robbie, 2026-09-06)

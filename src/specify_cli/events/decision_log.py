@@ -38,6 +38,7 @@ from runtime.next._internal_runtime.events import (
     NextStepAutoCompletedPayload,
     NextStepIssuedPayload,
     RuntimeEventEmitter,
+    seed_runtime_emitter,
 )
 from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
@@ -190,10 +191,8 @@ class DecisionGitLog:
         self._inner.emit_decision_timeout_expired(payload)
 
     def seed_from_snapshot(self, snapshot: Any) -> None:
-        """Pass-through: seeding is the inner seam's concern; a sink without it is fine."""
-        seed = getattr(self._inner, "seed_from_snapshot", None)
-        if seed is not None:
-            seed(snapshot)
+        """Delegate optional seeding; producer failures cannot block mission work."""
+        seed_runtime_emitter(self._inner, snapshot)
 
     # ------------------------------------------------------------------
     # Internal helpers

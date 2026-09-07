@@ -343,3 +343,73 @@ def test_gated_flush_does_not_duplicate(monkeypatch: pytest.MonkeyPatch, tmp_pat
     buffers[0].flush(h.log)
     assert h.request_count() == 1, "re-flushing the one-shot buffer must not duplicate the entry"
     assert buffers[0].call_count() == 0
+
+
+@pytest.mark.parametrize("seed_mode", ["missing", "raises", "lookup_raises"])
+def test_real_composition_advances_and_logs_despite_optional_seed_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seed_mode: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    from runtime.next import runtime_bridge_engine as engine
+    from runtime.next._internal_runtime.schema import MissionRunSnapshot
+
+    h = _Harness(tmp_path)
+
+    class Producer:
+        def __getattr__(self, name: str) -> Any:
+            if name == "seed_from_snapshot":
+                if seed_mode == "lookup_raises":
+                    raise RuntimeError("seed lookup failed")
+                if seed_mode == "raises":
+
+                    def fail(snapshot: Any) -> None:
+                        raise RuntimeError("seed failed")
+
+                    return fail
+                raise AttributeError(name)
+            return getattr(h.inner, name)
+
+    h.log._inner = Producer()
+    monkeypatch.setattr(rb, "_should_dispatch_via_composition", lambda *args, **kwargs: True)
+    monkeypatch.setattr(rb, "_normalize_action_for_composition", lambda step_id: step_id)
+    monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", lambda **kwargs: (None, None))
+    monkeypatch.setattr(rb, "_dispatch_via_composition", lambda **kwargs: [])
+    snapshot = MissionRunSnapshot(run_id=RUN_ID, mission_key=MISSION_TYPE, template_path="", template_hash="h", issued_step_id="plan")
+    monkeypatch.setattr(engine, "_read_snapshot", lambda _: snapshot)
+    monkeypatch.setattr(engine, "_load_frozen_template", lambda _: object())
+    monkeypatch.setattr(
+        engine,
+        "plan_next",
+        lambda *args, **kwargs: NextDecision(
+            kind=DecisionKind.decision_required,
+            run_id=RUN_ID,
+            mission_key=MISSION_TYPE,
+            step_id="review",
+            decision_id=DECISION_ID,
+            question="Proceed?",
+            options=["yes", "no"],
+        ),
+    )
+    persisted: list[Any] = []
+    monkeypatch.setattr(engine, "_write_snapshot", lambda _, value: persisted.append(value))
+    monkeypatch.setattr(
+        rb,
+        "_map_runtime_decision",
+        lambda decision, *args: Decision(
+            kind=decision.kind,
+            agent="tester",
+            mission_slug=SLUG,
+            mission=MISSION_TYPE,
+            mission_state="review",
+            timestamp=NOW,
+            decision_id=DECISION_ID,
+        ),
+    )
+    decision = rb._dn_composition_dispatch(h.ctx)
+    assert decision is not None
+    assert decision.kind == DecisionKind.decision_required
+    assert h.request_count() == 1, "real composition must durably record its decision request once"
+    assert h.inner.calls == ["emit_next_step_auto_completed", "emit_decision_input_requested"]
+    assert persisted[0].completed_steps == ["plan"]
+    assert DECISION_ID in persisted[0].pending_decisions
+    if seed_mode != "missing":
+        assert "seed" in caplog.text

@@ -61,6 +61,7 @@ from runtime.next._internal_runtime.events import (
     MISSION_RUN_COMPLETED,
     NEXT_STEP_AUTO_COMPLETED,
     NEXT_STEP_ISSUED,
+    seed_runtime_emitter,
 )
 from runtime.next._internal_runtime.schema import DecisionRequest, MissionPolicySnapshot, MissionRunSnapshot, MissionTemplate
 from runtime.next import runtime_bridge_retrospective as _retrospective
@@ -310,16 +311,8 @@ def _apply_decision_effects(
 
 
 def _seed_emitter(sync_emitter: RuntimeEventEmitter, snapshot: Any) -> None:
-    """Seed ``sync_emitter`` from ``snapshot`` when the seam exposes seeding.
-
-    ``RuntimeEventEmitter`` is the eight ``emit_*`` methods only;
-    ``seed_from_snapshot`` is an optional member the factory's product *may*
-    carry (``contracts/emitter-seam.md``, research R-2). Mirrors the bridge's
-    own tolerance at its two seeding sites: no member, no seeding, no raise.
-    """
-    seed = getattr(sync_emitter, "seed_from_snapshot", None)
-    if seed is not None:
-        seed(snapshot)
+    """Seed optional producer state through the canonical nonfatal seam."""
+    seed_runtime_emitter(sync_emitter, snapshot)
 
 
 def advance_run_state_after_composition(
