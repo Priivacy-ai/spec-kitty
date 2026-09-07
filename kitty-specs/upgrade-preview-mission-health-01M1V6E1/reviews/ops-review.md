@@ -1,5 +1,22 @@
 # Supporting Operation Reviews
 
+## Command Provisioning Projection: Open
+
+Op `01M1XF4MQ2JPFAVDK15SYGVK8Q` addresses the concrete WP10 integration gap:
+command assessment renders from live configuration and cannot consume retained
+WP09 provisioning state. Applying required provisioning before command repair
+correctly invalidates original observations. In the real-conftest reproduction,
+legacy/pointer missing-key cases both refuse all 33 command effects; explicit
+empty controls both succeed. Result: two failed, two passed in 30.24 seconds.
+
+The original command owner is implementing a bounded immutable projected-input
+extension in a separate worktree. Original preflight and unrelated-change
+refusals, exact prepared bytes and finalizer ordering must remain intact.
+No preview writes, post-write rerender or blanket observation bypass is allowed.
+Supplier review and real WP10 consumer verification precede closure. External
+reproduction and API request: wp10-handoff.md and wp10-evidence/. Tracked on
+#3901 comment5567579677. WP10 made no product changes before reporting the gap.
+
 ## WP09 YAML Preservation Arbitration: Complete
 
 Op `01M1XCGBK5AFYA6T2AE7CBRB3X` records explicit user authorization to fix
