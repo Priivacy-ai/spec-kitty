@@ -1,6 +1,6 @@
 # Supporting Operation Reviews
 
-## WP09 YAML Preservation Arbitration: Open
+## WP09 YAML Preservation Arbitration: Complete
 
 Op `01M1XCGBK5AFYA6T2AE7CBRB3X` records explicit user authorization to fix
 both remaining WP09 defects after its third rejection: comments lost when the
@@ -16,6 +16,16 @@ automatic approval, broad review restart, dependency change or acceptance waiver
 The durable Op record is included in this PR. Closure requires the actual fix
 commit and independent focused review evidence. WP10 integration, WP13 acceptance
 matrices and all final mission gates remain pending.
+
+The bounded correction is complete at `0eff16b1a8a1329363b21f8964bb188e59cf8054`,
+preceded by RED `62cd04d9f61ec210bd93a8a57abea011e9130f1e` (eight failures,
+eight passing controls). Author YAML suite: 136 passed. Independent review
+replayed the exact saved reuse/directive/explicit-key cases, ran 25 targeted
+tests and static checks, and approved both defect classes. Report and sealed
+evidence: wp09-op-independent-review.md. Parent recorded WP09 approval
+`01M1XE81YCJ0RNB0JA4800DTH3` and completed the Op with that fix/report.
+These are lane-local results until consolidation, not public-preview or final
+PR acceptance. No full review restart or acceptance waiver was used.
 
 ## Configured Bundle Source Tools: Complete
 
