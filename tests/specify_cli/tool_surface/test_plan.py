@@ -23,6 +23,14 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_bundle_plans_respect_configured_tools(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.service import build_plans_for_bundles
+
+    configured_tools = ("gemini", "codex")
+    plans = build_plans_for_bundles(tmp_path)
+    assert tuple(plan.tool_key for plan in plans) == configured_tools
+
+
 def _definition(kind: ToolSurfaceKind, provider_key: str) -> SurfaceDefinition:
     return SurfaceDefinition(
         kind=kind,
