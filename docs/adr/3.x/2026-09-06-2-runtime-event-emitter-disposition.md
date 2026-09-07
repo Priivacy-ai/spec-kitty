@@ -1,6 +1,6 @@
 ---
 title: 'ADR: RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement'
-description: 'Adjudicates the permanently-no-op runtime.next.event_emitter seam: keep it as the reserved E3 producer seam, merge the duplicate-named concrete class into the _internal_runtime Protocol/NullEmitter, fix the buffer flush-target bug, and defer live producer wiring — bounding what Mission B dead-port-disposition may touch.'
+description: 'Keeps the no-op runtime.next.event_emitter as the reserved E3 producer seam, folds its duplicate class into the _internal_runtime NullEmitter, and defers live wiring.'
 status: Accepted
 date: '2026-09-06'
 ---

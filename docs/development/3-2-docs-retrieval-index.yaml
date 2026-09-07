@@ -3024,7 +3024,7 @@ pages:
   - path: "docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md"
     title: "ADR: Convergence Retirement and Client-Repo Inversion"
     divio_type: "none"
-    abstract: "The Convergence (#3881) retired the in-place CLI→SaaS sync/daemon/delivery stack and inverted feature-ownership: this core repo is now a CLIENT of the authoritative spec-kitty/zeitgeist and spec-kitty/saas repos."
+    abstract: "The Convergence (#3881) retired the CLI→SaaS sync, daemon and delivery stack and inverted ownership: this repo is now a client of upstream spec-kitty/zeitgeist and spec-kitty/saas."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -3032,7 +3032,7 @@ pages:
   - path: "docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md"
     title: "ADR: RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement"
     divio_type: "none"
-    abstract: "Adjudicates the permanently-no-op runtime.next.event_emitter seam: keep it as the reserved E3 producer seam, merge the duplicate-named concrete class into the _internal_runtime Protocol/NullEmitter, fix the buffer flush-target bug, and defer live producer wiring — bounding what Mission B dead-port-disposition may touch."
+    abstract: "Keeps the no-op runtime.next.event_emitter as the reserved E3 producer seam, folds its duplicate class into the _internal_runtime NullEmitter, and defers live wiring."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -4259,7 +4259,7 @@ pages:
   - path: "docs/architecture/05_ownership_map.md"
     title: "Functional Ownership Map (demoted — narrative only)"
     divio_type: "none"
-    abstract: "Historical functional-ownership narrative. NOT authoritative for module boundaries: the canonical modularity SSOT is the enforced pair (pyproject wheel packages + the conftest landscape / test_layer_rules layer chain)."
+    abstract: "Historical functional-ownership narrative. Not authoritative: module boundaries are owned by the enforced pyproject wheel packages plus the test_layer_rules layer chain."
     anchors:
     - {slug: "the-canonical-modularity-ssot-is-the-enforced-pair", text: "The canonical modularity SSOT is the enforced pair", level: 2}
     - {slug: "client-packages-are-consumers-of-upstream-authoritative-repos", text: "Client packages are consumers of upstream authoritative repos", level: 2}
