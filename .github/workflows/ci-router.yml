@@ -203,7 +203,11 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
+      # ruff lives in the `lint` extra, not the default groups — sync it in
+      # first, or `uv run ruff` fails to spawn on a cold runner (the env has no
+      # ruff). Mirrors the proven ci-quality.yml Lint job.
       - run: |
+          uv sync --frozen --extra lint
           uv run --frozen ruff check .
           uv run --frozen ruff format --check .
 
@@ -245,7 +249,11 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
-      - run: uv run --frozen ruff check --select TID251 .
+      # ruff lives in the `lint` extra — sync it in first or `uv run ruff` fails
+      # to spawn on a cold runner (env has no ruff). Mirrors the ruff job above.
+      - run: |
+          uv sync --frozen --extra lint
+          uv run --frozen ruff check --select TID251 .
 
   regen-check:
     name: regen --check
