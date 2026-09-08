@@ -688,6 +688,8 @@ def activate_cmd(
         raise typer.Exit(1) from exc
 
     commit_project_registration(registration)
+    for warning in registration.warnings:
+        console.print(f"[yellow]Warning[/yellow]: {warning}")
 
     for msg in result.activated:
         console.print(f"[green]Activated[/green]: {msg}")
