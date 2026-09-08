@@ -164,6 +164,89 @@ def test_branch_mode_succeeds_with_version_bump(tmp_path: Path) -> None:
     assert "All required checks passed." in result.stdout
 
 
+@pytest.mark.parametrize(
+    ("previous", "candidate", "succeeds"),
+    [
+        ("3.2.6", "3.2.6.1", True),
+        ("3.2.6.1", "3.2.6.2", True),
+        ("3.2.6.2", "3.2.6.1", False),
+        ("3.2.6.1", "3.2.7rc1", True),
+        ("3.2.7rc1", "3.2.6.1", False),
+        ("3.2.7rc1", "3.2.7", True),
+        ("3.2.6.0", "3.2.6", False),
+        ("3.2.6", "3.2.6.0", False),
+        ("3.2.6.1beta2", "3.2.6.1rc1", True),
+        ("3.2.6.1rc1", "3.2.6.1", True),
+    ],
+)
+def test_hotfix_version_progression(
+    tmp_path: Path, previous: str, candidate: str, succeeds: bool
+) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path, previous, changelog_for_versions((previous, "- Prior release"))
+    )
+    stage_and_commit(tmp_path, "Prior release")
+    tag(tmp_path, f"v{previous}")
+    write_release_files(
+        tmp_path, candidate, changelog_for_versions((candidate, "- Candidate"))
+    )
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == (0 if succeeds else 1), result.stderr
+    if not succeeds:
+        assert "does not advance beyond latest tag" in result.stderr
+
+
+@pytest.mark.parametrize("tag_source", ["argument", "environment"])
+def test_hotfix_tag_publish_accepts_finalized_notes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tag_source: str
+) -> None:
+    init_repo(tmp_path)
+    write_release_files(tmp_path, "3.2.6.1", "## [3.2.6.1] - 2026-09-08\n- Fix first run\n")
+    stage_and_commit(tmp_path, "Hotfix release")
+    tag(tmp_path, "v3.2.6")
+    tag(tmp_path, "v3.2.6.1")
+    if tag_source == "environment":
+        monkeypatch.setenv("GITHUB_REF_NAME", "v3.2.6.1")
+        args = ("--mode", "tag")
+    else:
+        args = ("--mode", "tag", "--tag", "v3.2.6.1")
+
+    result = run_validator(tmp_path, *args)
+
+    assert result.returncode == 0, result.stderr
+    assert "Tag: v3.2.6.1" in result.stdout
+
+
+def test_hotfix_tag_rejects_unfinalized_notes(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path, "3.2.6.1", unreleased_changelog("3.2.6.1", "- Fix first run")
+    )
+    stage_and_commit(tmp_path, "Pending hotfix")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v3.2.6.1")
+
+    assert result.returncode == 1
+    assert "still marked 'Unreleased'" in result.stderr
+
+
+def test_hotfix_release_rejects_newer_migration_target(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path, "3.2.6.1", changelog_for_versions(("3.2.6.1", "- Fix first run"))
+    )
+    write_migration(tmp_path, "m_later_hotfix.py", "3.2.6.2")
+    stage_and_commit(tmp_path, "Hotfix with unreachable migration")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v3.2.6.1")
+
+    assert result.returncode == 1
+    assert "Release 3.2.6.1 is behind migration target(s): 3.2.6.2" in result.stderr
+
+
 def test_prerelease_fails_when_migration_target_is_newer_than_package(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(

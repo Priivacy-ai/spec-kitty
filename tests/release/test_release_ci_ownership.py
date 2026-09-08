@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import fnmatch
+import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +76,61 @@ def release_readiness_step(workflow: dict[str, Any], name: str) -> dict[str, Any
 
 def workflow_script_text(name: str) -> str:
     return (WORKFLOWS / "scripts" / name).read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("workflow_name", "event"),
+    [
+        ("ci-quality.yml", "pull_request"),
+        ("ci-quality.yml", "push"),
+        ("release-readiness.yml", "pull_request"),
+        ("ci-windows.yml", "pull_request"),
+        ("ci-windows.yml", "push"),
+        ("drift-detector.yml", "pull_request"),
+        ("drift-detector.yml", "push"),
+    ],
+)
+def test_maintenance_branch_receives_release_gates(workflow_name: str, event: str) -> None:
+    trigger = on_section(load_workflow(workflow_name))[event]
+
+    assert any(
+        fnmatch.fnmatchcase("release/3.2.6.x", pattern)
+        for pattern in trigger["branches"]
+    ), f"{workflow_name} {event} excludes the maintenance branch"
+
+
+@pytest.mark.parametrize("job_name", ["build-release", "publish-pypi"])
+@pytest.mark.parametrize(
+    ("version", "is_prerelease"),
+    [
+        ("3.2.6.1", False),
+        ("3.2.6.1rc1", True),
+        ("3.2.6.1alpha", True),
+        ("3.2.7beta2", True),
+        ("3.2.7", False),
+    ],
+)
+def test_release_workflow_classifies_hotfix_channel(
+    tmp_path: Path, job_name: str, version: str, is_prerelease: bool
+) -> None:
+    workflow = load_workflow("release.yml")
+    script = next(
+        step["run"]
+        for step in workflow["jobs"][job_name]["steps"]
+        if step.get("name") == "Classify release channel"
+    )
+    output = tmp_path / "github-output"
+
+    result = subprocess.run(
+        ["bash", "-eu", "-c", script],
+        env={**os.environ, "RELEASE_TAG": f"v{version}", "GITHUB_OUTPUT": str(output)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert output.read_text().strip() == f"is_prerelease={str(is_prerelease).lower()}"
 
 
 def test_ci_quality_runs_for_release_owned_paths() -> None:
