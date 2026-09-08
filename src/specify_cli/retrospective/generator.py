@@ -352,6 +352,17 @@ _BACKWARD_LANE_MOVES: frozenset[tuple[str, str]] = frozenset({
     ("in_review", "claimed"),
     ("in_progress", "planned"),
     ("in_progress", "claimed"),
+    # Rejection after approval: ``approved -> planned`` / ``approved -> in_progress``
+    # are documented rework edges of the lane matrix (docs/architecture/
+    # status-model.md), and ``move-task --to <lane> --force`` can rewind from any
+    # lane — including terminal ``done`` — so all rewinds out of ``approved`` and
+    # ``done`` toward implementation lanes count as backward moves (#3687).
+    ("approved", "planned"),
+    ("approved", "in_progress"),
+    ("approved", "claimed"),
+    ("done", "planned"),
+    ("done", "in_progress"),
+    ("done", "claimed"),
 })
 
 
@@ -360,8 +371,17 @@ def _is_backward_lane_event(event: dict[str, Any]) -> bool:
 
 
 def _is_review_rejection_event(event: dict[str, Any]) -> bool:
+    """A documented reviewer-feedback rewind out of in_review or approved.
+
+    Rewinds out of ``in_review`` are the classic rejection; rewinds out of
+    ``approved`` are rejection-after-approval (a later verification pass sent
+    an already-approved WP back, e.g. ``move-task --to planned --force
+    --review-feedback-file <path>``).  Both count as rejections only when the
+    event carries documented review feedback; feedback-free force rewinds out
+    of ``approved`` are lane friction (#3687).
+    """
     return (
-        event.get("from_lane", "") == "in_review"
+        event.get("from_lane", "") in ("in_review", "approved")
         and event.get("to_lane", "") in ("planned", "in_progress", "claimed")
         and _has_review_feedback(event)
     )
@@ -374,9 +394,9 @@ def _is_lane_friction_event(event: dict[str, Any]) -> bool:
 def _detect_rejection_cycles(events: list[dict[str, Any]]) -> dict[str, int]:
     """Return a mapping of wp_id -> rejection_cycle_count.
 
-    A rejection cycle is a documented reviewer-feedback transition out of
-    in_review. Earlier for_review rewinds and force moves are lane friction, not
-    review rejections.
+    A rejection cycle is a documented reviewer-feedback rewind out of
+    in_review or approved.  Earlier for_review rewinds and feedback-free
+    force moves are lane friction, not review rejections.
     """
     rejection_counts: dict[str, int] = {}
     for event in events:
@@ -990,6 +1010,7 @@ def _build_findings(
 
     rejection_counts = _detect_rejection_cycles(events)
     lane_friction_counts = _detect_lane_friction(events)
+    impl_cycle_counts = _detect_implementation_cycles(events)
     done_wps = _detect_done_wps(events)
 
     # --- Helped: WPs completed without rejection cycles.
@@ -1000,10 +1021,16 @@ def _build_findings(
     has_ingestor_content = bool(
         workflow_failures_text or analysis_report_text or review_report_text
     )
+    # A WP that needed >1 implementation cycle already carries a not_helpful
+    # finding; it must never also appear in helped, whatever the lane-history
+    # taxonomy says (#3687 — the two detectors use different definitions of
+    # "this WP had rework", and helped must lose every disagreement).
     clean_wps = [
         wp
         for wp in sorted(done_wps)
-        if rejection_counts.get(wp, 0) == 0 and lane_friction_counts.get(wp, 0) == 0
+        if rejection_counts.get(wp, 0) == 0
+        and lane_friction_counts.get(wp, 0) == 0
+        and impl_cycle_counts.get(wp, 0) == 0
     ]
     if rejection_counts or lane_friction_counts or has_ingestor_content:
         for wp_id in clean_wps:
@@ -1032,9 +1059,7 @@ def _build_findings(
         rejection_event_ids = [
             str(ev.get("event_id", ""))
             for ev in events
-            if ev.get("wp_id") == wp_id
-            and ev.get("from_lane") in ("for_review", "in_review")
-            and ev.get("to_lane") in ("planned", "in_progress", "claimed")
+            if ev.get("wp_id") == wp_id and _is_review_rejection_event(ev)
         ]
         range_str = (
             f"{rejection_event_ids[0]}..{rejection_event_ids[-1]}"
@@ -1047,7 +1072,10 @@ def _build_findings(
                 id=_next_finding_id("n", finding_id_counters),
                 category="review_loop",
                 summary=f"{wp_id} required {count} rejection cycle(s) before approval",
-                details=f"WP {wp_id} was sent back from review to planning {count} time(s).",
+                details=(
+                    f"WP {wp_id} was sent back from review/approval to an earlier "
+                    f"lane {count} time(s)."
+                ),
                 evidence_refs=[ev_id],
             )
         )
