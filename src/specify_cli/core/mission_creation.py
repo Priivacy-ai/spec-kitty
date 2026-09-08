@@ -33,7 +33,7 @@ from specify_cli.core.checkout_ownership import (
     resolve_ownership_claim,
 )
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.git_ops import get_current_branch, is_git_repo
+from specify_cli.core.git_ops import get_current_branch, has_unborn_head, is_git_repo
 from specify_cli.core.mission_payload import (
     build_mission_created_payload,
     default_mission_display_name,
@@ -269,6 +269,119 @@ def _list_coordination_branches(repo_root: Path) -> frozenset[str]:
     return frozenset(line.strip() for line in result.stdout.splitlines() if line.strip())
 
 
+def _list_mission_scaffolds(repo_root: Path) -> frozenset[str]:
+    """Return the mission directory names currently under ``kitty-specs/``.
+
+    Mirrors :func:`_list_coordination_branches`: diffing this before vs after a
+    create identifies exactly the scaffold an aborted run wrote, never a
+    pre-existing mission. A missing ``kitty-specs/`` yields an empty set.
+    """
+    specs_root = repo_root / KITTY_SPECS_DIR
+    try:
+        return frozenset(entry.name for entry in specs_root.iterdir() if entry.is_dir())
+    except OSError:
+        return frozenset()
+
+
+def _path_is_tracked_by_git(repo_root: Path, path: Path) -> bool:
+    """True when git tracks any file under ``path``.
+
+    A create that failed at the bookkeeping commit leaves the scaffold
+    untracked by definition, so this should always be False on the rollback
+    path. It is checked anyway: deleting a directory is irreversible, and the
+    cost of being wrong is a user's committed work. Any git failure returns
+    True — refuse to delete when we cannot prove the directory is disposable.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "ls-files", "--", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return True
+    return bool(result.stdout.strip())
+
+
+def _failure_is_protected_branch_refusal(exc: BaseException) -> bool:
+    """True when ``exc`` (or anything it wraps) is a protected-branch refusal.
+
+    This is the discriminator that keeps the #4035 cleanup from eating the
+    resume-probe contract. Two create failures leave a scaffold, and they want
+    opposite treatment:
+
+    * ``ProtectedBranchRefused`` — the message tells the operator to re-run on a
+      feature branch, so retry IS the prescribed recovery and the leftover
+      scaffold is what turns that retry into a second mission. Remove it.
+    * Local ``MissionCreated`` persistence failure — the message says the
+      scaffold "is retained for explicit resume-probe diagnosis; do not retry
+      create until it is repaired or removed", and
+      ``agent mission check-prerequisites`` reads those directories
+      (``_matching_resume_probe_dirs``). Removing it would delete the evidence
+      the operator is being sent to inspect. Keep it.
+
+    The refusal is re-raised wrapped ("meta.json commit failed: …"), so the
+    cause chain is walked rather than the surface type.
+    """
+    from specify_cli.git.commit_helpers import ProtectedBranchRefused
+
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ProtectedBranchRefused):
+            return True
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def _plan_orphan_scaffold_removal(
+    repo_root: Path,
+    *,
+    mission_slug: str,
+    pre_existing_scaffolds: frozenset[str],
+) -> tuple[Path, ...]:
+    """Decide which scaffolds a failed create may delete — BEFORE any rollback.
+
+    Ordering matters. ``_restore_git_state_after_failed_create`` rewinds the
+    branch ref, which un-commits anything the aborted create committed, so a
+    tracked-ness check run *after* it would see every candidate as untracked
+    and the guard below would be inert. The decision is therefore taken here,
+    against the pre-rollback state, and applied afterwards.
+    """
+    removable: list[Path] = []
+    for name in sorted(_list_mission_scaffolds(repo_root) - pre_existing_scaffolds):
+        # ``mission_slug_formatted`` is ``<slug>-<mid8>``, so match the stem and
+        # never a same-prefixed neighbour ("task-list" must not match
+        # "task-list-api-01ABCDEF").
+        if name != mission_slug and not re.fullmatch(re.escape(mission_slug) + r"-[0-9A-Za-z]{8}", name):
+            continue
+        candidate = repo_root / KITTY_SPECS_DIR / name
+        if _path_is_tracked_by_git(repo_root, candidate):
+            continue
+        removable.append(candidate)
+    return tuple(removable)
+
+
+def _remove_orphan_mission_scaffolds(planned: tuple[Path, ...]) -> None:
+    """Delete the ``kitty-specs/`` scaffolds planned by :func:`_plan_orphan_scaffold_removal` (#4035).
+
+    Before this, a create that failed at the bookkeeping commit — most commonly
+    ``safe_commit`` refusing to commit to a protected branch — exited 1 but left
+    ``kitty-specs/<slug>-<ULID>/`` on disk, holding a ``meta.json`` that
+    declared a coordination branch which was never minted. Following the error
+    message's own advice then created a *second* mission directory, so one
+    intended mission produced two, one of them dead and invisible to every
+    branch.
+
+    Like the rest of the rollback this is best-effort and never raises: it must
+    not mask the original failure.
+    """
+    for candidate in planned:
+        with contextlib.suppress(OSError):
+            shutil.rmtree(candidate)
+
+
 def _restore_git_state_after_failed_create(
     repo_root: Path,
     *,
@@ -366,9 +479,11 @@ def create_mission_core(
     """Create a new mission, restoring git state if creation fails (FR-011).
 
     Failure-atomic wrapper around :func:`_create_mission_core_impl`. It captures
-    the operator's branch/checkout and the pre-existing coordination branches
-    *before* any git mutation, and on ANY failure restores the original checkout
-    and deletes the orphan coordination branch the aborted run minted (#3339).
+    the operator's branch/checkout, the pre-existing coordination branches, and
+    the pre-existing ``kitty-specs/`` scaffolds *before* any mutation. On ANY
+    failure it restores the original checkout, deletes the orphan coordination
+    branch the aborted run minted (#3339), and deletes the orphan mission
+    scaffold it wrote (#4035).
     See :func:`_create_mission_core_impl` for the full parameter contract.
     """
     # An explicit owned checkout is the write/commit surface. Snapshot that
@@ -381,6 +496,12 @@ def create_mission_core(
     original_commit: str | None = None
     original_index_tree: str | None = None
     pre_existing_coordination_branches: frozenset[str] = frozenset()
+    pre_existing_scaffolds: frozenset[str] = frozenset()
+    if rollback_root is not None:
+        # Snapshot the scaffold set even when the path is not a git repo: the
+        # scaffold is written to disk regardless, so the orphan is possible
+        # regardless (#4035).
+        pre_existing_scaffolds = _list_mission_scaffolds(rollback_root)
     if rollback_root is not None and is_git_repo(rollback_root):
         original_branch = get_current_branch(rollback_root)
         original_commit_result = subprocess.run(
@@ -418,10 +539,19 @@ def create_mission_core(
             retain_branches=retain_branches,
             retain_worktrees=retain_worktrees,
         )
-    except BaseException:
+    except BaseException as _create_exc:
         # Re-raised below; the rollback is pure cleanup and must not swallow or
         # replace the original failure (that is why we re-raise unconditionally).
         if rollback_root is not None:
+            # Planned BEFORE the git rollback: that rollback rewinds the branch
+            # ref, so the tracked-ness guard must read the pre-rewind state.
+            planned_scaffold_removal: tuple[Path, ...] = ()
+            if _failure_is_protected_branch_refusal(_create_exc):
+                planned_scaffold_removal = _plan_orphan_scaffold_removal(
+                    rollback_root,
+                    mission_slug=mission_slug,
+                    pre_existing_scaffolds=pre_existing_scaffolds,
+                )
             _restore_git_state_after_failed_create(
                 rollback_root,
                 original_branch=original_branch,
@@ -429,6 +559,12 @@ def create_mission_core(
                 original_index_tree=original_index_tree,
                 pre_existing_coordination_branches=pre_existing_coordination_branches,
             )
+            # #4035: git state alone is not the whole side effect. On a
+            # protected-branch refusal the on-disk scaffold outlives the failed
+            # create and turns the documented recovery into a second mission,
+            # so it goes too. Other failure classes keep theirs (see
+            # ``_failure_is_protected_branch_refusal``).
+            _remove_orphan_mission_scaffolds(planned_scaffold_removal)
         raise
 
 
@@ -584,6 +720,28 @@ def _create_mission_core_impl(
 
     if resolved_root is None:
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
+
+    # Fail closed on an unborn HEAD (#4033). A repository with no commits
+    # cannot have a branch created in it, so the coordination branch this
+    # mission declares in ``meta.json`` could never be minted. Creation used to
+    # run to completion anyway and report success, leaving a mission that only
+    # ``doctor coordination --fix`` could recover — the state a beginner lands
+    # in by following Getting Started on a repo they just ``git init``-ed.
+    # Refuse before writing any scaffold, so there is nothing to clean up.
+    #
+    # Scoped to coordination-bearing topologies only: branch-flat shapes
+    # (SINGLE_BRANCH, LANES) skip the mint entirely, so an unborn HEAD costs
+    # them nothing and blocking them would be a gratuitous refusal.
+    from specify_cli.missions._create import topology_mints_coordination_branch
+
+    if topology_mints_coordination_branch(topology) and is_git_repo(resolved_root) and has_unborn_head(resolved_root):
+        raise MissionCreationError(
+            "This repository has no commits yet, so Spec Kitty cannot create the "
+            "mission's coordination branch (git cannot branch from an unborn HEAD).\n\n"
+            "Make an initial commit first, then create the mission:\n"
+            "  git commit --allow-empty -m 'Initial commit'\n\n"
+            "If the repository already has files staged, commit those instead."
+        )
 
     effective_root = (
         ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else resolved_root

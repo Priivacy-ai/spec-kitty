@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-03'
+updated: '2026-09-08'
 ---
 # Changelog
 
@@ -12,6 +12,22 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.2.6.1] - 2026-09-08
+
+_Patch release off the 3.2.6 line. First-run correctness only: nothing else from the 3.2.7 development line is included, and the public 3.2.6 API is unchanged._
+
+### Fixed
+
+- **A failed `spec-kitty specify` left an orphan mission behind, and the recovery it recommended then created a second one (`#4035`).** **Before:** running `specify` from a protected branch (`main`) failed the bookkeeping commit with `safe_commit: refusing to commit to protected branch` and exited 1 — but the mission scaffold had already been written, so `kitty-specs/<slug>-<ULID>/` was left on disk, untracked, holding a `meta.json` that declared a coordination branch which was never minted. Following the error message's own advice (`agent mission create --start-branch <branch>`) then minted a _second_ mission directory. One intended mission, two directories, one of them dead and invisible to every branch. **After:** the rollback removes the scaffold the aborted run wrote, so the recommended recovery produces exactly one mission. **Scope:** deletion fires only on a protected-branch refusal — the failure class whose own message tells you to retry. A create that fails on local `MissionCreated` persistence still keeps its scaffold, because that message says _not_ to retry and `agent mission check-prerequisites` reads those directories for resume-probe diagnosis. Removal is further limited to a directory that did not exist before the call, matches the requested slug, and has nothing tracked by git.
+
+- **Creating a mission in a repository with no commits reported success and produced a mission that was broken on arrival (`#4033`).** **Before:** git cannot create a branch from an unborn HEAD, so on a freshly `git init`-ed project every coordination-bearing mission wrote a `coordination_branch` naming a ref that was never minted — and creation exited 0 anyway. **After:** mission creation refuses up front with a non-zero exit, names the remedy (`git commit --allow-empty -m 'Initial commit'`), and writes no scaffold. Branch-flat topologies (`single_branch`, `lanes`) mint no coordination branch and are unaffected.
+
+- **The Getting Started tutorial did not work as written (`#3988`).** Three defects on the documented first-run path: it never told the reader to run `git init`, so the first real command failed with `SPEC_KITTY_REPO_NOT_INITIALIZED`; it and _Your First Mission_ both instructed the reader to create a task-list spec, with different prompts, so following both produced two missions; and both predicted a `###-task-list` directory name the CLI has not produced since the mission-identity model landed, next to an instruction to `ls kitty-specs` and compare. All three are corrected, and _Your First Mission_ now continues the mission Getting Started created instead of making another.
+
+### Changed
+
+- **Package metadata points at the current home.** `[project.urls]` and the user-facing repository references in the CLI now name `spec-kitty/spec-kitty` rather than the retired `Priivacy-ai` org, so this release does not republish stale links to PyPI. Includes `_CANONICAL_REPO_SLUG`, which builds issue URLs at runtime. Docstring and code-comment references are untouched on this line; the full sweep lives on the development line.
 
 ## [3.2.6] - 2026-09-03
 

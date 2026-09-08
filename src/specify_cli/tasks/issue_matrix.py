@@ -102,7 +102,7 @@ _GH_ISSUE_PATTERN = re.compile(
 # No canonical repo-slug constant existed elsewhere in the codebase to
 # reuse (D7 research finding); this is the single Python-side
 # discrimination point (match-then-filter), not a second regex.
-_CANONICAL_REPO_SLUG = "Priivacy-ai/spec-kitty"
+_CANONICAL_REPO_SLUG = "spec-kitty/spec-kitty"
 
 
 def _matched_issue_number(match: re.Match[str]) -> int | None:

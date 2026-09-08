@@ -100,6 +100,41 @@ def is_git_repo(path: Path | None = None) -> bool:
         return False
 
 
+def has_unborn_head(path: Path | None = None) -> bool:
+    """Return True when the repository has no commits yet (an unborn HEAD).
+
+    A freshly ``git init``-ed repository has a HEAD that points at a branch
+    ref which does not exist yet.  Git cannot create a branch in that state,
+    so anything that mints a ref off the current branch — the coordination
+    branch, most importantly — silently cannot work until the first commit
+    lands (#4033).
+
+    Returns ``False`` for a non-repository or when git is unavailable: callers
+    guard on :func:`is_git_repo` separately, and this predicate must never be
+    the thing that reports "no commits" for a directory that is not a repo at
+    all.
+    """
+    target = (path or Path.cwd()).resolve()
+    if not target.is_dir():
+        return False
+    # ``git rev-parse --verify HEAD`` fails both for an unborn HEAD and for a
+    # directory that is not a repository at all. Only the former is "no commits
+    # yet", so establish repo-ness first — otherwise this predicate would tell a
+    # non-repo caller to run ``git commit``.
+    if not is_git_repo(target):
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            capture_output=True,
+            check=False,
+            cwd=target,
+        )
+    except FileNotFoundError:
+        return False
+    return result.returncode != 0
+
+
 def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType = None) -> bool:
     """Initialize a git repository with an initial commit.
 
@@ -498,6 +533,7 @@ __all__ = [
     "exclude_from_git_index",
     "get_current_branch",
     "has_remote",
+    "has_unborn_head",
     "has_tracking_branch",
     "init_git_repo",
     "is_git_repo",

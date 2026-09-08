@@ -142,7 +142,7 @@ def probe_pypi(
 
     user_agent = (
         f"spec-kitty-cli/{cli_version} "
-        "(https://github.com/Priivacy-ai/spec-kitty)"
+        "(https://github.com/spec-kitty/spec-kitty)"
     )
     probed_at = now_utc()
 

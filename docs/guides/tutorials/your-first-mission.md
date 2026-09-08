@@ -2,7 +2,7 @@
 title: 'Your First Mission: Complete Workflow'
 description: Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge.
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-08'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -18,7 +18,8 @@ This tutorial walks you through the entire Spec Kitty workflow from specificatio
 Except for the one-time CLI install, everything below happens inside your AI agent's chat interface — Claude Code, Codex CLI, or another configured harness. When a step says "in your agent," open that chat and type the command there; it is not a bare-terminal instruction.
 
 **Time**: ~2 hours
-**Prerequisites**: Completed [Getting Started](getting-started.md)
+**Prerequisites**: Completed [Getting Started](getting-started.md) — including its
+mission, which this tutorial continues rather than re-creating (see Step 1)
 
 ![Your first Spec Kitty mission - Mission Kitty briefing](../../assets/images/your-first-mission-mission-kitty.png)
 
@@ -39,18 +40,31 @@ You will build a tiny "task list" feature as the concrete example.
 
 ## Step 1: Create the Specification
 
+>[!IMPORTANT]
+>**If you came here from [Getting Started](getting-started.md), you already
+>created this mission — skip to [Step 2](#step-2-create-the-technical-plan).**
+>Running `specify` again does not edit or replace that mission; it creates a
+>second one, and you would spend the rest of this tutorial with two task-list
+>missions and no indication of which one you are working in.
+>
+>Confirm what you already have with `ls kitty-specs`. One directory means you
+>are ready for Step 2.
+
+Starting fresh, without having done Getting Started? Create the mission now.
 From the project root, in your agent:
 
 ```text
-/spec-kitty.specify Build a task list app with add, complete, and delete actions.
+/spec-kitty.specify Build a tiny command-line task list app with add, complete, and delete actions.
 ```
 
 Answer the discovery interview until it completes. This runs inside your agent's interactive chat — Claude Code, Codex CLI, or any other configured harness — the agent asks a discovery interview before writing anything; keep answering until it says the interview is complete.
 
 Expected results:
 
-- `kitty-specs/###-task-list/spec.md`
-- A new mission directory created under `kitty-specs/`
+- One new mission directory under `kitty-specs/`, named `<slug>-<id>` — for
+  example `task-list-01M20JM4`. The trailing token is the mission's own
+  identifier, so yours will differ.
+- `spec.md` inside it
 
 **Starting from an upstream brief instead?** If your brief was exported by
 another requirements tool and carries YAML frontmatter with
