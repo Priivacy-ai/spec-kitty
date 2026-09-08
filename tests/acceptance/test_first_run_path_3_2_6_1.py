@@ -156,6 +156,28 @@ def test_plan_runs_on_the_mission_the_tutorial_creates(project: Path) -> None:
     assert _cli(project, "specify", "Build a tiny command-line task list app.").returncode == 0
 
     mission = _missions(project)[0]
+    # The agent's specify workflow authors and commits the specification after
+    # CLI scaffold creation. Exercise that documented boundary with real Git.
+    spec_file = project / "kitty-specs" / mission / "spec.md"
+    spec_file.write_text(
+        "# Task List Specification\n\n"
+        "## Functional Requirements\n\n"
+        "- **FR-001**: Users can add a task with a non-empty title.\n"
+        "- **FR-002**: Users can mark an existing task complete.\n"
+        "- **FR-003**: Users can delete an existing task by its identifier.\n\n"
+        "## Acceptance Scenarios\n\n"
+        "Adding a task preserves its title and assigns a stable identifier.\n"
+        "Completing that identifier marks only that task complete.\n"
+        "Deleting that identifier removes it from the task list.\n",
+        encoding="utf-8",
+    )
+    committed = _cli(
+        project, "spec-commit", "--mission", mission,
+        "--message", "Add task list specification", str(spec_file), "--json",
+    )
+    assert committed.returncode == 0, _unwrapped(committed)
+    tracked_spec = _git(project, "show", f"HEAD:{spec_file.relative_to(project).as_posix()}")
+    assert tracked_spec.stdout == spec_file.read_text(encoding="utf-8")
     result = _cli(project, "plan", "--mission", mission, "--json")
 
     assert result.returncode == 0, f"`plan` failed on a freshly created mission:\n{result.stdout}\n{result.stderr}"

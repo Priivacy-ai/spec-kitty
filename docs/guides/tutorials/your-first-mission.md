@@ -48,7 +48,8 @@ You will build a tiny "task list" feature as the concrete example.
 >missions and no indication of which one you are working in.
 >
 >Confirm what you already have with `ls kitty-specs`. One directory means you
->are ready for Step 2.
+>have the mission to continue in Step 2; its specification must also be
+>populated and committed before planning.
 
 Starting fresh, without having done Getting Started? Create the mission now.
 From the project root, in your agent:
@@ -79,6 +80,33 @@ the plain-prose flow above, and the discovery interview still runs. See
 
 Stay in the repository root checkout. Planning happens there, but the mission target branch can be the current branch or an explicit branch you chose before creation.
 
+In your terminal, capture the exact directory name from Getting Started. The
+commands below use this handle throughout; repeat this assignment if you open a
+new terminal:
+
+```bash
+ls kitty-specs
+printf 'Paste your mission directory name: '
+read -r MISSION
+test -f "kitty-specs/$MISSION/spec.md"
+MISSION_ID=$(jq -r .mission_id "kitty-specs/$MISSION/meta.json")
+```
+
+Finish the specification with your agent before planning: it must contain real
+Functional Requirements and be committed. Mission creation commits the generated
+metadata and task scaffold, but leaves the initial `spec.md` uncommitted for your
+agent to populate. The agent's `specify` workflow uses `spec-kitty spec-commit`
+after authoring and reviewing the specification. If you edited the spec yourself,
+commit it from the same planning branch:
+
+```bash
+spec-kitty spec-commit --mission "$MISSION" --message "Add task list specification" \
+  "kitty-specs/$MISSION/spec.md"
+```
+
+An unedited scaffold or an uncommitted specification blocks planning. Complete
+that work before continuing.
+
 In your agent:
 
 ```text
@@ -89,7 +117,7 @@ Answer the planning questions and confirm the Engineering Alignment summary.
 
 Expected results:
 
-- `kitty-specs/###-task-list/plan.md`
+- `kitty-specs/$MISSION/plan.md`
 - Updated planning artifacts in the repository root checkout
 
 ## Step 3: Generate Work Packages
@@ -103,7 +131,7 @@ In your agent:
 This generates `tasks.md` and individual work package files under:
 
 ```
-kitty-specs/###-task-list/tasks/
+kitty-specs/$MISSION/tasks/
 ```
 
 Each WP file includes frontmatter with its `lane` and dependencies.
@@ -137,7 +165,7 @@ directly only when scripting, running non-interactively, or debugging.
 Start the mission loop from your terminal:
 
 ```bash
-spec-kitty next --agent claude --mission ###-task-list --json
+spec-kitty next --agent claude --mission "$MISSION" --json
 ```
 
 The runtime returns the next action to take. During implementation you will usually see an `implement` decision for a specific WP.
@@ -151,7 +179,7 @@ spec-kitty agent action implement WP01 --agent claude
 That command allocates or reuses the correct lane workspace. Make your code changes there, run the relevant tests, then report the result back to the runtime:
 
 ```bash
-spec-kitty next --agent claude --mission ###-task-list --result success --json
+spec-kitty next --agent claude --mission "$MISSION" --result success --json
 ```
 
 Repeat the loop until the runtime starts issuing review work instead of implementation work.
@@ -167,9 +195,9 @@ or run the CLI form shown above directly — useful for scripting or a non-inter
 #### Same loop, another harness
 
 ```bash
-spec-kitty next --agent codex --mission ###-task-list --json
+spec-kitty next --agent codex --mission "$MISSION" --json
 spec-kitty agent action implement WP01 --agent codex
-spec-kitty next --agent codex --mission ###-task-list --result success --json
+spec-kitty next --agent codex --mission "$MISSION" --result success --json
 ```
 
 The loop is identical for every supported harness — only the `--agent` value changes.
@@ -225,9 +253,9 @@ Before you move on, complete the three post-merge steps:
 2. **Verify the retrospective** — under default policy Spec Kitty already wrote a
    `retrospective.yaml` during merge. Find it at:
    ```bash
-   cat .kittify/missions/$(jq -r .mission_id kitty-specs/###-task-list/meta.json)/retrospective.yaml
+   cat ".kittify/missions/$MISSION_ID/retrospective.yaml"
    ```
-   If the file is absent, author it: `spec-kitty retrospect create --mission ###-task-list`.
+   If the file is absent, author it: `spec-kitty retrospect create --mission "$MISSION_ID"`.
 3. **Surface findings** — review the record's proposals:
    ```bash
    spec-kitty retrospect summary                              # cross-mission aggregation (read-only)

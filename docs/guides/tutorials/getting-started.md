@@ -124,7 +124,10 @@ Expected results:
   example `task-list-01M20JM4`. The trailing token is the mission's own
   identifier, so yours will differ.
 - `spec.md` inside it (the mission spec)
-- No Git commit is created automatically; `init` and planning commands leave commit control to you
+- Mission creation commits its generated metadata, event log, and task scaffold.
+  Your agent then writes the substantive specification and commits it with
+  `spec-kitty spec-commit`; the initial `spec.md` scaffold alone is not ready
+  for planning.
 
 >[!NOTE]
 >Run `specify` **once**. Each run creates a separate mission, so running it
