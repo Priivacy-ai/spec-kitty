@@ -96,9 +96,16 @@ All shims re-export the same function objects (identity preserved) and add **no 
      disabled state (deleting the variable no longer disables it — the default
      is on) / `monkeypatch.setenv(..., "1")` for the enabled state.
    - The autouse fixture at `tests/conftest.py` sets the gate ON by default; dual-mode tests opt out explicitly.
-   - The deterministic CI producer (`.github/workflows/ci.yml`) pins its own
-     ambient environment to `SPEC_KITTY_ENABLE_SAAS_SYNC=0` (and no URL) so
-     the suite never depends on the default or on runner ambient state.
+   - The suite's own environment is pinned by `tests/conftest.py`'s
+     collection-wide authority (`os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")`,
+     #3213) — the suite never depends on the packaged default or on runner
+     ambient state, and a producer must NOT pre-set the flag to `0` in the
+     pytest environment (that would suppress the collection-time authority and
+     skip the import-time gated tests). The CI workflows that invoke the CLI
+     itself outside pytest pin their own opt-out instead (e.g.
+     `.github/workflows/ci-windows.yml`). The former monolithic
+     `.github/workflows/ci.yml` ambient pin was retired with that workflow's
+     modular replacement on `main`.
 
 ---
 
