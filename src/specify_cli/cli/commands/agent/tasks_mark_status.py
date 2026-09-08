@@ -472,6 +472,77 @@ def _ms_output(st: _MarkStatusState) -> None:
     _tasks._output_result(st.json_output, result, success_msg)
 
 
+def _recovery_commit_sha(error: BaseException) -> str | None:
+    """Return the first ``commit_sha`` riding *error*'s cause/context chain.
+
+    A transactional owned-mode emit may commit a recovery commit before the
+    failure surfaces, stamping the commit sha on the exception it raises —
+    possibly one or more ``raise … from`` hops down the chain. The walk is
+    cycle-safe (an exception graph that loops back on itself terminates) and
+    ignores non-string/empty ``commit_sha`` attributes.
+    """
+    cause: BaseException | None = error
+    visited_causes: set[int] = set()
+    while cause is not None and id(cause) not in visited_causes:
+        visited_causes.add(id(cause))
+        candidate_sha = getattr(cause, "commit_sha", None)
+        if isinstance(candidate_sha, str) and candidate_sha:
+            return candidate_sha
+        cause = cause.__cause__ or cause.__context__
+    return None
+
+
+def _reconstruct_applied_events(
+    owned: OwnedMission,
+    error: BaseException,
+    events_path: Path | None,
+) -> list[dict[str, object]]:
+    """Reconstruct which status events a failed owned mark-status applied (#3865).
+
+    Diffs the ``status.events.jsonl`` blob recorded in the recovery commit named
+    by *error*'s cause chain against the same blob in that commit's parent, so
+    the error payload reports exactly the events this command landed — never a
+    concurrent writer's. Returns ``[]`` when no recovery commit sha rides the
+    chain or *events_path* is unknown; a malformed or key-incomplete log row
+    suppresses detection wholesale rather than crashing the error path.
+    """
+    recovery_commit_sha = _recovery_commit_sha(error)
+    if recovery_commit_sha is None or events_path is None:
+        return []
+    relative_events = events_path.relative_to(owned.root).as_posix()
+    committed_log = subprocess.run(
+        ["git", "show", f"{recovery_commit_sha}:{relative_events}"],
+        cwd=owned.root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    parent_log = subprocess.run(
+        ["git", "show", f"{recovery_commit_sha}^:{relative_events}"],
+        cwd=owned.root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    with contextlib.suppress(ValueError, KeyError):
+        parent_ids = {
+            str(row["event_id"])
+            for line in parent_log.stdout.splitlines()
+            if parent_log.returncode == 0 and line.strip()
+            for row in (json.loads(line),)
+        }
+        return [
+            row
+            for line in committed_log.stdout.splitlines()
+            if committed_log.returncode == 0 and line.strip()
+            for row in (json.loads(line),)
+            if str(row["event_id"]) not in parent_ids
+        ]
+    return []
+
+
 def _do_mark_status(
     task_ids: list[str],
     status: str,
@@ -520,48 +591,8 @@ def _do_mark_status(
                 else None
             )
             detected: list[dict[str, object]] = []
-            recovery_commit_sha = None
-            cause: BaseException | None = e
-            visited_causes: set[int] = set()
-            while cause is not None and id(cause) not in visited_causes:
-                visited_causes.add(id(cause))
-                candidate_sha = getattr(cause, "commit_sha", None)
-                if isinstance(candidate_sha, str) and candidate_sha:
-                    recovery_commit_sha = candidate_sha
-                    break
-                cause = cause.__cause__ or cause.__context__
-            if recovery_commit_sha is not None and st.owned is not None and events_path is not None:
-                relative_events = events_path.relative_to(st.owned.root).as_posix()
-                committed_log = subprocess.run(
-                    ["git", "show", f"{recovery_commit_sha}:{relative_events}"],
-                    cwd=st.owned.root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    check=False,
-                )
-                parent_log = subprocess.run(
-                    ["git", "show", f"{recovery_commit_sha}^:{relative_events}"],
-                    cwd=st.owned.root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    check=False,
-                )
-                with contextlib.suppress(ValueError, KeyError):
-                    parent_ids = {
-                        str(row["event_id"])
-                        for line in parent_log.stdout.splitlines()
-                        if parent_log.returncode == 0 and line.strip()
-                        for row in (json.loads(line),)
-                    }
-                    detected = [
-                        row
-                        for line in committed_log.stdout.splitlines()
-                        if committed_log.returncode == 0 and line.strip()
-                        for row in (json.loads(line),)
-                        if str(row["event_id"]) not in parent_ids
-                    ]
+            if st.owned is not None and events_path is not None:
+                detected = _reconstruct_applied_events(st.owned, e, events_path)
             event_ids = list(dict.fromkeys([
                 *st.applied_event_ids,
                 *(str(row["event_id"]) for row in detected),
