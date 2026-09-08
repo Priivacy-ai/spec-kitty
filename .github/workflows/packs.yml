@@ -151,7 +151,12 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.built_in == 'true' }}
     steps:
+      # fetch-depth: 0 — the corpus suite includes the shrink-only ratchet
+      # (test_transition_guard_shrink_only), which walks history to the EXP port
+      # base commit; a shallow clone can't reach it and the test fails closed.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -162,8 +167,11 @@ jobs:
       - run: |
           uv sync --frozen --all-extras
           # corpus exit-5 floor (#3008): "no tests collected" is a failure,
-          # never a silent pass — do not swallow the exit code.
-          uv run --frozen pytest -m "corpus and not windows_ci" --cov=src/doctrine --cov-report=term-missing -q
+          # never a silent pass — do not swallow the exit code. Run parallel
+          # (--dist loadfile, per-worker HOME isolation via conftest): ~1400
+          # corpus tests serial overran the 20-min timeout (the job was
+          # cancelled), mirroring the ci-router tests-corpus fix.
+          uv run --frozen pytest -m "corpus and not windows_ci" -n auto --dist loadfile --cov=src/doctrine --cov-report=term-missing -q
 
   built-in-plugin-validate:
     name: built-in / plugin build + claude plugin validate --strict
