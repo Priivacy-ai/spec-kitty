@@ -29,9 +29,8 @@ from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 
 pytestmark = pytest.mark.fast
 
-def _create_events_file(
-    feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test"
-) -> None:
+
+def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test") -> None:
     """Create a minimal status.events.jsonl matching the given WP states.
 
     Prevents doctor from flagging 'status.json exists but events file missing'.
@@ -1276,7 +1275,6 @@ class TestDoctorCLI:
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands.agent.status import app
-
 
         runner = CliRunner()
 

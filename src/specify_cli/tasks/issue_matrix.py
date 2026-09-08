@@ -256,11 +256,7 @@ def parse_issue_matrix_document(data: Mapping[str, Any]) -> dict[str, IssueMatri
     raw_rows = data.get("rows", {})
     if not isinstance(raw_rows, Mapping):
         return {}
-    return {
-        str(issue_ref): IssueMatrixEntry.from_dict(entry)
-        for issue_ref, entry in raw_rows.items()
-        if isinstance(entry, Mapping)
-    }
+    return {str(issue_ref): IssueMatrixEntry.from_dict(entry) for issue_ref, entry in raw_rows.items() if isinstance(entry, Mapping)}
 
 
 def write_issue_matrix(
@@ -300,9 +296,7 @@ def write_issue_matrix(
     def _stage() -> tuple[Path, ...]:
         # T029 (#3073): the write moves INTO the thunk so a refused write
         # never materializes ``issue-matrix.json`` on disk (no residue).
-        path.write_text(
-            json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return (path,)
 
     return write_artifact(
@@ -368,14 +362,9 @@ def scaffold_issue_matrix(
     if effective_root is not None:
         from mission_runtime import placement_seam
 
-        issue_matrix_dir = placement_seam(repo_root, mission_slug, effective_root=effective_root).read_dir(
-            MissionArtifactKind.ISSUE_MATRIX
-        )
+        issue_matrix_dir = placement_seam(repo_root, mission_slug, effective_root=effective_root).read_dir(MissionArtifactKind.ISSUE_MATRIX)
     else:
-        issue_matrix_dir = (
-            coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
-            or feature_dir
-        )
+        issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
     json_path = issue_matrix_dir / ISSUE_MATRIX_JSON_FILENAME
     if json_path.exists() or (issue_matrix_dir / ISSUE_MATRIX_MD_FILENAME).exists():
         # Respect existing content (JSON or legacy .md) -- idempotent re-runs

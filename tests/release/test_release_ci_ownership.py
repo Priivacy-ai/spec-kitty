@@ -98,10 +98,7 @@ def workflow_script_text(name: str) -> str:
 def test_maintenance_branch_receives_release_gates(workflow_name: str, event: str) -> None:
     trigger = on_section(load_workflow(workflow_name))[event]
 
-    assert any(
-        fnmatch.fnmatchcase("release/3.2.6.x", pattern)
-        for pattern in trigger["branches"]
-    ), f"{workflow_name} {event} excludes the maintenance branch"
+    assert any(fnmatch.fnmatchcase("release/3.2.6.x", pattern) for pattern in trigger["branches"]), f"{workflow_name} {event} excludes the maintenance branch"
 
 
 @pytest.mark.parametrize("job_name", ["build-release", "publish-pypi"])
@@ -118,15 +115,9 @@ def test_maintenance_branch_receives_release_gates(workflow_name: str, event: st
         ("3.2.7", False),
     ],
 )
-def test_release_workflow_classifies_hotfix_channel(
-    tmp_path: Path, job_name: str, version: str, is_prerelease: bool
-) -> None:
+def test_release_workflow_classifies_hotfix_channel(tmp_path: Path, job_name: str, version: str, is_prerelease: bool) -> None:
     workflow = load_workflow("release.yml")
-    script = next(
-        step["run"]
-        for step in workflow["jobs"][job_name]["steps"]
-        if step.get("name") == "Classify release channel"
-    )
+    script = next(step["run"] for step in workflow["jobs"][job_name]["steps"] if step.get("name") == "Classify release channel")
     output = tmp_path / "github-output"
 
     result = subprocess.run(
@@ -162,10 +153,7 @@ def test_ci_quality_docs_contract_gate_runs_for_docs_changes() -> None:
 
     for event in ("pull_request", "push"):
         missing = DOCS_CONTRACT_CI_PATHS - event_paths(workflow, event)
-        assert not missing, (
-            f"CI Quality {event} trigger misses docs-contract paths: "
-            f"{sorted(missing)}"
-        )
+        assert not missing, f"CI Quality {event} trigger misses docs-contract paths: {sorted(missing)}"
     for path in DOCS_CONTRACT_CI_PATHS:
         assert f"- '{path}'" in filters, f"core_misc path filter misses {path}"
 
@@ -184,26 +172,15 @@ def test_release_readiness_runs_for_all_version_sources() -> None:
     workflow = load_workflow("release-readiness.yml")
     paths = event_paths(workflow, "pull_request")
     filters = release_readiness_filter_text(workflow)
-    validate_step = next(
-        step
-        for step in workflow["jobs"]["check-readiness"]["steps"]
-        if step.get("id") == "validate"
-    )
+    validate_step = next(step for step in workflow["jobs"]["check-readiness"]["steps"] if step.get("id") == "validate")
 
     missing_paths = RELEASE_VERSION_SOURCE_PATHS - paths
-    assert not missing_paths, (
-        "Release Readiness pull_request trigger misses version source paths: "
-        f"{sorted(missing_paths)}"
-    )
+    assert not missing_paths, f"Release Readiness pull_request trigger misses version source paths: {sorted(missing_paths)}"
 
     for path in RELEASE_VERSION_SOURCE_PATHS:
-        assert f"- '{path}'" in filters, (
-            f"Release Readiness metadata filter misses {path}"
-        )
+        assert f"- '{path}'" in filters, f"Release Readiness metadata filter misses {path}"
     for path in RELEASE_VALIDATOR_SURFACE_PATHS:
-        assert f"- '{path}'" in filters, (
-            f"Release Readiness validator filter misses {path}"
-        )
+        assert f"- '{path}'" in filters, f"Release Readiness validator filter misses {path}"
 
     assert "version_sources" in filters
     assert "version_bump" in filters
@@ -220,9 +197,7 @@ def test_release_readiness_consistency_summary_does_not_claim_release_ready() ->
     workflow = load_workflow("release-readiness.yml")
     summary_script = release_readiness_step(workflow, "Generate readiness summary")["run"]
 
-    consistency_start = summary_script.index(
-        '"${{ steps.validate.outputs.scope }}" == "consistency"'
-    )
+    consistency_start = summary_script.index('"${{ steps.validate.outputs.scope }}" == "consistency"')
     full_start = summary_script.index(
         'elif [[ "${{ steps.validate.outcome }}" == "success" ]]',
         consistency_start,
@@ -280,6 +255,7 @@ def test_ci_quality_has_no_saas_consumer_compatibility_job() -> None:
     for retired in ("check_candidate_consumer_compat.py", "consumer-compatibility.json", "IS_CANONICAL_REPO", "fetch_contract"):
         assert retired not in text, retired
 
+
 def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     workflow = load_workflow("ci-quality.yml")
     quality_gate = workflow["jobs"]["quality-gate"]
@@ -302,11 +278,7 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     # any entry is absent from ``needs`` and FAILS any release-touching PR
     # where one did not succeed (skipped is not enough) — semantics pinned by
     # tests/scripts/test_quality_gate_decision.py.
-    decision_step = next(
-        step
-        for step in quality_gate["steps"]
-        if step.get("name") == "Evaluate quality-gate decision"
-    )
+    decision_step = next(step for step in quality_gate["steps"] if step.get("name") == "Evaluate quality-gate decision")
     assert decision_step["env"]["NEEDS_JSON"] == "${{ toJSON(needs) }}"
     # The step pipes the script into ``tee -a "$GITHUB_STEP_SUMMARY"``. Without
     # ``shell: bash`` GitHub runs it under ``bash -e {0}`` (no pipefail), so the
@@ -314,17 +286,13 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     # release-required job (or exit 1 blocking verdict) is swallowed — the gate
     # never fails. ``shell: bash`` turns pipefail on. Pin it here too.
     assert decision_step.get("shell") == "bash", (
-        "quality-gate decision step must set ``shell: bash`` so pipefail "
-        "propagates the script's non-zero exit through ``| tee``"
+        "quality-gate decision step must set ``shell: bash`` so pipefail propagates the script's non-zero exit through ``| tee``"
     )
     script = decision_step["run"]
     assert "scripts/ci/quality_gate_decision.py" in script
     release_block = script.split("RELEASE_REQUIRED_JOBS = [", 1)[1].split("]", 1)[0]
     for job_name in release_required - {"changes"}:
-        assert f'"{job_name}"' in release_block, (
-            f"release-required job {job_name!r} missing from the "
-            "RELEASE_REQUIRED_JOBS payload data"
-        )
+        assert f'"{job_name}"' in release_block, f"release-required job {job_name!r} missing from the RELEASE_REQUIRED_JOBS payload data"
 
 
 def test_release_publish_needs_only_build_release() -> None:
@@ -340,6 +308,7 @@ def test_release_publish_needs_only_build_release() -> None:
     assert jobs["publish-pypi"]["needs"] == ["build-release"]
     assert "if" not in jobs["publish-pypi"]
 
+
 def test_release_has_no_saas_fetch_and_no_downstream_waiver() -> None:
     """Backport of #3979: nothing in the tag-time release depends on a SaaS read token.
 
@@ -352,11 +321,22 @@ def test_release_has_no_saas_fetch_and_no_downstream_waiver() -> None:
     assert inputs["tag"]["required"] is True
     assert "skip_downstream" not in inputs
     text = workflow_text("release.yml")
-    for retired in ("SKIP_DOWNSTREAM", "fetch_refs", "HAS_SAAS_READ_TOKEN", "CROSS_REPO_TOKEN", "SPEC_KITTY_SAAS_READ_TOKEN", "--saas-pyproject", "check_candidate_consumer_compat.py", "spec-kitty-saas"):
+    retired_tokens = (
+        "SKIP_DOWNSTREAM",
+        "fetch_refs",
+        "HAS_SAAS_READ_TOKEN",
+        "CROSS_REPO_TOKEN",
+        "SPEC_KITTY_SAAS_READ_TOKEN",
+        "--saas-pyproject",
+        "check_candidate_consumer_compat.py",
+        "spec-kitty-saas",
+    )
+    for retired in retired_tokens:
         assert retired not in text, retired
     build = workflow["jobs"]["build-release"]
     drift = next(step for step in build["steps"] if step.get("name") == "Validate shared package drift")
     assert drift["run"].strip() == "python scripts/release/check_shared_package_drift.py --check-installed"
+
 
 def test_release_verifies_pypi_exact_install_after_publish() -> None:
     workflow = load_workflow("release.yml")
@@ -387,6 +367,4 @@ def test_publish_release_does_not_require_canary_verification_artifact() -> None
     assert "Classify release channel" in publish_dump
 
     step_names = [step.get("name", "") for step in publish["steps"]]
-    assert step_names.index("Classify release channel") < step_names.index(
-        "Create GitHub Release"
-    )
+    assert step_names.index("Classify release channel") < step_names.index("Create GitHub Release")
