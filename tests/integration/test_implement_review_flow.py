@@ -396,6 +396,7 @@ class TestForcedPreCommitHookFailure:
                 wp_id="WP01",
                 pre_emit_event_size=pre_size,
                 pre_emit_status_bytes=pre_status_bytes,
+                expected_event_ids=["after"],
             )
 
         assert _sha256(events_path) == pre_events_sha

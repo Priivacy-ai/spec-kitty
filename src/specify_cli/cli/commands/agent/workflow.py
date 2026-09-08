@@ -292,7 +292,7 @@ def _restore_status_artifacts(
     pre_emit_event_size: int,
     pre_emit_status_bytes: bytes | None,
     expected_event_ids: list[str] | None = None,
-) -> None:
+) -> bool:
     """Restore canonical status files after a failed workflow commit.
 
     Closes mission-review DRIFT-2 (spec-kitty #3960): the event-log half routes
@@ -301,13 +301,27 @@ def _restore_status_artifacts(
     blind byte truncate -- the helper takes the same per-mission
     ``feature_status_lock`` the emit pipeline uses (re-entrant for the
     already-locked shells) and refuses to cut a tail that is not exactly the
-    rows this operation appended. The derived ``status.json`` snapshot is
-    regenerated from the log and stays a plain byte restore here.
+    rows this operation appended.
+
+    The derived ``status.json`` restore SHARES that ownership decision
+    (spec-kitty #4072 operator acceptance): when the log rollback refuses --
+    a concurrent writer's rows are in the tail, the log was torn or rewritten
+    in the window -- the newer derived snapshot is preserved as-is (restoring
+    the pre-emit bytes would leave ``status.json`` incoherent with a log that
+    still holds those rows) and the refusal is logged loudly as the
+    recoverable outcome. Only a verified rollback (or a genuine no-op) also
+    restores the snapshot bytes.
+
+    Returns ``True`` when the derived snapshot restore proceeded (the log
+    rollback verified the tail or had nothing to cut) and ``False`` when the
+    rollback refused or failed -- the explicit recoverable diagnostic the
+    commit-failure callers surface to the operator.
     """
     events_path = feature_dir / _STATUS_EVENTS_FILENAME
     status_path = feature_dir / _STATUS_FILENAME
+    rolled_back: bool
     try:
-        rollback_events_log_tail(
+        rolled_back = rollback_events_log_tail(
             feature_dir,
             repo_root=repo_root,
             pre_emit_event_size=pre_emit_event_size,
@@ -315,6 +329,17 @@ def _restore_status_artifacts(
         )
     except OSError:
         logger.exception("Could not truncate %s on commit failure", events_path)
+        rolled_back = False
+    if not rolled_back:
+        logger.warning(
+            "Refused rollback restore of %s (and %s): the event-log tail did not verify "
+            "against this operation's emitted rows; both artifacts are left at their "
+            "newer coherent state. Recover: reconcile the surviving log rows, then run "
+            "'spec-kitty agent status materialize' to regenerate the derived snapshot",
+            events_path,
+            status_path,
+        )
+        return False
 
     try:
         if pre_emit_status_bytes is None:
@@ -324,6 +349,7 @@ def _restore_status_artifacts(
             status_path.write_bytes(pre_emit_status_bytes)
     except OSError:
         logger.exception("Could not restore %s on commit failure", status_path)
+    return True
 
 
 def _safe_commit_recovery_commit_sha(exc: BaseException) -> str | None:

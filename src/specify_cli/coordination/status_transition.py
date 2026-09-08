@@ -374,7 +374,7 @@ def _restore_coord_status_artifacts(
     pre_emit_event_size: int,
     pre_emit_status_bytes: bytes | None,
     expected_event_ids: list[str] | None = None,
-) -> None:
+) -> bool:
     """Truncate/restore the coord status artifacts after a failed coord commit.
 
     Closes mission-review DRIFT-2 (spec-kitty #3960): the event-log half routes
@@ -382,19 +382,28 @@ def _restore_coord_status_artifacts(
     (:func:`specify_cli.status.rollback.rollback_events_log_tail`) instead of a
     blind byte truncate -- the L1 this arm already holds spans the rollback, so
     the helper's own lock take re-enters it, and a tail that is not exactly
-    *expected_event_ids* is refused rather than cut. The derived-snapshot half
-    (``status.json``) is regenerated from the log and stays a plain byte
-    restore here. Mirrors ``workflow._restore_status_artifacts`` so the FR-004
-    coord fallback arm is transactional-symmetric with the
-    ``BookkeepingTransaction`` True-arm: a commit failure truncates the
-    just-appended event (and restores the derived snapshot) rather than
-    stranding an emitted-but-uncommitted event on the coord worktree working
-    copy.
+    *expected_event_ids* is refused rather than cut. Mirrors
+    ``workflow._restore_status_artifacts`` so the FR-004 coord fallback arm is
+    transactional-symmetric with the ``BookkeepingTransaction`` True-arm: a
+    commit failure truncates the just-appended event (and restores the derived
+    snapshot) rather than stranding an emitted-but-uncommitted event on the
+    coord worktree working copy.
+
+    The derived-snapshot half (``status.json``) SHARES the rollback's
+    ownership decision (spec-kitty #4072 operator acceptance): when the
+    tail-verified rollback refuses, the newer derived snapshot is preserved
+    as-is -- restoring the pre-emit bytes over a log that still holds the
+    surviving rows would leave the coord surface incoherent -- and the
+    refusal is logged loudly as the recoverable outcome.
+
+    Returns ``True`` when the derived snapshot restore proceeded and
+    ``False`` when the rollback refused or failed.
     """
     events_path = coord_feature_dir / _EVENTS_FILENAME
     status_path = coord_feature_dir / _DERIVED_STATUS_FILENAME
+    rolled_back: bool
     try:
-        _rollback_events_log_tail(
+        rolled_back = _rollback_events_log_tail(
             coord_feature_dir,
             repo_root=repo_root,
             pre_emit_event_size=pre_emit_event_size,
@@ -402,6 +411,17 @@ def _restore_coord_status_artifacts(
         )
     except OSError:
         _logger.exception("Could not truncate %s on coord commit failure", events_path)
+        rolled_back = False
+    if not rolled_back:
+        _logger.warning(
+            "Refused rollback restore of %s (and %s): the event-log tail did not verify "
+            "against this operation's emitted rows; both coord artifacts are left at "
+            "their newer coherent state. Recover: reconcile the surviving log rows, then "
+            "run 'spec-kitty agent status materialize' to regenerate the derived snapshot",
+            events_path,
+            status_path,
+        )
+        return False
     try:
         if pre_emit_status_bytes is None:
             status_path.unlink(missing_ok=True)
@@ -409,6 +429,7 @@ def _restore_coord_status_artifacts(
             status_path.write_bytes(pre_emit_status_bytes)
     except OSError:
         _logger.exception("Could not restore %s on coord commit failure", status_path)
+    return True
 
 
 def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Path:

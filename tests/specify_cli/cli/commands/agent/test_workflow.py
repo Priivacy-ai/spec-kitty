@@ -519,6 +519,88 @@ class TestTransactionPathFor:
         assert mid8 == "01ABCDEF"
 
 
+class TestRestoreStatusArtifacts:
+    """spec-kitty #4072 (operator acceptance): the derived ``status.json``
+    restore SHARES the event-log rollback's ownership decision -- a refused
+    (tail-verified) rollback preserves the newer coherent snapshot instead of
+    restoring obsolete bytes over a preserved log, and reports the refusal."""
+
+    def _artifacts(self, tmp_path: Path, tail: str) -> tuple[Path, Path, bytes]:
+        from specify_cli.cli.commands.agent import workflow
+
+        feature_dir = tmp_path / "kitty-specs" / "001-restore"
+        feature_dir.mkdir(parents=True, exist_ok=True)
+        events_path = feature_dir / "status.events.jsonl"
+        status_path = feature_dir / "status.json"
+        events_path.write_text('{"event_id":"before"}\n' + tail, encoding="utf-8")
+        status_path.write_text('{"lane":"newer"}', encoding="utf-8")
+        return feature_dir, events_path, status_path.read_bytes()
+
+    def test_refused_rollback_preserves_the_newer_derived_snapshot(self, tmp_path: Path) -> None:
+        """A foreign row in the tail refuses the cut -- and the snapshot bytes
+        stay at their newer coherent state (never the obsolete pre-emit bytes)."""
+        from specify_cli.cli.commands.agent import workflow
+
+        feature_dir, events_path, newer_status = self._artifacts(
+            tmp_path, '{"event_id":"mine"}\n{"event_id":"foreign"}\n'
+        )
+        pre_size = len('{"event_id":"before"}\n')
+
+        restored = workflow._restore_status_artifacts(
+            repo_root=tmp_path,
+            feature_dir=feature_dir,
+            pre_emit_event_size=pre_size,
+            pre_emit_status_bytes=b'{"lane":"old"}',
+            expected_event_ids=["mine"],
+        )
+
+        assert restored is False
+        assert events_path.read_text(encoding="utf-8") == (
+            '{"event_id":"before"}\n{"event_id":"mine"}\n{"event_id":"foreign"}\n'
+        )
+        assert (feature_dir / "status.json").read_bytes() == newer_status
+
+    def test_verified_rollback_restores_the_pre_emit_snapshot(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        feature_dir, events_path, _newer_status = self._artifacts(
+            tmp_path, '{"event_id":"mine"}\n'
+        )
+        pre_size = len('{"event_id":"before"}\n')
+
+        restored = workflow._restore_status_artifacts(
+            repo_root=tmp_path,
+            feature_dir=feature_dir,
+            pre_emit_event_size=pre_size,
+            pre_emit_status_bytes=b'{"lane":"old"}',
+            expected_event_ids=["mine"],
+        )
+
+        assert restored is True
+        assert events_path.read_text(encoding="utf-8") == '{"event_id":"before"}\n'
+        assert (feature_dir / "status.json").read_bytes() == b'{"lane":"old"}'
+
+    def test_refused_rollback_never_unlinks_a_newer_derived_snapshot(self, tmp_path: Path) -> None:
+        """The ``pre_emit_status_bytes=None`` unlink arm shares the decision too."""
+        from specify_cli.cli.commands.agent import workflow
+
+        feature_dir, events_path, newer_status = self._artifacts(
+            tmp_path, '{"event_id":"mine"}\n{"event_id":"foreign"}\n'
+        )
+        pre_size = len('{"event_id":"before"}\n')
+
+        restored = workflow._restore_status_artifacts(
+            repo_root=tmp_path,
+            feature_dir=feature_dir,
+            pre_emit_event_size=pre_size,
+            pre_emit_status_bytes=None,
+            expected_event_ids=["mine"],
+        )
+
+        assert restored is False
+        assert (feature_dir / "status.json").read_bytes() == newer_status
+
+
 class TestCommitWorkflowChange:
     """``_commit_workflow_change`` preserves helper-level exit semantics."""
 
@@ -557,11 +639,12 @@ class TestCommitWorkflowChange:
             raise typer.Exit(1)
 
         monkeypatch.setattr(workflow, "_commit_via_coordination_transaction", _raise_exit)
-        monkeypatch.setattr(
-            workflow,
-            "_restore_status_artifacts",
-            lambda **kwargs: restore_calls.append(kwargs),
-        )
+
+        def _restore_spy(**kwargs: object) -> bool:
+            restore_calls.append(kwargs)
+            return True
+
+        monkeypatch.setattr(workflow, "_restore_status_artifacts", _restore_spy)
 
         workflow._reset_workflow_receipts()
         with pytest.raises(typer.Exit):
@@ -576,15 +659,17 @@ class TestCommitWorkflowChange:
                 wp_id="WP01",
                 pre_emit_event_size=len("before\n"),
                 pre_emit_status_bytes=b'{"lane":"old"}',
+                expected_event_ids=None,
             )
 
         assert len(workflow._WORKFLOW_COMMIT_RECEIPTS) == 1
         assert workflow._WORKFLOW_COMMIT_RECEIPTS[0]["outcome"] == "refused"
-        # spec-kitty #3960 (DRIFT-2): the rollback context now carries the lock
-        # coordinates (repo_root + feature_dir) and the tail's expected event
-        # ids, captured at commit entry -- post-emit, pre-commit. The events
-        # log's tail here is a bare non-JSON line, so the capture degrades to
-        # ``None`` (structural verification only at rollback).
+        # spec-kitty #3960 (DRIFT-2) / #4072 (operator acceptance): the rollback
+        # context carries the lock coordinates (repo_root + feature_dir) and
+        # the tail's expected event ids -- captured by the CALLER inside its
+        # owned_emission_window, never re-inferred at commit entry. ``None``
+        # here simulates an in-window capture that could not parse the tail
+        # (structural verification only at rollback).
         assert restore_calls == [
             {
                 "repo_root": tmp_path,

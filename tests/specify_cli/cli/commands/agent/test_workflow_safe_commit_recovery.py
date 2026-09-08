@@ -96,6 +96,7 @@ def test_modern_workflow_does_not_restore_after_post_commit_recovery_failure(
             wp_id="WP01",
             pre_emit_event_size=pre_size,
             pre_emit_status_bytes=pre_status,
+            expected_event_ids=None,
         )
 
     assert events_path.read_bytes() == after_events
@@ -130,6 +131,7 @@ def test_legacy_workflow_does_not_restore_after_post_commit_recovery_failure(
             wp_id="WP01",
             pre_emit_event_size=pre_size,
             pre_emit_status_bytes=pre_status,
+            expected_event_ids=None,
         )
 
     assert events_path.read_bytes() == after_events

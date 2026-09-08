@@ -12,11 +12,16 @@ to cut were the rows their own operation had just appended. A concurrent
 writer that appended between the snapshot and the rollback lost its events to
 the blind truncate.
 
-This module closes that hole with one sanctioned helper pair:
+This module closes that hole with one sanctioned helper pair, plus the
+ownership window that records what an operation appended:
 
-* :func:`capture_events_tail_ids` -- the expectation record. Called while the
-  operation's own writes are complete (post-emit, pre-commit), it reads the
-  event ids now sitting in the log's tail.
+* :func:`owned_emission_window` -- the ownership record's frame. A context
+  manager that holds the per-mission ``feature_status_lock`` across an
+  operation's whole snapshot -> emit window and captures the tail's event
+  ids at exit, still inside the same hold.
+* :func:`capture_events_tail_ids` -- the expectation read. Called on the
+  log's tail while the lock is held (the window calls it; the coord fallback
+  arm reads its own ``EventStream`` instead).
 * :func:`rollback_events_log_tail` -- the rollback. It re-acquires the same
   per-mission ``feature_status_lock`` the write pipeline uses (re-entrant for
   a caller that already holds it), re-reads the tail, verifies it still
@@ -28,47 +33,69 @@ row, or the log shrank below the pre-emit size) is NEVER cut. The helper logs
 loudly and returns ``False`` -- stranding one already-emitted row is the
 recoverable outcome; destroying another writer's durable events is not.
 
-Residual window, stated plainly: between the emit's lock release and the
-expectation capture there is no lock held on the workflow commit paths
-(the capture runs at ``commit_workflow_change`` entry, immediately after the
-emit returns in the same call stack). The verification compares the rollback-
-time tail against the capture-time tail, so anything that lands *after* the
-capture is caught and refused; only the microseconds between emit and capture
-are trusted. The coord fallback arm has no such window at all -- its capture
-runs inside the L1 hold that spans emit, commit and rollback.
+Ownership is recorded under the lock, never inferred from a later arbitrary
+tail (spec-kitty #4072 operator acceptance, 2026-09-08): an expected-ids
+capture taken OUTSIDE the lock-held window that spans the emit can adopt a
+concurrent writer's just-committed rows as "expected" and a later rollback
+would cut them. Every workflow commit path therefore wraps its pre-emit
+snapshot and its emits in :func:`owned_emission_window` and threads the
+captured ids into its commit; the coord fallback arm holds the same L1 across
+emit, capture, commit and rollback and reads its capture from its own
+``EventStream`` inside that hold. Between the window's release and a later
+rollback anything may land -- the multiset verification catches it and
+refuses.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 from .locking import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS, FeatureStatusLockTimeoutError, feature_status_lock
+from .reducer import SNAPSHOT_FILENAME
 from .store import EVENTS_FILENAME, truncate_events_log
 
 __all__ = [
+    "OwnedEmission",
     "capture_events_tail_ids",
+    "owned_emission_window",
     "rollback_events_log_tail",
 ]
 
 logger = logging.getLogger(__name__)
 
 
-def _tail_rows(events_path: Path, pre_emit_event_size: int) -> list[dict[str, object]] | None:
+def _tail_rows(
+    events_path: Path,
+    pre_emit_event_size: int,
+    *,
+    missing_as_empty: bool = True,
+) -> list[dict[str, object]] | None:
     """Parse the log's ``[pre_emit_event_size:]`` region as whole JSONL rows.
 
     ``None`` means the region is not a sequence of complete JSON objects (a
-    torn write, binary garbage, or a parse error) -- the caller treats that as
-    "cannot verify", never as "verified empty". Blank lines are skipped: the
-    atomic append primitive normalizes a missing trailing newline by inserting
-    one, which can leave a leading blank line in the region.
+    torn write, binary garbage, a parse error -- or, when *missing_as_empty*
+    is False, the log vanishing between an earlier ``stat()`` and this read):
+    the caller treats that as "cannot verify", never as "verified empty".
+    Blank lines are skipped: the atomic append primitive normalizes a missing
+    trailing newline by inserting one, which can leave a leading blank line
+    in the region.
+
+    A missing log is ``[]`` for the capture path (nothing this operation
+    appended can be in a log that does not exist) but "cannot verify" for the
+    rollback path (#4087): the rollback already observed the log exist, so a
+    vanished log means an unsanctioned delete/rewrite landed in the window,
+    and truncating would zero-extend/recreate the file (``"ab"``) rather than
+    restore anything.
     """
     try:
         data = events_path.read_bytes()
     except FileNotFoundError:
-        return []
+        return [] if missing_as_empty else None
     except OSError as exc:
         logger.warning("Could not read %s for tail verification: %s", events_path, exc)
         return None
@@ -90,7 +117,11 @@ def _tail_rows(events_path: Path, pre_emit_event_size: int) -> list[dict[str, ob
 
 
 def _row_event_ids(rows: Sequence[dict[str, object]]) -> list[str]:
-    """The ``event_id`` of every row, in file order; non-string ids sort last."""
+    """The ``event_id`` of every row, in file order, stringified.
+
+    No ordering happens here: the rollback-time comparison sorts both sides
+    at the call site, so this stays the raw file-order record.
+    """
     return [str(row.get("event_id", "")) for row in rows]
 
 
@@ -99,10 +130,75 @@ def capture_events_tail_ids(events_path: Path, pre_emit_event_size: int) -> list
 
     The expectation record for :func:`rollback_events_log_tail`. Returns the
     ids in file order, or ``None`` when the tail cannot be parsed as whole
-    rows (the rollback then degrades to structural verification only).
+    rows (the rollback then degrades to structural verification only). Only
+    meaningful while the mission status lock is held -- see
+    :func:`owned_emission_window`.
     """
     rows = _tail_rows(events_path, pre_emit_event_size)
     return None if rows is None else _row_event_ids(rows)
+
+
+@dataclass
+class OwnedEmission:
+    """One operation's pre-emit snapshot plus its captured ownership record.
+
+    ``pre_emit_event_size`` / ``pre_emit_status_bytes`` are captured at
+    :func:`owned_emission_window` entry (under the lock, before any emit);
+    ``expected_event_ids`` is captured at the window's exit (still under the
+    same hold, after the operation's emits) -- so it names exactly the rows
+    this operation appended, never a concurrent writer's.
+    """
+
+    pre_emit_event_size: int
+    pre_emit_status_bytes: bytes | None
+    expected_event_ids: list[str] | None = None
+
+
+@contextmanager
+def owned_emission_window(
+    feature_dir: Path,
+    *,
+    repo_root: Path | None,
+    timeout: float = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+) -> Iterator[OwnedEmission]:
+    """Hold the mission status lock across one operation's snapshot -> emit window.
+
+    The ownership seam for the workflow commit paths (spec-kitty #4072
+    operator acceptance): the pre-emit event-log size and ``status.json``
+    bytes are captured at entry and the tail's event ids at exit, both inside
+    ONE ``feature_status_lock`` hold (the same lock, lock-root resolution and
+    lock key the write pipeline uses; re-entrant for the emit helpers that
+    take it themselves). A concurrent lock-honoring writer therefore cannot
+    append between this operation's snapshot and its capture -- the capture
+    records only this operation's rows, which is exactly what a later
+    :func:`rollback_events_log_tail` verifies before cutting.
+
+    Ownership must never be inferred from a later arbitrary tail read outside
+    this hold: a capture taken after the lock was released can adopt a
+    concurrent writer's just-committed rows as "expected", and the rollback
+    would then destroy them. Anything that lands AFTER the window's capture
+    is caught by the rollback's multiset verification and refused.
+
+    The take is bounded (the window spans the emit helpers' own git-registry
+    consultation, so a stalled sibling holder surfaces as
+    :class:`FeatureStatusLockTimeoutError` rather than wedging every status
+    writer for the mission). If the body raises, no capture happens:
+    ``expected_event_ids`` stays ``None`` and the rollback (which the callers
+    only run on a COMMIT failure, never an emit failure) degrades to
+    structural verification.
+    """
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415 -- cycle-safe lazy import, same seam status.emit uses
+
+    lock_root = resolve_status_lock_root(feature_dir, repo_root)
+    events_path = feature_dir / EVENTS_FILENAME
+    status_path = feature_dir / SNAPSHOT_FILENAME
+    with feature_status_lock(lock_root, feature_dir.name, timeout=timeout):
+        emission = OwnedEmission(
+            pre_emit_event_size=events_path.stat().st_size if events_path.exists() else 0,
+            pre_emit_status_bytes=status_path.read_bytes() if status_path.exists() else None,
+        )
+        yield emission
+        emission.expected_event_ids = capture_events_tail_ids(events_path, emission.pre_emit_event_size)
 
 
 def rollback_events_log_tail(
@@ -125,11 +221,17 @@ def rollback_events_log_tail(
     * when *expected_event_ids* is provided -- the tail's event ids must be
       exactly that multiset (never a concurrent writer's rows).
 
+    *expected_event_ids* must come from an in-lock capture
+    (:func:`owned_emission_window`, or the coord fallback arm's own
+    in-hold ``EventStream`` read) -- never from a tail read taken outside the
+    lock-held window that spans the emit.
+
     Returns ``True`` when the log was (or already was) at/below the pre-emit
     size -- the rollback outcome every caller wants. Returns ``False`` when
-    verification refused the cut (foreign rows, torn row, shrunken log) or the
-    lock could not be acquired: the log is left untouched and the refusal is
-    logged loudly. Refusal strands one already-emitted row; it never destroys
+    verification refused the cut (foreign rows, torn row, shrunken log, a
+    log that vanished after the caller observed it exist, or the lock could
+    not be acquired): the log is left untouched and the refusal is logged
+    loudly. Refusal strands one already-emitted row; it never destroys
     another writer's durable events.
     """
     from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415 -- cycle-safe lazy import, same seam status.emit uses
@@ -139,7 +241,19 @@ def rollback_events_log_tail(
     try:
         size = events_path.stat().st_size
     except FileNotFoundError:
-        return True  # nothing was ever appended; the pre-emit state already holds
+        if pre_emit_event_size == 0:
+            return True  # nothing was ever appended; the pre-emit state already holds
+        # The log existed at the caller's pre-emit snapshot (its size is the
+        # pre-emit size) but has vanished: an unsanctioned delete/rewrite
+        # landed in the window. Claiming the pre-emit state "holds" would let
+        # the caller restore the pre-emit derived snapshot over a missing
+        # authority -- refuse instead (#4087).
+        logger.warning(
+            "Refused rollback truncate of %s: the log vanished after the pre-emit snapshot (pre-emit size %d); log left absent",
+            events_path,
+            pre_emit_event_size,
+        )
+        return False
     if size < pre_emit_event_size:
         # The log SHRANK below the pre-emit size: a whole-log rewrite (merge
         # driver, migration) landed in the window. Truncating to a larger size
@@ -156,7 +270,12 @@ def rollback_events_log_tail(
         return True  # idempotent no-op: the log is already at the pre-emit size
     try:
         with feature_status_lock(lock_root, feature_dir.name, timeout=timeout):
-            rows = _tail_rows(events_path, pre_emit_event_size)
+            # ``missing_as_empty=False`` (#4087): the outer ``stat()`` above
+            # observed the log exist, so a missing log inside the lock is an
+            # unsanctioned delete in the window -- never a "verified empty"
+            # tail (truncating would recreate the file NUL-filled to the
+            # pre-emit size via the store's ``"ab"`` open).
+            rows = _tail_rows(events_path, pre_emit_event_size, missing_as_empty=False)
             if rows is None:
                 logger.warning(
                     "Refused rollback truncate of %s: tail beyond %d bytes is not whole JSONL rows (torn write or foreign content); log left intact",

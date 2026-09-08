@@ -21,7 +21,11 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status.locking import FeatureStatusLockTimeoutError, feature_status_lock, feature_status_lock_path
-from specify_cli.status.rollback import capture_events_tail_ids, rollback_events_log_tail
+from specify_cli.status.rollback import (
+    capture_events_tail_ids,
+    owned_emission_window,
+    rollback_events_log_tail,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -173,3 +177,143 @@ def test_refuses_when_the_lock_cannot_be_acquired(feature_dir: Path, monkeypatch
         expected_event_ids=["mine"],
     )
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + _row("mine")
+
+
+# ---------------------------------------------------------------------------
+# The ownership window (spec-kitty #4072 operator acceptance): the pre-emit
+# snapshot, the emits, and the tail capture share ONE lock-held window, so a
+# concurrent lock-honoring writer can never be adopted as "expected".
+# ---------------------------------------------------------------------------
+
+
+def test_window_snapshots_pre_emit_state_and_captures_this_operations_rows(feature_dir: Path) -> None:
+    """The window yields the pre-emit snapshot at entry and the owned ids at exit."""
+    _events_path(feature_dir).write_text(_row("before"), encoding="utf-8")
+    (feature_dir / "status.json").write_text('{"before":true}\n', encoding="utf-8")
+    pre_status = (feature_dir / "status.json").read_bytes()
+
+    with owned_emission_window(feature_dir, repo_root=feature_dir.parent.parent) as own:
+        assert own.pre_emit_event_size == len(_row("before"))
+        assert own.pre_emit_status_bytes == pre_status
+        assert own.expected_event_ids is None  # not captured until the window closes
+        # The operation's own emit: two rows land while the window is open.
+        with _events_path(feature_dir).open("a", encoding="utf-8") as fh:
+            fh.write(_row("mine-1") + _row("mine-2"))
+        (feature_dir / "status.json").write_text('{"after":true}\n', encoding="utf-8")
+
+    assert own.expected_event_ids == ["mine-1", "mine-2"]
+
+
+def test_window_holds_the_mission_lock_across_snapshot_emit_and_capture(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The capture at window exit runs inside the SAME lock hold as the body."""
+    from specify_cli.status.locking import _get_thread_locks
+
+    _events_path(feature_dir).write_text(_row("before"), encoding="utf-8")
+    lock_key = str(feature_status_lock_path(feature_dir.parent.parent, feature_dir.name))
+    seen_held: list[bool] = []
+    import specify_cli.status.rollback as rollback_module
+
+    real_capture = rollback_module.capture_events_tail_ids
+
+    def probing_capture(events_path: Path, pre_emit_event_size: int) -> list[str] | None:
+        seen_held.append(lock_key in _get_thread_locks())
+        return real_capture(events_path, pre_emit_event_size)
+
+    monkeypatch.setattr(rollback_module, "capture_events_tail_ids", probing_capture)
+
+    with owned_emission_window(feature_dir, repo_root=feature_dir.parent.parent) as own:
+        seen_held.append(lock_key in _get_thread_locks())
+        with _events_path(feature_dir).open("a", encoding="utf-8") as fh:
+            fh.write(_row("mine"))
+
+    assert seen_held == [True, True]
+    assert own.expected_event_ids == ["mine"]
+
+
+def test_window_blocks_a_concurrent_writer_thread_across_the_whole_body(feature_dir: Path) -> None:
+    """The schedule-1 barrier: writer B cannot interleave between the snapshot,
+    the emit, and the capture -- a B take from another thread times out for as
+    long as the window is open, and succeeds only after it closes."""
+    import threading
+
+    _events_path(feature_dir).write_text(_row("before"), encoding="utf-8")
+
+    def _b_try_acquire(timeout: float) -> bool:
+        """True when writer B (another thread) acquired the mission lock."""
+        acquired: list[bool] = []
+
+        def _b() -> None:
+            try:
+                with feature_status_lock(feature_dir.parent.parent, feature_dir.name, timeout=timeout):
+                    acquired.append(True)
+            except FeatureStatusLockTimeoutError:
+                acquired.append(False)
+
+        thread = threading.Thread(target=_b, name="writer-B")
+        thread.start()
+        thread.join(timeout=timeout + 5)
+        assert not thread.is_alive(), "writer B never finished its lock attempt"
+        return acquired[0]
+
+    with owned_emission_window(feature_dir, repo_root=feature_dir.parent.parent) as own:
+        with _events_path(feature_dir).open("a", encoding="utf-8") as fh:
+            fh.write(_row("mine"))
+        # B is locked out for the whole snapshot -> emit -> capture window:
+        # its rows can never be adopted into THIS operation's capture.
+        assert _b_try_acquire(timeout=0.4) is False
+
+    # After the window closes, B can append -- and the rollback's multiset
+    # verification (not the capture) is what refuses to cut B's row.
+    assert _b_try_acquire(timeout=5) is True
+    with _events_path(feature_dir).open("a", encoding="utf-8") as fh:
+        fh.write(_row("foreign"))
+    assert not rollback_events_log_tail(
+        feature_dir,
+        repo_root=feature_dir.parent.parent,
+        pre_emit_event_size=own.pre_emit_event_size,
+        expected_event_ids=own.expected_event_ids,
+    )
+    assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + _row("mine") + _row("foreign")
+
+
+def test_window_skips_the_capture_when_the_body_raises(feature_dir: Path) -> None:
+    """An emit failure leaves no ownership record (the callers roll back only
+    on COMMIT failure, never on emit failure -- structural mode is the
+    fallback)."""
+    _events_path(feature_dir).write_text(_row("before"), encoding="utf-8")
+
+    with pytest.raises(RuntimeError), owned_emission_window(feature_dir, repo_root=feature_dir.parent.parent) as own:
+        raise RuntimeError("emit exploded")
+
+    assert own.expected_event_ids is None
+
+
+# ---------------------------------------------------------------------------
+# #4087: a vanished log is never a "verified empty" tail nor a no-op rollback.
+# ---------------------------------------------------------------------------
+
+
+def test_refuses_when_the_log_vanished_after_the_pre_emit_snapshot(feature_dir: Path) -> None:
+    """A log that existed at the pre-emit snapshot but is now absent is a
+    refusal, never a claimed no-op -- and never a NUL-extended recreation."""
+    _events_path(feature_dir).write_text(_row("before") + _row("mine"), encoding="utf-8")
+    pre_size = len(_row("before"))
+    _events_path(feature_dir).unlink()
+
+    assert not rollback_events_log_tail(
+        feature_dir,
+        repo_root=feature_dir.parent.parent,
+        pre_emit_event_size=pre_size,
+        expected_event_ids=["mine"],
+    )
+    # The store's ``"ab"`` truncate must never have recreated the file.
+    assert not _events_path(feature_dir).exists()
+
+
+def test_missing_log_inside_the_lock_is_a_refusal_not_an_empty_tail(feature_dir: Path) -> None:
+    """``_tail_rows`` in the rollback mode treats a missing log as "cannot
+    verify" (the outer stat saw it exist); the capture mode keeps ``[]``."""
+    import specify_cli.status.rollback as rollback_module
+
+    assert rollback_module._tail_rows(feature_dir / "status.events.jsonl", 0, missing_as_empty=False) is None
+    assert rollback_module._tail_rows(feature_dir / "status.events.jsonl", 0, missing_as_empty=True) == []

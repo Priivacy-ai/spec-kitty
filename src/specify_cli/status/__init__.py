@@ -78,7 +78,9 @@ from .rollback import (
     # the submodule directly -- and cli/commands/agent/workflow.py) resolve it
     # WITHOUT a direct ``specify_cli.status.rollback`` import
     # (test_status_module_boundary.py SR-2).
+    OwnedEmission,
     capture_events_tail_ids,
+    owned_emission_window,
     rollback_events_log_tail,
 )
 from .transitions import (
@@ -575,8 +577,11 @@ __all__ = [
     "resolve_snapshot_review",
     # spec-kitty #3960 (mission-review DRIFT-2): the lock-held, tail-verified
     # rollback truncate pair -- mirrors the comment on the ``.rollback``
-    # import block above (test_status_module_boundary.py SR-2).
+    # import block above (test_status_module_boundary.py SR-2). #4072 fix
+    # round: the ownership window (and its record type) joined the pair.
+    "OwnedEmission",
     "capture_events_tail_ids",
+    "owned_emission_window",
     "rollback_events_log_tail",
     # WP01 (verdict-seam-boundary-hardening-01KZG179, FR-001/FR-006): promoted
     # the REST of the verdict_vocab public surface onto the facade -- mirrors

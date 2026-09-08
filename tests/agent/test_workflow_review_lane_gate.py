@@ -472,6 +472,7 @@ def test_commit_workflow_change_syncs_lane_after_coord_commit(
         wp_id="WP01",
         pre_emit_event_size=0,
         pre_emit_status_bytes=None,
+        expected_event_ids=[],
         auto_rebase_lane_after_commit=True,
     )
 
@@ -562,6 +563,7 @@ def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
             wp_id="WP01",
             pre_emit_event_size=len('{"event_id":"before"}\n'),
             pre_emit_status_bytes=b'{"lane":"planned"}\n',
+            expected_event_ids=["after"],
             auto_rebase_lane_after_commit=True,
         )
 
