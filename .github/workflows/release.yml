@@ -109,6 +109,7 @@ jobs:
         id: release_channel
         run: |
           VERSION="${RELEASE_TAG#v}"
+          VERSION="${VERSION,,}"
           if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(a|b|rc|alpha|beta)[0-9]*$ ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -392,6 +393,7 @@ jobs:
         id: release_channel
         run: |
           VERSION="${RELEASE_TAG#v}"
+          VERSION="${VERSION,,}"
           if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(a|b|rc|alpha|beta)[0-9]*$ ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
