@@ -19,9 +19,14 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
     {
         # Documented distinct corpus walk (#4035, 3.2.6.1): the create-time
         # rollback diffs the raw ``kitty-specs/`` directory set before vs after
-        # an aborted create to find the scaffold that run wrote. That scaffold
-        # may have no readable ``meta.json`` yet, so MissionResolver would not
-        # surface it — the raw walk is the point, not a bypass.
+        # an aborted create to decide what it may delete. The snapshot MUST be
+        # raw, not resolver-based: ``FsMissionResolver.all_missions()`` silently
+        # skips directories whose meta lacks ``mission_id`` (mission_resolver.py
+        # ~319-326), so a pre-existing malformed same-slug directory would be
+        # absent from a resolver "before" set, classified as new, and deleted.
+        # (An earlier version of this note claimed the aborted scaffold has no
+        # readable meta.json; in the late-refusal path write_meta has already
+        # run, so that was wrong — squad R3 on #4051.)
         "src/specify_cli/core/mission_creation.py",
         "src/specify_cli/status/identity_audit.py",
         "src/specify_cli/merge/ordering.py",

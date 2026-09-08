@@ -25,9 +25,10 @@ def test_protected_refusal_retains_local_source_for_published_mission(tmp_path, 
     monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", capture)
     with pytest.raises(RuntimeError, match="refusing to commit to protected branch"):
         create_mission_core(tmp_path, "discarded", allow_worktree_context=True, **_mission_summary("discarded"))
-    created = [item for item in emitted if item["envelope"]["event_type"] == "MissionCreated"]
-    # A preflight fix may correctly prevent all fanout; emitted events must retain their source.
-    assert all(item["log_path"].exists() for item in created), created
+    # Preflight refuses before any lifecycle event is written, so NOTHING may reach
+    # hosted fan-out for a mission that was never created. The previous assertion
+    # was ``all(...)`` over an empty list — vacuously true (squad R3, #4051).
+    assert emitted == [], emitted
 
 
 def test_creation_fanout_follows_the_scaffold_commit(tmp_path, monkeypatch):
