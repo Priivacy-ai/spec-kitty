@@ -2,7 +2,7 @@
 title: Run Mutation Tests Locally
 description: 'How to run mutation tests locally with Spec Kitty 3.2: Mutation testing answers the question "if I introduced a bug here, would my tests fail?". Line and.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 ---
@@ -190,7 +190,7 @@ The `[tool.mutmut]` section controls the sandbox. Relevant knobs:
 | **< 60 %** | Structurally weak — tests don't actually assert behaviour |
 
 Focus effort on core business logic (`src/specify_cli/compat/`,
-`src/specify_cli/status/`, `src/charter/synthesizer/`). Mutation score on
+`src/specify_cli/status/`, `src/charter/activation/synthesizer/`). Mutation score on
 generated code, migrations, or boilerplate is not meaningful.
 
 ## When the sandbox baseline fails

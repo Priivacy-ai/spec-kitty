@@ -2,7 +2,7 @@
 title: Contextive Glossary Integration
 description: How Spec Kitty generates Contextive-compatible YAML glossaries from the canonical glossary markdown, giving IDE users in-editor term hover panels without duplication.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 ---
@@ -50,7 +50,7 @@ python scripts/generate_contextive_glossaries.py check
 context_base_dir: "src/specify_cli/.contextive"
 
 scopes:
-  - path: "src/specify_cli/glossary"
+  - path: "src/glossary"
     description: "Core glossary subsystem"
     contexts:
       - lexical

@@ -2,7 +2,7 @@
 title: Glossary Conventions
 description: Authoring conventions for Spec Kitty's living glossary — source-of-truth precedence, policy/runtime layering, term status lifecycle, per-term entry schema, and runtime anchors.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/system-architect.md
 type: reference
 ---
@@ -52,11 +52,11 @@ Each glossary term table should include:
 3. `Status`
 4. `Applicable to` (version scope, for example `` `1.x`, `2.x` ``)
 
-## Runtime Anchors (`2.x`)
+## Runtime Anchors
 
-- `src/specify_cli/glossary/`
-- `src/specify_cli/missions/glossary_hook.py`
-- `src/specify_cli/missions/primitives.py`
+- `src/glossary/`
+- `src/charter/offering/missions/glossary_hook.py`
+- `src/charter/offering/missions/primitives.py`
 - `src/specify_cli/cli/commands/glossary.py`
 
 ## PDR Alignment Notes
