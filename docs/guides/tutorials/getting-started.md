@@ -65,11 +65,14 @@ instructions and troubleshooting.
 
 ## Step 2: Initialize a Project
 
-Create a new project directory with the agent you plan to use:
+Create a new project directory with the agent you plan to use, then put it under
+git:
 
 ```bash
 spec-kitty init my-spec-project --ai claude
 cd my-spec-project
+git init -b main
+git add -A && git commit -m "Initial commit"
 ```
 
 Expected output (abridged):
@@ -79,21 +82,21 @@ OK Initialized Spec Kitty project
 OK Created .kittify/ scaffold
 ```
 
->[!TIP]
->Use `spec-kitty init . --ai claude` to initialize the current folder.
-
 >[!IMPORTANT]
->**Your repository needs at least one commit before you create a mission.** Git
->cannot create a branch in a repository that has none, and a mission needs one.
->If you just ran `git init` yourself, make a commit first:
+>**Those last two lines are required, not optional.** `spec-kitty init` creates
+>files and deliberately does not touch git — it prints
+>`Required: run git init here before agent/worktree commands` for exactly this
+>reason. Without a git repository **with at least one commit**, the next step
+>stops with `SPEC_KITTY_REPO_NOT_INITIALIZED` or a "repository has no commits
+>yet" error. Git cannot create a branch in a repository that has none, and a
+>mission needs one.
 >
->```bash
->git commit --allow-empty -m "Initial commit"
->```
->
->`spec-kitty init <name>` does this for you; you only need it when you
->initialized the git repository yourself. Creating a mission without it stops
->with an error telling you to run exactly the command above.
+>Already working in an existing git repository with history? You need neither
+>line — run `spec-kitty init . --ai claude` and continue.
+
+>[!TIP]
+>Use `spec-kitty init . --ai claude` to initialize the current folder instead of
+>creating a new one. The git requirement above applies either way.
 
 ## Step 3: Create Your First Specification
 
@@ -144,6 +147,8 @@ ls .worktrees
 
 - **`spec-kitty: command not found`**: Reopen your shell, run `pipx ensurepath` if you installed with `pipx`, or reinstall via `pipx` or `uv`. Then rerun `spec-kitty --version`.
 - **`pip install` fails with `externally-managed-environment`**: Use `pipx install spec-kitty-cli`, or create and activate a virtual environment before using `python -m pip install spec-kitty-cli`.
+- **`SPEC_KITTY_REPO_NOT_INITIALIZED` from `specify`**: the project directory is not a git repository. Run `git init -b main`, then `git add -A && git commit -m "Initial commit"`, and retry. `spec-kitty init` does not create the repository for you.
+- **"This repository has no commits yet"**: the repository exists but has no commit, so no branch can be created. Run `git add -A && git commit -m "Initial commit"` (or `git commit --allow-empty -m "Initial commit"` if there is nothing to stage) and retry.
 - **No `/spec-kitty.specify` command available**: Re-run `spec-kitty init . --ai <your-agent>` from the project root, then verify the setup with `spec-kitty verify-setup --diagnostics`.
 - **`WAITING_FOR_DISCOVERY_INPUT`**: The command is paused for your answers; provide the requested details and continue.
 
