@@ -449,26 +449,29 @@ def test_consistency_only_skips_release_progression(tmp_path: Path) -> None:
     assert "All required checks passed." in result.stdout
 
 
+@pytest.mark.parametrize(
+    ("version", "newer"), [("1.2.3", "1.2.4"), ("3.2.6.1", "3.2.6.2")]
+)
 def test_consistency_only_rejects_stale_top_changelog_release(
-    tmp_path: Path,
+    tmp_path: Path, version: str, newer: str,
 ) -> None:
     init_repo(tmp_path)
     write_release_files(
         tmp_path,
-        "1.2.3",
+        version,
         changelog_for_versions(
-            ("1.2.4", "- Drifted future entry"),
-            ("1.2.3", "- Historical matching entry"),
+            (newer, "- Drifted future entry"),
+            (version, "- Historical matching entry"),
         ),
     )
     stage_and_commit(tmp_path, "chore: bootstrap drifted changelog")
-    tag(tmp_path, "v1.2.3")
+    tag(tmp_path, f"v{version}")
 
     result = run_validator(tmp_path, "--mode", "branch", "--consistency-only")
 
     assert result.returncode == 1
-    assert "CHANGELOG.md latest release entry is '1.2.4'" in result.stderr
-    assert "pyproject.toml declares '1.2.3'" in result.stderr
+    assert f"CHANGELOG.md latest release entry is '{newer}'" in result.stderr
+    assert f"pyproject.toml declares '{version}'" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -478,6 +481,8 @@ def test_consistency_only_rejects_stale_top_changelog_release(
         ("1.0.0alpha1", "1.0.0a1"),
         ("1.0.0beta", "1.0.0b0"),
         ("1.0.0beta1", "1.0.0b1"),
+        ("3.2.6.1alpha", "3.2.6.1a0"),
+        ("3.2.6.1beta2", "3.2.6.1b2"),
     ],
 )
 def test_uv_lock_sync_accepts_canonical_prerelease_aliases(
@@ -513,6 +518,17 @@ def test_malformed_uv_lock_reports_validation_issue(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "Unable to parse uv.lock" in result.stderr
     assert "Issues detected:" in result.stdout
+
+
+@pytest.mark.parametrize("version", ["3.2.6.1.2", "3.2.6.", "3.2.6.hotfix1"])
+def test_hotfix_grammar_rejects_extra_or_invalid_components(tmp_path: Path, version: str) -> None:
+    init_repo(tmp_path)
+    write_release_files(tmp_path, version, changelog_for_versions((version, "- Invalid version")))
+
+    result = run_validator(tmp_path, "--mode", "branch", "--consistency-only")
+
+    assert result.returncode == 1
+    assert "not a supported release version" in result.stderr
 
 
 def test_tag_mode_validates_tag_alignment(tmp_path: Path) -> None:

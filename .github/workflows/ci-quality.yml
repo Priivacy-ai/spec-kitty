@@ -11,6 +11,7 @@ on:
       - main
       - develop
       - 2.x
+      - release/3.2.6.x
     paths:
       - 'src/**'
       - 'docs/**'
@@ -59,6 +60,7 @@ on:
       - main
       - develop
       - 2.x
+      - release/3.2.6.x
     paths:
       - 'src/**'
       - 'docs/**'
