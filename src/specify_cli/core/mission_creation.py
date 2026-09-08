@@ -736,7 +736,18 @@ def _create_mission_core_impl(
     # 3. Resolve planning branch
     # ------------------------------------------------------------------
     planning_branch = target_branch if target_branch else current_branch
-    create_time_target = resolve_create_time_write_target(planning_branch)
+    # Resolve the create-time target once for PREFLIGHT VALIDATION (the scaffold
+    # commit's destination is checked before any file is written, #4035). Commit
+    # ROUTING keeps the tag's contract: an OWNED checkout commits to this target;
+    # every other checkout passes ``None`` and ``_commit_feature_file`` derives
+    # its destination from the placement seam, which is the deliberate fix for
+    # the create-time split-brain (coord-primary-partition-lock WP02, D5). In
+    # the ordinary case both resolve to ``planning_branch``; where they could
+    # ever differ, ``safe_commit`` re-validates the real destination anyway, so
+    # the early check can only be over- or under-eager, never wrong about what
+    # is committed. Reviewed on #4051 (Jeroen, design Q1).
+    preflight_target = resolve_create_time_write_target(planning_branch)
+    create_time_target = preflight_target if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else None
     if not normalized_friendly_name:
         normalized_friendly_name = default_mission_display_name(mission_slug)
 
@@ -820,7 +831,7 @@ def _create_mission_core_impl(
     preflight_commit(
         repo_root=resolved_root,
         worktree_root=effective_root,
-        target=create_time_target,
+        target=preflight_target,
         message=f"Add scaffold for mission {mission_slug_formatted}",
         paths=scaffold_paths,
         capability=GuardCapability.STANDARD,
