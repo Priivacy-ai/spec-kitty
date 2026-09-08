@@ -76,7 +76,8 @@ def _fail_at_meta_write(monkeypatch: pytest.MonkeyPatch, repo: Path) -> None:
     monkeypatch.setattr("specify_cli.mission_metadata.write_meta", _explode)
 
 
-def test_failed_create_leaves_no_orphan_scaffold(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("slug", ["orphan-check", "068-orphan-check"])
+def test_failed_create_leaves_no_orphan_scaffold(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, slug: str) -> None:
     """The #4035 defect: the scaffold outlived the failed create."""
     _init_git_repo(tmp_path)
     assert _scaffolds(tmp_path) == []
@@ -86,9 +87,9 @@ def test_failed_create_leaves_no_orphan_scaffold(tmp_path: Path, monkeypatch: py
     with pytest.raises(Exception, match="refusing to commit to protected branch"):
         create_mission_core(
             tmp_path,
-            "orphan-check",
+            slug,
             allow_worktree_context=True,
-            **_mission_summary("orphan-check"),
+            **_mission_summary(slug),
         )
 
     assert _scaffolds(tmp_path) == [], "a failed create must leave no mission directory behind"
@@ -155,9 +156,8 @@ def test_rollback_preserves_a_pre_existing_mission(tmp_path: Path, monkeypatch: 
 def test_rollback_never_deletes_tracked_content(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A directory git tracks is never removed, even if this call created it.
 
-    On the real failure path the scaffold is untracked by definition, so this
-    guard should never fire in production. It exists because the cost of being
-    wrong is a user's committed work, not a scratch directory.
+    A late refusal may follow a scaffold commit. The deletion decision must
+    inspect the index before rollback restores it, preserving that evidence.
     """
     _init_git_repo(tmp_path)
 
@@ -187,3 +187,20 @@ def test_rollback_never_deletes_tracked_content(tmp_path: Path, monkeypatch: pyt
 
     assert created, "the injected hook never ran; the test is not exercising the path it claims"
     assert created["dir"].exists(), "rollback deleted a directory whose contents git tracks"
+
+
+def test_tracking_probe_launch_failure_preserves_scaffold(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unavailable Git executable cannot establish permission to delete."""
+    from specify_cli.core.mission_creation import _plan_orphan_scaffold_removal
+
+    scaffold = tmp_path / "kitty-specs" / "orphan-check-01KABCDE"
+    scaffold.mkdir(parents=True)
+
+    def unavailable(*args: object, **kwargs: object) -> None:
+        raise OSError("git unavailable")
+
+    monkeypatch.setattr("specify_cli.core.mission_creation.subprocess.run", unavailable)
+    assert _plan_orphan_scaffold_removal(
+        tmp_path, mission_slug="orphan-check", pre_existing_scaffolds=frozenset()
+    ) == ()
+    assert scaffold.exists()

@@ -1,4 +1,4 @@
-"""Independent PR4051 regressions: exercise real CLI, no product edits."""
+"""Mission creation preconditions through the real CLI."""
 from pathlib import Path
 
 import pytest
@@ -54,3 +54,14 @@ def test_committed_owned_checkout_does_not_use_primary_unborn_head(project: Path
                   '--owned-checkout', str(owned), '--topology', 'coord', '--json')
     assert result.returncode == 0, _unwrapped(result)
     assert len(_missions(owned)) == 1
+
+
+def test_unborn_owned_checkout_refuses_with_committed_primary(project: Path):
+    owned = project.parent / "unborn-owned-checkout"
+    _git(project, "worktree", "add", str(owned), "-b", "owned-work")
+    _git(owned, "checkout", "--orphan", "owned-unborn")
+    result = _cli(owned, "agent", "mission", "create", "owned-invalid",
+                  "--owned-checkout", str(owned), "--topology", "coord", "--json")
+    assert result.returncode != 0, _unwrapped(result)
+    assert "no commits yet" in _unwrapped(result)
+    assert _missions(owned) == []
