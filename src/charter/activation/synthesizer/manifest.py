@@ -49,7 +49,7 @@ class ManifestArtifactEntry(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    kind: Literal["directive", "tactic", "styleguide"]
+    kind: Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"]
     slug: str
     path: str
     """Repo-relative path to the artifact YAML under ``.kittify/doctrine/``."""

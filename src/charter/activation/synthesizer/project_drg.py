@@ -22,6 +22,7 @@ See data-model.md §E-5 for the overlay discipline.
 from __future__ import annotations
 
 import io
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -30,7 +31,7 @@ from ruamel.yaml import YAML
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
+from charter.offering.drg.project_scan import (walk_project_agent_profile_nodes, scan_project_artifacts, project_reference_edges, ProjectArtifact)
 
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 from kernel.clock import now_utc_seconds
@@ -105,7 +106,7 @@ def _node_to_dict(node: DRGNode) -> dict[str, object]:
     that — and any field a later mission adds is emitted without editing here.
     Registered as a ``MappingWriter`` in ``specify_cli.drg_writers.registry``.
     """
-    return model_to_graph_dict(node)
+    return dict(model_to_graph_dict(node))
 
 
 def _edge_to_dict(edge: DRGEdge) -> dict[str, object]:
@@ -113,7 +114,7 @@ def _edge_to_dict(edge: DRGEdge) -> dict[str, object]:
 
     T005 counterpart to :func:`_node_to_dict`.
     """
-    return model_to_graph_dict(edge)
+    return dict(model_to_graph_dict(edge))
 
 
 def _document_dict(graph: DRGGraph) -> dict[str, object]:
@@ -127,7 +128,7 @@ def _document_dict(graph: DRGGraph) -> dict[str, object]:
     from here (they remain registered ``MappingWriter`` members used
     elsewhere).
     """
-    return graph_document_to_dict(graph)
+    return dict(graph_document_to_dict(graph))
 
 
 def _serialize_graph(graph: DRGGraph) -> str:
@@ -188,6 +189,24 @@ def _append_project_profile_nodes(
             continue  # INV-2 overlay dedupe: emit each agent_profile:<id> once.
         seen_urns.add(urn)
         nodes.append(node)
+
+
+
+def _registered_project_artifacts(project_root: Path) -> tuple[ProjectArtifact, ...]:
+    """Re-emit direct-write registrations; synthesis-owned artifacts follow targets."""
+    from .manifest import MANIFEST_PATH, load_yaml as load_manifest
+    from .provenance import load_yaml as load_provenance
+
+    manifest_path = project_root / MANIFEST_PATH
+    if not manifest_path.exists():
+        return ()
+    manifest = load_manifest(manifest_path)
+    paths = frozenset(
+        project_root / entry.path for entry in manifest.artifacts
+        if (project_root / entry.provenance_path).exists()
+        and load_provenance(project_root / entry.provenance_path).adapter_id == "project-direct-write"
+    )
+    return scan_project_artifacts(project_root, paths=paths)
 
 
 def emit_project_layer(
@@ -335,6 +354,17 @@ def emit_project_layer(
             built_in_node_urns=built_in_node_urns,
             built_in_node_count=len(built_in_drg.nodes),
         )
+        artifacts = _registered_project_artifacts(project_root)
+        for artifact in artifacts:
+            if artifact.node.urn not in seen_urns:
+                nodes.append(artifact.node)
+                seen_urns.add(artifact.node.urn)
+        projected, warnings = project_reference_edges(artifacts, [*built_in_drg.nodes, *nodes])
+        triples = {(edge.source, edge.target, edge.relation) for edge in edges}
+        edges.extend(edge for edge in projected if (edge.source, edge.target, edge.relation) not in triples)
+        for warning in warnings:
+            logging.getLogger(__name__).warning("%s", warning)
+
 
     return DRGGraph(
         schema_version="1.0",
