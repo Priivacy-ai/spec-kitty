@@ -155,10 +155,13 @@ def test_ci_windows_install_uses_runner_temp() -> None:
     assert install_step["env"]["TEMP"] == "${{ runner.temp }}"
 
 
-def test_private_factory_ci_is_scoped_to_experimental_repo() -> None:
+def test_private_factory_ci_is_scoped_to_factory_repo() -> None:
+    # planning#1914 / spec-kitty#4004: the CLI factory moved to
+    # spec-kitty/spec-kitty on 2026-09-07 and the archived EXPERIMENTAL repo is
+    # gone from service, so the producer gate names the post-move repository.
     workflow = load_workflow("ci.yml")
 
-    assert "github.repository == 'spec-kitty/EXPERIMENTAL-spec-kitty'" in workflow["jobs"]["suite"]["if"]
+    assert "github.repository == 'spec-kitty/spec-kitty'" in workflow["jobs"]["suite"]["if"]
 
 
 def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_errors() -> None:
