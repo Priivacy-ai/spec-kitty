@@ -167,9 +167,10 @@ Five baseline-red categories that are **not yours to fix**:
    tracking issue. **Leave them red** — do not deselect, quarantine, or "fix" them in an
    unrelated change (that is the fold-first policy in [pr-landing.md](../how-to/pr-landing.md)).
 2. **CI-environment failures.** Auth state (`logged_out_on_connected_teamspace` during
-   `upgrade`) and the sync disable toggles — `SPEC_KITTY_SYNC_MINIMAL_IMPORT` /
-   `SPEC_KITTY_SYNC_DISABLE`, which the pre-review gate honors as a *skip* — make some CI jobs
-   red while the same tests pass locally. These are configuration, not your diff.
+   `upgrade`) and the gate opt-out `SPEC_KITTY_SKIP_PRE_REVIEW_GATE` (the pre-review
+   gate's own name since #3980 — it no longer reads the sync-disable vocabulary) make
+   some CI jobs red while the same tests pass locally. These are configuration, not
+   your diff.
 3. **Stale-install false reds.** Product code that shells out to `spec-kitty` (e.g. the
    `merge-driver-meta`/`-traces` commands) only fires when an up-to-date `spec-kitty` is
    installed. Between landing a change and `pip install -e .`, coverage/gate jobs report

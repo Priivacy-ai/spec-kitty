@@ -151,31 +151,29 @@ spec-kitty merge
 
     `SPEC_KITTY_ENABLE_SAAS_SYNC` and `SPEC_KITTY_SAAS_URL` are ordinary process
     environment variables. **Exported in a shell**, they have no project-scoped form —
-    a single `export` arms every project that shell subsequently touches, not just the
+    a single `export` affects every project that shell subsequently touches, not just the
     repository you were standing in when you ran it.
 
-    The former per-producer delivery store was retired. No environment
-    variable recreates that machine-global store.
-
-    If you work on more than one client's code on one machine — as consultants,
-    contractors and agencies do — arming these in your shell profile makes every
-    project you touch a candidate for delivery.
+    Hosted sync is **on by default** (#3980, Team Kitty launch defaults);
+    `SPEC_KITTY_ENABLE_SAAS_SYNC` is now an opt-out. A shell `export` of the
+    opt-out (or of `SPEC_KITTY_SAAS_URL`) is still machine-global with no
+    project-scoped form.
 
     **The scoped alternative is the per-repo `.kitty.env` tier** (see
     [The `.kitty.env` file](#the-kittyenv-file) below): a value in
     `<repo>/.kittify/.kitty.env` only takes effect for `spec-kitty` invocations
     whose resolved project root is that repo, so setting either variable there
-    does not arm any other checkout on the machine.
+    does not affect any other checkout on the machine.
 
     ```bash
     # Scoped to one invocation
-    SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty auth login
+    SPEC_KITTY_ENABLE_SAAS_SYNC=0 spec-kitty dashboard
 
     # Scoped to this repo only — write once, no per-shell export
-    echo 'SPEC_KITTY_ENABLE_SAAS_SYNC=1' >> .kittify/.kitty.env
+    echo 'SPEC_KITTY_ENABLE_SAAS_SYNC=0' >> .kittify/.kitty.env
 
-    # Arms every project this shell touches afterwards — know what you are doing
-    export SPEC_KITTY_ENABLE_SAAS_SYNC=1
+    # Affects every project this shell touches afterwards — know what you are doing
+    export SPEC_KITTY_ENABLE_SAAS_SYNC=0
     ```
 
     Run `spec-kitty doctor env-file` to see which tier is actually supplying
@@ -183,41 +181,43 @@ spec-kitty merge
 
 ### SPEC_KITTY_ENABLE_SAAS_SYNC
 
-Opt in to hosted auth, tracker, and sync flows.
+Opt **out** of hosted auth, tracker, and sync flows. On by default (#3980,
+Team Kitty launch defaults): unset or `1` means hosted sync is on; `0` (or any
+non-truthy non-empty value) is the explicit opt-out.
 
-**Scope**: machine-global (see the warning above). Enabling it is not a
-per-repository decision.
+**Scope**: machine-global (see the warning above). Opting out is not a
+per-repository decision unless written to the per-repo `.kitty.env` tier.
 
-**Purpose**: Enables the SaaS-backed readiness path. Leave it unset for fully local CLI workflows.
+**Purpose**: Restores the fully local CLI workflow on a launch build.
 
 **Example**:
 ```bash
-export SPEC_KITTY_ENABLE_SAAS_SYNC=1
+export SPEC_KITTY_ENABLE_SAAS_SYNC=0
 spec-kitty auth login
 ```
 
 **See also**:
 - [Internal Hosted-Readiness (Pre-Launch)](../operations/internal-hosted-readiness.md)
-  for the full operator walkthrough of the hidden hosted-readiness
-  mode this flag enables today.
+  for the operator walkthrough of the pre-launch opt-in era this
+  flag used to gate.
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
-  for how this variable's meaning changes at the public Teamspace
-  launch.
+  for the launch-coordinator playbook behind the default flip.
 
 ### SPEC_KITTY_SAAS_URL
 
-Override the Spec Kitty SaaS base URL.
+Override the packaged default Spec Kitty SaaS base URL
+(`https://team.spec-kitty.ai`, #3980 — the env var is a dev/self-host
+override, not a requirement).
 
 **Scope**: machine-global when **exported**; repo-scoped when set in a per-repo
-`.kitty.env` (see the warning at the top of this section). Combined with
-`SPEC_KITTY_ENABLE_SAAS_SYNC`, exporting this in a shell points every project
-that shell touches at the named instance.
+`.kitty.env` (see the warning at the top of this section). Exporting this in a
+shell points every project that shell touches at the named instance.
 
 **Purpose**: Point auth, tracker discovery, and sync clients at a specific hosted environment such as a dev deployment.
 
 **Example**:
 ```bash
-export SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
+export SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.example.internal
 spec-kitty auth login
 ```
 
@@ -228,6 +228,37 @@ spec-kitty auth login
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
   -- the override remains internal-only after launch; only the
   user-facing default URL changes.
+
+### SPEC_KITTY_SYNC_DISABLE
+
+The single process-wide kill switch for sync-adjacent work (#3980): truthy
+disarms hosted sync outright (`sync_active()`) and also suppresses
+moment-handler registration. Nothing else reads it.
+
+```bash
+export SPEC_KITTY_SYNC_DISABLE=1
+```
+
+### SPEC_KITTY_NO_MOMENT_HANDLERS
+
+Register no Zeitgeist moment handlers at import time (#3980) — the
+moment-handler import gate's own name. `SPEC_KITTY_SYNC_MINIMAL_IMPORT` is a
+deprecated alias of this gate and warns once when honored.
+
+```bash
+export SPEC_KITTY_NO_MOMENT_HANDLERS=1
+```
+
+### SPEC_KITTY_SKIP_PRE_REVIEW_GATE
+
+Skip the pre-review regression gate that `agent tasks move-task --to
+for_review` runs synchronously (#3980) — the gate's own process-wide opt-out;
+it no longer reads the sync-disable vocabulary. The per-invocation form is
+`--skip-pre-review-gate`.
+
+```bash
+export SPEC_KITTY_SKIP_PRE_REVIEW_GATE=1
+```
 
 ---
 
@@ -290,8 +321,8 @@ surrounding quotes is stripped from the value:
 
 ```bash
 # .kittify/.kitty.env
-SPEC_KITTY_ENABLE_SAAS_SYNC=1
-SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
+SPEC_KITTY_ENABLE_SAAS_SYNC=0
+SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.example.internal
 # SPEC_KITTY_SAAS_TOKEN=       (secret-shaped vars are provisioned as commented templates —
 #                                fill in by hand; never auto-populated with a live value)
 ```
@@ -494,8 +525,11 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_TEMPLATE_REPO` | Use a custom remote template repo | `org/templates` |
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
-| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows | `1` |
-| `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://team.spec-kitty.ai` |
+| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt out of hosted sync/auth flows (on by default) | `0` |
+| `SPEC_KITTY_SAAS_URL` | Override the packaged default hosted base URL | `https://spec-kitty-dev.example.internal` |
+| `SPEC_KITTY_SYNC_DISABLE` | Process-wide kill switch for sync-adjacent work | `1` |
+| `SPEC_KITTY_NO_MOMENT_HANDLERS` | Register no moment handlers at import | `1` |
+| `SPEC_KITTY_SKIP_PRE_REVIEW_GATE` | Skip the pre-review regression gate | `1` |
 | `SPEC_KITTY_PRERELEASE` | Opt in to the pre-release (rc) consumer channel | `1` |
 | `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |
 | `SPEC_KITTY_NAG_THROTTLE_SECONDS` | Override upgrade-check cadence | `86400` |

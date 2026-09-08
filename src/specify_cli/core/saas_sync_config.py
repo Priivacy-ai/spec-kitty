@@ -1,6 +1,6 @@
 """Canonical rollout gate for hosted SaaS sync.
 
-Stability contract: ``contracts/saas_rollout.md``.
+Stability contract: ``contracts/saas_rollout.md`` (version 3).
 
 This CORE module is the single source of truth for the
 ``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check. The former
@@ -10,19 +10,23 @@ packages when the sync transport was deleted (issue #5);
 
 Imports are stdlib-only (``os``) so this module introduces no import cycle and
 is safe for CORE-set consumers (C-001).
+
+#3980 (Team Kitty launch defaults) flipped the default: hosted sync is ON
+unless explicitly opted out — ``SPEC_KITTY_ENABLE_SAAS_SYNC=0`` is the
+opt-out; an unset or empty variable means enabled.
 """
 
 from __future__ import annotations
 
 import os
 
-from specify_cli.core.env import first_set_sync_disable_env, is_truthy
+from specify_cli.core.env import is_truthy, sync_kill_switch_active
 
 SAAS_SYNC_ENV_VAR = "SPEC_KITTY_ENABLE_SAAS_SYNC"
 
 _DISABLED_MESSAGE = (
-    "Hosted SaaS sync is not enabled on this machine. "
-    "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
+    "Hosted SaaS sync is disabled on this machine. "
+    "Unset `SPEC_KITTY_ENABLE_SAAS_SYNC` (or set it to `1`) to re-enable it."
 )
 
 __all__ = [
@@ -34,18 +38,29 @@ __all__ = [
 
 
 def is_saas_sync_enabled() -> bool:
-    """Return True iff SaaS sync is explicitly enabled via the environment.
+    """Return True unless SaaS sync is explicitly opted out via the environment.
 
-    Truthy values (case-insensitive, after strip): ``1``, ``true``, ``yes``,
-    ``y``, ``on`` (the canonical grammar in :mod:`specify_cli.core.env`).
-    Everything else — including an unset or empty variable — returns ``False``.
+    Launch default (#3980): the variable is **opt-out-only**. Unset or empty
+    means enabled. A truthy value (case-insensitive, after strip: ``1``,
+    ``true``, ``yes``, ``y``, ``on`` — the canonical grammar in
+    :mod:`specify_cli.core.env`) redundantly confirms enabled. Any other
+    non-empty value — ``0``, ``false``, ``off``, ... — opts out.
     """
-    return is_truthy(os.environ.get(SAAS_SYNC_ENV_VAR))
+    value = os.environ.get(SAAS_SYNC_ENV_VAR)
+    if value is None or not value.strip():
+        return True
+    return is_truthy(value)
 
 
 def sync_active() -> bool:
-    """Return whether hosted sync is armed after the global disable override."""
-    return is_saas_sync_enabled() and first_set_sync_disable_env() is None
+    """Return whether hosted sync is armed after the global disable override.
+
+    The kill switch is ``SPEC_KITTY_SYNC_DISABLE`` alone (#3980 launch
+    table): ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` no longer disarms sync — it is
+    a deprecated alias of the moment-handler import gate
+    (:func:`specify_cli.core.env.moment_handlers_disabled_reason`).
+    """
+    return is_saas_sync_enabled() and not sync_kill_switch_active()
 
 
 def saas_sync_disabled_message() -> str:

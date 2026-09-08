@@ -723,9 +723,8 @@ def move_task(
             "--skip-pre-review-gate",
             help=(
                 "Skip the pre-review regression gate on a --to for_review move "
-                "(also honored via the SPEC_KITTY_SYNC_DISABLE / "
-                "SPEC_KITTY_SYNC_MINIMAL_IMPORT env vars). The gate still runs "
-                "and enforces by default."
+                "(also honored via the SPEC_KITTY_SKIP_PRE_REVIEW_GATE env "
+                "var). The gate still runs and enforces by default."
             ),
         ),
     ] = False,
@@ -735,7 +734,7 @@ def move_task(
             "--owned-checkout",
             help=(
                 "Use an owned single_branch checkout for the local review lifecycle "
-                "(active sync, force/skip, done, and arbiter modes unsupported)."
+                "(force/skip, done, and arbiter modes unsupported)."
             ),
         ),
     ] = None,

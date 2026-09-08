@@ -5,8 +5,10 @@ need to depend on any transport. Handlers are registered into the slots
 below by whichever subsystem owns a transport. The default wiring (this
 module's import tail) installs the Zeitgeist moment handler (#8), the
 sole occupant of these registries since the sync package was deleted
-(#5/#114); this tail honours the SPEC_KITTY_SYNC_MINIMAL_IMPORT gate
-that package's registration used to observe.
+(#5/#114); that tail honours the moment-handler gate
+(:func:`specify_cli.core.env.moment_handlers_disabled_reason` —
+``SPEC_KITTY_NO_MOMENT_HANDLERS``, the ``SPEC_KITTY_SYNC_DISABLE`` kill
+switch, or the deprecated ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias, #3980).
 
 All fire_* functions are non-raising: exceptions from individual
 handlers are caught and logged, never re-raised to the caller. An empty
@@ -22,7 +24,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from specify_cli.core.env import is_truthy
+from specify_cli.core.env import moment_handlers_disabled_reason
 
 # The E3 Zeitgeist moment handler (#8): the default occupant of the three
 # fan-out slots since the sync transport (which registered its own handlers)
@@ -355,11 +357,13 @@ def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
 
 
 # Default wiring: every process that imports this seam carries the Zeitgeist
-# moment handler, under the same SPEC_KITTY_SYNC_MINIMAL_IMPORT gate the now-
-# deleted sync package's own import tail used to obey (#5/#114) —
-# SPEC_KITTY_SYNC_MINIMAL_IMPORT means "register no transport at import time."
-# This is the only default registration into these slots. A caller needing an
-# empty registry (tests) calls reset_handlers() and restores with
+# moment handler (#3980 launch names). The gate has its own name —
+# SPEC_KITTY_NO_MOMENT_HANDLERS means "register no transport at import time"
+# — the kill switch SPEC_KITTY_SYNC_DISABLE folds in (a disarmed process
+# registers no transport), and the former SPEC_KITTY_SYNC_MINIMAL_IMPORT name
+# survives as a deprecated alias that warns once when honored. This is the
+# only default registration into these slots. A caller needing an empty
+# registry (tests) calls reset_handlers() and restores with
 # ensure_zeitgeist_moment_handlers().
-if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
+if moment_handlers_disabled_reason() is None:
     ensure_zeitgeist_moment_handlers()

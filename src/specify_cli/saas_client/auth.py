@@ -4,8 +4,11 @@ Reads ``SPEC_KITTY_SAAS_URL``, ``SPEC_KITTY_SAAS_TOKEN``, and optional
 ``SPEC_KITTY_TEAM_SLUG`` from the environment, falling back to
 ``.kittify/saas-auth.json`` when env vars are absent, and finally to the
 OAuth session ``spec-kitty auth login`` persists (spec-kitty#198).  Raises
-``SaasAuthError`` if no token — or no SaaS URL — can be resolved. Per
-decision D-5 there is no hardcoded SaaS domain fallback.
+``SaasAuthError`` if no token can be resolved. D-5 revised (#3980): the
+packaged default ``https://team.spec-kitty.ai`` is the target — the env var
+is a dev/self-host override — so a missing URL no longer fails closed here;
+the refusal below is reachable only when the canonical resolver itself is
+unavailable.
 
 Scope of the #237 trust boundary (#289): this module only ever pairs
 ``.kittify/saas-auth.json``'s ``saas_url`` with its own token, never with an
@@ -71,7 +74,9 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
        Its ``team_slug`` comes only from ``SPEC_KITTY_TEAM_SLUG``; a
        repo-local file may not scope an operator's stored session.
     4. Raises ``SaasAuthError`` if no token is found, or if no SaaS URL is
-       supplied by any source (D-5: no hardcoded domain fallback).
+       supplied by any source and the canonical resolver is unavailable (D-5
+       revised, #3980: the packaged default is the target, so a missing URL
+       resolves to it rather than failing closed).
 
     Args:
         repo_root: Optional path to the repository root.  Used to locate
@@ -82,8 +87,9 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
 
     Raises:
         SaasAuthError: If no token can be resolved, or if no SaaS URL is
-            supplied by env var, auth file, or the stored session's server
-            target (D-5: no hardcoded SaaS domain fallback).
+            supplied by env var, auth file, or the canonical resolver (the
+            packaged default included — the refusal below fires only when
+            that resolver itself is unavailable).
     """
     env_url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
     env_token = os.environ.get("SPEC_KITTY_SAAS_TOKEN", "").strip()
@@ -125,7 +131,11 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
         url = env_url or _server_target_url()
     elif file_token:
         token = file_token
-        url = file_url or env_url
+        # #3980 (D-5 revised): a file token with no repo-local url pairs with
+        # the env override or the canonical resolver's target (packaged
+        # default included) — the file's own url still only ever rides with
+        # its own token (#237).
+        url = file_url or env_url or _server_target_url()
         team_slug = team_slug or file_team_slug
     else:
         token = ""
@@ -145,11 +155,14 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
             )
         raise SaasAuthError("no SaaS token configured: set SPEC_KITTY_SAAS_TOKEN, provide .kittify/saas-auth.json, or run `spec-kitty auth login`")
 
-    # D-5: there is NO hardcoded SaaS domain (see auth/config.get_saas_base_url,
-    # which raises when SPEC_KITTY_SAAS_URL is unset). The URL must come from the
-    # environment, the auth file, or the stored session's server target; falling
-    # back to a baked-in domain silently points the client at the wrong server
-    # (#2248 / #2146 canonical target authority). Fail closed instead.
+    # D-5 revised (#3980): the packaged default is the target, so this refusal
+    # is reachable only when the canonical resolver itself is unavailable
+    # (``_server_target_url`` degrades any resolver failure to ``""`` — e.g.
+    # an env/config split-brain, which :func:`resolve_server_target` fails
+    # closed on before any network call). The URL must come from the
+    # environment, the auth file, or that resolver; falling back further would
+    # silently point the client at the wrong server (#2248 / #2146 canonical
+    # target authority). Fail closed instead.
     if not url:
         if env_token:
             # #290: an env-supplied token never pairs with .kittify/saas-auth.json's
@@ -158,10 +171,13 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
             raise SaasAuthError(
                 "SaaS URL not configured: set SPEC_KITTY_SAAS_URL or config.toml's "
                 "[sync].server_url (an env-supplied SPEC_KITTY_SAAS_TOKEN is never "
-                "paired with .kittify/saas-auth.json's saas_url — #237; D-5: no "
-                "hardcoded SaaS domain)."
+                "paired with .kittify/saas-auth.json's saas_url — #237; the hosted "
+                "target could not be resolved)."
             )
-        raise SaasAuthError('SaaS URL not configured: set SPEC_KITTY_SAAS_URL or provide "saas_url" in .kittify/saas-auth.json (D-5: no hardcoded SaaS domain).')
+        raise SaasAuthError(
+            'SaaS URL not configured: set SPEC_KITTY_SAAS_URL or provide "saas_url" '
+            "in .kittify/saas-auth.json (the hosted target could not be resolved)."
+        )
 
     return AuthContext(saas_url=url, token=token, team_slug=team_slug)
 

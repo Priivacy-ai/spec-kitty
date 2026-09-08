@@ -19,6 +19,10 @@ audience: internal / pre-launch operators
 
 ## When this page applies
 
+> **Historical note (#3980):** the opt-in gate this page describes is gone —
+> hosted readiness is on by default and `SPEC_KITTY_ENABLE_SAAS_SYNC=0` is
+> the opt-out. This page remains as the pre-launch operator walkthrough.
+
 Read on if all of the following hold:
 
 - You are running a build of `spec-kitty-cli` that includes the SaaS
