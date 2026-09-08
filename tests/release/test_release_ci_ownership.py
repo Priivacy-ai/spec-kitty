@@ -105,6 +105,9 @@ def test_maintenance_branch_receives_release_gates(workflow_name: str, event: st
     [
         ("3.2.6.1", False),
         ("3.2.6.1rc1", True),
+        ("3.2.6.1RC1", True),
+        ("3.2.6.1ALPHA", True),
+        ("3.2.7BETA2", True),
         ("3.2.6.1alpha", True),
         ("3.2.7beta2", True),
         ("3.2.7", False),
