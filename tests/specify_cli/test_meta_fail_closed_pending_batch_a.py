@@ -183,10 +183,10 @@ def test_context_read_meta_json_raises_typed(tmp_path: Path, meta_text: str) -> 
 def test_decisions_resolve_mission_id_wraps_typed_into_domain(tmp_path: Path, meta_text: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """The service's own read wraps the typed failure into MISSION_NOT_FOUND.
 
-    ``_mission_dir`` is pinned to the seeded dir because the placement seam it
-    normally routes through has its OWN routed meta readers (``read_primary_
-    meta``, routed in the same pass) — driven end-to-end below, they surface
-    the same typed error before the service read fires.
+    ``_mission_dir`` is pinned to the seeded dir to isolate the service's own
+    read arm deterministically; driven end-to-end below, the placement seam's
+    readers degrade on corrupt meta by design and the same service read fires
+    through the real path.
     """
     from specify_cli.decisions import service as decisions_service
     from specify_cli.decisions.models import DecisionErrorCode
@@ -203,18 +203,23 @@ def test_decisions_resolve_mission_id_wraps_typed_into_domain(tmp_path: Path, me
 
 @pytest.mark.parametrize("meta_text", _CASES, ids=_CASE_IDS)
 def test_decisions_resolve_mission_id_end_to_end_never_raw_valueerror(tmp_path: Path, meta_text: str) -> None:
-    """End-to-end (no seam patching): corrupt meta surfaces typed, never raw.
+    """End-to-end (no seam patching): corrupt meta wraps into MISSION_NOT_FOUND.
 
-    The placement seam's own routed readers raise ``MissionMetaReadError``
-    before the service read is reached — a typed error either way, which is
-    the NFR-003 contract; the raw ``ValueError`` this path leaked before the
-    #3162 routing is gone.
+    The placement seam's own readers degrade on corrupt meta by design (the
+    husk gate and ``_stored_topology_best_effort``), so the service's own
+    routed read is the one that fires — wrapping the typed
+    ``MissionMetaReadError`` into the domain's ``DecisionError(MISSION_NOT_
+    FOUND)``. Never a raw ``ValueError`` on this path, which is the NFR-003
+    contract the #3162 routing establishes.
     """
-    from specify_cli.decisions.service import _resolve_mission_id
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError, _resolve_mission_id
 
     _seed(tmp_path, meta_text)
-    with pytest.raises(MissionMetaReadError, match="fail-closed"):
+    with pytest.raises(DecisionError) as excinfo:
         _resolve_mission_id(tmp_path, _SLUG)
+    assert excinfo.value.code == DecisionErrorCode.MISSION_NOT_FOUND
+    assert not isinstance(excinfo.value, ValueError)
 
 
 # ---------------------------------------------------------------------------
