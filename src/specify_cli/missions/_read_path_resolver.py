@@ -1246,19 +1246,23 @@ def _stored_topology_best_effort(
     mapped to ``None`` (the C-004 corrupt-meta path — the historical probe-based husk
     derivation runs once), NOT a raise: this primitive must preserve its historical
     contract of never raising on a bad meta, leaving the malformed-meta diagnostic to
-    each caller. ``ValueError`` is the malformed-JSON signal
-    :func:`mission_metadata.load_meta` emits; ``OSError`` covers an unreadable file.
-    The absent FIELD (classify) and the corrupt META (degrade to ``None``) stay
+    each caller. Since the #3162 routing, ``read_primary_meta`` emits the typed
+    :class:`~specify_cli.core.paths.MissionMetaReadError` (a ``RuntimeError``, NOT a
+    ``ValueError``) for a corrupt/non-object meta — caught here alongside the
+    canonicalizer's own path-guard ``ValueError`` and ``OSError`` for an unreadable
+    file. The absent FIELD (classify) and the corrupt META (degrade to ``None``) stay
     DISTINCT paths (C-004). :class:`MissionSelectorAmbiguous` is NOT caught — an
     ambiguous handle must propagate as the structured no-silent-fallback error
     (C-CTX-4 / C-009).
     """
+    from specify_cli.core.paths import MissionMetaReadError
+
     try:
         canonical_handle = _canonicalize_bare_modern_handle(
             repo_root, mission_slug, resolver=resolver
         )
         primary_meta, _ = read_primary_meta(repo_root, canonical_handle)
-    except (ValueError, OSError):
+    except (ValueError, OSError, MissionMetaReadError):
         return None
     primary_dir = _compose_primary_feature_dir(repo_root, canonical_handle)
     return classify_from_meta(primary_meta, primary_dir)
