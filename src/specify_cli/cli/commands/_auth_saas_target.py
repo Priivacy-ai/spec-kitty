@@ -62,7 +62,7 @@ def print_saas_endpoint() -> ResolvedServerTarget | None:
         # `[sync]`/`[/]`-shaped substrings (#182's rationale applies here too).
         console.print(f"{_SAAS_STATUS_LABEL}[red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
         console.print(f"  [yellow]{escape(sanitize_terminal_text(str(exc)))}[/yellow]")
-        return
+        return None
     except ConfigurationError:
         # escape(): the remedy names `[sync].server_url` — unescaped, Rich
         # markup parses "[sync]" as a style tag and silently drops it (#182).
@@ -118,7 +118,9 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
     the tracker/zeitgeist transport chain, not the OAuth login target.
     """
     if target.env_server_url is not None:
-        return SAAS_URL_ENV_VAR
+        # str(): SAAS_URL_ENV_VAR resolves as Any under mypy's
+        # follow_imports=skip for specify_cli.* — the runtime value is a str.
+        return str(SAAS_URL_ENV_VAR)
     if target.configured_server_url is not None:
         return "config.toml [sync].server_url"
     return "the packaged default"
