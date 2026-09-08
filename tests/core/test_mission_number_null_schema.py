@@ -19,7 +19,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.mission_metadata import resolve_mission_identity
-from tests._factories import provision_test_charter
+from tests.core.test_mission_creation_identity import _init_git_repo
 
 
 # ---------------------------------------------------------------------------
@@ -188,20 +188,17 @@ def test_create_mission_core_writes_null_mission_number(tmp_path: Path) -> None:
     # Seed the default mission_type_activations via the production
     # provisioner (same shared helper used across the mission-creation
     # test harness).
-    provision_test_charter(tmp_path)
+    _init_git_repo(tmp_path)
 
-    # create_mission_core needs a real git repo. Stub the git and filesystem
-    # operations that are not part of what we're testing.
+    # Use a real planning ref; stub the commit for these schema assertions.
     with (
         patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
         patch("specify_cli.core.mission_creation.locate_project_root", return_value=None),
         patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
-        patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
+        patch("specify_cli.core.mission_creation.get_current_branch", return_value="operator-work"),
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
         patch("specify_cli.status.fire_dossier_sync"),
     ):
-        # Provide a real tmp_path as repo_root so file creation works
-        # but without a real git repo
         result = create_mission_core(
             tmp_path,
             "foo-bar",
@@ -226,13 +223,13 @@ def test_create_mission_core_mission_number_field_is_none_in_result(tmp_path: Pa
     from specify_cli.core.mission_creation import create_mission_core
 
     # WP04 fail-closed: create_mission_core requires a provisioned charter.
-    provision_test_charter(tmp_path)
+    _init_git_repo(tmp_path)
 
     with (
         patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
         patch("specify_cli.core.mission_creation.locate_project_root", return_value=None),
         patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
-        patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
+        patch("specify_cli.core.mission_creation.get_current_branch", return_value="operator-work"),
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
         patch("specify_cli.status.fire_dossier_sync"),
     ):
@@ -252,13 +249,13 @@ def test_new_mission_feature_dir_uses_human_slug_mid8(tmp_path: Path) -> None:
     from specify_cli.core.mission_creation import create_mission_core
 
     # WP04 fail-closed: create_mission_core requires a provisioned charter.
-    provision_test_charter(tmp_path)
+    _init_git_repo(tmp_path)
 
     with (
         patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
         patch("specify_cli.core.mission_creation.locate_project_root", return_value=None),
         patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
-        patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
+        patch("specify_cli.core.mission_creation.get_current_branch", return_value="operator-work"),
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
         patch("specify_cli.status.fire_dossier_sync"),
     ):

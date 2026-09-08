@@ -2,16 +2,9 @@
 
 A freshly ``git init``-ed repository has an unborn HEAD: HEAD names a branch ref
 that does not exist yet, because there are no commits. Git cannot create a
-branch in that state, so a coordination-bearing mission created there declares a
-``coordination_branch`` in ``meta.json`` that could never be minted.
-
-Before the guard, creation ran to completion and reported success anyway. The
-beginner path — ``git init`` then Getting Started — produced missions that were
-broken on arrival with no error, recoverable only via
-``doctor coordination --fix``. See the reproduction on #4033.
-
-The guard refuses *before* any scaffold is written (so there is nothing to clean
-up) and only for topologies that actually mint a coordination branch.
+branch in that state. Every topology also commits its scaffold to an existing
+planning ref, so all creation paths must reject an unborn checkout before
+writing a scaffold. The error identifies the initial commit needed to proceed.
 """
 
 from __future__ import annotations
@@ -43,10 +36,7 @@ def _scaffold_project(repo: Path) -> None:
     (repo / ".kittify").mkdir(exist_ok=True)
     provision_test_charter(repo)
     (repo / "kitty-specs").mkdir(exist_ok=True)
-    # ``-b main`` so the real branch matches the patched ``get_current_branch``;
-    # otherwise the coord mint takes its does-not-resolve skip path and the
-    # success case below would pass for the wrong reason.
-    _git(repo, "init", "-b", "main")
+    _git(repo, "init", "-b", "operator-work")
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")
     # Deliberately NO commit: this is the unborn-HEAD state under test.
@@ -68,8 +58,7 @@ def _patched_context(tmp_path: Path):
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="operator-work"),
     ):
         yield
 
@@ -107,7 +96,7 @@ def test_has_unborn_head_false_for_a_non_repository(tmp_path: Path) -> None:
 
 
 def test_coord_create_refuses_on_unborn_head(tmp_path: Path) -> None:
-    """The #4033 defect: coord create on a commitless repo used to report success."""
+    """Coord create on a commitless repo fails before writing a scaffold."""
     _scaffold_project(tmp_path)
 
     with _patched_context(tmp_path), pytest.raises(MissionCreationError) as excinfo:
@@ -148,24 +137,19 @@ def test_refusal_writes_no_scaffold(tmp_path: Path) -> None:
     [MissionTopology.SINGLE_BRANCH, MissionTopology.LANES],
     ids=["single_branch", "lanes"],
 )
-def test_branch_flat_topologies_are_not_blocked(tmp_path: Path, topology: MissionTopology) -> None:
-    """Branch-flat shapes mint no coordination branch, so an unborn HEAD is harmless.
-
-    Blocking them would be a gratuitous refusal. This is the narrowing that
-    keeps ``test_coordinationless_create_persists_topology_so_2453_routing_is_not_cwd``
-    passing.
-    """
+def test_branch_flat_topologies_refuse_unborn_head(tmp_path: Path, topology: MissionTopology) -> None:
+    """Branch-flat creation still needs an existing ref for its scaffold commit."""
     _scaffold_project(tmp_path)
 
-    with _patched_context(tmp_path), patch("specify_cli.missions._create.ensure_coordination_branch"):
-        result = create_mission_core(
+    with _patched_context(tmp_path), pytest.raises(MissionCreationError, match="no commits yet"):
+        create_mission_core(
             tmp_path,
             "unborn-flat",
             topology=topology,
             **_mission_summary("unborn-flat"),
         )
 
-    assert result.feature_dir.exists()
+    assert list((tmp_path / "kitty-specs").iterdir()) == []
 
 
 def test_coord_create_succeeds_after_the_first_commit(tmp_path: Path) -> None:

@@ -5,6 +5,7 @@ import pytest
 
 from tests.acceptance.test_first_run_path_3_2_6_1 import (
     _cli, _git, _missions, _unwrapped,
+    project as project,
 )
 
 

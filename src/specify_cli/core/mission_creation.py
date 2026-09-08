@@ -41,9 +41,9 @@ from specify_cli.core.mission_payload import (
 )
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from kernel.clock import now_utc_iso
-from specify_cli.git import safe_commit
+from specify_cli.git import preflight_commit, safe_commit
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
-from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
+from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
 logger = logging.getLogger(__name__)
@@ -286,49 +286,43 @@ def _list_mission_scaffolds(repo_root: Path) -> frozenset[str]:
 def _path_is_tracked_by_git(repo_root: Path, path: Path) -> bool:
     """True when git tracks any file under ``path``.
 
-    A create that failed at the bookkeeping commit leaves the scaffold
-    untracked by definition, so this should always be False on the rollback
-    path. It is checked anyway: deleting a directory is irreversible, and the
-    cost of being wrong is a user's committed work. Any git failure returns
-    True — refuse to delete when we cannot prove the directory is disposable.
+    Ordinary early refusals precede staging. A late refusal can follow the
+    first scaffold commit, however, so preserve any indexed content. Refuse
+    deletion whenever Git cannot establish that the path is disposable.
     """
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "ls-files", "--", str(path)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-files", "--", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return True
     if result.returncode != 0:
         return True
     return bool(result.stdout.strip())
 
 
-def _failure_is_protected_branch_refusal(exc: BaseException) -> bool:
-    """True when ``exc`` (or anything it wraps) is a protected-branch refusal.
+def _failure_is_disposable_create_refusal(exc: BaseException) -> bool:
+    """Recognize commit preconditions whose recovery permits another create.
 
-    This is the discriminator that keeps the #4035 cleanup from eating the
-    resume-probe contract. Two create failures leave a scaffold, and they want
-    opposite treatment:
-
-    * ``ProtectedBranchRefused`` — the message tells the operator to re-run on a
-      feature branch, so retry IS the prescribed recovery and the leftover
-      scaffold is what turns that retry into a second mission. Remove it.
-    * Local ``MissionCreated`` persistence failure — the message says the
-      scaffold "is retained for explicit resume-probe diagnosis; do not retry
-      create until it is repaired or removed", and
-      ``agent mission check-prerequisites`` reads those directories
-      (``_matching_resume_probe_dirs``). Removing it would delete the evidence
-      the operator is being sent to inspect. Keep it.
-
-    The refusal is re-raised wrapped ("meta.json commit failed: …"), so the
-    cause chain is walked rather than the surface type.
+    Protection, checkout mismatch, and missing destination normally fail at
+    preflight. Repeat checks at commit time can still refuse, so clean up only
+    their new, untracked scaffolds. Persistence failures retain their explicit
+    resume-probe evidence. Both scaffold and origin commits wrap exceptions;
+    inspect their causes rather than only the surface type.
     """
-    from specify_cli.git.commit_helpers import ProtectedBranchRefused
+    from specify_cli.git.commit_helpers import (
+        ProtectedBranchRefused,
+        SafeCommitDestinationNotFound,
+        SafeCommitHeadMismatch,
+    )
 
     seen: set[int] = set()
     current: BaseException | None = exc
     while current is not None and id(current) not in seen:
-        if isinstance(current, ProtectedBranchRefused):
+        if isinstance(current, (ProtectedBranchRefused, SafeCommitHeadMismatch, SafeCommitDestinationNotFound)):
             return True
         seen.add(id(current))
         current = current.__cause__ or current.__context__
@@ -343,12 +337,10 @@ def _plan_orphan_scaffold_removal(
 ) -> tuple[Path, ...]:
     """Decide which scaffolds a failed create may delete — BEFORE any rollback.
 
-    Ordering matters. ``_restore_git_state_after_failed_create`` rewinds the
-    branch ref, which un-commits anything the aborted create committed, so a
-    tracked-ness check run *after* it would see every candidate as untracked
-    and the guard below would be inert. The decision is therefore taken here,
-    against the pre-rollback state, and applied afterwards.
+    Rollback restores the original index as well as the branch ref. The index
+    check must happen first, before it forgets files indexed by this create.
     """
+    mission_slug = strip_numeric_prefix(mission_slug)
     removable: list[Path] = []
     for name in sorted(_list_mission_scaffolds(repo_root) - pre_existing_scaffolds):
         # ``mission_slug_formatted`` is ``<slug>-<mid8>``, so match the stem and
@@ -482,8 +474,8 @@ def create_mission_core(
     the operator's branch/checkout, the pre-existing coordination branches, and
     the pre-existing ``kitty-specs/`` scaffolds *before* any mutation. On ANY
     failure it restores the original checkout, deletes the orphan coordination
-    branch the aborted run minted (#3339), and deletes the orphan mission
-    scaffold it wrote (#4035).
+    branch the aborted run minted (#3339). Disposable commit refusals also
+    remove newly created untracked scaffolds; diagnostic failures retain them.
     See :func:`_create_mission_core_impl` for the full parameter contract.
     """
     # An explicit owned checkout is the write/commit surface. Snapshot that
@@ -543,10 +535,10 @@ def create_mission_core(
         # Re-raised below; the rollback is pure cleanup and must not swallow or
         # replace the original failure (that is why we re-raise unconditionally).
         if rollback_root is not None:
-            # Planned BEFORE the git rollback: that rollback rewinds the branch
-            # ref, so the tracked-ness guard must read the pre-rewind state.
+            # Plan before rollback restores the index and branch ref; indexed
+            # scaffold content must remain available for diagnosis.
             planned_scaffold_removal: tuple[Path, ...] = ()
-            if _failure_is_protected_branch_refusal(_create_exc):
+            if _failure_is_disposable_create_refusal(_create_exc):
                 planned_scaffold_removal = _plan_orphan_scaffold_removal(
                     rollback_root,
                     mission_slug=mission_slug,
@@ -560,10 +552,10 @@ def create_mission_core(
                 pre_existing_coordination_branches=pre_existing_coordination_branches,
             )
             # #4035: git state alone is not the whole side effect. On a
-            # protected-branch refusal the on-disk scaffold outlives the failed
+            # disposable commit refusal the on-disk scaffold outlives the failed
             # create and turns the documented recovery into a second mission,
             # so it goes too. Other failure classes keep theirs (see
-            # ``_failure_is_protected_branch_refusal``).
+            # ``_failure_is_disposable_create_refusal``).
             _remove_orphan_mission_scaffolds(planned_scaffold_removal)
         raise
 
@@ -721,34 +713,20 @@ def _create_mission_core_impl(
     if resolved_root is None:
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
-    # Fail closed on an unborn HEAD (#4033). A repository with no commits
-    # cannot have a branch created in it, so the coordination branch this
-    # mission declares in ``meta.json`` could never be minted. Creation used to
-    # run to completion anyway and report success, leaving a mission that only
-    # ``doctor coordination --fix`` could recover — the state a beginner lands
-    # in by following Getting Started on a repo they just ``git init``-ed.
-    # Refuse before writing any scaffold, so there is nothing to clean up.
-    #
-    # Scoped to coordination-bearing topologies only: branch-flat shapes
-    # (SINGLE_BRANCH, LANES) skip the mint entirely, so an unborn HEAD costs
-    # them nothing and blocking them would be a gratuitous refusal.
-    from specify_cli.missions._create import topology_mints_coordination_branch
-
-    if topology_mints_coordination_branch(topology) and is_git_repo(resolved_root) and has_unborn_head(resolved_root):
+    effective_root = (
+        ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else resolved_root
+    )
+    if not is_git_repo(resolved_root):
+        raise MissionCreationError("Not in a git repository. Mission creation requires git.")
+    # Every topology commits its scaffold. Inspect the selected write checkout:
+    # linked checkouts can have different HEAD states in the same repository.
+    if has_unborn_head(effective_root):
         raise MissionCreationError(
-            "This repository has no commits yet, so Spec Kitty cannot create the "
-            "mission's coordination branch (git cannot branch from an unborn HEAD).\n\n"
+            "This checkout has no commits yet, so Spec Kitty cannot commit the mission scaffold.\n\n"
             "Make an initial commit first, then create the mission:\n"
             "  git commit --allow-empty -m 'Initial commit'\n\n"
             "If the repository already has files staged, commit those instead."
         )
-
-    effective_root = (
-        ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else resolved_root
-    )
-
-    if not is_git_repo(resolved_root):
-        raise MissionCreationError("Not in a git repository. Mission creation requires git.")
 
     current_branch = get_current_branch(effective_root)
     if not current_branch or current_branch == "HEAD":
@@ -758,11 +736,7 @@ def _create_mission_core_impl(
     # 3. Resolve planning branch
     # ------------------------------------------------------------------
     planning_branch = target_branch if target_branch else current_branch
-    create_time_target = (
-        resolve_create_time_write_target(planning_branch)
-        if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED
-        else None
-    )
+    create_time_target = resolve_create_time_write_target(planning_branch)
     if not normalized_friendly_name:
         normalized_friendly_name = default_mission_display_name(mission_slug)
 
@@ -835,6 +809,22 @@ def _create_mission_core_impl(
     )
 
     feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted
+    scaffold_paths = (
+        feature_dir / "meta.json",
+        feature_dir / "status.events.jsonl",
+        feature_dir / "tasks" / "README.md",
+        feature_dir / "tasks" / ".gitkeep",
+    )
+    # Validate against the canonical pre-metadata target before mkdir or event
+    # persistence. safe_commit repeats this policy at the actual commit boundary.
+    preflight_commit(
+        repo_root=resolved_root,
+        worktree_root=effective_root,
+        target=create_time_target,
+        message=f"Add scaffold for mission {mission_slug_formatted}",
+        paths=scaffold_paths,
+        capability=GuardCapability.STANDARD,
+    )
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     (feature_dir / "checklists").mkdir(exist_ok=True)
@@ -1017,7 +1007,7 @@ def _create_mission_core_impl(
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
         )
-        emit_mission_created_local(
+        created_event = emit_mission_created_local(
             feature_dir,
             mission_slug=mission_slug_formatted,
             mission_id=meta.get("mission_id"),
@@ -1031,6 +1021,7 @@ def _create_mission_core_impl(
             purpose_tldr=normalized_purpose_tldr,
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+            fanout=False,
         )
         created_events = [event for event in read_lifecycle_events(feature_dir / "status.events.jsonl") if event.get("event_type") == MISSION_CREATED]
         if len(created_events) != 1:
@@ -1058,13 +1049,14 @@ def _create_mission_core_impl(
     # the canonical lifecycle stream skips straight from ``MissionCreated``
     # to ``SpecifyCompleted``, leaving the specify-phase entry point
     # invisible to dashboards and TeamSpace — see issue #1067.
+    phase_event: dict[str, Any] | None = None
     try:
         from specify_cli.status import (
             SPECIFY_STARTED,
-            emit_artifact_phase,
+            emit_artifact_phase_local,
         )
 
-        emit_artifact_phase(
+        phase_event = emit_artifact_phase_local(
             feature_dir,
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
@@ -1101,12 +1093,7 @@ def _create_mission_core_impl(
     # ------------------------------------------------------------------
     try:
         _commit_feature_file(
-            (
-                meta_file,
-                feature_dir / "status.events.jsonl",
-                tasks_readme,
-                tasks_dir / ".gitkeep",
-            ),
+            scaffold_paths,
             mission_slug_formatted,
             "scaffold",
             resolved_root,
@@ -1115,14 +1102,6 @@ def _create_mission_core_impl(
         )
     except Exception as exc:
         raise RuntimeError(f"meta.json commit failed: {exc}") from exc
-
-    # Dossier sync (fire-and-forget via registered adapter)
-    # SaaS fan-out is already handled by emit_mission_created_local above —
-    # it calls fire_lifecycle_saas_fanout internally via append_lifecycle_event.
-    # No direct INTEGRATION imports needed here (FR-004/FR-006).
-    from specify_cli.status import fire_dossier_sync
-
-    fire_dossier_sync(feature_dir, mission_slug_formatted, resolved_root)
 
     # ------------------------------------------------------------------
     # 9. Consume pending origin if present (ticket-first flow)
@@ -1170,6 +1149,18 @@ def _create_mission_core_impl(
     # 10. Build result
     # ------------------------------------------------------------------
     created_files = [spec_file, meta_file, tasks_readme]
+
+    # Publish only after creation's commits succeed. Failed creation retains
+    # diagnostic local state or removes disposable scaffolds without leaving
+    # their lifecycle events queued independently of that local authority.
+    from specify_cli.status import fanout_lifecycle_event_hosted, fire_dossier_sync
+
+    log_path = feature_dir / "status.events.jsonl"
+    if created_event is not None:
+        fanout_lifecycle_event_hosted(created_event, log_path=log_path)
+    if phase_event is not None:
+        fanout_lifecycle_event_hosted(phase_event, log_path=log_path)
+    fire_dossier_sync(feature_dir, mission_slug_formatted, resolved_root)
 
     return MissionCreationResult(
         feature_dir=feature_dir,
