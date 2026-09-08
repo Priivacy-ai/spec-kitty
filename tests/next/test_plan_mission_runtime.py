@@ -298,10 +298,13 @@ class TestPlanMissionRegressions:
         data = yaml.safe_load(r_mission.read_text())
         assert "mission" in data, "research must have 'mission' key at top level"
 
-        # Research mission has states at top level - verify it has the expected structure
-        assert "states" in data, "research must have states at top level"
-        states = data["states"]
-        assert len(states) > 0, "research must have at least one state"
+        # The legacy `states:`/`transitions:` blocks were removed from the
+        # built-in mission catalogs (mission dead-port-disposition-01M1TZVN); the
+        # research catalog is still intact and isolated, verified via its stable
+        # content rather than the retired state machine.
+        assert "states" not in data, "research states/transitions blocks are retired (dead-port-disposition)"
+        assert data["mission"].get("name"), "research must declare a mission name"
+        assert data.get("commands"), "research must declare its commands"
 
         # Verify templates directory exists for research
         templates_dir = Path("src/specify_cli/missions/research/templates")
