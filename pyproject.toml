@@ -470,7 +470,6 @@ exclude = [
     "src/specify_cli/audit/engine.py",
     "src/specify_cli/audit/models.py",
     "src/specify_cli/audit/shape_registry.py",
-    "src/specify_cli/auth/config.py",
     "src/specify_cli/auth/device_flow/poller.py",
     "src/specify_cli/auth/errors.py",
     "src/specify_cli/auth/flows/_session_payload.py",

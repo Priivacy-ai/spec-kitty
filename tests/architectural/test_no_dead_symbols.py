@@ -1927,7 +1927,8 @@ _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozens
 # ---------- C. team-kitty-launch-defaults 3980 forward API ----------
 # The #3980 launch-defaults flip introduced the canonical env-name constants
 # in ``specify_cli.core.env`` and kept ``sync_active()`` as the contract-pinned
-# armed predicate (``kitty-specs/082-.../contracts/saas_rollout.md`` v3). None
+# armed predicate (``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/
+# contracts/saas_rollout.md`` v3). None
 # has a cross-file ``src/`` caller yet:
 #
 # * the three ``core.env`` constants are consumed by their own module's gate

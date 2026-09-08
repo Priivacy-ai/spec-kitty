@@ -1,8 +1,10 @@
 """Tests for the canonical rollout gate (:mod:`specify_cli.core.saas_sync_config`).
 
-Contract: ``kitty-specs/082-stealth-gated-saas-sync-hardening/contracts/
-saas_rollout.md`` (version 3). #3980 flipped the default from opt-in to
-opt-out-only: unset means hosted sync is ON.
+Contract: ``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/contracts/
+saas_rollout.md`` (version 3, self-contained). #3980 flipped the default
+from opt-in to opt-out-only: unset means hosted sync is ON. The version-2
+record stays byte-frozen at ``kitty-specs/082-stealth-gated-saas-sync-hardening/
+contracts/saas_rollout.md`` (archive freeze, NFR-002).
 """
 
 from __future__ import annotations

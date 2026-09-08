@@ -1,6 +1,9 @@
 """Canonical rollout gate for hosted SaaS sync.
 
-Stability contract: ``contracts/saas_rollout.md`` (version 3).
+Stability contract: ``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/
+contracts/saas_rollout.md`` (version 3, self-contained; the frozen version-2
+record stays at ``kitty-specs/082-stealth-gated-saas-sync-hardening/contracts/
+saas_rollout.md`` — the archive freeze forbids editing it in place).
 
 This CORE module is the single source of truth for the
 ``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check. The former
@@ -67,6 +70,8 @@ def saas_sync_disabled_message() -> str:
     """Return the stable, byte-wise-frozen message shown when SaaS sync is off.
 
     Wording is asserted byte-for-byte by tests; do not change without updating
-    ``contracts/saas_rollout.md`` and bumping the contract version.
+    the live stability contract
+    (``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/contracts/saas_rollout.md``)
+    and bumping the contract version.
     """
     return _DISABLED_MESSAGE
