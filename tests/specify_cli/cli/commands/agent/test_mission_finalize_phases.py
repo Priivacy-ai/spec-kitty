@@ -733,6 +733,93 @@ def test_flush_frontmatter_writes_persists_when_committing(tmp_path: Path) -> No
 
 
 # ---------------------------------------------------------------------------
+# T017 tasks.md regeneration / staleness report (#3221)
+# ---------------------------------------------------------------------------
+
+
+def _tasks_md_manifest() -> seam.WpsManifest:
+    from specify_cli.core.wps_manifest import WorkPackageEntry, WpsManifest
+
+    return WpsManifest(work_packages=[WorkPackageEntry(id="WP01", title="T1", requirement_refs=["FR-001"])])
+
+
+def test_regenerate_tasks_md_no_manifest_reports_not_stale(tmp_path: Path) -> None:
+    # No wps.yaml → nothing to regenerate; never creates tasks.md.
+    assert seam._regenerate_or_report_tasks_md(tmp_path, None, "001-mission", validate_only=True, json_output=True) is False
+    assert not (tmp_path / "tasks.md").exists()
+
+
+def test_regenerate_tasks_md_validate_only_leaves_stale_file_untouched(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    manifest = _tasks_md_manifest()
+    tasks_md = tmp_path / "tasks.md"
+    stale_bytes = "# stale hand-edited tasks.md\n\n<!-- deliberate staleness probe -->\n"
+    tasks_md.write_text(stale_bytes, encoding="utf-8")
+
+    stale = seam._regenerate_or_report_tasks_md(tmp_path, manifest, "001-mission", validate_only=True, json_output=False)
+
+    # #3221 / INV-6: byte-identical afterwards — the check reports, never repairs.
+    assert stale is True
+    assert tasks_md.read_text(encoding="utf-8") == stale_bytes
+    assert "stale relative to wps.yaml" in capsys.readouterr().out
+
+
+def test_regenerate_tasks_md_validate_only_fresh_file_reports_not_stale(
+    tmp_path: Path,
+) -> None:
+    from specify_cli.core.wps_manifest import generate_tasks_md_from_manifest
+
+    manifest = _tasks_md_manifest()
+    tasks_md = tmp_path / "tasks.md"
+    fresh = generate_tasks_md_from_manifest(manifest, "001-mission")
+    tasks_md.write_text(fresh, encoding="utf-8")
+
+    stale = seam._regenerate_or_report_tasks_md(tmp_path, manifest, "001-mission", validate_only=True, json_output=True)
+
+    assert stale is False
+    assert tasks_md.read_text(encoding="utf-8") == fresh
+
+
+def test_regenerate_tasks_md_validate_only_missing_file_is_stale_not_created(
+    tmp_path: Path,
+) -> None:
+    manifest = _tasks_md_manifest()
+
+    stale = seam._regenerate_or_report_tasks_md(tmp_path, manifest, "001-mission", validate_only=True, json_output=True)
+
+    # A missing tasks.md would be CREATED by the regeneration — report it,
+    # never create it in validate-only mode.
+    assert stale is True
+    assert not (tmp_path / "tasks.md").exists()
+
+
+def test_regenerate_tasks_md_validate_only_unreadable_file_is_stale(
+    tmp_path: Path,
+) -> None:
+    manifest = _tasks_md_manifest()
+    tasks_md = tmp_path / "tasks.md"
+    tasks_md.write_bytes(b"\xff\xfe not utf-8 \xff")
+
+    stale = seam._regenerate_or_report_tasks_md(tmp_path, manifest, "001-mission", validate_only=True, json_output=True)
+
+    # A corrupt tasks.md cannot be compared — report stale (the commit-phase
+    # write replaces it wholesale) instead of crashing the read-only pre-flight.
+    assert stale is True
+
+
+def test_regenerate_tasks_md_commit_phase_writes(tmp_path: Path) -> None:
+    from specify_cli.core.wps_manifest import generate_tasks_md_from_manifest
+
+    manifest = _tasks_md_manifest()
+    tasks_md = tmp_path / "tasks.md"
+    tasks_md.write_text("stale\n", encoding="utf-8")
+
+    stale = seam._regenerate_or_report_tasks_md(tmp_path, manifest, "001-mission", validate_only=False, json_output=True)
+
+    assert stale is False
+    assert tasks_md.read_text(encoding="utf-8") == generate_tasks_md_from_manifest(manifest, "001-mission")
+
+
+# ---------------------------------------------------------------------------
 # _validate_owned_files_not_in_kitty_specs
 # ---------------------------------------------------------------------------
 

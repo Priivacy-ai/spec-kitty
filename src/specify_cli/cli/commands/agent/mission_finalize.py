@@ -10,7 +10,11 @@ INV-6 (the ``--validate-only`` zero-mutation invariant) is preserved exactly:
 the bootstrap loop infers all 8 fields in memory but the disk-write phase is
 guarded by ``frontmatter_changed and not validate_only`` and the validate-only
 report path returns BEFORE any committing/seeding writer runs. An explicit
-assertion (``_assert_no_write_in_validate_only``) reinforces the guard.
+assertion (``_assert_no_write_in_validate_only``) reinforces the guard. The
+T017 tasks.md regeneration — a tracked-file write that bypassed the
+frontmatter queue (#3221) — is likewise skipped in validate-only mode, with
+its staleness reported instead of repaired, so the invariant covers every
+tracked-file write the command performs.
 
 One-way leaf (INV-8): imports lower layers + sibling Seam B/C/D leaves only at
 module scope. The cross-cutting symbols the finalize tests patch on the
@@ -1756,6 +1760,48 @@ def _record_ownership_glob_diagnostics(
             stderr_console.print(f"[red]ERROR:[/red] Ownership: {err}")
 
 
+def _regenerate_or_report_tasks_md(
+    planning_dir: Path,
+    wps_manifest: WpsManifest | None,
+    mission_slug: str,
+    *,
+    validate_only: bool,
+    json_output: bool,
+) -> bool:
+    """Phase: T017 tasks.md regeneration from wps.yaml (FR-008, FR-011) — #3221.
+
+    In the commit phase this regenerates ``tasks.md`` from the wps.yaml
+    manifest. In ``--validate-only`` mode the regeneration is a WRITE to a
+    tracked file, so it is skipped (INV-6: zero mutation on disk) and the
+    staleness it would repair is REPORTED instead — turning what used to be a
+    silent side effect into a diagnostic, so a pre-flight still gets the
+    signal without mutating the tree. Returns whether ``tasks.md`` is stale
+    relative to wps.yaml (computed from an in-memory regeneration, never from
+    a write); always ``False`` when there is no manifest or when the file was
+    just (re)written by the commit phase.
+    """
+    if wps_manifest is None:
+        return False
+    generated = generate_tasks_md_from_manifest(wps_manifest, mission_slug)
+    tasks_md = planning_dir / TASKS_MD_FILENAME
+    if validate_only:
+        try:
+            on_disk = tasks_md.read_text(encoding="utf-8") if tasks_md.exists() else None
+        except (OSError, UnicodeDecodeError):
+            # Unreadable tasks.md — the commit-phase regeneration would replace
+            # it wholesale, so report it stale rather than crashing a read-only
+            # pre-flight on a file it must not touch.
+            on_disk = None
+        stale: bool = on_disk != generated
+        if stale and not json_output:
+            console.print("[yellow]⚠[/yellow] tasks.md is stale relative to wps.yaml; run finalize-tasks without --validate-only to regenerate")
+        return stale
+    tasks_md.write_text(generated, encoding="utf-8")
+    if not json_output:
+        console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
+    return False
+
+
 def _emit_validate_only_report(
     planning_dir: Path,
     mission_slug: str,
@@ -1767,6 +1813,7 @@ def _emit_validate_only_report(
     target_branch: str,
     *,
     all_canceled: bool = False,
+    tasks_md_stale: bool = False,
     json_output: bool,
     owned: OwnedMission | None = None,
 ) -> None:
@@ -1827,6 +1874,7 @@ def _emit_validate_only_report(
                 "would_preserve": state.preserved_wps,
                 "unchanged": state.unchanged_wps,
                 "updated_wp_count": state.updated_count,
+                "tasks_md_stale": tasks_md_stale,
                 "ownership_warnings": state.ownership_warnings,
                 "requirement_extraction_warnings": state.requirement_extraction_warnings,
                 "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
@@ -2819,7 +2867,10 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
     ``frontmatter_changed and not validate_only`` guard ensures zero bytes of
     mutation on disk (INV-6). In validate-only mode the bootstrap loop still
     infers all 8 fields in memory so downstream validation operates against the
-    post-bootstrap state — not the stale on-disk frontmatter.
+    post-bootstrap state — not the stale on-disk frontmatter. The T017 tasks.md
+    regeneration is likewise skipped (its staleness relative to wps.yaml is
+    reported instead of repaired — #3221), so INV-6 covers every tracked-file
+    write the command performs.
 
     See also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via
     ``build_document() + write_text()`` — guarded the same way (T002).
@@ -2988,12 +3039,17 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
         _flush_frontmatter_writes(state, validate_only=validate_only)
 
-        # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)
-        tasks_md = planning_dir / TASKS_MD_FILENAME
-        if wps_manifest is not None and not validate_only:
-            tasks_md.write_text(generate_tasks_md_from_manifest(wps_manifest, mission_slug), encoding="utf-8")
-            if not json_output:
-                console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
+        # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
+        # #3221: the regeneration is a write to a tracked file, so in
+        # --validate-only mode it is skipped and staleness is reported
+        # instead (INV-6: zero mutation) — never silently repaired.
+        tasks_md_stale = _regenerate_or_report_tasks_md(
+            planning_dir,
+            wps_manifest,
+            mission_slug,
+            validate_only=validate_only,
+            json_output=json_output,
+        )
 
         wp_frontmatters, wp_bodies = _gather_validation_frontmatter(wp_files, state)
         ownership_source = FinalizeFrontmatterSource(wp_files=list(wp_files), inmemory=state.inmemory_frontmatter)
@@ -3028,6 +3084,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
                 lane_wp_bodies,
                 target_branch,
                 all_canceled=eligibility.all_canceled,
+                tasks_md_stale=tasks_md_stale,
                 json_output=json_output,
                 **({"owned": owned} if owned else {}),
             )
