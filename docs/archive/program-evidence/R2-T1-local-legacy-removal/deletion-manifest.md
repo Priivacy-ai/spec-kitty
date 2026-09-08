@@ -1,3 +1,11 @@
+---
+title: R2-T1 destructive deletion manifest (frozen module scope)
+type: reference
+doc_status: reference
+updated: 2026-09-06
+audience: agentic-framework-core-team
+---
+
 # R2-T1 destructive manifest (frozen module scope)
 
 **Bead:** `R2-T1` (parent feature `R2`, `docs/BEADS_PROGRAM_GRAPH.json`) · **Reviewer:** reviewer-renata

@@ -1,3 +1,11 @@
+---
+title: R2-T1 commit-history attribution notes
+type: reference
+doc_status: reference
+updated: 2026-09-06
+audience: agentic-framework-core-team
+---
+
 # R2-T1 commit-history attribution notes
 
 This file exists solely to correct a misattribution flagged by Renata's

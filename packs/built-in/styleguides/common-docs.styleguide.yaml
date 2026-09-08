@@ -253,6 +253,14 @@ structural_lint_config:
     # Convergence analyses (epic #399): curated documentation pages, not
     # scaffolding — belongs here, not in non_content_dirs (planning#583).
     - convergence
+    # Frozen historical program evidence (docs/archive/**): curated,
+    # point-in-time documentation pages kept as an immutable record — content,
+    # not scaffolding, so they belong here and carry the frontmatter contract
+    # (their README landing pages are exempt via **/README.md). Registered
+    # during the #3995 CI-reinstatement landing: the reinstated `tests (docs)`
+    # job runs the structural lint's extended runner, which surfaced this
+    # long-existing section as unsanctioned.
+    - archive
   # Sanctioned NON-content directories under docs/ — nav/scaffolding zones that
   # are exempt from sanctioned-section membership (they hold assets/templates,
   # not curated documentation pages).

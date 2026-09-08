@@ -525,7 +525,7 @@ constituents:
   kind: styleguide
   path: styleguides/aggregate-design-rules.styleguide.yaml
   provenance_path:
-- content_hash: 38542d4c90a6dbadd635b588b1b07c31f55014d681250ef939c0a5d23111c7f7
+- content_hash: cb894e98fd3f872048bb8da38537e421083b1c7b5dfc48bc8ca2344d7bdeffe5
   id: common-docs
   kind: styleguide
   path: styleguides/common-docs.styleguide.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 87d4fb0e4e2c61468a83b81faee79fc226caf30b98b3eabdb9104585f6a87430
+manifest_hash: 6ae113fec3c8bd4603f5a6ec288229593eba95104b5bfc62a199e80feddc4b8f
 schema_version: '1'
 source_type: built-in
 source_url:
