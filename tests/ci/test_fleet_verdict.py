@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +82,8 @@ class API:
         return result
 
     def pages(self, path: str, field: str | None = None) -> list[dict[str, Any]]:
+        if path == "actions/workflows":
+            return [{"id": identity, "path": f".github/workflows/{name}"} for name, identity in IDS.items()]
         if path == "pulls/7/files":
             return copy.deepcopy(self.files)
         if path == "issues/7/comments":
@@ -101,12 +104,13 @@ def test_all_existing_pr_workflows_are_registered() -> None:
     assert applicable_workflows(ROOT, release, ["pyproject.toml"]) == {"ci-router.yml", "ci-modules.yml", "ci-quality.yml", "packs.yml"}
 
 
-def test_new_pr_workflow_fails_closed(tmp_path: Path) -> None:
+@pytest.mark.parametrize("extension", ["yml", "yaml"])
+def test_new_pr_workflow_fails_closed(tmp_path: Path, extension: str) -> None:
     directory = tmp_path / ".github/workflows"
     directory.mkdir(parents=True)
     for path in (ROOT / ".github/workflows").glob("*.yml"):
         (directory / path.name).write_bytes(path.read_bytes())
-    (directory / "new.yml").write_text("on: {pull_request: {}}\njobs: {}\n")
+    (directory / f"new.{extension}").write_text("on: {pull_request: {}}\njobs: {}\n")
     with pytest.raises(ValueError, match="inventory changed"):
         applicable_workflows(tmp_path, pull(), ["docs/a.md"])
 
@@ -240,11 +244,17 @@ def test_explicit_reviewed_replay_posts_real_manual_aggregate_evidence(tmp_path:
     assert replay["reporter_sha"] in body
 
 
-@pytest.mark.parametrize("field,value", [
-    ("event", "push"), ("head_sha", "f" * 40), ("workflow_id", 999),
-    ("path", ".github/workflows/wrong.yml"), ("repository", {"full_name": "other/repo"}),
-    ("display_title", "CI Aggregate source 999999 attempt 1"),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("event", "push"),
+        ("head_sha", "f" * 40),
+        ("workflow_id", 999),
+        ("path", ".github/workflows/wrong.yml"),
+        ("repository", {"full_name": "other/repo"}),
+        ("display_title", "CI Aggregate source 999999 attempt 1"),
+    ],
+)
 def test_replay_refuses_wrong_aggregate_identity(tmp_path: Path, field: str, value: Any) -> None:
     api, checkout, replay = replay_fixture(tmp_path)
     api.runs[AGGREGATE][0][field] = value
@@ -253,11 +263,13 @@ def test_replay_refuses_wrong_aggregate_identity(tmp_path: Path, field: str, val
     assert not api.posts
 
 
-@pytest.mark.parametrize("change", ["dirty", "wrong_revision", "new_head", "new_source_attempt"])
+@pytest.mark.parametrize("change", ["dirty", "tracked_dirty", "wrong_revision", "new_head", "new_source_attempt"])
 def test_replay_refuses_unreviewed_or_superseded_evidence(tmp_path: Path, change: str) -> None:
     api, checkout, replay = replay_fixture(tmp_path)
     if change == "dirty":
         (checkout / "unreviewed.py").write_text("unreviewed = True\n")
+    elif change == "tracked_dirty":
+        (checkout / ".github/workflows/ci-quality.yml").write_text("unreviewed: true\n")
     elif change == "wrong_revision":
         replay["reporter_sha"] = "f" * 40
     elif change == "new_head":
@@ -275,3 +287,79 @@ def test_replay_preserves_other_required_gate_results(tmp_path: Path, state: str
     api.runs["ci-quality.yml"][0]["conclusion"] = state
     report(api, checkout, 7, IDS, 123, 1, replay=replay)
     assert api.posts[0]["body"].startswith(f"[ci] {expected} @{HEAD}")
+
+
+def test_manual_replay_cli_dry_run_never_posts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    from scripts.ci import fleet_verdict
+
+    api, checkout, replay = replay_fixture(tmp_path)
+    monkeypatch.setattr(fleet_verdict, "GitHubCLI", lambda repository: api)
+    monkeypatch.setattr(fleet_verdict, "__file__", str(checkout / "scripts/ci/fleet_verdict.py"))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "fleet_verdict.py",
+            "--pr",
+            "7",
+            "--repository",
+            REPO,
+            "--reporter-id",
+            "123",
+            "--attempt",
+            "1",
+            "--aggregate-run-id",
+            str(replay["aggregate_run_id"]),
+            "--reviewed-reporter-sha",
+            replay["reporter_sha"],
+            "--reporter-host",
+            replay["host"],
+            "--reporter-session",
+            replay["session"],
+            "--gh-cli",
+            "--dry-run",
+        ],
+    )
+    fleet_verdict.main()
+    assert capsys.readouterr().out.startswith(f"[ci] green @{HEAD} on sk-dispatch")
+    assert not api.posts
+
+
+def test_replay_rechecks_aggregate_attempt_before_publication(tmp_path: Path) -> None:
+    api, checkout, replay = replay_fixture(tmp_path)
+    original = api.request
+    reads = 0
+
+    def changing_request(path: str, payload: dict[str, Any] | None = None) -> Any:
+        nonlocal reads
+        if path.startswith("actions/runs/"):
+            reads += 1
+            if reads > 1:
+                api.runs[AGGREGATE][0].update(run_attempt=2, status="in_progress", conclusion=None)
+        return original(path, payload)
+
+    api.request = changing_request
+    with pytest.raises(ValueError, match="changed before publication"):
+        report(api, checkout, 7, IDS, 123, 1, replay=replay)
+    assert not api.posts
+
+
+def test_gh_transport_uses_existing_proxy_and_stdin_for_comment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.ci.fleet_verdict import GitHubCLI
+
+    executable = tmp_path / "gh"
+    executable.write_text(
+        f"#!{sys.executable}\nimport json, os, sys\nprint(json.dumps({{'argv':sys.argv[1:], 'host':os.environ['GH_HOST'], 'payload':json.load(sys.stdin)}}))\n"
+    )
+    executable.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.setenv("GH_HOST", "github.int.exe.xyz")
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    payload = {"body": "[ci] green @" + HEAD + "\n\nExact evidence; literal `$()` preserved."}
+    result = GitHubCLI(REPO).request("issues/7/comments", payload)
+    assert result["payload"] == payload
+    assert result["host"] == "github.int.exe.xyz"
+    assert result["argv"] == ["api", f"repos/{REPO}/issues/7/comments", "--method", "POST", "--input", "-"]
+    executable.write_text(f"#!{sys.executable}\nimport sys\nsys.stderr.write('credential diagnostics must not escape')\nsys.exit(1)\n")
+    with pytest.raises(ValueError, match=r"^gh API request failed \(exit 1\)$"):
+        GitHubCLI(REPO).request("issues/7/comments", payload)
