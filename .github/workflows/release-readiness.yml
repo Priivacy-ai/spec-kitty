@@ -123,7 +123,7 @@ jobs:
             echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
             echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This workflow validates release metadata only. CI Quality owns tests, wheel build, exact-install, and SaaS consumer compatibility checks; Check Shared Package Drift owns shared-package pin drift checks." >> $GITHUB_STEP_SUMMARY
+            echo "This workflow validates release metadata only. CI Quality owns tests, wheel build, and exact-install checks; Check Shared Package Drift owns shared-package pin drift checks. The SaaS consumer comparison was retired (#3979 backport)." >> $GITHUB_STEP_SUMMARY
             echo "Do not summarize a release as green until CI Quality and Check Shared Package Drift have also passed on the same commit." >> $GITHUB_STEP_SUMMARY
           elif [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.metadata_changes.outputs.version_sources }}" != "true" && "${{ steps.metadata_changes.outputs.validator_surface }}" != "true" ]]; then
             echo "✅ **Release metadata validation skipped**" >> $GITHUB_STEP_SUMMARY
