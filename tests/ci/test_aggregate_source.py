@@ -144,6 +144,8 @@ def test_shipped_diff_cover_rejects_uncovered_pr_line_on_trusted_checkout(tmp_pa
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci-aggregate.yml").read_text())
     gate = next(s["run"] for s in workflow["jobs"]["diff-cover"]["steps"] if s.get("name", "").startswith("diff-cover —"))
     gate = gate.replace("${{ steps.census.outputs.exclude-flags }}", "")
+    gate = gate.replace("scripts/ci/validate_diff_coverage.py", str(ROOT / "scripts/ci/validate_diff_coverage.py"))
+    (repo / ".venv").symlink_to(Path(sys.executable).parent.parent)
     env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"])
     result = subprocess.run(["bash", "-c", gate], cwd=repo, env=env, capture_output=True, text=True)
     assert result.returncode == 1, result.stdout + result.stderr
@@ -242,3 +244,212 @@ def test_current_download_matches_only_the_producers_source_attempt(event: str) 
     older_upload = render(upload, dict(context, **{"github.run_attempt": "2"}))
     assert fnmatchcase(matching_upload, pattern), (matching_upload, pattern)
     assert not fnmatchcase(older_upload, pattern), (older_upload, pattern)
+
+
+CRITICAL_EXAMPLES = (
+    "src/kernel/nested/example.py",
+    "src/charter/activation/example.py",
+    "src/specify_cli/status/nested/example.py",
+    "src/specify_cli/lanes/branch_naming.py",
+    "src/specify_cli/dashboard/handlers/nested/example.py",
+    "src/specify_cli/dashboard/scanner.py",
+    "src/specify_cli/merge/nested/example.py",
+    "src/runtime/next/nested/example.py",
+    "src/mission_runtime/nested/example.py",
+)
+
+
+def score_source_change(
+    tmp_path: Path,
+    filename: str,
+    *,
+    new_file: bool,
+    hits: int = 0,
+    comment: bool = False,
+    omit_statement: bool = False,
+    omit_file: bool = False,
+    bad_manifest: str = "",
+    excluded: bool = False,
+    pragma: bool = False,
+    deletion: bool = False,
+    multiline: str = "",
+) -> subprocess.CompletedProcess[str]:
+    """Run the shipped source preparer and scoring shell over producer-shaped XML."""
+    repo, run, _ = source_fixture(tmp_path)
+    target = repo / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not new_file:
+        initial = "existing = 1\n"
+        if multiline == "code":
+            initial = "value = (\n    1 +\n    2\n)\n"
+        elif multiline == "comment":
+            initial = "value = (\n    # original\n    1 + 2\n)\n"
+        elif multiline == "docstring":
+            initial = '"""original\nsecond\n"""\nvalue = 1\n'
+        target.write_text(initial)
+        git(repo, "add", ".")
+        git(repo, "commit", "-qm", "existing critical file")
+    base = git(repo, "rev-parse", "HEAD")
+    if multiline:
+        old, new = {"code": ("    2", "    3"), "comment": ("original", "updated"), "docstring": ("second", "changed")}[multiline]
+        target.write_text(target.read_text().replace(old, new))
+    elif deletion:
+        target.unlink()
+    else:
+        change = "# comment only\n" if comment else "changed = 2\n"
+        if pragma:
+            change = "changed = 2  # pragma: no cover\n"
+        target.write_text(("" if new_file else "existing = 1\n") + change)
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "source change")
+    head = git(repo, "rev-parse", "HEAD")
+    merged = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-p", head, "-m", "tested PR merge")
+    run["head_sha"] = head
+    run["referenced_workflows"][0].update(sha=merged, path=f"spec-kitty/spec-kitty/.github/workflows/module-tests.yml@{merged}")
+    git(repo, "checkout", "-q", base)
+    assert target.exists() is not new_file
+    git(repo, "update-ref", "refs/remotes/origin/main", base)
+    prepared = run_source(repo, run)
+    assert prepared.returncode == 0, prepared.stderr
+    sources_file = repo / "out/aggregate/source/critical-sources.json"
+    if bad_manifest:
+        sources = json.loads(sources_file.read_text())
+        if bad_manifest == "missing":
+            sources.pop(filename)
+        else:
+            sources[filename] = "not base64!"
+        sources_file.write_text(json.dumps(sources))
+    # The preflight must not inherit a checkout's ambient coverage exclusions.
+    (repo / ".coveragerc").write_text("[report]\nexclude_lines = .\n")
+    coverage = repo / "out/aggregate/coverage"
+    coverage.mkdir(parents=True)
+    lines = "" if new_file else '<line number="1" hits="1"/>'
+    if not comment and not omit_statement and not pragma and not deletion:
+        lines += f'<line number="{1 if new_file else 2}" hits="{hits}"/>'
+    if multiline:
+        line = 4 if multiline == "docstring" else 1
+        lines = "" if omit_statement else f'<line number="{line}" hits="{hits}"/>'
+    (coverage / "coverage-standard-critical-shard1-of-1.xml").write_text(
+        '<coverage><sources><source /></sources><packages><package name="critical"><classes>'
+        f'<class filename="{"other.py" if omit_file else filename}"><lines>{lines}</lines></class>'
+        "</classes></package></packages></coverage>"
+    )
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci-aggregate.yml").read_text())
+    gate = next(s["run"] for s in workflow["jobs"]["diff-cover"]["steps"] if s.get("name", "").startswith("diff-cover —"))
+    (repo / ".venv").symlink_to(Path(sys.executable).parent.parent)
+    env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"])
+    exclude_flags = ""
+    if excluded:
+        census = next(step["run"] for step in workflow["jobs"]["diff-cover"]["steps"] if step.get("id") == "census")
+        census = census.replace(
+            "from tests.architectural._p1_census_oracle import denominator_excluded_surfaces",
+            "def denominator_excluded_surfaces(): return {'charter.activation'}",
+        )
+        output = repo / "census-output"
+        result = subprocess.run(["bash", "-c", census], cwd=repo, env=dict(env, GITHUB_OUTPUT=str(output)), capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        exclude_flags = output.read_text().strip().removeprefix("exclude-flags=")
+    gate = gate.replace("${{ steps.census.outputs.exclude-flags }}", exclude_flags)
+    gate = gate.replace("scripts/ci/validate_diff_coverage.py", str(ROOT / "scripts/ci/validate_diff_coverage.py"))
+    result = subprocess.run(["bash", "-c", gate], cwd=repo, env=env, capture_output=True, text=True)
+    assert git(repo, "rev-parse", "HEAD") == base
+    assert target.exists() is not new_file
+    return result
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("filename", CRITICAL_EXAMPLES)
+@pytest.mark.parametrize("new_file", [False, True], ids=["existing", "new-absent-from-checkout"])
+def test_shipped_gate_scores_all_critical_paths_from_git_trees(tmp_path: Path, filename: str, new_file: bool) -> None:
+    result = score_source_change(tmp_path, filename, new_file=new_file)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Total:   1 line" in result.stdout
+    assert "Coverage: 0%" in result.stdout
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("new_file", [False, True])
+def test_shipped_gate_accepts_covered_nested_critical_changes(tmp_path: Path, new_file: bool) -> None:
+    result = score_source_change(tmp_path, "src/charter/activation/example.py", new_file=new_file, hits=1)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Total:   1 line" in result.stdout
+    assert "Coverage: 100%" in result.stdout
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("filename,comment", [("docs/example.py", False), ("src/charter/activation/example.py", True)])
+def test_shipped_gate_preserves_genuinely_empty_comparisons(tmp_path: Path, filename: str, comment: bool) -> None:
+    result = score_source_change(tmp_path, filename, new_file=False, comment=comment)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "No lines with coverage information in this diff." in result.stdout
+
+
+@pytest.mark.git_repo
+def test_shipped_gate_rejects_missing_statement_evidence(tmp_path: Path) -> None:
+    result = score_source_change(tmp_path, "src/charter/activation/example.py", new_file=True, omit_statement=True)
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "missing coverage evidence" in result.stdout + result.stderr
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("failure", ["missing-file", "missing-statement", "missing-manifest", "invalid-manifest"])
+def test_shipped_gate_refuses_incomplete_source_or_report_evidence(tmp_path: Path, failure: str) -> None:
+    result = score_source_change(
+        tmp_path,
+        "src/charter/activation/example.py",
+        new_file=False,
+        omit_file=failure == "missing-file",
+        omit_statement=failure == "missing-statement",
+        bad_manifest=failure.removesuffix("-manifest") if failure.endswith("-manifest") else "",
+    )
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "Coverage: 100%" not in result.stdout
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("control", ["pragma", "deletion", "census-exclusion"])
+def test_shipped_gate_preserves_statement_and_census_exclusions(tmp_path: Path, control: str) -> None:
+    result = score_source_change(
+        tmp_path,
+        "src/charter/activation/example.py",
+        new_file=False,
+        pragma=control == "pragma",
+        deletion=control == "deletion",
+        excluded=control == "census-exclusion",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "No lines with coverage information in this diff." in result.stdout
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("evidence,expected", [("missing", 1), ("uncovered", 1), ("covered", 0)])
+def test_shipped_gate_maps_continuation_edits_to_statement_origins(tmp_path: Path, evidence: str, expected: int) -> None:
+    result = score_source_change(
+        tmp_path,
+        "src/charter/activation/example.py",
+        new_file=False,
+        multiline="code",
+        omit_statement=evidence == "missing",
+        hits=int(evidence == "covered"),
+    )
+    assert result.returncode == expected, result.stdout + result.stderr
+    if evidence == "missing":
+        assert "missing coverage evidence" in result.stdout + result.stderr
+    else:
+        assert "Total:   1 line" in result.stdout
+        assert f"Coverage: {100 if evidence == 'covered' else 0}%" in result.stdout
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("control", ["comment", "docstring"])
+def test_shipped_gate_keeps_multiline_noncode_edits_empty(tmp_path: Path, control: str) -> None:
+    result = score_source_change(tmp_path, "src/charter/activation/example.py", new_file=False, multiline=control)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "No lines with coverage information in this diff." in result.stdout
+
+
+@pytest.mark.git_repo
+def test_shipped_gate_preserves_quoted_git_paths(tmp_path: Path) -> None:
+    result = score_source_change(tmp_path, "src/charter/activation/with space.py", new_file=True)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Coverage: 0%" in result.stdout

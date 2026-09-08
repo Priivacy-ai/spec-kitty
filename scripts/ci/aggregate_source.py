@@ -3,11 +3,27 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import subprocess
 from pathlib import Path
 from typing import Any
+
+
+# Ordinary Git pathspecs match descendants without consulting the checkout.
+# Keep the existing critical-path policy here, not in diff-cover's filesystem glob.
+CRITICAL_PATHS = (
+    "src/kernel/*",
+    "src/charter/*",
+    "src/specify_cli/status/*",
+    "src/specify_cli/lanes/branch_naming.py",
+    "src/specify_cli/dashboard/handlers/*",
+    "src/specify_cli/dashboard/scanner.py",
+    "src/specify_cli/merge/*",
+    "src/runtime/next/*",
+    "src/mission_runtime/*",
+)
 
 
 def prepare_source(run: dict[str, Any], repository: str, run_id: int, attempt: int) -> None:
@@ -50,10 +66,15 @@ def prepare_source(run: dict[str, Any], repository: str, run_id: int, attempt: i
         base = parents[0]
     registry = subprocess.check_output(["git", "show", f"{tested}:.github/ci-module-registry.yml"])
     diff = subprocess.check_output(["git", "diff", "--no-ext-diff", "--no-textconv", base, tested, "--"])
+    critical = subprocess.check_output(["git", "diff", "--no-ext-diff", "--no-textconv", base, tested, "--", *CRITICAL_PATHS])
+    paths = subprocess.check_output(["git", "diff", "--name-only", "-z", "--diff-filter=ACMRT", base, tested, "--", *CRITICAL_PATHS]).decode("utf-8").split("\0")
+    sources = {path: base64.b64encode(subprocess.check_output(["git", "show", f"{tested}:{path}"])).decode("ascii") for path in paths if path.endswith(".py")}
     out = Path("out/aggregate/source")
     out.mkdir(parents=True, exist_ok=True)
     (out / "ci-module-registry.yml").write_bytes(registry)
     (out / "diff.patch").write_bytes(diff)
+    (out / "critical.diff.patch").write_bytes(critical)
+    (out / "critical-sources.json").write_text(json.dumps(sources) + "\n", encoding="utf-8")
     (out / "source.json").write_text(
         json.dumps(
             {

@@ -243,11 +243,11 @@ def test_ci_aggregate_all_actions_sha_pinned() -> None:
 
 
 def test_ci_aggregate_critical_path_allowlist_uses_live_modularity_ssot_paths() -> None:
-    """The diff-cover ``--include`` critical-path allowlist must reference the
+    """The immutable Git diff critical-path allowlist must reference the
     CURRENT Modularity SSOT chain (``kernel <- charter <- {glossary, runtime,
     mission_runtime} <- specify_cli``) -- never the retired ``src/doctrine``
     path (absorbed into ``src/charter/offering/`` pre-fork)."""
-    text = _aggregate_text()
+    text = (_REPO_ROOT / "scripts/ci/aggregate_source.py").read_text()
     assert "src/kernel" in text
     assert "src/charter" in text
     assert "src/doctrine" not in text, "src/doctrine is a retired path (absorbed into src/charter/offering/) -- the critical-path allowlist must not reference it"

@@ -347,7 +347,7 @@ jobs:
 
       - name: Install diff-cover
         shell: bash
-        run: pip install --quiet --disable-pip-version-check "diff-cover==10.3.0"
+        run: uv pip install --python .venv/bin/python "diff-cover==10.3.0" "defusedxml==0.7.1"
 
       - name: Compute the census-dead denominator exclusion (WP02 oracle)
         id: census
@@ -362,7 +362,7 @@ jobs:
           from tests.architectural._p1_census_oracle import denominator_excluded_surfaces
 
           surfaces = denominator_excluded_surfaces()
-          excludes = "--exclude " + " ".join(f"'src/{surface.replace('.', '/')}*'" for surface in sorted(surfaces)) if surfaces else ""
+          excludes = "--exclude " + " ".join(f"'*/src/{surface.replace('.', '/')}*'" for surface in sorted(surfaces)) if surfaces else ""
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"exclude-flags={excludes}\n")
           print(f"ci-aggregate: excluding {len(surfaces)} census-dead surface(s) from the diff-cover denominator: {sorted(surfaces)}")
@@ -384,16 +384,13 @@ jobs:
             echo "::error::ci-aggregate: zero reconciled coverage files — nothing for diff-cover to score"
             exit 1
           fi
-          diff-cover "${coverage_files[@]}" \
-            --diff-file=out/aggregate/source/diff.patch \
+          .venv/bin/python scripts/ci/validate_diff_coverage.py \
+            --diff-file=out/aggregate/source/critical.diff.patch \
+            --sources=out/aggregate/source/critical-sources.json \
+            --output=out/aggregate/source/statement.diff.patch \
+            "${coverage_files[@]}" \
+            ${{ steps.census.outputs.exclude-flags }}
+          .venv/bin/diff-cover "${coverage_files[@]}" \
+            --diff-file=out/aggregate/source/statement.diff.patch \
             --fail-under=90 \
-            --include 'src/kernel/*' \
-            'src/charter/*' \
-            'src/specify_cli/status/*' \
-            'src/specify_cli/lanes/branch_naming.py' \
-            'src/specify_cli/dashboard/handlers/*' \
-            'src/specify_cli/dashboard/scanner.py' \
-            'src/specify_cli/merge/*' \
-            'src/runtime/next/*' \
-            'src/mission_runtime/*' \
             ${{ steps.census.outputs.exclude-flags }}
