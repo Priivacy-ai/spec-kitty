@@ -30,10 +30,11 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.analysis_report import VERDICT_UNKNOWN as _ANALYSIS_VERDICT_UNKNOWN
-from specify_cli.mission_metadata import load_meta_or_empty
 from ruamel.yaml import YAML as _YAML
 from ruamel.yaml.error import YAMLError as _YAMLError
+
+from specify_cli.analysis_report import VERDICT_UNKNOWN as _ANALYSIS_VERDICT_UNKNOWN
+from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.retrospective.schema import (
     FindingsStatus,
     GenActor,
