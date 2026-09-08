@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Glossary show resolves seed-only terms** (#4102). When no compiled entity page exists, `glossary show` reads the same seed and event store as `glossary list`, rendering each scoped definition without requiring compilation.
+
 - **Charter exposes project authoring and org pack commands** (#4098). `charter new`, `validate`, `org` and `fetch` delegate to the existing doctrine handlers. Deprecation guidance identifies commands that remain under `doctrine`.
 
 ## [3.2.6.1] - 2026-09-08
