@@ -156,9 +156,11 @@ def test_plan_runs_on_the_mission_the_tutorial_creates(project: Path) -> None:
     assert _cli(project, "specify", "Build a tiny command-line task list app.").returncode == 0
 
     mission = _missions(project)[0]
-    result = _cli(project, "plan", "--mission", mission)
+    result = _cli(project, "plan", "--mission", mission, "--json")
 
     assert result.returncode == 0, f"`plan` failed on a freshly created mission:\n{result.stdout}\n{result.stderr}"
+    assert json.loads(result.stdout)["result"] == "success", result.stdout
+    assert (project / "kitty-specs" / mission / "plan.md").is_file()
 
 
 def test_specify_on_main_refuses_cleanly(project: Path) -> None:

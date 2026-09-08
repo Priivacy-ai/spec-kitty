@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -82,6 +83,17 @@ class TestPluginJson:
             f"./skills/spec-kitty.{command}" for command in CANONICAL_COMMANDS
         )
         assert all(str(path).startswith("./agents/") for path in payload["agents"])
+
+    def test_published_bundle_urls_match_package_repository(self, tmp_path: Path) -> None:
+        """Generated install sources follow the repository advertised on PyPI."""
+        bundle_dir = _run_build(tmp_path)
+        repository_root = Path(__file__).resolve().parents[3]
+        package = tomllib.loads((repository_root / "pyproject.toml").read_text(encoding="utf-8"))
+        expected = package["project"]["urls"]["Repository"]
+        manifest = json.loads((bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        catalog = json.loads((bundle_dir.parent / "marketplace.json").read_text(encoding="utf-8"))
+        assert manifest["author"]["url"] == expected
+        assert catalog["plugins"][0]["source"]["url"].removesuffix(".git") == expected
 
     def test_plugin_json_no_hooks_key_when_hooks_empty(self, tmp_path: Path) -> None:
         """hooks/ key must be absent when hooks/hooks.json is the empty placeholder."""
