@@ -254,6 +254,14 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/merge/ordering.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_synthesize_claim_anchor"): (1, "silent-by-contract"),
+    # #3212: the pre-flip authority probe is a read-only verdict input on the
+    # shared dry-run/live path — `on_malformed="none"` is deliberate so the
+    # probe can never turn a verdict-bearing dry-run (the `doctor cutover`
+    # audit behind it) into a crash on a malformed meta a live run would
+    # classify through its own fail-closed seams (`_flip_phase` ->
+    # `load_meta_fail_closed`). Missing/malformed reads as "not yet
+    # migrated", the truthful pre-write answer.
+    ("src/specify_cli/migration/runtime_state_cutover.py", "_already_at_snapshot_authority"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/runtime_state_cutover.py", "stamp_accept_cutover"): (1, "silent-by-contract"),
     # PR #3209 landing pass (2026-08-08): mission 191
     # (verdict-seam-write-unification-01KZ9Q35) added this backfill reader but

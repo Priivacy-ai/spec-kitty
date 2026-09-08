@@ -17,6 +17,7 @@ library verify over a real event log.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -151,6 +152,96 @@ def test_rerun_is_idempotent(tmp_path: Path) -> None:
     assert payload["summary"]["seeded"] == 0
     assert (feature_dir / "status.events.jsonl").read_bytes() == events_after
     assert (feature_dir / "meta.json").read_bytes() == meta_after
+
+
+# --- #3212: a mission it flips must be REPORTED as flipped -------------------
+
+
+def _build_no_seed_state_mission(tmp_path: Path, *, slug: str = "no-state") -> Path:
+    """Event-log evidence, zero seedable legacy frontmatter state (#3212).
+
+    The exact corpus shape from the issue: the mission HAS runtime evidence
+    (real transitions in ``status.events.jsonl``) but no legacy frontmatter /
+    checkbox state to seed, so the run seeds 0 events and still flips — which
+    the summary used to report as ``Flipped: 0 / Skipped (already migrated): 1``.
+    """
+    return build_mission(
+        tmp_path,
+        slug=slug,
+        with_claim=False,
+        with_review=False,
+        with_history=False,
+        assignee="",
+        tracker_refs=(),
+        with_subtasks=False,
+    )
+
+
+def test_no_seed_state_mission_summary_reports_it_flipped(tmp_path: Path) -> None:
+    fd = _build_no_seed_state_mission(tmp_path)
+
+    result = _invoke(tmp_path, [])
+
+    assert result.exit_code == 0
+    assert re.search(r"Flipped\s*:\s*1\b", result.stdout), result.stdout
+    assert not re.search(r"Skipped \(already migrated\)\s*:\s*[1-9]", result.stdout)
+    assert json.loads((fd / "meta.json").read_text())["status_phase"] == "1"
+
+
+def test_summary_reports_already_migrated_only_when_nothing_was_written(tmp_path: Path) -> None:
+    _build_no_seed_state_mission(tmp_path)
+    assert _invoke(tmp_path, []).exit_code == 0  # the flip
+
+    rerun = _invoke(tmp_path, [])
+
+    assert rerun.exit_code == 0
+    assert re.search(r"Flipped\s*:\s*0\b", rerun.stdout), rerun.stdout
+    assert re.search(r"Skipped \(already migrated\)\s*:\s*1\b", rerun.stdout)
+
+
+def test_dry_run_summary_reports_would_flip(tmp_path: Path) -> None:
+    fd = _build_no_seed_state_mission(tmp_path)
+
+    result = _invoke(tmp_path, ["--dry-run"])
+
+    assert result.exit_code == 0
+    assert re.search(r"Would flip\s*:\s*1\b", result.stdout), result.stdout
+    # A pending flip is no longer previewed as "already migrated".
+    assert not re.search(r"Skipped \(already migrated\)\s*:\s*[1-9]", result.stdout)
+    assert "status_phase" not in json.loads((fd / "meta.json").read_text())
+
+
+def test_dry_run_over_migrated_corpus_previews_no_flip(tmp_path: Path) -> None:
+    _build_no_seed_state_mission(tmp_path)
+    assert _invoke(tmp_path, []).exit_code == 0
+
+    result = _invoke(tmp_path, ["--dry-run"])
+
+    assert result.exit_code == 0
+    assert re.search(r"Would flip\s*:\s*0\b", result.stdout), result.stdout
+    assert re.search(r"Skipped \(already migrated\)\s*:\s*1\b", result.stdout)
+
+
+def test_json_payload_distinguishes_flipped_from_already_migrated(tmp_path: Path) -> None:
+    _build_no_seed_state_mission(tmp_path)
+
+    first = json.loads(_invoke(tmp_path, ["--json"]).stdout)
+    assert first["summary"]["flipped"] == 1
+    assert first["summary"]["already_migrated"] == 0
+    assert first["results"][0]["flipped"] is True
+    assert first["results"][0]["already_migrated"] is False
+    assert first["results"][0]["seeded_count"] == 0  # flipped with zero seeds
+
+    rerun = json.loads(_invoke(tmp_path, ["--json"]).stdout)
+    assert rerun["summary"]["flipped"] == 0
+    assert rerun["summary"]["already_migrated"] == 1
+    assert rerun["results"][0]["flipped"] is False
+    assert rerun["results"][0]["already_migrated"] is True
+    assert rerun["results"][0]["verify_ok"] is True  # the raw verdict stays
+
+    dry = json.loads(_invoke(tmp_path, ["--dry-run", "--json"]).stdout)
+    assert dry["summary"]["would_flip"] == 0  # nothing left for a live run to write
+    assert dry["summary"]["already_migrated"] == 1
 
 
 # --- scoping + INV-5 -----------------------------------------------------------
