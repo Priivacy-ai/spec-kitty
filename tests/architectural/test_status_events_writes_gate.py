@@ -86,9 +86,14 @@ ALLOWED_OUT_OF_STORE_WRITE_SITES: Mapping[tuple[str, str, str], int] = MappingPr
     {
         # Rollback truncates (not appends): restore the log byte-for-byte to
         # the pre-emit size after a failed commit. Run inside the shells'
-        # own failure paths.
+        # own failure paths. The two mission-review DRIFT-2 sites (the coord
+        # fallback arm in ``coordination/status_transition.py`` and its
+        # ``cli/commands/agent/workflow.py`` twin, spec-kitty #3960) were
+        # migrated onto the status-owned, lock-held, tail-verified
+        # ``status/rollback.py`` helper (raw truncate in the store) and their
+        # ledger entries REMOVED -- only the transactional arm's own
+        # lock-held restore remains ledgered here.
         ("specify_cli.coordination.transaction", "Path.open", "self._events_path"): 1,
-        ("specify_cli.coordination.status_transition", "Path.open", "events_path"): 1,
         # Checkout materializations (not appends): write bytes git already
         # holds for the log into a worktree so materialize() can read them
         # (sparse-checkout hydration from the index).
@@ -116,9 +121,11 @@ EXPECTED_UNRESOLVED_EVENT_NAMED_WRITE_SITES: frozenset[tuple[str, str, str]] = f
         # the log onto the trusted target checkout. The path comes from a
         # trust helper called with several filenames, so callers disagree.
         ("specify_cli.merge.bookkeeping_projection", "write_bytes", "trusted_target_events_path"),
-        # Workflow-commit rollback truncate (keyword-only parameter; the
-        # in-module callers pass a path the scanner cannot trace).
-        ("specify_cli.cli.commands.agent.workflow", "Path.open", "events_path"),
+        # The workflow-commit rollback truncate that used to sit here
+        # (``cli/commands/agent/workflow.py``, keyword-only ``events_path``)
+        # was migrated onto the status-owned, tail-verified
+        # ``status/rollback.py`` helper (spec-kitty #3960, DRIFT-2) and its
+        # pin REMOVED.
         # The glossary's OWN event log (``_local_append_event``), not the
         # mission status log: parameter path, callers span modules.
         ("glossary.events", "Path.open", "event_log_path"),
@@ -153,6 +160,11 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         "specify_cli.coordination.transaction",
         # Coord fallback: L1 covers snapshot, emit, commit and rollback.
         "specify_cli.coordination.status_transition",
+        # Rollback truncate orchestration (spec-kitty #3960, DRIFT-2): the
+        # status-owned, lock-held, tail-verified rollback shell both former
+        # lockless truncates now route through; its raw truncate lives in
+        # ``status/store.py`` behind it.
+        "specify_cli.status.rollback",
         # Family 5 retro_status_lock helper (family 4 composes through it).
         "specify_cli.retrospective.lifecycle_events",
         # Family 6 verdict-provenance backfill (one-shot migration).
@@ -592,8 +604,13 @@ def test_store_writes_are_found(tree_scan: TreeScan) -> None:
     """Positive census: the scanner sees the store's own writes, so the gate is not empty."""
     store_sites = [site for site in tree_scan.events_writes if site.module == STORE_MODULE]
     assert store_sites, "the scanner found no status.events.jsonl write in store.py -- the gate matches nothing"
-    # append_event's ``path.open("a")`` and append_raw_rows_atomic's ``os.replace(tmp, path)``.
-    assert {(site.kind, site.mode) for site in store_sites} == {("Path.open", "a"), ("os.replace", "replace")}, store_sites
+    # append_event's ``path.open("a")``, append_raw_rows_atomic's ``os.replace``
+    # and truncate_events_log's ``path.open("ab")`` rollback restore.
+    assert {(site.kind, site.mode) for site in store_sites} == {
+        ("Path.open", "a"),
+        ("Path.open", "ab"),
+        ("os.replace", "replace"),
+    }, store_sites
     assert {site.module for site in tree_scan.events_writes if site.key not in ALLOWED_OUT_OF_STORE_WRITE_SITES} == {STORE_MODULE}
 
 
@@ -705,9 +722,19 @@ def test_writes_gate_is_not_vacuous(case: str, source: str, kind: str, tree_scan
 #: function in the SAME module, which is exactly what a per-key count must catch.
 _LEDGERED_SHAPES: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
     (
+        # Re-keyed from the retired ``coordination/status_transition`` entry to
+        # the transactional arm's own ledger entry when the two DRIFT-2
+        # rollback truncates migrated onto ``status/rollback.py``
+        # (spec-kitty #3960) and their entries were removed.
         "path-open-truncate",
-        'def {name}(d):\n    events_path = d / "status.events.jsonl"\n    events_path.open("ab").truncate(0)\n',
-        ("specify_cli.coordination.status_transition", "Path.open", "events_path"),
+        "class T:\n"
+        '    def __init__(self, events_path):\n'
+        "        self._events_path = events_path\n"
+        "    def {name}(self):\n"
+        '        self._events_path.open("ab").truncate(0)\n'
+        "def mk(d):\n"
+        '    return T(d / "status.events.jsonl")\n',
+        ("specify_cli.coordination.transaction", "Path.open", "self._events_path"),
     ),
     (
         "os-replace-rewrite",

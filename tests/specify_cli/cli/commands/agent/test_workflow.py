@@ -580,12 +580,18 @@ class TestCommitWorkflowChange:
 
         assert len(workflow._WORKFLOW_COMMIT_RECEIPTS) == 1
         assert workflow._WORKFLOW_COMMIT_RECEIPTS[0]["outcome"] == "refused"
+        # spec-kitty #3960 (DRIFT-2): the rollback context now carries the lock
+        # coordinates (repo_root + feature_dir) and the tail's expected event
+        # ids, captured at commit entry -- post-emit, pre-commit. The events
+        # log's tail here is a bare non-JSON line, so the capture degrades to
+        # ``None`` (structural verification only at rollback).
         assert restore_calls == [
             {
-                "events_path": events_path,
+                "repo_root": tmp_path,
+                "feature_dir": feature_dir,
                 "pre_emit_event_size": len("before\n"),
-                "status_path": status_path,
                 "pre_emit_status_bytes": b'{"lane":"old"}',
+                "expected_event_ids": None,
             }
         ]
         workflow._reset_workflow_receipts()

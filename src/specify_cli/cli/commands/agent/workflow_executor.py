@@ -58,7 +58,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 )
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
+from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, capture_events_tail_ids, read_wp_frontmatter
 from specify_cli.task_utils import extract_scalar
 from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
 
@@ -137,18 +137,23 @@ def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> Wor
 class _CommitFailureContext:
     """The status-artifact rollback inputs threaded to :func:`_handle_commit_failure`.
 
-    coord-commit-integrity (campsite, Sonar S107): bundles the four rollback
-    coordinates — the event-log path + its pre-emit size and the status-snapshot
-    path + its pre-emit bytes — that ``_restore_status_artifacts`` needs to
-    truncate/restore the artifacts to their pre-emit state. Both ``except`` arms
-    in :func:`commit_workflow_change` share one identical instance, so the
-    failure handler takes this frozen bundle plus only the arm-specific fields.
+    coord-commit-integrity (campsite, Sonar S107): bundles the rollback
+    coordinates — the lock coordinates (``repo_root`` + ``feature_dir``, the
+    same L1 key the emit pipeline uses), the event-log's pre-emit size, the
+    status-snapshot's pre-emit bytes, and the tail's expected event ids
+    (captured at this seam's entry, post-emit and pre-commit, per spec-kitty
+    #3960 / DRIFT-2) — that ``_restore_status_artifacts`` needs to
+    tail-verified-restore the artifacts to their pre-emit state. Both ``except``
+    arms in :func:`commit_workflow_change` share one identical instance, so
+    the failure handler takes this frozen bundle plus only the arm-specific
+    fields.
     """
 
-    events_path: Path
+    repo_root: Path
+    feature_dir: Path
     pre_emit_event_size: int
-    status_path: Path
     pre_emit_status_bytes: bytes | None
+    expected_event_ids: list[str] | None
 
 
 def _handle_commit_failure(
@@ -181,10 +186,11 @@ def _handle_commit_failure(
     recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
     if recovery_commit_sha is None:
         w._restore_status_artifacts(
-            events_path=rollback.events_path,
+            repo_root=rollback.repo_root,
+            feature_dir=rollback.feature_dir,
             pre_emit_event_size=rollback.pre_emit_event_size,
-            status_path=rollback.status_path,
             pre_emit_status_bytes=rollback.pre_emit_status_bytes,
+            expected_event_ids=rollback.expected_event_ids,
         )
     w._record_receipt(
         receipt_ref,
@@ -256,12 +262,15 @@ def commit_workflow_change(
     )
     coord_branch, mission_id, mid8 = w._load_coord_branch_meta(primary_meta_dir)
     events_path = feature_dir / w._STATUS_EVENTS_FILENAME
-    status_path = feature_dir / w._STATUS_FILENAME
     rollback_ctx = _CommitFailureContext(
-        events_path=events_path,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
         pre_emit_event_size=pre_emit_event_size,
-        status_path=status_path,
         pre_emit_status_bytes=pre_emit_status_bytes,
+        # spec-kitty #3960 (DRIFT-2): the tail's expected ids, captured at this
+        # seam's entry -- post-emit, pre-commit, so a rollback only ever cuts
+        # rows that were already there when the commit began.
+        expected_event_ids=capture_events_tail_ids(events_path, pre_emit_event_size),
     )
     # T017: the seam-resolved STATUS_STATE placement. The MECHANISM choice
     # below (BookkeepingTransaction vs. the legacy safe_commit fallback) still
@@ -303,10 +312,11 @@ def commit_workflow_change(
             )
         except typer.Exit:
             w._restore_status_artifacts(
-                events_path=events_path,
+                repo_root=repo_root,
+                feature_dir=feature_dir,
                 pre_emit_event_size=pre_emit_event_size,
-                status_path=status_path,
                 pre_emit_status_bytes=pre_emit_status_bytes,
+                expected_event_ids=rollback_ctx.expected_event_ids,
             )
             raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
@@ -332,10 +342,11 @@ def commit_workflow_change(
                     w._revert_coordination_commit(receipt)
                     w._mark_receipt_refused(commit_sha=receipt.commit_sha)
                     w._restore_status_artifacts(
-                        events_path=events_path,
+                        repo_root=repo_root,
+                        feature_dir=feature_dir,
                         pre_emit_event_size=pre_emit_event_size,
-                        status_path=status_path,
                         pre_emit_status_bytes=pre_emit_status_bytes,
+                        expected_event_ids=rollback_ctx.expected_event_ids,
                     )
                 except Exception as rollback_exc:  # noqa: BLE001
                     print(f"Error: Failed to rollback lifecycle state after lane sync refusal: {rollback_exc}")

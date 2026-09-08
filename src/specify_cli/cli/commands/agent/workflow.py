@@ -100,6 +100,7 @@ from specify_cli.review.cycle import (
     review_feedback_source_path,
 )
 from specify_cli.status import feature_status_lock
+from specify_cli.status import rollback_events_log_tail
 from specify_cli.status import AgentAssignment, Lane
 from specify_cli.status import (
     ResolvedBinding,
@@ -286,16 +287,32 @@ def _mark_receipt_refused(*, commit_sha: str) -> None:
 
 def _restore_status_artifacts(
     *,
-    events_path: Path,
+    repo_root: Path,
+    feature_dir: Path,
     pre_emit_event_size: int,
-    status_path: Path,
     pre_emit_status_bytes: bytes | None,
+    expected_event_ids: list[str] | None = None,
 ) -> None:
-    """Restore canonical status files after a failed workflow commit."""
+    """Restore canonical status files after a failed workflow commit.
+
+    Closes mission-review DRIFT-2 (spec-kitty #3960): the event-log half routes
+    through the status-owned, lock-held, tail-verified rollback
+    (``specify_cli.status.rollback.rollback_events_log_tail``) instead of a
+    blind byte truncate -- the helper takes the same per-mission
+    ``feature_status_lock`` the emit pipeline uses (re-entrant for the
+    already-locked shells) and refuses to cut a tail that is not exactly the
+    rows this operation appended. The derived ``status.json`` snapshot is
+    regenerated from the log and stays a plain byte restore here.
+    """
+    events_path = feature_dir / _STATUS_EVENTS_FILENAME
+    status_path = feature_dir / _STATUS_FILENAME
     try:
-        if events_path.exists():
-            with events_path.open("ab") as _fh:
-                _fh.truncate(pre_emit_event_size)
+        rollback_events_log_tail(
+            feature_dir,
+            repo_root=repo_root,
+            pre_emit_event_size=pre_emit_event_size,
+            expected_event_ids=expected_event_ids,
+        )
     except OSError:
         logger.exception("Could not truncate %s on commit failure", events_path)
 
