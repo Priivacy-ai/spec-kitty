@@ -31,7 +31,7 @@ from charter.activation.interview import (
     validate_local_support_declarations,
 )
 from charter.activation.default_pack import load_default_mission_type_activations
-from charter.activation.kind_vocabulary import ArtifactKind, resolve_artifact_urn
+from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import DEFAULT_TOOL_REGISTRY
@@ -124,6 +124,7 @@ def _resolve_config_activated_ids(
     doctrine_root: Path,
     fallback_ids: frozenset[str],
     org_roots: list[Path] | None = None,
+    layer_roots: dict[str, Path] | None = None,
 ) -> list[str]:
     """Resolve ``config.activated_<kind>`` stems to bare canonical DRG ids.
 
@@ -140,8 +141,10 @@ def _resolve_config_activated_ids(
     raising -- an activated stem that only exists in an org pack is not an
     unknown id (#2529).
 
-    A stem that cannot be resolved to a canonical id (in *either* the
-    built-in doctrine root or an org root) raises
+    ``layer_roots`` adds the project doctrine overlay, using the same
+    project-first precedence as runtime profile loading.
+
+    A stem that cannot be resolved to a canonical id in any searched layer raises
     :class:`~charter.activation.kind_vocabulary.UnknownArtifactIdError` (propagated from
     :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`) rather than being
     silently dropped -- this closes the C-006 silent-drop vector that
@@ -150,7 +153,12 @@ def _resolve_config_activated_ids(
     if activated_stems is None:
         return sorted(fallback_ids)
 
-    resolved = {resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root, org_roots=org_roots).split(":", 1)[1] for stem in activated_stems}
+    resolved = {
+        resolve_artifact_urn(
+            kind, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots
+        ).split(":", 1)[1]
+        for stem in activated_stems
+    }
     return sorted(resolved)
 
 
@@ -189,57 +197,75 @@ def _resolve_config_activated_roots(
     # (no behavior change) -- see #2529.
     org_roots: list[Path] | None = list(pack_context.pack_roots[1:]) if pack_context is not None else None
 
-    return ConfigActivatedRoots(
-        directives=_resolve_config_activated_ids(
-            ArtifactKind.DIRECTIVE,
-            _stems("activated_directives"),
-            doctrine_root=doctrine_root,
-            fallback_ids=catalog.directives,
-            org_roots=org_roots,
-        ),
-        paradigms=_resolve_config_activated_ids(
-            ArtifactKind.PARADIGM,
-            _stems("activated_paradigms"),
-            doctrine_root=doctrine_root,
-            fallback_ids=catalog.paradigms,
-            org_roots=org_roots,
-        ),
-        tactics=_resolve_config_activated_ids(
-            ArtifactKind.TACTIC,
-            _stems("activated_tactics"),
-            doctrine_root=doctrine_root,
-            fallback_ids=catalog.tactics,
-            org_roots=org_roots,
-        ),
-        styleguides=_resolve_config_activated_ids(
-            ArtifactKind.STYLEGUIDE,
-            _stems("activated_styleguides"),
-            doctrine_root=doctrine_root,
-            fallback_ids=catalog.styleguides,
-            org_roots=org_roots,
-        ),
-        toolguides=_resolve_config_activated_ids(
-            ArtifactKind.TOOLGUIDE,
-            _stems("activated_toolguides"),
-            doctrine_root=doctrine_root,
-            fallback_ids=catalog.toolguides,
-            org_roots=org_roots,
-        ),
-        procedures=_resolve_config_activated_ids(
-            ArtifactKind.PROCEDURE,
-            _stems("activated_procedures"),
-            doctrine_root=doctrine_root,
-            fallback_ids=catalog.procedures,
-            org_roots=org_roots,
-        ),
-        agent_profiles=_resolve_config_activated_ids(
-            ArtifactKind.AGENT_PROFILE,
-            _stems("activated_agent_profiles"),
-            doctrine_root=doctrine_root,
-            fallback_ids=catalog.agent_profiles,
-            org_roots=org_roots,
-        ),
-    )
+    layer_roots = {"project": pack_context.repo_root / ".kittify"} if pack_context is not None else None
+
+    try:
+        return ConfigActivatedRoots(
+            directives=_resolve_config_activated_ids(
+                ArtifactKind.DIRECTIVE,
+                _stems("activated_directives"),
+                doctrine_root=doctrine_root,
+                fallback_ids=catalog.directives,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            ),
+            paradigms=_resolve_config_activated_ids(
+                ArtifactKind.PARADIGM,
+                _stems("activated_paradigms"),
+                doctrine_root=doctrine_root,
+                fallback_ids=catalog.paradigms,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            ),
+            tactics=_resolve_config_activated_ids(
+                ArtifactKind.TACTIC,
+                _stems("activated_tactics"),
+                doctrine_root=doctrine_root,
+                fallback_ids=catalog.tactics,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            ),
+            styleguides=_resolve_config_activated_ids(
+                ArtifactKind.STYLEGUIDE,
+                _stems("activated_styleguides"),
+                doctrine_root=doctrine_root,
+                fallback_ids=catalog.styleguides,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            ),
+            toolguides=_resolve_config_activated_ids(
+                ArtifactKind.TOOLGUIDE,
+                _stems("activated_toolguides"),
+                doctrine_root=doctrine_root,
+                fallback_ids=catalog.toolguides,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            ),
+            procedures=_resolve_config_activated_ids(
+                ArtifactKind.PROCEDURE,
+                _stems("activated_procedures"),
+                doctrine_root=doctrine_root,
+                fallback_ids=catalog.procedures,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            ),
+            agent_profiles=_resolve_config_activated_ids(
+                ArtifactKind.AGENT_PROFILE,
+                _stems("activated_agent_profiles"),
+                doctrine_root=doctrine_root,
+                fallback_ids=catalog.agent_profiles,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            ),
+        )
+    except UnknownArtifactIdError as exc:
+        if pack_context is None:
+            raise
+        from charter.activation.pack_manager import resolve_activation_write_target
+
+        source, _, _ = resolve_activation_write_target(pack_context.repo_root)
+        raise UnknownArtifactIdError(f"{exc} Activation store: {source}.") from exc
+
 
 
 def _direct_root_urns(config_roots: ConfigActivatedRoots) -> frozenset[str]:
@@ -271,6 +297,7 @@ def resolve_config_activated_roots(
     *,
     repo_root: Path,
     doctrine_catalog: DoctrineCatalog | None = None,
+    pack_context: PackContext | None = None,
 ) -> ConfigActivatedRoots:
     """Resolve ``.kittify/config.yaml`` ``activated_*`` stems to bare canonical ids.
 
@@ -281,9 +308,11 @@ def resolve_config_activated_roots(
     mapping logic here (rather than duplicating it in ``specify_cli``) is the
     charter/specify_cli layer rule for this mission: config-read and mapping
     logic live in ``charter``; ``specify_cli`` orchestrates.
+    A supplied ``pack_context`` preflights proposed activations without writing them.
     """
     catalog = doctrine_catalog or load_doctrine_catalog()
-    pack_context = PackContext.from_config(repo_root)
+    if pack_context is None:
+        pack_context = PackContext.from_config(repo_root)
     doctrine_root = resolve_doctrine_root()
     return _resolve_config_activated_roots(
         pack_context=pack_context,
@@ -680,7 +709,8 @@ def _build_metadata_dict() -> dict[str, Any]:
 def _legacy_activation_keys() -> tuple[str, ...]:
     from charter.activation.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- avoids import cycle
 
-    return ACTIVATION_YAML_KEYS
+    keys: tuple[str, ...] = ACTIVATION_YAML_KEYS
+    return keys
 
 
 def _read_legacy_config_activation(repo_root: Path) -> dict[str, list[str]]:

@@ -36,6 +36,7 @@ from charter.activation.cascade import (
     cascade_activation_targets,
     referenced_but_not_cascaded,
 )
+from charter.drg import DRGLoadError
 from charter.activation.catalog import resolve_doctrine_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
@@ -676,6 +677,10 @@ def activate_cmd(
     manager = CharterPackManager()
     try:
         registration = plan_project_registration(repo_root)
+        if resynthesize:
+            from specify_cli.cli.commands.charter._resynthesis_preflight import preflight_resynthesis
+
+            preflight_resynthesis(repo_root, kind, artifact_id, scope, registration.graph)
         result = manager.activate(
             ctx_project,
             kind,
@@ -683,17 +688,14 @@ def activate_cmd(
             cascade=scope is not None,
             layer_roots=layer_roots,
         )
-    except ValueError as exc:
+    except (ValueError, DRGLoadError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
     commit_project_registration(registration)
-    for warning in registration.warnings:
-        console.print(f"[yellow]Warning[/yellow]: {warning}")
-
     for msg in result.activated:
         console.print(f"[green]Activated[/green]: {msg}")
-    for warn in result.warnings:
+    for warn in (*registration.warnings, *result.warnings):
         console.print(f"[yellow]Warning[/yellow]: {warn}")
 
     # FR-010: co-activated, unreconciled in_tension_with pairs (contracts/
