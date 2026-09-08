@@ -36,7 +36,17 @@ def _ownership_metadata_section(prompt_path: Path) -> str:
     return text[start:next_heading]
 
 
-@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=lambda path: path.as_posix())
+def _repo_relative_id(path: Path) -> str:
+    """Repo-relative parametrize id, stable across checkout locations.
+
+    Absolute-path ids embed the worktree root in the pytest node-id, so any
+    frozen node-id baseline only matches the exact checkout path it was frozen
+    from (#2607).
+    """
+    return path.relative_to(_REPO_ROOT).as_posix()
+
+
+@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=_repo_relative_id)
 def test_tasks_prompt_documents_create_intent_with_required_ownership_fields(prompt_path: Path) -> None:
     section = _ownership_metadata_section(prompt_path)
 
@@ -44,7 +54,7 @@ def test_tasks_prompt_documents_create_intent_with_required_ownership_fields(pro
         assert field in section
 
 
-@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=lambda path: path.as_posix())
+@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=_repo_relative_id)
 def test_tasks_prompt_explains_create_intent_for_planned_new_owned_files(prompt_path: Path) -> None:
     section = _ownership_metadata_section(prompt_path)
 
@@ -52,7 +62,7 @@ def test_tasks_prompt_explains_create_intent_for_planned_new_owned_files(prompt_
     assert "zero-match" in section or "zero match" in section
 
 
-@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=lambda path: path.as_posix())
+@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=_repo_relative_id)
 def test_tasks_prompt_prevents_duplicate_create_intent_stubs(prompt_path: Path) -> None:
     section = _ownership_metadata_section(prompt_path)
 
