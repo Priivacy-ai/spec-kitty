@@ -103,6 +103,13 @@ _GH_ISSUE_PATTERN = re.compile(
 # reuse (D7 research finding); this is the single Python-side
 # discrimination point (match-then-filter), not a second regex.
 _CANONICAL_REPO_SLUG = "spec-kitty/spec-kitty"
+# Retired slugs this repository has lived under. Existing missions' task files
+# carry issue URLs written when the canonical slug was ``Priivacy-ai/spec-kitty``;
+# GitHub redirects them, and the CLI must keep recognizing them as same-repo,
+# or every historical reference silently drops out of the issue matrix on
+# upgrade (3.2.6.1). Generation uses ``_CANONICAL_REPO_SLUG`` only.
+_LEGACY_REPO_SLUGS = frozenset({"priivacy-ai/spec-kitty"})
+_SAME_REPO_SLUGS = frozenset({_CANONICAL_REPO_SLUG.casefold()}) | _LEGACY_REPO_SLUGS
 
 
 def _matched_issue_number(match: re.Match[str]) -> int | None:
@@ -122,7 +129,7 @@ def _matched_issue_number(match: re.Match[str]) -> int | None:
     # false-negative that lets a real same-repo issue escape the completeness
     # gate (SC-008). Compare case-folded on both sides.
     owner_repo = f"{match.group('owner')}/{match.group('repo')}"
-    if owner_repo.casefold() != _CANONICAL_REPO_SLUG.casefold():
+    if owner_repo.casefold() not in _SAME_REPO_SLUGS:
         return None
     return int(match.group("url_number"))
 

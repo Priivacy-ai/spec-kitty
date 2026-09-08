@@ -432,3 +432,14 @@ class TestSC008EndToEnd:
         refs = discover_issue_references(feature_dir)
 
         assert refs == []
+
+
+def test_current_canonical_slug_url_is_discovered(tmp_path: Path) -> None:
+    """The post-move slug is same-repo too; the legacy cases above must not be the only coverage."""
+    from specify_cli.tasks.issue_matrix import detect_issue_references
+
+    spec = tmp_path / "spec.md"
+    spec.write_text("See https://github.com/spec-kitty/spec-kitty/issues/320 for details.\n", encoding="utf-8")
+    refs = detect_issue_references(spec)
+    assert [ref.number for ref in refs] == [320]  # golden-count: cardinality-is-contract
+
