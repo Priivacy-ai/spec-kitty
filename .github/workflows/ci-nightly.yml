@@ -70,6 +70,15 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+    # conftest.py skips `performance`-marked tests unless SPEC_KITTY_RUN_PERFORMANCE=1
+    # (they are cold-start / runner-bound off the per-PR path). Without this the
+    # `-m performance` step below selects the suite but conftest skips every test
+    # in it — a vacuous lane. Set it here so the performance flow actually runs
+    # the wall-clock budget guards it is the sole home for. PWHEADLESS keeps any
+    # UI-touching heavy/e2e test headless.
+    env:
+      SPEC_KITTY_RUN_PERFORMANCE: "1"
+      PWHEADLESS: "1"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
