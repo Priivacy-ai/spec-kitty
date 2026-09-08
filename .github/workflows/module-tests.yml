@@ -102,6 +102,12 @@ jobs:
       # caller's checkout before the action's own steps run. Without this the job
       # fails immediately: "Can't find 'action.yml' ... under .github/actions/warmup".
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Full history: some module tests (e.g. tests/upgrade's mission-corpus
+          # recovery suite) `git archive` historical mission SHAs, which a shallow
+          # (fetch-depth 1) checkout does not contain — they error at setup with
+          # `git archive <sha> ... exit 128` otherwise.
+          fetch-depth: 0
       - name: Warm up shared test environment
         id: warmup
         uses: ./.github/actions/warmup
