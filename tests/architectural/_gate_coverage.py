@@ -81,8 +81,12 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
 # The interim convergence topology restores ``ci-windows.yml`` and the tag-time
 # ``release.yml`` as direct pytest suite runners. ``ci-quality.yml`` is
-# deliberately reduced to lint/build/install/lock jobs and invokes no pytest;
-# the factory ``ci.yml`` delegates suite execution to the planning CI scripts
+# reduced to lint/build/install/lock jobs plus the non-blocking ``sonarcloud``
+# reporter (spec-kitty#3993), which reaches pytest only through
+# ``make test-fast`` — no directly-anchored pytest command, so it is not (and
+# cannot be) collected as a gate here; its reasoned non-blocking declaration
+# lives in ``test_suite_jobs_gate_blocking.py``'s NON_BLOCKING_ALLOWLIST. The
+# factory ``ci.yml`` delegates suite execution to the planning CI scripts
 # rather than embedding a pytest command; and the other restored producers do
 # not run tests.
 WORKFLOW_FILES: tuple[str, ...] = (

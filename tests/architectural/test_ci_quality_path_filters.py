@@ -1,7 +1,9 @@
 """Architectural guards for CI path-filter ownership.
 
 The restored interim ``ci-quality.yml`` deliberately has no path filter: the
-five-job producer is small enough to run on every pull request and main push.
+six-job producer (the four blocking producers plus the non-blocking
+``sonarcloud`` reporter reinstated by spec-kitty#3993) is small enough to run
+on every pull request and main push.
 The live checks below bind that trigger shape and stock-runner contract; the
 old full-matrix path-filter relations remain retired with the deferred module
 workflows.

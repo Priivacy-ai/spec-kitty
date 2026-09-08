@@ -32,10 +32,13 @@ Anti-goals (contract): do NOT hard-code the current job list (derive
 ``pytest_jobs`` from the parsed workflow model so a FUTURE job is covered
 automatically); do NOT match ``pytest`` inside a comment or a string literal.
 
-The reduced interim ``ci-quality.yml`` contains no pytest jobs. The live
-checks below prove that absence and bind ``quality-gate.needs`` to the four
-producer jobs it blocks; the fault-injection substrate keeps the general
-containment relation ready when suite jobs return.
+The reduced interim ``ci-quality.yml`` contains no directly-anchored pytest
+jobs; the one suite it does run — the non-blocking ``sonarcloud`` reporter
+(spec-kitty#3993) — reaches pytest through ``make test-fast`` and carries its
+reasoned ``NON_BLOCKING_ALLOWLIST`` entry. The live checks below prove that
+direct-invocation absence and bind ``quality-gate.needs`` to the four producer
+jobs it blocks; the fault-injection substrate keeps the general containment
+relation ready when suite jobs return.
 """
 
 from __future__ import annotations
@@ -85,6 +88,22 @@ NON_BLOCKING_ALLOWLIST: dict[str, str] = {
         "incidental blind spot. Re-enabling it MUST be paired with either a "
         "`quality-gate.needs` edge or an updated rationale here."
     ),
+    "sonarcloud": (
+        "Non-blocking BY DESIGN (spec-kitty#3993, owner ruling 2026-09-06: "
+        "Sonar was 'not meant to be permanently removed. It should be "
+        "reinstated.'). The reinstated `sonarcloud` job in ci-quality.yml "
+        "runs the fast tier under `pytest --cov` purely to feed SonarCloud's "
+        "coverage / new-code analysis; it carries job-level "
+        "`continue-on-error: true`, so a Sonar verdict can never block a "
+        "merge, and `quality-gate.needs` deliberately excludes it. It "
+        "invokes the suite through `make test-fast` (single-sourcing the "
+        "fast-tier selection in the Makefile), so the anchored "
+        "literal-`pytest`-command derivation below never flags it — the "
+        "mutation-testing precedent: declared here explicitly rather than "
+        "left to that blind spot. Promoting it to gate-blocking MUST be "
+        "paired with a `quality-gate.needs` edge (and dropping its "
+        "`continue-on-error`) or an updated rationale here."
+    ),
 }
 
 
@@ -108,7 +127,13 @@ def _ci_quality_needs() -> frozenset[str]:
 
 
 def test_reduced_ci_quality_has_no_pytest_jobs_live() -> None:
-    """The interim producer is lint/build/install only, not a second suite runner."""
+    """No directly-anchored pytest job gates onto the interim producer.
+
+    The ``sonarcloud`` reporter (spec-kitty#3993) runs the fast tier through
+    ``make test-fast``, which the literal-``pytest``-command derivation cannot
+    see — its deliberate non-blocking state is carried by the
+    ``NON_BLOCKING_ALLOWLIST`` entry, not by this assertion's blind spot.
+    """
     assert pytest_jobs_of(_CI_QUALITY_NAME) == frozenset()
 
 

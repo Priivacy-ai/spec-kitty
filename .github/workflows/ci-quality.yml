@@ -118,6 +118,122 @@ jobs:
       - name: Assert uv.lock is up to date
         run: uv lock --check
 
+  sonarcloud:
+    name: SonarCloud (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Reinstated per spec-kitty#3993 (owner ruling 2026-09-06: "There's no
+    # discussion on Sonar, it was not meant to be permanently removed. It
+    # should be reinstated."). The convergence-era workflow deletion
+    # (e8cc2f444, 2026-08-27) removed the only coverage / new-code quality
+    # signal this repository's CI had. This job re-adds it as a NON-BLOCKING
+    # reporter: it runs the fast tier under pytest --cov, uploads the report
+    # to SonarCloud keyed by the SONAR_TOKEN repository secret, and reports
+    # the quality-gate status — but continue-on-error keeps a Sonar verdict
+    # off the merge path, and quality-gate.needs deliberately does NOT
+    # include this job (the reasoned declaration lives in
+    # tests/architectural/test_suite_jobs_gate_blocking.py's
+    # NON_BLOCKING_ALLOWLIST).
+    continue-on-error: true
+    steps:
+      - name: Check Sonar token availability
+        id: sonar_token
+        run: |
+          if [ -n "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SONAR_TOKEN is not configured — skipping SonarCloud analysis (spec-kitty#3993)."
+          fi
+
+      - name: Check out repository
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          # SonarCloud new-code detection and blame attribution need full
+          # history, not the default shallow checkout.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+        if: steps.sonar_token.outputs.enabled == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: uv sync --frozen --all-extras
+
+      - name: Run fast tier under coverage
+        if: steps.sonar_token.outputs.enabled == 'true'
+        env:
+          # Dotted module form (the post-#2975 convention) keeps the coverage
+          # XML's filenames project-relative, which SonarCloud resolves. The
+          # output paths match sonar-project.properties (coverage reportPaths
+          # and xunit reportPath); the fast-tier selection itself stays
+          # single-sourced in the Makefile's test-fast target.
+          PYTEST_ADDOPTS: >-
+            --cov=specify_cli
+            --cov=charter
+            --cov=glossary
+            --cov=kernel
+            --cov=mission_runtime
+            --cov=runtime
+            --cov=doctrine
+            --cov-report=xml:out/reports/coverage/coverage.xml
+            --junitxml=out/reports/xunit-reports/xunit-result.xml
+        run: |
+          mkdir -p out/reports/coverage out/reports/xunit-reports
+          make test-fast
+
+      - name: Derive sonar.projectVersion from pyproject.toml
+        id: sonar_version
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          # scripts/ci/sonar_project_version.py raises loudly and emits
+          # NOTHING on stdout on any failure, so an empty capture plus set -e
+          # fails this step rather than silently stamping an empty
+          # sonar.projectVersion (the #2421 baseline freeze this wiring
+          # exists to prevent; unit-tested in
+          # tests/ci/test_sonar_project_version.py).
+          version="$(python3 scripts/ci/sonar_project_version.py)"
+          if [ -z "$version" ]; then
+            echo "::error::sonar.projectVersion could not be derived from pyproject.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Resolved sonar.projectVersion=$version (from pyproject.toml)"
+
+      - name: Resolve SonarCloud branch arguments
+        id: sonar_branch
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            echo "args=-Dsonar.pullrequest.key=${{ github.event.pull_request.number }} -Dsonar.pullrequest.branch=${{ github.head_ref }} -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=-Dsonar.branch.name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SonarCloud Scan
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@v7
+        with:
+          # projectKey / organization / sources / coverage paths come from
+          # sonar-project.properties; only the per-run values are passed here.
+          args: >-
+            -Dsonar.projectVersion=${{ steps.sonar_version.outputs.version }}
+            ${{ steps.sonar_branch.outputs.args }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SonarCloud Quality Gate (reported, not required)
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
   quality-gate:
     name: Quality gate
     runs-on: ubuntu-latest
