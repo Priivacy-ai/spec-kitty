@@ -2,7 +2,7 @@
 title: Getting Started with Spec Kitty
 description: Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow.
 doc_status: active
-updated: '2026-08-11'
+updated: '2026-09-08'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -82,6 +82,19 @@ OK Created .kittify/ scaffold
 >[!TIP]
 >Use `spec-kitty init . --ai claude` to initialize the current folder.
 
+>[!IMPORTANT]
+>**Your repository needs at least one commit before you create a mission.** Git
+>cannot create a branch in a repository that has none, and a mission needs one.
+>If you just ran `git init` yourself, make a commit first:
+>
+>```bash
+>git commit --allow-empty -m "Initial commit"
+>```
+>
+>`spec-kitty init <name>` does this for you; you only need it when you
+>initialized the git repository yourself. Creating a mission without it stops
+>with an error telling you to run exactly the command above.
+
 ## Step 3: Create Your First Specification
 
 Open your AI agent in this repository and run the `specify` command.
@@ -89,16 +102,23 @@ Open your AI agent in this repository and run the `specify` command.
 In your agent:
 
 ```text
-/spec-kitty.specify Build a tiny command-line task list app.
+/spec-kitty.specify Build a tiny command-line task list app with add, complete, and delete actions.
 ```
 
 You'll be asked a discovery interview. Answer each question until the command completes.
 
 Expected results:
 
-- `kitty-specs/###-task-list/spec.md` (mission spec)
-- A new mission directory under `kitty-specs/`
+- One new mission directory under `kitty-specs/`, named `<slug>-<id>` — for
+  example `task-list-01M20JM4`. The trailing token is the mission's own
+  identifier, so yours will differ.
+- `spec.md` inside it (the mission spec)
 - No Git commit is created automatically; `init` and planning commands leave commit control to you
+
+>[!NOTE]
+>Run `specify` **once**. Each run creates a separate mission, so running it
+>again gives you two, not an edited one. The next tutorial continues the mission
+>you just created rather than making another.
 
 ## Step 4: Verify Your Work
 
@@ -108,10 +128,10 @@ Confirm the mission directory exists:
 ls kitty-specs
 ```
 
-Example output:
+Example output (your identifier will differ):
 
 ```
-###-task-list
+task-list-01M20JM4
 ```
 
 If the command created a new worktree later in the workflow, it will appear here:
