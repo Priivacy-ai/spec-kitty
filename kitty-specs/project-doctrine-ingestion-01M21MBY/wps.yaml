@@ -1,0 +1,40 @@
+work_packages:
+- title: Repair project doctrine ingestion
+  dependencies: []
+  owned_files:
+  - src/specify_cli/cli/commands/charter/**
+  - src/specify_cli/cli/commands/doctrine.py
+  - src/specify_cli/cli/commands/glossary.py
+  - src/charter/activation/**
+  - src/charter/offering/drg/**
+  - src/charter/offering/skills/spec-kitty-charter-doctrine/**
+  - tests/charter/**
+  - tests/doctrine/**
+  - tests/specify_cli/cli/commands/**
+  - docs/changelog/CHANGELOG.md
+  - packs/built-in/procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml
+  - packs/built-in/procedure.graph.yaml
+  - packs/built-in/pack-manifest.yaml
+  requirement_refs:
+  - FR-001
+  - FR-002
+  - FR-003
+  - FR-004
+  - FR-005
+  - FR-006
+  - NFR-001
+  - NFR-002
+  - C-001
+  - C-002
+  - C-003
+  - C-004
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  - T005
+  - T006
+  - T007
+  id: WP01
+  prompt_file: tasks/WP01-project-doctrine-ingestion.md

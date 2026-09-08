@@ -1,0 +1,30 @@
+{
+  "accept_commit": "77afbda88d18f89d718d767820b920641b70c18a",
+  "acceptance_history": [
+    {
+      "accept_commit": "77afbda88d18f89d718d767820b920641b70c18a",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-09-09T00:39:44.761967+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "6bfd0097ce79fda58c347847dd7303c629c54e8e"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-09-09T00:39:44.761967+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "6bfd0097ce79fda58c347847dd7303c629c54e8e",
+  "created_at": "2026-09-08T23:06:35.973052+00:00",
+  "flattened": false,
+  "friendly_name": "Project-layer doctrine ingestion",
+  "mission_id": "01M21MBY0PVGRPXKKC614WWZE1",
+  "mission_number": null,
+  "mission_slug": "project-doctrine-ingestion-01M21MBY",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Implement issues 4103, 4098, 4102, 4097, 4100 and 4101 in PR 4104, based on released v3.2.6.1 for 3.2.6.2, with local acceptance before remote CI.",
+  "purpose_tldr": "Make SOP ingestion, activation, context rendering and glossary lookup work without workarounds.",
+  "slug": "project-doctrine-ingestion-01M21MBY",
+  "status_phase": "1",
+  "target_branch": "issue-4103-migrate-guidance-glossary-step",
+  "topology": "single_branch"
+}

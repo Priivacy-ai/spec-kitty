@@ -46,8 +46,10 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from charter.activation.interview import default_interview, write_interview_answers
 from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 from charter.activation.synthesizer.reconcile import SynthesizeMode
+from tests.specify_cli.charter_preflight._fixtures import init_git_repo
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -136,6 +138,8 @@ def _minimal_project(repo_root: Path) -> Path:
     (kittify / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
+    init_git_repo(repo_root)
+    write_interview_answers(repo_root / ".kittify/charter/interview/answers.yaml", default_interview(mission="software-dev"))
     return repo_root
 
 
@@ -223,7 +227,10 @@ def _inject_backed_legacy_content(repo_root: Path) -> None:
 
     existing_artifact = doctrine_dir / "tactic" / "how-we-apply-directive-003.tactic.yaml"
     legacy_artifact = doctrine_dir / "tactic" / "legacy-preference-order-3270.tactic.yaml"
-    legacy_artifact.write_bytes(existing_artifact.read_bytes())
+    legacy_content = YAML().load(existing_artifact.read_text())
+    legacy_content["id"] = _LEGACY_URN.split(":", 1)[1]
+    with legacy_artifact.open("w") as stream:
+        YAML().dump(legacy_content, stream)
 
     # Register a manifest + provenance entry so the backing-artifact probe
     # (reconcile._backing_path_by_urn) resolves this URN as BACKED, not

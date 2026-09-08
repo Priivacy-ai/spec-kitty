@@ -1,0 +1,4 @@
+source_id,path,type
+S1,src/charter/offering/drg/project_scan.py,source
+S2,src/charter/activation/compiler.py,source
+S3,src/charter/activation/synthesizer/manifest.py,source

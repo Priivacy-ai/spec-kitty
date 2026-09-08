@@ -1,0 +1,4 @@
+evidence_id,source,finding
+E1,src/charter/offering/drg/project_scan.py,Profile nodes omit reference edges
+E2,src/charter/activation/compiler.py,Activated roots omit project layer
+E3,src/charter/activation/synthesizer/manifest.py,Manifest kind contract omits procedure and agent_profile

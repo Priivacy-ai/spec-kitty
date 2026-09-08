@@ -196,8 +196,13 @@ def _classify_artifact_urns(
     project_directives: set[str],
     selected_tactics: set[str] | None = None,
     selected_paradigms: set[str] | None = None,
+    *,
+    additional_directives: set[str] | None = None,
 ) -> Mapping[str, tuple[str, ...]]:
     """Partition resolved artifact URNs into a slot-keyed mapping.
+
+    ``additional_directives`` adds activated project-local roots without
+    narrowing the existing action-scoped built-in directive set.
 
     Returns ``{slot: (id, ...)}`` for every delivered slot in the delivery
     table. The mapping is *not* destroyed into a positional tuple: that shape
@@ -210,7 +215,8 @@ def _classify_artifact_urns(
 
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()
-    start_urns = {f"directive:{directive_id}" for directive_id in project_directives}
+    additional_directives = additional_directives or set()
+    start_urns = {f"directive:{directive_id}" for directive_id in project_directives | additional_directives}
     start_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_tactics)
     start_urns.update(f"paradigm:{paradigm_id}" for paradigm_id in selected_paradigms)
     selected_closure = resolve_transitive_refs(
@@ -235,7 +241,7 @@ def _classify_artifact_urns(
         if slot is None:
             continue
         artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
-        if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives:
+        if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives | additional_directives:
             continue
         slots[slot].append(artifact_id)
     return {slot: tuple(ids) for slot, ids in slots.items()}

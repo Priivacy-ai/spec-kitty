@@ -177,7 +177,8 @@ def _scan_roots(
     ``layer_roots`` is the modern charter layer map.
     Org roots contribute ``<root>/doctrine/<plural>/org``. Project roots
     contribute ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine``
-    overlays.
+    overlays. Resolution scans project first, then org packs from last to
+    first declaration, then built-in, matching runtime overlay precedence.
 
     Several built-in kinds (tactics, styleguides, toolguides) organize
     artifacts into category subdirectories (e.g.
@@ -186,12 +187,15 @@ def _scan_roots(
     mode C-006 forbids; the shared authority makes org/project match built-in
     here.
     """
-    dirs: list[tuple[Path, bool]] = []
+    # Resolution is first-match-wins; repositories overlay in the opposite
+    # order: built-in, org packs in declaration order, then project.
+    layers = layer_roots or {}
+    ordered_layers = dict(sorted(layers.items(), key=lambda item: item[0] != "project"))
+    dirs = _layer_scan_dirs(kind, ordered_layers)
+    dirs.extend(_org_scan_dirs(kind, list(reversed(org_roots or []))))
     built_in = _built_in_scan_dir(kind)
     if built_in is not None:
         dirs.append(built_in)
-    dirs.extend(_org_scan_dirs(kind, org_roots))
-    dirs.extend(_layer_scan_dirs(kind, layer_roots))
     return dirs
 
 
@@ -275,8 +279,10 @@ def _org_scan_dirs(
 def _layer_candidate_dir(kind: ArtifactKind, layer: str, root: Path) -> Path:
     """Return the candidate doctrine dir for *kind* within a single *layer*."""
     if layer == "project":
-        return root / "doctrine" / PROJECT_KIND_DIRS.get(kind, kind.plural)
-    return root / "doctrine" / kind.plural / layer
+        project_dir: Path = root / "doctrine" / PROJECT_KIND_DIRS.get(kind, kind.plural)
+        return project_dir
+    layer_dir: Path = root / "doctrine" / kind.plural / layer
+    return layer_dir
 
 
 def _layer_scan_dirs(
@@ -399,10 +405,25 @@ def resolve_artifact_urn(
     raise UnknownArtifactIdError(
         f"No {kind.value} artifact with config ID {config_id!r} found under "
         f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
-        f"Check `.kittify/config.yaml` activated_{kind.plural} for a stale or "
+        f"Searched layers: {_searched_layers(kind, org_roots, layer_roots)}. "
+        f"Check activated_{kind.plural} in the charter.yaml activation store "
+        f"selected by `.kittify/config.yaml` (or its legacy inline activations) for a stale or "
         f"misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
         f"doctrine corpus (including any org packs) is intact."
     )
+
+
+def _searched_layers(
+    kind: ArtifactKind,
+    org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
+) -> str:
+    """Include candidate directories even when a missing layer does not exist."""
+    roots = [f"{layer}: {_layer_candidate_dir(kind, layer, root)}" for layer, root in (layer_roots or {}).items()]
+    roots.extend(f"org: {root / kind.plural}" for root in org_roots or [])
+    builtin = _built_in_scan_dir(kind)
+    roots.append(f"built-in: {builtin[0]}" if builtin is not None else "built-in: unavailable")
+    return "; ".join(roots)
 
 
 def _org_roots_clause(org_roots: list[Path] | None) -> str:
@@ -463,7 +484,9 @@ def resolve_config_id(
     raise UnknownArtifactIdError(
         f"No {kind.value} artifact with id {artifact_id!r} found under "
         f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
-        f"Check `.kittify/config.yaml` activated_{kind.plural} for a stale or "
+        f"Searched layers: {_searched_layers(kind, org_roots, layer_roots)}. "
+        f"Check activated_{kind.plural} in the charter.yaml activation store "
+        f"selected by `.kittify/config.yaml` (or its legacy inline activations) for a stale or "
         f"misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
         f"doctrine corpus (including any org packs) is intact."
     )

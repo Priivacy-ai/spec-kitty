@@ -1,0 +1,69 @@
+{
+  "mission_slug": "project-doctrine-ingestion-01M21MBY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Migration procedure captures source glossary terms.",
+      "proof_type": "code_review",
+      "evidence": "packs/built-in/procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml; local doctrine graph freshness and procedure regression verification.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Codex independent acceptance reviewer)",
+      "verified_at": "2026-09-08T23:49:09.634914+00:00",
+      "notes": "Local functional acceptance only. Remote CI and final delivery remain pending."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Charter exposes new, validate, org and fetch through existing implementations.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_charter_authoring.py; research/acceptance-transcript.md: five charter new calls and charter validate pass.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Codex independent acceptance reviewer)",
+      "verified_at": "2026-09-08T23:49:09.635084+00:00",
+      "notes": "Local functional acceptance only. Remote CI and final delivery remain pending."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Seed terms listed by glossary list resolve through glossary show.",
+      "proof_type": "manual_qa",
+      "evidence": "research/acceptance-transcript.md: glossary validate, list and show pass for acceptance handoff.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Codex independent acceptance reviewer)",
+      "verified_at": "2026-09-08T23:49:09.635086+00:00",
+      "notes": "Local functional acceptance only. Remote CI and final delivery remain pending."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Project procedures and profiles register in graph and provenance and remain after resynthesis.",
+      "proof_type": "manual_qa",
+      "evidence": "research/acceptance-transcript.md: five manifest entries, source paths, provenance sidecars, status count and FRESH DRG; shipped skill lists all five supported kinds.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Codex independent acceptance reviewer)",
+      "verified_at": "2026-09-08T23:49:09.635088+00:00",
+      "notes": "Local functional acceptance only. Remote CI and final delivery remain pending."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Profile cascade activates all four referenced artifact kinds and reports unresolved references.",
+      "proof_type": "automated_test",
+      "evidence": "research/acceptance-transcript.md: all five activated through one cascade; tests/specify_cli/cli/commands/test_charter_project_cascade.py covers unresolved warning.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Codex independent acceptance reviewer)",
+      "verified_at": "2026-09-08T23:49:09.635089+00:00",
+      "notes": "Local functional acceptance only. Remote CI and final delivery remain pending."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Resynthesis resolves layered profiles and preflights unsupported activation before writes.",
+      "proof_type": "automated_test",
+      "evidence": "research/acceptance-transcript.md: project profile resynthesis passes; tests/specify_cli/cli/commands/test_charter_resynthesis_preflight.py and tests/charter/test_project_activation_resolution.py cover failure atomicity and layered lookup.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Codex independent acceptance reviewer)",
+      "verified_at": "2026-09-08T23:49:09.635091+00:00",
+      "notes": "Local functional acceptance only. Remote CI and final delivery remain pending."
+    }
+  ],
+  "negative_invariants": []
+}

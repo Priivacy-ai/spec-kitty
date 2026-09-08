@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Resynthesis resolves activated IDs across built-in, org and project layers** (#4101). Project profiles use the same precedence as profile inspection. Eager activation checks synthesis prerequisites and the proposed selection before writing activations; lookup errors identify the charter activation store and searched layers.
+
 - **Agent-profile cascade reaches directly authored project guidance** (#4100). `--cascade all` activates referenced procedures, directives, tactics and styleguides from a clean deactivated state, and missing project references produce explicit warnings.
 
 - **Directly authored project doctrine enters the project graph and provenance during activation** (#4097). Procedures and agent profiles are registered alongside directives, tactics and styleguides without rewriting their source files. Charter status counts all five kinds and the shipped authoring skill documents their paths.
