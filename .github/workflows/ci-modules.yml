@@ -97,6 +97,7 @@ jobs:
                           "tier": row["tier"],
                           "shard": f"{idx}/{shard_count}",
                           "mode": mode,
+                          "test_dirs": json.dumps(row.get("test_dirs", [])),
                       }
                   )
 
@@ -127,3 +128,4 @@ jobs:
       tier: ${{ matrix.tier }}
       shard: ${{ matrix.shard }}
       mode: ${{ matrix.mode }}
+      test_dirs: ${{ matrix.test_dirs }}
