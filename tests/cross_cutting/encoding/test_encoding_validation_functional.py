@@ -247,6 +247,7 @@ class TestDryRunMode:
 class TestPerformance:
     """Performance requirements verification"""
 
+    @pytest.mark.performance
     def test_single_file_validation_performance(self):
         """Verify single file validation completes in < 50ms."""
         import time

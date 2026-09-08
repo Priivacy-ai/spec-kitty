@@ -137,6 +137,7 @@ def test_watch_stops_at_max_frames_bound(state_root: Path, managed_stream_double
     assert len(frames) == 3
 
 
+@pytest.mark.performance
 def test_status_timeout_is_clamped_to_max_timeout_s(state_root: Path, managed_stream_double) -> None:
     """A caller cannot ask for a longer-than-honest wait: an absurd
     ``timeout_s`` is silently clamped to the <=90s ceiling, not honored."""

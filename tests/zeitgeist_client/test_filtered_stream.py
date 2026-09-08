@@ -304,6 +304,7 @@ def test_server_closing_the_stream_ends_watch_cleanly(managed_stream_double) -> 
         next(gen)
 
 
+@pytest.mark.performance
 def test_idle_timeout_stops_watch_without_raising(managed_stream_double) -> None:
     stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
     gen = stream.watch(idle_timeout_s=0.3)
@@ -313,6 +314,7 @@ def test_idle_timeout_stops_watch_without_raising(managed_stream_double) -> None
     assert time.monotonic() - start < 3.0
 
 
+@pytest.mark.performance
 def test_timeout_is_a_hard_whole_call_bound_despite_sse_heartbeats(
     managed_stream_double,
 ) -> None:
