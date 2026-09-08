@@ -165,10 +165,8 @@ jobs:
   #     quality-gate decision step (`CHANGES_JSON`), where `changes["release"]`
   #     switches on the RELEASE_REQUIRED_JOBS check. Forcing the outputs true
   #     would therefore make `build-wheel`, `clean-install-verification`,
-  #     `consumer-compatibility`, `uv-lock-check` and both release suites
-  #     REQUIRED-to-succeed on every push to main, and would start
-  #     `consumer-compatibility` — deliberately the one group-gated job without
-  #     the disjunct (see its own comment). Activation and gate policy read the
+  #     `uv-lock-check` and both release suites
+  #     REQUIRED-to-succeed on every push to main. Activation and gate policy read the
   #     same outputs, so widening them for the first silently widens the second.
   #
   # Enforced by `tests/architectural/test_ci_collection_completeness.py`, which
@@ -4106,134 +4104,6 @@ jobs:
       # the structural clean-wheel smoke check above ("Run spec-kitty next
       # against fixture mission") is retained as the blocking gate.
 
-  # ---------------------------------------------------------------------------
-  # consumer-compatibility: validates the CI-built wheel against the private
-  # SaaS consumer contract using trusted validation scripts from the base commit.
-  # The private contract is never exposed to PR-controlled checkout code.
-  #
-  # DELIBERATELY the one dorny-group-gated job WITHOUT the
-  # `|| github.event_name == 'push'` disjunct every other one carries (issue
-  # #2957 / WP10). It runs no pytest, so it collects no test node and is outside
-  # the collection-completeness property entirely; it is also network- and
-  # cross-repo-artefact dependent, so starting it on every push to main would buy
-  # no coverage and add an external flake source. Do not add the disjunct here
-  # for consistency's sake — the inconsistency is the decision.
-  # ---------------------------------------------------------------------------
-  consumer-compatibility:
-    name: SaaS consumer compatibility
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes, build-wheel]
-    if: always() && needs.changes.outputs.release == 'true' && needs.build-wheel.result == 'success'
-    env:
-      REPO_OWNER: ${{ github.repository_owner }}
-      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
-      IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
-      # Private SaaS evidence is only reachable from the canonical repo. Token
-      # presence alone is not enough of a signal: the canonical repo must fail
-      # loud when the secret is misconfigured, while fork PRs and fork-owned
-      # runs (which can never have the secret) degrade to a skip-with-warning.
-      # The repo name is hardcoded (not vars.*) for in-file auditability and
-      # must track any rename/transfer. See issue #1849.
-      IS_CANONICAL_REPO: ${{ github.repository == 'Priivacy-ai/spec-kitty' }}
-    steps:
-      - name: Check out trusted validation scripts
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-
-      - name: Download CLI wheel
-        uses: actions/download-artifact@v8
-        with:
-          name: spec-kitty-cli-wheel
-          path: dist/
-
-      - name: Download candidate release compatibility manifest
-        uses: actions/download-artifact@v8
-        with:
-          name: release-compatibility-manifest
-          path: candidate/.kittify/release/
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Install validation dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install packaging
-
-      - name: Fetch SaaS consumer contract
-        id: fetch_contract
-        env:
-          CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/spec-kitty-release-contracts
-
-          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            if [ "${IS_FORK_PR}" = "true" ] || [ "${IS_CANONICAL_REPO}" != "true" ]; then
-              echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
-              echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is unavailable for fork PRs or non-canonical repository runs; skipping private SaaS consumer compatibility evidence."
-              exit 0
-            fi
-
-            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for SaaS consumer compatibility evidence."
-            exit 1
-          fi
-
-          CONSUMER_CONTRACT_URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main"
-
-          if curl -fsSL \
-            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "$CONSUMER_CONTRACT_URL" \
-            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json; then
-            echo "Fetched spec-kitty-saas/contracts/consumer-compatibility.json."
-          else
-            echo "Unable to fetch spec-kitty-saas/contracts/consumer-compatibility.json from main."
-            echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
-            exit 1
-          fi
-
-          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
-          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
-
-      - name: Validate candidate against SaaS consumer contract
-        if: steps.fetch_contract.outputs.saas_fetched == 'true'
-        run: |
-          MANIFEST_ARGS=()
-          if python scripts/release/check_candidate_consumer_compat.py --help | grep -q -- '--compatibility-manifest'; then
-            MANIFEST_ARGS=(
-              --compatibility-manifest candidate/.kittify/release/shared-package-compatibility.json
-            )
-          fi
-
-          python scripts/release/check_candidate_consumer_compat.py \
-            --package spec-kitty-cli \
-            "${MANIFEST_ARGS[@]}" \
-            --consumer-contract "${{ steps.fetch_contract.outputs.consumer_contract }}"
-
-  # ---------------------------------------------------------------------------
-  # draft-fail-fast-cancel (FR-009, mission ci-flake-report-workflow WP04):
-  # draft PRs already skip the heavy DRAFT_GATED_JOBS suites
-  # (integration-tests-core-misc, e2e-cross-cutting — see the DRAFT_GATED_JOBS
-  # note in quality-gate's decision step below), but the rest of the fan-out
-  # still runs to completion even after an early suite has already failed.
-  # This job cancels the whole workflow run the moment `lint` or
-  # `kernel-tests` — the two earliest, unconditional gates the majority of the
-  # fan-out is chained behind — fails on a draft PR, instead of burning CI
-  # minutes on the remaining suites before the author even asked for review.
-  # Race with in-flight jobs is accepted (some may already be finishing when
-  # the cancel API call lands): this is a fail-fast optimization, not a
-  # correctness gate — quality-gate (below) remains the sole blocking
-  # authority and is unaffected by whether this job fires or not.
-  # `if: failure()` reads the run status of its own `needs:`, never a literal
-  # `needs.<job>.result` comparison, so it does not trip
-  # test_no_shard_gates_execution_on_a_predecessor_result. Allowlisted (not
-  # gate-blocking) in NON_BLOCKING_ALLOWLIST — it invokes no pytest and exists
-  # to shorten a doomed draft run, not to report suite results.
-  # ---------------------------------------------------------------------------
   draft-fail-fast-cancel:
     name: draft-fail-fast-cancel
     needs: [lint, kernel-tests]
@@ -4328,7 +4198,6 @@ jobs:
       - regression-tests
       - build-wheel
       - clean-install-verification
-      - consumer-compatibility
       - uv-lock-check
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
@@ -4414,7 +4283,6 @@ jobs:
               "integration-tests-core-misc": ["core_misc", "execution_context", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "e2e-cross-cutting": ["e2e", "core_misc", "execution_context"],
               "restart-daemon-nfr-timing": ["cli"],
-              "consumer-compatibility": ["release"],
           }
 
           # Jobs whose `if:` carries the draft/WIP exemption; safe to skip on
@@ -4439,7 +4307,6 @@ jobs:
           RELEASE_REQUIRED_JOBS = [
               "build-wheel",
               "clean-install-verification",
-              "consumer-compatibility",
               "fast-tests-release",
               "integration-tests-release",
               "uv-lock-check",

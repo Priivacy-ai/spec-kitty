@@ -48,6 +48,11 @@ def load_workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
 
 
+def workflow_text(name: str) -> str:
+    """Raw workflow source, for asserting a retired token is absent everywhere."""
+    return (Path(__file__).resolve().parents[2] / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+
 def on_section(workflow: dict[str, Any]) -> dict[str, Any]:
     # PyYAML still treats the YAML 1.1 key "on" as boolean True.
     return workflow.get("on") or workflow[True]
@@ -259,35 +264,21 @@ def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
 
 
-def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts() -> None:
+def test_ci_quality_has_no_saas_consumer_compatibility_job() -> None:
+    """Backport of #3979: the SaaS consumer comparison is retired.
+
+    It fetched ``${owner}/spec-kitty-saas/contents/contracts/consumer-compatibility.json``;
+    the live Team Kitty repository pins shared packages by exact git revision under
+    its own constitution and publishes no such contract, so the fetch 404s on every
+    run and there is nothing for a CLI release to check against. Its
+    ``IS_CANONICAL_REPO`` guard was also hardcoded to the retired ``Priivacy-ai``
+    org name. Pin the removal so it cannot quietly return.
+    """
     workflow = load_workflow("ci-quality.yml")
-    job = workflow["jobs"]["consumer-compatibility"]
-    job_dump = repr(job)
-
-    assert job["needs"] == ["changes", "build-wheel"]
-    assert "needs.changes.outputs.release == 'true'" in job["if"]
-    assert "github.event.pull_request.base.sha" in job_dump
-    assert "spec-kitty-cli-wheel" in job_dump
-    assert "release-compatibility-manifest" in job_dump
-    assert "candidate/.kittify/release/shared-package-compatibility.json" in job_dump
-    assert "CROSS_REPO_TOKEN" not in repr(job.get("env", {}))
-    assert "IS_FORK_PR" in job["env"]
-    assert job["env"]["IS_CANONICAL_REPO"] == "${{ github.repository == 'Priivacy-ai/spec-kitty' }}"
-    assert "check_candidate_consumer_compat.py" in job_dump
-    assert "check_candidate_consumer_compat.py --help" in job_dump
-    assert "MANIFEST_ARGS" in job_dump
-
-    fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
-    assert "CROSS_REPO_TOKEN" in fetch_step["env"]
-    assert "saas_fetched=false" in fetch_step["run"]
-    assert '[ "${IS_FORK_PR}" = "true" ] || [ "${IS_CANONICAL_REPO}" != "true" ]' in fetch_step["run"]
-    assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in fetch_step["run"]
-
-    validate_step = next(
-        step for step in job["steps"] if step["name"] == "Validate candidate against SaaS consumer contract"
-    )
-    assert validate_step["if"] == "steps.fetch_contract.outputs.saas_fetched == 'true'"
-
+    assert "consumer-compatibility" not in workflow["jobs"]
+    text = workflow_text("ci-quality.yml")
+    for retired in ("check_candidate_consumer_compat.py", "consumer-compatibility.json", "IS_CANONICAL_REPO", "fetch_contract"):
+        assert retired not in text, retired
 
 def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     workflow = load_workflow("ci-quality.yml")
@@ -298,7 +289,6 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
         "changes",
         "build-wheel",
         "clean-install-verification",
-        "consumer-compatibility",
         "fast-tests-release",
         "integration-tests-release",
         "uv-lock-check",
@@ -337,35 +327,36 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
         )
 
 
-def test_release_publish_requires_downstream_consumer_evidence_before_pypi() -> None:
+def test_release_publish_needs_only_build_release() -> None:
+    """Backport of #3979: publish gates on the CLI's own evidence, not a consumer's.
+
+    The former ``downstream-consumer-verify`` job checked out
+    ``${owner}/spec-kitty-end-to-end-testing`` and the SaaS consumer contract, neither
+    of which exists under the current owner, so a plain tag push could not publish.
+    """
     workflow = load_workflow("release.yml")
     jobs = workflow["jobs"]
-    publish_job = jobs["publish-pypi"]
+    assert "downstream-consumer-verify" not in jobs
+    assert jobs["publish-pypi"]["needs"] == ["build-release"]
+    assert "if" not in jobs["publish-pypi"]
 
-    assert "downstream-consumer-verify" in jobs
-    assert set(publish_job["needs"]) == {"build-release", "downstream-consumer-verify"}
+def test_release_has_no_saas_fetch_and_no_downstream_waiver() -> None:
+    """Backport of #3979: nothing in the tag-time release depends on a SaaS read token.
 
-
-def test_release_manual_dispatch_can_skip_downstream_with_explicit_waiver() -> None:
+    The ``Fetch compatibility references`` step ran unconditionally with ``curl -f``
+    against a file that does not exist, so even the manual ``skip_downstream`` waiver
+    could not get a tag published. Both are gone; the drift check is local-only.
+    """
     workflow = load_workflow("release.yml")
-    workflow_on = on_section(workflow)
-    inputs = workflow_on["workflow_dispatch"]["inputs"]
-    jobs = workflow["jobs"]
-
+    inputs = on_section(workflow)["workflow_dispatch"]["inputs"]
     assert inputs["tag"]["required"] is True
-    assert inputs["skip_downstream"]["required"] is True
-    assert (
-        jobs["downstream-consumer-verify"]["if"]
-        == "${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}"
-    )
-
-    publish_if = jobs["publish-pypi"]["if"]
-    assert "always()" in publish_if
-    assert "needs.build-release.result == 'success'" in publish_if
-    assert "needs.downstream-consumer-verify.result == 'success'" in publish_if
-    assert "github.event_name == 'workflow_dispatch'" in publish_if
-    assert "inputs.skip_downstream == true" in publish_if
-
+    assert "skip_downstream" not in inputs
+    text = workflow_text("release.yml")
+    for retired in ("SKIP_DOWNSTREAM", "fetch_refs", "HAS_SAAS_READ_TOKEN", "CROSS_REPO_TOKEN", "SPEC_KITTY_SAAS_READ_TOKEN", "--saas-pyproject", "check_candidate_consumer_compat.py", "spec-kitty-saas"):
+        assert retired not in text, retired
+    build = workflow["jobs"]["build-release"]
+    drift = next(step for step in build["steps"] if step.get("name") == "Validate shared package drift")
+    assert drift["run"].strip() == "python scripts/release/check_shared_package_drift.py --check-installed"
 
 def test_release_verifies_pypi_exact_install_after_publish() -> None:
     workflow = load_workflow("release.yml")
@@ -384,7 +375,7 @@ def test_publish_release_does_not_require_canary_verification_artifact() -> None
 
     assert "canary-verify" not in jobs
     publish = jobs["publish-pypi"]
-    assert set(publish["needs"]) == {"build-release", "downstream-consumer-verify"}
+    assert set(publish["needs"]) == {"build-release"}  # downstream-consumer-verify retired (#3979 backport)
 
     publish_dump = repr(publish)
     assert "actions/checkout" in publish_dump
