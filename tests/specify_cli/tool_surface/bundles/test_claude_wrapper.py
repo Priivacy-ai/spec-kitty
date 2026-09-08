@@ -289,7 +289,7 @@ class TestMarketplaceJson:
         assert plugin["name"] == "spec-kitty"
         assert "policy" not in plugin
         assert plugin["source"]["source"] == "git-subdir"
-        assert "spec-kitty.git" in plugin["source"]["url"]
+        assert plugin["source"]["url"] == "https://github.com/spec-kitty/spec-kitty.git"
 
     def test_marketplace_json_not_inside_bundle(self, tmp_path: Path) -> None:
         """marketplace.json lives alongside the bundle dir, not inside it."""
@@ -327,6 +327,10 @@ class TestBuildIncludesWrappers:
         plugin_json = json.loads(
             (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
+        assert plugin_json["author"] == {
+            "name": "Spec Kitty",
+            "url": "https://github.com/spec-kitty/spec-kitty",
+        }
         version = plugin_json["version"]
         bash_content = (bundle_dir / "bin" / "spec-kitty-wrapper").read_text(encoding="utf-8")
         assert version in bash_content
