@@ -18,6 +18,21 @@ from specify_cli.core.checkout_identity import CheckoutIdentity, Intent
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
+def _init_real_repo(path: Path, branch: str) -> None:
+    """Make ``path`` a real git repository on ``branch`` with one commit.
+
+    ``preflight_commit`` validates the scaffold's commit destination against real
+    git before anything is written (#4035), so a create test can no longer stand
+    on a bare ``tmp_path`` with ``is_git_repo`` mocked True. Mocking the preflight
+    instead would re-blind exactly the boundary the hotfix defends (review on
+    #4051). The initial commit matters too: an unborn HEAD is itself refused.
+    """
+    subprocess.run(["git", "init", "-q", "-b", branch], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True)
+    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "init"], cwd=path, check=True)
+
+
 @pytest.fixture(autouse=True)
 def _disable_saas_sync_for_setup_plan_contract_tests(
     monkeypatch: pytest.MonkeyPatch,
@@ -303,21 +318,18 @@ class TestCreateFeatureCommand:
     """Tests for create command."""
 
     @patch("specify_cli.status.fire_dossier_sync")
-    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
-    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
-    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.mission_creation.get_current_branch")
     def test_creates_feature_with_json_output(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
+        self, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_emit: Mock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
         """Should create feature and output JSON format."""
         # Setup
         mock_locate.return_value = tmp_path
-        mock_branch.return_value = "main"
+        _init_real_repo(tmp_path, "main")
+        # Real `main` is protected; the documented operator hatch is the sanctioned way to create on it.
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
@@ -370,21 +382,14 @@ class TestCreateFeatureCommand:
         assert meta["purpose_context"] == ("This mission advances test feature on main so stakeholders can track the work from mission creation onward.")
 
     @patch("specify_cli.status.fire_dossier_sync")
-    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
-    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
-    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.mission_creation.get_current_branch")
-    def test_creates_feature_with_human_output(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
-    ):
+    def test_creates_feature_with_human_output(self, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_emit: Mock, tmp_path: Path):
         """Should create feature and output human-readable format."""
         # Setup
         mock_locate.return_value = tmp_path
-        mock_branch.return_value = "main"
+        _init_real_repo(tmp_path, "develop")
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
@@ -515,21 +520,14 @@ class TestCreateFeatureCommand:
         assert "git" in output["error"].lower()
 
     @patch("specify_cli.status.fire_dossier_sync")
-    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
-    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
-    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.mission_creation.get_current_branch")
-    def test_allows_feature_creation_from_any_branch(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
-    ):
+    def test_allows_feature_creation_from_any_branch(self, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_emit: Mock, tmp_path: Path):
         """Should allow feature creation on any branch (records it as target)."""
         # Setup: On non-main branch — should succeed (not block)
         mock_locate.return_value = tmp_path
-        mock_branch.return_value = "develop"
+        _init_real_repo(tmp_path, "develop")
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
@@ -548,21 +546,18 @@ class TestCreateFeatureCommand:
         assert output["result"] == "success"
 
     @patch("specify_cli.status.fire_dossier_sync")
-    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
-    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
-    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.mission_creation.get_current_branch")
     def test_creates_feature_on_primary_branch(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
+        self, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_emit: Mock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
         """Should allow feature creation on the primary branch."""
         # Setup: On primary branch
         mock_locate.return_value = tmp_path
-        mock_branch.return_value = "main"
+        _init_real_repo(tmp_path, "main")
+        # Real `main` is protected; the documented operator hatch is the sanctioned way to create on it.
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
