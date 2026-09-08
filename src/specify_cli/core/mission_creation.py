@@ -33,7 +33,7 @@ from specify_cli.core.checkout_ownership import (
     resolve_ownership_claim,
 )
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.git_ops import get_current_branch, is_git_repo
+from specify_cli.core.git_ops import get_current_branch, has_unborn_head, is_git_repo
 from specify_cli.core.mission_payload import (
     build_mission_created_payload,
     default_mission_display_name,
@@ -595,6 +595,28 @@ def _create_mission_core_impl(
 
     if resolved_root is None:
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
+
+    # Fail closed on an unborn HEAD (#4033). A repository with no commits
+    # cannot have a branch created in it, so the coordination branch this
+    # mission declares in ``meta.json`` could never be minted. Creation used to
+    # run to completion anyway and report success, leaving a mission that only
+    # ``doctor coordination --fix`` could recover — the state a beginner lands
+    # in by following Getting Started on a repo they just ``git init``-ed.
+    # Refuse before writing any scaffold, so there is nothing to clean up.
+    #
+    # Scoped to coordination-bearing topologies only: branch-flat shapes
+    # (SINGLE_BRANCH, LANES) skip the mint entirely, so an unborn HEAD costs
+    # them nothing and blocking them would be a gratuitous refusal.
+    from specify_cli.missions._create import topology_mints_coordination_branch
+
+    if topology_mints_coordination_branch(topology) and is_git_repo(resolved_root) and has_unborn_head(resolved_root):
+        raise MissionCreationError(
+            "This repository has no commits yet, so Spec Kitty cannot create the "
+            "mission's coordination branch (git cannot branch from an unborn HEAD).\n\n"
+            "Make an initial commit first, then create the mission:\n"
+            "  git commit --allow-empty -m 'Initial commit'\n\n"
+            "If the repository already has files staged, commit those instead."
+        )
 
     effective_root = (
         ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else resolved_root
