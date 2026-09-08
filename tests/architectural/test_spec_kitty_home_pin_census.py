@@ -210,8 +210,9 @@ def anchor_join_keys() -> dict[scan.MemberKey, tuple[str, str]]:
     **The resolution is frozen, not live.** ``members.json``'s ``sites`` are line numbers, and a
     line number only means anything in the tree it was read from — see
     ``tests/architectural/_home_pin_anchor.py`` for the upstream edit that proved it, and for why
-    ``composite_key``'s "content-addressed, not line-number-addressed" docstring holds for
-    insertions below the site and not above it. ``members.json`` still decides membership; the
+    ``composite_key``'s former "content-addressed, not line-number-addressed" docstring claim
+    (narrowed by #3369 to match the reality) holds for insertions below the site and not above
+    it. ``members.json`` still decides membership; the
     frozen artefact supplies only the encoding.
     """
     return dict(anchor_artefact.load())
