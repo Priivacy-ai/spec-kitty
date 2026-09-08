@@ -14,6 +14,7 @@ import yaml
 
 from scripts.ci.fleet_verdict import (
     AGGREGATE,
+    GitHub,
     MARKER,
     PR_WORKFLOWS,
     applicable_workflows,
@@ -135,10 +136,13 @@ def test_reporter_trigger_covers_every_registered_workflow_and_reruns() -> None:
         ("path", ".github/workflows/fake.yml"),
         ("repository", {"full_name": "other/repo"}),
         ("pull_requests", []),
+        ("pull_requests", [{"number": 7, "head": {"sha": "b" * 40}, "base": {"repo": {"url": f"https://api.github.com/repos/{REPO}"}}}]),
     ],
 )
 def test_spoofed_or_unassociated_run_cannot_supply_evidence(field: str, value: Any) -> None:
     name = "ci-modules.yml"
+    matching = run(name)
+    assert latest_run([matching], workflow_id=IDS[name], repository=REPO, head=HEAD, number=7, name=name) == matching
     candidate = run(name, **{field: value})
     assert latest_run([candidate], workflow_id=IDS[name], repository=REPO, head=HEAD, number=7, name=name) is None
 
@@ -465,3 +469,31 @@ def test_wrapper_cli_requires_gh_transport_before_any_api_call(tmp_path: Path, m
         fleet_verdict.main()
     assert error.value.code == 2
     assert "--gh-api-wrapper requires --gh-cli" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("field", [None, "workflow_runs"])
+@pytest.mark.parametrize("short_final_page", [False, True])
+def test_real_api_pagination_refuses_incomplete_evidence(monkeypatch: pytest.MonkeyPatch, field: str | None, short_final_page: bool) -> None:
+    api = GitHub(REPO)
+    path = "actions/runs?event=pull_request" if field else "pulls/7/files"
+    separator = "&" if field else "?"
+    calls: list[str] = []
+    expected: list[dict[str, int]] = []
+
+    def request(request_path: str) -> Any:
+        calls.append(request_path)
+        page = len(calls)
+        assert request_path == f"{path}{separator}per_page=100&page={page}"
+        count = 3 if short_final_page and page == 100 else 100
+        batch = [{"id": (page - 1) * 100 + offset} for offset in range(count)]
+        expected.extend(batch)
+        return {field: batch} if field else batch
+
+    monkeypatch.setattr(api, "request", request)
+    if short_final_page:
+        assert api.pages(path, field) == expected
+        assert len(expected) == 9903
+    else:
+        with pytest.raises(ValueError, match="bounded pagination"):
+            api.pages(path, field)
+    assert len(calls) == 100

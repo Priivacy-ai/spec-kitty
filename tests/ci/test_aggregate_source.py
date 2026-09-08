@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+from fnmatch import fnmatchcase
 import subprocess
 import sys
 from pathlib import Path
@@ -79,8 +81,22 @@ def test_source_registry_and_diff_are_from_pr_while_checkout_stays_trusted(tmp_p
     assert git(repo, "rev-parse", "HEAD") == trusted
 
 
-@pytest.mark.parametrize("mutation", ["stale_attempt", "wrong_run", "wrong_repo", "wrong_workflow", "missing_reference", "bad_sha"])
-def test_source_rejects_ambiguous_or_stale_evidence(tmp_path: Path, mutation: str) -> None:
+@pytest.mark.parametrize(
+    "mutation,diagnostic",
+    [
+        ("stale_attempt", "source run identity, attempt, repository or workflow does not match"),
+        ("wrong_run", "source run identity, attempt, repository or workflow does not match"),
+        ("wrong_repo", "source run identity, attempt, repository or workflow does not match"),
+        ("wrong_workflow", "source run identity, attempt, repository or workflow does not match"),
+        ("missing_reference", "source run lacks one immutable PR merge workflow reference"),
+        ("bad_sha", "source head is not a full commit SHA"),
+        ("foreign_reference", "source run lacks one immutable PR merge workflow reference"),
+        ("duplicate_reference", "source run lacks one immutable PR merge workflow reference"),
+        ("bad_reference_sha", "source run lacks one immutable PR merge workflow reference"),
+        ("unsupported_event", "unsupported source event"),
+    ],
+)
+def test_source_rejects_ambiguous_or_stale_evidence(tmp_path: Path, mutation: str, diagnostic: str) -> None:
     repo, run, trusted = source_fixture(tmp_path)
     if mutation == "stale_attempt":
         run["run_attempt"] = 2
@@ -92,10 +108,23 @@ def test_source_rejects_ambiguous_or_stale_evidence(tmp_path: Path, mutation: st
         run["path"] = ".github/workflows/untrusted.yml"
     elif mutation == "missing_reference":
         run["referenced_workflows"] = []
-    else:
+    elif mutation == "bad_sha":
         run["head_sha"] = "--upload-pack=evil"
+    elif mutation == "foreign_reference":
+        reference = run["referenced_workflows"][0]
+        reference["path"] = f"other/repo/.github/workflows/module-tests.yml@{reference['sha']}"
+    elif mutation == "duplicate_reference":
+        run["referenced_workflows"].append(dict(run["referenced_workflows"][0]))
+    elif mutation == "bad_reference_sha":
+        run["referenced_workflows"][0].update(
+            sha="--upload-pack=evil",
+            path="spec-kitty/spec-kitty/.github/workflows/module-tests.yml@--upload-pack=evil",
+        )
+    else:
+        run["event"] = "schedule"
     result = run_source(repo, run)
     assert result.returncode != 0
+    assert diagnostic in result.stderr
     assert not (repo / "out/aggregate/source/source.json").exists()
     assert git(repo, "rev-parse", "HEAD") == trusted
 
@@ -114,7 +143,7 @@ def test_shipped_diff_cover_rejects_uncovered_pr_line_on_trusted_checkout(tmp_pa
     )
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci-aggregate.yml").read_text())
     gate = next(s["run"] for s in workflow["jobs"]["diff-cover"]["steps"] if s.get("name", "").startswith("diff-cover —"))
-    gate = gate.replace("${{ steps.census.outputs.exclude-flags }}", "").replace("${{ steps.base-ref.outputs.base }}", "main")
+    gate = gate.replace("${{ steps.census.outputs.exclude-flags }}", "")
     env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"])
     result = subprocess.run(["bash", "-c", gate], cwd=repo, env=env, capture_output=True, text=True)
     assert result.returncode == 1, result.stdout + result.stderr
@@ -183,3 +212,33 @@ def test_immutable_reference_must_bind_the_source_head(tmp_path: Path) -> None:
     result = run_source(repo, run)
     assert result.returncode != 0
     assert "tested merge parents" in result.stderr
+
+
+@pytest.mark.parametrize("event", ["workflow_run", "workflow_dispatch"])
+def test_current_download_matches_only_the_producers_source_attempt(event: str) -> None:
+    workflows = ROOT / ".github/workflows"
+    producer = yaml.safe_load((workflows / "module-tests.yml").read_text())
+    upload = next(step["with"]["name"] for job in producer["jobs"].values() for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact@"))
+    aggregate = yaml.safe_load((workflows / "ci-aggregate.yml").read_text())
+    current = next(step["with"]["pattern"] for job in aggregate["jobs"].values() for step in job.get("steps", []) if step.get("id") == "download-current")
+    # Resolve the actual shipped expressions for each supported trigger. The
+    # aggregate's own attempt is deliberately different from its source run.
+    context = {
+        "inputs.module": "kernel",
+        "steps.shard-info.outputs.slug": "2-of-4",
+        "github.run_attempt": "9",
+        "github.event.workflow_run.run_attempt": "3" if event == "workflow_run" else "",
+        "inputs.source_run_attempt": "3" if event == "workflow_dispatch" else "",
+    }
+
+    def render(template: str, values: dict[str, str]) -> str:
+        def resolve(match: re.Match[str]) -> str:
+            return next(value for key in match.group(1).split("||") if (value := values[key.strip()]))
+
+        return re.sub(r"\$\{\{\s*(.*?)\s*\}\}", resolve, template)
+
+    pattern = render(current, context)
+    matching_upload = render(upload, dict(context, **{"github.run_attempt": "3"}))
+    older_upload = render(upload, dict(context, **{"github.run_attempt": "2"}))
+    assert fnmatchcase(matching_upload, pattern), (matching_upload, pattern)
+    assert not fnmatchcase(older_upload, pattern), (older_upload, pattern)
