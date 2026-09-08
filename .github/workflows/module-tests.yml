@@ -33,7 +33,7 @@ on:
         required: true
         type: string
       roots:
-        description: "JSON array of the module's src/** globs (registry modules[].roots) — carried through for traceability/logging; the test-selection step below resolves the mirrored tests/<module> directory."
+        description: "JSON array of the module's src/** globs (registry modules[].roots) — carried through for traceability/logging; the test-selection step below resolves the mirrored tests/<module> directory (or the registry row's explicit test_dirs, when provided)."
         required: true
         type: string
       cov_target:
@@ -53,6 +53,11 @@ on:
         required: false
         type: string
         default: pr
+      test_dirs:
+        description: 'JSON array of explicit tests/** directories (registry modules[].test_dirs), for AGGREGATE modules with no tests/<module> mirror (e.g. core_misc, execution_context). Optional — an empty array or omitted input falls back to the tests/{module} + extra_dirs guess.'
+        required: false
+        type: string
+        default: '[]'
   workflow_dispatch:
     inputs:
       module:
@@ -80,6 +85,11 @@ on:
         required: false
         type: string
         default: pr
+      test_dirs:
+        description: 'JSON array of explicit tests/** directories (registry modules[].test_dirs). Optional.'
+        required: false
+        type: string
+        default: '[]'
 
 jobs:
   test:
@@ -121,24 +131,34 @@ jobs:
           module="${{ inputs.module }}"
           idx="${{ steps.shard-info.outputs.idx }}"
           total="${{ steps.shard-info.outputs.total }}"
+          registry_test_dirs='${{ inputs.test_dirs }}'
 
-          "$venv_python" - "$module" "$idx" "$total" "$venv_python" <<'PY'
+          "$venv_python" - "$module" "$idx" "$total" "$venv_python" "$registry_test_dirs" <<'PY'
           import json
           import os
           import subprocess
           import sys
 
-          module, idx, total, venv_python = sys.argv[1:5]
+          module, idx, total, venv_python, registry_test_dirs_json = sys.argv[1:6]
           idx, total = int(idx), int(total)
 
-          test_dir = f"tests/{module}"
-          # Known dual-test-tree module (CLAUDE.md Modularity SSOT): the
-          # doctrine test tree did not move when src/doctrine/ was absorbed
-          # into src/charter/offering/, so both dirs still cover `charter`.
-          extra_dirs = {"charter": ["tests/doctrine"]}
-          test_dirs = [d for d in [test_dir, *extra_dirs.get(module, [])] if os.path.isdir(d)]
+          # AGGREGATE modules (e.g. core_misc, execution_context) have no
+          # tests/<module> mirror -- the registry row declares an explicit
+          # test_dirs list instead. Prefer it when present; fall back to the
+          # tests/{module} + extra_dirs guess for every other (mirrored)
+          # module, unchanged.
+          registry_test_dirs = [d for d in (json.loads(registry_test_dirs_json) if registry_test_dirs_json else []) if os.path.isdir(d)]
+          if registry_test_dirs:
+              test_dirs = registry_test_dirs
+          else:
+              test_dir = f"tests/{module}"
+              # Known dual-test-tree module (CLAUDE.md Modularity SSOT): the
+              # doctrine test tree did not move when src/doctrine/ was absorbed
+              # into src/charter/offering/, so both dirs still cover `charter`.
+              extra_dirs = {"charter": ["tests/doctrine"]}
+              test_dirs = [d for d in [test_dir, *extra_dirs.get(module, [])] if os.path.isdir(d)]
           if not test_dirs:
-              print(f"::error::module-tests: no test directory found for module {module!r} (looked for {test_dir!r})")
+              print(f"::error::module-tests: no test directory found for module {module!r} (looked for tests/{module} or the registry's test_dirs)")
               sys.exit(64)
 
           collected = subprocess.run(

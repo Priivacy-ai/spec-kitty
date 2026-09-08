@@ -225,6 +225,33 @@ def test_shard_counts_are_positive_integers() -> None:
 
 
 # ---------------------------------------------------------------------------
+# WP09 landing fold: an optional ``test_dirs`` override for AGGREGATE modules
+# (e.g. core_misc, execution_context) whose ``roots`` span several src/**
+# trees with no single tests/<module> mirror -- module-tests.yml's shard
+# selection step (.github/workflows/module-tests.yml) consumes this list
+# verbatim when present, instead of guessing tests/{module}. When declared,
+# every entry must be a real, existing tests/ directory -- never an invented
+# path that would silently collect zero tests in CI (the exit-64 defect this
+# field exists to fix).
+# ---------------------------------------------------------------------------
+def test_declared_test_dirs_exist_and_are_directories() -> None:
+    registry = _load_registry()
+    problems: list[str] = []
+    for row in _modules(registry):
+        name = row.get("module", "<unnamed>")
+        test_dirs = row.get("test_dirs")
+        if test_dirs is None:
+            continue  # optional field -- rows without it fall back to tests/{module}
+        assert isinstance(test_dirs, list), f"module {name!r} declares test_dirs but it is not a list: {test_dirs!r}"
+        assert test_dirs, f"module {name!r} declares an empty test_dirs list (omit the field instead of an empty override)"
+        for entry in test_dirs:
+            path = _REPO_ROOT / str(entry)
+            if not path.is_dir():
+                problems.append(f"module {name!r} test_dirs entry {entry!r} does not exist as a directory ({path})")
+    assert not problems, "registry declares test_dirs entries that are not real directories:\n" + "\n".join(problems)
+
+
+# ---------------------------------------------------------------------------
 # DoD: shard_count is balanced on MEASURED duration — inter-shard skew <=20%
 # (NFR-005). Recomputed independently from the timings file, not trusted from
 # the registry's own claim.

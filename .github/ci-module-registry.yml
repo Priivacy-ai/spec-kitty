@@ -141,6 +141,16 @@ modules:
   - runtime.next
   tier: standard
   shard_count: 3
+  # AGGREGATE module: no single tests/<module> mirror exists for
+  # "execution_context" -- the roots above are covered by these real
+  # directories instead (verified to exist and collect >0 tests, WP09 landing
+  # fold). module-tests.yml consumes this list when present rather than
+  # guessing tests/{module}.
+  test_dirs:
+  - tests/mission_runtime
+  - tests/status
+  - tests/runtime
+  - tests/specify_cli/cli/commands/agent
 - module: core_misc
   roots:
   - src/kernel/**
@@ -157,6 +167,27 @@ modules:
   - mission_runtime
   tier: standard
   shard_count: 5
+  # AGGREGATE module: no single tests/<module> mirror exists for "core_misc"
+  # -- the roots above are covered by these real directories instead
+  # (verified to exist and collect >0 tests, WP09 landing fold). Both
+  # src/specify_cli/core/** and src/specify_cli/coordination/** have two
+  # live test trees (tests/<name> and tests/specify_cli/<name>) that each
+  # exercise the src module -- both are kept for faithful coverage (overlap
+  # accepted, per CLAUDE.md "Test policy"). src/charter/offering/** mirrors
+  # the same dual-tree tests/charter + tests/doctrine pattern
+  # module-tests.yml already special-cases for the "charter" module.
+  test_dirs:
+  - tests/kernel
+  - tests/charter
+  - tests/doctrine
+  - tests/core
+  - tests/specify_cli/core
+  - tests/coordination
+  - tests/specify_cli/coordination
+  - tests/doctrine_synthesizer
+  - tests/status
+  - tests/specify_cli/tool_surface
+  - tests/zeitgeist_client
 special_tiers:
   integration_tests_next:
     job: integration-tests-next
