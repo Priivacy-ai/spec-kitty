@@ -561,24 +561,30 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     this helper is no longer on that call path. It is retained as a directly
     tested primitive (``test_mid8_direct_routing.py``,
     ``test_read_path_resolver_validation.py``); collapsing it is a separate tidy.
+
+    FR-007 / #3162: the meta read is routed through the ONE fail-closed reader
+    (:func:`specify_cli.core.paths.load_meta_fail_closed`), so a corrupt
+    ``meta.json`` degrades to ``""`` via the typed
+    :class:`MissionMetaReadError` arm instead of a raw ``ValueError`` — the same
+    phase-probe carve-out ``lifecycle_phase._read_baseline_merge_commit`` uses.
     """
     from specify_cli.coordination.surface_resolver import resolve_declared_mid8
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
         _compose_primary_feature_dir,
     )
 
-    # FR-006: canonical reader contract (a) — None on a missing file, ValueError on
-    # malformed; the ``except ValueError`` below reproduces the historical
-    # malformed→"" degrade. Defaults are stated explicitly to document the chosen arm.
-    # That ``except`` is BROADER than the reader contract alone: it also swallows
-    # the path-traversal-guard ``ValueError`` (``assert_safe_path_segment``) raised
-    # inside ``_compose_primary_feature_dir`` below, degrading an unsafe segment to
-    # ``""`` the same way a malformed meta.json does. ``MissionSelectorAmbiguous``
-    # (raised by ``_canonicalize_primary_read_handle``) is NOT a ``ValueError`` and
-    # correctly still propagates uncaught.
-    # WP05/FR-005: extract to local so the canonicalized handle feeds load_meta.
+    # FR-006: canonical reader contract (a) — None on a missing file, typed
+    # MissionMetaReadError on malformed (routed, #3162); the malformed arm below
+    # reproduces the historical malformed→"" degrade. The compose-step guard is
+    # kept SEPARATE from the read: its ``except ValueError`` also swallows the
+    # path-traversal-guard ``ValueError`` (``assert_safe_path_segment``) raised
+    # inside ``_compose_primary_feature_dir`` above, degrading an unsafe segment
+    # to ``""`` the same way a malformed meta.json does.
+    # ``MissionSelectorAmbiguous`` (raised by ``_canonicalize_primary_read_handle``)
+    # is NOT a ``ValueError`` and correctly still propagates uncaught.
+    # WP05/FR-005: extract to local so the canonicalized handle feeds the reader.
     # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
     # module-private leaf directly, not the public wrapper — the wrapper now
     # (T019) delegates to the seam, which reaches this module's callers again
@@ -588,12 +594,11 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
             repo_root,
             _canonicalize_primary_read_handle(repo_root, mission_slug),
         )
-        meta = load_meta(
-            primary_dir,
-            allow_missing=True,
-            on_malformed="raise",
-        )
     except ValueError:
+        return ""
+    try:
+        meta = load_meta_fail_closed(primary_dir)
+    except MissionMetaReadError:
         return ""
     if not meta:
         return ""
@@ -891,7 +896,7 @@ def _resolve_coordination_branch(
     ``finalize-tasks`` uses for its merge-target read), restoring a CWD-invariant
     placement with NO second destination authority.
     """
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     # WP01 (#3373, T004): the effective-root read fork is consolidated into the
     # single ``read_dir_for`` authority. PRIMARY_METADATA is a PRIMARY-partition
@@ -909,11 +914,13 @@ def _resolve_coordination_branch(
         kind=MissionArtifactKind.PRIMARY_METADATA,
         resolver=resolver,
     )
-    # FR-006: canonical reader contract (a) — None on missing, ValueError on
-    # malformed (defaults stated explicitly to document the chosen arm).
+    # FR-006: canonical reader contract (a) — None on missing, typed
+    # MissionMetaReadError on malformed (routed through the ONE fail-closed
+    # reader, FR-007 / #3162); the malformed arm below keeps the historical
+    # degrade-to-undeclared answer.
     try:
-        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
-    except ValueError:
+        meta = load_meta_fail_closed(primary_dir)
+    except MissionMetaReadError:
         # Malformed meta: treat coordination topology as undeclared. Downstream
         # surface resolution reports the same condition consistently.
         return None
@@ -1158,7 +1165,7 @@ def _resolve_mission_id(
     regression test in ``tests/mission_runtime/test_builder_fs_free_identity.py``
     pins (T014).
     """
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     # WP01 (#3373, T004): consolidated through the single ``read_dir_for`` fork
     # authority (byte-identical arms; resolver threaded to the same single
@@ -1173,11 +1180,13 @@ def _resolve_mission_id(
         kind=MissionArtifactKind.PRIMARY_METADATA,
         resolver=resolver,
     )
-    # FR-006: canonical reader contract (a) — None on missing, ValueError on
-    # malformed; the malformed arm degrades to the ``legacy-`` sentinel below.
+    # FR-006: canonical reader contract (a) — None on missing, typed
+    # MissionMetaReadError on malformed (routed through the ONE fail-closed
+    # reader, FR-007 / #3162); the malformed arm degrades to the ``legacy-``
+    # sentinel below.
     try:
-        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
-    except ValueError:
+        meta = load_meta_fail_closed(primary_dir)
+    except MissionMetaReadError:
         meta = None
     if meta:
         raw_mission_id = meta.get("mission_id")
@@ -1222,7 +1231,7 @@ def _resolve_status_surface_dir(
 
     if effective_root is not None:
         from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-        from specify_cli.mission_metadata import load_meta
+        from specify_cli.core.paths import load_meta_fail_closed
         from specify_cli.missions._read_path_resolver import (
             CoordState,
             coord_feature_dir,
@@ -1241,7 +1250,10 @@ def _resolve_status_surface_dir(
             kind=MissionArtifactKind.PRIMARY_METADATA,
             resolver=resolver,
         )
-        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise") or {}
+        # FR-007 / #3162: routed through the ONE fail-closed reader — a corrupt
+        # meta.json now surfaces the typed MissionMetaReadError (previously a raw
+        # ValueError); a missing file still degrades to ``{}`` (the absent arm).
+        meta = load_meta_fail_closed(primary_dir) or {}
         raw_coordination_branch = meta.get("coordination_branch")
         coordination_branch = str(raw_coordination_branch) if raw_coordination_branch else None
         if not routes_through_coordination(topology) or coordination_branch is None:

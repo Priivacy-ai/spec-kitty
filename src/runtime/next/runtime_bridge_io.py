@@ -111,7 +111,7 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
@@ -636,10 +636,10 @@ def _workflow_runtime_template(
 
     del mission_type
     mission_dir = _rb._resolve_runtime_feature_dir(repo_root, mission_slug)
-    # load_meta (post-#2091 canonical contract): allow_missing=True absorbs a
-    # missing meta.json to None; malformed content still raises (on_malformed
-    # defaults to "raise"), matching the prior unguarded json.loads.
-    meta = load_meta(mission_dir)
+    # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
+    # meta.json still absorbs to None; a corrupt or non-object one raises the
+    # typed MissionMetaReadError instead of a raw ValueError.
+    meta = load_meta_fail_closed(mission_dir)
     if meta is None:
         return None, None
 

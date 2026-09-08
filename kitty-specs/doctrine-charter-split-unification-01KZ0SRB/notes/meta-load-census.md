@@ -150,6 +150,12 @@ subsystem as the fixed leak):
 > mission's `pending-batch-a` bucket (see the NFR-003 ledger in
 > `tests/specify_cli/test_meta_fail_closed_full_census_contract.py`). #3140's closure does not cover
 > this table.
+>
+> **Update (#3162 routing pass, 2026-09-08):** every `pending-batch-a` row — the five sites in this
+> table plus the rest of the bucket — has now been routed through `load_meta_fail_closed` and its
+> ledger row deleted. The two `ref_advance.py` raw reads named in §0 are the one remaining known
+> gap and are tracked separately (they bypass `load_meta(` entirely, so neither this census nor the
+> ledger can see them). The AST-based `_ACCOUNTED_SITES` ledger remains the live authority.
 
 | Site | Class | Target |
 |---|---|---|

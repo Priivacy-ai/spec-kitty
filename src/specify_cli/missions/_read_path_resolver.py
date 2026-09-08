@@ -840,10 +840,14 @@ def read_primary_meta(
     (≈:251) so the seam and the orchestrator share ONE primitive (NFR-004) rather
     than two parallel cascades.
     """
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import load_meta_fail_closed
 
     primary_dir = _compose_primary_feature_dir(repo_root, handle)
-    meta = load_meta(primary_dir) or {}
+    # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
+    # primary meta still reads as the empty mapping (the legacy/coord-only
+    # arm below); a corrupt or non-object one raises the typed
+    # MissionMetaReadError instead of a raw ValueError.
+    meta = load_meta_fail_closed(primary_dir) or {}
     if not meta:
         # Non-composed handle (bare ``mid8``, full ULID, numeric prefix): the raw
         # handle does NOT name the on-disk ``<slug>-<mid8>`` directory, so the
@@ -859,7 +863,7 @@ def read_primary_meta(
         canonical = _canonicalize_handle(repo_root, handle)
         if canonical is not None:
             _, _, canonical_dir = canonical
-            meta = load_meta(canonical_dir) or {}
+            meta = load_meta_fail_closed(canonical_dir) or {}
     branch = meta.get("coordination_branch")
     declares_coordination = isinstance(branch, str) and bool(branch.strip())
     return meta, declares_coordination
