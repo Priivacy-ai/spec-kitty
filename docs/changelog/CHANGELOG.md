@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The `migrate-project-guidance-to-spec-kitty-charter` procedure now captures the source's vocabulary in the glossary** (#4103). A new step between classification and drafting extracts the terms the guidance defines or uses with a specific meaning, triages them through the `glossary-maintenance-workflow` procedure into the narrowest owning scope, and makes the accepted surfaces the vocabulary the drafted artifacts must use verbatim. The exit condition and the parity-comparison step now require every defined term to resolve in the glossary or be excluded with a reason, and the procedure references `procedure:glossary-maintenance-workflow` in the DRG.
 
+### Fixed
+
+- **Charter exposes project authoring and org pack commands** (#4098). `charter new`, `validate`, `org` and `fetch` delegate to the existing doctrine handlers. Deprecation guidance identifies commands that remain under `doctrine`.
+
 ## [3.2.6.1] - 2026-09-08
 
 _Hotfix from the 3.2.6 maintenance line, covering first-run creation, recovery, documentation, and release validation._
