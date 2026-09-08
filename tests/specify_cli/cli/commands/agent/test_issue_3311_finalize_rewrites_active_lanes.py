@@ -82,7 +82,7 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
     # globally, which can let a machine-local daemon-owner record short-circuit
     # finalize before these assertions run (mirrors the source module's autouse
     # guard, which does not apply to this importing module).
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     mission_slug = "061-lane-feature"
     feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)

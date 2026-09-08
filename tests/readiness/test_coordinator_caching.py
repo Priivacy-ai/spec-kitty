@@ -82,7 +82,7 @@ def test_B_hosted_disabled_cached_after_first_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Without SAAS sync, the disabled path still caches and still invokes the nag exactly once."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
 
     call_count = {"n": 0}
@@ -105,7 +105,7 @@ def test_C_get_readiness_returns_same_instance_after_evaluate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """get_readiness returns the cached ReadinessResult by identity."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.setattr(sys, "argv", ["spec-kitty"])
     monkeypatch.setattr(coord_module, "_invoke_nag", lambda ctx: None)
 

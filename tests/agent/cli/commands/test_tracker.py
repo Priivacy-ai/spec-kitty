@@ -61,7 +61,7 @@ def _build_root_app(*, enabled: bool, monkeypatch) -> typer.Typer:
     if enabled:
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     else:
-        monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     import specify_cli.cli.commands as commands_module
 
@@ -87,13 +87,13 @@ def test_tracker_registered_when_flag_enabled(monkeypatch) -> None:
 
 def test_tracker_direct_invocation_fails_when_flag_disabled(monkeypatch) -> None:
     """Direct tracker invocation exits with code 1 and a flag-disabled message."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     from specify_cli.cli.commands import tracker as tracker_module
 
     result = runner.invoke(tracker_module.app, ["providers"])
     assert result.exit_code == 1
-    assert "Hosted SaaS sync is not enabled" in result.output
+    assert "Hosted SaaS sync is disabled" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -1095,12 +1095,12 @@ def test_providers_still_blocked_when_rollout_disabled(monkeypatch) -> None:
     the per-command readiness call did not accidentally open a hole in that
     gate.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     from specify_cli.cli.commands import tracker as tracker_module
 
     result = runner.invoke(tracker_module.app, ["providers"])
     assert result.exit_code == 1
-    assert "not enabled" in result.output.lower()
+    assert "disabled" in result.output.lower()
 
 
 @pytest.mark.no_readiness_stub

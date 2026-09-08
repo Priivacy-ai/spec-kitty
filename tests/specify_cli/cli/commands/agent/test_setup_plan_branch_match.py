@@ -125,7 +125,8 @@ def _run_setup_plan_from(
 
     prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
     os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
-    prev_saas = os.environ.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+    prev_saas = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
+    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
     try:
         with (
             patch.object(mission_mod, "locate_project_root", return_value=primary),

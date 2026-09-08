@@ -175,8 +175,7 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
                 "target could not be resolved)."
             )
         raise SaasAuthError(
-            'SaaS URL not configured: set SPEC_KITTY_SAAS_URL or provide "saas_url" '
-            "in .kittify/saas-auth.json (the hosted target could not be resolved)."
+            'SaaS URL not configured: set SPEC_KITTY_SAAS_URL or provide "saas_url" in .kittify/saas-auth.json (the hosted target could not be resolved).'
         )
 
     return AuthContext(saas_url=url, token=token, team_slug=team_slug)

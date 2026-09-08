@@ -38,7 +38,7 @@ def _disable_saas_sync_for_setup_plan_contract_tests(
     ``tests/runtime/test_setup_plan_sync_evidence.py`` and re-enable
     the flag explicitly.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 runner = CliRunner()
 TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"

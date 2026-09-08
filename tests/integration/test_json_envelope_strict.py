@@ -124,7 +124,7 @@ def set_saas_state(monkeypatch: pytest.MonkeyPatch) -> Any:
 
     def _apply(state: str) -> None:
         if state == "disabled":
-            monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
         elif state == "unauthorized":
             monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
             # Force the token manager to report "not authenticated" if any

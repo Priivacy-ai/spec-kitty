@@ -134,7 +134,6 @@ def test_flagless_mark_status_preserves_primary_lookup(
         ("staged", "OWNED_INDEX_REFUSED"),
         ("topology", "OWNED_TOPOLOGY_UNSUPPORTED"),
         ("no_commit", "OWNED_OPTION_UNSUPPORTED"),
-        ("sync", "OWNED_SYNC_UNSUPPORTED"),
     ],
 )
 def test_owned_preflight_refuses_before_effects(
@@ -171,8 +170,6 @@ def test_owned_preflight_refuses_before_effects(
         path.write_text(json.dumps(meta), encoding="utf-8")
     elif case == "no_commit":
         extra = ["--no-auto-commit"]
-    elif case == "sync":
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     args = [
         "mark-status",

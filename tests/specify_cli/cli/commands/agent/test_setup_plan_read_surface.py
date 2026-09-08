@@ -141,7 +141,8 @@ def _run_setup_plan(repo_root: Path, coord_husk_dir: Path) -> dict[str, object]:
     # surface, not hosted-sync auth. With SAAS sync enabled in the ambient env
     # setup-plan would refuse with SAAS_SYNC_UNAUTHENTICATED before ever reaching
     # the spec read, masking the divergence we assert on.
-    _prev_saas = os.environ.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+    _prev_saas = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
+    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
     try:
         with (
             patch.object(mission_mod, "locate_project_root", return_value=repo_root),

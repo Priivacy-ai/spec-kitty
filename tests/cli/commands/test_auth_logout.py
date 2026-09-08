@@ -316,8 +316,11 @@ class TestAuthLogoutCommand:
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
 
-    def test_logout_missing_saas_url_proceeds_local_only(self, monkeypatch):
-        """Missing ``SPEC_KITTY_SAAS_URL`` must NOT block local cleanup."""
+    def test_logout_missing_saas_url_still_revokes_and_cleans_up_locally(self, monkeypatch):
+        """#3980 (D-5 revised): missing ``SPEC_KITTY_SAAS_URL`` no longer
+        short-circuits server revocation — the target always resolves (env
+        override or the packaged default), so revocation is attempted and
+        local cleanup still runs unconditionally."""
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
         storage = _mock_storage(_make_session())
         revoke_mock = AsyncMock(return_value=RevokeOutcome.REVOKED)
@@ -336,10 +339,10 @@ class TestAuthLogoutCommand:
             result = runner.invoke(app, ["logout"])
 
         assert result.exit_code == 0, result.stdout
-        # Warning about config error.
-        assert "config error" in result.stdout.lower()
-        # RevokeFlow was NOT called (config error short-circuited).
-        revoke_mock.assert_not_called()
+        # No config-error warning: the target resolved to the packaged default.
+        assert "config error" not in result.stdout.lower()
+        # Revocation WAS attempted against the resolved default target.
+        revoke_mock.assert_called_once()
         # Local cleanup still ran.
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
