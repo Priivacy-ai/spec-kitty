@@ -122,17 +122,21 @@ def test_editable_install_runs_exactly_once_gated_on_cache_miss() -> None:
     """#3283: the composite must build the env once and let a cache hit skip the rebuild."""
     steps = _steps()
     cache_steps = [s for s in steps if str(s.get("uses", "")).startswith("actions/cache@")]
-    assert cache_steps
-    cache_step_id = str(cache_steps[0]["id"])
+    assert cache_steps, "expected an actions/cache step so a valid warmup can be reused"
 
     build_steps = [s for s in steps if "uses" not in s and "uv sync" in str(s.get("run", ""))]
     assert build_steps, "expected exactly one build step invoking `uv sync`"
     assert len(build_steps) == 1, "the editable install must run in exactly one step — a single pre-warm reused by all downstream shards"
-    condition = str(build_steps[0].get("if", ""))
-    assert cache_step_id in condition and "cache-hit" in condition, (
-        "the build step must be gated on a cache miss "
-        f"(steps.{cache_step_id}.outputs.cache-hit != 'true') so a cache hit "
-        "reuses the built env instead of re-running the install"
+    # #3283 reuse is gated INSIDE the build step's run body (not a bare step-level
+    # `if: cache-hit`): a restored `.venv` is not self-contained — its
+    # `bin/python` symlinks to a uv-managed interpreter outside the cache — so a
+    # blind cache-hit skip reuses a dangling venv and every downstream
+    # `.venv/bin/python` dies with exit 127. The step must reuse a VALID cache hit
+    # (fast-path) but rebuild when the restored interpreter is broken.
+    run_body = str(build_steps[0].get("run", ""))
+    assert "cache-hit" in run_body, "the build step must gate the reuse fast-path on the cache-hit signal so a valid cache hit skips the reinstall (#3283)"
+    assert ".venv/bin/python" in run_body, (
+        "the build step must validate the restored interpreter (and rebuild a dangling-symlink venv), not blindly reuse a cache hit"
     )
 
 

@@ -103,13 +103,26 @@ runs:
 
     - name: Build the editable environment once
       id: build-env
-      if: steps.restore-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         set -euo pipefail
-        # #3283: exactly one build per (lockfile, rev); a cache hit above skips
-        # this step entirely, so downstream shards reuse the artefact instead
-        # of re-running the install.
+        # #3283: exactly one build per (lockfile, rev) — a valid cache hit skips
+        # the install so downstream shards reuse the artefact. BUT a cached
+        # `.venv` is not self-contained: `uv` builds it with `.venv/bin/python`
+        # as a SYMLINK to a uv-managed interpreter that lives OUTSIDE `.venv`
+        # (and so is not in this cache). On a cache-hit runner that never ran the
+        # interpreter download, that symlink dangles and every `.venv/bin/python`
+        # invocation dies with "No such file or directory" (exit 127). So keep
+        # the fast-path only when the restored interpreter actually works;
+        # otherwise fall through and (re)build — the setup-uv + `.venv` caches
+        # keep that near-instant.
+        if [ "${{ steps.restore-cache.outputs.cache-hit }}" = "true" ] \
+            && [ -x .venv/bin/python ] \
+            && .venv/bin/python -c "import sys" >/dev/null 2>&1; then
+          echo "warmup: cache hit and .venv interpreter is valid — reusing (#3283)."
+          exit 0
+        fi
+        echo "warmup: building the environment (cache miss, or the restored .venv interpreter symlink is dangling)."
         mode="${{ inputs.mode }}"
         if [ "$mode" = "full" ]; then
           uv sync --all-extras --upgrade-package "spec-kitty-events==${{ steps.resolve-rev.outputs.resolved-events-rev }}"
