@@ -146,8 +146,7 @@ def rollback_events_log_tail(
         # would zero-extend the file; cutting anything would judge a log this
         # operation did not leave in that state. Refuse.
         logger.warning(
-            "Refused rollback truncate of %s: log size %d is below the pre-emit "
-            "size %d (the log was rewritten in the window); log left intact",
+            "Refused rollback truncate of %s: log size %d is below the pre-emit size %d (the log was rewritten in the window); log left intact",
             events_path,
             size,
             pre_emit_event_size,
@@ -160,16 +159,14 @@ def rollback_events_log_tail(
             rows = _tail_rows(events_path, pre_emit_event_size)
             if rows is None:
                 logger.warning(
-                    "Refused rollback truncate of %s: tail beyond %d bytes is not "
-                    "whole JSONL rows (torn write or foreign content); log left intact",
+                    "Refused rollback truncate of %s: tail beyond %d bytes is not whole JSONL rows (torn write or foreign content); log left intact",
                     events_path,
                     pre_emit_event_size,
                 )
                 return False
             if expected_event_ids is not None and sorted(_row_event_ids(rows)) != sorted(expected_event_ids):
                 logger.warning(
-                    "Refused rollback truncate of %s: tail holds %r, expected %r "
-                    "(a concurrent writer's rows would be destroyed); log left intact",
+                    "Refused rollback truncate of %s: tail holds %r, expected %r (a concurrent writer's rows would be destroyed); log left intact",
                     events_path,
                     _row_event_ids(rows),
                     list(expected_event_ids),
@@ -179,8 +176,7 @@ def rollback_events_log_tail(
             return True
     except FeatureStatusLockTimeoutError as exc:
         logger.warning(
-            "Refused rollback truncate of %s: could not acquire the mission status "
-            "lock within %ss (%s); log left intact",
+            "Refused rollback truncate of %s: could not acquire the mission status lock within %ss (%s); log left intact",
             events_path,
             timeout,
             exc,

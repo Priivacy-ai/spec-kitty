@@ -45,9 +45,7 @@ def test_truncates_the_tail_when_ids_match(feature_dir: Path) -> None:
     _events_path(feature_dir).write_text(_row("before") + _row("mine"), encoding="utf-8")
     pre_size = len(_row("before"))
 
-    assert rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=["mine"]
-    )
+    assert rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=["mine"])
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before")
 
 
@@ -55,9 +53,7 @@ def test_id_order_does_not_matter(feature_dir: Path) -> None:
     _events_path(feature_dir).write_text(_row("before") + _row("a") + _row("b"), encoding="utf-8")
     pre_size = len(_row("before"))
 
-    assert rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=["b", "a"]
-    )
+    assert rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=["b", "a"])
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before")
 
 
@@ -70,18 +66,14 @@ def test_refuses_when_a_foreign_writer_appended_after_the_capture(feature_dir: P
     # A concurrent writer lands one more row AFTER the capture.
     _events_path(feature_dir).write_text(_row("before") + _row("mine") + _row("foreign"), encoding="utf-8")
 
-    assert not rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=expected
-    )
+    assert not rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=expected)
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + _row("mine") + _row("foreign")
 
 
 def test_refuses_when_the_tail_is_not_whole_rows(feature_dir: Path) -> None:
     _events_path(feature_dir).write_text(_row("before") + '{"torn": ', encoding="utf-8")
 
-    assert not rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=None
-    )
+    assert not rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=None)
     # A torn row is never cut blind -- the log is left exactly as found.
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + '{"torn": '
 
@@ -90,34 +82,26 @@ def test_structural_mode_cuts_whole_rows_without_expected_ids(feature_dir: Path)
     """Callers that cannot state their rows (emit failed) still roll back whole rows."""
     _events_path(feature_dir).write_text(_row("before") + _row("partial-emit"), encoding="utf-8")
 
-    assert rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=None
-    )
+    assert rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=None)
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before")
 
 
 def test_noop_when_nothing_was_appended(feature_dir: Path) -> None:
     _events_path(feature_dir).write_text(_row("before"), encoding="utf-8")
 
-    assert rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=[]
-    )
+    assert rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=[])
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before")
 
 
 def test_noop_when_the_log_never_existed(feature_dir: Path) -> None:
-    assert rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=0, expected_event_ids=None
-    )
+    assert rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=0, expected_event_ids=None)
     assert not _events_path(feature_dir).exists()
 
 
 def test_refuses_when_the_log_shrank_below_the_pre_emit_size(feature_dir: Path) -> None:
     _events_path(feature_dir).write_text(_row("x"), encoding="utf-8")
 
-    assert not rollback_events_log_tail(
-        feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=10_000, expected_event_ids=None
-    )
+    assert not rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=10_000, expected_event_ids=None)
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("x")
 
 
@@ -158,9 +142,7 @@ def test_lock_is_re_entrant_for_a_caller_already_holding_it(feature_dir: Path) -
     pre_size = len(_row("before"))
 
     with feature_status_lock(feature_dir.parent.parent, feature_dir.name):
-        assert rollback_events_log_tail(
-            feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=["mine"]
-        )
+        assert rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=pre_size, expected_event_ids=["mine"])
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before")
 
 

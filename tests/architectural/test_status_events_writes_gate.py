@@ -728,7 +728,7 @@ _LEDGERED_SHAPES: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
         # (spec-kitty #3960) and their entries were removed.
         "path-open-truncate",
         "class T:\n"
-        '    def __init__(self, events_path):\n'
+        "    def __init__(self, events_path):\n"
         "        self._events_path = events_path\n"
         "    def {name}(self):\n"
         '        self._events_path.open("ab").truncate(0)\n'
