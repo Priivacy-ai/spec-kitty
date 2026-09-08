@@ -103,6 +103,18 @@ def test_changelog_has_entry_returns_true_when_present() -> None:
     assert changelog_has_entry(changelog, "3.1.1") is True
 
 
+@pytest.mark.parametrize("version", ["3.2.6.1", "3.2.6.1rc1"])
+def test_extract_hotfix_notes_excludes_adjacent_releases(version: str) -> None:
+    changelog = (
+        "## [3.2.6.2] - 2026-09-09\n- Later fix\n\n"
+        f"## [{version}] - 2026-09-08\n- First-run fix\n\n"
+        "## [3.2.6] - 2026-09-01\n- Older release\n"
+    )
+
+    assert extract_changelog_section(changelog, version) == "- First-run fix"
+    assert extract_changelog_section(changelog, "3.2.6.2") == "- Later fix"
+
+
 def test_changelog_has_entry_returns_false_when_absent() -> None:
     changelog = (
         "# Changelog\n\n"

@@ -43,6 +43,10 @@ def _run_create_feature(
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value=current_branch),
+        # These unit cases inspect branch derivation, not Git execution policy.
+        # Keep main/master and differing-target inputs, and observe the target
+        # supplied to the new preflight alongside the existing commit stub.
+        patch(f"{_CORE_MODULE}.preflight_commit") as preflight,
         patch(f"{_CORE_MODULE}.safe_commit", return_value=True),
         # Keep the create path hermetic (no network) by patching the SaaS/dossier
         # fan-out only. We deliberately do NOT mock emit_mission_created_local:
@@ -55,6 +59,14 @@ def _run_create_feature(
         patch("specify_cli.status.fire_dossier_sync"),
     ):
         result = runner.invoke(app, args)
+
+    expected_target = (
+        args[args.index("--target-branch") + 1]
+        if "--target-branch" in args
+        else current_branch
+    )
+    preflight.assert_called_once()
+    assert preflight.call_args.kwargs["target"].ref == expected_target
 
     # Find written meta.json
     meta = None

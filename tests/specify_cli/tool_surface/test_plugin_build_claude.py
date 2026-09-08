@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,6 +38,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _run_build(tmp_path: Path, *, skip_validate: bool = True) -> Path:
     """Build a bundle and return the bundle directory."""
     result = ClaudeBundleProjector(tmp_path / "dist").build(skip_validate=skip_validate)
@@ -57,38 +59,43 @@ class TestPluginJson:
     def test_plugin_json_has_real_version(self, tmp_path: Path) -> None:
         """Version must not be the '0.0.0' placeholder."""
         bundle_dir = _run_build(tmp_path)
-        payload = json.loads(
-            (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
-        )
+        payload = json.loads((bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
         version = payload["version"]
-        assert version != "0.0.0", (
-            "plugin.json version must come from importlib.metadata, not the placeholder"
-        )
+        assert version != "0.0.0", "plugin.json version must come from importlib.metadata, not the placeholder"
         # Must contain at least one dot-separated integer component.
-        assert re.match(r"\d+\.\d+", version), (
-            f"version {version!r} does not look like a version string"
-        )
+        assert re.match(r"\d+\.\d+", version), f"version {version!r} does not look like a version string"
 
     def test_plugin_json_schema_shape(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
-        payload = json.loads(
-            (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
-        )
+        payload = json.loads((bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
         required_keys = {"name", "displayName", "version", "description", "author", "skills", "agents"}
         missing = required_keys - payload.keys()
         assert not missing, f"plugin.json missing keys: {missing}"
         assert payload["name"] == "spec-kitty"
-        assert payload["skills"] == sorted(
-            f"./skills/spec-kitty.{command}" for command in CANONICAL_COMMANDS
-        )
+        assert payload["skills"] == sorted(f"./skills/spec-kitty.{command}" for command in CANONICAL_COMMANDS)
         assert all(str(path).startswith("./agents/") for path in payload["agents"])
+
+    def test_published_bundle_urls_match_package_repository(self, tmp_path: Path) -> None:
+        """Generated install sources follow the repository advertised on PyPI."""
+        bundle_dir = _run_build(tmp_path)
+        repository_root = Path(__file__).resolve().parents[3]
+        package = tomllib.loads((repository_root / "pyproject.toml").read_text(encoding="utf-8"))
+        expected = package["project"]["urls"]["Repository"]
+        manifest = json.loads((bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        catalog = json.loads((bundle_dir.parent / "marketplace.json").read_text(encoding="utf-8"))
+        assert manifest["author"]["url"] == expected
+        assert catalog["plugins"][0]["source"]["url"].removesuffix(".git") == expected
+        # The retired org must not ship anywhere in the packaged manifests — not
+        # only in the URL this test already pinned. The author *name* slipped
+        # through the org sweep because nothing asserted it (squad on #4051).
+        for label, payload in (("plugin.json", manifest), ("marketplace.json", catalog)):
+            assert "Priivacy" not in json.dumps(payload), f"{label} still ships the retired org"
+        assert manifest["author"]["name"] == "Spec Kitty"
 
     def test_plugin_json_no_hooks_key_when_hooks_empty(self, tmp_path: Path) -> None:
         """hooks/ key must be absent when hooks/hooks.json is the empty placeholder."""
         bundle_dir = _run_build(tmp_path)
-        payload = json.loads(
-            (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
-        )
+        payload = json.loads((bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
         # The hooks placeholder is {"hooks": {}} and contains no hook entries.
         assert "hooks" not in payload
 
@@ -104,26 +111,20 @@ class TestSkillsCopy:
         skills_dir = bundle_dir / "skills"
         assert skills_dir.is_dir(), "skills/ directory must be created"
         skill_files = list(skills_dir.glob("*/SKILL.md"))
-        assert len(skill_files) >= MIN_SKILL_COUNT, (
-            f"Expected at least {MIN_SKILL_COUNT} skills, found {len(skill_files)}"
-        )
+        assert len(skill_files) >= MIN_SKILL_COUNT, f"Expected at least {MIN_SKILL_COUNT} skills, found {len(skill_files)}"
 
     def test_all_canonical_commands_present(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
         for command in CANONICAL_COMMANDS:
             skill_file = bundle_dir / "skills" / f"spec-kitty.{command}" / "SKILL.md"
-            assert skill_file.is_file(), (
-                f"Missing SKILL.md for canonical command: {command}"
-            )
+            assert skill_file.is_file(), f"Missing SKILL.md for canonical command: {command}"
 
     def test_skill_files_have_frontmatter(self, tmp_path: Path) -> None:
         """Each SKILL.md must start with YAML frontmatter."""
         bundle_dir = _run_build(tmp_path)
         for skill_md in sorted((bundle_dir / "skills").glob("*/SKILL.md")):
             content = skill_md.read_text(encoding="utf-8")
-            assert content.startswith("---"), (
-                f"{skill_md.name} does not start with YAML frontmatter"
-            )
+            assert content.startswith("---"), f"{skill_md.name} does not start with YAML frontmatter"
 
 
 # ---------------------------------------------------------------------------
@@ -143,18 +144,14 @@ class TestAgentsCopy:
         bundle_dir = _run_build(tmp_path)
         for agent_md in sorted((bundle_dir / "agents").glob("*.md")):
             content = agent_md.read_text(encoding="utf-8")
-            assert content.startswith("---"), (
-                f"{agent_md.name} does not start with YAML frontmatter"
-            )
+            assert content.startswith("---"), f"{agent_md.name} does not start with YAML frontmatter"
 
     def test_hooks_placeholder_created(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
         hooks_json = bundle_dir / "hooks" / "hooks.json"
         assert hooks_json.is_file(), "hooks/hooks.json placeholder must be created"
         payload = json.loads(hooks_json.read_text(encoding="utf-8"))
-        assert payload == {"hooks": {}}, (
-            "hooks.json placeholder must be an empty hooks record"
-        )
+        assert payload == {"hooks": {}}, "hooks.json placeholder must be an empty hooks record"
 
 
 # ---------------------------------------------------------------------------
@@ -183,9 +180,7 @@ class TestIdempotency:
             if f.is_file():
                 snapshot_2[str(f.relative_to(bundle_dir_2))] = f.read_bytes()
 
-        assert snapshot_1 == snapshot_2, (
-            "Build is not idempotent: second run produced different files"
-        )
+        assert snapshot_1 == snapshot_2, "Build is not idempotent: second run produced different files"
 
 
 # ---------------------------------------------------------------------------
@@ -202,14 +197,13 @@ class TestValidateStep:
 
     def test_validate_step_tolerates_missing_claude_cli(self, tmp_path: Path) -> None:
         """FileNotFoundError from missing claude CLI must not crash the build."""
+
         def _raise_fnf(*args: object, **kwargs: object) -> None:
             raise FileNotFoundError("claude not found")
 
         with patch("subprocess.run", side_effect=_raise_fnf):
             # Must complete without raising.
-            bundle_dir = ClaudeBundleProjector(tmp_path / "dist").build(
-                skip_validate=False
-            )
+            bundle_dir = ClaudeBundleProjector(tmp_path / "dist").build(skip_validate=False)
         assert (bundle_dir / ".claude-plugin" / "plugin.json").is_file()
 
     def test_validate_step_raises_exit_on_nonzero(self, tmp_path: Path) -> None:
@@ -255,8 +249,8 @@ class TestBuilderUtilities:
         assert is_semver("0.0.0+dev")  # starts with MAJOR.MINOR.PATCH — matches prefix
 
     def test_is_semver_invalid(self) -> None:
-        assert not is_semver("dev")   # no numeric prefix at all
-        assert not is_semver("")       # empty string never matches
+        assert not is_semver("dev")  # no numeric prefix at all
+        assert not is_semver("")  # empty string never matches
         assert not is_semver("v3.2.0")  # leading 'v' is not allowed
 
     def test_write_json_creates_parents(self, tmp_path: Path) -> None:

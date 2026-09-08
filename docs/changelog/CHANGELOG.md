@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-03'
+updated: '2026-09-08'
 ---
 # Changelog
 
@@ -12,6 +12,20 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.2.6.1] - 2026-09-08
+
+_Hotfix from the 3.2.6 maintenance line, covering first-run creation, recovery, documentation, and release validation._
+
+### Fixed
+
+- **Mission creation validates its commit destination before writing a scaffold (`#4035`).** Protected branches, mismatched checkout branches, and missing destination refs fail before local lifecycle events are written. If these checks refuse later, rollback removes only new, untracked scaffolds matching the canonical slug, including accepted numeric-prefixed inputs. Tracked content and local persistence failures retain their diagnostic evidence.
+- **Every topology refuses creation from an unborn write checkout (`#4033`).** Creation previously failed after writing a scaffold because its commit required an existing ref. The early error now explains how to make the initial commit. Explicitly owned checkouts are checked using their own HEAD state.
+- **Creation publishes lifecycle events and syncs its dossier only after its commits succeed.** A failed scaffold or origin-ticket commit no longer publishes lifecycle events for an aborted mission.
+- **The first-mission tutorials use the protected-branch recovery flow and current mission paths throughout.** They explain scaffold commits, commit a substantive specification before planning, and verify that planning produces a plan artifact.
+- **Active runtime and packaged repository links use `spec-kitty/spec-kitty`.** Historical comments and docstrings remain outside this URL correction.
+- **Release validation and publication support the four-component hotfix version `3.2.6.1`.** Package metadata, lockfile, changelog extraction, release-channel classification, and maintenance-branch CI gates agree on the release.
+- **The tag-time release no longer fetches a SaaS consumer contract that does not exist (backport of `#3979`).** `release.yml`'s `Fetch compatibility references` step ran `curl -f` against `spec-kitty-saas/contracts/consumer-compatibility.json` unconditionally, before any waiver could apply, and the live Team Kitty repository publishes no such file — so a plain `git push --tags` of this release would have failed before reaching PyPI. Removed with the `downstream-consumer-verify` job, the `skip_downstream` waiver, `check_candidate_consumer_compat.py`, the manifest's `consumers` block, and the matching `consumer-compatibility` PR job (whose canonical-repo guard was hardcoded to the retired `Priivacy-ai` org). **This retires the FR-026 downstream-consumer promotion gate on the 3.2.6 line**, deliberately and not by accident: the gate's verifier (the scenario suite in `${owner}/spec-kitty-end-to-end-testing`) and its input (the SaaS consumer contract) both ceased to exist with the org move, so the gate could not be satisfied as written and a conditional fetch would have left it looking armed while verifying nothing. Its contract test, `tests/integration/test_release_gate_downstream_consumer.py`, is retired with it — the same disposition `main` took in #3979. Stable promotion is now gated on the CLI's own evidence: metadata validation, build, exact-install, wheel contents, and the local shared-package drift check. The CLI's own drift check (`pyproject.toml` vs `uv.lock` vs the release manifest), exact-install, and wheel-content gates are unchanged.
 
 ## [3.2.6] - 2026-09-03
 

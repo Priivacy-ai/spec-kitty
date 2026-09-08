@@ -32,7 +32,7 @@ _CORE_MODULE = "specify_cli.core.mission_creation"
 # ---------------------------------------------------------------------------
 
 
-def _init_git_repo(repo: Path) -> None:
+def _init_git_repo(repo: Path, *, branch: str = "operator-work") -> None:
     """Initialise a minimal git repo with .kittify and kitty-specs."""
     kittify_dir = repo / ".kittify"
     kittify_dir.mkdir(exist_ok=True)
@@ -48,7 +48,7 @@ def _init_git_repo(repo: Path) -> None:
         encoding="utf-8",
     )
     subprocess.run(
-        ["git", "init"],
+        ["git", "init", "-b", branch],
         cwd=repo,
         capture_output=True,
         check=True,
@@ -119,7 +119,6 @@ def test_create_uses_configured_non_conventional_spec_override(tmp_path: Path) -
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
@@ -148,7 +147,6 @@ def test_create_uses_configured_package_default_spec(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
@@ -185,7 +183,6 @@ def test_create_fails_before_scaffolding_for_invalid_spec_mapping(
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context(
@@ -216,7 +213,6 @@ def test_create_fails_before_scaffolding_for_unresolved_mapped_spec(tmp_path: Pa
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
@@ -248,7 +244,6 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -262,8 +257,8 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
     # mission_number is None pre-merge (FR-044); a dense display number is
     # assigned only at merge time. Canonical identity is mission_id (ULID).
     assert result.mission_number is None
-    assert result.target_branch == "main"
-    assert result.current_branch == "main"
+    assert result.target_branch == "operator-work"
+    assert result.current_branch == "operator-work"
     assert result.feature_dir == tmp_path / "kitty-specs" / result.mission_slug
     assert result.feature_dir.is_dir()
 
@@ -272,7 +267,7 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
     assert meta_file.exists()
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
     assert meta["mission_slug"] == result.mission_slug
-    assert meta["target_branch"] == "main"
+    assert meta["target_branch"] == "operator-work"
     assert meta["mission_type"] == "software-dev"
     # Canonical mission identity fields (083+)
     assert "mission_id" in meta
@@ -300,7 +295,6 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -398,7 +392,6 @@ def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
             patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
             patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
             patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-            patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
             patch("specify_cli.status.fire_dossier_sync"),
             patch(f"{_CORE_MODULE}._commit_feature_file"),
             patch("specify_cli.tracker.origin.bind_mission_origin") as mock_bind_origin,
@@ -411,7 +404,7 @@ def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
                     "mission_slug": "ticket-feature-01KTESTM",
                     "friendly_name": "ticket feature",
                     "mission_type": "software-dev",
-                    "target_branch": "main",
+                    "target_branch": "operator-work",
                     "created_at": "2026-04-01T00:00:00+00:00",
                     "origin_ticket": {"provider": "linear"},
                 },
@@ -453,7 +446,6 @@ def test_pending_origin_failure_is_reported_and_retained(tmp_path: Path) -> None
             patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
             patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
             patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-            patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
             patch("specify_cli.status.fire_dossier_sync"),
             patch(f"{_CORE_MODULE}._commit_feature_file"),
             patch("specify_cli.tracker.origin.bind_mission_origin", side_effect=RuntimeError("bind failed")),
@@ -482,33 +474,15 @@ def test_invalid_slug_raises(tmp_path: Path) -> None:
 
 
 def test_slug_starting_with_number_accepted(tmp_path: Path) -> None:
-    """Slug starting with a digit is now valid per FR-017 (e.g. '068-feature-name' convention).
-
-    Broadened from ``except MissionCreationError`` to ``except Exception`` per
-    FR-001 (#3673): this test uses a real, unmocked git repo whose default
-    branch name (``master``/``main``, ambient ``init.defaultBranch``) is a
-    protected branch, so once ``mission_creation.py``'s meta.json commit no
-    longer suppresses hard failures, the real ``_commit_feature_file`` call
-    correctly raises ``ProtectedBranchRefused`` here -- a downstream,
-    slug-unrelated failure that used to be silently swallowed. This test's
-    own intent was always "creation may succeed or fail for non-slug
-    reasons" (see the comment below, unchanged); only a slug-format
-    rejection is actually disallowed, regardless of which exception type
-    carries it.
-    """
+    """A digit-prefixed slug is valid (FR-017) on a real writable branch."""
     _init_git_repo(tmp_path)
 
-    # Slug validation must pass; creation may succeed or fail for non-slug reasons
-    # (including a downstream hard git failure now correctly surfaced per
-    # FR-001, rather than silently swallowed), but must NOT raise a "slug
-    # format" complaint.
-    try:
-        create_mission_core(tmp_path, "123-fix", **_mission_summary("123-fix"))
-    except Exception as exc:  # noqa: BLE001 -- deliberately broad, see docstring
-        assert "Invalid feature slug" not in str(exc), (
-            "Digit-prefixed slug '123-fix' must no longer be rejected for slug format. "
-            f"Got: {exc}"
-        )
+    # The fixture is a primary repo; the test runner may live in a worktree.
+    with patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False):
+        result = create_mission_core(tmp_path, "123-fix", **_mission_summary("123-fix"))
+
+    assert result.feature_dir.is_dir()
+    assert result.target_branch == "operator-work"
 
 
 def test_uppercase_slug_raises(tmp_path: Path) -> None:
@@ -567,13 +541,15 @@ def test_detached_head_raises(tmp_path: Path) -> None:
 
 def test_explicit_target_branch(tmp_path: Path) -> None:
     """Explicit target_branch overrides the current branch."""
-    _init_git_repo(tmp_path)
+    _init_git_repo(tmp_path, branch="main")
+    subprocess.run(["git", "branch", "2.x"], cwd=tmp_path, capture_output=True, check=True)
 
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        # Inspect target derivation independently of the checkout/target refusal.
+        patch(f"{_CORE_MODULE}.preflight_commit") as preflight,
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -584,6 +560,8 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
             **_mission_summary("test-feature"),
         )
 
+    preflight.assert_called_once()
+    assert preflight.call_args.kwargs["target"].ref == "2.x"
     assert result.target_branch == "2.x"
     assert result.current_branch == "main"
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
@@ -598,13 +576,12 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
 
 def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
     """When no target_branch provided, uses the current branch."""
-    _init_git_repo(tmp_path)
+    _init_git_repo(tmp_path, branch="develop")
 
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="develop"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -640,7 +617,6 @@ def test_documentation_mission_resolves_authored_spec_template(tmp_path: Path) -
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -663,7 +639,6 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -700,7 +675,6 @@ def test_meta_json_commit_noop_does_not_raise(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         # A plain no-op mock (no side_effect, returns None) stands in for the
         # real no-op path (nothing new to commit), which never raises.
@@ -740,7 +714,6 @@ def test_meta_json_commit_hard_failure_raises_for_documentation_mission(
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file", side_effect=boom),
         pytest.raises(RuntimeError, match="documentation state commit rejected"),
@@ -771,7 +744,6 @@ def test_slug_uses_mid8_suffix_not_numeric_prefix(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):

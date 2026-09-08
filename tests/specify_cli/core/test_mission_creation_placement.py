@@ -7,13 +7,12 @@ mission's placement-seam-resolved home (research.md D5, the create-time
 split-brain root; this is the highest-leverage unowned target the whole
 mission's Context section blames).
 
-Under a coord-routing mission whose explicit ``target_branch`` differs from
-the checkout (a legitimate ``mission create --target-branch design/coord-target``
-invocation while the operator stays parked on ``main``), the metadata commit
-lands on ``main`` instead of the mission's actual primary home
-``design/coord-target`` -- a real data-integrity bug: ``meta.json`` itself
-declares ``target_branch: design/coord-target`` but its own git history lives
-on ``main``.
+Under a mission whose explicit ``target_branch`` differs from the checkout,
+both preflight and the eventual metadata commit must use the resolved target.
+The real preflight refuses this mismatch before writing a scaffold. These
+destination-derivation tests stub that execution policy, as they already stub
+``safe_commit``, so they can inspect both destinations without checking out the
+target and erasing the distinction under test.
 
 This test drives the real ``create_mission_core`` entry point end-to-end
 (not ``_commit_feature_file`` directly, per the WP) and captures the
@@ -21,7 +20,7 @@ This test drives the real ``create_mission_core`` entry point end-to-end
 derived from the checkout, not the seam
 (``mission_runtime.placement_seam(...).write_target``).
 
-RED pre-fix: the captured ref is ``"main"`` (the checkout) -- wrong.
+RED pre-fix: the captured ref is the operator's checkout -- wrong.
 GREEN post-fix (T007): the captured ref is ``"design/coord-target"`` (the
 seam-resolved PRIMARY_METADATA/SPEC home), matching parity for both coord
 and non-coord topologies (T008).
@@ -44,7 +43,7 @@ from specify_cli.git.commit_helpers import CommitResult
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _CORE_MODULE = "specify_cli.core.mission_creation"
-_CHECKOUT_BRANCH = "main"
+_CHECKOUT_BRANCH = "operator-work"
 _TARGET_BRANCH = "design/coord-target"
 
 
@@ -103,7 +102,7 @@ def _capturing_safe_commit(captured: list[CommitTarget]) -> Callable[..., Commit
 
 
 def test_meta_commit_destination_comes_from_seam_not_checkout(tmp_path: Path) -> None:
-    """Coord-routing mission, checkout ("main") != target_branch (design/coord-target).
+    """Coord-routing mission, checkout != target_branch (design/coord-target).
 
     The meta.json commit destination must be the seam-resolved PRIMARY home
     (``target_branch``), never the operator's current checkout.
@@ -118,6 +117,7 @@ def test_meta_commit_destination_comes_from_seam_not_checkout(tmp_path: Path) ->
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}.preflight_commit") as preflight,
         patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
     ):
         create_mission_core(
@@ -128,6 +128,8 @@ def test_meta_commit_destination_comes_from_seam_not_checkout(tmp_path: Path) ->
             **_mission_summary("coord-checkout-mismatch"),
         )
 
+    preflight.assert_called_once()
+    assert preflight.call_args.kwargs["target"].ref == _TARGET_BRANCH
     assert captured_targets, "expected _commit_feature_file to call safe_commit for meta.json"
     meta_commit_target = captured_targets[0]
     assert meta_commit_target.ref == _TARGET_BRANCH, (
@@ -155,6 +157,7 @@ def test_non_coord_single_branch_meta_commit_still_targets_target_branch(tmp_pat
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}.preflight_commit") as preflight,
         patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
     ):
         create_mission_core(
@@ -165,6 +168,8 @@ def test_non_coord_single_branch_meta_commit_still_targets_target_branch(tmp_pat
             **_mission_summary("flat-checkout-mismatch"),
         )
 
+    preflight.assert_called_once()
+    assert preflight.call_args.kwargs["target"].ref == _TARGET_BRANCH
     assert captured_targets, "expected _commit_feature_file to call safe_commit for meta.json"
     meta_commit_target = captured_targets[0]
     assert meta_commit_target.ref == _TARGET_BRANCH, (

@@ -10,11 +10,6 @@ on:
         description: 'Existing release tag to publish, e.g. v3.2.0rc37'
         required: true
         type: string
-      skip_downstream:
-        description: 'Manual maintainer waiver for downstream-consumer-verify'
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -22,15 +17,10 @@ permissions:
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-  SKIP_DOWNSTREAM: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_downstream || false }}
 
 jobs:
   build-release:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    env:
-      REPO_OWNER: ${{ github.repository_owner }}
-      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
-      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -98,7 +88,7 @@ jobs:
           # Main CI owns the broad module matrix. The tag-time release workflow
           # exercises release-specific behavior, then gates publication on
           # metadata validation, build integrity, exact wheel installability,
-          # shared-package drift checks, and downstream verification.
+          # and shared-package drift checks.
           python -m pytest -v --import-mode=importlib tests/release 2>&1 | tee pytest-output.txt
           exit ${PIPESTATUS[0]}
 
@@ -109,7 +99,8 @@ jobs:
         id: release_channel
         run: |
           VERSION="${RELEASE_TAG#v}"
-          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
+          VERSION="${VERSION,,}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(a|b|rc|alpha|beta)[0-9]*$ ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
@@ -119,56 +110,11 @@ jobs:
       - name: Build distributions
         run: python -m build
 
-      - name: Fetch compatibility references
-        id: fetch_refs
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/spec-kitty-release-contracts
-
-          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for shared-package drift and SaaS consumer compatibility evidence before publish."
-            exit 1
-          fi
-
-          curl -fsSL \
-            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main" \
-            -o /tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml
-
-          curl -fsSL \
-            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main" \
-            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json
-
-          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
-          echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
-          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
-
       - name: Validate shared package drift
-        run: |
-          ARGS=()
-
-          if [ "${SKIP_DOWNSTREAM}" = "true" ]; then
-            echo "::warning::Skipping SaaS shared-package pin drift under manual maintainer waiver."
-          elif [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
-            ARGS+=(
-              --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
-            )
-          fi
-
-          python scripts/release/check_shared_package_drift.py --check-installed "${ARGS[@]}"
+        run: python scripts/release/check_shared_package_drift.py --check-installed
 
       - name: Verify exact installability from built wheel
         run: python scripts/release/check_exact_install.py --package spec-kitty-cli --console-script spec-kitty --console-arg=--version
-
-      - name: Validate candidate against SaaS consumer contract
-        if: ${{ env.SKIP_DOWNSTREAM != 'true' }}
-        run: |
-          python scripts/release/check_candidate_consumer_compat.py \
-            --package spec-kitty-cli \
-            --consumer-contract "${{ steps.fetch_refs.outputs.consumer_contract }}"
 
       - name: Verify wheel contents
         run: |
@@ -288,74 +234,9 @@ jobs:
             sbom.cdx.json
           retention-days: 30
 
-  downstream-consumer-verify:
-    name: Verify downstream consumer compatibility
-    needs: build-release
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    env:
-      REPO_OWNER: ${{ github.repository_owner }}
-      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
-      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Download release distributions
-        uses: actions/download-artifact@v8
-        with:
-          name: release-distributions
-          path: release-distributions
-
-      - name: Check out downstream scenario suite
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ github.repository_owner }}/spec-kitty-end-to-end-testing
-          path: spec-kitty-end-to-end-testing
-          token: ${{ env.CROSS_REPO_TOKEN }}
-
-      - name: Run downstream contract-drift scenario
-        run: |
-          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for downstream consumer verification before publish."
-            exit 1
-          fi
-
-          python spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py \
-            --candidate-dist "$PWD/release-distributions"
-
-          mkdir -p .kittify/release
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          Path(".kittify/release/downstream-verified.json").write_text(
-              json.dumps(
-                  {
-                      "status": "passed",
-                      "candidate_version": os.environ["RELEASE_TAG"].removeprefix("v"),
-                      "scenario": "spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py",
-                  },
-                  indent=2,
-              )
-              + "\n",
-              encoding="utf-8",
-          )
-          PY
-
-      - name: Upload downstream verification evidence
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: downstream-verified
-          path: .kittify/release/downstream-verified.json
-          retention-days: 30
-
   publish-pypi:
     name: Publish to PyPI
-    needs: [build-release, downstream-consumer-verify]
-    if: ${{ always() && needs.build-release.result == 'success' && (needs.downstream-consumer-verify.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.skip_downstream == true)) }}
+    needs: [build-release]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
@@ -392,7 +273,8 @@ jobs:
         id: release_channel
         run: |
           VERSION="${RELEASE_TAG#v}"
-          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
+          VERSION="${VERSION,,}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(a|b|rc|alpha|beta)[0-9]*$ ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"

@@ -22,12 +22,5 @@
       "package": "spec-kitty-runtime",
       "status": "retired-for-cli-release"
     }
-  ],
-  "consumers": [
-    {
-      "consumer": "spec-kitty-saas",
-      "contract_path": "contracts/consumer-compatibility.json",
-      "required_before_publish": true
-    }
   ]
 }

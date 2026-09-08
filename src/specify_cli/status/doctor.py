@@ -587,7 +587,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
         "Why this matters: spec-kitty v3.0+ removed sparse-checkout "
         "support but did not ship a migration. This state can cause "
         "silent data loss during mission merge and broken lane worktrees "
-        "on agent action implement. See Priivacy-ai/spec-kitty#588."
+        "on agent action implement. See spec-kitty/spec-kitty#588."
     )
 
     findings.append(

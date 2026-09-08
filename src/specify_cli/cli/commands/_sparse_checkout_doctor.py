@@ -85,7 +85,7 @@ def _render_sparse_finding(report: SparseCheckoutScanReport) -> None:
     console.print(
         "    and broken lane worktrees on agent action implement.", soft_wrap=True
     )
-    console.print("    See Priivacy-ai/spec-kitty#588.", soft_wrap=True)
+    console.print("    See spec-kitty/spec-kitty#588.", soft_wrap=True)
     console.print()
     console.print("  Fix:", soft_wrap=True)
     console.print(f"    {_FIX_HINT}", soft_wrap=True)

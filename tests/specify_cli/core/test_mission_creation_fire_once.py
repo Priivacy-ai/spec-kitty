@@ -53,7 +53,7 @@ def _init_repo(repo: Path) -> None:
     (kittify_dir / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "init", "-b", "operator-work"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True
     )
@@ -127,7 +127,6 @@ def test_mission_created_fanout_fires_exactly_once(
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, slug, **_mission_summary(slug))
@@ -186,7 +185,6 @@ def test_mission_created_resume_does_not_double_fire(
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         first = create_mission_core(tmp_path, slug, **_mission_summary(slug))

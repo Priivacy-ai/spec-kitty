@@ -8,7 +8,7 @@ import pytest
 from ulid import ULID
 
 from specify_cli.core.mission_creation import KEBAB_CASE_PATTERN, MissionCreationError
-from tests._factories import provision_test_charter
+from tests.core.test_mission_creation_identity import _init_git_repo
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -68,16 +68,16 @@ class TestCreateMissionCoreSlugValidation:
         with patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False), \
              patch("specify_cli.core.mission_creation.locate_project_root", return_value=tmp_path), \
              patch("specify_cli.core.mission_creation.is_git_repo", return_value=True), \
-             patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"), \
+             patch("specify_cli.core.mission_creation.get_current_branch", return_value="operator-work"), \
              patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str("01KNXQS9ATWWFXS3K5ZJ9E5008")), \
              patch("specify_cli.core.mission_creation._commit_feature_file"):
             # WP04 fail-closed: create_mission_core requires a provisioned
             # charter. Seed the default mission_type_activations via the
             # production provisioner (same shared helper used across the
             # mission-creation test harness).
-            provision_test_charter(tmp_path)
+            _init_git_repo(tmp_path)
             # Create the kitty-specs dir so mkdir doesn't fail
-            (tmp_path / "kitty-specs").mkdir()
+            (tmp_path / "kitty-specs").mkdir(exist_ok=True)
             result = create_mission_core(
                 repo_root=tmp_path,
                 mission_slug="070-new-feature",

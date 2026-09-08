@@ -19,9 +19,9 @@ name: drift-detector
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, release/3.2.6.x]
   push:
-    branches: [main]
+    branches: [main, release/3.2.6.x]
 
 concurrency:
   group: drift-detector-${{ github.ref }}

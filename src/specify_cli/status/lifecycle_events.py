@@ -577,11 +577,13 @@ def emit_mission_created_local(
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
     created_at: str | None = None,
+    fanout: bool = True,
 ) -> dict[str, Any] | None:
     """Record a local ``MissionCreated`` event for *feature_dir*.
 
     Idempotent on ``mission_slug``. The mission's
-    ``status.events.jsonl`` is created on first call.
+    ``status.events.jsonl`` is created on first call. Set ``fanout=False``
+    when a transaction must finish before the returned event can be published.
 
     ``mission_type`` and ``wp_count`` are required by the canonical
     ``mission_created_payload`` schema (events 5.1.0). This helper does not
@@ -612,7 +614,8 @@ def emit_mission_created_local(
         created_at=created_at,
     )
 
-    return append_lifecycle_event(
+    persist = append_lifecycle_event if fanout else persist_lifecycle_event_local
+    return persist(
         log_path,
         MISSION_CREATED,
         payload,

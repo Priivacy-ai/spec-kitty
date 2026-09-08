@@ -450,7 +450,7 @@ class SparseCheckoutPreflightError(RuntimeError):
             "\nThis repository has core.sparseCheckout=true configured, which\n"
             "v3.x spec-kitty does not handle correctly and which has caused\n"
             "silent data loss in prior mission merges (see\n"
-            "Priivacy-ai/spec-kitty#588).\n"
+            "spec-kitty/spec-kitty#588).\n"
             "\nFix:\n"
             "  spec-kitty doctor sparse-checkout --fix\n"
             "\nIf you have an intentional sparse configuration and understand\n"

@@ -87,7 +87,7 @@ class TestPluginJson:
         payload = _read_manifest(bundle_dir)
         author = payload.get("author")
         assert isinstance(author, dict), "author must be a dict"
-        assert author.get("name") == "Priivacy AI"
+        assert author.get("name") == "Spec Kitty"
 
     def test_plugin_json_interface_display_name(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)

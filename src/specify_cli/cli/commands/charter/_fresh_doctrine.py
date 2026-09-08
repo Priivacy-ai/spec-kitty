@@ -45,7 +45,7 @@ project-local artifacts under `.kittify/charter/generated/` and you re-run
 
 References
 ----------
-- GitHub issue: https://github.com/Priivacy-ai/spec-kitty/issues/839
+- GitHub issue: https://github.com/spec-kitty/spec-kitty/issues/839
 - Spec assumption A2: public CLI synthesize works on a fresh project.
 - Project-root resolution: `src/charter/_doctrine_paths.py`.
 """

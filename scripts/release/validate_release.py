@@ -9,10 +9,10 @@ testing cut:
 3. Version progression is monotonic relative to existing git tags and, in tag
    mode, matches the release tag that triggered the workflow.
 
-Both validation modes accept stable versions (``X.Y.Z``) and prerelease
-versions such as ``X.Y.ZaN``. Tagged prereleases publish through the same
-release workflow, but GitHub marks them as prereleases and installers must opt
-into them explicitly.
+Both validation modes accept stable versions (``X.Y.Z`` or ``X.Y.Z.N``) and
+prerelease versions such as ``3.2.7rc1`` or ``3.2.6.1rc1``. Tagged prereleases
+publish through the same release workflow, but GitHub marks them as prereleases
+and installers must opt into them explicitly.
 
 It is intentionally dependency-light so it can run both locally and in CI
 without additional bootstrapping beyond Python 3.11.
@@ -38,10 +38,11 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for older interpreter
 
 RELEASE_VERSION_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"(?:\.(?P<hotfix>\d+))?"
     r"(?:(?P<stage>a|b|rc|alpha|beta)(?P<stage_num>\d*))?$",
     re.IGNORECASE,
 )
-_CHANGELOG_VERSION_SUB = r"\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?"
+_CHANGELOG_VERSION_SUB = r"\d+\.\d+\.\d+(?:\.\d+)?(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?"
 # A changelog heading may carry a version, an ``Unreleased`` marker, or both, in
 # any of these shapes (with or without the surrounding ``[ ]``):
 #   ## [3.2.3]                  -> finalized section for 3.2.3
@@ -235,7 +236,7 @@ def load_pyproject_version(path: Path) -> str:
     if not RELEASE_VERSION_RE.match(version):
         raise ReleaseValidatorError(
             f"Version '{version}' is not a supported release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+            "(expected X.Y.Z or X.Y.Z.N, optionally followed by a/b/rc/alpha/beta and a number)."
         )
     return version
 
@@ -508,12 +509,12 @@ def discover_release_tags(
     return filtered
 
 
-def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
+def parse_release_version(value: str) -> tuple[int, int, int, int, int, int]:
     match = RELEASE_VERSION_RE.match(value)
     if not match:
         raise ReleaseValidatorError(
             f"Value '{value}' is not a valid release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+            "(expected X.Y.Z or X.Y.Z.N, optionally followed by a/b/rc/alpha/beta and a number)."
         )
 
     stage = _normalize_stage(match.group("stage"))
@@ -528,6 +529,7 @@ def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
         int(match.group("major")),
         int(match.group("minor")),
         int(match.group("patch")),
+        int(match.group("hotfix") or "0"),
         stage_rank,
         stage_number,
     )
@@ -539,7 +541,7 @@ def canonical_release_version(value: str) -> str:
     if not match:
         raise ReleaseValidatorError(
             f"Value '{value}' is not a valid release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+            "(expected X.Y.Z or X.Y.Z.N, optionally followed by a/b/rc/alpha/beta and a number)."
         )
 
     version = (
@@ -547,6 +549,8 @@ def canonical_release_version(value: str) -> str:
         f"{int(match.group('minor'))}."
         f"{int(match.group('patch'))}"
     )
+    if match.group("hotfix") is not None:
+        version += f".{int(match.group('hotfix'))}"
     stage = _normalize_stage(match.group("stage"))
     if stage is None:
         return version

@@ -32,7 +32,7 @@ def _init_git_repo(repo: Path) -> None:
     # (same shared helper used across the mission-creation test harness).
     provision_test_charter(repo)
     (repo / "kitty-specs").mkdir(exist_ok=True)
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "init", "-b", "operator-work"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
@@ -56,7 +56,7 @@ def _patched_context(tmp_path: Path):
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="operator-work"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -127,9 +127,7 @@ def test_coordinationless_create_persists_topology_so_2453_routing_is_not_cwd(
     """
     from specify_cli.coordination.transaction import _warrants_legacy_warning
 
-    # WP04 fail-closed: seed the default charter before create (this test
-    # scaffolds tmp_path directly rather than through _init_git_repo).
-    provision_test_charter(tmp_path)
+    _init_git_repo(tmp_path)
 
     with _patched_context(tmp_path), patch("specify_cli.missions._create.ensure_coordination_branch"):
         from mission_runtime import MissionTopology

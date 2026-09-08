@@ -29,7 +29,7 @@ def _init_git_repo(repo: Path) -> None:
     """Initialise a minimal git repo with .kittify and kitty-specs."""
     (repo / ".kittify").mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "init", "-b", "operator-work"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
@@ -58,7 +58,7 @@ def _patched_mission_creation_context(tmp_path: Path):
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="operator-work"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):

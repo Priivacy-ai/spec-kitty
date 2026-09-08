@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import fnmatch
+import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +48,11 @@ def load_workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
 
 
+def workflow_text(name: str) -> str:
+    """Raw workflow source, for asserting a retired token is absent everywhere."""
+    return (Path(__file__).resolve().parents[2] / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+
 def on_section(workflow: dict[str, Any]) -> dict[str, Any]:
     # PyYAML still treats the YAML 1.1 key "on" as boolean True.
     return workflow.get("on") or workflow[True]
@@ -75,6 +83,55 @@ def workflow_script_text(name: str) -> str:
     return (WORKFLOWS / "scripts" / name).read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize(
+    ("workflow_name", "event"),
+    [
+        ("ci-quality.yml", "pull_request"),
+        ("ci-quality.yml", "push"),
+        ("release-readiness.yml", "pull_request"),
+        ("ci-windows.yml", "pull_request"),
+        ("ci-windows.yml", "push"),
+        ("drift-detector.yml", "pull_request"),
+        ("drift-detector.yml", "push"),
+    ],
+)
+def test_maintenance_branch_receives_release_gates(workflow_name: str, event: str) -> None:
+    trigger = on_section(load_workflow(workflow_name))[event]
+
+    assert any(fnmatch.fnmatchcase("release/3.2.6.x", pattern) for pattern in trigger["branches"]), f"{workflow_name} {event} excludes the maintenance branch"
+
+
+@pytest.mark.parametrize("job_name", ["build-release", "publish-pypi"])
+@pytest.mark.parametrize(
+    ("version", "is_prerelease"),
+    [
+        ("3.2.6.1", False),
+        ("3.2.6.1rc1", True),
+        ("3.2.6.1RC1", True),
+        ("3.2.6.1ALPHA", True),
+        ("3.2.7BETA2", True),
+        ("3.2.6.1alpha", True),
+        ("3.2.7beta2", True),
+        ("3.2.7", False),
+    ],
+)
+def test_release_workflow_classifies_hotfix_channel(tmp_path: Path, job_name: str, version: str, is_prerelease: bool) -> None:
+    workflow = load_workflow("release.yml")
+    script = next(step["run"] for step in workflow["jobs"][job_name]["steps"] if step.get("name") == "Classify release channel")
+    output = tmp_path / "github-output"
+
+    result = subprocess.run(
+        ["bash", "-eu", "-c", script],
+        env={**os.environ, "RELEASE_TAG": f"v{version}", "GITHUB_OUTPUT": str(output)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert output.read_text().strip() == f"is_prerelease={str(is_prerelease).lower()}"
+
+
 def test_ci_quality_runs_for_release_owned_paths() -> None:
     workflow = load_workflow("ci-quality.yml")
 
@@ -96,10 +153,7 @@ def test_ci_quality_docs_contract_gate_runs_for_docs_changes() -> None:
 
     for event in ("pull_request", "push"):
         missing = DOCS_CONTRACT_CI_PATHS - event_paths(workflow, event)
-        assert not missing, (
-            f"CI Quality {event} trigger misses docs-contract paths: "
-            f"{sorted(missing)}"
-        )
+        assert not missing, f"CI Quality {event} trigger misses docs-contract paths: {sorted(missing)}"
     for path in DOCS_CONTRACT_CI_PATHS:
         assert f"- '{path}'" in filters, f"core_misc path filter misses {path}"
 
@@ -118,26 +172,15 @@ def test_release_readiness_runs_for_all_version_sources() -> None:
     workflow = load_workflow("release-readiness.yml")
     paths = event_paths(workflow, "pull_request")
     filters = release_readiness_filter_text(workflow)
-    validate_step = next(
-        step
-        for step in workflow["jobs"]["check-readiness"]["steps"]
-        if step.get("id") == "validate"
-    )
+    validate_step = next(step for step in workflow["jobs"]["check-readiness"]["steps"] if step.get("id") == "validate")
 
     missing_paths = RELEASE_VERSION_SOURCE_PATHS - paths
-    assert not missing_paths, (
-        "Release Readiness pull_request trigger misses version source paths: "
-        f"{sorted(missing_paths)}"
-    )
+    assert not missing_paths, f"Release Readiness pull_request trigger misses version source paths: {sorted(missing_paths)}"
 
     for path in RELEASE_VERSION_SOURCE_PATHS:
-        assert f"- '{path}'" in filters, (
-            f"Release Readiness metadata filter misses {path}"
-        )
+        assert f"- '{path}'" in filters, f"Release Readiness metadata filter misses {path}"
     for path in RELEASE_VALIDATOR_SURFACE_PATHS:
-        assert f"- '{path}'" in filters, (
-            f"Release Readiness validator filter misses {path}"
-        )
+        assert f"- '{path}'" in filters, f"Release Readiness validator filter misses {path}"
 
     assert "version_sources" in filters
     assert "version_bump" in filters
@@ -154,9 +197,7 @@ def test_release_readiness_consistency_summary_does_not_claim_release_ready() ->
     workflow = load_workflow("release-readiness.yml")
     summary_script = release_readiness_step(workflow, "Generate readiness summary")["run"]
 
-    consistency_start = summary_script.index(
-        '"${{ steps.validate.outputs.scope }}" == "consistency"'
-    )
+    consistency_start = summary_script.index('"${{ steps.validate.outputs.scope }}" == "consistency"')
     full_start = summary_script.index(
         'elif [[ "${{ steps.validate.outcome }}" == "success" ]]',
         consistency_start,
@@ -198,34 +239,21 @@ def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
 
 
-def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts() -> None:
+def test_ci_quality_has_no_saas_consumer_compatibility_job() -> None:
+    """Backport of #3979: the SaaS consumer comparison is retired.
+
+    It fetched ``${owner}/spec-kitty-saas/contents/contracts/consumer-compatibility.json``;
+    the live Team Kitty repository pins shared packages by exact git revision under
+    its own constitution and publishes no such contract, so the fetch 404s on every
+    run and there is nothing for a CLI release to check against. Its
+    ``IS_CANONICAL_REPO`` guard was also hardcoded to the retired ``Priivacy-ai``
+    org name. Pin the removal so it cannot quietly return.
+    """
     workflow = load_workflow("ci-quality.yml")
-    job = workflow["jobs"]["consumer-compatibility"]
-    job_dump = repr(job)
-
-    assert job["needs"] == ["changes", "build-wheel"]
-    assert "needs.changes.outputs.release == 'true'" in job["if"]
-    assert "github.event.pull_request.base.sha" in job_dump
-    assert "spec-kitty-cli-wheel" in job_dump
-    assert "release-compatibility-manifest" in job_dump
-    assert "candidate/.kittify/release/shared-package-compatibility.json" in job_dump
-    assert "CROSS_REPO_TOKEN" not in repr(job.get("env", {}))
-    assert "IS_FORK_PR" in job["env"]
-    assert job["env"]["IS_CANONICAL_REPO"] == "${{ github.repository == 'Priivacy-ai/spec-kitty' }}"
-    assert "check_candidate_consumer_compat.py" in job_dump
-    assert "check_candidate_consumer_compat.py --help" in job_dump
-    assert "MANIFEST_ARGS" in job_dump
-
-    fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
-    assert "CROSS_REPO_TOKEN" in fetch_step["env"]
-    assert "saas_fetched=false" in fetch_step["run"]
-    assert '[ "${IS_FORK_PR}" = "true" ] || [ "${IS_CANONICAL_REPO}" != "true" ]' in fetch_step["run"]
-    assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in fetch_step["run"]
-
-    validate_step = next(
-        step for step in job["steps"] if step["name"] == "Validate candidate against SaaS consumer contract"
-    )
-    assert validate_step["if"] == "steps.fetch_contract.outputs.saas_fetched == 'true'"
+    assert "consumer-compatibility" not in workflow["jobs"]
+    text = workflow_text("ci-quality.yml")
+    for retired in ("check_candidate_consumer_compat.py", "consumer-compatibility.json", "IS_CANONICAL_REPO", "fetch_contract"):
+        assert retired not in text, retired
 
 
 def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
@@ -237,7 +265,6 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
         "changes",
         "build-wheel",
         "clean-install-verification",
-        "consumer-compatibility",
         "fast-tests-release",
         "integration-tests-release",
         "uv-lock-check",
@@ -251,11 +278,7 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     # any entry is absent from ``needs`` and FAILS any release-touching PR
     # where one did not succeed (skipped is not enough) — semantics pinned by
     # tests/scripts/test_quality_gate_decision.py.
-    decision_step = next(
-        step
-        for step in quality_gate["steps"]
-        if step.get("name") == "Evaluate quality-gate decision"
-    )
+    decision_step = next(step for step in quality_gate["steps"] if step.get("name") == "Evaluate quality-gate decision")
     assert decision_step["env"]["NEEDS_JSON"] == "${{ toJSON(needs) }}"
     # The step pipes the script into ``tee -a "$GITHUB_STEP_SUMMARY"``. Without
     # ``shell: bash`` GitHub runs it under ``bash -e {0}`` (no pipefail), so the
@@ -263,47 +286,56 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     # release-required job (or exit 1 blocking verdict) is swallowed — the gate
     # never fails. ``shell: bash`` turns pipefail on. Pin it here too.
     assert decision_step.get("shell") == "bash", (
-        "quality-gate decision step must set ``shell: bash`` so pipefail "
-        "propagates the script's non-zero exit through ``| tee``"
+        "quality-gate decision step must set ``shell: bash`` so pipefail propagates the script's non-zero exit through ``| tee``"
     )
     script = decision_step["run"]
     assert "scripts/ci/quality_gate_decision.py" in script
     release_block = script.split("RELEASE_REQUIRED_JOBS = [", 1)[1].split("]", 1)[0]
     for job_name in release_required - {"changes"}:
-        assert f'"{job_name}"' in release_block, (
-            f"release-required job {job_name!r} missing from the "
-            "RELEASE_REQUIRED_JOBS payload data"
-        )
+        assert f'"{job_name}"' in release_block, f"release-required job {job_name!r} missing from the RELEASE_REQUIRED_JOBS payload data"
 
 
-def test_release_publish_requires_downstream_consumer_evidence_before_pypi() -> None:
+def test_release_publish_needs_only_build_release() -> None:
+    """Backport of #3979: publish gates on the CLI's own evidence, not a consumer's.
+
+    The former ``downstream-consumer-verify`` job checked out
+    ``${owner}/spec-kitty-end-to-end-testing`` and the SaaS consumer contract, neither
+    of which exists under the current owner, so a plain tag push could not publish.
+    """
     workflow = load_workflow("release.yml")
     jobs = workflow["jobs"]
-    publish_job = jobs["publish-pypi"]
+    assert "downstream-consumer-verify" not in jobs
+    assert jobs["publish-pypi"]["needs"] == ["build-release"]
+    assert "if" not in jobs["publish-pypi"]
 
-    assert "downstream-consumer-verify" in jobs
-    assert set(publish_job["needs"]) == {"build-release", "downstream-consumer-verify"}
 
+def test_release_has_no_saas_fetch_and_no_downstream_waiver() -> None:
+    """Backport of #3979: nothing in the tag-time release depends on a SaaS read token.
 
-def test_release_manual_dispatch_can_skip_downstream_with_explicit_waiver() -> None:
+    The ``Fetch compatibility references`` step ran unconditionally with ``curl -f``
+    against a file that does not exist, so even the manual ``skip_downstream`` waiver
+    could not get a tag published. Both are gone; the drift check is local-only.
+    """
     workflow = load_workflow("release.yml")
-    workflow_on = on_section(workflow)
-    inputs = workflow_on["workflow_dispatch"]["inputs"]
-    jobs = workflow["jobs"]
-
+    inputs = on_section(workflow)["workflow_dispatch"]["inputs"]
     assert inputs["tag"]["required"] is True
-    assert inputs["skip_downstream"]["required"] is True
-    assert (
-        jobs["downstream-consumer-verify"]["if"]
-        == "${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}"
+    assert "skip_downstream" not in inputs
+    text = workflow_text("release.yml")
+    retired_tokens = (
+        "SKIP_DOWNSTREAM",
+        "fetch_refs",
+        "HAS_SAAS_READ_TOKEN",
+        "CROSS_REPO_TOKEN",
+        "SPEC_KITTY_SAAS_READ_TOKEN",
+        "--saas-pyproject",
+        "check_candidate_consumer_compat.py",
+        "spec-kitty-saas",
     )
-
-    publish_if = jobs["publish-pypi"]["if"]
-    assert "always()" in publish_if
-    assert "needs.build-release.result == 'success'" in publish_if
-    assert "needs.downstream-consumer-verify.result == 'success'" in publish_if
-    assert "github.event_name == 'workflow_dispatch'" in publish_if
-    assert "inputs.skip_downstream == true" in publish_if
+    for retired in retired_tokens:
+        assert retired not in text, retired
+    build = workflow["jobs"]["build-release"]
+    drift = next(step for step in build["steps"] if step.get("name") == "Validate shared package drift")
+    assert drift["run"].strip() == "python scripts/release/check_shared_package_drift.py --check-installed"
 
 
 def test_release_verifies_pypi_exact_install_after_publish() -> None:
@@ -323,7 +355,7 @@ def test_publish_release_does_not_require_canary_verification_artifact() -> None
 
     assert "canary-verify" not in jobs
     publish = jobs["publish-pypi"]
-    assert set(publish["needs"]) == {"build-release", "downstream-consumer-verify"}
+    assert set(publish["needs"]) == {"build-release"}  # downstream-consumer-verify retired (#3979 backport)
 
     publish_dump = repr(publish)
     assert "actions/checkout" in publish_dump
@@ -335,6 +367,4 @@ def test_publish_release_does_not_require_canary_verification_artifact() -> None
     assert "Classify release channel" in publish_dump
 
     step_names = [step.get("name", "") for step in publish["steps"]]
-    assert step_names.index("Classify release channel") < step_names.index(
-        "Create GitHub Release"
-    )
+    assert step_names.index("Classify release channel") < step_names.index("Create GitHub Release")

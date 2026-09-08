@@ -56,7 +56,7 @@ _REQUIRED_INTERFACE_FIELDS: tuple[str, ...] = ("displayName", "shortDescription"
 _SHORT_DESCRIPTION_MAX_LEN = 120
 
 # Canonical author name.
-_AUTHOR_NAME = "Priivacy AI"
+_AUTHOR_NAME = "Spec Kitty"
 
 # Install instructions emitted after marketplace.json is written.
 _INSTALL_HINT = (

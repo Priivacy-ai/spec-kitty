@@ -256,8 +256,8 @@ class ClaudeBundleProjector:
                 "Spec-Driven Development toolkit — spec, plan, implement, review, merge."
             ),
             "author": {
-                "name": "Priivacy AI",
-                "url": "https://github.com/Priivacy-ai/spec-kitty",
+                "name": "Spec Kitty",
+                "url": "https://github.com/spec-kitty/spec-kitty",
             },
             "skills": skills,
             "agents": agents,
@@ -370,7 +370,7 @@ class ClaudeBundleProjector:
                     "name": "spec-kitty",
                     "source": {
                         "source": "git-subdir",
-                        "url": "https://github.com/Priivacy-ai/spec-kitty.git",
+                        "url": "https://github.com/spec-kitty/spec-kitty.git",
                         "path": "dist/spec-kitty-plugins/claude-code",
                     },
                     "policy": {

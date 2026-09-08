@@ -271,7 +271,7 @@ def test_dossier_sync_fires_during_mission_creation(tmp_path: Path) -> None:
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
     (tmp_path / "kitty-specs").mkdir()
-    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
+    subprocess.run(["git", "init", "-b", "operator-work"], cwd=tmp_path, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
         cwd=tmp_path, capture_output=True, check=True,
@@ -292,7 +292,6 @@ def test_dossier_sync_fires_during_mission_creation(tmp_path: Path) -> None:
         patch(f"{_CORE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE}.is_worktree_context", return_value=False),
         patch(f"{_CORE}.is_git_repo", return_value=True),
-        patch(f"{_CORE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync", mock_dossier),
         patch(f"{_CORE}._commit_feature_file"),
     ):

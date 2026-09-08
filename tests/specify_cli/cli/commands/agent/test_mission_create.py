@@ -15,6 +15,7 @@ The integration tests cover the end-to-end behaviour through
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from contextlib import AbstractContextManager
 from pathlib import Path
@@ -96,8 +97,9 @@ def _mission_summary_args(title: str) -> list[str]:
 
 
 def _patch_repo_environment(repo: Path) -> list[AbstractContextManager[Any]]:
-    """Common patch stack for ``create_mission_core`` against ``repo``."""
+    """Successful topology creation on main with explicit operator authorization."""
     return [
+        patch.dict(os.environ, {"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}),
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
@@ -314,7 +316,10 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
     # Patch the CLI's view of project root + branch context so we drive the
     # actual typer entry point through a tmp repo.
     runner = CliRunner()
+    # This case intentionally plans on main; authorize that operator policy
+    # while leaving the real commit preflight in place.
     with (
+        patch.dict(os.environ, {"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}),
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
@@ -381,12 +386,14 @@ def test_create_on_non_primary_branch_without_pr_bound_defaults_to_single_branch
     """RED before #2581: a feature-branch create with no ``--topology``/``--pr-bound``
     must default to ``single_branch`` and mint NO coordination branch.
 
-    The on-disk repo stays on ``main`` (``resolve_primary_branch`` falls back to
-    the real current branch when no ``origin`` is configured); the CLI's view of
-    "current branch" is mocked to a feature branch so the derivation sees a
-    genuine primary/non-primary mismatch.
+    Git records origin's primary branch as ``main`` while the actual checkout
+    and planning target use the topic branch. Both topology derivation and the
+    commit preflight see that same real branch context.
     """
     _init_repo(tmp_path)
+    _git(tmp_path, "update-ref", "refs/remotes/origin/main", _branch_sha(tmp_path, "main"))
+    _git(tmp_path, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    _git(tmp_path, "checkout", "-b", "feature/my-fix")
 
     runner = CliRunner()
     with (
@@ -423,7 +430,10 @@ def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> Non
     _init_repo(tmp_path)
 
     runner = CliRunner()
+    # This case intentionally plans on main; authorize that operator policy
+    # while leaving the real commit preflight in place.
     with (
+        patch.dict(os.environ, {"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}),
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
@@ -455,6 +465,9 @@ def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> Non
 def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
     """Non-regression: ``--pr-bound`` keeps the ``coord`` default even off the primary branch."""
     _init_repo(tmp_path)
+    _git(tmp_path, "update-ref", "refs/remotes/origin/main", _branch_sha(tmp_path, "main"))
+    _git(tmp_path, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    _git(tmp_path, "checkout", "-b", "feature/my-fix")
 
     runner = CliRunner()
     with (
@@ -473,9 +486,11 @@ def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path:
                 "create",
                 "pr-bound-non-primary",
                 "--pr-bound",
+                "--branch-strategy",
+                "already-confirmed",
                 "--json",
                 "--target-branch",
-                "main",
+                "feature/my-fix",
                 *_mission_summary_args("PR Bound Non Primary"),
             ],
         )
@@ -492,7 +507,10 @@ def test_create_explicit_topology_overrides_context_derivation(tmp_path: Path) -
     _init_repo(tmp_path)
 
     runner = CliRunner()
+    # This case intentionally plans on main; authorize that operator policy
+    # while leaving the real commit preflight in place.
     with (
+        patch.dict(os.environ, {"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}),
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
@@ -570,7 +588,10 @@ def test_pr_bound_create_json_already_confirmed_preserves_success_path(tmp_path:
     _init_repo(tmp_path)
 
     runner = CliRunner()
+    # This case intentionally plans on main; authorize that operator policy
+    # while leaving the real commit preflight in place.
     with (
+        patch.dict(os.environ, {"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}),
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
