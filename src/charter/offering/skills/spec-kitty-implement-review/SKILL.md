@@ -978,7 +978,7 @@ DJANGO_TEST_DATABASE_NAME=test_<project>_lane_<letter> <project-test-command> --
 ```
 Include this pattern in your dispatch prompts for Django-backed WPs so each
 implementer knows to use a lane-scoped DB up front. Tracked upstream as
-https://github.com/Priivacy-ai/spec-kitty/issues/770 for built-in support.
+https://github.com/spec-kitty/spec-kitty/issues/770 for built-in support.
 
 **Lane staleness on merge**: After `spec-kitty merge` completes lane A, lane B
 can become stale against the updated mission branch on shared files
@@ -988,7 +988,7 @@ the rote work can be significant (~30 min for 8+ lanes). The pattern is:
 `cd .worktrees/<slug>-lane-X && git merge kitty/mission-<slug> --no-edit`,
 resolve any conflicts (usually union-merge on TOML / import-line / comment
 additions), commit, then retry the outer merge. Tracked upstream as
-https://github.com/Priivacy-ai/spec-kitty/issues/771 for auto-rebase support.
+https://github.com/spec-kitty/spec-kitty/issues/771 for auto-rebase support.
 
 **Running multi-repo or multi-mission programs**: The implement-review loop
 in this skill is scoped to a single mission. When orchestrating across
