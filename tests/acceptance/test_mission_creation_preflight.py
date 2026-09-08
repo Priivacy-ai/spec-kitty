@@ -13,6 +13,9 @@ from tests.acceptance.test_first_run_path_3_2_6_1 import (
 )
 
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
 def test_numbered_slug_protected_refusal_leaves_no_orphan(project):
     result = _cli(project, "agent", "mission", "create", "068-task-list", "--json")
     assert result.returncode != 0

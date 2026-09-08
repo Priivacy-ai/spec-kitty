@@ -17,6 +17,12 @@ _SRC_ROOT = _REPO_ROOT / "src"
 _SANCTIONED_RESOLVER_MODULE = "src/specify_cli/context/mission_resolver.py"
 _LEGACY_WALKER_ALLOWLIST = frozenset(
     {
+        # Documented distinct corpus walk (#4035, 3.2.6.1): the create-time
+        # rollback diffs the raw ``kitty-specs/`` directory set before vs after
+        # an aborted create to find the scaffold that run wrote. That scaffold
+        # may have no readable ``meta.json`` yet, so MissionResolver would not
+        # surface it — the raw walk is the point, not a bypass.
+        "src/specify_cli/core/mission_creation.py",
         "src/specify_cli/status/identity_audit.py",
         "src/specify_cli/merge/ordering.py",
         "src/specify_cli/core/paths.py",

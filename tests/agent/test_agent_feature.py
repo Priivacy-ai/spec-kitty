@@ -40,6 +40,7 @@ def _disable_saas_sync_for_setup_plan_contract_tests(
     """
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
 
+
 runner = CliRunner()
 TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"
 TEST_MISSION_MID8 = TEST_MISSION_ID[:8]
@@ -302,15 +303,16 @@ class TestCreateFeatureCommand:
     """Tests for create command."""
 
     @patch("specify_cli.status.fire_dossier_sync")
+    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
+    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
+    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     def test_creates_feature_with_json_output(
-        self, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should create feature and output JSON format."""
         # Setup
@@ -320,9 +322,7 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
-        (tmp_path / ".kittify" / "config.yaml").write_text(
-            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-        )
+        (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
@@ -367,21 +367,19 @@ class TestCreateFeatureCommand:
         assert meta["target_branch"] == "main"
         assert meta["friendly_name"] == "test feature"
         assert meta["purpose_tldr"] == "test feature"
-        assert meta["purpose_context"] == (
-            "This mission advances test feature on main so stakeholders can "
-            "track the work from mission creation onward."
-        )
+        assert meta["purpose_context"] == ("This mission advances test feature on main so stakeholders can track the work from mission creation onward.")
 
     @patch("specify_cli.status.fire_dossier_sync")
+    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
+    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
+    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     def test_creates_feature_with_human_output(
-        self, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should create feature and output human-readable format."""
         # Setup
@@ -391,9 +389,7 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
-        (tmp_path / ".kittify" / "config.yaml").write_text(
-            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-        )
+        (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
@@ -409,7 +405,10 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.locate_project_root")
     def test_errors_when_project_root_not_found_json(
-        self, mock_core_locate: Mock, mock_cli_locate: Mock, mock_is_wt: Mock,
+        self,
+        mock_core_locate: Mock,
+        mock_cli_locate: Mock,
+        mock_is_wt: Mock,
     ):
         """Should return JSON error when project root not found."""
         # Setup: both CLI and core locate_project_root return None
@@ -422,7 +421,7 @@ class TestCreateFeatureCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "Could not locate project root" in output["error"]
@@ -431,7 +430,10 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.locate_project_root")
     def test_errors_when_project_root_not_found_human(
-        self, mock_core_locate: Mock, mock_cli_locate: Mock, mock_is_wt: Mock,
+        self,
+        mock_core_locate: Mock,
+        mock_cli_locate: Mock,
+        mock_is_wt: Mock,
     ):
         """Should return human error when project root not found."""
         # Setup: both CLI and core locate_project_root return None
@@ -495,9 +497,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo")
-    def test_handles_git_errors(
-        self, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, tmp_path: Path
-    ):
+    def test_handles_git_errors(self, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, tmp_path: Path):
         """Should handle errors when not in git repo or wrong branch."""
         # Setup: Not in git repo
         mock_locate.return_value = tmp_path
@@ -509,21 +509,22 @@ class TestCreateFeatureCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "git" in output["error"].lower()
 
     @patch("specify_cli.status.fire_dossier_sync")
+    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
+    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
+    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     def test_allows_feature_creation_from_any_branch(
-        self, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on any branch (records it as target)."""
         # Setup: On non-main branch — should succeed (not block)
@@ -533,9 +534,7 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
-        (tmp_path / ".kittify" / "config.yaml").write_text(
-            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-        )
+        (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
@@ -544,20 +543,21 @@ class TestCreateFeatureCommand:
 
         # Verify — should succeed, recording "develop" as target_branch
         assert result.exit_code == 0, f"Command failed: {result.output}"
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert output["result"] == "success"
 
     @patch("specify_cli.status.fire_dossier_sync")
+    # preflight_commit runs real git before the scaffold write (3.2.6.1); these
+    # tests mock the commit on a non-repo tmp_path, so mock the preflight too.
+    @patch("specify_cli.core.mission_creation.preflight_commit")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     def test_creates_feature_on_primary_branch(
-        self, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, mock_commit: Mock, mock_preflight: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on the primary branch."""
         # Setup: On primary branch
@@ -567,9 +567,7 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
-        (tmp_path / ".kittify" / "config.yaml").write_text(
-            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-        )
+        (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
@@ -578,7 +576,7 @@ class TestCreateFeatureCommand:
 
         # Verify
         assert result.exit_code == 0, f"Command failed: {result.output}"
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert output["result"] == "success"
 
@@ -725,9 +723,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
-    def test_validates_prerequisites_json_output(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_validates_prerequisites_json_output(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should validate prerequisites and output JSON format."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -757,9 +753,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
-    def test_validates_prerequisites_human_output(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_validates_prerequisites_human_output(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should validate prerequisites and output human-readable format."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -784,9 +778,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
-    def test_shows_validation_errors(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_shows_validation_errors(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should show validation errors in output."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -811,9 +803,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
-    def test_shows_validation_warnings(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_shows_validation_warnings(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should show validation warnings in output."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -838,9 +828,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
-    def test_paths_only_flag_json(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_paths_only_flag_json(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should output only paths when --paths-only flag is used."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -876,9 +864,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
-    def test_include_tasks_flag(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_include_tasks_flag(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should validate tasks.md when --include-tasks flag is used."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -903,9 +889,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
-    def test_passes_explicit_feature_to_detection(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_passes_explicit_feature_to_detection(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should pass --mission to detection with strict context fallback disabled."""
         mock_locate.return_value = tmp_path
         feature_dir = tmp_path / "kitty-specs" / "001-test"
@@ -938,9 +922,7 @@ class TestCheckPrerequisitesCommand:
 
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
-    def test_returns_context_remediation_payload_when_ambiguous(
-        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_returns_context_remediation_payload_when_ambiguous(self, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should return deterministic remediation payload on ambiguous context."""
         mock_locate.return_value = tmp_path
         mock_find.side_effect = ValueError("Multiple features found")
@@ -976,7 +958,7 @@ class TestCheckPrerequisitesCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
@@ -1006,9 +988,7 @@ class TestGitPreflightEnforcement:
 
     @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-    def test_check_prerequisites_exits_on_preflight_failure_json(
-        self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
-    ):
+    def test_check_prerequisites_exits_on_preflight_failure_json(self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path):
         """check-prerequisites should emit JSON remediation payload on preflight failure."""
         from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
 
@@ -1037,9 +1017,7 @@ class TestGitPreflightEnforcement:
 
     @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-    def test_check_prerequisites_exits_on_preflight_failure_human(
-        self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
-    ):
+    def test_check_prerequisites_exits_on_preflight_failure_human(self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path):
         """check-prerequisites should print human-readable error on preflight failure."""
         from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
 
@@ -1065,9 +1043,7 @@ class TestGitPreflightEnforcement:
 
     @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-    def test_setup_plan_exits_on_preflight_failure_json(
-        self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
-    ):
+    def test_setup_plan_exits_on_preflight_failure_json(self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path):
         """setup-plan should emit JSON remediation payload on preflight failure."""
         from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
 
@@ -1124,9 +1100,7 @@ class TestFinalizeTasksCommand:
 
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
-    def test_returns_context_remediation_payload_when_ambiguous(
-        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_returns_context_remediation_payload_when_ambiguous(self, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should return deterministic remediation payload on ambiguous context."""
         mock_locate.return_value = tmp_path
         mock_find.side_effect = ValueError("Multiple features found")
@@ -1266,9 +1240,7 @@ requirement_refs:
             ),
             patch(
                 "specify_cli.coordination.commit_router.commit_for_mission",
-                return_value=CommitRouterResult(
-                    status="committed", placement_ref="main", commit_hash="a" * 40
-                ),
+                return_value=CommitRouterResult(status="committed", placement_ref="main", commit_hash="a" * 40),
             ),
             patch(
                 "specify_cli.cli.commands.agent.mission.run_command",
@@ -1284,9 +1256,10 @@ requirement_refs:
         assert payload["result"] == "success"
         assert payload["requirement_refs_parsed"]["WP01"] == ["FR-001"]
         updated = (tasks_dir / "WP01-test.md").read_text(encoding="utf-8")
-        assert 'planning_base_branch: main' in updated
-        assert 'merge_target_branch: main' in updated
-        assert 'branch_strategy: Planning artifacts for this mission were generated on main.' in updated
+        assert "planning_base_branch: main" in updated
+        assert "merge_target_branch: main" in updated
+        assert "branch_strategy: Planning artifacts for this mission were generated on main." in updated
+
 
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
@@ -1508,7 +1481,7 @@ class TestSetupPlanCommand:
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert output["error_code"] == "SPEC_FILE_MISSING"
         assert output["mission_slug"] == "001-test"
@@ -1527,7 +1500,7 @@ class TestSetupPlanCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 

@@ -753,7 +753,7 @@ class TestCheckSparseCheckout:
         assert str(primary_pattern) in finding.message
         assert "Lane worktrees affected: 1" in finding.message
         assert str(lane_path) in finding.message
-        assert "Priivacy-ai/spec-kitty#588" in finding.message
+        assert "spec-kitty/spec-kitty#588" in finding.message
         assert "spec-kitty doctor sparse-checkout --fix" in finding.recommended_action
         assert str(tmp_path) in finding.recommended_action
         assert str(lane_path) in finding.recommended_action

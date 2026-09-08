@@ -2,9 +2,13 @@
 
 No network request or sync queue mutation is performed by this test.
 """
+
 import pytest
 import subprocess
 from tests.acceptance.test_first_run_path_3_2_6_1 import _git
+
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def test_protected_refusal_retains_local_source_for_published_mission(tmp_path, monkeypatch):
@@ -37,7 +41,10 @@ def test_creation_fanout_follows_the_scaffold_commit(tmp_path, monkeypatch):
         log_path = kwargs["log_path"]
         relative = log_path.relative_to(tmp_path).as_posix()
         committed = subprocess.run(
-            ["git", "show", f"HEAD:{relative}"], cwd=tmp_path, capture_output=True, check=False,
+            ["git", "show", f"HEAD:{relative}"],
+            cwd=tmp_path,
+            capture_output=True,
+            check=False,
         )
         emitted.append((kwargs["envelope"]["event_type"], committed.returncode))
 

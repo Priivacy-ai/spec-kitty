@@ -30,9 +30,9 @@ pins that the owned-checkout unborn-HEAD check reads the right checkout and
 does not over-refuse. Re-verified 2026-09-08 after the preflight revision.
 Reproduce with::
 
-    git worktree add --detach /tmp/baseline326 v3.2.6
-    cp tests/acceptance/test_first_run_path_3_2_6_1.py /tmp/baseline326/tests/acceptance/
-    cd /tmp/baseline326 && uv sync --frozen --all-extras
+    BASE=$(mktemp -d) && git worktree add --detach "$BASE" v3.2.6
+    cp tests/acceptance/test_first_run_path_3_2_6_1.py "$BASE/tests/acceptance/"
+    cd "$BASE" && uv sync --frozen --all-extras
     uv run --no-sync pytest tests/acceptance/test_first_run_path_3_2_6_1.py -v
 
 These are slow by construction (each test does real ``git`` and a real CLI
@@ -68,7 +68,9 @@ def _cli(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     """
     env = dict(os.environ)
     env["PYTHONPATH"] = str(_REPO_ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")
-    env.setdefault("SPEC_KITTY_HOME", str(cwd / ".spec-kitty-home"))
+    # Assign, never setdefault: an inherited SPEC_KITTY_HOME would otherwise leak a
+    # developer's real home into the test (home-pin gate, SKH-SETDEFAULT).
+    env["SPEC_KITTY_HOME"] = str(cwd / ".spec-kitty-home")
     return subprocess.run(
         [sys.executable, "-m", "specify_cli", *args],
         cwd=cwd,
