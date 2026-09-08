@@ -296,7 +296,6 @@ class TestDashboardPerformance:
             assert content is not None, "Auto-fix should succeed"
             assert error is None, "Should not have error"
 
-    @pytest.mark.performance
     def test_dashboard_read_multiple_files_performance(self):
         """Verify reading multiple files is efficient."""
         import time
