@@ -85,6 +85,12 @@ jobs:
               - '.kittify/command-skills-manifest.json'
               - 'tests/specify_cli/regression/_twelve_agent_baseline/**'
               - 'tests/specify_cli/skills/__snapshots__/**'
+              # Charter-scheme CODE the built-in pack artifacts are generated
+              # from (schemas the pack manifest/DRG/generated schemas validate
+              # against, and the DRG builder). A change here can leave the pack
+              # regen/DRG/manifest stale, so re-run the built-in lane. (#4010)
+              - 'src/charter/offering/schemas/**'
+              - 'src/charter/offering/drg/**'
             internal:
               - 'packs/internal/**'
 
