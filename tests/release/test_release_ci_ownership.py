@@ -217,11 +217,14 @@ def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisit
 def test_reduced_ci_quality_has_exact_jobs() -> None:
     workflow = load_workflow("ci-quality.yml")
 
+    # `sonarcloud` is the reinstated non-blocking reporter (spec-kitty#3993):
+    # continue-on-error and deliberately outside quality-gate.needs.
     assert set(workflow["jobs"]) == {
         "lint",
         "build-wheel",
         "clean-install-verification",
         "uv-lock-check",
+        "sonarcloud",
         "quality-gate",
     }
     assert workflow["jobs"]["clean-install-verification"]["needs"] == ["build-wheel"]
