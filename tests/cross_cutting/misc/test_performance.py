@@ -63,6 +63,7 @@ def test_performance_with_large_gitignore():
         print(f"✓ Large file (10K lines) completed in {elapsed:.3f}s")
 
 
+@pytest.mark.performance
 def test_performance_multiple_runs():
     """Test performance of multiple consecutive runs (idempotency)."""
     with tempfile.TemporaryDirectory() as tmpdir:
