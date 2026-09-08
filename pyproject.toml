@@ -86,10 +86,10 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Priivacy-ai/spec-kitty"
-Issues = "https://github.com/Priivacy-ai/spec-kitty/issues"
+Repository = "https://github.com/spec-kitty/spec-kitty"
+Issues = "https://github.com/spec-kitty/spec-kitty/issues"
 Documentation = "https://docs.spec-kitty.ai/"
-Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
+Changelog = "https://github.com/spec-kitty/spec-kitty/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = [

@@ -280,7 +280,7 @@ class TestMarketplaceJson:
             (tmp_path / "dist" / "marketplace.json").read_text(encoding="utf-8")
         )
         assert payload["name"] == "spec-kitty-plugins"
-        assert payload.get("owner") == {"name": "Priivacy AI"}
+        assert payload.get("owner") == {"name": "Spec Kitty"}
         assert payload.get("description") == "Spec Kitty skills, agent profiles, and runtime wrappers for Claude Code."
         assert "interface" not in payload
         assert "plugins" in payload
