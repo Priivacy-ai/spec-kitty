@@ -91,7 +91,13 @@ modules:
   cov_targets:
   - specify_cli.upgrade
   tier: standard
-  shard_count: 1
+  # 4 shards: the module's ~840 tests run near-instant in pytest's measured
+  # "call" phase (module_test_durations sums to ~5s) but each carries heavy
+  # per-test fixture setup (project init / ensure_runtime) that the call-phase
+  # timings do not capture, so the SERIAL single-shard run overran the 30m job
+  # timeout. Splitting by test count keeps each serial shard well under budget;
+  # inter-shard skew stays 0% (the per-test call durations are near-uniform).
+  shard_count: 4
 - module: cli
   roots:
   - src/specify_cli/cli/**
@@ -114,7 +120,11 @@ modules:
   cov_targets:
   - specify_cli.agent_utils
   tier: standard
-  shard_count: 1
+  # 3 shards: ~1173 tests at ~1.2s wall each (CliRunner + ensure_runtime
+  # overhead the measured call-phase timings undercount) → ~23m SERIAL, which
+  # brushed the 30m job timeout. Three serial shards land each near ~8m;
+  # inter-shard skew stays 0% under LPT of the near-uniform per-test durations.
+  shard_count: 3
 - module: kernel
   roots:
   - src/kernel/**
