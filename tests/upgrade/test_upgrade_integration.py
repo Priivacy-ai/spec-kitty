@@ -463,11 +463,13 @@ def test_no_stray_noqa_c901_marker() -> None:
 
 @pytest.mark.parametrize("machine", [False, True], ids=["human", "legacy-json"])
 @pytest.mark.parametrize("fault", ["incomplete", "exception"])
+@pytest.mark.parametrize("schema_version", [3, 1], ids=["compatible", "stale"])
 def test_dry_run_repair_assessment_failure_is_visible_and_write_free(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     machine: bool,
     fault: str,
+    schema_version: int,
 ) -> None:
     from dataclasses import replace
     from specify_cli.tool_surface.operations import Diagnostic
@@ -477,7 +479,7 @@ def test_dry_run_repair_assessment_failure_is_visible_and_write_free(
     project = tmp_path / "project"
     _init_project(project)
     metadata = project / ".kittify/metadata.yaml"
-    metadata.write_text(metadata.read_text().replace("spec_kitty:\n", "spec_kitty:\n  schema_version: 3\n"))
+    metadata.write_text(metadata.read_text().replace("spec_kitty:\n", f"spec_kitty:\n  schema_version: {schema_version}\n"))
     # Match the public preview witness: read-only git queries must not refresh
     # the index through optional locks while we compare exact node identities.
     monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "0")
@@ -510,6 +512,27 @@ def test_dry_run_repair_assessment_failure_is_visible_and_write_free(
         payload = json.loads(result.output)
         assert len(payload["rendered_human"]) <= 1024
         assert payload["exit_code"] == 1
-        assert payload["decision"] == "ALLOW"
-        assert payload["project"]["state"] == "compatible"
+        assert payload["decision"] == ("ALLOW" if schema_version == 3 else "BLOCK_PROJECT_MIGRATION")
+        assert payload["project"]["state"] == ("compatible" if schema_version == 3 else "stale")
+    assert_unchanged(before, snapshot({"project": project}))
+
+
+def test_dry_run_oversized_repair_notice_respects_json_text_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    _init_project(project)
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "0")
+    notice = "Supporting repair preview incomplete: " + "x" * 2048
+    monkeypatch.setattr(upgrade_cmd, "_supporting_repair_preview", lambda _: (notice, True))
+    before = snapshot({"project": project})
+    result = _run_upgrade(["--dry-run", "--target", "1.0.0a1", "--no-worktrees", "--yes", "--json"], cwd=project)
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert len(payload["rendered_human"]) <= 1024
+    assert "Supporting repair preview incomplete" in payload["rendered_human"]
+    assert payload["exit_code"] == result.exit_code
     assert_unchanged(before, snapshot({"project": project}))

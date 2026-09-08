@@ -1989,14 +1989,14 @@ def _run_planner_json(
     if dry_run and not validation_error and semantic_code not in {2, 5, 6}:
         notice, incomplete = _supporting_repair_preview(project_path)
         if notice:
-            # Reserve space for the entire bounded repair notice, including any
-            # incomplete diagnostic; compatibility text keeps the remaining room.
+            # Keep the diagnostic prefix within the JSON text budget even if a
+            # future notice grows; compatibility text keeps the remaining room.
             compatibility = str(payload["rendered_human"])
-            payload["rendered_human"] = compatibility[:1023 - len(notice)] + "\n" + notice
+            notice = notice[:1023]
+            payload["rendered_human"] = compatibility[: max(0, 1023 - len(notice))] + "\n" + notice
         if incomplete:
             exit_code = 1
-            if semantic_code == 0:
-                payload["exit_code"] = 1
+            payload["exit_code"] = exit_code
     print(json.dumps(payload, indent=2))
     raise typer.Exit(exit_code)
 
