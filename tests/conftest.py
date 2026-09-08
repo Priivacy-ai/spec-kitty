@@ -32,6 +32,7 @@ from tests._support.quarantine import (
     quarantine_opted_in,
     quarantine_skip_mark,
 )
+from tests._support.repo_root_status_guard import register_repo_root_status_guard
 from tests._support.run_basetemp import install_run_basetemp, mark_session_outcome
 from tests._support.shared_build_artifacts import (
     SharedBuildError,
@@ -222,6 +223,12 @@ def pytest_configure(config: pytest.Config) -> None:
     # merge-base snapshot; an imported call is not an AST-visible
     # ``FunctionDef`` here.
     upgrade_unspecified_xdist_load_to_loadfile(config)
+
+    # #2815: arm the per-test repo-root status-artifact guard. Defined in
+    # tests/_support/ and registered here rather than defined in this module
+    # for the same frozen-definition-order reason as the call above (an
+    # imported call is not an AST-visible ``FunctionDef`` here).
+    register_repo_root_status_guard(config)
 
     os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
 
