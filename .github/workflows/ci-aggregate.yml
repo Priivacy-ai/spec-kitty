@@ -169,6 +169,7 @@ jobs:
           python3 - <<'PY'
           import json
           import os
+          import re
           import sys
           from collections import defaultdict
           from pathlib import Path
@@ -193,19 +194,35 @@ jobs:
               return found
 
           def expected_basenames(registry_path: Path) -> set[str]:
-              """The EXACT per-shard coverage basenames the committed module
-              registry expects -- the SAME (tier, module, shard) derivation
+              """The EXACT per-shard coverage basenames the module registry
+              expects -- the SAME (tier, module, shard) derivation
               ci-modules.yml's generate-matrix uses to expand module x
               shard_count into matrix leaves. This is what makes a shard
               missing from BOTH the current and fallback runs detectable,
-              instead of silently accepting whatever happened to download."""
+              instead of silently accepting whatever happened to download.
+
+              The registry read here comes from the TESTED PR merge tree
+              (`out/aggregate/source/`, filled by aggregate_source.py from
+              the immutable merge SHA), NOT from this trusted default-branch
+              checkout -- so every row is validated BEFORE any derived value
+              reaches a step output: an untrusted `module` carrying a
+              newline must never be able to inject `key=value` lines into
+              $GITHUB_OUTPUT and override the completeness re-check."""
               with open(registry_path, encoding="utf-8") as fh:
                   registry = yaml.safe_load(fh)
+              row_field = re.compile(r"[A-Za-z0-9._-]+")
               names: set[str] = set()
               for row in registry["modules"]:
                   tier = row["tier"]
                   module = row["module"]
                   shard_count = row["shard_count"]
+                  for field_name, value in (("tier", tier), ("module", module)):
+                      if not (isinstance(value, str) and row_field.fullmatch(value)):
+                          print(f"::error::ci-aggregate: registry row has a {field_name} outside [A-Za-z0-9._-]: {value!r} -- untrusted PR-authored registry value refused")
+                          sys.exit(1)
+                  if not isinstance(shard_count, int) or isinstance(shard_count, bool):
+                      print(f"::error::ci-aggregate: registry row has a non-int shard_count: {shard_count!r} -- untrusted PR-authored registry value refused")
+                      sys.exit(1)
                   for idx in range(1, shard_count + 1):
                       names.add(f"coverage-{tier}-{module}-shard{idx}-of-{shard_count}.xml")
               return names
@@ -244,9 +261,15 @@ jobs:
 
           summary_path = os.environ.get("GITHUB_OUTPUT")
           if summary_path:
+              # Delimiter (heredoc) form, never bare `key=value`: the runner's
+              # FileCommandManager assigns outputs line-by-line, so a value
+              # containing a newline would inject additional step outputs.
+              # The registry validation above keeps `missing` newline-free;
+              # the delimiter form is the structural backstop that a
+              # newline-carrying value can never re-introduce one.
               with open(summary_path, "a", encoding="utf-8") as fh:
-                  fh.write(f"complete={'true' if complete else 'false'}\n")
-                  fh.write(f"missing={','.join(sorted(missing))}\n")
+                  fh.write(f"complete<<RECONCILE_EOF\n{'true' if complete else 'false'}\nRECONCILE_EOF\n")
+                  fh.write(f"missing<<RECONCILE_EOF\n{','.join(sorted(missing))}\nRECONCILE_EOF\n")
 
           if missing:
               # C-005: a shard absent from BOTH the current and fallback runs
