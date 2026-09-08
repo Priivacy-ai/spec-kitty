@@ -1062,6 +1062,31 @@ def _finalizer_repair_preflight(prepared: PreparedUpgradeRepairs | None, errors:
         yield errors + tuple(d.message for d in diagnostics)
 
 
+def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
+    """Describe canonical retained effects without entering any write boundary."""
+    from specify_cli.core.agent_config import AgentConfigError
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from specify_cli.upgrade.assessment import prepare_upgrade_repairs
+
+    hint = "Use --plan-json for full repair details."
+    try:
+        prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
+        if not prepared.complete:
+            detail = "; ".join(d.message for d in prepared.diagnostics if d.severity == "error")
+            return f"Supporting repair preview incomplete: {detail[:350] or 'Required owner assessment incomplete'}. {hint}", True
+        effects = prepared.effects
+    except (OSError, ValueError, AgentConfigError) as exc:
+        return f"Supporting repair preview incomplete: {str(exc)[:350]}. {hint}", True
+    preserved = sum(d.state == "consent_required" for owner in prepared.owners for d in owner.dispositions)
+    if not effects and not preserved:
+        return "", False
+    manifests = sum(effect.after.kind != "directory" and "manifest" in Path(effect.path).name.lower() for effect in effects)
+    lines = [f"Would repair {len(effects)} supporting surface paths (including {manifests} manifests)."] if effects else []
+    if preserved:
+        lines.append(f"Would preserve {preserved} paths requiring separate consent.")
+    return " ".join((*lines, hint)), False
+
+
 def _finalizer_step_surface_repair(
     outcome: UpgradeOutcome,
     ctx: _FinalizerRenderContext,
@@ -1079,6 +1104,13 @@ def _finalizer_step_surface_repair(
     """
     if not outcome.result.success:
         return False
+    if dry_run:
+        notice, incomplete = _supporting_repair_preview(project_path)
+        if notice and not json_output:
+            console.print(notice, markup=False)
+        if incomplete:
+            outcome.result.errors.append(notice)
+        return incomplete
     if ctx.prepared_repairs is not None:
         from specify_cli.upgrade.assessment import apply_upgrade_repairs
         from specify_cli.tool_surface.repair import DriftPolicySummary
@@ -1891,7 +1923,7 @@ def _run_planner_json(
     """Emit the compat-planner JSON contract to stdout and raise typer.Exit.
 
     Suppresses all human output.  Exit code follows R-08 unless ``dry_run``
-    is True, in which case exit code is always 0.
+    is True, except for a stronger refusal or incomplete supporting-repair preview.
 
     FR-009: the compat planner gates its own ``pending_migrations`` on a block
     decision, so a schema-compatible-but-stale project would preview ``[]``.
@@ -1907,7 +1939,7 @@ def _run_planner_json(
     machine surface stays contract-clean.
 
     Args:
-        dry_run: When True, always exit 0.
+        dry_run: Preview without writes; incomplete repair assessment fails closed.
         no_nag: Suppress nag flag passed to the Invocation.
         project_path: Root of the project being previewed.
         target_version: Resolved target version for the pending-set computation.
@@ -1954,6 +1986,17 @@ def _run_planner_json(
         payload["pending_migrations"] = _real_pending_migrations_contract(project_path, target_version)
 
     exit_code = 0 if dry_run and semantic_code != 5 else semantic_code
+    if dry_run and not validation_error and semantic_code not in {2, 5, 6}:
+        notice, incomplete = _supporting_repair_preview(project_path)
+        if notice:
+            # Reserve space for the entire bounded repair notice, including any
+            # incomplete diagnostic; compatibility text keeps the remaining room.
+            compatibility = str(payload["rendered_human"])
+            payload["rendered_human"] = compatibility[:1023 - len(notice)] + "\n" + notice
+        if incomplete:
+            exit_code = 1
+            if semantic_code == 0:
+                payload["exit_code"] = 1
     print(json.dumps(payload, indent=2))
     raise typer.Exit(exit_code)
 

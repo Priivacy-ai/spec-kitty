@@ -459,3 +459,46 @@ def test_no_stray_noqa_c901_marker() -> None:
 
     source = inspect.getsource(upgrade_module)
     assert "noqa: C901" not in source
+
+
+@pytest.mark.parametrize("machine", [False, True], ids=["human", "legacy-json"])
+@pytest.mark.parametrize("fault", ["incomplete", "exception"])
+def test_dry_run_repair_assessment_failure_is_visible_and_write_free(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, machine: bool, fault: str,
+) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import Diagnostic
+    from specify_cli.upgrade import assessment as repair_assessment
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    _init_project(project)
+    metadata = project / ".kittify/metadata.yaml"
+    metadata.write_text(metadata.read_text().replace("spec_kitty:\n", "spec_kitty:\n  schema_version: 3\n"))
+    # Match the public preview witness: read-only git queries must not refresh
+    # the index through optional locks while we compare exact node identities.
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "0")
+    original = repair_assessment.prepare_upgrade_repairs
+
+    def failed_assessment(*args, **kwargs):
+        if fault == "exception":
+            raise OSError("fixture repair inventory unavailable")
+        prepared = original(*args, **kwargs)
+        return replace(prepared, diagnostics=(Diagnostic(
+            "fixture_incomplete", "upgrade", "error", "fixture repair inventory incomplete",
+        ),))
+
+    monkeypatch.setattr(repair_assessment, "prepare_upgrade_repairs", failed_assessment)
+    before = snapshot({"project": project})
+    args = ["--dry-run", "--target", "1.0.0a1", "--no-worktrees", "--yes"]
+    result = _run_upgrade(args + (["--json"] if machine else []), cwd=project)
+    assert result.exit_code == 1, result.output
+    assert "Supporting repair preview incomplete" in result.output
+    assert "fixture repair inventory" in result.output
+    if machine:
+        payload = json.loads(result.output)
+        assert len(payload["rendered_human"]) <= 1024
+        assert payload["exit_code"] == 1
+        assert payload["decision"] == "ALLOW"
+        assert payload["project"]["state"] == "compatible"
+    assert_unchanged(before, snapshot({"project": project}))
