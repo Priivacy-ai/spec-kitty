@@ -11,6 +11,7 @@ import fnmatch
 import json
 import os
 import re
+import subprocess
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -37,7 +38,9 @@ def applicable_workflows(root: Path, pr: dict[str, Any], paths: list[str]) -> se
     """Derive the finite existing branch/path policy from trusted workflow YAML."""
     required = set()
     seen = set()
-    for path in (root / ".github/workflows").glob("*.yml"):
+    for path in (root / ".github/workflows").iterdir():
+        if path.suffix not in {".yml", ".yaml"}:
+            continue
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
         triggers = doc.get("on", doc.get(True, {}))
         if not isinstance(triggers, dict) or "pull_request" not in triggers:
@@ -118,7 +121,37 @@ class GitHub:
         raise ValueError("API result exceeded bounded pagination; refusing incomplete evidence")
 
 
-def snapshot(api: GitHub, root: Path, number: int, workflow_ids: dict[str, int]) -> tuple[dict[str, Any], dict[str, Any]]:
+class GitHubCLI(GitHub):
+    """Use an operator host's existing gh authentication, including its proxy."""
+
+    def request(self, path: str, payload: dict[str, Any] | None = None) -> Any:
+        command = ["gh", "api", f"repos/{self.repository}/{path}"]
+        if payload is not None:
+            command.extend(["--method", "POST", "--input", "-"])
+        result = subprocess.run(command, input=json.dumps(payload) if payload is not None else None, capture_output=True, text=True, timeout=60)
+        if result.returncode:
+            # gh may print authentication diagnostics; never echo its captured output.
+            raise ValueError(f"gh API request failed (exit {result.returncode})")
+        return json.loads(result.stdout)
+
+
+def verify_replay_checkout(root: Path, replay: dict[str, Any]) -> None:
+    """An explicit replay may execute only the exact, clean reviewed revision."""
+    sha = replay["reporter_sha"]
+    if not isinstance(sha, str) or not re.fullmatch("[0-9a-f]{40}", sha):
+        raise ValueError("replay requires a full reviewed reporter SHA")
+    for key in ("host", "session"):
+        if not isinstance(replay[key], str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,199}", replay[key]):
+            raise ValueError(f"replay requires an explicit valid {key}")
+    if type(replay["aggregate_run_id"]) is not int or replay["aggregate_run_id"] <= 0:
+        raise ValueError("replay requires a positive aggregate run id")
+    current = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+    dirty = subprocess.check_output(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all"], text=True)
+    if current != sha or dirty:
+        raise ValueError("replay checkout is not the exact clean reviewed revision")
+
+
+def snapshot(api: GitHub, root: Path, number: int, workflow_ids: dict[str, int], replay: dict[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     pr = api.request(f"pulls/{number}")
     head = pr["head"]["sha"]
     if pr["state"] != "open" or not re.fullmatch("[0-9a-f]{40}", head):
@@ -136,30 +169,57 @@ def snapshot(api: GitHub, root: Path, number: int, workflow_ids: dict[str, int])
     runs[AGGREGATE] = None
     if modules:
         title = f"CI Aggregate source {modules['id']} attempt {modules['run_attempt']}"
-        created = modules.get("created_at", "")
-        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", created):
-            raise ValueError("source run creation time missing; cannot bound aggregate lookup")
-        query = urllib.parse.urlencode({"event": "workflow_run", "created": ">=" + created})
-        aggregates = api.pages(f"actions/workflows/{workflow_ids[AGGREGATE]}/runs?{query}", "workflow_runs")
-        matching = [
-            r
-            for r in aggregates
-            if r.get("display_title") == title
-            and r.get("workflow_id") == workflow_ids[AGGREGATE]
-            and r.get("path") == f".github/workflows/{AGGREGATE}"
-            and r.get("event") == "workflow_run"
-            and r.get("repository", {}).get("full_name") == api.repository
-        ]
-        runs[AGGREGATE] = max(matching, key=lambda r: (r["id"], r["run_attempt"]), default=None)
+        if replay is not None:
+            aggregate = api.request(f"actions/runs/{replay['aggregate_run_id']}")
+            if (
+                aggregate.get("id") != replay["aggregate_run_id"]
+                or aggregate.get("event") != "workflow_dispatch"
+                or aggregate.get("head_sha") != replay["reporter_sha"]
+                or aggregate.get("display_title") != title
+                or aggregate.get("workflow_id") != workflow_ids[AGGREGATE]
+                or aggregate.get("path") != f".github/workflows/{AGGREGATE}"
+                or aggregate.get("repository", {}).get("full_name") != api.repository
+            ):
+                raise ValueError("manual aggregate does not bind the reviewed reporter and current source attempt")
+            runs[AGGREGATE] = aggregate
+        else:
+            runs[AGGREGATE] = automatic_aggregate(api, workflow_ids[AGGREGATE], modules, title)
+    elif replay is not None:
+        raise ValueError("manual aggregate has no matching current source run")
     labels = {label["name"] for label in pr["labels"]}
     state = classify(runs, labels)
     evidence = {name: ({k: run.get(k) for k in ("id", "run_attempt", "status", "conclusion", "html_url")} if run else None) for name, run in sorted(runs.items())}
-    return pr, {"head": head, "state": state, "runs": evidence, "labels": sorted(labels)}
+    result = {"head": head, "state": state, "runs": evidence, "labels": sorted(labels)}
+    if replay is not None:
+        result["replay"] = dict(replay)
+    return pr, result
+
+
+def automatic_aggregate(api: GitHub, workflow_id: int, modules: dict[str, Any], title: str) -> dict[str, Any] | None:
+    """Find only the normal default-branch workflow_run aggregate evidence."""
+    created = modules.get("created_at", "")
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", created):
+        raise ValueError("source run creation time missing; cannot bound aggregate lookup")
+    query = urllib.parse.urlencode({"event": "workflow_run", "created": ">=" + created})
+    aggregates = api.pages(f"actions/workflows/{workflow_id}/runs?{query}", "workflow_runs")
+    matching = [
+        r
+        for r in aggregates
+        if r.get("display_title") == title
+        and r.get("workflow_id") == workflow_id
+        and r.get("path") == f".github/workflows/{AGGREGATE}"
+        and r.get("event") == "workflow_run"
+        and r.get("repository", {}).get("full_name") == api.repository
+    ]
+    return max(matching, key=lambda r: (r["id"], r["run_attempt"]), default=None)
 
 
 def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, attempt: int) -> str:
     state, head = evidence["state"], evidence["head"]
-    lines = [f"[ci] {state} @{head} on github-actions", "", MARKER, "Existing Actions gates for this exact PR head; no additional test run.", ""]
+    provenance = evidence.get("replay", {})
+    host = provenance.get("host", "github-actions")
+    session = provenance.get("session", f"github-actions-{reporter_id}")
+    lines = [f"[ci] {state} @{head} on {host}", "", MARKER, "Existing Actions gates for this exact PR head; no additional test run.", ""]
     if state == "running":
         lines.append("Evidence is pending, incomplete, cancelled, or intentionally deferred; this is not a code failure verdict.")
     for name, run in evidence["runs"].items():
@@ -173,10 +233,10 @@ def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, at
             "",
             "Verdict-Role: ci",
             "Verdict-Account-Class: bot",
-            f"Verdict-Session: github-actions-{reporter_id}",
+            f"Verdict-Session: {session}",
             f"Verdict-Repo: {repository}",
             f"Verdict-Head: {head}",
-            "Verdict-Host: github-actions",
+            f"Verdict-Host: {host}",
             f"Verdict-Attempt: {attempt}",
             "Verdict-Contract-Version: 1",
         ]
@@ -184,8 +244,20 @@ def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, at
     return "\n".join(lines) + "\n"
 
 
-def report(api: GitHub, root: Path, number: int, workflow_ids: dict[str, int], reporter_id: int, attempt: int) -> None:
-    pr, evidence = snapshot(api, root, number, workflow_ids)
+def report(
+    api: GitHub,
+    root: Path,
+    number: int,
+    workflow_ids: dict[str, int],
+    reporter_id: int,
+    attempt: int,
+    *,
+    replay: dict[str, Any] | None = None,
+    dry_run: bool = False,
+) -> None:
+    if replay is not None:
+        verify_replay_checkout(root, replay)
+    pr, evidence = snapshot(api, root, number, workflow_ids, replay)
     comments = api.pages(f"issues/{number}/comments")
     # Only identical latest evidence is suppressed. Append changes: editing an older
     # comment would preserve created_at and leave a newer stale terminal dominant.
@@ -200,10 +272,16 @@ def report(api: GitHub, root: Path, number: int, workflow_ids: dict[str, int], r
         and (fingerprint in latest["body"] or (evidence["state"] == "running" and latest["body"].startswith("[ci] running @")))
     ):
         return
-    final_pr, final_evidence = snapshot(api, root, number, workflow_ids)
+    final_pr, final_evidence = snapshot(api, root, number, workflow_ids, replay)
     if final_evidence != evidence or final_pr["head"]["sha"] != pr["head"]["sha"]:
         raise ValueError("PR head or CI attempts changed before publication; later event will reconcile")
-    api.request(f"issues/{number}/comments", {"body": comment_body(api.repository, evidence, reporter_id, attempt)})
+    if replay is not None:
+        verify_replay_checkout(root, replay)
+    body = comment_body(api.repository, evidence, reporter_id, attempt)
+    if dry_run:
+        print(body, end="")
+    else:
+        api.request(f"issues/{number}/comments", {"body": body})
 
 
 def main() -> None:
@@ -213,14 +291,32 @@ def main() -> None:
     parser.add_argument("--repository", required=True)
     parser.add_argument("--reporter-id", type=int, required=True)
     parser.add_argument("--attempt", type=int, required=True)
+    parser.add_argument("--aggregate-run-id", type=int, help="Explicit manual Aggregate replay; never used by automatic reporting")
+    parser.add_argument("--reviewed-reporter-sha")
+    parser.add_argument("--reporter-host")
+    parser.add_argument("--reporter-session")
+    parser.add_argument("--gh-cli", action="store_true", help="Use the operator host's existing gh authentication for replay")
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-    api = GitHub(args.repository)
+    replay = None
+    if args.aggregate_run_id is not None:
+        if not args.pr or args.event or not all((args.reviewed_reporter_sha, args.reporter_host, args.reporter_session)):
+            parser.error("manual replay requires --pr, reviewed SHA, host and session, without --event")
+        replay = {
+            "aggregate_run_id": args.aggregate_run_id,
+            "reporter_sha": args.reviewed_reporter_sha,
+            "host": args.reporter_host,
+            "session": args.reporter_session,
+        }
+    elif args.gh_cli or args.reviewed_reporter_sha or args.reporter_host or args.reporter_session:
+        parser.error("operator provenance and gh transport require explicit manual replay")
+    api = GitHubCLI(args.repository) if args.gh_cli else GitHub(args.repository)
     definitions = api.pages("actions/workflows", "workflows")
     ids = {Path(w["path"]).name: w["id"] for w in definitions if w["path"].startswith(".github/workflows/")}
     if not (PR_WORKFLOWS | {AGGREGATE}) <= ids.keys():
         raise ValueError("required Actions workflow definition missing")
     if args.pr:
-        report(api, Path(__file__).resolve().parents[2], args.pr, ids, args.reporter_id, args.attempt)
+        report(api, Path(__file__).resolve().parents[2], args.pr, ids, args.reporter_id, args.attempt, replay=replay, dry_run=args.dry_run)
         return
     event = json.loads(args.event.read_text(encoding="utf-8"))
     trigger = event["workflow_run"]

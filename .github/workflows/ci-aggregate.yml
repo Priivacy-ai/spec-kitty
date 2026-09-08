@@ -13,7 +13,8 @@
 # diff come from the verified synthetic merge tree (parents must match the
 # source run's immutable tested workflow reference); the trusted default-branch checkout remains
 # in place. Missing source provenance or a current shard fails closed.
-# Non-PR diagnostic runs retain the existing successful-run stale fallback.
+# Automatic non-PR diagnostic runs retain the successful-run stale fallback;
+# manual replay always requires complete evidence from its exact source attempt.
 #
 # `mode` (pr|full) is honored in THIS workflow's own fail-fast/`needs`
 # behavior: pr short-circuits the diff-cover gate the moment `collect` cannot
