@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -289,11 +290,20 @@ def test_replay_preserves_other_required_gate_results(tmp_path: Path, state: str
     assert api.posts[0]["body"].startswith(f"[ci] {expected} @{HEAD}")
 
 
-def test_manual_replay_cli_dry_run_never_posts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize("use_wrapper", [False, True])
+def test_manual_replay_cli_dry_run_never_posts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], use_wrapper: bool) -> None:
     from scripts.ci import fleet_verdict
 
     api, checkout, replay = replay_fixture(tmp_path)
-    monkeypatch.setattr(fleet_verdict, "GitHubCLI", lambda repository: api)
+    wrapper_path = tmp_path / "gh-api-retry-exec.sh" if use_wrapper else None
+    selected = []
+
+    def transport(repository: str, *, wrapper: Path | None = None) -> API:
+        assert repository == REPO
+        selected.append(wrapper)
+        return api
+
+    monkeypatch.setattr(fleet_verdict, "GitHubCLI", transport)
     monkeypatch.setattr(fleet_verdict, "__file__", str(checkout / "scripts/ci/fleet_verdict.py"))
     monkeypatch.setattr(
         sys,
@@ -318,11 +328,13 @@ def test_manual_replay_cli_dry_run_never_posts(tmp_path: Path, monkeypatch: pyte
             replay["session"],
             "--gh-cli",
             "--dry-run",
-        ],
+        ]
+        + (["--gh-api-wrapper", str(wrapper_path)] if use_wrapper else []),
     )
     fleet_verdict.main()
     assert capsys.readouterr().out.startswith(f"[ci] green @{HEAD} on sk-dispatch")
     assert not api.posts
+    assert selected == [wrapper_path]
 
 
 def test_replay_rechecks_aggregate_attempt_before_publication(tmp_path: Path) -> None:
@@ -363,3 +375,93 @@ def test_gh_transport_uses_existing_proxy_and_stdin_for_comment(tmp_path: Path, 
     executable.write_text(f"#!{sys.executable}\nimport sys\nsys.stderr.write('credential diagnostics must not escape')\nsys.exit(1)\n")
     with pytest.raises(ValueError, match=r"^gh API request failed \(exit 1\)$"):
         GitHubCLI(REPO).request("issues/7/comments", payload)
+
+
+@pytest.mark.parametrize("payload", [None, {"body": "Exact evidence\nLiteral `$()` and quotes ' remain data."}])
+def test_explicit_api_wrapper_preserves_arguments_input_and_host_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, payload: dict[str, Any] | None
+) -> None:
+    from scripts.ci.fleet_verdict import GitHubCLI
+
+    wrapper = tmp_path / "host wrapper $(literal).sh"
+    probe = (
+        "import json,os,sys; from pathlib import Path; p=Path(sys.argv[-1]) if '--input' in sys.argv else None; "
+        "print(json.dumps({'argv':sys.argv[1:], 'attempts':[json.loads(p.read_text()), json.loads(p.read_text())] if p else [], "
+        "'mode':p.stat().st_mode & 0o777 if p else None, 'host':os.environ['GH_HOST'], 'role':os.environ['SK_GH_API_ROLE']}))"
+    )
+    wrapper.write_text(f'exec {shlex.quote(sys.executable)} -c {shlex.quote(probe)} "$@"\n')
+    monkeypatch.setenv("GH_HOST", "github.int.exe.xyz")
+    monkeypatch.setenv("SK_GH_API_ROLE", "ci")
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    endpoint = "issues/7/comments" if payload else "actions/runs?head_sha=" + HEAD
+    result = GitHubCLI(REPO, wrapper=wrapper).request(endpoint, payload)
+    assert result["argv"][:2] == ["api", f"repos/{REPO}/{endpoint}"]
+    assert result["host"] == "github.int.exe.xyz"
+    assert result["role"] == "ci"
+    if payload:
+        assert result["argv"][2:5] == ["--method", "POST", "--input"]
+        assert len(result["argv"]) == 6
+        assert result["attempts"] == [payload, payload]
+        assert result["mode"] == 0o600
+        assert not Path(result["argv"][-1]).exists()
+    else:
+        assert len(result["argv"]) == 2
+        assert result["attempts"] == []
+
+
+@pytest.mark.parametrize("kind", ["relative", "missing", "directory"])
+def test_api_wrapper_invalid_configuration_fails_before_request(tmp_path: Path, kind: str) -> None:
+    from scripts.ci.fleet_verdict import GitHubCLI
+
+    wrapper = {"relative": Path("wrapper.sh"), "missing": tmp_path / "missing.sh", "directory": tmp_path}[kind]
+    with pytest.raises(ValueError, match="absolute readable file"):
+        GitHubCLI(REPO, wrapper=wrapper)
+
+
+@pytest.mark.parametrize("invalid_json", [False, True])
+def test_api_wrapper_failure_does_not_disclose_captured_diagnostics(tmp_path: Path, invalid_json: bool) -> None:
+    from scripts.ci.fleet_verdict import GitHubCLI
+
+    wrapper = tmp_path / "wrapper.sh"
+    trace = tmp_path / "payload-path"
+    wrapper.write_text(
+        f"printf '%s' \"${{@: -1}}\" > {shlex.quote(str(trace))}\n"
+        f"echo credential-bearing-output\necho credential-bearing-diagnostics >&2\nexit {0 if invalid_json else 3}\n"
+    )
+    message = "^gh API response was not valid JSON$" if invalid_json else r"^gh API request failed \(exit 3\)$"
+    with pytest.raises(ValueError, match=message):
+        GitHubCLI(REPO, wrapper=wrapper).request("issues/7/comments", {"body": "test"})
+    assert not Path(trace.read_text()).exists()
+
+
+@pytest.mark.parametrize("failure", [OSError("credential-bearing path"), subprocess.TimeoutExpired("credential-bearing command", 60, stderr="secret")])
+def test_api_wrapper_launch_failure_is_sanitized(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception) -> None:
+    from scripts.ci import fleet_verdict
+
+    wrapper = tmp_path / "wrapper.sh"
+    wrapper.write_text("exit 0\n")
+    paths = []
+
+    def fail(*args: Any, **kwargs: Any) -> None:
+        payload_path = Path(args[0][-1])
+        assert payload_path.is_file()
+        assert payload_path.stat().st_mode & 0o777 == 0o600
+        paths.append(payload_path)
+        raise failure
+
+    monkeypatch.setattr(fleet_verdict.subprocess, "run", fail)
+    with pytest.raises(ValueError, match="^gh API request could not complete$"):
+        fleet_verdict.GitHubCLI(REPO, wrapper=wrapper).request("issues/7/comments", {"body": "test"})
+    assert paths and not paths[0].exists()
+
+
+def test_wrapper_cli_requires_gh_transport_before_any_api_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    from scripts.ci import fleet_verdict
+
+    monkeypatch.setattr(
+        sys, "argv", ["fleet_verdict.py", "--repository", REPO, "--reporter-id", "1", "--attempt", "1", "--gh-api-wrapper", str(tmp_path / "wrapper.sh")]
+    )
+    with pytest.raises(SystemExit) as error:
+        fleet_verdict.main()
+    assert error.value.code == 2
+    assert "--gh-api-wrapper requires --gh-cli" in capsys.readouterr().err

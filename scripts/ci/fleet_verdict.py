@@ -12,8 +12,10 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 import urllib.parse
 import urllib.request
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -124,15 +126,38 @@ class GitHub:
 class GitHubCLI(GitHub):
     """Use an operator host's existing gh authentication, including its proxy."""
 
+    def __init__(self, repository: str, *, wrapper: Path | None = None) -> None:
+        super().__init__(repository)
+        if wrapper is not None and not (wrapper.is_absolute() and wrapper.is_file() and os.access(wrapper, os.R_OK)):
+            raise ValueError("gh API wrapper must be an absolute readable file")
+        self.wrapper = wrapper
+
     def request(self, path: str, payload: dict[str, Any] | None = None) -> Any:
-        command = ["gh", "api", f"repos/{self.repository}/{path}"]
-        if payload is not None:
-            command.extend(["--method", "POST", "--input", "-"])
-        result = subprocess.run(command, input=json.dumps(payload) if payload is not None else None, capture_output=True, text=True, timeout=60)
-        if result.returncode:
-            # gh may print authentication diagnostics; never echo its captured output.
-            raise ValueError(f"gh API request failed (exit {result.returncode})")
-        return json.loads(result.stdout)
+        command = ["bash", str(self.wrapper)] if self.wrapper is not None else ["gh"]
+        command.extend(["api", f"repos/{self.repository}/{path}"])
+        with ExitStack() as resources:
+            input_text = json.dumps(payload) if payload is not None else None
+            if payload is not None:
+                input_path = "-"
+                if self.wrapper is not None:
+                    # The canonical host wrapper retries gh, but cannot rewind stdin.
+                    # NamedTemporaryFile is private (0600) and removed on every exit.
+                    body = resources.enter_context(tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="spec-kitty-ci-", suffix=".json"))
+                    body.write(input_text or "")
+                    body.flush()
+                    input_path, input_text = body.name, None
+                command.extend(["--method", "POST", "--input", input_path])
+            try:
+                result = subprocess.run(command, input=input_text, capture_output=True, text=True, timeout=60)
+            except (OSError, subprocess.TimeoutExpired):
+                raise ValueError("gh API request could not complete") from None
+            if result.returncode:
+                # gh may print authentication diagnostics; never echo its captured output.
+                raise ValueError(f"gh API request failed (exit {result.returncode})")
+            try:
+                return json.loads(result.stdout)
+            except json.JSONDecodeError:
+                raise ValueError("gh API response was not valid JSON") from None
 
 
 def verify_replay_checkout(root: Path, replay: dict[str, Any]) -> None:
@@ -296,8 +321,11 @@ def main() -> None:
     parser.add_argument("--reporter-host")
     parser.add_argument("--reporter-session")
     parser.add_argument("--gh-cli", action="store_true", help="Use the operator host's existing gh authentication for replay")
+    parser.add_argument("--gh-api-wrapper", type=Path, help="Absolute host-side gh-api-retry-exec.sh path for --gh-cli replay")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.gh_api_wrapper is not None and not args.gh_cli:
+        parser.error("--gh-api-wrapper requires --gh-cli")
     replay = None
     if args.aggregate_run_id is not None:
         if not args.pr or args.event or not all((args.reviewed_reporter_sha, args.reporter_host, args.reporter_session)):
@@ -310,7 +338,7 @@ def main() -> None:
         }
     elif args.gh_cli or args.reviewed_reporter_sha or args.reporter_host or args.reporter_session:
         parser.error("operator provenance and gh transport require explicit manual replay")
-    api = GitHubCLI(args.repository) if args.gh_cli else GitHub(args.repository)
+    api = GitHubCLI(args.repository, wrapper=args.gh_api_wrapper) if args.gh_cli else GitHub(args.repository)
     definitions = api.pages("actions/workflows", "workflows")
     ids = {Path(w["path"]).name: w["id"] for w in definitions if w["path"].startswith(".github/workflows/")}
     if not (PR_WORKFLOWS | {AGGREGATE}) <= ids.keys():
