@@ -148,7 +148,6 @@ modules:
   # guessing tests/{module}.
   test_dirs:
   - tests/mission_runtime
-  - tests/status
   - tests/runtime
   - tests/specify_cli/cli/commands/agent
 - module: core_misc
@@ -177,15 +176,11 @@ modules:
   # the same dual-tree tests/charter + tests/doctrine pattern
   # module-tests.yml already special-cases for the "charter" module.
   test_dirs:
-  - tests/kernel
-  - tests/charter
-  - tests/doctrine
   - tests/core
   - tests/specify_cli/core
   - tests/coordination
   - tests/specify_cli/coordination
   - tests/doctrine_synthesizer
-  - tests/status
   - tests/specify_cli/tool_surface
   - tests/zeitgeist_client
 special_tiers:
