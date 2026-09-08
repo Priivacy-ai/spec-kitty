@@ -50,7 +50,7 @@ def _init_git_repo(repo: Path) -> None:
     """Set up a minimal git repository with the directories create_mission_core expects."""
     (repo / ".kittify").mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "init", "-b", "operator-work"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
         cwd=repo,
