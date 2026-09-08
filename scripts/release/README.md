@@ -64,9 +64,10 @@ remains in CLI metadata, and that retired `spec-kitty-runtime` is not a CLI
 dependency.
 
 ```bash
-python scripts/release/check_shared_package_drift.py \
-  --saas-pyproject ../spec-kitty-saas/pyproject.toml
+python scripts/release/check_shared_package_drift.py
 ```
+
+(`--saas-pyproject` is retired with the SaaS consumer comparison, #3979 backport.)
 
 ### `check_exact_install.py`
 
@@ -141,8 +142,7 @@ vim CHANGELOG.md     # add ## [3.1.0a0] - YYYY-MM-DD (or final ## [3.1.0])
 # 2) validate
 python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
 python -m pytest
-python scripts/release/check_shared_package_drift.py \
-  --saas-pyproject ../spec-kitty-saas/pyproject.toml
+python scripts/release/check_shared_package_drift.py
 python -m build
 python scripts/release/check_exact_install.py --package spec-kitty-cli
 twine check dist/*

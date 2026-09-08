@@ -54,8 +54,11 @@ Use this checklist for releases from `main`.
 - [ ] Verify shared package drift against the current stack:
   ```bash
   python scripts/release/check_shared_package_drift.py \
-    --saas-pyproject ../spec-kitty-saas/pyproject.toml \
     --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
+  ```
+  (The `--saas-pyproject` leg is retired with the SaaS consumer comparison —
+  #3979 backport; `release.yml` runs the local-only check.)
+  ```bash
   ```
 - [ ] Confirm `.kittify/release/shared-package-compatibility.json` is the
   authoritative 3.2.0 shared-package set and matches `pyproject.toml` plus
@@ -77,21 +80,15 @@ before tagging; do not rely on the tag-time publish workflow to run live
 canary or cross-repo end-to-end suites.
 
 - [ ] Record the full CLI test-suite result from `pytest tests/ -v`.
-- [ ] Run the cross-repo end-to-end suite locally:
-  ```bash
-  cd ../../spec-kitty-end-to-end-testing
-  uv sync
-  SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/ -v
-  ```
-- [ ] Run the live deployed-dev canary from the trusted-runner profile:
-  ```bash
-  cd ../../spec-kitty-end-to-end-testing
-  ./scripts/run-canary.sh --profile local --phase all
-  ```
-- [ ] Record the e2e and canary result in the release PR, changelog note, or
-  release issue. If either fails or is inconclusive, do not tag until the
-  product issue is fixed or an explicit maintainer waiver with an issue link is
-  recorded.
+- [ ] ~~Run the cross-repo end-to-end suite and the live canary from
+  `../../spec-kitty-end-to-end-testing`~~ — **not runnable on the 3.2.6 line**:
+  that repository ceased to exist under the current owner with the org move
+  (the same fact that retired the FR-026 gate; see CHANGELOG 3.2.6.1). The
+  charter's "do not tag until … an explicit maintainer waiver with an issue
+  link is recorded" clause therefore applies: **for 3.2.6.1 the waiver of
+  record is on spec-kitty#4048**, entered by the accountable maintainer. A
+  later release on this line needs its own recorded waiver or a replacement
+  suite; do not treat this strike-through as a standing exemption.
 
 ### Documentation and Metadata
 
