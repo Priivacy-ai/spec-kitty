@@ -464,7 +464,10 @@ def test_no_stray_noqa_c901_marker() -> None:
 @pytest.mark.parametrize("machine", [False, True], ids=["human", "legacy-json"])
 @pytest.mark.parametrize("fault", ["incomplete", "exception"])
 def test_dry_run_repair_assessment_failure_is_visible_and_write_free(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, machine: bool, fault: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    machine: bool,
+    fault: str,
 ) -> None:
     from dataclasses import replace
     from specify_cli.tool_surface.operations import Diagnostic
@@ -484,9 +487,17 @@ def test_dry_run_repair_assessment_failure_is_visible_and_write_free(
         if fault == "exception":
             raise OSError("fixture repair inventory unavailable")
         prepared = original(*args, **kwargs)
-        return replace(prepared, diagnostics=(Diagnostic(
-            "fixture_incomplete", "upgrade", "error", "fixture repair inventory incomplete",
-        ),))
+        return replace(
+            prepared,
+            diagnostics=(
+                Diagnostic(
+                    "fixture_incomplete",
+                    "upgrade",
+                    "error",
+                    "fixture repair inventory incomplete",
+                ),
+            ),
+        )
 
     monkeypatch.setattr(repair_assessment, "prepare_upgrade_repairs", failed_assessment)
     before = snapshot({"project": project})

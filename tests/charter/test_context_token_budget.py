@@ -504,12 +504,16 @@ class TestAggregateUnderBudget:
             encoding="utf-8",
         )
         (tmp_path / ".kittify/config.yaml").write_text("mission_type_activations: [software-dev]\n", encoding="utf-8")
-        profile = AgentProfile.model_validate({
-            "profile-id": "budget-fixture-agent", "name": "Budget Fixture Agent",
-            "roles": ["implementer"], "purpose": "Bounded bootstrap fixture",
-            "specialization": {"primary-focus": "testing"},
-            "directive-references": [{"code": "025", "name": "Boy Scout Rule", "rationale": "Preserve local cleanup"}],
-        })
+        profile = AgentProfile.model_validate(
+            {
+                "profile-id": "budget-fixture-agent",
+                "name": "Budget Fixture Agent",
+                "roles": ["implementer"],
+                "purpose": "Bounded bootstrap fixture",
+                "specialization": {"primary-focus": "testing"},
+                "directive-references": [{"code": "025", "name": "Boy Scout Rule", "rationale": "Preserve local cleanup"}],
+            }
+        )
         repository = SimpleNamespace(get=lambda name: profile if name == profile.profile_id else None)
         monkeypatch.setattr("charter.activation.context._default_agent_profile_repository", lambda: repository)
         _reset_agent_profile_cache()

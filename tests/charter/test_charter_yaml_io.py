@@ -710,8 +710,10 @@ def test_failed_yaml_creation_does_not_mint_receipt(tmp_path: Path, monkeypatch:
     from charter.activation.charter_yaml_io import apply_yaml_write, prepare_yaml_write
 
     prepared = prepare_yaml_write(tmp_path / "config.yaml", b"mission_type_activations: []\n", section="activation")
+
     def fail(*args: object, **kwargs: object) -> int:
         raise OSError("injected open failure")
+
     monkeypatch.setattr(os, "open", fail)
     with pytest.raises(OSError, match="injected"):
         apply_yaml_write(prepared)

@@ -108,7 +108,6 @@ class PreparedYamlWrite:
             if observe_yaml_input(observation.path) != observation:
                 raise ValueError(f"precondition_changed: {observation.path}")
 
-
     def recheck_applied(self) -> tuple[Path, ...]:
         """Verify this writer's completed transition, including created parents.
 
@@ -179,8 +178,7 @@ def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
         created = observe_yaml_input(parent)
         parent.chmod(0o755)
         current = observe_yaml_input(parent)
-        if (created.identity is None or current.identity is None
-                or created.identity[:2] != current.identity[:2]):
+        if created.identity is None or current.identity is None or created.identity[:2] != current.identity[:2]:
             raise ValueError(f"precondition_changed: YAML created parent {parent}")
         completed.append(current)
     flags = os.O_WRONLY | (os.O_EXCL | os.O_CREAT if prepared.before_bytes is None else os.O_TRUNC)
@@ -196,11 +194,13 @@ def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
         stream.flush()
         actual = os.fstat(stream.fileno())
         written = observe_yaml_input(prepared.target)
-        expected = (actual.st_dev, actual.st_ino, actual.st_mode, actual.st_mtime_ns,
-                    actual.st_ctime_ns, actual.st_size, actual.st_nlink)
-        if (written.identity != expected or written.content != prepared.desired_bytes
-                or (prepared.before_bytes is None and actual.st_nlink != 1)
-                or (os.name != "nt" and stat.S_IMODE(actual.st_mode) != prepared.mode)):
+        expected = (actual.st_dev, actual.st_ino, actual.st_mode, actual.st_mtime_ns, actual.st_ctime_ns, actual.st_size, actual.st_nlink)
+        if (
+            written.identity != expected
+            or written.content != prepared.desired_bytes
+            or (prepared.before_bytes is None and actual.st_nlink != 1)
+            or (os.name != "nt" and stat.S_IMODE(actual.st_mode) != prepared.mode)
+        ):
             raise ValueError(f"precondition_changed: YAML written target {prepared.target}")
     completed.append(written)
     # Check all unchanged inputs and each directory created by this writer before

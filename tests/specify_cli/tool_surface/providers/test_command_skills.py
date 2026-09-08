@@ -303,6 +303,7 @@ def test_provisioning_projection_absent_authority_requires_canonical_apply(tmp_p
     assert assessment.complete and assessment.effects
     assert_unchanged(before, snapshot({"project": project}))
     from specify_cli.tool_surface.repair import SurfaceRepairService
+
     refused = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)[0]
     assert refused.outcome == "precondition_changed" and not refused.succeeded
     assert_unchanged(before, snapshot({"project": project}))
