@@ -256,7 +256,7 @@ class ClaudeBundleProjector:
                 "Spec-Driven Development toolkit — spec, plan, implement, review, merge."
             ),
             "author": {
-                "name": "Priivacy AI",
+                "name": "Spec Kitty",
                 "url": "https://github.com/spec-kitty/spec-kitty",
             },
             "skills": skills,
