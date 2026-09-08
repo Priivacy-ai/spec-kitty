@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +70,9 @@ class API:
         if payload is not None:
             self.posts.append(payload)
             return {"body": payload["body"]}
+        if path.startswith("actions/runs/"):
+            identity = int(path.rsplit("/", 1)[1])
+            return copy.deepcopy(next(row for rows in self.runs.values() for row in rows if row["id"] == identity))
         assert path == "pulls/7"
         self.pr_reads += 1
         result = copy.deepcopy(self.pr)
@@ -204,3 +208,70 @@ def test_duplicate_latest_evidence_is_suppressed_but_newer_verdict_is_not() -> N
     report(api, ROOT, 7, IDS, 123, 1)
     assert api.posts[0]["body"].startswith(f"[ci] green @{HEAD}")
     assert MARKER in api.posts[0]["body"]
+
+
+def replay_fixture(tmp_path: Path) -> tuple[API, Path, dict[str, Any]]:
+    checkout = tmp_path / "reviewed"
+    checkout.mkdir()
+    subprocess.run(["git", "init", "-q", str(checkout)], check=True)
+    workflows = checkout / ".github/workflows"
+    workflows.mkdir(parents=True)
+    for path in (ROOT / ".github/workflows").glob("*.yml"):
+        (workflows / path.name).write_bytes(path.read_bytes())
+    subprocess.run(["git", "-C", str(checkout), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(checkout), "-c", "user.name=CI Test", "-c", "user.email=ci@example.invalid", "commit", "-qm", "reviewed reporter"], check=True)
+    sha = subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip()
+    api = API()
+    aggregate = api.runs[AGGREGATE][0]
+    aggregate.update(event="workflow_dispatch", head_sha=sha)
+    replay = {"aggregate_run_id": aggregate["id"], "reporter_sha": sha, "host": "sk-dispatch", "session": "ci-replay-4032"}
+    return api, checkout, replay
+
+
+def test_explicit_reviewed_replay_posts_real_manual_aggregate_evidence(tmp_path: Path) -> None:
+    api, checkout, replay = replay_fixture(tmp_path)
+    # Automatic reconciliation must not trust branch-dispatched aggregates.
+    assert snapshot(api, checkout, 7, IDS)[1]["state"] == "running"
+    report(api, checkout, 7, IDS, 123, 1, replay=replay)
+    body = api.posts[0]["body"]
+    assert body.startswith(f"[ci] green @{HEAD} on sk-dispatch")
+    assert "Verdict-Session: ci-replay-4032" in body
+    assert "Verdict-Host: sk-dispatch" in body
+    assert replay["reporter_sha"] in body
+
+
+@pytest.mark.parametrize("field,value", [
+    ("event", "push"), ("head_sha", "f" * 40), ("workflow_id", 999),
+    ("path", ".github/workflows/wrong.yml"), ("repository", {"full_name": "other/repo"}),
+    ("display_title", "CI Aggregate source 999999 attempt 1"),
+])
+def test_replay_refuses_wrong_aggregate_identity(tmp_path: Path, field: str, value: Any) -> None:
+    api, checkout, replay = replay_fixture(tmp_path)
+    api.runs[AGGREGATE][0][field] = value
+    with pytest.raises(ValueError, match="manual aggregate"):
+        report(api, checkout, 7, IDS, 123, 1, replay=replay)
+    assert not api.posts
+
+
+@pytest.mark.parametrize("change", ["dirty", "wrong_revision", "new_head", "new_source_attempt"])
+def test_replay_refuses_unreviewed_or_superseded_evidence(tmp_path: Path, change: str) -> None:
+    api, checkout, replay = replay_fixture(tmp_path)
+    if change == "dirty":
+        (checkout / "unreviewed.py").write_text("unreviewed = True\n")
+    elif change == "wrong_revision":
+        replay["reporter_sha"] = "f" * 40
+    elif change == "new_head":
+        api.move_on_second_read = True
+    else:
+        api.runs["ci-modules.yml"][0]["run_attempt"] = 2
+    with pytest.raises(ValueError):
+        report(api, checkout, 7, IDS, 123, 1, replay=replay)
+    assert not api.posts
+
+
+@pytest.mark.parametrize("state,expected", [("failure", "red"), ("cancelled", "running")])
+def test_replay_preserves_other_required_gate_results(tmp_path: Path, state: str, expected: str) -> None:
+    api, checkout, replay = replay_fixture(tmp_path)
+    api.runs["ci-quality.yml"][0]["conclusion"] = state
+    report(api, checkout, 7, IDS, 123, 1, replay=replay)
+    assert api.posts[0]["body"].startswith(f"[ci] {expected} @{HEAD}")
