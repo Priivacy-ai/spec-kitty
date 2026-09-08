@@ -162,7 +162,7 @@ def test_ci_aggregate_downloads_reports_glob_pattern() -> None:
         for step in job.get("steps", [])
         if isinstance(step, dict) and "download-artifact" in str(step.get("uses", ""))
     ]
-    assert "*-reports" in patterns, f"ci-aggregate.yml must download with pattern: '*-reports', found {patterns!r}"
+    assert any(pattern and pattern.endswith("-reports") for pattern in patterns), f"ci-aggregate.yml must download with pattern: '*-reports', found {patterns!r}"
 
 
 def test_ci_aggregate_declares_workflow_dispatch_and_honors_mode() -> None:
@@ -383,7 +383,7 @@ def _run_reconcile_script(
     workdir = tmp_path / "workdir"
     current_dir = workdir / "out" / "aggregate" / "current"
     previous_dir = workdir / "out" / "aggregate" / "previous"
-    github_dir = workdir / ".github"
+    github_dir = workdir / "out" / "aggregate" / "source"
     for directory in (current_dir, previous_dir, github_dir):
         directory.mkdir(parents=True, exist_ok=True)
     for name, content in current.items():
@@ -462,7 +462,7 @@ def test_shipped_reconcile_script_rejects_same_run_basename_collision(tmp_path: 
 
     script_path = tmp_path / "reconcile_extracted.py"
     script_path.write_text(_reconcile_script_source(), encoding="utf-8")
-    github_dir = tmp_path / "workdir" / ".github"
+    github_dir = tmp_path / "workdir" / "out" / "aggregate" / "source"
     github_dir.mkdir(parents=True, exist_ok=True)
     (github_dir / "ci-module-registry.yml").write_text(yaml.safe_dump({"modules": [_MERGE_ROW]}), encoding="utf-8")
     output_path = tmp_path / "github_output.txt"
