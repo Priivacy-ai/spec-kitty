@@ -20,11 +20,15 @@ Run just this file:
     pytest tests/acceptance/test_first_run_path_3_2_6_1.py -v
 
 **Proven to detect the defects, not merely to pass.** Run against a pristine
-``v3.2.6`` worktree, 7 of these 9 fail. The two that pass there —
+``v3.2.6`` worktree together with ``test_mission_creation_preflight.py``, 12 of
+the 15 tests fail. The three that pass there are guards on paths that were never
+broken, not detectors, and that is deliberate:
 ``test_documented_getting_started_path_succeeds`` and
-``test_plan_runs_on_the_mission_the_tutorial_creates`` — exercise the
-feature-branch path, which was never broken; they are regression guards rather
-than detectors, and that is deliberate. Reproduce with::
+``test_plan_runs_on_the_mission_the_tutorial_creates`` exercise the
+feature-branch path; ``test_committed_owned_checkout_does_not_use_primary_unborn_head``
+pins that the owned-checkout unborn-HEAD check reads the right checkout and
+does not over-refuse. Re-verified 2026-09-08 after the preflight revision.
+Reproduce with::
 
     git worktree add --detach /tmp/baseline326 v3.2.6
     cp tests/acceptance/test_first_run_path_3_2_6_1.py /tmp/baseline326/tests/acceptance/
@@ -172,8 +176,14 @@ def test_plan_runs_on_the_mission_the_tutorial_creates(project: Path) -> None:
         encoding="utf-8",
     )
     committed = _cli(
-        project, "spec-commit", "--mission", mission,
-        "--message", "Add task list specification", str(spec_file), "--json",
+        project,
+        "spec-commit",
+        "--mission",
+        mission,
+        "--message",
+        "Add task list specification",
+        str(spec_file),
+        "--json",
     )
     assert committed.returncode == 0, _unwrapped(committed)
     tracked_spec = _git(project, "show", f"HEAD:{spec_file.relative_to(project).as_posix()}")
