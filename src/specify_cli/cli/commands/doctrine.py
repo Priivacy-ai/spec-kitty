@@ -64,7 +64,10 @@ _JSON_OPTION_HELP = "Emit machine-readable JSON instead of rich text."
 _DEPRECATION_NOTICE = (
     "`spec-kitty doctrine` is deprecated; use `spec-kitty charter` instead "
     "(mission charter-code-topology-01M152G1, CR-02). This command still "
-    "works and delegates to the same implementation."
+    "works and delegates to the same implementation. "
+    "The following commands remain under `spec-kitty doctrine`: "
+    "regenerate-graph, pack validate, pack assemble, asset, and mission-type list "
+    "(all visible types; charter mission-type list shows activated types)."
 )
 
 
