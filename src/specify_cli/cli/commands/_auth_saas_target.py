@@ -39,10 +39,12 @@ def print_saas_endpoint() -> ResolvedServerTarget | None:
 
     The URL is the *same* resolved target ``auth login`` prints
     (:func:`specify_cli.auth.server_target.resolve_server_target`), so no two
-    commands can ever name different endpoints. Since #179 that resolver
-    fails closed when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml``
-    names a server — there is no default endpoint to fall back to — so this
-    reports "not configured" (with the remedy) instead of a URL.
+    commands can ever name different endpoints. Since #3980 (D-5 revised)
+    that resolver answers the packaged default ``https://team.spec-kitty.ai``
+    when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml`` names a server,
+    so this line renders that default with ``(packaged default)`` provenance;
+    the not-configured notice survives only for the resolver's genuine
+    refusal shapes (a split-brain disagreement, rendered below).
 
     Resolved with ``process_wide_override=False`` (#193): this call is purely
     descriptive (no network, no config mutation), so it should show a
@@ -108,8 +110,9 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
 
     Mirrors the precedence inside
     :func:`specify_cli.auth.server_target.resolve_server_target`: env first,
-    then ``config.toml [sync].server_url`` — the only two sources it can
-    resolve from, since #179 that resolver fails closed when neither is set.
+    then ``config.toml [sync].server_url``, then the packaged default
+    ``https://team.spec-kitty.ai`` (#3980, D-5 revised — the packaged default
+    is the target on a launch build with nothing else configured).
     Used in the mismatch warning so the sentence names the thing the user must
     change. Note ``.kittify/saas-auth.json`` is deliberately absent — it feeds
     the tracker/zeitgeist transport chain, not the OAuth login target.
@@ -118,6 +121,7 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
         return SAAS_URL_ENV_VAR
     if target.configured_server_url is not None:
         return "config.toml [sync].server_url"
+    return "the packaged default"
 
 
 def format_saas_provenance(target: ResolvedServerTarget) -> str:
@@ -126,6 +130,7 @@ def format_saas_provenance(target: ResolvedServerTarget) -> str:
         return f"(from {SAAS_URL_ENV_VAR})"
     if target.configured_server_url is not None:
         return "(from config.toml [sync].server_url)"
+    return "(packaged default)"
 
 
 def format_saas_mismatch_warning(

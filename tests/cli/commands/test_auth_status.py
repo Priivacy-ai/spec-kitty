@@ -614,6 +614,12 @@ class TestSaasSourceName:
         target = _target(env_server_url=None, configured_server_url="https://config.test")
         assert saas_source_name(target) == "config.toml [sync].server_url"
 
+    def test_packaged_default_when_neither_set(self):
+        # #3980 (D-5 revised): nothing configured resolves to the packaged
+        # default, and the mismatch warning names it as the source.
+        target = _target(env_server_url=None, configured_server_url=None)
+        assert saas_source_name(target) == "the packaged default"
+
 
 class TestFormatSaasProvenance:
     """The dim suffix shown next to the ``SaaS:`` line."""
@@ -625,6 +631,13 @@ class TestFormatSaasProvenance:
     def test_from_config_toml(self):
         target = _target(env_server_url=None, configured_server_url="https://config.test")
         assert format_saas_provenance(target) == "(from config.toml [sync].server_url)"
+
+    def test_packaged_default_when_neither_set(self):
+        # #3980: a launch build with nothing configured renders the packaged
+        # default with its own provenance — never ``None`` (which crashed the
+        # renderer before the packaged-default branch existed).
+        target = _target(env_server_url=None, configured_server_url=None)
+        assert format_saas_provenance(target) == "(packaged default)"
 
 
 class TestFormatSaasMismatchWarning:
@@ -707,13 +720,13 @@ class TestAuthStatusSaasLine:
         user_at = result.stdout.index("User:")
         assert saas_at < user_at
 
-    def test_status_reports_not_configured_when_unconfigured(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
-        """No env var and no config.toml -> a not-configured line naming the remedy (#179).
-
-        There is no default endpoint anymore: the resolver fails closed, and the
-        status block degrades to the remedy instead of naming a stale configured
-        host. The stored session issuer remains visible so QA can tell which
-        SaaS the authenticated session belongs to (#213).
+    def test_status_reports_packaged_default_when_unconfigured(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """No env var and no config.toml -> the packaged default (#3980, D-5
+        revised): the status block names ``https://team.spec-kitty.ai`` with
+        ``(packaged default)`` provenance instead of the not-configured
+        remedy. The stored session issuer remains visible so QA can tell
+        which SaaS the authenticated session belongs to (#213), and the
+        mismatch warning fires naming the packaged default as the source.
         """
         session = _make_session(issuer_url="https://saas.test")
         mock_storage = _mock_storage_returning(session, backend="file")
@@ -728,16 +741,16 @@ class TestAuthStatusSaasLine:
 
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
-        assert "not configured" in flat
         assert "Session SaaS:" in flat
         assert "https://saas.test" in flat
         assert "(authenticated session)" in flat
-        assert "SPEC_KITTY_SAAS_URL" in flat
+        assert "https://team.spec-kitty.ai" in flat
+        assert "(packaged default)" in flat
         assert "SaaS:" in flat
-        assert _saas_line(result.stdout).startswith("  SaaS:           not configured ")
-        # #182: unescaped, Rich markup parses "[sync]" as a style tag and
-        # silently drops it from the remedy.
-        assert "[sync].server_url" in flat
+        assert _saas_line(result.stdout).startswith("  SaaS:           https://team.spec-kitty.ai ")
+        # The issuer disagrees with the packaged default, so the stale-session
+        # warning names the packaged default as the thing now pointed at.
+        assert "the packaged default now points at https://team.spec-kitty.ai" in flat
 
     def test_status_prints_session_endpoint_when_env_points_elsewhere(self):
         """The status output must name the server the token belongs to (#213)."""
@@ -759,9 +772,11 @@ class TestAuthStatusSaasLine:
         assert "https://app.spec-kitty.ai" in flat
         assert "Session is for https://app.spec-kitty.ai" in flat
 
-    def test_status_reports_not_configured_when_config_server_url_is_blank(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
-        """#182 squad MAJOR: a blank ``[sync].server_url`` must render exactly
-        like an absent one — never as a configured (but empty) endpoint."""
+    def test_status_reports_packaged_default_when_config_server_url_is_blank(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """#182 squad MAJOR, retargeted by #3980: a blank ``[sync].server_url``
+        is *no opinion*, so the resolver answers the packaged default — a
+        blank value must never be rendered as a configured (but empty)
+        endpoint, nor as config provenance."""
         (tmp_path / "config.toml").write_text('[sync]\nserver_url = "  "\n', encoding="utf-8")
         session = _make_session(issuer_url="https://saas.test")
         mock_storage = _mock_storage_returning(session, backend="file")
@@ -776,9 +791,8 @@ class TestAuthStatusSaasLine:
 
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
-        assert "not configured" in flat
-        assert "SPEC_KITTY_SAAS_URL" in flat
-        assert "[sync].server_url" in flat
+        assert "https://team.spec-kitty.ai" in flat
+        assert "(packaged default)" in flat
         # The blank value must never be rendered as a configured provenance.
         assert "(from config.toml [sync].server_url)" not in flat
 
@@ -921,10 +935,11 @@ class TestAuthStatusSaasLine:
         assert "Session is for" not in _flat(result.stdout)
         assert "https://saas.test" in _flat(result.stdout)  # endpoint still shown
 
-    def test_not_configured_shown_in_not_authenticated_branch(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
-        """#189: the not-configured notice must reach the no-session branch too,
-        not just the authenticated one — there is no session to compare
-        against, so this is the whole endpoint line."""
+    def test_packaged_default_shown_in_not_authenticated_branch(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """#189, retargeted by #3980: the packaged-default endpoint line must
+        reach the no-session branch too, not just the authenticated one —
+        there is no session to compare against, so this is the whole
+        endpoint line."""
         mock_storage = _mock_storage_returning(None, backend="file")
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
@@ -938,8 +953,8 @@ class TestAuthStatusSaasLine:
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
         assert "Not authenticated" in flat
-        assert "not configured" in flat
-        assert "SPEC_KITTY_SAAS_URL" in flat
+        assert "https://team.spec-kitty.ai" in flat
+        assert "(packaged default)" in flat
         assert "Session SaaS:" not in flat  # no session -> nothing to name
 
     def test_endpoint_and_mismatch_shown_in_expired_branch(self):

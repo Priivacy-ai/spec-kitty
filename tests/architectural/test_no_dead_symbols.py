@@ -1924,6 +1924,54 @@ _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozens
 )
 
 
+# ---------- C. team-kitty-launch-defaults 3980 forward API ----------
+# The #3980 launch-defaults flip introduced the canonical env-name constants
+# in ``specify_cli.core.env`` and kept ``sync_active()`` as the contract-pinned
+# armed predicate (``kitty-specs/082-.../contracts/saas_rollout.md`` v3). None
+# has a cross-file ``src/`` caller yet:
+#
+# * the three ``core.env`` constants are consumed by their own module's gate
+#   functions (``sync_kill_switch_active`` / ``pre_review_gate_skip_reason`` /
+#   ``moment_handlers_disabled_reason``) and imported by tests
+#   (``tests/specify_cli/core/test_env.py``, the agent-command conftest), but
+#   the parallel literal name lists in ``core/secret_redaction.py`` and
+#   ``upgrade/migrations/m_3_2_8_provision_kitty_env.py`` predate the
+#   constants and still hardcode the strings.
+# * ``sync_active()``'s last runtime caller (the owned-checkout
+#   ``OWNED_SYNC_UNSUPPORTED`` refusal) was removed by #3980 itself; the
+#   contract still requires its kill-switch/disarm test coverage, and the
+#   launch table names it as the ``SPEC_KITTY_SYNC_DISABLE`` consumer.
+#
+# TODO(triage): #3980 post-launch — wire the literal-list sites to the
+# constants, and either wire a ``sync_active()`` consumer (the kill-switch
+# fold into readiness/tracker gating) or retire it with the next contract
+# version bump, then drop these entries.
+_CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980: frozenset[SymbolKey] = frozenset(
+    {
+        SymbolKey(
+            "SYNC_KILL_SWITCH_ENV_VAR",
+            "6479687cac1de60595e0be63142ebfc2bd27d92674a2632b2b28ce97079e452d",
+            source_module="specify_cli.core.env",
+        ),
+        SymbolKey(
+            "MOMENT_HANDLER_DISABLE_ENV_VARS",
+            "0374ae9a0aa99f632c537396a59c5a111471ff7cc161316bb814277259b96e06",
+            source_module="specify_cli.core.env",
+        ),
+        SymbolKey(
+            "PRE_REVIEW_GATE_SKIP_ENV_VAR",
+            "3cabc812bbdd0e37a010ef534f86a0855482ed4c7037dbd1c87a73228ae88bff",
+            source_module="specify_cli.core.env",
+        ),
+        SymbolKey(
+            "sync_active",
+            "c21b2cddf0f28b99c6e029bcd1f4bbb8fb099055257142e143ed45bf64987195",
+            source_module="specify_cli.core.saas_sync_config",
+        ),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1965,6 +2013,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
     | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
+    | _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980
 )
 
 
