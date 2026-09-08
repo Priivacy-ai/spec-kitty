@@ -121,7 +121,7 @@ def test_retry_after_failure_yields_exactly_one_mission(tmp_path: Path, monkeypa
         **_mission_summary("retry-check"),
     )
 
-    assert len(_scaffolds(tmp_path)) == 1, f"expected exactly one mission after retry, got {_scaffolds(tmp_path)}"
+    assert len(_scaffolds(tmp_path)) == 1, f"expected exactly one mission after retry, got {_scaffolds(tmp_path)}"  # golden-count: cardinality-is-contract
 
 
 def test_rollback_preserves_a_pre_existing_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -139,7 +139,7 @@ def test_rollback_preserves_a_pre_existing_mission(tmp_path: Path, monkeypatch: 
         **_mission_summary("keep-me"),
     )
     survivors = _scaffolds(tmp_path)
-    assert len(survivors) == 1
+    assert len(survivors) == 1  # golden-count: cardinality-is-contract
 
     _fail_at_meta_write(monkeypatch, tmp_path)
     with pytest.raises(Exception, match="refusing to commit to protected branch"):
@@ -200,7 +200,5 @@ def test_tracking_probe_launch_failure_preserves_scaffold(tmp_path: Path, monkey
         raise OSError("git unavailable")
 
     monkeypatch.setattr("specify_cli.core.mission_creation.subprocess.run", unavailable)
-    assert _plan_orphan_scaffold_removal(
-        tmp_path, mission_slug="orphan-check", pre_existing_scaffolds=frozenset()
-    ) == ()
+    assert _plan_orphan_scaffold_removal(tmp_path, mission_slug="orphan-check", pre_existing_scaffolds=frozenset()) == ()
     assert scaffold.exists()

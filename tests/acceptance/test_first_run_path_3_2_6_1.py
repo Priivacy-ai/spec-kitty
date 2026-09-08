@@ -147,7 +147,7 @@ def test_documented_getting_started_path_succeeds(project: Path) -> None:
 
     assert result.returncode == 0, f"the documented path failed:\n{result.stdout}\n{result.stderr}"
     missions = _missions(project)
-    assert len(missions) == 1, f"expected exactly one mission, got {missions}"
+    assert len(missions) == 1, f"expected exactly one mission, got {missions}"  # golden-count: cardinality-is-contract
 
     branch = _declared_coordination_branch(project, missions[0])
     assert branch is not None
@@ -246,7 +246,7 @@ def test_reporter_scenario_yields_exactly_one_mission(project: Path) -> None:
 
     assert recovered.returncode == 0, f"the documented recovery failed:\n{recovered.stdout}\n{recovered.stderr}"
     missions = _missions(project)
-    assert len(missions) == 1, f"one intended mission produced {len(missions)} directories: {missions}"
+    assert len(missions) == 1, f"one intended mission produced {len(missions)} directories: {missions}"  # golden-count: cardinality-is-contract
 
 
 def test_documented_recovery_from_the_protected_branch_error(project: Path) -> None:
@@ -257,7 +257,7 @@ def test_documented_recovery_from_the_protected_branch_error(project: Path) -> N
     retried = _cli(project, "specify", "task-list")
 
     assert retried.returncode == 0, f"retry on a feature branch failed:\n{retried.stdout}\n{retried.stderr}"
-    assert len(_missions(project)) == 1
+    assert len(_missions(project)) == 1  # golden-count: cardinality-is-contract
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +309,7 @@ def test_unborn_head_error_names_a_remedy_that_works(tmp_path: Path) -> None:
     retried = _cli(repo, "specify", "task-list")
 
     assert retried.returncode == 0, f"the prescribed remedy did not unblock the user:\n{retried.stdout}\n{retried.stderr}"
-    assert len(_missions(repo)) == 1
+    assert len(_missions(repo)) == 1  # golden-count: cardinality-is-contract
 
 
 # ---------------------------------------------------------------------------
