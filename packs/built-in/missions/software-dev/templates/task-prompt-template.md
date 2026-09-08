@@ -5,8 +5,8 @@ subtasks:
 title: "Replace with work package title"
 task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
-execution_mode: "code_change"  # code_change | planning_artifact — drives ownership consistency checks
-owned_files:  # Repo-root-relative paths/globs this WP owns (e.g. src/..., tests/...) — never host-absolute or worktree-prefixed
+execution_mode: "code_change"  # code_change | planning_artifact — code_change WPs may never own kitty-specs/ paths; planning_artifact WPs must confine every owned_files entry to kitty-specs/ or docs/
+owned_files:  # Repo-root-relative paths/globs this WP owns (e.g. src/..., tests/...) — never host-absolute or worktree-prefixed; a code_change WP must never list a kitty-specs/ path (finalize-tasks rejects it with INVALID_WP_OWNED_FILES_KITTY_SPECS); per-WP design notes / kitty-specs deliverables go in a separate planning_artifact WP confined to kitty-specs/ or docs/
   - "src/replace/with/owned/surface.py"
   - "tests/replace/with/owned/test_surface.py"
 authoritative_surface: "src/replace/with/primary/surface/"  # Repo-root-relative prefix; must prefix at least one owned_files entry
