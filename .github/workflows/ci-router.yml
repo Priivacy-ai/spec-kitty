@@ -417,14 +417,30 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.corpus == 'true' }}
     steps:
+      # fetch-depth: 0 — the corpus suite includes the shrink-only ratchet
+      # (test_transition_guard_shrink_only), which walks history back to the EXP
+      # port base commit; a shallow clone can't reach it and the test fails
+      # closed "not reachable in this CI checkout". Full history makes the base
+      # reachable so the ratchet runs.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          # corpus exit-5 floor (#3008): "no tests collected" is a failure.
-          uv run --frozen pytest tests/corpus -q
+          # The corpus suite is MARKER-selected, not a directory: spec.md AC-3 and
+          # the WP14 contract prescribe the `-m corpus` exit-5 floor, and the
+          # `corpus` marker (pytest.ini) tags every corpus-reading test across the
+          # tree. `pytest tests/corpus` pointed at a directory that never existed
+          # (exit 4, "file or directory not found"). Select by marker per the
+          # marker's own documented invocation; pytest exits 5 if zero corpus
+          # tests are collected, which fails the job (the #3008 exit-5 floor).
+          # ~1400 corpus tests: run parallel (--dist loadfile, per-worker HOME
+          # isolation via conftest) to stay well inside the job timeout — serial
+          # is ~8-15 min on a stock runner.
+          uv run --frozen pytest -m "corpus and not windows_ci" -q -n auto --dist loadfile
 
   tests-e2e:
     name: tests (e2e)
