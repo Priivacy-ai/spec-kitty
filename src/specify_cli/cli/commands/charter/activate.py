@@ -48,6 +48,10 @@ from charter.activation.kind_vocabulary import (
 )
 from charter.activation.pack_context import CharterPackConfigError, PackContext
 from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.project_registration import (
+    commit_project_registration,
+    plan_project_registration,
+)
 
 from specify_cli.cli.commands.charter._layer_roots import (
     resolve_layer_roots,
@@ -132,13 +136,14 @@ def _source_urn(
     except MissionTypeNotAnArtifactKind:
         return None
     try:
-        return resolve_artifact_urn(
+        resolved: str = resolve_artifact_urn(
             kind_enum,
             artifact_id,
             doctrine_root=resolve_doctrine_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
+        return resolved
     except UnknownArtifactIdError:
         return None
 
@@ -165,12 +170,13 @@ def _drg_id_to_config_id(
     only pack ``layer_roots["org"]`` could ever carry).
     """
     try:
-        return resolve_config_id(
+        resolved: str = resolve_config_id(
             f"{kind_value}:{drg_id}",
             doctrine_root=doctrine_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
+        return resolved
     except (UnknownArtifactIdError, ValueError):
         return drg_id
 
@@ -669,6 +675,7 @@ def activate_cmd(
 
     manager = CharterPackManager()
     try:
+        registration = plan_project_registration(repo_root)
         result = manager.activate(
             ctx_project,
             kind,
@@ -679,6 +686,8 @@ def activate_cmd(
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
+
+    commit_project_registration(registration)
 
     for msg in result.activated:
         console.print(f"[green]Activated[/green]: {msg}")
