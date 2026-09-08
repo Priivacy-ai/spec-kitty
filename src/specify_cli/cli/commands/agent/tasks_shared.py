@@ -739,6 +739,10 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
     if not candidates:
         return []
 
+    # Pass 2 diffs against the planning *tip* while pass 1 diffs against the
+    # *merge-base* — the asymmetry IS the #2274 content-vs-history fix, not
+    # duplication to simplify away; collapsing both passes onto one base
+    # reintroduces #2274.
     return _tasks._filter_by_planning_tip_content(worktree_path, candidates, base_branch)
 
 

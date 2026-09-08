@@ -41,6 +41,12 @@ def is_occurrence_map_path(path: str) -> bool:
     Matches exactly ``kitty-specs/<mission>/occurrence_map.yaml`` — the map lives
     directly under the mission directory (three path segments). Every other
     ``kitty-specs/`` path stays governed.
+
+    The match is filename-scoped, not mission-scoped: *any* mission's
+    occurrence map passes, and that widening is identical across both guards
+    (the #2980 symmetry goal — the guards must never disagree). Tightening it
+    to the lane's own mission is deliberately deferred until cross-mission
+    occurrence-map writes become a real vector (#3559).
     """
     if not path.startswith(f"{KITTY_SPECS_DIR}/"):
         return False

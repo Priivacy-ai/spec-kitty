@@ -24,6 +24,7 @@ from specify_cli.core import (
 )
 from specify_cli.core.env import is_interactive
 from kernel.clock import now_utc_iso
+from specify_cli.core.constants import OCCURRENCE_MAP_FILENAME
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.core.vcs import (
     is_git_available,
@@ -187,7 +188,7 @@ _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/mission-events.jsonl linguist-generated=true",
     "kitty-specs/**/snapshot-latest.json linguist-generated=true",
     "kitty-specs/**/acceptance-matrix.json linguist-generated=true",
-    "kitty-specs/**/occurrence_map.yaml linguist-generated=true",
+    f"kitty-specs/**/{OCCURRENCE_MAP_FILENAME} linguist-generated=true",
     "kitty-specs/**/tasks/** linguist-generated=true",
     "kitty-specs/**/research/evidence-log.csv linguist-generated=true",
     "kitty-specs/**/research/source-register.csv linguist-generated=true",
