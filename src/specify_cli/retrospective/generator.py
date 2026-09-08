@@ -30,7 +30,10 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.analysis_report import VERDICT_UNKNOWN as _ANALYSIS_VERDICT_UNKNOWN
 from specify_cli.mission_metadata import load_meta_or_empty
+from ruamel.yaml import YAML as _YAML
+from ruamel.yaml.error import YAMLError as _YAMLError
 from specify_cli.retrospective.schema import (
     FindingsStatus,
     GenActor,
@@ -515,15 +518,38 @@ def _is_arbiter_event(event: dict[str, Any]) -> bool:
     return any(marker in note for marker in _ARBITER_MARKERS)
 
 
+def _arbiter_override_signature(event: dict[str, Any]) -> str:
+    """Grouping key for arbiter-override events: the text one invocation shares.
+
+    ``move-task`` emits one event per lane hop and every hop of a single
+    invocation carries the same operator ``reason`` (bound once, passed
+    unchanged per hop), so the reason identifies the decision, not the hop
+    (#3793). Events matched only through their evidence (no top-level
+    reason) group on the evidence text instead.
+    """
+    reason = event.get("reason")
+    if isinstance(reason, str) and reason.strip():
+        return reason.strip().lower()
+    return _event_note(event)
+
+
 def _detect_arbiter_overrides(events: list[dict[str, Any]]) -> dict[str, int]:
-    """Count arbiter-override events per WP."""
-    counts: dict[str, int] = {}
+    """Count arbiter-override decisions per WP.
+
+    Matching events are grouped by ``(wp_id, signature)`` where the signature
+    is the operator reason one ``move-task`` invocation shares across all its
+    lane hops — counting raw events would count hops, not overrides (#3793).
+    """
+    groups: set[tuple[str, str]] = set()
     for event in events:
         wp_id = event.get("wp_id", "")
         if not wp_id:
             continue
         if _is_arbiter_event(event):
-            counts[wp_id] = counts.get(wp_id, 0) + 1
+            groups.add((wp_id, _arbiter_override_signature(event)))
+    counts: dict[str, int] = {}
+    for wp_id, _signature in groups:
+        counts[wp_id] = counts.get(wp_id, 0) + 1
     return counts
 
 
@@ -848,6 +874,53 @@ def _build_trace_findings(
     return helped, not_helpful, gaps
 
 
+def _parse_leading_frontmatter(text: str) -> dict[str, Any] | None:
+    """Parse a report artifact's leading YAML frontmatter block, leniently.
+
+    Both T037 artifacts persist their findings as frontmatter (written by
+    ``specify_cli.analysis_report.write_analysis_report`` and
+    ``cli.commands.review._report.write_review_report``). This is the
+    read-path counterpart to those writers: it returns ``None`` when the text
+    carries no leading ``---`` block or the block does not parse, so a caller
+    can distinguish "checked and empty" from "not machine-readable" (#3793).
+    """
+    if not text.startswith("---"):
+        return None
+    lines = text.splitlines()
+    closing = -1
+    for idx in range(1, len(lines)):
+        if lines[idx].strip() == "---":
+            closing = idx
+            break
+    if closing == -1:
+        return None
+    try:
+        parsed = _YAML(typ="safe").load("\n".join(lines[1:closing]))
+    except _YAMLError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return dict(parsed)
+
+
+def _report_findings_count(frontmatter: dict[str, Any] | None) -> int | None:
+    """Finding count a report's frontmatter records, or ``None`` if unusable.
+
+    ``analysis-report.md`` frontmatter carries a ``findings`` list;
+    ``mission-review-report.md`` frontmatter carries a ``findings`` integer.
+    ``None`` means no usable field was present — the caller must then report
+    presence without claiming content it never checked (#3793).
+    """
+    if frontmatter is None:
+        return None
+    findings = frontmatter.get("findings")
+    if isinstance(findings, list):
+        return len(findings)
+    if isinstance(findings, int) and not isinstance(findings, bool):
+        return int(findings)
+    return None
+
+
 def _build_ingestor_findings(
     *,
     workflow_failures_text: str | None,
@@ -909,35 +982,113 @@ def _build_ingestor_findings(
                 )
             )
 
-    # analysis-report.md ingestor (T037)
+    # analysis-report.md ingestor (T037) — content-checked, not presence-only
+    # (#3793). The finding must assert only what the parsed frontmatter
+    # establishes; a present-but-unstructured report is reported as exactly
+    # that, never as "findings".
     if analysis_report_text is not None:
-        not_helpful.append(
-            GenFinding(
-                id=_next_finding_id("n", finding_id_counters),
-                category="doc",
-                summary="analysis-report.md present with findings",
-                details=(
-                    "An analysis-report.md artifact is present for this mission. "
-                    "Review its findings to understand documented issues and decisions."
-                ),
-                evidence_refs=[ev_reg.add_file(analysis_report_rel)],
+        frontmatter = _parse_leading_frontmatter(analysis_report_text)
+        count = _report_findings_count(frontmatter)
+        verdict = frontmatter.get("verdict") if frontmatter is not None else None
+        # A legacy report (no analysis-findings/v1 carrier) records
+        # ``verdict: unknown`` with an empty findings list — its body may
+        # still carry unstructured prose findings, so an empty list there
+        # does not establish "no findings".
+        if count is not None and verdict not in (None, _ANALYSIS_VERDICT_UNKNOWN):
+            if count > 0:
+                not_helpful.append(
+                    GenFinding(
+                        id=_next_finding_id("n", finding_id_counters),
+                        category="doc",
+                        summary=f"analysis-report.md records {count} finding(s)",
+                        details=(
+                            "The analysis-report.md artifact for this mission "
+                            f"records {count} finding(s) in its structured "
+                            "frontmatter. Review them to understand documented "
+                            "issues and decisions."
+                        ),
+                        evidence_refs=[ev_reg.add_file(analysis_report_rel)],
+                    )
+                )
+            else:
+                helped.append(
+                    GenFinding(
+                        id=_next_finding_id("h", finding_id_counters),
+                        category="doc",
+                        summary="analysis-report.md present with no recorded findings",
+                        details=(
+                            "An analysis-report.md artifact is present and its "
+                            "frontmatter records zero findings with a resolved "
+                            "verdict — the analysis raised nothing."
+                        ),
+                        evidence_refs=[ev_reg.add_file(analysis_report_rel)],
+                    )
+                )
+        else:
+            not_helpful.append(
+                GenFinding(
+                    id=_next_finding_id("n", finding_id_counters),
+                    category="doc",
+                    summary="analysis-report.md present; findings not machine-readable",
+                    details=(
+                        "An analysis-report.md artifact is present for this "
+                        "mission, but its leading frontmatter does not carry a "
+                        "machine-readable findings count; review it manually."
+                    ),
+                    evidence_refs=[ev_reg.add_file(analysis_report_rel)],
+                )
             )
-        )
 
-    # mission-review-report.md ingestor (T037)
+    # mission-review-report.md ingestor (T037) — content-checked, not
+    # presence-only (#3793), same rule as the analysis-report ingestor above.
     if review_report_text is not None:
-        not_helpful.append(
-            GenFinding(
-                id=_next_finding_id("n", finding_id_counters),
-                category="review_loop",
-                summary="mission-review-report.md present with findings",
-                details=(
-                    "A mission-review-report.md artifact is present for this mission. "
-                    "Review its findings to understand documented review outcomes."
-                ),
-                evidence_refs=[ev_reg.add_file(review_report_rel)],
+        review_frontmatter = _parse_leading_frontmatter(review_report_text)
+        review_count = _report_findings_count(review_frontmatter)
+        if review_count is not None:
+            if review_count > 0:
+                not_helpful.append(
+                    GenFinding(
+                        id=_next_finding_id("n", finding_id_counters),
+                        category="review_loop",
+                        summary=f"mission-review-report.md records {review_count} finding(s)",
+                        details=(
+                            "The mission-review-report.md artifact for this "
+                            f"mission records {review_count} finding(s) in its "
+                            "frontmatter. Review them to understand documented "
+                            "review outcomes."
+                        ),
+                        evidence_refs=[ev_reg.add_file(review_report_rel)],
+                    )
+                )
+            else:
+                helped.append(
+                    GenFinding(
+                        id=_next_finding_id("h", finding_id_counters),
+                        category="review_loop",
+                        summary="mission-review-report.md present with no findings",
+                        details=(
+                            "A mission-review-report.md artifact is present and "
+                            "its frontmatter records zero findings — the review "
+                            "pass raised nothing."
+                        ),
+                        evidence_refs=[ev_reg.add_file(review_report_rel)],
+                    )
+                )
+        else:
+            not_helpful.append(
+                GenFinding(
+                    id=_next_finding_id("n", finding_id_counters),
+                    category="review_loop",
+                    summary="mission-review-report.md present; findings not machine-readable",
+                    details=(
+                        "A mission-review-report.md artifact is present for "
+                        "this mission, but its leading frontmatter does not "
+                        "carry a machine-readable findings count; review it "
+                        "manually."
+                    ),
+                    evidence_refs=[ev_reg.add_file(review_report_rel)],
+                )
             )
-        )
 
     # Tracer ingestor (T012 / FR-007) — extends this seam, same finding channels.
     trace_helped, trace_not_helpful, trace_gaps = _build_trace_findings(
