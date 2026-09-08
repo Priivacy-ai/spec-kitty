@@ -309,7 +309,7 @@ jobs:
   architectural-heavy:
     name: architectural battery (heavy, code-scoped)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     needs: [changes]
     if: >-
       needs.changes.outputs.merge == 'true' ||
@@ -336,7 +336,13 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          # Run the battery in parallel (per-worker HOME isolation via conftest,
+          # --dist loadfile) — the full serial run overran the timeout. Deselect
+          # the parallel-unsafe / off-PR families (performance/stress/timing),
+          # matching make test-full's PARALLEL_UNSAFE_MARKERS.
           uv run --frozen pytest tests/architectural -q \
+            -m "not performance and not stress and not timing" \
+            -n auto --dist loadfile \
             --deselect tests/architectural/test_no_legacy_terminology.py \
             --deselect tests/architectural/test_layer_rules.py \
             --deselect tests/architectural/test_pyproject_shape.py
