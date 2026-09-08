@@ -44,7 +44,7 @@ def _init_repo(repo: Path) -> None:
     (kittify_dir / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "init", "-b", "operator-work"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
         cwd=repo,
@@ -97,7 +97,6 @@ def test_mission_create_appends_mission_created_and_specify_started(tmp_path: Pa
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -124,7 +123,6 @@ def test_mission_create_specify_started_payload_references_spec_md(tmp_path: Pat
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -148,7 +146,6 @@ def test_mission_create_specify_started_is_idempotent(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -193,7 +190,6 @@ def test_template_configuration_failure_emits_no_lifecycle_events(tmp_path: Path
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=invalid_context,
