@@ -1418,7 +1418,37 @@ def _run_full_plan_json(
     raise typer.Exit(int(payload["process_exit_code"]))
 
 
-def upgrade(  # noqa: C901 - public command preserves legacy routing while adding explicit full preview
+def _check_upgrade_intent_conflicts(
+    *, json_output: bool, plan_json: bool, target: str | None, project: bool, no_worktrees: bool,
+) -> None:
+    """Preserve the parser conflict contract before dispatching upgrade work."""
+    current_context = click.get_current_context(silent=True)
+    intent = current_context.meta.get("upgrade_intent") if current_context is not None else None
+    if intent is not None and intent.conflicts:
+        message = "\n".join(intent.conflicts)
+        if json_output or plan_json:
+            if plan_json:
+                _emit_blocked_full_plan(
+                    project_path=Path.cwd(), target=target, project=project,
+                    no_worktrees=no_worktrees, confirm=False, code=2,
+                    diagnostic_code="incompatible_flags", message=message,
+                )
+            from specify_cli.compat.planner import Invocation, plan
+
+            payload = dict(plan(Invocation(
+                command_path=("upgrade",), raw_args=("--cli", "--project"),
+                is_help=False, is_version=False, flag_no_nag=True,
+                env_ci=True, stdout_is_tty=False,
+            ), read_only=True, project_root_resolver=lambda _path: Path.cwd(), include_migrations=False).rendered_json)
+            payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, pending_migrations=[], rendered_human=message[:1024])
+            print(json.dumps(payload))
+        else:
+            console.print(message, markup=False)
+        raise typer.Exit(2)
+
+
+
+def upgrade(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
     target: str | None = typer.Option(None, "--target", help="Target version (defaults to current CLI version)"),
@@ -1470,29 +1500,9 @@ def upgrade(  # noqa: C901 - public command preserves legacy routing while addin
         spec-kitty upgrade --yes        # Non-interactive (same as --force)
         spec-kitty upgrade --dry-run --json  # Machine-readable plan
     """
-    current_context = click.get_current_context(silent=True)
-    intent = current_context.meta.get("upgrade_intent") if current_context is not None else None
-    if intent is not None and intent.conflicts:
-        message = "\n".join(intent.conflicts)
-        if json_output or plan_json:
-            if plan_json:
-                _emit_blocked_full_plan(
-                    project_path=Path.cwd(), target=target, project=project,
-                    no_worktrees=no_worktrees, confirm=False, code=2,
-                    diagnostic_code="incompatible_flags", message=message,
-                )
-            from specify_cli.compat.planner import Invocation, plan
-
-            payload = dict(plan(Invocation(
-                command_path=("upgrade",), raw_args=("--cli", "--project"),
-                is_help=False, is_version=False, flag_no_nag=True,
-                env_ci=True, stdout_is_tty=False,
-            ), read_only=True, project_root_resolver=lambda _path: Path.cwd(), include_migrations=False).rendered_json)
-            payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, pending_migrations=[], rendered_human=message[:1024])
-            print(json.dumps(payload))
-        else:
-            console.print(message, markup=False)
-        raise typer.Exit(2)
+    _check_upgrade_intent_conflicts(
+        json_output=json_output, plan_json=plan_json, target=target, project=project, no_worktrees=no_worktrees,
+    )
 
     _dispatch_agent_flags(
         agent_check=agent_check,
