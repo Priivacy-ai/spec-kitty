@@ -138,8 +138,12 @@ jobs:
     steps:
       - name: Check Sonar token availability
         id: sonar_token
+        env:
+          # Env-mapped (never interpolated into the script text) so the
+          # secret value and any expression never touch the shell command.
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          if [ -n "${{ secrets.SONAR_TOKEN }}" ]; then
+          if [ -n "$SONAR_TOKEN" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
@@ -206,11 +210,18 @@ jobs:
       - name: Resolve SonarCloud branch arguments
         id: sonar_branch
         if: steps.sonar_token.outputs.enabled == 'true'
+        env:
+          # Env-mapped so a branch name carrying shell metacharacters can
+          # never be interpreted as code by this step's script.
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ -n "${{ github.event.pull_request.number }}" ]; then
-            echo "args=-Dsonar.pullrequest.key=${{ github.event.pull_request.number }} -Dsonar.pullrequest.branch=${{ github.head_ref }} -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+          if [ -n "$PR_NUMBER" ]; then
+            echo "args=-Dsonar.pullrequest.key=$PR_NUMBER -Dsonar.pullrequest.branch=$PR_HEAD_REF -Dsonar.pullrequest.base=$PR_BASE_REF" >> "$GITHUB_OUTPUT"
           else
-            echo "args=-Dsonar.branch.name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "args=-Dsonar.branch.name=$REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
       - name: SonarCloud Scan
