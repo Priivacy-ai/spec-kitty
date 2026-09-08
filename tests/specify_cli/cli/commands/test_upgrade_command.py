@@ -392,7 +392,7 @@ def test_cli_update_available_json_contract(tmp_path: Path) -> None:
     """Outdated CLI: --cli --json emits valid compat-planner contract."""
     _make_compatible_project(tmp_path, schema_version=3)
 
-    from datetime import UTC, datetime
+    from kernel.clock import now_utc
     from specify_cli.compat.cache import NagCache, NagCacheRecord
     from specify_cli.compat.planner import _cache_version_key, _get_installed_version
     from specify_cli.core.channel import prerelease_enabled
@@ -403,7 +403,7 @@ def test_cli_update_available_json_contract(tmp_path: Path) -> None:
     cache.write(NagCacheRecord(
         cli_version_key=_cache_version_key(_get_installed_version(), prerelease=prerelease_enabled()),
         latest_version="999.0.0", latest_source="pypi",
-        fetched_at=datetime.now(UTC), last_shown_at=None,
+        fetched_at=now_utc(), last_shown_at=None,
     ))
     before = cache_path.read_bytes()
     with patch("specify_cli.compat.cache.NagCache.default", return_value=cache):
