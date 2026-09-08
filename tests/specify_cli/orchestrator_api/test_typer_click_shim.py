@@ -10,11 +10,14 @@ defines only ``UsageError`` — no ``Abort``, no ``Exit`` — and raises typer's
 from __future__ import annotations
 
 import json
+import tomllib
 import types
+from pathlib import Path
 
 import click
 import pytest
 import typer
+from packaging.requirements import Requirement
 from typer.testing import CliRunner
 
 from specify_cli.orchestrator_api import commands as shim
@@ -95,3 +98,51 @@ def test_public_typer_exit_code_is_preserved():
     result = CliRunner().invoke(_group_app(), ["leave"])
 
     assert result.exit_code == 7
+
+
+# --- #3794: the dependency must be bounded, and the shim defined once -----
+#
+# A fresh install once resolved typer 0.27.2 against an unbounded
+# ``typer>=0.24.1`` and died at import time (the bug this file's header
+# describes).  Two structural regressions guard the fix: the declared
+# requirement carries an upper bound the locked version satisfies, and the
+# shim block is defined exactly once (a merge on main once pasted the whole
+# block twice — the second, silently-winning copy is exactly the hazard the
+# dedup guards against).
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _typer_requirement() -> Requirement:
+    data = tomllib.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    requirements = [Requirement(dep) for dep in data["project"]["dependencies"]]
+    typer_requirements = [req for req in requirements if req.name == "typer"]
+    assert len(typer_requirements) == 1
+    return typer_requirements[0]
+
+
+def test_typer_requirement_carries_an_upper_bound():
+    """#3794: an unbounded ``typer>=0.24.1`` let fresh resolves break at import."""
+    requirement = _typer_requirement()
+
+    upper_bounds = [spec for spec in requirement.specifier if spec.operator in ("<", "<=", "==", "===", "~=")]
+    assert upper_bounds, "typer requirement must bound the range above (#3794)"
+
+
+def test_locked_typer_satisfies_the_declared_requirement():
+    """The uv.lock pin stays inside the bounded range (lock-parity, T001)."""
+    requirement = _typer_requirement()
+    lock = tomllib.loads((_REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    locked = next(entry["version"] for entry in lock["package"] if entry.get("name") == "typer")
+
+    assert requirement.specifier.contains(locked, prereleases=True), f"uv.lock pins typer {locked}, outside the declared {requirement.specifier}"
+
+
+def test_shim_block_is_defined_exactly_once():
+    """The shim helpers/constants exist once — a merge once duplicated them."""
+    source = Path(shim.__file__).read_text(encoding="utf-8")
+
+    for name in ("_vendored_click_exception", "_exception_classes"):
+        assert source.count(f"def {name}(") == 1, f"{name} is defined more than once"
+    for name in ("_CLICK_USAGE_ERRORS", "_CLICK_ABORTS", "_EXIT"):
+        assert source.count(f"\n{name} = ") == 1, f"{name} is assigned more than once"
