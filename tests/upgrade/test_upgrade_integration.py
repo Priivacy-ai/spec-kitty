@@ -176,6 +176,10 @@ def test_project_yes_full_success_exits_zero_with_printed_outcome(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
+def _fail_retained_activation_apply(_self: object) -> bool:
+    raise ValueError("forced activation failure")
+
+
 def test_failed_run_exit_code_equals_outcome_exit_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A FAILED run's exit code comes from ``UpgradeOutcome.exit_code`` — not
     a stray ``typer.Exit`` surviving in the tail (post-tasks squad concern;
@@ -186,8 +190,8 @@ def test_failed_run_exit_code_equals_outcome_exit_code(tmp_path: Path, monkeypat
     _init_project(project)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._provision_missing_mission_type_activations",
-        lambda *_a, **_k: ["forced activation failure"],
+        "charter.activation.compiler._PreparedMissionTypeActivations.apply",
+        _fail_retained_activation_apply,
     )
 
     result = _run_upgrade(
@@ -208,8 +212,8 @@ def test_failed_run_exit_code_equals_outcome_exit_code_human_mode(tmp_path: Path
     _init_project(project)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._provision_missing_mission_type_activations",
-        lambda *_a, **_k: ["forced activation failure"],
+        "charter.activation.compiler._PreparedMissionTypeActivations.apply",
+        _fail_retained_activation_apply,
     )
 
     result = _run_upgrade(["--target", "1.0.0a1", "--yes", "--no-worktrees"], cwd=project)
@@ -315,6 +319,9 @@ def test_auto_commit_disabled_reports_left_uncommitted_human_mode(tmp_path: Path
 
     upgrade_cmd.upgrade(
         dry_run=False,
+        plan_json=False,
+        yes=False,
+        no_nag=False,
         force=True,
         target="3.2.0a4",
         json_output=False,
@@ -347,6 +354,9 @@ def test_auto_commit_disabled_json_mode_still_reports_auto_committed_false(
 
     upgrade_cmd.upgrade(
         dry_run=False,
+        plan_json=False,
+        yes=False,
+        no_nag=False,
         force=True,
         target="3.2.0a4",
         json_output=True,
@@ -414,6 +424,9 @@ def test_auto_commit_disabled_worktree_decision_reaches_runner_fanout(tmp_path: 
 
     upgrade_cmd.upgrade(
         dry_run=False,
+        plan_json=False,
+        yes=False,
+        no_nag=False,
         force=True,
         target="3.2.0a4",
         json_output=True,

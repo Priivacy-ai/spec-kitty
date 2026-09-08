@@ -455,7 +455,7 @@ def _recheck_skill_provisioning(
         raise ValueError("Managed skill provisioning bytes changed")
     if write.before_bytes is None:
         write.recheck_applied()
-        return write.target
+        return cast(Path, write.target)
     original = next(item for item in write.observations if item.path == write.target)
     current = observe_yaml_input(write.target)
     prior, actual = original.identity, current.identity
