@@ -90,28 +90,24 @@ python scripts/release/check_exact_install.py \
   --console-arg=--version
 ```
 
-### `check_candidate_consumer_compat.py`
+### `check_candidate_consumer_compat.py` — retired
 
-Validates the built wheel's `Requires-Dist` metadata against the SaaS consumer
-contract document.
-
-```bash
-python scripts/release/check_candidate_consumer_compat.py \
-  --package spec-kitty-cli \
-  --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
-```
+Removed on the 3.2.6 line (backport of #3979). It validated the wheel against
+`spec-kitty-saas/contracts/consumer-compatibility.json`, which no longer
+exists; with it went the FR-026 downstream-consumer promotion gate. See
+CHANGELOG 3.2.6.1.
 
 ## Workflow Integration
 
 - PR release metadata validation: `.github/workflows/release-readiness.yml`
-- PR/package CI and SaaS consumer compatibility: `.github/workflows/ci-quality.yml`
+- PR/package CI: `.github/workflows/ci-quality.yml`
 - PR shared-package pin drift: `.github/workflows/check-spec-kitty-events-alignment.yml`
 - Tag releases: `.github/workflows/release.yml` (triggers on stable and prerelease `v*.*.*` tags)
 
 Release PR check ownership:
 
 1. `Release Readiness Check` validates release metadata only: version, changelog, and tag progression.
-2. `CI Quality` owns tests, wheel build, lockfile checks, exact install verification, and SaaS consumer compatibility evidence.
+2. `CI Quality` owns tests, wheel build, lockfile checks, and exact install verification.
 3. `Check Shared Package Drift` owns shared-package pin drift evidence.
 
 Live canary and cross-repo end-to-end runs are release-candidate hygiene, not
@@ -127,7 +123,6 @@ Tag-time publish workflow sequence:
 3. build the wheel candidate
 4. verify shared-package drift
 5. verify exact installability from the built wheel
-6. verify candidate compatibility against the SaaS consumer contract
 7. verify artifacts and extract changelog notes
 8. create GitHub Release
 9. publish to PyPI
@@ -150,9 +145,6 @@ python scripts/release/check_shared_package_drift.py \
   --saas-pyproject ../spec-kitty-saas/pyproject.toml
 python -m build
 python scripts/release/check_exact_install.py --package spec-kitty-cli
-python scripts/release/check_candidate_consumer_compat.py \
-  --package spec-kitty-cli \
-  --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
 twine check dist/*
 
 # 3) release-candidate hygiene (local trusted-runner evidence, before tagging)
