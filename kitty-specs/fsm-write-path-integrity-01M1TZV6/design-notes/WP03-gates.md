@@ -135,24 +135,3 @@ writer's rows and freezes each operation's outbound rows before releasing the
 lock. Fan-out consumes the captured stream after commit and lock release. The
 lock-composition census adds this existing fallback shell; the write allowlist
 and its shrink-only bounds are unchanged.
-
-## spec-kitty #3960 follow-up — the two rollback truncates close (DRIFT-2)
-
-The post-merge mission review (DRIFT-2) found the two rollback truncates this
-WP ledgered but did not close: the coord fallback arm's
-`coordination/status_transition.py::_restore_coord_status_artifacts` and its
-`cli/commands/agent/workflow.py::_restore_status_artifacts` twin both
-truncated `status.events.jsonl` back to a pre-emit byte size without
-verifying the tail they cut. Both migrated onto one status-owned, lock-held,
-tail-verified helper — `specify_cli.status.rollback.rollback_events_log_tail`
-(raw truncate primitive `store.truncate_events_log`; the helper re-acquires
-the same per-mission `feature_status_lock` the pipeline uses and refuses to
-cut a tail that is not exactly the rows the operation appended). Gate effect:
-the `ALLOWED_OUT_OF_STORE_WRITE_SITES` entry for the coord fallback arm and
-the `EXPECTED_UNRESOLVED_EVENT_NAMED_WRITE_SITES` pin for the workflow twin
-are REMOVED (ledger −2, shrink-only honored); the `_LEDGERED_SHAPES`
-path-open-truncate floor case is re-keyed to the transactional arm's own
-`self._events_path` entry, which stays ledgered (its truncate runs inside the
-transaction's own L1); the store's positive census gains the
-`("Path.open", "ab")` rollback-restore shape; and the R14 lock-composition
-census adds `specify_cli.status.rollback`.
