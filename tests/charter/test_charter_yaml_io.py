@@ -653,3 +653,67 @@ class TestMutateGovernancePreservesCatalogAndMetadata:
 
         document = load_charter_yaml(path)
         assert document["metadata"]["bundle_schema_version"] == 2
+
+
+@pytest.mark.parametrize("parents", [False, True])
+def test_yaml_creation_receipt_requires_exact_writer_and_unchanged_nodes(tmp_path: Path, parents: bool) -> None:
+    import copy
+    from dataclasses import replace
+    from charter.activation.charter_yaml_io import apply_yaml_write, prepare_yaml_write
+
+    target = tmp_path / "nested/config.yaml" if parents else tmp_path / "config.yaml"
+    prepared = prepare_yaml_write(target, b"mission_type_activations: []\n", section="activation")
+    assert not target.exists()
+    with pytest.raises(ValueError, match="no completion receipt"):
+        prepared.recheck_applied()
+    assert apply_yaml_write(prepared)
+    assert set(prepared.recheck_applied()) == {target, *prepared.absent_parents}
+    for clone in (copy.copy(prepared), copy.deepcopy(prepared), replace(prepared)):
+        with pytest.raises(ValueError, match="no completion receipt"):
+            clone.recheck_applied()
+    with pytest.raises(ValueError, match="precondition_changed"):
+        apply_yaml_write(prepared)
+    assert prepared.recheck_applied()  # Failed repeat did not erase the original receipt.
+
+
+@pytest.mark.parametrize("damage", ["replace", "hardlink", "symlink", "parent", "input"])
+def test_yaml_creation_receipt_refuses_post_write_interference(tmp_path: Path, damage: str) -> None:
+    import os
+    from charter.activation.charter_yaml_io import apply_yaml_write, observe_yaml_input, prepare_yaml_write
+
+    source = tmp_path / "source.yaml"
+    source.write_text("source: true\n")
+    target = tmp_path / "new/config.yaml"
+    prepared = prepare_yaml_write(target, b"mission_type_activations: []\n", section="activation", inputs=(observe_yaml_input(source),))
+    assert apply_yaml_write(prepared)
+    if damage == "replace":
+        replacement = tmp_path / "replacement"
+        replacement.write_bytes(target.read_bytes())
+        replacement.replace(target)
+    elif damage == "hardlink":
+        os.link(target, tmp_path / "alias")
+    elif damage == "symlink":
+        target.rename(tmp_path / "other")
+        target.symlink_to(tmp_path / "other")
+    elif damage == "parent":
+        target.parent.rename(tmp_path / "old")
+        target.parent.mkdir()
+        (tmp_path / "old/config.yaml").rename(target)
+    else:
+        source.write_text("source: false\n")
+    with pytest.raises(ValueError):
+        prepared.recheck_applied()
+
+
+def test_failed_yaml_creation_does_not_mint_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+    from charter.activation.charter_yaml_io import apply_yaml_write, prepare_yaml_write
+
+    prepared = prepare_yaml_write(tmp_path / "config.yaml", b"mission_type_activations: []\n", section="activation")
+    def fail(*args: object, **kwargs: object) -> int:
+        raise OSError("injected open failure")
+    monkeypatch.setattr(os, "open", fail)
+    with pytest.raises(OSError, match="injected"):
+        apply_yaml_write(prepared)
+    with pytest.raises(ValueError, match="no completion receipt"):
+        prepared.recheck_applied()

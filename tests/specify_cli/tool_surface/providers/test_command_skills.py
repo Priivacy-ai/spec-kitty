@@ -291,7 +291,7 @@ def test_provisioning_projection_cannot_remove_retained_dependency(tmp_path: Pat
     assert_unchanged(before, snapshot({"project": project}))
 
 
-def test_provisioning_projection_absent_authority_is_explicitly_unsupported(tmp_path: Path) -> None:
+def test_provisioning_projection_absent_authority_requires_canonical_apply(tmp_path: Path) -> None:
     from charter.activation.compiler import prepare_mission_type_activations
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
@@ -299,10 +299,18 @@ def test_provisioning_projection_absent_authority_is_explicitly_unsupported(tmp_
     project.mkdir()
     prepared = prepare_mission_type_activations(project)
     before = snapshot({"project": project})
-    _, assessment = _projection_assess(project, prepared)
-    assert not assessment.complete and not assessment.effects
-    assert "existing rendering authority" in assessment.diagnostics[0].message
+    provider, assessment = _projection_assess(project, prepared)
+    assert assessment.complete and assessment.effects
     assert_unchanged(before, snapshot({"project": project}))
+    from specify_cli.tool_surface.repair import SurfaceRepairService
+    refused = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)[0]
+    assert refused.outcome == "precondition_changed" and not refused.succeeded
+    assert_unchanged(before, snapshot({"project": project}))
+    assert prepared.apply()
+    applied = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)[0]
+    assert applied.outcome == "applied", applied.diagnostics
+    assert (project / ".kittify/config.yaml").read_bytes() == prepared.write.desired_bytes
+    assert (project / ".kittify/command-skills-manifest.json").exists()
 
 
 @pytest.mark.parametrize("missing", [False, True])

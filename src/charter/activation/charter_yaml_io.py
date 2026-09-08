@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 from io import StringIO
 import os
@@ -76,6 +76,12 @@ def observe_yaml_input(path: Path) -> _YamlInput:
 
 
 @dataclass(frozen=True)
+class _YamlWriteReceipt:
+    owner_identity: int
+    observations: tuple[_YamlInput, ...]
+
+
+@dataclass(frozen=True)
 class PreparedYamlWrite:
     """Exact YAML bytes and the complete bounded input set for one writer."""
 
@@ -88,6 +94,7 @@ class PreparedYamlWrite:
     section: str
     desired_sha256: str
     kind: str = "file"
+    _receipt: _YamlWriteReceipt | None = field(default=None, init=False, compare=False, repr=False)
 
     @property
     def changed(self) -> bool:
@@ -100,6 +107,25 @@ class PreparedYamlWrite:
         for observation in self.observations:
             if observe_yaml_input(observation.path) != observation:
                 raise ValueError(f"precondition_changed: {observation.path}")
+
+
+    def recheck_applied(self) -> tuple[Path, ...]:
+        """Verify this writer's completed transition, including created parents.
+
+        Equal bytes written by another actor are not evidence of this apply.
+        Replaced preparations start without a receipt and cannot borrow one.
+        """
+        receipt = self._receipt
+        if receipt is None or receipt.owner_identity != id(self):
+            raise ValueError("precondition_changed: YAML write has no completion receipt")
+        if _bytes_digest(self.desired_bytes) != self.desired_sha256:
+            raise ValueError("precondition_changed: prepared bytes")
+        transitioned = {item.path: item for item in receipt.observations}
+        for original in self.observations:
+            expected = transitioned.get(original.path, original)
+            if observe_yaml_input(original.path) != expected:
+                raise ValueError(f"precondition_changed: {original.path}")
+        return tuple(transitioned)
 
 
 def _bytes_digest(content: bytes) -> str:
@@ -147,16 +173,43 @@ def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
     prepared.recheck()
     if not prepared.changed:
         return False
+    completed = []
     for parent in prepared.absent_parents:
         parent.mkdir(mode=0o755)
+        created = observe_yaml_input(parent)
         parent.chmod(0o755)
+        current = observe_yaml_input(parent)
+        if (created.identity is None or current.identity is None
+                or created.identity[:2] != current.identity[:2]):
+            raise ValueError(f"precondition_changed: YAML created parent {parent}")
+        completed.append(current)
     flags = os.O_WRONLY | (os.O_EXCL | os.O_CREAT if prepared.before_bytes is None else os.O_TRUNC)
     flags |= getattr(os, "O_NOFOLLOW", 0)
     descriptor = os.open(prepared.target, flags, prepared.mode)
     with os.fdopen(descriptor, "wb") as stream:
         if prepared.before_bytes is None:
-            prepared.target.chmod(prepared.mode)
+            if hasattr(os, "fchmod"):
+                os.fchmod(stream.fileno(), prepared.mode)
+            else:  # Python 3.11 on Windows has no fchmod.
+                prepared.target.chmod(prepared.mode)
         stream.write(prepared.desired_bytes)
+        stream.flush()
+        actual = os.fstat(stream.fileno())
+        written = observe_yaml_input(prepared.target)
+        expected = (actual.st_dev, actual.st_ino, actual.st_mode, actual.st_mtime_ns,
+                    actual.st_ctime_ns, actual.st_size, actual.st_nlink)
+        if (written.identity != expected or written.content != prepared.desired_bytes
+                or (prepared.before_bytes is None and actual.st_nlink != 1)
+                or (os.name != "nt" and stat.S_IMODE(actual.st_mode) != prepared.mode)):
+            raise ValueError(f"precondition_changed: YAML written target {prepared.target}")
+    completed.append(written)
+    # Check all unchanged inputs and each directory created by this writer before
+    # publishing proof. Failed writes never mint or replace a completion receipt.
+    transitions = {item.path: item for item in completed}
+    for original in prepared.observations:
+        if observe_yaml_input(original.path) != transitions.get(original.path, original):
+            raise ValueError(f"precondition_changed: {original.path}")
+    object.__setattr__(prepared, "_receipt", _YamlWriteReceipt(id(prepared), tuple(completed)))
     return True
 
 

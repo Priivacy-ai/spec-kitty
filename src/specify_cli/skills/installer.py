@@ -424,14 +424,12 @@ def _prepare_skill_provisioning(root: Path, projected: object) -> _PreparedMissi
     if descriptor != prepare_mission_type_activations(root):
         raise ValueError("Managed skill provisioning differs from the canonical compiler")
     write = descriptor.write
-    if write.before_bytes is None or write.absent_parents:
-        raise ValueError("Managed skill provisioning requires an existing authority")
     original = next(item for item in write.observations if item.path == write.target)
-    if write.changed and (original.identity is None or original.identity[-1] != 1):
+    if write.changed and original.identity is not None and original.identity[-1] != 1:
         raise ValueError("Managed skill provisioning cannot rewrite a hardlinked authority")
     # Skills render solely from the retained catalog and selected agents. The
     # compiler's mission-type field cannot alter agent/config selection policy.
-    documents = tuple(YAML(typ="rt").load(content) for content in (write.before_bytes, write.desired_bytes))
+    documents = tuple(YAML(typ="rt").load(content or b"") for content in (write.before_bytes, write.desired_bytes))
     if any(document is not None and not isinstance(document, dict) for document in documents):
         raise ValueError("Managed skill provisioning requires mapping inputs")
     before, after = (document if document is not None else {} for document in documents)
@@ -455,6 +453,9 @@ def _recheck_skill_provisioning(
         return None
     if _skill_bytes_state(write.desired_bytes, write.mode).sha256 != write.desired_sha256:
         raise ValueError("Managed skill provisioning bytes changed")
+    if write.before_bytes is None:
+        write.recheck_applied()
+        return write.target
     original = next(item for item in write.observations if item.path == write.target)
     current = observe_yaml_input(write.target)
     prior, actual = original.identity, current.identity
@@ -608,6 +609,8 @@ class _ProjectSkillPreparation:
                 before = self.observe(path)
                 if before.kind != "absent":
                     continue
+                if self.provisioning is not None and self.inputs.root.path / path in self.provisioning.write.absent_parents:
+                    continue  # The canonical YAML writer owns these directory creates.
                 mode = 0o700 if path.startswith(".kittify/.migration-backup") else 0o755
                 effect = replace(write.effect, path=path, action="create", before=before,
                                  after=FileState("directory", mode=mode), reason="Create managed-skill parent")
@@ -861,8 +864,19 @@ def recheck_project_skills(
             changed_config: Path | None = prepared.root.path / ".kittify/config.yaml"
             if transitioned != prepared.root.path.resolve() / ".kittify/config.yaml":
                 changed_config = None
-            recheck_skill_paths(tuple(command_parents.get(item.path, item) for item in prepared.observations
-                                     if item.path != changed_config))
+            provisioning_parents = (prepared.provisioning.write.absent_parents
+                                    if transitioned is not None and prepared.provisioning is not None else ())
+            observations = []
+            for item in prepared.observations:
+                if item.path == changed_config or item.path in provisioning_parents:
+                    continue
+                item = command_parents.get(item.path, item)
+                if transitioned is not None and prepared.provisioning is not None and prepared.provisioning.write.before_bytes is None:
+                    additions = tuple(path.name for path in (*provisioning_parents, transitioned) if path.parent == item.path)
+                    if additions and item.children is not None:
+                        item = replace(item, children=tuple(sorted((*item.children, *additions))))
+                observations.append(item)
+            recheck_skill_paths(tuple(observations))
             if prepared.agent_config != _agent_config_identity():
                 raise ValueError("Agent skill configuration changed")
         except (OSError, ValueError) as exc:
