@@ -161,12 +161,14 @@ jobs:
               print(f"::error::module-tests: no test directory found for module {module!r} (looked for tests/{module} or the registry's test_dirs)")
               sys.exit(64)
 
-          # Deselect the performance flow: `-m "not performance"` keeps the
-          # wall-clock/benchmark budget guards (which belong to ci-nightly's
-          # `-m performance` lane) out of the parallelized per-PR module slice,
-          # where a loaded shared runner makes their timing assertions flaky.
+          # Deselect the parallel-unsafe / off-PR families from the per-PR module
+          # slice: `performance` budget guards belong to ci-nightly's
+          # `-m performance` lane, and `stress`/`timing` are corrupted by
+          # co-scheduled xdist workers (this shard runs `-n auto` below, matching
+          # make test-full's PARALLEL_UNSAFE_MARKERS). Keeps the shard both stable
+          # and inside its 30-minute budget.
           collected = subprocess.run(
-              [venv_python, "-m", "pytest", *test_dirs, "-m", "not performance", "--collect-only", "-q"],
+              [venv_python, "-m", "pytest", *test_dirs, "-m", "not performance and not stress and not timing", "--collect-only", "-q"],
               capture_output=True,
               text=True,
               check=True,
@@ -238,7 +240,8 @@ jobs:
 
           set +e
           "$venv_python" -m pytest "${shard_tests[@]}" \
-            -m "not performance" \
+            -m "not performance and not stress and not timing" \
+            -n auto --dist loadfile \
             "${cov_args[@]}" --cov-report="xml:${coverage_xml}" \
             --junitxml="${xunit_xml}" \
             -q
