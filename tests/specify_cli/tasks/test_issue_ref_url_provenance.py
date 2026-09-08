@@ -193,9 +193,7 @@ class TestSameRepoUrlRecognition:
 
         assert refs == []
 
-    def test_cross_repo_url_alongside_same_repo_hash_ref_only_yields_the_hash_ref(
-        self, tmp_path: Path
-    ) -> None:
+    def test_cross_repo_url_alongside_same_repo_hash_ref_only_yields_the_hash_ref(self, tmp_path: Path) -> None:
         """A mixed file: the cross-repo URL is dropped, the bare ``#NNNN`` stays."""
         spec_md = tmp_path / "spec.md"
         spec_md.write_text(
@@ -223,13 +221,10 @@ class TestSameRepoUrlRecognition:
 
 
 class TestSourceFileProvenance:
-    def test_every_discovered_reference_has_a_non_empty_source_file(
-        self, tmp_path: Path
-    ) -> None:
+    def test_every_discovered_reference_has_a_non_empty_source_file(self, tmp_path: Path) -> None:
         spec_md = tmp_path / "spec.md"
         spec_md.write_text(
-            "Fixes #1163. Also see "
-            "https://github.com/Priivacy-ai/spec-kitty/issues/320.\n",
+            "Fixes #1163. Also see https://github.com/Priivacy-ai/spec-kitty/issues/320.\n",
             encoding="utf-8",
         )
 
@@ -247,26 +242,18 @@ class TestSourceFileProvenance:
 
         assert refs == [IssueReference(1582, "Addresses issue #1582.", "spec.md")]
 
-    def test_discovery_records_the_file_basename_across_scan_dirs(
-        self, tmp_path: Path
-    ) -> None:
+    def test_discovery_records_the_file_basename_across_scan_dirs(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        (tasks_dir / "WP01.md").write_text(
-            "This WP fixes #4242 as a follow-up.\n", encoding="utf-8"
-        )
+        (tasks_dir / "WP01.md").write_text("This WP fixes #4242 as a follow-up.\n", encoding="utf-8")
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [
-            IssueReference(4242, "This WP fixes #4242 as a follow-up.", "WP01.md")
-        ]
+        assert refs == [IssueReference(4242, "This WP fixes #4242 as a follow-up.", "WP01.md")]
 
     def test_issue_matrix_entry_round_trips_source_file(self) -> None:
-        entry = IssueMatrixEntry(
-            verdict="fixed", evidence_ref="commit abc123", source_file="spec.md"
-        )
+        entry = IssueMatrixEntry(verdict="fixed", evidence_ref="commit abc123", source_file="spec.md")
 
         restored = IssueMatrixEntry.from_dict(entry.to_dict())
 
@@ -292,20 +279,14 @@ class TestDedupPreservesProvenance:
     def test_a_number_in_n_files_keeps_its_first_source_file(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
         feature_dir.mkdir(parents=True)
-        (feature_dir / "spec.md").write_text(
-            "Addresses issue #1582 in spec.\n", encoding="utf-8"
-        )
+        (feature_dir / "spec.md").write_text("Addresses issue #1582 in spec.\n", encoding="utf-8")
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir()
-        (tasks_dir / "WP01.md").write_text(
-            "Also touches #1582 again here.\n", encoding="utf-8"
-        )
+        (tasks_dir / "WP01.md").write_text("Also touches #1582 again here.\n", encoding="utf-8")
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [
-            IssueReference(1582, "Addresses issue #1582 in spec.", "spec.md")
-        ]
+        assert refs == [IssueReference(1582, "Addresses issue #1582 in spec.", "spec.md")]
 
 
 # ---------------------------------------------------------------------------
@@ -314,9 +295,7 @@ class TestDedupPreservesProvenance:
 
 
 class TestWriteIssueMatrixThunk:
-    def test_write_issue_matrix_passes_a_stage_thunk_not_pre_staged_files(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_write_issue_matrix_passes_a_stage_thunk_not_pre_staged_files(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         calls = _stub_write_artifact_committed(monkeypatch)
         feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
         feature_dir.mkdir(parents=True)
@@ -340,9 +319,7 @@ class TestWriteIssueMatrixThunk:
         assert "stage" in calls[0] and callable(calls[0]["stage"])
         assert calls[0].get("files") is None
 
-    def test_refused_write_via_issue_matrix_never_touches_disk(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_refused_write_via_issue_matrix_never_touches_disk(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """T029 per-writer residue: a refused write leaves 0 untracked files.
 
         Because the thunk is only invoked by ``write_artifact`` AFTER a
@@ -366,9 +343,7 @@ class TestWriteIssueMatrixThunk:
         assert len(calls) == 1  # golden-count: cardinality-is-contract
         json_path = feature_dir / "issue-matrix.json"
         assert not json_path.exists(), "a refused write must leave zero untracked residue"
-        assert list(feature_dir.iterdir()) == [], (
-            "refused write via issue_matrix.py must leave 0 untracked files"
-        )
+        assert list(feature_dir.iterdir()) == [], "refused write via issue_matrix.py must leave 0 untracked files"
 
 
 # ---------------------------------------------------------------------------
@@ -377,9 +352,7 @@ class TestWriteIssueMatrixThunk:
 
 
 class TestSC008EndToEnd:
-    def test_samuelgoff_320_url_is_discovered_and_produces_a_matrix_row(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_samuelgoff_320_url_is_discovered_and_produces_a_matrix_row(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         import mission_runtime
 
         monkeypatch.setattr(mission_runtime, "coord_read_dir_for", lambda *a, **k: None)
@@ -411,9 +384,7 @@ class TestSC008EndToEnd:
         assert content["rows"]["#320"]["source_file"] == "spec.md"
         assert len(calls) == 1  # golden-count: cardinality-is-contract
 
-    def test_unrelated_cross_repo_url_does_not_newly_block_the_completeness_gate(
-        self, tmp_path: Path
-    ) -> None:
+    def test_unrelated_cross_repo_url_does_not_newly_block_the_completeness_gate(self, tmp_path: Path) -> None:
         """SC-008: a cross-repo URL in prose must not newly require a row.
 
         ``discover_issue_references`` is the completeness-gate's own input
@@ -432,3 +403,11 @@ class TestSC008EndToEnd:
         refs = discover_issue_references(feature_dir)
 
         assert refs == []
+
+
+def test_current_canonical_slug_url_is_discovered(tmp_path: Path) -> None:
+    """Current and legacy repository names must both remain same-repo references."""
+    spec = tmp_path / "spec.md"
+    spec.write_text("See https://github.com/spec-kitty/spec-kitty/issues/320 for details.\n", encoding="utf-8")
+    refs = detect_issue_references(spec)
+    assert [ref.number for ref in refs] == [320]  # golden-count: cardinality-is-contract

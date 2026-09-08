@@ -499,7 +499,7 @@ For larger releases with multiple changes:
    ```
 
 5. **Wait for PR checks and merge**
-   - The Release Readiness Check workflow validates version, changelog, and tests
+   - The Release Readiness Check workflow validates version and changelog metadata. Require the repository test and package checks to pass on the same commit before publishing.
    - Get approval from a maintainer
    - Squash-merge the PR so the main-protection workflow can verify its PR marker
 
