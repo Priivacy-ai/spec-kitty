@@ -519,12 +519,15 @@ def test_shipped_reconcile_script_rejects_same_run_basename_collision(tmp_path: 
     ("field", "bad_value"),
     [
         ("module", "kernel\ncomplete=true\nx="),
+        ("module", "kernel\nRECONCILE_EOF\ncomplete=true\nx="),
         ("module", "kernel; rm -rf /"),
         ("tier", "standard\ncomplete=true"),
         ("tier", "tier with spaces"),
         ("shard_count", "2"),
         ("shard_count", True),
         ("shard_count", 1.5),
+        ("shard_count", 0),
+        ("shard_count", -1),
     ],
 )
 def test_shipped_reconcile_script_rejects_untrusted_registry_row_values(tmp_path: Path, field: str, bad_value: Any) -> None:
@@ -554,13 +557,11 @@ def test_shipped_reconcile_script_rejects_untrusted_registry_row_values(tmp_path
 
 
 def test_shipped_reconcile_script_output_cannot_inject_step_outputs(tmp_path: Path) -> None:
-    """Even if a newline ever reached the `missing` value despite the row
-    validation, the delimiter (heredoc) output form must keep the runner
-    from parsing it as fresh `key=value` output lines: parsing the file
-    with the runner's own line-based rules yields EXACTLY the two outputs
-    the step means to set, with `complete` still `false` -- the injected
-    `complete=true` rides along INSIDE the missing value instead of
-    overriding it."""
+    """Validated missing names produce exactly the two intended outputs.
+
+    The real script preserves its incomplete verdict and uses delimiter form;
+    the separate refusal cases guard newline and delimiter-bearing row values.
+    """
     completed, github_output = _run_reconcile_script(
         tmp_path,
         current={},
@@ -585,7 +586,8 @@ def test_delimiter_output_form_neutralizes_newline_injection() -> None:
     -- FileCommandManager); the SAME value written with the delimiter form
     is absorbed into the `missing` value and the completeness re-check
     survives. The registry-row validation refuses newline-carrying values
-    outright; this pins the structural backstop behind it."""
+    outright, including delimiter collisions; this pins containment for the
+    demonstrated payload, not safety for arbitrary unvalidated values."""
     malicious = "coverage-standard-merge-shard1-of-1.xml\ncomplete=true\nx="
     bare_form = f"complete=false\nmissing={malicious}\n"
     parsed_bare = _parse_github_output(bare_form)

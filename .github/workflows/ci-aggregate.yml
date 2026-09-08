@@ -220,8 +220,8 @@ jobs:
                       if not (isinstance(value, str) and row_field.fullmatch(value)):
                           print(f"::error::ci-aggregate: registry row has a {field_name} outside [A-Za-z0-9._-]: {value!r} -- untrusted PR-authored registry value refused")
                           sys.exit(1)
-                  if not isinstance(shard_count, int) or isinstance(shard_count, bool):
-                      print(f"::error::ci-aggregate: registry row has a non-int shard_count: {shard_count!r} -- untrusted PR-authored registry value refused")
+                  if not isinstance(shard_count, int) or isinstance(shard_count, bool) or shard_count < 1:
+                      print(f"::error::ci-aggregate: registry row has a non-positive/non-integer shard_count: {shard_count!r} -- untrusted PR-authored registry value refused")
                       sys.exit(1)
                   for idx in range(1, shard_count + 1):
                       names.add(f"coverage-{tier}-{module}-shard{idx}-of-{shard_count}.xml")
@@ -265,8 +265,8 @@ jobs:
               # FileCommandManager assigns outputs line-by-line, so a value
               # containing a newline would inject additional step outputs.
               # The registry validation above keeps `missing` newline-free;
-              # the delimiter form is the structural backstop that a
-              # newline-carrying value can never re-introduce one.
+              # the delimiter form also contains ordinary embedded newlines.
+              # Validation remains necessary to exclude delimiter collisions.
               with open(summary_path, "a", encoding="utf-8") as fh:
                   fh.write(f"complete<<RECONCILE_EOF\n{'true' if complete else 'false'}\nRECONCILE_EOF\n")
                   fh.write(f"missing<<RECONCILE_EOF\n{','.join(sorted(missing))}\nRECONCILE_EOF\n")
