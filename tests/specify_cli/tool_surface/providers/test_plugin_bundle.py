@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 from typing import TYPE_CHECKING
 from collections.abc import Callable
 
@@ -745,18 +746,18 @@ def test_selected_bundle_skill_transitions(
         assert descriptor.apply() is (not key_present)
         provisioned = snapshot(roots)
         result = provider.apply(bundle, consent)
-        record_property("bundle_result", asdict(result))
+        record_property("bundle_result", json.dumps(asdict(result), default=str))
         assert result.outcome == "applied", result
         staged = snapshot(roots)
         _assert_selected_delta(bundle.effects, provisioned, staged)
         assert not (project / ".agents/skills/spec-kitty.plan/SKILL.md").exists()
         results = managed.apply_composition(composition, consent)
-        record_property("skill_results", [asdict(r) for r in results])
+        record_property("skill_results", json.dumps([asdict(r) for r in results], default=str))
         assert all(r.outcome in {"applied", "skipped"} for r in results), results
         _assert_selected_delta(composition.effects, staged, snapshot(roots))
         assert {e.id for e in bundle.effects + composition.effects} == set(result.succeeded) | {i for r in results for i in r.succeeded}
-    record_property("effects", [asdict(e) for e in bundle.effects + composition.effects])
-    record_property("delta", [asdict(e) for e in net_delta(provisioned, snapshot(roots))])
+    record_property("effects", json.dumps([asdict(e) for e in bundle.effects + composition.effects], default=str))
+    record_property("delta", json.dumps([asdict(e) for e in net_delta(provisioned, snapshot(roots))], default=str))
     settled = snapshot(roots)
     d2, c2, m2, s2, p2, b2 = _selected_skill_preparation(project)
     assert not s2.effects and not b2.effects

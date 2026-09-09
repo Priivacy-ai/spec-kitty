@@ -392,30 +392,23 @@ def test_cli_update_available_json_contract(tmp_path: Path) -> None:
     """Outdated CLI: --cli --json emits valid compat-planner contract."""
     _make_compatible_project(tmp_path, schema_version=3)
 
-    # Patch _run_cli_mode to call the real implementation with a fake provider
-    from specify_cli.cli.commands import upgrade as upgrade_mod
+    from kernel.clock import now_utc
+    from specify_cli.compat.cache import NagCache, NagCacheRecord
+    from specify_cli.compat.planner import _cache_version_key, _get_installed_version
+    from specify_cli.core.channel import prerelease_enabled
 
-    original_run_cli_mode = upgrade_mod._run_cli_mode
-
-    def patched_run_cli_mode(
-        *,
-        json_output: bool,
-        dry_run: bool,
-        no_nag: bool,
-        latest_version_provider: object = None,
-    ) -> None:
-        from specify_cli.compat.cache import NagCache
-
-        with patch("specify_cli.compat.cache.NagCache.default", return_value=NagCache(tmp_path / "upgrade-nag-test.json")):
-            return original_run_cli_mode(
-                json_output=json_output,
-                dry_run=dry_run,
-                no_nag=no_nag,
-                latest_version_provider=FakeLatestVersionProvider("999.0.0"),
-            )
-
-    with patch.object(upgrade_mod, "_run_cli_mode", patched_run_cli_mode):
+    # CLI guidance is read-only: it consumes known version data from the cache.
+    cache_path = tmp_path / "upgrade-nag-test.json"
+    cache = NagCache(cache_path)
+    cache.write(NagCacheRecord(
+        cli_version_key=_cache_version_key(_get_installed_version(), prerelease=prerelease_enabled()),
+        latest_version="999.0.0", latest_source="pypi",
+        fetched_at=now_utc(), last_shown_at=None,
+    ))
+    before = cache_path.read_bytes()
+    with patch("specify_cli.compat.cache.NagCache.default", return_value=cache):
         result = _invoke_upgrade(["--cli", "--json"], cwd=tmp_path)
+    assert cache_path.read_bytes() == before
 
     assert result.exit_code == 0, f"Exit {result.exit_code}; output: {result.output}"
     payload = json.loads(result.output)

@@ -223,7 +223,7 @@ MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Pyth
 
 **Code**: `LIGHTWEIGHT_REVIEW_MISSING_BASELINE`
 
-**When it fires**: `spec-kitty review --mode lightweight` is run against a modern mission (one whose `meta.json` has a populated `mission_id` — the ULID introduced by mission 083) whose `baseline_merge_commit` is still `null`. Without a baseline commit the dead-code scan cannot compute a diff, so the gate now fails-hard instead of silently passing. See issue [#989](https://github.com/Priivacy-ai/spec-kitty/issues/989).
+**When it fires**: `spec-kitty review --mode lightweight` is run against a modern mission (one whose `meta.json` has a populated `mission_id` — the ULID introduced by mission 083) whose `baseline_merge_commit` is still `null`. Without a baseline commit the dead-code scan cannot compute a diff, so the gate now fails-hard instead of silently passing. See issue [#989](https://github.com/spec-kitty/spec-kitty/issues/989).
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 

@@ -168,6 +168,12 @@ def _recheck_command_completion(
 ) -> tuple[SkillPathObservation, ...]:
     """Check concrete command output and exact common-parent membership/identity."""
     command_effects = composition.commands.effects
+    payload = composition.commands.prepared
+    assert isinstance(payload, command_installer.PreparedCommands)
+    provisioning = payload.provisioning
+    created_yaml: tuple[Path, ...] = ()
+    if provisioning is not None and provisioning.write.before_bytes is None:
+        created_yaml = provisioning.write.recheck_applied()
     for effect in command_effects:
         state = observe_skill_path(effect.destination).state
         if replace(state, mtime_ns=effect.after.mtime_ns) != effect.after:
@@ -175,8 +181,11 @@ def _recheck_command_completion(
     for before in composition.parents:
         current = observe_skill_path(before.path, members=True)
         expected = created.get(before.path, before)
+        if before.path in created_yaml:
+            expected = current  # Identity/mode already checked by the YAML writer receipt.
         bundle_parent = command_installer._bundle_parent_input(composition.commands, before.path)
         names = set(bundle_parent.children if bundle_parent is not None and bundle_parent.children is not None else before.children or ())
+        names.update(path.name for path in created_yaml if path.parent == before.path)
         for effect in command_effects:
             if effect.destination.parent == before.path:
                 if effect.after.kind == "absent":
