@@ -143,6 +143,59 @@ def test_package_frame_without_import_machinery_is_not_healed(fake_pkg: Path, mo
     assert purged == []
 
 
+def test_laundered_discovery_failure_is_healed(fake_pkg: Path) -> None:
+    """The laundered wrapper: a fresh exception raised ``from`` a corrupt-``.pyc`` import failure.
+
+    ``upgrade.migrations.auto_discover_migrations`` collects per-module import
+    failures and raises one ``MigrationDiscoveryError`` chained to the first
+    original; the corrupt-cache signature lives only on that cause (#4124).
+    Non-vacuity: with the cause-chain walk removed, the wrapper matches no
+    direct shape and this test sees the raw wrapper error instead of "done".
+    """
+    _import_pkg()  # writes valid caches
+    _purge_pkg_modules()
+    pyc = _base_pyc(fake_pkg)
+    _corrupt_truncated(pyc)
+    corrupt_bytes = pyc.read_bytes()
+
+    def operation() -> str:
+        try:
+            _import_pkg()  # first call dies unmarshalling, retry recompiles
+        except Exception as exc:  # launder exactly like auto_discover_migrations
+            raise RuntimeError(f"Failed to import migration module(s): base: {exc}") from exc
+        return "done"
+
+    result = bytecode_heal.invoke_with_bytecode_heal(operation)
+
+    assert result == "done"
+    assert pyc.exists()
+    assert pyc.read_bytes() != corrupt_bytes
+
+
+def test_laundered_genuine_import_bug_is_not_healed(fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A wrapped genuine import-time bug (``SyntaxError`` in a migration module) stays unhealed.
+
+    A broken migration module fails inside an import too, so its failure
+    carries frozen ``importlib`` and package frames — the chained check must
+    require the corrupt-cache *signature*, not just any import-time failure,
+    or it would purge every cache and fail again (#4124).
+    """
+    (fake_pkg / "broken.py").write_text("def oops(:\n")
+
+    def operation() -> None:
+        try:
+            importlib.import_module(f"{_PKG}.broken")
+        except Exception as exc:  # launder exactly like auto_discover_migrations
+            raise RuntimeError(f"Failed to import migration module(s): broken: {exc}") from exc
+
+    purged: list[int] = []
+    monkeypatch.setattr(bytecode_heal, "purge_package_bytecode", lambda: purged.append(1) or 0)
+
+    with pytest.raises(RuntimeError, match="Failed to import migration module"):
+        bytecode_heal.invoke_with_bytecode_heal(operation)
+    assert purged == []  # no wasteful purge: the retry would fail identically
+
+
 def test_no_purgeable_cache_propagates_original(fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bytecode_heal, "purge_package_bytecode", lambda: 0)
 
