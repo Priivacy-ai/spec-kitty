@@ -137,6 +137,33 @@ _TOPOLOGIES = [
 ]
 
 
+def test_flattened_strict_xfail_landmine_disposition_still_pending() -> None:
+    """WP06 (T028/T029, FR-015 fix-before-wiring): re-validate this landmine.
+
+    Re-validated on the current tree: both ``flattened``-topology cases still
+    carry an active ``xfail(strict=True)`` marker naming the tracked,
+    out-of-scope gap (#2802) -- confirmed by running each in isolation (both
+    report ``XFAIL``, not ``XPASS``). This guard pins that disposition so a
+    future fix to #2802 that flips the underlying behavior to passing is
+    caught here (``strict=True`` already fails the parametrized test itself
+    on XPASS) *and* so a careless edit that silently drops the marker or its
+    tracked-issue reference -- without re-validating that the gap is closed --
+    is caught too. If #2802 closes, retire the marker (drop the
+    ``pytest.param``'s ``marks=``) instead of updating this string.
+    """
+    flattened_param = _TOPOLOGIES[-1]
+    marks = getattr(flattened_param, "marks", ())
+    xfail_marks = [m for m in marks if getattr(m, "name", None) == "xfail"]
+    assert len(xfail_marks) == 1, (  # golden-count: cardinality-is-contract
+        "expected exactly one active xfail(strict=True) marker on the "
+        "flattened topology param -- WP06 still finds #2802 open; if it is "
+        "closed, retire the marker rather than editing this assertion"
+    )
+    xfail_mark = xfail_marks[0]
+    assert xfail_mark.kwargs.get("strict") is True
+    assert "#2802" in xfail_mark.kwargs.get("reason", "")
+
+
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 

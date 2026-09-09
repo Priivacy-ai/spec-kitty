@@ -261,6 +261,7 @@ class TestRejectCycleInRequires:
 class TestFailClosedTiming:
     """NFR-004: validation failure detected and raised within 5 seconds."""
 
+    @pytest.mark.performance
     def test_dangling_ref_fails_within_5s(self, tmp_path: Path) -> None:
         shipped = _make_shipped_graph()
         overlay = _make_overlay(
@@ -278,6 +279,7 @@ class TestFailClosedTiming:
             f"validation_gate.validate took {elapsed:.2f}s — must be < 5s (NFR-004)"
         )
 
+    @pytest.mark.performance
     def test_valid_overlay_passes_within_5s(self, tmp_path: Path) -> None:
         shipped = _make_shipped_graph()
         overlay = _make_overlay()  # empty — trivially valid
