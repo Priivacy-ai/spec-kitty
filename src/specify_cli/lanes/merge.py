@@ -487,9 +487,11 @@ def _ensure_merge_driver_git_config(repo_root: Path) -> None:
     Sets the ``merge.<key>.name`` / ``merge.<key>.driver`` git-config for the
     whole :data:`_MERGE_DRIVERS` registry (event-log union, ``meta.json`` field
     merge, ``traces/*.md`` union) so the drivers are *defined*. ``spec-kitty
-    init`` may run before the project becomes a git repository, so the upgrade
-    migration cannot always install the local merge-driver config at init time;
-    the merge path self-heals that gap here (C-006 / DIRECTIVE_044).
+    init`` calls this directly (#4146), so a fresh init inside an existing git
+    repository gets both halves of the driver wiring; when the project is not
+    a git repository yet at init time, this helper's own ``.git`` guard makes
+    it a no-op and the merge path self-heals that gap later (C-006 /
+    DIRECTIVE_044).
 
     It deliberately does **not** seed ``.git/info/attributes``: defining a driver
     is inert until an attribute maps a path to it. This is the entry point the
