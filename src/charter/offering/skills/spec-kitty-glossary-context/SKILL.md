@@ -257,6 +257,13 @@ Use this step when the task is shaping a domain model or a term is ambiguous,
 contested, or load-bearing. Skip it for an already canonical, uncontroversial
 usage correction.
 
+This step is a self-contained summary of canonical doctrine: the
+`domain-aware-decision-interview` procedure
+(`packs/built-in/procedures/domain-aware-decision-interview.procedure.yaml`) and
+the `adr-drafting-workflow` / `language-driven-design` tactics. When those
+artifacts are loaded, defer to them and treat their wording as authoritative if
+it ever diverges from the summary below.
+
 ### Cross-check code evidence
 
 Identify the model claim being made, then inspect the relevant domain types,
