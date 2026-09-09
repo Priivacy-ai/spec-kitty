@@ -538,3 +538,34 @@ def test_deleting_any_disposition_row_reds_the_enforcer() -> None:
         mutated = "".join(line for line in lines if f"`{path}`" not in line)
         assert path not in map_rows(mutated)
         assert disposition_paths(disposition, mutated) != disposition_paths(disposition)
+
+
+@pytest.mark.parametrize("job_name", ["build-release", "publish-pypi"])
+@pytest.mark.parametrize(
+    ("version", "is_prerelease"),
+    [
+        ("3.2.6.1", False),
+        ("3.2.6.1rc1", True),
+        ("3.2.6.1RC1", True),
+        ("3.2.6.1ALPHA", True),
+        ("3.2.7BETA2", True),
+        ("3.2.6.1alpha", True),
+        ("3.2.7beta2", True),
+        ("3.2.7", False),
+    ],
+)
+def test_release_workflow_classifies_hotfix_channel(tmp_path: Path, job_name: str, version: str, is_prerelease: bool) -> None:
+    workflow = load_workflow("release.yml")
+    script = next(step["run"] for step in workflow["jobs"][job_name]["steps"] if step.get("name") == "Classify release channel")
+    output = tmp_path / "github-output"
+
+    result = subprocess.run(
+        ["bash", "-eu", "-c", script],
+        env={**os.environ, "RELEASE_TAG": f"v{version}", "GITHUB_OUTPUT": str(output)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert output.read_text().strip() == f"is_prerelease={str(is_prerelease).lower()}"
