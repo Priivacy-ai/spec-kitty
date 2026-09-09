@@ -57,7 +57,12 @@ test_no_dead_modules:
   # outright rather than relocated. charter.offering.hatch_build no longer
   # exists as a module, so its allowlist entry is removed too (shrink — no
   # extra workflow steps needed).
-  category_3_external_cli_entrypoints: 1
+  # justification (3.2.7, #4125): specify_cli.dashboard._server_main is the
+  # detached dashboard server child's entry point, spawned by dashboard/server.py
+  # as `python -m specify_cli.dashboard._server_main`; the reference is an argv
+  # string constant, not an import, so the module is a documented external CLI
+  # entrypoint rather than dead code. 1 -> 2.
+  category_3_external_cli_entrypoints: 2
   # justification: 0 documented backward-compat shim modules. (unshim-wave1 WP01
   # #2289 deleted the 7 other category_4 shims — acceptance_matrix,
   # core.identity_aliases, doc_generators, doc_state, gap_analysis,
