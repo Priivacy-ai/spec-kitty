@@ -69,8 +69,7 @@ def _expected_migration_count(copy_src: Path) -> int:
 def _corrupt_discovery_only_module_pyc(copy_src: Path) -> tuple[Path, bytes]:
     """Warm then truncate the ``.pyc`` of a module only discovery imports."""
     pycs = list((copy_src / _MIGRATIONS_CACHE).glob(f"{_DISCOVERY_ONLY_MODULE}.*.pyc"))
-    # golden-count: cardinality-is-contract
-    assert len(pycs) == 1, f"expected exactly one {_DISCOVERY_ONLY_MODULE}.*.pyc, found {pycs}"
+    assert len(pycs) == 1, f"expected exactly one {_DISCOVERY_ONLY_MODULE}.*.pyc, found {pycs}"  # golden-count: cardinality-is-contract
     data = pycs[0].read_bytes()
     pycs[0].write_bytes(data[:20] + b"\x00" * 42)
     return pycs[0], pycs[0].read_bytes()
@@ -99,8 +98,7 @@ def test_corrupt_migrations_pyc_does_not_crash_startup(tmp_path: Path) -> None:
     #    intact header — the flavor the import machinery trusts and then dies
     #    on (a fully-zeroed file self-heals via the magic-number check).
     pycs = list((copy_src / _MIGRATIONS_CACHE).glob("base.*.pyc"))
-    # golden-count: cardinality-is-contract
-    assert len(pycs) == 1, f"expected exactly one base.*.pyc, found {pycs}"
+    assert len(pycs) == 1, f"expected exactly one base.*.pyc, found {pycs}"  # golden-count: cardinality-is-contract
     data = pycs[0].read_bytes()
     pycs[0].write_bytes(data[:20] + b"\x00" * 42)
 
