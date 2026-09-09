@@ -5,6 +5,7 @@ under 500 lines. Behaviour is unchanged — these helpers materialise the
 minimal ``.kittify/doctrine/`` artifact set the runtime needs when no
 LLM-authored YAMLs are present (see issue #839 / WP06 T031-T033).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -45,7 +46,7 @@ project-local artifacts under `.kittify/charter/generated/` and you re-run
 
 References
 ----------
-- GitHub issue: https://github.com/Priivacy-ai/spec-kitty/issues/839
+- GitHub issue: https://github.com/spec-kitty/spec-kitty/issues/839
 - Spec assumption A2: public CLI synthesize works on a fresh project.
 - Project-root resolution: `src/charter/activation/_doctrine_paths.py`.
 """
@@ -80,9 +81,7 @@ def _fresh_seed_manifest_text() -> str:
         "artifacts": [],
         "built_in_only": True,
     }
-    manifest = SynthesisManifest.model_validate(
-        {**without_hash, "manifest_hash": "0" * 64}
-    )
+    manifest = SynthesisManifest.model_validate({**without_hash, "manifest_hash": "0" * 64})
     manifest = finalize_manifest(manifest)
     # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
     # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
