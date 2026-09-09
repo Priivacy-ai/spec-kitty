@@ -27,11 +27,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import TypeVar
 
-__all__ = [
-    "failure_during_package_import",
-    "invoke_with_bytecode_heal",
-    "purge_package_bytecode",
-]
+__all__ = ["invoke_with_bytecode_heal"]
 
 T = TypeVar("T")
 
