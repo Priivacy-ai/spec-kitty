@@ -18,6 +18,34 @@ from tests.ci.test_aggregate_source import ROOT, source_fixture
 pytestmark = pytest.mark.fast
 
 
+def test_selector_respects_the_architectural_clock_import_boundary() -> None:
+    from tests.architectural.test_clock_import_ban import collect_import_ban_violations
+
+    assert collect_import_ban_violations([ROOT / "scripts/ci/select_source_artifacts.py"]) == []
+
+
+def test_selector_runs_before_installation_from_an_unrelated_directory(tmp_path: Path) -> None:
+    """Aggregate calls bare Python before dependency installation on its trusted checkout."""
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+    record = artifact("kernel", 1, 1)
+    record["workflow_run"]["head_sha"] = source["head_sha"]
+    execution = dict(job("kernel", 1), head_sha=source["head_sha"])
+    inputs = [source, [{"jobs": [execution]}], [{"artifacts": [record]}]]
+    paths = [tmp_path / name for name in ("source.json", "jobs.json", "artifacts.json")]
+    for path, value in zip(paths, inputs, strict=True):
+        path.write_text(json.dumps(value))
+    # Disable site packages, user paths and PYTHONPATH. The source checkout
+    # must supply its own zero-dependency clock, regardless of caller cwd.
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", str(ROOT / "scripts/ci/select_source_artifacts.py"), *map(str, paths)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["has-artifacts=true", f"artifact-pattern={record['name']}"]
+
+
 def artifact(module: str, attempt: int, artifact_id: int) -> dict:
     return {
         "id": artifact_id,
