@@ -174,24 +174,6 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
             "3534b0a120eafa5dc1cc295cb539f18cd9737f4003b4c124ce57e7842ad5a1d0",
             source_module="specify_cli.status.lifecycle_events",
         ),
-        # specify_cli.status.lifecycle_events::emit_artifact_phase_local -- convergence
-        # #813: retained local half of the lifecycle persistence/fanout split. Its hosted
-        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
-        # wire this split half when a non-retired hosted consumer lands.
-        SymbolKey(
-            "emit_artifact_phase_local",
-            "e285765b04611be105c42a29d3f4f13beb49fed64afe517243f5a1cc8fa1439f",
-            source_module="specify_cli.status.lifecycle_events",
-        ),
-        # specify_cli.status.lifecycle_events::fanout_lifecycle_event_hosted -- convergence
-        # #813: retained hosted half of the lifecycle persistence/fanout split. Its hosted
-        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
-        # wire this split half when a non-retired hosted consumer lands.
-        SymbolKey(
-            "fanout_lifecycle_event_hosted",
-            "6807f7943a4c7f909f816db58882b43f5889279cffa8754ed138ab22c28f6350",
-            source_module="specify_cli.status.lifecycle_events",
-        ),
         # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2
         # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
         # yet. TODO(triage): wire or drop from __all__.
@@ -617,7 +599,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "_reset_session_warning_state", "41466d1d3efede301673da3d49ae625c027c20e4f3d7fc52bd96579a1999c9be", source_module="specify_cli.git.sparse_checkout"
         ),
         SymbolKey(
-            "scan_path", "e70cf877ec6d932f793d197349a0d7e14053758ccc5f91045553d16d32c97d8f", source_module="specify_cli.git.sparse_checkout"
+            "scan_path", "391e5924c92cc57711430d2d80fbbe88d0d3914e80212395ccc87c927afe6446", source_module="specify_cli.git.sparse_checkout"
         ),  # specify_cli.git.sparse_checkout::scan_path
         # specify_cli.git.sparse_checkout_remediation::STEP_REFRESH_WORKING_TREE
         SymbolKey(
@@ -770,7 +752,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
-        SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d", source_module="specify_cli.status.lifecycle_events"),
+        SymbolKey("has_lifecycle_event", "22cdefb0c0dedb5de2e36397ee49bc1a17142600b49b0d910c7de705c7dd1905", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::project_event_log_path -- REMOVED
         # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
         # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and

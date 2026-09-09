@@ -29,9 +29,8 @@ from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 
 pytestmark = pytest.mark.fast
 
-def _create_events_file(
-    feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test"
-) -> None:
+
+def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test") -> None:
     """Create a minimal status.events.jsonl matching the given WP states.
 
     Prevents doctor from flagging 'status.json exists but events file missing'.
@@ -756,7 +755,7 @@ class TestCheckSparseCheckout:
         assert str(primary_pattern) in finding.message
         assert "Lane worktrees affected: 1" in finding.message
         assert str(lane_path) in finding.message
-        assert "Priivacy-ai/spec-kitty#588" in finding.message
+        assert "spec-kitty/spec-kitty#588" in finding.message
         assert "spec-kitty doctor sparse-checkout --fix" in finding.recommended_action
         assert str(tmp_path) in finding.recommended_action
         assert str(lane_path) in finding.recommended_action
@@ -1279,7 +1278,6 @@ class TestDoctorCLI:
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands.agent.status import app
-
 
         runner = CliRunner()
 

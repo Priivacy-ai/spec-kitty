@@ -140,7 +140,7 @@ def probe_pypi(
 
         prerelease = prerelease_enabled()
 
-    user_agent = f"spec-kitty-cli/{cli_version} (https://github.com/Priivacy-ai/spec-kitty)"
+    user_agent = f"spec-kitty-cli/{cli_version} (https://github.com/spec-kitty/spec-kitty)"
     probed_at = now_utc()
 
     try:

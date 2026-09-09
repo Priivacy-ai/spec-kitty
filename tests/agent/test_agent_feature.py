@@ -325,7 +325,12 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
@@ -395,7 +400,12 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature"])
 
         # Verify
@@ -536,7 +546,12 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify — should succeed, recording "develop" as target_branch
@@ -569,7 +584,12 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
