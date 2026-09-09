@@ -95,20 +95,20 @@ def _init_git_repo(tmp_path: Path) -> None:
 
 
 def test_changelog_has_entry_returns_true_when_present() -> None:
-    changelog = (
-        "# Changelog\n\n"
-        "## [3.1.1] - 2026-04-09\n\n"
-        "### Fixed\n- The fix\n"
-    )
+    changelog = "# Changelog\n\n## [3.1.1] - 2026-04-09\n\n### Fixed\n- The fix\n"
     assert changelog_has_entry(changelog, "3.1.1") is True
 
 
+@pytest.mark.parametrize("version", ["3.2.6.1", "3.2.6.1rc1"])
+def test_extract_hotfix_notes_excludes_adjacent_releases(version: str) -> None:
+    changelog = f"## [3.2.6.2] - 2026-09-09\n- Later fix\n\n## [{version}] - 2026-09-08\n- First-run fix\n\n## [3.2.6] - 2026-09-01\n- Older release\n"
+
+    assert extract_changelog_section(changelog, version) == "- First-run fix"
+    assert extract_changelog_section(changelog, "3.2.6.2") == "- Later fix"
+
+
 def test_changelog_has_entry_returns_false_when_absent() -> None:
-    changelog = (
-        "# Changelog\n\n"
-        "## [3.0.0] - 2025-01-01\n\n"
-        "### Fixed\n- Old fix\n"
-    )
+    changelog = "# Changelog\n\n## [3.0.0] - 2025-01-01\n\n### Fixed\n- Old fix\n"
     assert changelog_has_entry(changelog, "3.1.1") is False
 
 
@@ -118,35 +118,19 @@ def test_changelog_has_entry_returns_false_for_empty_section() -> None:
 
 
 def test_changelog_has_entry_prerelease_version() -> None:
-    changelog = (
-        "# Changelog\n\n"
-        "## [3.1.1a3] - 2026-04-07\n\n"
-        "### Changed\n- Alpha release\n"
-    )
+    changelog = "# Changelog\n\n## [3.1.1a3] - 2026-04-07\n\n### Changed\n- Alpha release\n"
     assert changelog_has_entry(changelog, "3.1.1a3") is True
     assert changelog_has_entry(changelog, "3.1.1") is False
 
 
 def test_changelog_has_entry_unreleased_version_tranche() -> None:
-    changelog = (
-        "# Changelog\n\n"
-        "## [Unreleased - 3.2.0]\n\n"
-        "### Changed\n- The tranche\n\n"
-        "## [3.2.0rc29] - 2026-05-28\n\n"
-        "### Fixed\n- Old release candidate\n"
-    )
+    changelog = "# Changelog\n\n## [Unreleased - 3.2.0]\n\n### Changed\n- The tranche\n\n## [3.2.0rc29] - 2026-05-28\n\n### Fixed\n- Old release candidate\n"
     assert changelog_has_entry(changelog, "3.2.0") is True
     assert changelog_has_entry(changelog, "3.2.0rc29") is True
 
 
 def test_extract_changelog_section_unreleased_version_tranche() -> None:
-    changelog = (
-        "# Changelog\n\n"
-        "## [Unreleased - 3.2.0]\n\n"
-        "### Changed\n- The tranche\n\n"
-        "## [3.2.0rc29] - 2026-05-28\n\n"
-        "### Fixed\n- Old release candidate\n"
-    )
+    changelog = "# Changelog\n\n## [Unreleased - 3.2.0]\n\n### Changed\n- The tranche\n\n## [3.2.0rc29] - 2026-05-28\n\n### Fixed\n- Old release candidate\n"
     section = extract_changelog_section(changelog, "3.2.0")
     assert "The tranche" in section
     assert "Old release candidate" not in section
@@ -188,12 +172,7 @@ def test_missing_changelog_entry_fails_in_branch_mode(tmp_path: Path) -> None:
 @pytest.mark.git_repo
 def test_present_changelog_entry_passes_in_branch_mode(tmp_path: Path) -> None:
     """Validator exits 0 in branch mode when CHANGELOG entry exists."""
-    changelog = (
-        "# Changelog\n\n"
-        "## [3.1.1] - 2026-04-09\n\n"
-        "### Fixed\n- The fix\n"
-        "\n## [3.0.0] - 2025-01-01\n\n### Fixed\n- Old fix\n"
-    )
+    changelog = "# Changelog\n\n## [3.1.1] - 2026-04-09\n\n### Fixed\n- The fix\n\n## [3.0.0] - 2025-01-01\n\n### Fixed\n- Old fix\n"
     _write_release_files(tmp_path, "3.1.1", changelog)
     _init_git_repo(tmp_path)
 

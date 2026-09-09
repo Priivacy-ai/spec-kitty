@@ -67,9 +67,7 @@ def _render_sparse_finding(report: SparseCheckoutScanReport) -> None:
             )
     active_wts = [w for w in report.worktrees if w.is_blocking]
     if active_wts:
-        console.print(
-            f"  Lane worktrees: {len(active_wts)} affected", soft_wrap=True
-        )
+        console.print(f"  Lane worktrees: {len(active_wts)} affected", soft_wrap=True)
         for wt in active_wts:
             console.print(f"    {wt.path}", soft_wrap=True)
     console.print()
@@ -82,10 +80,8 @@ def _render_sparse_finding(report: SparseCheckoutScanReport) -> None:
         "    migration. This state can cause silent data loss during mission merge",
         soft_wrap=True,
     )
-    console.print(
-        "    and broken lane worktrees on agent action implement.", soft_wrap=True
-    )
-    console.print("    See Priivacy-ai/spec-kitty#588.", soft_wrap=True)
+    console.print("    and broken lane worktrees on agent action implement.", soft_wrap=True)
+    console.print("    See spec-kitty/spec-kitty#588.", soft_wrap=True)
     console.print()
     console.print("  Fix:", soft_wrap=True)
     console.print(f"    {_FIX_HINT}", soft_wrap=True)
@@ -148,17 +144,12 @@ def _render_remediation_results(
     for r in results:
         if r.success:
             steps = len(r.steps_completed)
-            console.print(
-                f"[green]✓[/green] {r.path}: remediated "
-                f"({steps} steps, clean verify)"
-            )
+            console.print(f"[green]✓[/green] {r.path}: remediated ({steps} steps, clean verify)")
         else:
             any_failure = True
             detail = r.error_detail or "unknown error"
             step = r.error_step or "unknown step"
-            console.print(
-                f"[red]✗[/red] {r.path}: failed at {step} — {detail}"
-            )
+            console.print(f"[red]✗[/red] {r.path}: failed at {step} — {detail}")
     return any_failure
 
 
@@ -224,10 +215,7 @@ def run_sparse_checkout(fix: bool) -> None:
         # scripts can grep it reliably. No state mutation; non-zero exit.
         # Bypass Rich's auto-wrapping (which splits on terminal width and breaks
         # grep) by using the stdlib print.
-        print(
-            "sparse-checkout --fix requires an interactive terminal; "
-            f"run '{_FIX_HINT}' from a local TTY to remediate."
-        )
+        print(f"sparse-checkout --fix requires an interactive terminal; run '{_FIX_HINT}' from a local TTY to remediate.")
         raise typer.Exit(1)
 
     _apply_sparse_remediation(report)
