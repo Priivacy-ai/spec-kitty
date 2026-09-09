@@ -26,6 +26,7 @@ from specify_cli.core.config import (
 )
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.agent_config import AgentConfigError, load_agent_config
+from specify_cli.core.no_follow import chmod_fd
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
@@ -44,8 +45,18 @@ from specify_cli.skills.paths import (
     skill_path_observations,
 )
 from specify_cli.tool_surface.operations import (
-    ApplyConsent, AssessmentInputs, Diagnostic, Disposition, FileState, InputObservation,
-    OperationRoot, OwnerApplyResult, OwnerAssessment, OwnershipProof, PhysicalEffect, coalesce_effects,
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    Disposition,
+    FileState,
+    InputObservation,
+    OperationRoot,
+    OwnerApplyResult,
+    OwnerAssessment,
+    OwnershipProof,
+    PhysicalEffect,
+    coalesce_effects,
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
@@ -76,8 +87,6 @@ def _safe_unlink(path: Path) -> None:
 
 def _safe_rmtree(path: Path) -> None:
     shutil.rmtree(path, onerror=_force_writable_and_retry)
-
-
 
 
 @dataclass(frozen=True)
@@ -113,11 +122,13 @@ def prepare_skill_backup(
         relative = Path(replacement.path)
         if relative.is_absolute() or not relative.parts or ".." in relative.parts or relative.as_posix() != replacement.path:
             raise ValueError(f"Unsafe skill backup path: {relative}")
-        records.append([
-            relative.as_posix(),
-            [replacement.before.kind, replacement.before.sha256, replacement.before.target, replacement.before.mode],
-            [replacement.after.kind, replacement.after.sha256, replacement.after.target, replacement.after.mode],
-        ])
+        records.append(
+            [
+                relative.as_posix(),
+                [replacement.before.kind, replacement.before.sha256, replacement.before.target, replacement.before.mode],
+                [replacement.after.kind, replacement.after.sha256, replacement.after.target, replacement.after.mode],
+            ]
+        )
     serialized = json.dumps(["agent-skills-backup-v1", records], separators=(",", ":")).encode("utf-8")
     digest = hashlib.sha256(serialized).hexdigest()  # noqa: TID251 -- deterministic backup identity, not charter hashing
     parent = _backup_parent(project_path)
@@ -154,9 +165,7 @@ def _backup_parent(project_path: Path) -> Path:
     return project_path / ".kittify" / ".migration-backup" / "agent-skills"
 
 
-def _archive_existing_path(
-    dest: Path, project_path: Path, backup_root: Path | None, *, after: FileState | None = None
-) -> Path:
+def _archive_existing_path(dest: Path, project_path: Path, backup_root: Path | None, *, after: FileState | None = None) -> Path:
     """Retain a file or literal link without following links or clobbering backups."""
     inputs = skill_path_observations(project_path, dest)
     before = inputs[-1].state
@@ -164,9 +173,7 @@ def _archive_existing_path(
         raise ValueError(f"Cannot archive skill node: {dest}")
     content = dest.read_bytes() if before.kind == "file" else None
     if backup_root is None:
-        allocation = prepare_skill_backup(project_path, (
-            SkillBackupReplacement(dest.relative_to(project_path).as_posix(), before, after or FileState("absent")),
-        ))
+        allocation = prepare_skill_backup(project_path, (SkillBackupReplacement(dest.relative_to(project_path).as_posix(), before, after or FileState("absent")),))
         recheck_skill_paths(inputs)
         backup_root = create_skill_backup(allocation)
     elif backup_root.parent != _backup_parent(project_path):
@@ -189,7 +196,7 @@ def _archive_existing_path(
         descriptor = os.open(backup_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, before.mode)
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(content)
-            os.fchmod(stream.fileno(), before.mode)
+            chmod_fd(stream.fileno(), backup_path, before.mode)
     if before.mtime_ns is not None:
         os.utime(backup_path, ns=(before.mtime_ns, before.mtime_ns), follow_symlinks=False)
     recheck_skill_paths(inputs)
@@ -197,9 +204,7 @@ def _archive_existing_path(
     return backup_root
 
 
-def _replacement_is_owned(
-    manifest: ManagedSkillManifest | None, project_path: Path, dest: Path, before: FileState
-) -> bool:
+def _replacement_is_owned(manifest: ManagedSkillManifest | None, project_path: Path, dest: Path, before: FileState) -> bool:
     if manifest is None or before.kind != "file":
         return False
     owners = [entry for entry in manifest.entries if entry.installed_path == dest.relative_to(project_path).as_posix()]
@@ -302,8 +307,9 @@ def _project_skill_files(
         )
         if delivery_mode == "preserved":
             if previous is not None:
-                entries.extend(entry for entry in previous.entries if
-                               entry.installed_path == dest.relative_to(project_path).as_posix() and entry.agent_key == agent_key)
+                entries.extend(
+                    entry for entry in previous.entries if entry.installed_path == dest.relative_to(project_path).as_posix() and entry.agent_key == agent_key
+                )
             continue
         entries.append(
             ManagedFileEntry(
@@ -343,8 +349,9 @@ def _make_entries_for_existing(
         current = observations[-1].state
         if current.kind != "file" or dest.read_bytes() != expected:
             if previous is not None:
-                entries.extend(entry for entry in previous.entries if
-                               entry.installed_path == dest.relative_to(project_path).as_posix() and entry.agent_key == agent_key)
+                entries.extend(
+                    entry for entry in previous.entries if entry.installed_path == dest.relative_to(project_path).as_posix() and entry.agent_key == agent_key
+                )
             continue
         recheck_skill_paths(observations)
         entries.append(
@@ -376,8 +383,7 @@ def install_skills_for_agent(
         raise ValueError(f"Unknown agent key: {agent_key!r}")
     if AGENT_SKILL_CONFIG[agent_key]["class"] == SKILL_CLASS_WRAPPER:
         return []
-    manifest = _install_caller_skills(project_path, (agent_key,), _CapturedSkillRegistry(tuple(skills)),
-                                      archived_paths, retire=False)
+    manifest = _install_caller_skills(project_path, (agent_key,), _CapturedSkillRegistry(tuple(skills)), archived_paths, retire=False)
     names = {skill.name for skill in skills}
     if shared_root_installed is not None and AGENT_SKILL_CONFIG[agent_key]["class"] == SKILL_CLASS_SHARED:
         shared_root_installed.update(names)
@@ -441,7 +447,9 @@ def _prepare_skill_provisioning(root: Path, projected: object) -> _PreparedMissi
 
 
 def _recheck_skill_provisioning(
-    prepared: PreparedProjectSkills, *, provisioning_applied: bool,
+    prepared: PreparedProjectSkills,
+    *,
+    provisioning_applied: bool,
 ) -> Path | None:
     """Allow only the retained compiler's direct-file transition, never a hash waiver."""
     provisioning = prepared.provisioning
@@ -460,11 +468,17 @@ def _recheck_skill_provisioning(
     current = observe_yaml_input(write.target)
     prior, actual = original.identity, current.identity
     if (
-        current.content != write.desired_bytes or prior is None or actual is None
-        or len(prior) != 7 or len(actual) != 7 or actual[:3] != prior[:3]
-        or prior[-1] != 1 or actual[-1] != 1
+        current.content != write.desired_bytes
+        or prior is None
+        or actual is None
+        or len(prior) != 7
+        or len(actual) != 7
+        or actual[:3] != prior[:3]
+        or prior[-1] != 1
+        or actual[-1] != 1
         or actual[5] != len(write.desired_bytes)
-        or actual[3] < prior[3] or actual[4] < prior[4]
+        or actual[3] < prior[3]
+        or actual[4] < prior[4]
     ):
         raise ValueError("Managed skill provisioning has not completed its exact retained transition")
     for observation in write.observations:
@@ -562,9 +576,17 @@ class _ProjectSkillPreparation:
         self.dispositions.append(Disposition("managed_skills", self.inputs.root.root_id, path, state, reason))
 
     def write(
-        self, path: str, before: FileState, after: FileState, content: bytes | None,
-        owners: tuple[ManagedFileEntry, ...], order: int, reason: str, proof_kind: str = "manifest",
-        *, consumers: tuple[ManagedFileEntry, ...] | None = None,
+        self,
+        path: str,
+        before: FileState,
+        after: FileState,
+        content: bytes | None,
+        owners: tuple[ManagedFileEntry, ...],
+        order: int,
+        reason: str,
+        proof_kind: str = "manifest",
+        *,
+        consumers: tuple[ManagedFileEntry, ...] | None = None,
     ) -> None:
         if before.kind == after.kind == "absent":
             return
@@ -582,16 +604,31 @@ class _ProjectSkillPreparation:
             action = "chmod"
         else:
             return
-        proofs = tuple(OwnershipProof(proof_kind, (
-            f".kittify/skills-manifest.json:{entry.agent_key}:{entry.installed_path}" if proof_kind == "manifest"
-            else f"canonical-skill:{entry.skill_name}/{entry.source_file}:{entry.content_hash}"
-        )) for entry in owners)
+        proofs = tuple(
+            OwnershipProof(
+                proof_kind,
+                (
+                    f".kittify/skills-manifest.json:{entry.agent_key}:{entry.installed_path}"
+                    if proof_kind == "manifest"
+                    else f"canonical-skill:{entry.skill_name}/{entry.source_file}:{entry.content_hash}"
+                ),
+            )
+            for entry in owners
+        )
         if not proofs:
             proofs = (OwnershipProof("managed_path", f"managed-skills:{path}"),)
         affected = owners if consumers is None else consumers
         effect = PhysicalEffect(
-            "managed_skills", "surface_repair", self.inputs.root, path, action, before, after, reason,
-            proofs, tuple(entry.agent_key for entry in affected) or ("managed_skills",),
+            "managed_skills",
+            "surface_repair",
+            self.inputs.root,
+            path,
+            action,
+            before,
+            after,
+            reason,
+            proofs,
+            tuple(entry.agent_key for entry in affected) or ("managed_skills",),
             tuple(f"{entry.agent_key}.doctrine_skill.{entry.skill_name}.{entry.source_file.replace('/', '.')}" for entry in affected),
         )
         self.writes.append(PreparedProjectSkillWrite(effect, content, order))
@@ -612,8 +649,9 @@ class _ProjectSkillPreparation:
                 if self.provisioning is not None and self.inputs.root.path / path in self.provisioning.write.absent_parents:
                     continue  # The canonical YAML writer owns these directory creates.
                 mode = 0o700 if path.startswith(".kittify/.migration-backup") else 0o755
-                effect = replace(write.effect, path=path, action="create", before=before,
-                                 after=FileState("directory", mode=mode), reason="Create managed-skill parent")
+                effect = replace(
+                    write.effect, path=path, action="create", before=before, after=FileState("directory", mode=mode), reason="Create managed-skill parent"
+                )
                 previous = directories.get(path)
                 if previous is not None:
                     effect = coalesce_effects((previous, effect))[0]
@@ -667,12 +705,19 @@ def assess_project_skills(
         plan.provisioning = _prepare_skill_provisioning(inputs.root.path, inputs.projected)
         return _prepare_project_skills(plan, registry, tuple(sorted(set(agent_keys))), selected_paths, retire)
     except (OSError, ValueError, TypeError, AgentConfigError) as exc:
-        return OwnerAssessment("managed_skills", inputs.root, complete=False, consent=inputs.consent,
-                               diagnostics=(Diagnostic("skill_assessment_failed", "managed_skills", "error", str(exc)),))
+        return OwnerAssessment(
+            "managed_skills",
+            inputs.root,
+            complete=False,
+            consent=inputs.consent,
+            diagnostics=(Diagnostic("skill_assessment_failed", "managed_skills", "error", str(exc)),),
+        )
 
 
 def _expected_project_entries(
-    skills: tuple[CanonicalSkill, ...], agents: tuple[str, ...], now: str,
+    skills: tuple[CanonicalSkill, ...],
+    agents: tuple[str, ...],
+    now: str,
 ) -> dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]]:
     expected: dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]] = {}
     for agent in agents:
@@ -689,8 +734,7 @@ def _expected_project_entries(
                 if relative == "SKILL.md":
                     source_content = ensure_skill_frontmatter(source_content.decode("utf-8"), skill.name).encode("utf-8")
                 state = _skill_bytes_state(source_content, stat.S_IMODE(source.stat().st_mode) & ~0o222)
-                entry = ManagedFileEntry(skill.name, relative, path, str(AGENT_SKILL_CONFIG[agent]["class"]),
-                                         agent, f"sha256:{state.sha256}", now)
+                entry = ManagedFileEntry(skill.name, relative, path, str(AGENT_SKILL_CONFIG[agent]["class"]), agent, f"sha256:{state.sha256}", now)
                 if not _valid_skill_entry(entry):
                     raise ValueError(f"Unsafe canonical skill path: {path}")
                 if path in expected:
@@ -704,17 +748,19 @@ def _expected_project_entries(
 
 
 def _reject_provisioning_source_overlap(
-    provisioning: _PreparedMissionTypeActivations | None, skills: tuple[CanonicalSkill, ...],
+    provisioning: _PreparedMissionTypeActivations | None,
+    skills: tuple[CanonicalSkill, ...],
 ) -> None:
-    if provisioning is not None and any(
-        source.resolve() == provisioning.write.target for skill in skills for source in skill.all_files
-    ):
+    if provisioning is not None and any(source.resolve() == provisioning.write.target for skill in skills for source in skill.all_files):
         raise ValueError("Mission provisioning overlaps canonical skill input")
 
 
 def _prepare_project_skills(
-    plan: _ProjectSkillPreparation, registry: SkillRegistry, agents: tuple[str, ...],
-    selected_paths: tuple[str, ...] | None, retire: bool,
+    plan: _ProjectSkillPreparation,
+    registry: SkillRegistry,
+    agents: tuple[str, ...],
+    selected_paths: tuple[str, ...] | None,
+    retire: bool,
 ) -> OwnerAssessment:
     project = plan.inputs.root.path
     config = _agent_config_identity()
@@ -748,8 +794,10 @@ def _prepare_project_skills(
         content, after, new_owners = wanted if wanted is not None else (None, FileState("absent"), [])
         managed = bool(owners)
         unchanged_owned = managed and (
-            before.kind == "file" and all(entry.delivery_mode == DELIVERY_COPY and entry.content_hash == f"sha256:{before.sha256}" for entry in owners)
-            or before.kind == "symlink" and all(_managed_link(entry, project / path, before) for entry in owners)
+            before.kind == "file"
+            and all(entry.delivery_mode == DELIVERY_COPY and entry.content_hash == f"sha256:{before.sha256}" for entry in owners)
+            or before.kind == "symlink"
+            and all(_managed_link(entry, project / path, before) for entry in owners)
         )
         canonical = wanted is not None and before.kind == "file" and before.sha256 == after.sha256
         if _preserve_project_path(plan, path, before, managed, canonical, unchanged_owned):
@@ -760,8 +808,9 @@ def _prepare_project_skills(
         if before.kind in {"file", "symlink"} and not canonical and (after.kind != "absent" or not unchanged_owned):
             old_bytes = (project / path).read_bytes() if before.kind == "file" else None
             backups.append((SkillBackupReplacement(path, before, after), old_bytes, effect_owners, consumers))
-        plan.write(path, before, after, content, effect_owners, 2, "Reconcile selected managed skill",
-                   "manifest" if owners else "canonical_content", consumers=consumers)
+        plan.write(
+            path, before, after, content, effect_owners, 2, "Reconcile selected managed skill", "manifest" if owners else "canonical_content", consumers=consumers
+        )
         if wanted is None:
             manifest.entries = [entry for entry in manifest.entries if entry.installed_path != path]
             retired_entries.extend(selected_owners)
@@ -779,49 +828,66 @@ def _prepare_project_skills(
         plan.observations.extend(allocation.observations)
         for replacement, content, owners, consumers in backups:
             path = (allocation.root / replacement.path).relative_to(project).as_posix()
-            plan.write(path, FileState("absent"), replacement.before, content, owners, 1,
-                       "Retain managed skill before replacement", consumers=consumers)
+            plan.write(path, FileState("absent"), replacement.before, content, owners, 1, "Retain managed skill before replacement", consumers=consumers)
     plan.prune(tuple(retired_entries))
     return _finish_project_preparation(plan, manifest, previous, now, config)
 
 
 def _finish_project_preparation(
-    plan: _ProjectSkillPreparation, manifest: ManagedSkillManifest,
-    previous: ManagedSkillManifest | None, now: str, config: str,
+    plan: _ProjectSkillPreparation,
+    manifest: ManagedSkillManifest,
+    previous: ManagedSkillManifest | None,
+    now: str,
+    config: str,
 ) -> OwnerAssessment:
     prepared_manifest = prepare_manifest(manifest, plan.inputs.root.path, operation_time=now)
     plan.observations.extend(prepared_manifest.observations)
     if prepared_manifest.changed and plan.persist_manifest and (manifest.entries or previous is not None):
-        plan.write(".kittify/skills-manifest.json", prepared_manifest.observations[-1].state,
-                   _skill_bytes_state(prepared_manifest.content, prepared_manifest.mode), prepared_manifest.content,
-                   tuple(manifest.entries) or tuple(previous.entries if previous else ()), 4, "Persist prepared skills manifest")
+        plan.write(
+            ".kittify/skills-manifest.json",
+            prepared_manifest.observations[-1].state,
+            _skill_bytes_state(prepared_manifest.content, prepared_manifest.mode),
+            prepared_manifest.content,
+            tuple(manifest.entries) or tuple(previous.entries if previous else ()),
+            4,
+            "Persist prepared skills manifest",
+        )
     plan.parents()
     recheck_skill_paths(tuple(plan.observations))
     if config != _agent_config_identity():
         raise ValueError("Agent skill configuration changed during assessment")
     effects = coalesce_effects(tuple(write.effect for write in plan.writes))
     by_path = {effect.path: effect for effect in effects}
-    writes = tuple(sorted((replace(write, effect=by_path[write.effect.path]) for write in plan.writes),
-                          key=_project_write_sort_key))
-    prepared = PreparedProjectSkills(plan.inputs.root, plan.inputs.consent, tuple(plan.observations), config, writes, prepared_manifest.content,
-                                     plan.provisioning)
+    writes = tuple(sorted((replace(write, effect=by_path[write.effect.path]) for write in plan.writes), key=_project_write_sort_key))
+    prepared = PreparedProjectSkills(plan.inputs.root, plan.inputs.consent, tuple(plan.observations), config, writes, prepared_manifest.content, plan.provisioning)
     if plan.provisioning is not None and any(
-        item.path != plan.inputs.root.path / ".kittify/config.yaml"
-        and item.state.kind == "file" and item.path.resolve() == plan.provisioning.write.target
+        item.path != plan.inputs.root.path / ".kittify/config.yaml" and item.state.kind == "file" and item.path.resolve() == plan.provisioning.write.target
         for item in plan.observations
     ):
         raise ValueError("Mission provisioning overlaps managed skill state")
     _recheck_skill_provisioning(prepared, provisioning_applied=False)
-    return OwnerAssessment("managed_skills", plan.inputs.root, effects, tuple(plan.dispositions),
-                           inputs_fingerprint=(InputObservation("project_skill_inputs", prepared.observations),
-                                               InputObservation("agent_skill_config", config),
-                                               InputObservation("skill_provisioning", prepared.provisioning)),
-                           prepared=prepared, consent=plan.inputs.consent)
+    return OwnerAssessment(
+        "managed_skills",
+        plan.inputs.root,
+        effects,
+        tuple(plan.dispositions),
+        inputs_fingerprint=(
+            InputObservation("project_skill_inputs", prepared.observations),
+            InputObservation("agent_skill_config", config),
+            InputObservation("skill_provisioning", prepared.provisioning),
+        ),
+        prepared=prepared,
+        consent=plan.inputs.consent,
+    )
 
 
 def _preserve_project_path(
-    plan: _ProjectSkillPreparation, path: str, before: FileState,
-    managed: bool, canonical: bool, unchanged_owned: bool,
+    plan: _ProjectSkillPreparation,
+    path: str,
+    before: FileState,
+    managed: bool,
+    canonical: bool,
+    unchanged_owned: bool,
 ) -> bool:
     if before.kind == "directory" or (before.kind != "absent" and not managed and not canonical):
         plan.disposition(path, "preserve", "Unknown content is not owned by the skill manager")
@@ -841,7 +907,9 @@ def _project_write_sort_key(write: PreparedProjectSkillWrite) -> tuple[int, int,
 
 @contextmanager
 def recheck_project_skills(
-    assessment: OwnerAssessment, *, provisioning_applied: bool = False,
+    assessment: OwnerAssessment,
+    *,
+    provisioning_applied: bool = False,
 ) -> Iterator[tuple[Diagnostic, ...]]:
     """Hold the process-local owner boundary; no pre-existing skill lock file exists."""
     with _PROJECT_SKILL_LOCK:
@@ -850,7 +918,9 @@ def recheck_project_skills(
             if assessment.owner_key != "managed_skills" or not isinstance(prepared, PreparedProjectSkills) or not assessment.complete:
                 raise ValueError("Project skill assessment is incomplete or invalid")
             if (assessment.root, assessment.consent, assessment.effects) != (
-                prepared.root, prepared.consent, coalesce_effects(tuple(write.effect for write in prepared.writes)),
+                prepared.root,
+                prepared.consent,
+                coalesce_effects(tuple(write.effect for write in prepared.writes)),
             ) or any(item.severity == "error" for item in assessment.diagnostics):
                 raise ValueError("Project skill assessment does not match its retained preparation")
             if assessment.inputs_fingerprint != (
@@ -864,8 +934,7 @@ def recheck_project_skills(
             changed_config: Path | None = prepared.root.path / ".kittify/config.yaml"
             if transitioned != prepared.root.path.resolve() / ".kittify/config.yaml":
                 changed_config = None
-            provisioning_parents = (prepared.provisioning.write.absent_parents
-                                    if transitioned is not None and prepared.provisioning is not None else ())
+            provisioning_parents = prepared.provisioning.write.absent_parents if transitioned is not None and prepared.provisioning is not None else ()
             observations = []
             for item in prepared.observations:
                 if item.path == changed_config or item.path in provisioning_parents:
@@ -915,7 +984,7 @@ def _apply_project_skill_write(write: PreparedProjectSkillWrite) -> None:
             descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, after.mode)
             with os.fdopen(descriptor, "wb") as stream:
                 stream.write(content)
-                os.fchmod(stream.fileno(), after.mode)
+                chmod_fd(stream.fileno(), path, after.mode)
         else:
             atomic_write(path, content)
             path.chmod(after.mode)
@@ -1009,9 +1078,15 @@ class SkillInstallationAssessment:
 
 
 def assess_skill_installation(
-    inputs: AssessmentInputs, registry: SkillRegistry, agent_keys: tuple[str, ...], *,
-    runtime: bool = False, commands: bool = False, command_agent_keys: list[str] | None = None,
-    retire: bool = True, persist_manifest: bool = True,
+    inputs: AssessmentInputs,
+    registry: SkillRegistry,
+    agent_keys: tuple[str, ...],
+    *,
+    runtime: bool = False,
+    commands: bool = False,
+    command_agent_keys: list[str] | None = None,
+    retire: bool = True,
+    persist_manifest: bool = True,
 ) -> SkillInstallationAssessment:
     """Gather caller selection before one coordinated global assessment.
 
@@ -1027,21 +1102,22 @@ def assess_skill_installation(
     captured = _CapturedSkillRegistry(skills, observations)
     selection = GlobalSkillSelection(skills=skills, agent_keys=agents)
     project = assess_project_skills(inputs, captured, agents, retire=retire, persist_manifest=persist_manifest)
-    global_assets = assess_global_assets(runtime=runtime, commands=commands, agent_keys=command_agent_keys,
-                                         skill_selection=selection, consent=inputs.consent)
+    global_assets = assess_global_assets(runtime=runtime, commands=commands, agent_keys=command_agent_keys, skill_selection=selection, consent=inputs.consent)
     return SkillInstallationAssessment(global_assets, project, agents)
 
 
 def apply_skill_installation(
-    installation: SkillInstallationAssessment, consent: ApplyConsent,
+    installation: SkillInstallationAssessment,
+    consent: ApplyConsent,
 ) -> tuple[OwnerApplyResult, OwnerApplyResult]:
     """Direct-call boundary: recheck BOTH roots before the first global write."""
     from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 
     global_assets, project = installation.global_assets, installation.project_skills
     if isinstance(project.prepared, PreparedProjectSkills) and project.prepared.provisioning is not None:
-        errors = (Diagnostic("paired_skill_preflight_required", "managed_skills", "error",
-                             "Provisioning requires the provider's paired preflight_installation boundary"),)
+        errors = (
+            Diagnostic("paired_skill_preflight_required", "managed_skills", "error", "Provisioning requires the provider's paired preflight_installation boundary"),
+        )
         return _refuse_skill_owner(global_assets, errors), _refuse_skill_owner(project, errors)
     if not global_assets.complete or not project.complete:
         return _refuse_skill_owner(global_assets, global_assets.diagnostics), _refuse_skill_owner(project, project.diagnostics)
@@ -1056,13 +1132,16 @@ def apply_skill_installation(
 
 
 def _refuse_skill_owner(owner: OwnerAssessment, diagnostics: tuple[Diagnostic, ...]) -> OwnerApplyResult:
-    return OwnerApplyResult(owner.owner_key, skipped=tuple(effect.id for effect in owner.effects),
-                            outcome="precondition_changed", diagnostics=diagnostics)
+    return OwnerApplyResult(owner.owner_key, skipped=tuple(effect.id for effect in owner.effects), outcome="precondition_changed", diagnostics=diagnostics)
 
 
 def _install_caller_skills(
-    project_path: Path, agents: tuple[str, ...], registry: SkillRegistry,
-    archived_paths: list[Path] | None, *, retire: bool,
+    project_path: Path,
+    agents: tuple[str, ...],
+    registry: SkillRegistry,
+    archived_paths: list[Path] | None,
+    *,
+    retire: bool,
 ) -> ManagedSkillManifest:
     consent = ApplyConsent(automatic=True)
     inputs = AssessmentInputs(OperationRoot("project", "project", project_path.absolute()), consent=consent)
@@ -1074,8 +1153,11 @@ def _install_caller_skills(
     project = installation.project_skills
     if archived_paths is not None:
         succeeded = set(results[1].succeeded)
-        archived_paths.extend(effect.destination for effect in project.effects if effect.id in succeeded and
-                              effect.path.startswith(".kittify/.migration-backup/") and effect.after.kind in {"file", "symlink"})
+        archived_paths.extend(
+            effect.destination
+            for effect in project.effects
+            if effect.id in succeeded and effect.path.startswith(".kittify/.migration-backup/") and effect.after.kind in {"file", "symlink"}
+        )
     prepared = project.prepared
     if not isinstance(prepared, PreparedProjectSkills):
         raise TypeError("Missing prepared project skill manifest")
