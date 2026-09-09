@@ -186,10 +186,13 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 #       were verified absent from BOTH ``tasks/WP08-meta-fail-closed-route-batch-a.md``
 #       and ``tasks/WP09-meta-fail-closed-route-batch-b.md``'s ``owned_files``
 #       lists — neither WP claimed those files, so #3140's closure did not
-#       cover them. Every row in this bucket (14 functions / 15 call sites,
-#       tracked as issue #3162) was routed through ``load_meta_fail_closed``
-#       by the #3162 pass and its row DELETED — the bucket is empty now, and
-#       any site that reappears here is a regression, not a leftover.
+#       cover them. Every row in this bucket (13 functions / 14 call sites —
+#       issue #3162's 13 bullets name 12 of the functions, ``read_primary_meta``
+#       twice, and the bucket's one row beyond that list is
+#       ``_resolve_status_surface_dir``) was routed through
+#       ``load_meta_fail_closed`` by the #3162 pass and its row DELETED — the
+#       bucket is empty now, and any site that reappears here is a regression,
+#       not a leftover.
 #
 # MAINTENANCE: this ledger is checked for exact equality against the live scan.
 # If you ROUTE a site, DELETE its row. If you ADD a legitimate new reader,

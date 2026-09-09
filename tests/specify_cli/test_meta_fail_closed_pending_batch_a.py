@@ -1,20 +1,13 @@
 """ATDD: pending-batch-a fail-closed routing for meta.json corruption (FR-007 / #3162).
 
-Exercises the REAL entry points of every site the ``pending-batch-a`` bucket
-named — not ``load_meta``/``load_meta_fail_closed`` directly — so this test is
-genuinely red if a routed call site regresses back to the unwrapped
-``mission_metadata.load_meta`` call (a raw ``ValueError`` escaping to the
-caller). Companion to ``test_meta_fail_closed_batch_a.py`` (which covered
-WP08's owned subsystems); this file covers the remainder that neither WP08 nor
-WP09 ever claimed, routed by the #3162 pass:
+Exercises the REAL entry points of every ``pending-batch-a`` site under
+``src/specify_cli/`` — not ``load_meta``/``load_meta_fail_closed`` directly —
+so this test is genuinely red if a routed call site regresses back to the
+unwrapped ``mission_metadata.load_meta`` call (a raw ``ValueError`` escaping
+to the caller). Companion to ``test_meta_fail_closed_batch_a.py`` (which
+covered WP08's owned subsystems); this file covers the remainder that neither
+WP08 nor WP09 ever claimed, routed by the #3162 pass:
 
-- ``mission_runtime/resolution.py`` probes (``_mid8_from_primary_meta``,
-  ``_resolve_coordination_branch``, ``_resolve_mission_id``) — degrade sites:
-  the typed :class:`MissionMetaReadError` is absorbed into each probe's
-  historical sentinel answer, mirroring the
-  ``lifecycle_phase._read_baseline_merge_commit`` carve-out.
-- ``runtime/next`` (``planner._resolve_workflow_for_mission``,
-  ``runtime_bridge_io._workflow_runtime_template``) — typed raise.
 - ``bulk_edit/gate.py`` — typed raise.
 - ``context/resolver.py`` (``_read_meta_json``) — typed raise.
 - ``decisions/service.py`` (``_resolve_mission_id``) — typed read failure
@@ -23,6 +16,13 @@ WP09 ever claimed, routed by the #3162 pass:
 - ``missions/_resolve_planning_branch.py`` (``load_mission_target_branch``) —
   typed read failure wrapped into ``PlanningBranchResolutionFailed``.
 - ``upgrade/feature_meta.py`` (``load_feature_meta``) — degrade to ``None``.
+
+The ``pending-batch-a`` sites under ``src/mission_runtime/`` and
+``src/runtime/next/`` are covered by sibling files named after this one in
+``tests/mission_runtime/`` and ``tests/runtime/`` — split out there (PR #4008
+fix round) because CI module shards select tests by directory and top-level
+``tests/specify_cli/`` is in no module's ``test_dirs``, so those critical-path
+roots' corrupt-meta arms were never executed in CI from here.
 
 Both corrupt-meta and non-dict-meta cases are driven — the two shapes
 ``mission_metadata._parse_meta_text`` treats as "malformed" (json.JSONDecodeError
@@ -56,75 +56,6 @@ def _seed(root: Path, meta_text: str) -> Path:
     mission_dir.mkdir(parents=True, exist_ok=True)
     (mission_dir / "meta.json").write_text(meta_text, encoding="utf-8")
     return mission_dir
-
-
-# ---------------------------------------------------------------------------
-# mission_runtime/resolution.py — the three divergent-wrapper probes degrade
-# to their historical sentinels via the typed error (never a raw ValueError).
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("meta_text", _CASES, ids=_CASE_IDS)
-def test_mid8_from_primary_meta_degrades_to_empty(tmp_path: Path, meta_text: str) -> None:
-    """Corrupt primary meta → ``""`` (the historical malformed→empty degrade)."""
-    from mission_runtime.resolution import _mid8_from_primary_meta
-
-    _seed(tmp_path, meta_text)
-    assert _mid8_from_primary_meta(tmp_path, _SLUG) == ""
-
-
-@pytest.mark.parametrize("meta_text", _CASES, ids=_CASE_IDS)
-def test_resolve_coordination_branch_degrades_to_none(tmp_path: Path, meta_text: str) -> None:
-    """Corrupt primary meta → ``None`` (coordination topology undeclared)."""
-    from mission_runtime.resolution import _resolve_coordination_branch
-
-    _seed(tmp_path, meta_text)
-    assert _resolve_coordination_branch(tmp_path, _SLUG) is None
-
-
-@pytest.mark.parametrize("meta_text", _CASES, ids=_CASE_IDS)
-def test_resolve_mission_id_degrades_to_legacy_sentinel(tmp_path: Path, meta_text: str) -> None:
-    """Corrupt primary meta → the ``legacy-<slug>`` bootstrap sentinel."""
-    from mission_runtime.resolution import _resolve_mission_id
-
-    _seed(tmp_path, meta_text)
-    assert _resolve_mission_id(tmp_path, _SLUG) == f"legacy-{_SLUG}"
-
-
-# ---------------------------------------------------------------------------
-# runtime/next — route-unwrapped sites now surface the typed error.
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("meta_text", _CASES, ids=_CASE_IDS)
-def test_planner_resolve_workflow_raises_typed(tmp_path: Path, meta_text: str) -> None:
-    """``planner._resolve_workflow_for_mission`` raises MissionMetaReadError.
-
-    A raw ``ValueError`` would also satisfy ``pytest.raises(Exception)``;
-    ``MissionMetaReadError`` is a ``RuntimeError`` subclass, NOT a
-    ``ValueError``, so this genuinely fails on a regression to the unwrapped
-    ``load_meta(...)`` call.
-    """
-    from runtime.next._internal_runtime.planner import _resolve_workflow_for_mission
-
-    mission_dir = _seed(tmp_path, meta_text)
-    with pytest.raises(MissionMetaReadError, match="fail-closed"):
-        _resolve_workflow_for_mission(mission_dir)
-
-
-@pytest.mark.parametrize("meta_text", _CASES, ids=_CASE_IDS)
-def test_runtime_bridge_workflow_template_raises_typed(tmp_path: Path, meta_text: str) -> None:
-    """``runtime_bridge_io._workflow_runtime_template`` raises MissionMetaReadError.
-
-    The corrupt meta is hit either at this module's own routed read or at the
-    read-side seam it resolves through (``read_primary_meta``, routed in the
-    same pass) — both raise the same typed error, never a raw ``ValueError``.
-    """
-    from runtime.next.runtime_bridge_io import _workflow_runtime_template
-
-    _seed(tmp_path, meta_text)
-    with pytest.raises(MissionMetaReadError, match="fail-closed"):
-        _workflow_runtime_template(_SLUG, "software-dev", tmp_path, "software-dev")
 
 
 # ---------------------------------------------------------------------------
