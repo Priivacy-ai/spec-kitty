@@ -502,22 +502,37 @@ class TestShippedProfilesContextSources:
         )
 
 
-@pytest.mark.performance
-class TestShippedProfilesPerformance:
-    """Performance gate: loading all shipped profiles must complete quickly."""
+class TestShippedProfilesLoadCount:
+    """Functional companion to TestShippedProfilesPerformance (split, #4015):
+    the load-count check must run on the per-PR path, not only nightly."""
 
-    def test_shipped_profile_load_time(self) -> None:
-        """Loading all 12 shipped profiles must complete in under 2 seconds."""
-        import time
-
-        start = time.perf_counter()
+    def test_shipped_profile_load_returns_all_profiles(self) -> None:
+        """Loading all shipped profiles returns exactly EXPECTED_PROFILE_IDS."""
         repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
         profiles = repo.list_all()
-        elapsed = time.perf_counter() - start
 
         assert len(profiles) == len(EXPECTED_PROFILE_IDS), (
             f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(profiles)}"
         )
-        assert elapsed < 2.0, (
-            f"Loading all shipped profiles took {elapsed:.3f}s, expected < 2.0s"
-        )
+
+
+@pytest.mark.performance
+class TestShippedProfilesPerformance:
+    """Performance gate: loading all shipped profiles must complete quickly.
+
+    Timing budget only (split, #4015): functional coverage moved to
+    TestShippedProfilesLoadCount, above.
+    """
+
+    def test_shipped_profile_load_time(self) -> None:
+        """Loading all shipped profiles must complete in under 2 seconds."""
+        import time
+
+        from tests._perf_helpers import assert_timing_budget
+
+        start = time.perf_counter()
+        repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
+        repo.list_all()
+        elapsed = time.perf_counter() - start
+
+        assert_timing_budget(elapsed, 2.0, name="shipped_profile_load")

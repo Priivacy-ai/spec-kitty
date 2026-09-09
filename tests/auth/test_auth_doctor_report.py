@@ -51,6 +51,7 @@ from specify_cli.cli.commands._auth_doctor import (
     render_report_json,
 )
 from specify_cli.core.file_lock import LockRecord
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = pytest.mark.fast
 
@@ -352,8 +353,26 @@ def test_renders_legacy_session(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Healthy state ⇒ ``assemble_report`` wall-clock < 3 s (NFR-006).
+    """Healthy state ⇒ ``assemble_report`` reports no findings (NFR-006, functional half).
 
+    Split from the original NFR-006 test (#4015): the wall-clock ceiling now
+    lives in ``test_assemble_report_stays_under_the_nfr_006_ceiling``
+    (``@pytest.mark.performance``, nightly-only); this test keeps the
+    functional assertion on the per-PR path.
+    """
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+
+    assert report.findings == []
+
+
+@pytest.mark.performance
+def test_assemble_report_stays_under_the_nfr_006_ceiling(monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-006: ``assemble_report`` wall-clock stays under the 3 s ceiling (nightly).
+
+    Split from ``test_runs_under_three_seconds`` (#4015); budget preserved.
     The default path reads only local files, so the whole pipeline runs
     well inside the ceiling without any simulated scan delay.
     """
@@ -361,11 +380,10 @@ def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_state(monkeypatch, session=session)
 
     started = time.monotonic()
-    report = assemble_report()
+    assemble_report()
     elapsed = time.monotonic() - started
 
-    assert elapsed < 3.0, f"assemble_report took {elapsed:.2f}s (NFR-006 ceiling = 3s)"
-    assert report.findings == []
+    assert_timing_budget(elapsed, 3.0, name="assemble_report")
 
 
 def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -547,6 +565,7 @@ async def test_check_server_session_resolves_target_once(monkeypatch: pytest.Mon
     mock_client.__aexit__ = AsyncMock(return_value=None)
     mock_client.get = AsyncMock(return_value=mock_response)
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
     mock_tm.get_current_session = MagicMock(return_value=session)
     resolutions = 0
@@ -906,9 +925,7 @@ def test_server_issuer_mismatch_error_none_when_session_missing(
 ) -> None:
     """No session at all ⇒ no mismatch to report (the ordinary NotAuthenticatedError path decides)."""
     tm = _FakeTokenManagerWithSession(None)
-    monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
-    )
+    monkeypatch.setattr(_auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai"))
     assert _server_issuer_mismatch_error(tm) is None
 
 

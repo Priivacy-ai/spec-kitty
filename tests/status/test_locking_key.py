@@ -37,6 +37,7 @@ from specify_cli.status.locking import (
     feature_status_lock_path,
 )
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
+from tests._perf_helpers import assert_timing_budget
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = [pytest.mark.unit]
@@ -157,6 +158,45 @@ def test_describe_holder_renders_both_arms() -> None:
 
 
 def test_contended_bounded_take_raises_structured_error_naming_holder(repo: Path) -> None:
+    """Functional half of the #4015 split; the wall-clock ceiling now lives in
+    ``test_contended_bounded_take_stays_under_five_seconds`` (nightly-only)."""
+    holder_ready = threading.Event()
+    release = threading.Event()
+    holder_thread_name = "wp01-holder"
+
+    def _hold() -> None:
+        with feature_status_lock(repo, "demo-01AAAAAA", timeout=5):
+            holder_ready.set()
+            release.wait(timeout=10)
+
+    holder = threading.Thread(target=_hold, name=holder_thread_name)
+    holder.start()
+    try:
+        assert holder_ready.wait(timeout=5)
+        with (
+            pytest.raises(FeatureStatusLockTimeoutError) as excinfo,
+            feature_status_lock(repo, "demo-01AAAAAA", timeout=0.3),
+        ):
+            pass
+    finally:
+        release.set()
+        holder.join(timeout=10)
+    assert not holder.is_alive()
+    exc = excinfo.value
+    expected_path = feature_status_lock_path(repo, "demo-01AAAAAA")
+    assert exc.lock_path == expected_path
+    assert exc.timeout == 0.3
+    assert exc.holder is not None and exc.holder["thread"] == holder_thread_name
+    message = str(exc)
+    assert "Timed out acquiring status lock" in message
+    assert str(expected_path) in message
+    assert f"held by pid {exc.holder['pid']}" in message
+
+
+@pytest.mark.performance
+def test_contended_bounded_take_stays_under_five_seconds(repo: Path) -> None:
+    """Split from ``test_contended_bounded_take_raises_structured_error_naming_holder``
+    (#4015); budget preserved (nightly)."""
     holder_ready = threading.Event()
     release = threading.Event()
     holder_thread_name = "wp01-holder"
@@ -172,7 +212,7 @@ def test_contended_bounded_take_raises_structured_error_naming_holder(repo: Path
         assert holder_ready.wait(timeout=5)
         started = time.monotonic()
         with (
-            pytest.raises(FeatureStatusLockTimeoutError) as excinfo,
+            pytest.raises(FeatureStatusLockTimeoutError),
             feature_status_lock(repo, "demo-01AAAAAA", timeout=0.3),
         ):
             pass
@@ -180,17 +220,8 @@ def test_contended_bounded_take_raises_structured_error_naming_holder(repo: Path
     finally:
         release.set()
         holder.join(timeout=10)
-    assert not holder.is_alive()
-    assert elapsed < 5.0
-    exc = excinfo.value
-    expected_path = feature_status_lock_path(repo, "demo-01AAAAAA")
-    assert exc.lock_path == expected_path
-    assert exc.timeout == 0.3
-    assert exc.holder is not None and exc.holder["thread"] == holder_thread_name
-    message = str(exc)
-    assert "Timed out acquiring status lock" in message
-    assert str(expected_path) in message
-    assert f"held by pid {exc.holder['pid']}" in message
+
+    assert_timing_budget(elapsed, 5.0, name="contended_bounded_take")
 
 
 def test_unbounded_default_is_preserved(repo: Path) -> None:

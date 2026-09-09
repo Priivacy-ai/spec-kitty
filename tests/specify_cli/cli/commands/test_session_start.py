@@ -16,6 +16,8 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
+from tests._perf_helpers import assert_timing_budget
+
 # ---------------------------------------------------------------------------
 # Ensure the worktree's src/ takes priority over the main-repo editable install
 # so that specify_cli.session_presence resolves to the worktree package.
@@ -224,6 +226,24 @@ class TestExitZeroGuarantee:
 
 
 class TestNFR001Performance:
+    def test_session_start_succeeds_with_mocked_io(
+        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """session-start exits 0 with all I/O mocked (NFR-001 functional half)."""
+        monkeypatch.chdir(spec_project)
+        with (
+            patch(
+                "specify_cli.session_presence.manager.UpgradeChecker"
+            ) as mock_checker_cls,
+            patch("importlib.metadata.version", return_value="3.2.0"),
+            patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
+        ):
+            mock_checker_cls.return_value.get_available_version.return_value = None
+            result = runner.invoke(_app, [])
+
+        assert result.exit_code == 0
+
+    @pytest.mark.performance
     def test_session_start_completes_under_200ms(
         self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -242,10 +262,7 @@ class TestNFR001Performance:
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
             start = time.monotonic()
-            result = runner.invoke(_app, [])
+            runner.invoke(_app, [])
             elapsed_ms = (time.monotonic() - start) * 1000
 
-        assert result.exit_code == 0
-        assert elapsed_ms < 200, (
-            f"session-start took {elapsed_ms:.1f}ms — exceeds NFR-001 200ms budget"
-        )
+        assert_timing_budget(elapsed_ms, 200, name="session-start NFR-001")

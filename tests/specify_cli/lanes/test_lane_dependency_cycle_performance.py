@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 import time
 
 import pytest
 
 from specify_cli.lanes.compute import _find_lane_dependency_cycle
+from tests._perf_helpers import assert_timing_budget
 
 # ``fast`` gives this node a collection home; the explicit skip keeps ordinary
 # CI from spending time on the governed performance sample.
@@ -38,23 +38,34 @@ def _performance_graph() -> dict[str, set[str]]:
     return graph
 
 
-@pytest.mark.skipif(
-    not os.environ.get("SPEC_KITTY_RUN_PERFORMANCE"),
-    reason="set SPEC_KITTY_RUN_PERFORMANCE=1 to run the lane-cycle performance sample",
-)
+def test_cycle_detection_100_lanes_500_edges_finds_expected_cycle() -> None:
+    """Functional half: the governed 500-edge fixture finds the expected cycle."""
+    graph = _performance_graph()
+
+    assert _find_lane_dependency_cycle(graph) == _EXPECTED_CYCLE
+    result = _find_lane_dependency_cycle(graph)
+    assert result == _EXPECTED_CYCLE
+
+
+@pytest.mark.performance
 def test_cycle_detection_100_lanes_500_edges_p95_under_100ms() -> None:
-    """NFR-003: exact governed fixture completes within the 100 ms p95 budget."""
+    """NFR-003: exact governed fixture completes within the 100 ms p95 budget.
+
+    ``p95`` carries no ``TIMING_ASSERTION_VOCABULARY`` token, so the relocated
+    check goes through ``assert_timing_budget`` (guard-clean by construction)
+    rather than a bare ``assert`` -- the same vocab-blindness the shared
+    helper was built for (research.md Decision 3).
+    """
     graph = _performance_graph()
 
     for _ in range(5):
-        assert _find_lane_dependency_cycle(graph) == _EXPECTED_CYCLE
+        _find_lane_dependency_cycle(graph)
 
     durations: list[float] = []
     for _ in range(20):
         started = time.perf_counter()
-        result = _find_lane_dependency_cycle(graph)
+        _find_lane_dependency_cycle(graph)
         durations.append(time.perf_counter() - started)
-        assert result == _EXPECTED_CYCLE
 
     p95 = sorted(durations)[18]
-    assert p95 <= 0.100, f"cycle detector p95 {p95:.6f}s exceeded 0.100s"
+    assert_timing_budget(p95, 0.100, name="cycle detector p95")

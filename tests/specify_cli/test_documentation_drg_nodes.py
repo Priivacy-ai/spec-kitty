@@ -1,6 +1,6 @@
 """DRG node and resolve_context regression tests for documentation mission (#502).
 
-These tests assert four facts on the *real* shipped DRG and the documentation
+These tests assert facts on the *real* shipped DRG and the documentation
 action bundles produced by WP03:
 
 1. Each of the 6 documentation action nodes exists in the validated graph and
@@ -9,18 +9,20 @@ action bundles produced by WP03:
 2. Each documentation action's bundle ``index.yaml`` (slug-form
    directives/tactics) maps 1-to-1 to the URN-form ``relation: scope`` edges
    in ``src/charter/offering/graph.yaml`` (FR-006).
-3. ``resolve_context`` median latency for documentation actions is at most
-   2x the median latency for research actions (NFR-007).
 
 The mission spec forbids mocking ``charter.activation._drg_helpers.load_validated_graph``
 or ``charter.offering.drg.query.resolve_context`` (C-007); these tests read the real
 on-disk graph and call the production resolver directly.
+
+(#4015, operator-signed-off 2026-09-09: the former NFR-007 pure-timing test
+``test_resolve_context_within_research_2x`` -- sole assert
+``doc_med <= 2 * research_med``, vocab-blocked, zero functional coverage --
+was deleted rather than split/helper-wrapped; see mission
+``ci-suite-stability-test-isolation-01M22MM5`` WP06.)
 """
 
 from __future__ import annotations
 
-import statistics
-import time
 from pathlib import Path
 
 import pytest
@@ -197,29 +199,4 @@ def test_action_bundle_matches_drg_edges(action: str) -> None:
         f"bundle <-> DRG mismatch for {action}: bundle has {expected_urns}, "
         f"graph (excl. type-grain-inherited {inherited_urns}) has "
         f"{actual_action_grain_urns}"
-    )
-
-
-def test_resolve_context_within_research_2x() -> None:
-    """NFR-007: documentation resolve_context median <= 2x research median."""
-    graph = load_validated_graph(_repo_root())
-
-    def median_runs(actions: tuple[str, ...], mission: str) -> float:
-        durations: list[float] = []
-        for _ in range(5):
-            for action in actions:
-                t0 = time.perf_counter()
-                resolve_context(
-                    graph,
-                    f"action:{mission}/{action}",
-                    depth=_COMPOSITION_RESOLUTION_DEPTH,
-                )
-                durations.append(time.perf_counter() - t0)
-        return statistics.median(durations)
-
-    doc_med = median_runs(_DOC_ACTIONS, "documentation")
-    research_med = median_runs(_RESEARCH_ACTIONS, "research")
-    assert doc_med <= 2 * research_med, (
-        f"documentation median {doc_med:.6f}s exceeds "
-        f"2x research median {research_med:.6f}s"
     )
