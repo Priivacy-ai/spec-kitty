@@ -41,6 +41,7 @@ from pathlib import Path
 
 import ulid as _ulid_mod
 
+from specify_cli.core.no_follow import fd_relative_dir_ops_supported
 from specify_cli.core.utils import ensure_within_any
 
 logger = logging.getLogger(__name__)
@@ -66,40 +67,16 @@ def _confine_path_to_worktree(worktree_root: Path, path: Path) -> Path:
         resolved_worktree = worktree_root.resolve()
         resolved_candidate = candidate.resolve(strict=False)
     except OSError as exc:
-        raise ValueError(
-            f"Path {candidate} could not be resolved under worktree {worktree_root}: {exc}"
-        ) from exc
+        raise ValueError(f"Path {candidate} could not be resolved under worktree {worktree_root}: {exc}") from exc
     if not resolved_candidate.is_relative_to(resolved_worktree):
-        raise ValueError(
-            f"Path {candidate} resolves outside worktree {worktree_root}: "
-            f"{resolved_candidate}"
-        )
+        raise ValueError(f"Path {candidate} resolves outside worktree {worktree_root}: {resolved_candidate}")
     return candidate
-
-
-def _fd_relative_writes_supported() -> bool:
-    """Whether fd-relative no-follow writes are available on this platform.
-
-    Windows (and any platform without ``dir_fd`` support) lacks all three
-    primitives the confined write leans on: ``os.open`` is not in
-    ``os.supports_dir_fd`` and ``os.O_DIRECTORY`` / ``os.O_NOFOLLOW`` are
-    undefined. Callers use this to route to the path-based fallback below.
-    """
-    return (
-        os.open in os.supports_dir_fd
-        and hasattr(os, "O_DIRECTORY")
-        and hasattr(os, "O_NOFOLLOW")
-    )
 
 
 def _open_confined_parent_fd(worktree_root: Path, path: Path) -> int:
     """Open ``path.parent`` component-by-component without following symlinks."""
-    if not _fd_relative_writes_supported():
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(fd-relative no-follow writes unsupported on this platform): "
-            f"{path}"
-        )
+    if not fd_relative_dir_ops_supported():
+        raise ValueError(f"Refusing to write artifact outside coordination worktree (fd-relative no-follow writes unsupported on this platform): {path}")
 
     resolved_worktree = worktree_root.resolve()
     relative_parent = path.parent.relative_to(resolved_worktree)
@@ -143,9 +120,7 @@ def _write_and_replace_via_parent_fd(
     os.replace(tmp_name, target_name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
 
 
-def _reject_symlinked_components(
-    resolved_worktree: Path, resolved_path: Path
-) -> None:
+def _reject_symlinked_components(resolved_worktree: Path, resolved_path: Path) -> None:
     """Refuse any symlinked component between worktree root and ``resolved_path``.
 
     The path-based fallback's replacement for the fd-relative sequence's
@@ -157,11 +132,7 @@ def _reject_symlinked_components(
     for part in resolved_path.relative_to(resolved_worktree).parts:
         current = current / part
         if current.is_symlink():
-            raise ValueError(
-                "Refusing to write artifact outside coordination worktree "
-                "(symlinked path component): "
-                f"{current}"
-            )
+            raise ValueError(f"Refusing to write artifact outside coordination worktree (symlinked path component): {current}")
 
 
 def _windows_confined_write(
@@ -185,11 +156,7 @@ def _windows_confined_write(
     resolved_worktree = worktree_root.resolve()
     resolved_parent = resolved_path.parent.resolve(strict=False)
     if not resolved_parent.is_relative_to(resolved_worktree):
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(parent resolves outside worktree): "
-            f"{resolved_path.parent}"
-        )
+        raise ValueError(f"Refusing to write artifact outside coordination worktree (parent resolves outside worktree): {resolved_path.parent}")
     _reject_symlinked_components(resolved_worktree, resolved_path)
 
     tmp_path = resolved_path.with_name(f".spec-kitty-{_generate_ulid()}.tmp")
@@ -213,9 +180,7 @@ def _windows_confined_write(
         try:
             tmp_path.unlink()
         except OSError:
-            logger.debug(
-                "atomic_write: failed to remove temp artifact %s", tmp_path
-            )
+            logger.debug("atomic_write: failed to remove temp artifact %s", tmp_path)
         raise
 
 
@@ -230,11 +195,7 @@ def _windows_confined_unlink(worktree_root: Path, resolved_path: Path) -> None:
     resolved_worktree = worktree_root.resolve()
     resolved_parent = resolved_path.parent.resolve(strict=False)
     if not resolved_parent.is_relative_to(resolved_worktree):
-        raise ValueError(
-            "Refusing to unlink artifact outside coordination worktree "
-            "(parent resolves outside worktree): "
-            f"{resolved_path.parent}"
-        )
+        raise ValueError(f"Refusing to unlink artifact outside coordination worktree (parent resolves outside worktree): {resolved_path.parent}")
     _reject_symlinked_components(resolved_worktree, resolved_path)
     resolved_path.unlink(missing_ok=True)
 
@@ -260,17 +221,9 @@ def _resolve_confined_artifact_path(worktree_root: Path, path: Path) -> Path:
     resolved_worktree = worktree_root.resolve()
     resolved_path = candidate.resolve(strict=False)
     if resolved_path == resolved_worktree:
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(target is worktree root): "
-            f"{path}"
-        )
+        raise ValueError(f"Refusing to write artifact outside coordination worktree (target is worktree root): {path}")
     if not resolved_path.is_relative_to(resolved_worktree):
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(outside worktree): "
-            f"{resolved_path}"
-        )
+        raise ValueError(f"Refusing to write artifact outside coordination worktree (outside worktree): {resolved_path}")
     return resolved_path
 
 
@@ -290,18 +243,10 @@ def _write_confined_artifact_bytes(
     resolved_path.parent.mkdir(parents=True, exist_ok=True)
     resolved_path = resolve(worktree_root, resolved_path)
     if resolved_path.exists() and not resolved_path.is_file():
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(target is not a regular file): "
-            f"{resolved_path}"
-        )
-    existing_mode = (
-        resolved_path.stat().st_mode & 0o777
-        if resolved_path.exists()
-        else None
-    )
+        raise ValueError(f"Refusing to write artifact outside coordination worktree (target is not a regular file): {resolved_path}")
+    existing_mode = resolved_path.stat().st_mode & 0o777 if resolved_path.exists() else None
 
-    if not _fd_relative_writes_supported():
+    if not fd_relative_dir_ops_supported():
         _windows_confined_write(worktree_root, resolved_path, content, existing_mode)
         return resolved_path
 
@@ -318,11 +263,7 @@ def _write_confined_artifact_bytes(
         )
     except OSError as exc:
         if exc.errno in {errno.ELOOP, errno.ENOENT, errno.ENOTDIR}:
-            raise ValueError(
-                "Refusing to write artifact outside coordination worktree "
-                "(unsafe path changed during write): "
-                f"{resolved_path}"
-            ) from exc
+            raise ValueError(f"Refusing to write artifact outside coordination worktree (unsafe path changed during write): {resolved_path}") from exc
         raise
     finally:
         if parent_fd is not None:
@@ -348,7 +289,7 @@ def _unlink_confined_artifact_path(
 ) -> None:
     """Unlink an artifact relative to a verified no-follow parent directory."""
     resolved_path = resolve(worktree_root, path)
-    if not _fd_relative_writes_supported():
+    if not fd_relative_dir_ops_supported():
         _windows_confined_unlink(worktree_root, resolved_path)
         return
     parent_fd: int | None = None
@@ -359,11 +300,7 @@ def _unlink_confined_artifact_path(
         pass
     except OSError as exc:
         if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
-            raise ValueError(
-                "Refusing to unlink artifact outside coordination worktree "
-                "(unsafe path changed during unlink): "
-                f"{resolved_path}"
-            ) from exc
+            raise ValueError(f"Refusing to unlink artifact outside coordination worktree (unsafe path changed during unlink): {resolved_path}") from exc
         raise
     finally:
         if parent_fd is not None:
@@ -408,9 +345,7 @@ def capture_generated_artifact_snapshots(
     """
     snapshots: dict[Path, bytes | None] = {}
     for candidate in paths:
-        trusted = ensure_within_any(
-            candidate, roots=list(trusted_roots), files=list(trusted_files)
-        )
+        trusted = ensure_within_any(candidate, roots=list(trusted_roots), files=list(trusted_files))
         snapshots[trusted] = trusted.read_bytes() if trusted.exists() else None
     return snapshots
 
@@ -443,9 +378,7 @@ def restore_generated_artifact_snapshots(
                 on_error(path, exc)
 
 
-def subprocess_created_paths(
-    before: Iterable[Path], after: Iterable[Path]
-) -> list[Path]:
+def subprocess_created_paths(before: Iterable[Path], after: Iterable[Path]) -> list[Path]:
     """Paths present after a spawned child ran that were absent before (C3)."""
     return sorted(set(after) - set(before))
 
@@ -467,8 +400,6 @@ def enroll_subprocess_byproducts(
     """
     snapshots: dict[Path, bytes | None] = {}
     for path in created_paths:
-        trusted = ensure_within_any(
-            path, roots=list(trusted_roots), files=list(trusted_files)
-        )
+        trusted = ensure_within_any(path, roots=list(trusted_roots), files=list(trusted_files))
         snapshots[trusted] = None
     return snapshots
