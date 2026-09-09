@@ -176,6 +176,10 @@ def test_project_yes_full_success_exits_zero_with_printed_outcome(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
+def _fail_retained_activation_apply(_self: object) -> bool:
+    raise ValueError("forced activation failure")
+
+
 def test_failed_run_exit_code_equals_outcome_exit_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A FAILED run's exit code comes from ``UpgradeOutcome.exit_code`` — not
     a stray ``typer.Exit`` surviving in the tail (post-tasks squad concern;
@@ -186,8 +190,8 @@ def test_failed_run_exit_code_equals_outcome_exit_code(tmp_path: Path, monkeypat
     _init_project(project)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._provision_missing_mission_type_activations",
-        lambda *_a, **_k: ["forced activation failure"],
+        "charter.activation.compiler._PreparedMissionTypeActivations.apply",
+        _fail_retained_activation_apply,
     )
 
     result = _run_upgrade(
@@ -208,8 +212,8 @@ def test_failed_run_exit_code_equals_outcome_exit_code_human_mode(tmp_path: Path
     _init_project(project)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._provision_missing_mission_type_activations",
-        lambda *_a, **_k: ["forced activation failure"],
+        "charter.activation.compiler._PreparedMissionTypeActivations.apply",
+        _fail_retained_activation_apply,
     )
 
     result = _run_upgrade(["--target", "1.0.0a1", "--yes", "--no-worktrees"], cwd=project)
@@ -315,6 +319,9 @@ def test_auto_commit_disabled_reports_left_uncommitted_human_mode(tmp_path: Path
 
     upgrade_cmd.upgrade(
         dry_run=False,
+        plan_json=False,
+        yes=False,
+        no_nag=False,
         force=True,
         target="3.2.0a4",
         json_output=False,
@@ -347,6 +354,9 @@ def test_auto_commit_disabled_json_mode_still_reports_auto_committed_false(
 
     upgrade_cmd.upgrade(
         dry_run=False,
+        plan_json=False,
+        yes=False,
+        no_nag=False,
         force=True,
         target="3.2.0a4",
         json_output=True,
@@ -414,6 +424,9 @@ def test_auto_commit_disabled_worktree_decision_reaches_runner_fanout(tmp_path: 
 
     upgrade_cmd.upgrade(
         dry_run=False,
+        plan_json=False,
+        yes=False,
+        no_nag=False,
         force=True,
         target="3.2.0a4",
         json_output=True,
@@ -446,3 +459,80 @@ def test_no_stray_noqa_c901_marker() -> None:
 
     source = inspect.getsource(upgrade_module)
     assert "noqa: C901" not in source
+
+
+@pytest.mark.parametrize("machine", [False, True], ids=["human", "legacy-json"])
+@pytest.mark.parametrize("fault", ["incomplete", "exception"])
+@pytest.mark.parametrize("schema_version", [3, 1], ids=["compatible", "stale"])
+def test_dry_run_repair_assessment_failure_is_visible_and_write_free(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    machine: bool,
+    fault: str,
+    schema_version: int,
+) -> None:
+    from dataclasses import replace
+    from specify_cli.tool_surface.operations import Diagnostic
+    from specify_cli.upgrade import assessment as repair_assessment
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    _init_project(project)
+    metadata = project / ".kittify/metadata.yaml"
+    metadata.write_text(metadata.read_text().replace("spec_kitty:\n", f"spec_kitty:\n  schema_version: {schema_version}\n"))
+    # Match the public preview witness: read-only git queries must not refresh
+    # the index through optional locks while we compare exact node identities.
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "0")
+    original = repair_assessment.prepare_upgrade_repairs
+
+    def failed_assessment(*args, **kwargs):
+        if fault == "exception":
+            raise OSError("fixture repair inventory unavailable")
+        prepared = original(*args, **kwargs)
+        return replace(
+            prepared,
+            diagnostics=(
+                Diagnostic(
+                    "fixture_incomplete",
+                    "upgrade",
+                    "error",
+                    "fixture repair inventory incomplete",
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(repair_assessment, "prepare_upgrade_repairs", failed_assessment)
+    before = snapshot({"project": project})
+    args = ["--dry-run", "--target", "1.0.0a1", "--no-worktrees", "--yes"]
+    result = _run_upgrade(args + (["--json"] if machine else []), cwd=project)
+    assert result.exit_code == 1, result.output
+    assert "Supporting repair preview incomplete" in result.output
+    assert "fixture repair inventory" in result.output
+    if machine:
+        payload = json.loads(result.output)
+        assert len(payload["rendered_human"]) <= 1024
+        assert payload["exit_code"] == 1
+        assert payload["decision"] == ("ALLOW" if schema_version == 3 else "BLOCK_PROJECT_MIGRATION")
+        assert payload["project"]["state"] == ("compatible" if schema_version == 3 else "stale")
+    assert_unchanged(before, snapshot({"project": project}))
+
+
+def test_dry_run_oversized_repair_notice_respects_json_text_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    _init_project(project)
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "0")
+    notice = "Supporting repair preview incomplete: " + "x" * 2048
+    monkeypatch.setattr(upgrade_cmd, "_supporting_repair_preview", lambda _: (notice, True))
+    before = snapshot({"project": project})
+    result = _run_upgrade(["--dry-run", "--target", "1.0.0a1", "--no-worktrees", "--yes", "--json"], cwd=project)
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert len(payload["rendered_human"]) <= 1024
+    assert "Supporting repair preview incomplete" in payload["rendered_human"]
+    assert payload["exit_code"] == result.exit_code
+    assert_unchanged(before, snapshot({"project": project}))
