@@ -682,7 +682,6 @@ exclude = [
     "src/specify_cli/dashboard/handlers/static.py",
     "src/specify_cli/dashboard/lifecycle.py",
     "src/specify_cli/dashboard/scanner.py",
-    "src/specify_cli/dashboard/server.py",
     "src/specify_cli/dashboard/templates/__init__.py",
     "src/specify_cli/decisions/ownership.py",
     "src/specify_cli/decisions/service.py",
@@ -2776,7 +2775,6 @@ exclude = [
     "tests/test_dashboard/test_lifecycle.py",
     "tests/test_dashboard/test_scanner.py",
     "tests/test_dashboard/test_scanner_mission_id.py",
-    "tests/test_dashboard/test_server.py",
     "tests/test_dashboard/test_static.py",
     "tests/test_dashboard/test_templates.py",
     "tests/test_frontmatter_dup_key.py",
@@ -2981,6 +2979,17 @@ follow_imports = "skip"
 # to every narrow-file check that imports it — otherwise the delegate in
 # ``git/commit_helpers.py`` returns ``Any`` under ``--strict`` (issue #3719).
 module = ["specify_cli.git.protection_policy"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# core.errors defines the StructuredError base every typed error family
+# subclasses; under the ``specify_cli.*`` skip above it resolves as ``Any`` and
+# every subclass declaration reads "Class cannot subclass StructuredError (has
+# type Any)" (e.g. dashboard/server.py's PortUnavailableError and friends).
+# It imports only ``typing``, so following it cannot drag bootstrap errors
+# into a narrow check — same shape as the protection_policy entry (issue
+# #3719), and it must likewise stay after the ``specify_cli.*`` skip.
+module = ["specify_cli.core.errors"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]
