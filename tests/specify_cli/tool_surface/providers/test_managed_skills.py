@@ -1461,3 +1461,66 @@ def test_shared_parent_composition_rejects_error_bearing_complete_owner(
             replace(composition, commands=invalid)
     assert not writes
     assert_unchanged(before, snapshot(roots))
+
+
+@pytest.mark.parametrize("missing_parent", [False, True])
+@pytest.mark.parametrize("damage", [None, "unapplied", "replace", "hardlink", "parent", "source"])
+def test_absent_authority_paired_owners_require_canonical_creation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing_parent: bool, damage: str | None,
+) -> None:
+    import os
+    from specify_cli.skills.command_installer import prepare_commands
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    home, project = tmp_path / "home", tmp_path / "project"
+    home.mkdir()
+    project.mkdir()
+    _bind_consumer_home(home, monkeypatch)
+    if not missing_parent:
+        (project / ".kittify").mkdir()
+    before = snapshot({"sandbox": tmp_path})
+    consent = ApplyConsent(automatic=True)
+    provisioning = prepare_mission_type_activations(project)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), projected=provisioning, consent=consent)
+    installation = assess_skill_installation(inputs, SkillRegistry.from_package(), ("codex",))
+    commands = prepare_commands(inputs, ("codex",))
+    assert all(owner.complete for owner in (installation.global_assets, installation.project_skills, commands))
+    provider = ManagedSkillsProvider()
+    composition = provider.compose_installation(installation, commands)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+    with provider.preflight_composition(composition, consent) as errors:
+        assert not errors, errors
+        if damage != "unapplied":
+            assert provisioning.apply()
+        target = project / ".kittify/config.yaml"
+        if damage == "replace":
+            alternate = project / "replacement"
+            alternate.write_bytes(target.read_bytes())
+            alternate.replace(target)
+        elif damage == "hardlink":
+            os.link(target, project / "alias")
+        elif damage == "parent":
+            target.parent.rename(project / "old")
+            target.parent.mkdir()
+            (project / "old/config.yaml").rename(target)
+        elif damage == "source":
+            target.write_bytes(target.read_bytes() + b"agents: {available: []}\n")
+        results = provider.apply_composition(composition, consent)
+    if damage is not None:
+        assert any(result.outcome == "precondition_changed" for result in results), results
+        # The paired global/project owners must both refuse before skill writes.
+        assert not (project / ".agents/skills").exists()
+        assert not (project / ".kittify/skills-manifest.json").exists()
+    else:
+        assert all(result.outcome in {"applied", "skipped"} for result in results), [
+            (result.owner_key, result.diagnostics) for result in results
+        ]
+        assert (project / ".kittify/skills-manifest.json").exists()
+        steady = snapshot({"sandbox": tmp_path})
+        fresh = assess_skill_installation(
+            AssessmentInputs(inputs.root, consent=consent), SkillRegistry.from_package(), ("codex",),
+        )
+        assert fresh.project_skills.complete and not fresh.project_skills.effects
+        assert fresh.global_assets.complete and not fresh.global_assets.effects
+        assert_unchanged(steady, snapshot({"sandbox": tmp_path}))

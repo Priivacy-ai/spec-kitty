@@ -488,6 +488,7 @@ class TestNFR001Benchmark:
     """NFR-001: run_check must complete within 30s on a real repository."""
 
     @pytest.mark.timeout(35)  # 5s grace beyond NFR-001 ceiling
+    @pytest.mark.performance
     def test_runs_within_30s_on_synthetic_large_repo(self, tmp_path: Path) -> None:
         """Create a synthetic repo with many test files and verify wall clock < 30s."""
         repo = _setup_repo(tmp_path)
