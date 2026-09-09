@@ -5,9 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from kernel.clock import datetime
+import sys
 from pathlib import Path
 from typing import Any
+
+# Actions executes this trusted-checkout script before installing dependencies.
+# Resolve from the script, never the caller's cwd or the fetched source PR.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+from kernel.clock import datetime  # noqa: E402
 
 
 ARTIFACT = re.compile(r"module-tests-([A-Za-z0-9._-]+)-shard-([1-9][0-9]*)-of-([1-9][0-9]*)-attempt-([1-9][0-9]*)-reports")
