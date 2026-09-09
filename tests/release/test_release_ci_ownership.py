@@ -35,6 +35,30 @@ RESTORED_WORKFLOWS = {
     "release.yml",
 }
 
+# WP01 (FR-012 / C-001): the `introduced` disposition models net-new workflows
+# that have NO pre-fork ancestor and therefore cannot be expressed in the closed
+# restore/defer/never-restore vocabulary. The set is FROZEN at exactly the seven
+# net-new workflow names this mission adds — an 8th net-new workflow is not
+# representable here and reopens WP01 (documented) rather than being appended
+# silently downstream.
+INTRODUCED_WORKFLOWS = {
+    "sonar.yml",
+    "ci-router.yml",
+    "module-tests.yml",
+    "ci-modules.yml",
+    "ci-aggregate.yml",
+    "ci-nightly.yml",
+    "packs.yml",
+}
+
+# WP01 (FR-017 / C-010): the dead EXPERIMENTAL-fenced Blacksmith producer is
+# retired; the reinstated CI on this repo is now the primary/sole producer.
+RETIRED_EXPERIMENTAL_WORKFLOW = ".github/workflows/ci.yml"
+
+# The private EXPERIMENTAL repo-identity fence that must not survive on any
+# public job once `ci.yml` is retired (FR-017 / C-010).
+EXPERIMENTAL_REPO_FENCE = "spec-kitty/EXPERIMENTAL-spec-kitty"
+
 UPSTREAM_WORKFLOW_PATHS = {
     "all-contributors-normalize.yml",
     "all-contributors-sync.yml",
@@ -207,6 +231,40 @@ def test_shared_package_drift_workflow_executes_real_local_validator_without_sec
     assert diagnostic in output
 
 
+# The map ROW — not filesystem presence — is the enforcer subject: a disposition
+# is asserted over the rows registered in `docs/convergence/interim-ci-producer.md`.
+_DISPOSITION_ROW_RE = re.compile(
+    r"^\| `([^`]+)` \| (restore|never-restore|defer|introduced) \|",
+    re.MULTILINE,
+)
+
+
+def map_rows(text: str | None = None) -> dict[str, str]:
+    """Parse the convergence map into a ``{path: disposition}`` row index."""
+    body = CONVERGENCE_MAP.read_text(encoding="utf-8") if text is None else text
+    return {match.group(1): match.group(2) for match in _DISPOSITION_ROW_RE.finditer(body)}
+
+
+def disposition_paths(disposition: str, text: str | None = None) -> set[str]:
+    """Full-path row set registered under one disposition (map-ROW subject)."""
+    return {path for path, disp in map_rows(text).items() if disp == disposition}
+
+
+def introduced_workflow_names(text: str | None = None) -> set[str]:
+    """Basenames registered under the `introduced` disposition."""
+    return {Path(path).name for path in disposition_paths("introduced", text)}
+
+
+# The closed pre-fork vocabulary, kept distinct from the net-new `introduced`
+# disposition so the legacy exact-set cover-test never conflates the two.
+LEGACY_DISPOSITIONS = frozenset({"restore", "never-restore", "defer"})
+
+
+def legacy_disposition_rows(text: str | None = None) -> dict[str, str]:
+    """Map rows registered under the closed pre-fork vocabulary only."""
+    return {path: disp for path, disp in map_rows(text).items() if disp in LEGACY_DISPOSITIONS}
+
+
 def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisite() -> None:
     checklist = RELEASE_CHECKLIST.read_text(encoding="utf-8")
     assert "P3.4b prerequisite" in checklist
@@ -285,10 +343,23 @@ def test_ci_windows_install_uses_runner_temp() -> None:
     assert install_step["env"]["TEMP"] == "${{ runner.temp }}"
 
 
-def test_private_factory_ci_is_scoped_to_experimental_repo() -> None:
-    workflow = load_workflow("ci.yml")
+def test_private_factory_ci_fence_is_retired_from_public_workflows() -> None:
+    """FR-017 / C-010: the dead EXPERIMENTAL-fenced `ci.yml` producer is retired.
 
-    assert "github.repository == 'spec-kitty/EXPERIMENTAL-spec-kitty'" in workflow["jobs"]["suite"]["if"]
+    Reconciles the former ``test_private_factory_ci_is_scoped_to_experimental_repo``
+    (which hard-asserted the fence): the file is gone, the map registers it as
+    ``never-restore``, and the invariant that NO surviving public workflow carries
+    the private EXPERIMENTAL fence / runner / token is still enforced non-vacuously.
+    """
+    assert not (WORKFLOWS / "ci.yml").exists()
+    assert map_rows()[RETIRED_EXPERIMENTAL_WORKFLOW] == "never-restore"
+
+    surviving = sorted(WORKFLOWS.glob("*.yml"))
+    assert surviving, "expected surviving public workflows to guard against"
+    for workflow in surviving:
+        text = workflow.read_text(encoding="utf-8")
+        assert EXPERIMENTAL_REPO_FENCE not in text, workflow.name
+        assert "blacksmith" not in text.lower(), workflow.name
 
 
 def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_errors() -> None:
@@ -361,16 +432,140 @@ def test_release_readiness_cutover_guard_uses_public_lock_dependencies() -> None
     assert "from specify_cli.cli.commands.cutover_guard import cutover_guard" in guard["run"]
 
 
+def _legacy_expected_paths() -> set[str]:
+    # The retired EXPERIMENTAL producer is registered `never-restore` in lockstep
+    # with its file retirement (FR-017 / C-010), so it joins the legacy cover set.
+    return (
+        {f".github/workflows/{name}" for name in UPSTREAM_WORKFLOW_PATHS}
+        | {f".github/workflows/{name}" for name in UPSTREAM_SCRIPT_PATHS}
+        | {RETIRED_EXPERIMENTAL_WORKFLOW}
+    )
+
+
 def test_convergence_map_dispositions_every_upstream_workflow_and_script() -> None:
-    rows = {
-        match.group(1): match.group(2)
-        for match in re.finditer(r"^\| `([^`]+)` \| (restore|never-restore|defer) \|", CONVERGENCE_MAP.read_text(encoding="utf-8"), re.MULTILINE)
-    }
-    expected = {f".github/workflows/{name}" for name in UPSTREAM_WORKFLOW_PATHS} | {f".github/workflows/{name}" for name in UPSTREAM_SCRIPT_PATHS}
+    rows = legacy_disposition_rows()
+    expected = _legacy_expected_paths()
 
     assert set(rows) == expected, f"convergence map path mismatch: missing={sorted(expected - set(rows))}, extra={sorted(set(rows) - expected)}"
-    assert {rows[path] for path in expected if path.endswith(".yml")} <= {
-        "restore",
-        "never-restore",
-        "defer",
+    assert {rows[path] for path in expected if path.endswith(".yml")} <= set(LEGACY_DISPOSITIONS)
+
+
+def test_introduced_disposition_and_ci_yml_retirement_are_registered() -> None:
+    """WP01 ATDD anchor (RED on mission base).
+
+    Pins two behaviours the WP delivers:
+
+    * the map + enforcer carry a fourth `introduced` disposition whose set holds
+      at least the mission's net-new workflow names (contract: `sonar.yml`), and
+    * the dead EXPERIMENTAL-fenced `ci.yml` producer is retired — the file is
+      gone and no surviving public workflow carries the EXPERIMENTAL repo fence.
+
+    Red-on-base reasons: the map has no `introduced` vocabulary yet, and
+    `.github/workflows/ci.yml` still exists carrying the fence.
+    """
+    introduced = introduced_workflow_names()
+    assert "sonar.yml" in introduced
+    assert introduced >= INTRODUCED_WORKFLOWS
+
+    assert not (WORKFLOWS / "ci.yml").exists()
+    for workflow in WORKFLOWS.glob("*.yml"):
+        assert EXPERIMENTAL_REPO_FENCE not in workflow.read_text(encoding="utf-8")
+
+
+def test_introduced_disposition_is_the_frozen_seven_net_new_set() -> None:
+    """`introduced` is an EXACT set — exactly the seven net-new workflow names.
+
+    Frozen for the mission (schema contract §Invariants, C-001): an 8th net-new
+    workflow is not representable here and reopens WP01 rather than being
+    appended silently downstream. Content equality (not a `len == N` cardinality
+    assertion) so the exact membership is the enforced contract.
+    """
+    assert introduced_workflow_names() == INTRODUCED_WORKFLOWS
+
+
+def test_introduced_and_restore_rows_forbid_private_runner_and_token() -> None:
+    """Invariant 2: `introduced` + `restore` workflows use **stock runners** and
+    carry **no `SK_CI_TOKEN` on public jobs**.
+
+    The map ROW is the subject, so the map documents the invariant. The stock-runner
+    half is text-checked over every `restore` + `introduced` file present on disk
+    (the private `blacksmith` runner must appear nowhere). The token half applies to
+    *public jobs*: net-new `introduced` producers must be tokenless (forward-guarded
+    here for when the downstream WPs land the files), while the reduced public CI
+    producers are guarded by ``test_public_ci_uses_released_dependencies...``;
+    ``release.yml`` legitimately resolves pinned private git dependencies with the
+    token at release time and is not a public CI job.
+    """
+    map_text = CONVERGENCE_MAP.read_text(encoding="utf-8")
+    assert "stock runners" in map_text
+    assert "SK_CI_TOKEN" in map_text
+
+    restore_and_introduced = {Path(path).name for path in disposition_paths("restore")} | introduced_workflow_names()
+    for name in sorted(restore_and_introduced):
+        path = WORKFLOWS / name
+        if not path.exists():
+            continue
+        assert "blacksmith" not in path.read_text(encoding="utf-8").lower(), name
+
+    for name in sorted(introduced_workflow_names()):
+        path = WORKFLOWS / name
+        if not path.exists():
+            continue
+        assert "SK_CI_TOKEN" not in path.read_text(encoding="utf-8"), name
+
+
+def test_enforcer_scope_runs_on_every_workflow_changing_pr() -> None:
+    """Invariant 4: the ownership enforcer runs on every workflow-changing PR, not
+    only a tag push — a load-bearing part of the mission's governance spine."""
+    map_text = CONVERGENCE_MAP.read_text(encoding="utf-8")
+    assert "runs on every workflow-changing PR" in map_text
+
+
+def test_deleting_any_disposition_row_reds_the_enforcer() -> None:
+    """SO#5 non-vacuity: the enforcer keys on map ROWS, so removing any row from
+    any disposition set changes the parsed sets — the guard is not vacuous and
+    adding `introduced` did not weaken the pre-existing three sets."""
+    baseline = map_rows()
+    lines = CONVERGENCE_MAP.read_text(encoding="utf-8").splitlines(keepends=True)
+    sample_paths = {
+        "restore": ".github/workflows/ci-quality.yml",
+        "defer": ".github/workflows/regen-assets.yml",
+        "never-restore": ".github/workflows/performance.yml",
+        "introduced": ".github/workflows/sonar.yml",
     }
+    for disposition, path in sample_paths.items():
+        assert baseline.get(path) == disposition, f"fixture drift for {path}"
+        mutated = "".join(line for line in lines if f"`{path}`" not in line)
+        assert path not in map_rows(mutated)
+        assert disposition_paths(disposition, mutated) != disposition_paths(disposition)
+
+
+@pytest.mark.parametrize("job_name", ["build-release", "publish-pypi"])
+@pytest.mark.parametrize(
+    ("version", "is_prerelease"),
+    [
+        ("3.2.6.1", False),
+        ("3.2.6.1rc1", True),
+        ("3.2.6.1RC1", True),
+        ("3.2.6.1ALPHA", True),
+        ("3.2.7BETA2", True),
+        ("3.2.6.1alpha", True),
+        ("3.2.7beta2", True),
+        ("3.2.7", False),
+    ],
+)
+def test_release_workflow_classifies_hotfix_channel(tmp_path: Path, job_name: str, version: str, is_prerelease: bool) -> None:
+    workflow = load_workflow("release.yml")
+    script = next(step["run"] for step in workflow["jobs"][job_name]["steps"] if step.get("name") == "Classify release channel")
+    output = tmp_path / "github-output"
+
+    result = subprocess.run(
+        ["bash", "-eu", "-c", script],
+        env={**os.environ, "RELEASE_TAG": f"v{version}", "GITHUB_OUTPUT": str(output)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert output.read_text().strip() == f"is_prerelease={str(is_prerelease).lower()}"

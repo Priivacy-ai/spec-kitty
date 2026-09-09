@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-07T04:50:14.972647Z",
+      "decision_id": "01M1X37QSW57KXEB9T985CR0JG",
+      "final_answer": "Confirmed. Refinements: (1) Sonar runs from the spec-kitty repo (current target), nightly/dispatch initially; promote to per-PR only if the pipeline becomes efficient enough. (2) Dependency resolution is NOT an open question: pull latest spec_kitty_events mainline and fold dependency install into a shared warmup/test-env-creation stage that emits a reusable env artefact (also resolves the #3283 bootstrap pre-warm). (3) Blacksmith bin/ci-run.sh coverage/arch de-dup to be checked by a minimal research probe, then advise.",
+      "input_key": "intent_confirmed",
+      "mission_id": "01M1X35ECDJMKSSHC5KACHXP2T",
+      "mission_slug": "ci-pipeline-reinstatement-01M1X35E",
+      "opened_by": "cli",
+      "options": [
+        "Confirm as stated",
+        "Adjust scope/intent",
+        "Change a deferred default"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the mission Intent Summary and scope (lean full-tree-modular CI reinstatement + Sonar + packs WF, P1/P2 directives, base-cleanup precondition), with the open Robert/operator facts deferred as NEEDS CLARIFICATION with recommended defaults?",
+      "rationale": null,
+      "resolved_at": "2026-09-07T04:54:35.390051Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.intent-confirmation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M1X35ECDJMKSSHC5KACHXP2T",
+  "version": 1
+}

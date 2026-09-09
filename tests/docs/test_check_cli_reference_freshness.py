@@ -747,10 +747,14 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     preserving its retired-surface removals.
     Tolerance: ±10% on the visible count (253..309) to allow natural growth.
     """
-    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
-    os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
-
     import sys
+
+    env_overrides = {
+        "SPEC_KITTY_ENABLE_SAAS_SYNC": "1",
+        "SPEC_KITTY_NO_UPGRADE_CHECK": "1",
+    }
+    saved_env = {key: os.environ.get(key) for key in env_overrides}
+    os.environ.update(env_overrides)
 
     saved = sys.argv[:]
     sys.argv = ["spec-kitty", "--help"]
@@ -761,6 +765,11 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
         register_commands(app)
     finally:
         sys.argv = saved
+        for key, value in saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
     from scripts.docs._typer_walker import walk
 
@@ -772,3 +781,29 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
         "around the 2026-09-05 convergence audit baseline of 281"
     )
     assert len(deprecated) >= 1
+
+
+def test_visible_count_smoke_does_not_clobber_ambient_env_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T032 red-first (FR-015 fix-before-wiring): env-leak proof.
+
+    The smoke test above force-assigns ``SPEC_KITTY_ENABLE_SAAS_SYNC`` /
+    ``SPEC_KITTY_NO_UPGRADE_CHECK`` via plain ``os.environ[...] =`` with no
+    restore, clobbering (and never restoring) whatever value a
+    differently-ordered predecessor test deliberately set -- an
+    order-dependent leak invisible to ``make test-fast``'s own directory
+    order, exposed under a different CI shard split.
+
+    Pin a sentinel that does not match either forced literal (``"1"``)
+    before invoking the smoke test and prove it survives: RED on base (the
+    smoke test's direct assignment permanently overwrites it), GREEN once
+    the smoke test snapshots + restores instead.
+    """
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "sentinel-ambient-value")
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "sentinel-ambient-value")
+
+    test_real_typer_app_visible_count_within_tolerance()
+
+    assert os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] == "sentinel-ambient-value"
+    assert os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] == "sentinel-ambient-value"
