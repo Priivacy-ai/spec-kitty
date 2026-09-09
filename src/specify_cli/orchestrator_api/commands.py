@@ -7,6 +7,9 @@ Error codes used:
   USAGE_ERROR                 -- CLI parse/usage error (missing required arg, bad option, etc.)
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
+  INVALID_MISSION             -- #2879: --mission value is not a safe path segment
+                                 (traversal guard: '..', separators, leading dot,
+                                 non-ASCII) — JSON envelope, never a raw traceback
   MISSION_NOT_FOUND           -- mission slug does not resolve to a kitty-specs dir
   STATUS_READ_PATH_NOT_FOUND  -- coord topology with a stale/unaddressable primary surface
                                  (fail-closed read-path guard fired; carries coord/primary candidates)
@@ -565,6 +568,26 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
                 "coord_candidate": str(exc.coord_candidate),
                 "primary_candidate": str(exc.primary_candidate),
             },
+        )
+    except ValueError as exc:
+        # #2879 (machine contract): the read-side seam's traversal guard
+        # (``assert_safe_path_segment``, the FIRST step — before any
+        # ``KITTY_SPECS_DIR`` join or meta probe) raises ``ValueError`` for an
+        # unsafe ``--mission`` value (``..``, ``../traversal``, separators,
+        # leading dot, non-ASCII). Pre-fix that escaped to the top level and
+        # was rendered as a raw Python traceback — NOT JSON — breaking every
+        # programmatic consumer of this JSON-first surface. Fail closed with
+        # the structured ``INVALID_MISSION`` envelope instead (non-zero exit,
+        # parseable stdout), mirroring how the host CLI's ``merge`` renders the
+        # same guard (``cli/commands/merge.py:_resolve_slug_or_exit``).
+        # ``_fail`` merges the *message* param into ``data`` last-wins, so the
+        # guard's own diagnostic travels under a distinct ``reason`` key rather
+        # than being silently overwritten by the canonical message.
+        _fail(
+            command,
+            "INVALID_MISSION",
+            f"Mission slug is not a safe path segment: {mission_slug!r}",
+            data={"reason": str(exc), "mission_slug": mission_slug},
         )
     if mission_dir is None:
         _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))
