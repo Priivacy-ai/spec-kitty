@@ -138,6 +138,12 @@ sdd-*/
 !.github/PULL_REQUEST_TEMPLATE.md
 !.github/ISSUE_TEMPLATE/
 !.github/ISSUE_TEMPLATE/*
+# Shared composite actions (mission ci-pipeline-reinstatement-01M1X35E, WP04/FR-003)
+!.github/actions/
+!.github/actions/**
+# Committed module-shard registry + shard-timings (mission ci-pipeline-reinstatement-01M1X35E, WP08/FR-006)
+!.github/ci-module-registry.yml
+!.github/ci-shard-timings.json
 .roo/
 .amazonq/
 .pytest_cache/

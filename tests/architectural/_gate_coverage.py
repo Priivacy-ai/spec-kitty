@@ -92,6 +92,12 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-windows.yml",
     "release.yml",
+    # Net-new pytest-running workflows reinstated by the ci-pipeline-reinstatement
+    # mission (kept in lockstep with the on-disk set — enforced by
+    # test_workflow_coherence::test_pytest_workflow_set_equals_model_allowlist_live).
+    "ci-modules.yml",
+    "ci-nightly.yml",
+    "module-tests.yml",
 )
 
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
@@ -820,13 +826,24 @@ class CompiledGate:
         # builds its test list dynamically via ``git grep``) falls back to the
         # whole tree. That fallback is coverage-SAFE only when a marker expression
         # narrows it: ci-windows runs ``-m windows_ci``, so it claims coverage of
-        # exactly the windows-only tests, not the whole suite. A whole-tree gate
-        # with NO marker would over-claim — guarded by
-        # ``test_windows_gate_models_windows_ci_marker``.
+        # exactly the windows-only tests, not the whole suite.
+        #
+        # #2967 (zero-producer / inert-slot bare-name false-pass): a gate with
+        # NEITHER parsed positional paths NOR a marker is a *bare name that
+        # resolves to no real producer*. Letting it fall back to the whole tree
+        # (with no marker to narrow it) makes it silently claim coverage of EVERY
+        # test — an inert slot that "covers" the whole suite. Such a gate must
+        # instead select NOTHING (fail closed): a producer that produces no real
+        # selection covers no test.
+        self._zero_producer = not gate.paths and gate.marker_expr is None
         self.paths = gate.paths or [_TESTS_ROOT]
         self.expr = Expression.compile(gate.marker_expr) if gate.marker_expr else None
 
     def selects(self, relpath: str, nodeid: str, markers: set[str]) -> bool:
+        if self._zero_producer:
+            # A zero-producer / inert-slot gate resolves to no real producer and
+            # therefore covers nothing (#2967) — never the whole-tree fallback.
+            return False
         if not any(path_matches(relpath, nodeid, p) for p in self.paths):
             return False
         if any(path_matches(relpath, nodeid, ig) for ig in self.gate.ignores):

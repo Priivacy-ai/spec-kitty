@@ -25,6 +25,7 @@ from specify_cli.skills.manifest import (
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.verifier import repair_skills, verify_installed_skills
+from specify_cli.tool_surface.operations import ApplyConsent
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -255,8 +256,19 @@ def test_drift_detection_and_repair(tmp_path: Path) -> None:
     assert actual_hash == modified_hash
     assert actual_hash != original_hash
 
-    # Repair
-    repaired, failed = repair_skills(project, result, registry)
+    # A local override is preserved until this exact path is authorized.
+    assert repair_skills(project, result, registry) == (0, 1)
+    assert installed_file.read_text(encoding="utf-8") == "User modified this content!"
+
+    repaired, failed = repair_skills(
+        project,
+        result,
+        registry,
+        consent=ApplyConsent(
+            automatic=True,
+            overwrite_paths=(".claude/skills/drift-skill/SKILL.md",),
+        ),
+    )
     assert repaired == 1
     assert failed == 0
 

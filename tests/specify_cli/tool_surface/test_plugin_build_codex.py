@@ -395,7 +395,7 @@ class TestPluginJson:
         payload = _read_manifest(bundle_dir)
         author = payload.get("author")
         assert isinstance(author, dict), "author must be a dict"
-        assert author.get("name") == "Priivacy AI"
+        assert author.get("name") == "Spec Kitty"
 
     def test_plugin_json_interface_display_name(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
@@ -447,7 +447,7 @@ class TestForbiddenKeys:
             "name": "spec-kitty",
             "version": "1.0.0",
             "description": "test",
-            "author": {"name": "Priivacy AI"},
+            "author": {"name": "Spec Kitty"},
             "interface": {
                 "displayName": "Spec Kitty",
                 "shortDescription": "short",
@@ -463,7 +463,7 @@ class TestForbiddenKeys:
             "name": "spec-kitty",
             "version": "1.0.0",
             "description": "test",
-            "author": {"name": "Priivacy AI"},
+            "author": {"name": "Spec Kitty"},
             "interface": {
                 "displayName": "Spec Kitty",
                 "shortDescription": "short",
@@ -478,7 +478,7 @@ class TestForbiddenKeys:
         bad_manifest: dict[str, object] = {
             "version": "1.0.0",
             "description": "test",
-            "author": {"name": "Priivacy AI"},
+            "author": {"name": "Spec Kitty"},
             "interface": {
                 "displayName": "Spec Kitty",
                 "shortDescription": "short",
@@ -512,7 +512,7 @@ class TestForbiddenKeys:
             "name": "spec-kitty",
             "version": "1.0.0",
             "description": "test",
-            "author": {"name": "Priivacy AI"},
+            "author": {"name": "Spec Kitty"},
             "interface": {
                 "shortDescription": "short",
                 # "displayName" missing
@@ -529,7 +529,7 @@ class TestForbiddenKeys:
             "name": "spec-kitty",
             "version": "1.0.0",
             "description": "test",
-            "author": {"name": "Priivacy AI"},
+            "author": {"name": "Spec Kitty"},
             "interface": {
                 "displayName": "Spec Kitty",
                 # "shortDescription" missing
@@ -546,7 +546,7 @@ class TestForbiddenKeys:
             "name": "spec-kitty",
             "version": "1.0.0",
             "description": "test",
-            "author": {"name": "Priivacy AI"},
+            "author": {"name": "Spec Kitty"},
             "interface": {
                 "displayName": "Spec Kitty",
                 "shortDescription": "x" * 121,  # exceeds 120-char limit
@@ -563,7 +563,7 @@ class TestForbiddenKeys:
             "name": "spec-kitty",
             "version": "3.2.0",
             "description": "Spec-Driven Development toolkit.",
-            "author": {"name": "Priivacy AI"},
+            "author": {"name": "Spec Kitty"},
             "interface": {
                 "displayName": "Spec Kitty",
                 "shortDescription": "Spec-Driven Development for teams.",

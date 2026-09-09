@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/docs/assets/logo_small.webp" alt="Spec Kitty logo"/>
+    <img src="https://github.com/spec-kitty/spec-kitty/raw/main/docs/assets/logo_small.webp" alt="Spec Kitty logo"/>
     <h1>Spec Kitty</h1>
     <p><strong>Spec-driven development for AI coding agents, multi-agent workflows, and governed software factories.</strong></p>
 </div>
@@ -190,7 +190,7 @@ No. Spec Kitty is local-first and stores its core artifacts in your repo. Hosted
 ## Development
 
 ```bash
-git clone https://github.com/Priivacy-ai/spec-kitty.git
+git clone https://github.com/spec-kitty/spec-kitty.git
 cd spec-kitty
 pip install -e ".[test]"
 ```
@@ -206,9 +206,9 @@ See the [Contributing guide](docs/development/contributing.md) for contribution 
 
 ## Support
 
-- Open a [GitHub issue](https://github.com/Priivacy-ai/spec-kitty/issues/new) for bugs, feature requests, or questions.
+- Open a [GitHub issue](https://github.com/spec-kitty/spec-kitty/issues/new) for bugs, feature requests, or questions.
 - See the [changelog](docs/changelog/CHANGELOG.md) for release notes.
-- See [CONTRIBUTORS.md](CONTRIBUTORS.md) and the [GitHub contributors graph](https://github.com/Priivacy-ai/spec-kitty/graphs/contributors) for contributor credits.
+- See [CONTRIBUTORS.md](CONTRIBUTORS.md) and the [GitHub contributors graph](https://github.com/spec-kitty/spec-kitty/graphs/contributors) for contributor credits.
 
 ## License
 
