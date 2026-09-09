@@ -87,7 +87,8 @@ def main() -> None:
     names = select_artifacts(source, jobs, artifacts)
     # download-artifact's pinned minimatch supports brace alternatives. Only
     # validated ASCII artifact names enter this expression or GITHUB_OUTPUT.
-    pattern = "{" + ",".join(names) + "}" if len(names) > 1 else next(iter(names), "no-source-shard-reports")
+    pattern = "{" + ",".join(names) + "}" if len(names) > 1 else next(iter(names), "")
+    print(f"has-artifacts={str(bool(names)).lower()}")
     print(f"artifact-pattern={pattern}")
 
 

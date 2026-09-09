@@ -104,12 +104,17 @@ def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, latest: 
     if output.exists():
         context.update({f"steps.select-current.outputs.{k}": v for k, v in (line.split("=", 1) for line in output.read_text().splitlines())})
     download = next(s for s in steps if s.get("id") == "download-current")
-    pattern = re.sub(r"\$\{\{\s*(.*?)\s*\}\}", lambda m: next(context[k.strip()] for k in m[1].split("||") if context.get(k.strip())), download["with"]["pattern"])
+    condition = download.get("if")
+    should_download = True
+    if condition:
+        key, expected = condition.split("==")
+        should_download = context.get(key.strip()) == expected.strip(" '")
+    pattern = re.sub(r"\$\{\{\s*(.*?)\s*\}\}", lambda m: next(context[k.strip()] for k in m[1].split("||") if k.strip() in context), download["with"]["pattern"])
     # Model download-artifact's minimatch against returned names, including
     # brace alternatives. Only this remote action boundary is substituted.
     patterns = pattern[1:-1].split(",") if pattern.startswith("{") else [pattern]
     for record in artifacts:
-        if any(fnmatchcase(record["name"], p) for p in patterns):
+        if should_download and any(fnmatchcase(record["name"], p) for p in patterns):
             module = record["name"].split("-shard-")[0].removeprefix("module-tests-")
             directory = repo / "out/aggregate/current" / record["name"]
             directory.mkdir(parents=True, exist_ok=True)
@@ -243,10 +248,10 @@ def test_selector_cli_outputs_safe_patterns_for_empty_or_one_report(tmp_path: Pa
     paths[0].write_text(json.dumps(source))
     paths[1].write_text(json.dumps([{"jobs": [{"name": "Generate module-shard matrix"}]}, {"jobs": [execution]}]))
     monkeypatch.setattr(sys, "argv", ["select_source_artifacts.py", *map(str, paths)])
-    for records, pattern in (([], "no-source-shard-reports"), ([record], record["name"])):
+    for records, pattern in (([], ""), ([record], record["name"])):
         paths[2].write_text(json.dumps([{"artifacts": [{"name": "unrelated-report"}]}, {"artifacts": records}]))
         main()
-        assert capsys.readouterr().out == f"artifact-pattern={pattern}\n"
+        assert capsys.readouterr().out == f"has-artifacts={str(bool(records)).lower()}\nartifact-pattern={pattern}\n"
 
 
 def test_empty_selection_cannot_download_a_sentinel_named_artifact(tmp_path: Path) -> None:
