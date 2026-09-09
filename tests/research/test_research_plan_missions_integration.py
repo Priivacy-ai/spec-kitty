@@ -1,8 +1,7 @@
 """Integration tests for research and plan v1 mission YAML definitions.
 
 Verifies:
-- Both missions load from disk and are detected as v1
-- Both missions pass JSON Schema validation
+- Both missions load from disk
 - Research mission has correct initial state, states, transitions, and guards
 - Research mission evidence gate: event_count on gathering -> synthesis
 - Research mission rollback: gather_more from synthesis -> gathering
@@ -17,12 +16,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-
-from specify_cli.mission_v1.schema import (
-
-    is_v1_mission,
-    validate_mission_v1,
-)
 
 import pytest
 
@@ -62,17 +55,11 @@ def _find_transition(config: dict, trigger: str, source: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 class TestResearchMissionV1:
-    """Research mission v1 structure and schema validation."""
+    """Research mission v1 structure (the DSL v1 schema validator was retired)."""
 
     @pytest.fixture()
     def config(self) -> dict:
         return _load_yaml("research")
-
-    def test_is_detected_as_v1(self, config: dict) -> None:
-        assert is_v1_mission(config) is True
-
-    def test_passes_json_schema_validation(self, config: dict) -> None:
-        validate_mission_v1(config)
 
     def test_mission_metadata(self, config: dict) -> None:
         assert config["mission"]["name"] == "research"
@@ -180,17 +167,11 @@ class TestResearchMissionV1:
 # ---------------------------------------------------------------------------
 
 class TestPlanMissionV1:
-    """Plan mission v1 structure and schema validation."""
+    """Plan mission v1 structure (the DSL v1 schema validator was retired)."""
 
     @pytest.fixture()
     def config(self) -> dict:
         return _load_yaml("plan")
-
-    def test_is_detected_as_v1(self, config: dict) -> None:
-        assert is_v1_mission(config) is True
-
-    def test_passes_json_schema_validation(self, config: dict) -> None:
-        validate_mission_v1(config)
 
     def test_mission_metadata(self, config: dict) -> None:
         assert config["mission"]["name"] == "plan"

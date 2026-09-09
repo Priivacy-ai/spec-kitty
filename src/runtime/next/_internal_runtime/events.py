@@ -213,14 +213,67 @@ RuntimeEmitterFactory = Callable[..., RuntimeEventEmitter]
 _registered_factory: RuntimeEmitterFactory | None = None
 
 
+def _callable_key(fn: Callable[..., Any]) -> str:
+    """Return a stable identity key for a registered callable.
+
+    Mirrors ``specify_cli.invocation.adapters._callable_key`` (this module
+    may not import from ``specify_cli.invocation`` -- see the enforced layer
+    chain in ``tests/architectural/test_layer_rules.py`` -- so the helper is
+    duplicated locally rather than imported). Uses ``__module__`` +
+    ``__qualname__`` (falling back to ``__name__``) so that the same logical
+    callable compares equal across module reloads *and* across repeated
+    attribute access on a classmethod, which mints a fresh bound-method
+    object every time (``Producer.for_mission is Producer.for_mission`` is
+    ``False``).
+    """
+    module = getattr(fn, "__module__", None)
+    qualname = getattr(fn, "__qualname__", None)
+    name = qualname if isinstance(qualname, str) else getattr(fn, "__name__", None)
+    if isinstance(module, str) and isinstance(name, str):
+        return f"{module}.{name}"
+    if isinstance(name, str):
+        return name
+    return repr(fn)
+
+
 def register_runtime_emitter_factory(factory: RuntimeEmitterFactory) -> None:
     """Register the producer factory a future E3 adapter installs at import tail.
 
     The callable must accept ``feature_dir``, ``mission_slug`` and
     ``mission_type`` as keywords and return an object satisfying
-    :class:`RuntimeEventEmitter`. Registering replaces any prior factory.
+    :class:`RuntimeEventEmitter`.
+
+    Policy: reject-on-conflict. Two producers racing to register here would
+    otherwise resolve silently by import order -- whichever registers first
+    (or last, under a last-writer-wins policy) wins with no diagnosis of the
+    other -- so this fails closed with ``RuntimeError`` instead, forcing the
+    conflict to surface at the point it happens. That policy is the in-repo
+    precedent set by ``kernel.glossary_runner.register``. The *comparison*
+    it runs, however, is keyed on ``__module__`` + ``__qualname__`` (see
+    :func:`_callable_key`, mirroring ``specify_cli.invocation.adapters.
+    _callable_key``) rather than object identity: ``glossary_runner``
+    registers a *class*, whose identity is stable across accesses, but this
+    seam's own documented registration form (``MyProducer.for_mission``, a
+    classmethod) is not -- every attribute access mints a fresh bound-method
+    object, so an identity check would treat a benign re-import as a
+    conflicting registrant. Re-registering the same logical callable (by
+    key) rebinds the slot to the newest object and returns; registering a
+    genuinely different callable while one is already registered raises
+    ``RuntimeError``; a non-callable argument raises ``TypeError``.
     """
     global _registered_factory
+    if not callable(factory):
+        raise TypeError(f"factory must be callable, got {type(factory)!r}")
+    new_key = _callable_key(factory)
+    if _registered_factory is not None:
+        existing_key = _callable_key(_registered_factory)
+        if existing_key == new_key:
+            # Idempotent: same logical callable re-registered (e.g. a
+            # classmethod re-accessed, or a module re-import) rebinds the
+            # slot to the newest object rather than raising.
+            _registered_factory = factory
+            return
+        raise RuntimeError(f"A different runtime emitter factory is already registered: {_registered_factory!r}. Cannot register {factory!r}.")
     _registered_factory = factory
 
 
@@ -243,15 +296,33 @@ def runtime_emitter_for_mission(
     the registered factory wins (S3); with none registered the null seam is
     returned (S1). The env gate is read at call time so tests can toggle it
     without reloading this module.
+
+    A registered factory that raises degrades to the null seam rather than
+    propagating: ``NullEmitter``'s own docstring rule -- "Nothing here may
+    raise: emission is fire-and-forget instrumentation, never control flow"
+    -- applies to the seam as a whole, and an uncaught factory-constructor
+    exception would otherwise kill the caller (e.g. ``spec-kitty next``)
+    instead of degrading gracefully. The failure is logged at WARNING, not
+    silent.
     """
     if is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
         return NullEmitter.for_mission(
             feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
         )
     if _registered_factory is not None:
-        return _registered_factory(
-            feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
-        )
+        try:
+            return _registered_factory(
+                feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+            )
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "runtime_emitter_for_mission: registered factory %r raised; degrading to NullEmitter",
+                _registered_factory,
+                exc_info=True,
+            )
+            return NullEmitter.for_mission(
+                feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
+            )
     return NullEmitter.for_mission(
         feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
     )

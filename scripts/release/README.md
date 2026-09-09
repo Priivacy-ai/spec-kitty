@@ -58,14 +58,11 @@ python scripts/release/extract_changelog.py 2.0.0
 
 Validates that `.kittify/release/shared-package-compatibility.json` is the
 release authority for the CLI's compatible shared-package ranges and exact
-`uv.lock` versions, that SaaS pins agree with those resolved versions when the
-private SaaS pyproject is available, that no emergency `tool.uv` override
-remains in CLI metadata, and that retired `spec-kitty-runtime` is not a CLI
-dependency.
+`uv.lock` versions, that no emergency `tool.uv` override remains in CLI
+metadata, and that retired `spec-kitty-runtime` is not a CLI dependency.
 
 ```bash
-python scripts/release/check_shared_package_drift.py \
-  --saas-pyproject ../spec-kitty-saas/pyproject.toml
+python scripts/release/check_shared_package_drift.py
 ```
 
 ### `check_exact_install.py`
@@ -90,28 +87,17 @@ python scripts/release/check_exact_install.py \
   --console-arg=--version
 ```
 
-### `check_candidate_consumer_compat.py`
-
-Validates the built wheel's `Requires-Dist` metadata against the SaaS consumer
-contract document.
-
-```bash
-python scripts/release/check_candidate_consumer_compat.py \
-  --package spec-kitty-cli \
-  --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
-```
-
 ## Workflow Integration
 
 - PR release metadata validation: `.github/workflows/release-readiness.yml`
-- PR/package CI and SaaS consumer compatibility: `.github/workflows/ci-quality.yml`
+- PR/package CI: `.github/workflows/ci-quality.yml`
 - PR shared-package pin drift: `.github/workflows/check-spec-kitty-events-alignment.yml`
 - Tag releases: `.github/workflows/release.yml` (triggers on stable and prerelease `v*.*.*` tags)
 
 Release PR check ownership:
 
 1. `Release Readiness Check` validates release metadata only: version, changelog, and tag progression.
-2. `CI Quality` owns tests, wheel build, lockfile checks, exact install verification, and SaaS consumer compatibility evidence.
+2. `CI Quality` owns tests, wheel build, lockfile checks, and exact install verification.
 3. `Check Shared Package Drift` owns shared-package pin drift evidence.
 
 Live canary and cross-repo end-to-end runs are release-candidate hygiene, not
@@ -127,11 +113,10 @@ Tag-time publish workflow sequence:
 3. build the wheel candidate
 4. verify shared-package drift
 5. verify exact installability from the built wheel
-6. verify candidate compatibility against the SaaS consumer contract
-7. verify artifacts and extract changelog notes
-8. create GitHub Release
-9. publish to PyPI
-10. verify exact installability from PyPI with `pip install spec-kitty-cli==X.Y.Z`
+6. verify artifacts and extract changelog notes
+7. create GitHub Release
+8. publish to PyPI
+9. verify exact installability from PyPI with `pip install spec-kitty-cli==X.Y.Z`
 
 ## Local Release Workflow
 
@@ -146,13 +131,9 @@ vim CHANGELOG.md     # add ## [3.1.0a0] - YYYY-MM-DD (or final ## [3.1.0])
 # 2) validate
 python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
 python -m pytest
-python scripts/release/check_shared_package_drift.py \
-  --saas-pyproject ../spec-kitty-saas/pyproject.toml
+python scripts/release/check_shared_package_drift.py
 python -m build
 python scripts/release/check_exact_install.py --package spec-kitty-cli
-python scripts/release/check_candidate_consumer_compat.py \
-  --package spec-kitty-cli \
-  --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
 twine check dist/*
 
 # 3) release-candidate hygiene (local trusted-runner evidence, before tagging)
@@ -185,10 +166,7 @@ git push origin v3.1.0
 Treat publish success and branch health as separate evidence. The tag-time
 publish workflow proves PyPI/GitHub release publication; release summaries
 should only call `main` green after CI Quality and Check Shared Package Drift
-on the same commit have also passed. If SaaS consumes a shared-package bump after the CLI
-candidate commit, rerun the shared-package drift workflow or the local drift
-command against the updated SaaS `main` before recording release-health
-evidence.
+on the same commit have also passed.
 
 ## Troubleshooting
 

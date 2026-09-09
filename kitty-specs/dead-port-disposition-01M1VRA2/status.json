@@ -2,9 +2,9 @@
   "event_count": 28,
   "last_event_id": "01M1W80H51DDFC202Z68000BNG",
   "materialized_at": "2026-09-06T20:54:27.233291+00:00",
-  "mission_number": "",
+  "mission_number": "198",
   "mission_slug": "dead-port-disposition-01M1VRA2",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,65 +20,135 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M1W809Y2K5KZS3DVF7EDH91J",
       "last_transition_at": "2026-09-06T20:54:19.842815+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 ready: seam foundation, S1-S6 tested; coverage 128 passed, parity+decision_log 44 passed, layer rules 54 passed, ruff/mypy clean",
+        "Review passed: S1-S6 each map to a non-vacuous named test (corrupt-meta probe confirmed MissionMetaReadError reaches the except branch); Protocol body byte-identical to base (25 lines, 8 emit_*); event_emitter.py untouched; only 3 owned files changed; no for_feature, no new feature* identifiers, single inline-justified BLE001 noqa; factory/for_mission keywords exactly feature_dir/mission_slug/mission_type; env gate read at call time via is_truthy (same import as status/adapters.py:25), S2 test toggles via monkeypatch without reload; T006 docstring names status/adapters.py fan-out + register_runtime_emitter_factory + ADR 2026-09-06-2. Tests: 226 passed across test_internal_runtime_coverage/test_bridge_parity/test_decision_log/test_layer_rules; ruff clean; mypy 0 issues. Zero production callers expected (WP03 rewires)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: S1-S6 each map to a non-vacuous named test (corrupt-meta probe confirmed MissionMetaReadError reaches the except branch); Protocol body byte-identical to base (25 lines, 8 emit_*); event_emitter.py untouched; only 3 owned files changed; no for_feature, no new feature* identifiers, single inline-justified BLE001 noqa; factory/for_mission keywords exactly feature_dir/mission_slug/mission_type; env gate read at call time via is_truthy (same import as status/adapters.py:25), S2 test toggles via monkeypatch without reload; T006 docstring names status/adapters.py fan-out + register_runtime_emitter_factory + ADR 2026-09-06-2. Tests: 226 passed across test_internal_runtime_coverage/test_bridge_parity/test_decision_log/test_layer_rules; ruff clean; mypy 0 issues. Zero production callers expected (WP03 rewires).",
         "reviewer": "Robert Douglass",
         "verdict": "approved"
       },
-      "shell_pid": 66704,
-      "shell_pid_created_at": "1788719077.266666"
+      "role": "reviewer",
+      "shell_pid": 7666,
+      "shell_pid_created_at": "1788720177.104182",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M1W80CBC2M4BBJ0FF8Z333HZ",
       "last_transition_at": "2026-09-06T20:54:22.316658+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 ready: F1/F2 red->green on record, F3/F4 green (5 passed), decide_next 1-token assertion correction declared out-of-map; retrospective/engine/parity/events green",
+        "Review passed: exactly two bridge lines fixed (:1976 emitter_for_engine, :2190 flush target) + comments, import/construction sites :195/:1552/:2739 untouched; seed_from_snapshot pure pass-through w/ 2 unit tests; red-first reproduced by reviewer (F1 assert 0==1, F2 is-DecisionGitLog + seed AttributeError, 3 failed/2 passed pre-fix); post-fix 158+10=168 passed across retrospective/engine/parity/decide_next/flush/events; ruff clean on 5 files, mypy decision_log.py 0 errors; decide_next.py out-of-map edit is one token + one comment; no new noqa/type-ignore, no feature* in added lines"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260906-172008-obQo0B/spec-kitty/kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP02-flush-target-fixes/review-cycle-1.md",
         "reference": "review-cycle://dead-port-disposition-01M1VRA2/WP02-flush-target-fixes/review-cycle-1.md",
         "reviewer": "user",
         "verdict": "approved"
       },
-      "shell_pid": 84185,
-      "shell_pid_created_at": "1788719457.645802"
+      "role": "reviewer",
+      "shell_pid": 55291,
+      "shell_pid_created_at": "1788721487.349062",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M1W80ESDHA2A17ERG3KYPPH0",
       "last_transition_at": "2026-09-06T20:54:24.813533+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 ready: bridge bound to factory (3 declared lines), engine adapter retyped (+guarded _seed_emitter, mypy 8->8), 15 patch sites migrated; pytest runtime 752 passed/1 skipped, next 537 passed, specify_cli/next+events 321 passed/1 skipped; ruff clean",
+        "Review passed (narrowed to bridge bound, 15 migrations, _seed_emitter deviation, unit-file cleanups): bridge diff d1718dd68..HEAD is exactly 3 one-line hunks (import + 2 runtime_emitter_for_mission call sites, kwargs unchanged, 0 emitter_for_engine hits); all 15 patch-site migrations preserve intent (oracle still wraps real factory in _RecordingProxy; raising/sentinel/recording fakes unchanged; sync_cls.for_feature.return_value -> sync_factory.return_value; emitter-scoped grep for sync_cls/.for_feature in tests/ = 0); _seed_emitter judged the right resolution: pure getattr guard, no suppression, all three products (NullEmitter, DecisionGitLog, _BufferingRuntimeEmitter) carry seed_from_snapshot so no behavioural change, 2 non-vacuous tests (MagicMock(spec=Protocol) asserts hasattr is False), consistent with contracts/emitter-seam.md (product SHOULD provide seeding; bridge tolerates absence) and R-2 (Protocol stays at eight emit_*; widening is WP01-owned and rejected); 2 extra LocalOnlyEmitter->NullEmitter removals in test_runtime_bridge_unit.py confined to their hunks. Runs: 4 migrated files 183 passed; test_bridge_parity 10 passed; ruff clean on 7 files; mypy runtime_bridge.py+runtime_bridge_engine.py = 8 errors on base and HEAD, identical pre-existing call-arg set, 0 mentions of _seed_emitter; no new noqa/type-ignore; no feature* in added lines beyond feature_dir; settled by prior verdicts and not re-run: WP01 seam contract, WP02 flush fixes"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260906-172008-obQo0B/spec-kitty/kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP03-bridge-rewiring-and-test-migration/review-cycle-1.md",
         "reference": "review-cycle://dead-port-disposition-01M1VRA2/WP03-bridge-rewiring-and-test-migration/review-cycle-1.md",
         "reviewer": "user",
         "verdict": "approved"
       },
-      "shell_pid": 32059,
-      "shell_pid_created_at": "1788723092.598289"
+      "role": "reviewer",
+      "shell_pid": 67191,
+      "shell_pid_created_at": "1788725092.850503",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M1W80H51DDFC202Z68000BNG",
       "last_transition_at": "2026-09-06T20:54:27.233291+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 ready: concrete class deleted, seam guard added (negative check on record), comments + CHANGELOG; test-fast equiv 1642 passed; runtime+next 1289 passed/1 skipped; specify_cli next+events 321 passed/1 skipped; architectural batch 84 passed; T024 files 15 passed; guard 10 passed; docs lint 35 passed; ruff clean; retired-surface 0 hits. Flags: mission net LOC under src/runtime/next is +56 (events.py +120 from WP01 outweighs the -88 deletion); mypy two-file command surfaces 12 pre-existing engine.py errors present on the base.",
+        "Review passed (narrowed to deletion safety, guard + negative check, T021/T024/T025, two flags ruled): event_emitter.py deleted, zero importers outside the guard's own docstring/regex, exactly one 'class RuntimeEventEmitter' under src/runtime/next (_internal_runtime/events.py). Guard is source-text only, root idiom matches test_no_retired_subsystems, S7/S7/S8/F7 assertions genuine; negative check on a scratch copy with flush(ctx.sync_emitter) reintroduced fails F7 at line 2190 naming ADR 2026-09-06-2; 4 helper self-checks each hit a distinct branch. T021 import retargeted, 6 MagicMock(spec=RuntimeEventEmitter) sites unchanged, 12 passed. T024 comment-only in both conformance tests, naming register_runtime_emitter_factory + runtime.next._internal_runtime.events. T025: one new Fixed entry under [Unreleased] 3.2.7rc1 with all four points; __init__.py/docs/adr/pyproject untouched. Flags: NFR-003 shortfall (+56 mission net) is WP01's factory/registry, WP04 delivered its full -88 and owned no other src file -> not a WP04 defect, stays a mission-level deviation on spec.md; mypy on events.py+decision_log.py reports 0 lines naming the mission files -> category-1/not a reject. Runs: 5 named test files 72 passed; seam+decision_log_coord 22 passed; ruff clean; 0 noqa/type-ignore in WP04 added lines; feature* only as feature_dir. Settled by prior verdicts and not re-run: WP01-03"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260906-172008-obQo0B/spec-kitty/kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP04-deletion-guard-and-disclosure/review-cycle-1.md",
         "reference": "review-cycle://dead-port-disposition-01M1VRA2/WP04-deletion-guard-and-disclosure/review-cycle-1.md",
         "reviewer": "user",
         "verdict": "approved"
       },
-      "shell_pid": 93120,
-      "shell_pid_created_at": "1788725779.319304"
+      "role": "reviewer",
+      "shell_pid": 32905,
+      "shell_pid_created_at": "1788727409.388026",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     }
   }
 }

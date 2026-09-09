@@ -1,0 +1,59 @@
+work_packages:
+  - id: WP02
+    title: "Coord-topology fixture + FR-009-isolated reachability reproduction (test-only)"
+    dependencies: []
+    owned_files:
+      - "tests/runtime/next/test_coord_topology_fixture.py"
+    requirement_refs:
+      - FR-009
+    cross_cutting: true
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP02-coord-topology-fixture-repro1.md"
+
+  - id: WP01
+    title: "Production fix — Lane.UNINITIALIZED guard + coord-topology reachability anchoring"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/runtime/next/runtime_bridge.py"
+      - "tests/runtime/next/test_advance_guard_uninitialized_wp.py"
+      - "tests/runtime/next/test_advance_guard_coord_reachability.py"
+    requirement_refs:
+      - FR-004
+      - FR-005
+      - FR-009
+      - FR-010
+    cross_cutting: true
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+    prompt_file: "tasks/WP01-merged-production-fix.md"
+
+  - id: WP03
+    title: "Baseline re-verification, tracer close-out"
+    dependencies:
+      - WP01
+    owned_files:
+      - "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-approach.md"
+      - "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-design-decisions.md"
+      - "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-tooling-friction.md"
+    requirement_refs:
+      - NFR-001
+      - NFR-003
+    cross_cutting: true
+    subtasks:
+      - T014
+      - T015
+      - T016
+    prompt_file: "tasks/WP03-regression-sweep-baseline-reverify.md"

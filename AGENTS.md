@@ -49,9 +49,15 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ---
 
+## ⚠️ CRITICAL: Team Kitty is Zeitgeist — "sync" is dead
+
+The hosted product is **Team Kitty**; the live transport is **Zeitgeist**, a volatile per-team relay the SaaS provisions and polls. On every lane transition the CLI publishes one **moment** straight to the team's relay (`status/emit.py` → `status/adapters.py` → `status/zeitgeist_bridge.py` → `zeitgeist_client/`), bounded to one request with no queue and no retry, gated only by team membership and repository admission on the SaaS side. The old "sync" transport (daemon, offline queue, per-project consent, `api/v1/sync/*` ingress) was deleted on both sides in August 2026; every remaining "sync" identifier (`SPEC_KITTY_ENABLE_SAAS_SYNC`, `SPEC_KITTY_SYNC_*`, `sync_active()`, `OWNED_SYNC_UNSUPPORTED`) is residue that does **not** gate the moment path. Read [`docs/context/team-kitty.md`](docs/context/team-kitty.md) before touching anything hosted, and never design against or "re-enable" sync.
+
+---
+
 ## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
-This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here, including the Blacksmith deterministic-CI producer in `.github/workflows/ci.yml`; see [the planning repository's Blacksmith CI contract](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/docs/BLACKSMITH-CI.md).
+This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here: the reinstated lean, modular CI (`#3995`) runs on public `main` — a path router (`ci-router.yml`) feeding the single `gate_selection.py` authority, a per-module test matrix (`module-tests.yml` / `ci-modules.yml`), coverage/xunit aggregation with a diff-cover ≥90% gate (`ci-aggregate.yml`), a packs lane (`packs.yml`), a nightly full/performance/interpreter run (`ci-nightly.yml`), and a fork-safe SonarCloud workflow (`sonar.yml`). These replaced the archived EXPERIMENTAL Blacksmith producer.
 
 - **Never push to `main`.** Create a topic branch from the current `main`, open a PR targeting `main`, and let the repository merge controls handle publication.
 - `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
@@ -228,6 +234,7 @@ former self-declared authority `docs/architecture/05_ownership_manifest.yaml` wa
 make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
 make test-full    # everything, parallel + serial passes
 ruff check .
+ruff format --check .  # formatter gate — same whole-repo check CI runs (`make format-check` is the target form)
 ```
 
 Both make targets set `PWHEADLESS=1` themselves and need the synced dev environment (`make dev-setup`: the `test` extras plus `pytest-xdist`, declared in the `dev` group so a plain `uv sync` has it too).
@@ -300,13 +307,15 @@ Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require 
 
 **New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
 
-**Pre-push: run the terminology guard when touching `src/charter/offering/` or user-facing prose.** The heavyweight GitHub-hosted test matrix was retired in The Convergence (PR #3881; see [`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)); the full suite now runs externally on Blacksmith (`ci.yml` → the private planning repo's `bin/ci-run.sh`), so a forbidden-term regression can pass a local `src/charter/offering/`-or-prose run and only surface at CI. Before pushing such changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it gates exactly two retired terms — canonical `status commit`, never `ceremony` or `status-writing`. It does **not** check `Mission` vs `feature` — that half of the Terminology Canon is review-enforced, not gated. The full `tests/architectural/` suite is the complete safety net.
+**Formatting is a separate gate from linting (#3952).** `ruff check .` passing says nothing about format: CI (`ci-quality.yml`, `ci-router.yml`) runs `ruff format --check .` over the whole repo, and `tests/architectural/test_ruff_format_enforcement.py` enforces the same command in `make test-full` (#473/#558), so an unformatted file goes red regardless of whether anyone ran the check locally. Run `make format-check` (or `uv run --frozen ruff format --check .`) before pushing; `uv run --frozen ruff format <files>` fixes what it flags.
 
-## Code Hygiene Expectations (SonarCloud retired)
+**Pre-push: run the terminology guard when touching `src/charter/offering/` or user-facing prose.** The heavyweight GitHub-hosted test matrix was retired in The Convergence (PR #3881; see [`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)) and the lean modular GitHub CI was reinstated in `#3995`; a forbidden-term regression can still pass a local `src/charter/offering/`-or-prose run and only surface at CI. Before pushing such changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it gates exactly two retired terms — canonical `status commit`, never `ceremony` or `status-writing`. It does **not** check `Mission` vs `feature` — that half of the Terminology Canon is review-enforced, not gated. The full `tests/architectural/` suite is the complete safety net.
 
-**SonarCloud was removed from CI in the convergence** (the `sonarcloud` job died with the 4118-line `ci-quality.yml` in commit `e8cc2f444f`, 2026-08-27; the restored minimal `ci-quality.yml` does not reintroduce it). No workflow references Sonar in any form, and there is no longer a coverage or new-code-coverage gate in GitHub CI — coverage, if enforced at all, lives only in the external Blacksmith suite. Several surviving orphans reference the deleted job or the retired SaaS integration and are not live gates: `sonar-project.properties` (its companion `scripts/ci/sonar_project_version.py` was swept in `7f2251d984`), the manual read-only REST helper `scripts/ci/sonarcloud_branch_review.sh`, and its test `tests/ci/test_sonarcloud_branch_review.py`. Do not treat any of these as live gates.
+## Code Hygiene Expectations (SonarCloud reinstated)
 
-The maintainability instincts the old Sonar section encoded still hold as plain code hygiene (complexity ≤15 via Ruff `C901`, hoist literals repeated ≥3×, no empty `except` blocks, tests for every new branch/helper, prefer real fixes over `# noqa`/`# type: ignore`), but they are now enforced by Ruff/mypy and review — not by a Sonar quality gate.
+**SonarCloud is reinstated as a net-new GitHub Actions workflow** (`.github/workflows/sonar.yml`, `#3995`). It runs nightly and on manual dispatch — not as a per-PR blocking gate — and is fork-safe: it skips green when `SONAR_TOKEN` is absent instead of failing. `sonar-project.properties` is its live configuration again (no longer an orphan). Per-PR coverage is enforced separately by the `ci-aggregate.yml` diff-cover ≥90% gate, not by Sonar.
+
+The maintainability instincts the old Sonar section encoded still hold as plain code hygiene (complexity ≤15 via Ruff `C901`, hoist literals repeated ≥3×, no empty `except` blocks, tests for every new branch/helper, prefer real fixes over `# noqa`/`# type: ignore`), and they are enforced by Ruff/mypy and review, with nightly SonarCloud analysis (`sonar.yml`) for visibility rather than as a blocking quality gate.
 
 ## Recent Changes
 
@@ -406,7 +415,7 @@ Append-only event log (`status.events.jsonl`) is the **sole authority** for WP l
 
 | Function | Module | Purpose |
 |----------|--------|---------|
-| `emit_status_transition()` | `status.emit` | Single entry point: validate → persist → materialize → views → SaaS |
+| `emit_status_transition()` | `status.emit` | Flat/primary shell over the status-owned `transition_pipeline` (validation runs once there); the transactional shell lives in `coordination/status_transition.py` |
 | `reduce()` | `status.reducer` | Deterministic event → snapshot |
 | `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
 | `validate_transition()` | `status.transitions` | Check (from, to) against matrix + guards |
@@ -558,7 +567,7 @@ These Priivacy-ai links are upstream references, not work items for this EXPERIM
 
 GitHub branch protection and review requirements enforce the repository workflow. `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via a topic branch and a PR targeting `main`.
 
-Live GitHub Actions are part of that workflow. `ci.yml` is the Blacksmith producer for the programme's deterministic merge-gate suite; the planning configuration `SK_CI_ACTIONS_REPOS` at `infra/models.env:77` includes `spec-kitty`, `spec-kitty-tracker`, `spec-kitty-events`, and `zeitgeist`. `ci-quality.yml` and `protect-main.yml` are [#830 Phase-1](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830) infrastructure. `ci-windows.yml`, `docs-pages.yml`, and `check-spec-kitty-events-alignment.yml` are also live.
+Live GitHub Actions are part of that workflow. The reinstated lean modular CI (`ci-router.yml` → `module-tests.yml` / `ci-modules.yml` → `ci-aggregate.yml`, plus `packs.yml`, `ci-nightly.yml`, and `sonar.yml`) is the sole/primary public producer, replacing the archived EXPERIMENTAL Blacksmith producer (`#3995`). `ci-quality.yml` and `protect-main.yml` are [#830 Phase-1](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830) infrastructure. `ci-windows.yml`, `docs-pages.yml`, and `check-spec-kitty-events-alignment.yml` are also live.
 
 ---
 

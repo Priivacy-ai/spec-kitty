@@ -434,7 +434,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     assert context_calls[0]["step_id"] == "implement"
     assert context_calls[0]["mission_state"] == "implement"
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda _: True)
-    def unavailable_status(*args: Any) -> bool:
+    def unavailable_status(*args: Any, **kwargs: Any) -> bool:
         raise CanonicalStatusNotFoundError("guard still active")
     monkeypatch.setattr(rb, "_should_advance_wp_step", unavailable_status)
     guarded = rb._dn_dependency_gate(ctx)
@@ -515,7 +515,7 @@ def test_dependency_gate_returns_blocked_decision_on_status_lookup_failure(tmp_p
 def test_dependency_gate_stays_in_step_when_wps_remain(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
-    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd: False)
+    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: False)
     monkeypatch.setattr(rb, "_check_cli_guards", _raising)
 
     sentinel = _sentinel_decision("stay-in-step")
@@ -536,7 +536,7 @@ def test_dependency_gate_stays_in_step_when_wps_remain(tmp_path: Path, monkeypat
 def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
-    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd: True)
+    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: True)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["missing artifact"])
 
     sentinel = _sentinel_decision("guard-blocked")
@@ -557,7 +557,7 @@ def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(tmp_path: 
 def test_dependency_gate_falls_through_when_wp_step_advances_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
-    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd: True)
+    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: True)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: [])
 
     assert rb._dn_dependency_gate(ctx) is None

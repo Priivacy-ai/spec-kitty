@@ -8,49 +8,7 @@ required:
 - schema_version
 - key
 - name
-- orchestration
 definitions:
-  mission_orchestration:
-    type: object
-    additionalProperties: false
-    required:
-    - states
-    - transitions
-    - required_artifacts
-    properties:
-      states:
-        type: array
-        minItems: 1
-        items:
-          oneOf:
-          - type: string
-          - $ref: '#/definitions/mission_state_object'
-      transitions:
-        type: array
-        minItems: 1
-        items:
-          $ref: '#/definitions/mission_transition'
-      guards:
-        type: array
-        items:
-          type: string
-      required_artifacts:
-        type: array
-        minItems: 1
-        items:
-          type: string
-  mission_state_object:
-    type: object
-    additionalProperties: false
-    required:
-    - id
-    properties:
-      id:
-        type: string
-        minLength: 1
-      agent-profile:
-        type: string
-        pattern: ^[a-z][a-z0-9-]*$
   mission_step:
     type: object
     additionalProperties: false
@@ -111,24 +69,6 @@ definitions:
       template_file:
         type: string
         minLength: 1
-  mission_transition:
-    type: object
-    additionalProperties: false
-    required:
-    - from
-    - to
-    properties:
-      from:
-        type: string
-        minLength: 1
-      to:
-        type: string
-        minLength: 1
-      on:
-        type: string
-      agent-profile:
-        type: string
-        pattern: ^[a-z][a-z0-9-]*$
 properties:
   schema_version:
     type: string
@@ -141,8 +81,6 @@ properties:
     minLength: 1
   description:
     type: string
-  orchestration:
-    $ref: '#/definitions/mission_orchestration'
   steps:
     type: array
     items:

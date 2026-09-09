@@ -1,0 +1,27 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      US2's "Why this priority" (spec.md lines 162-179) now states the two fixes are
+      disjoint functions (_evaluate_composed_tasks_terminal_guard vs.
+      _wp_blocks_step/_should_advance_wp_step) on disjoint steps (tasks vs.
+      implement/review) reading disjoint snapshot fields (present_artifacts vs.
+      wp_advance_ready), explicitly says wp_advance_ready is NOT populated by
+      gather_artifact_presence itself and is threaded in afterward via
+      dataclasses.replace(snapshot, wp_advance_ready=...) at
+      runtime_bridge_composition.py:556-558 (verified live: that exact
+      dataclasses.replace call spans lines 556-558), and reframes the shared scope as
+      programme/co-review grouping rather than a shared implementation seam — matching
+      the remediation exactly, not a restated version of the stale claim.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >
+      Both citations verified live and now correct: mission-runtime.yaml:31 is
+      version: "2.2.0" (line 33 is steps:) and spec.md line 35 now cites
+      "mission-runtime.yaml:31,53-58"; runtime_bridge_composition.py's
+      try/except/return block for _check_composed_action_guard spans lines 559-568
+      (try: at 559 through return [] at 568) and FR-006's prose now cites
+      "lines 559-568" instead of the prior 559-566.

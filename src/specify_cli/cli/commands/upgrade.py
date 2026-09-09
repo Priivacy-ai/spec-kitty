@@ -42,14 +42,18 @@ import functools
 import json
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager, suppress
 from kernel.clock import now_utc
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
+import click
 
 if TYPE_CHECKING:
+    from specify_cli.upgrade.assessment import PreparedUpgradeRepairs
+    from specify_cli.tool_surface.operations import FileState
     from specify_cli.tool_surface.repair import DriftPolicySummary
     from specify_cli.upgrade.migrations.base import BaseMigration
 from rich.panel import Panel
@@ -136,7 +140,7 @@ def _run_cli_mode(
     if latest_version_provider is not None:
         kwargs["latest_version_provider"] = latest_version_provider
 
-    result = plan(invocation, **kwargs)  # type: ignore[arg-type]
+    result = plan(invocation, read_only=True, **kwargs)  # type: ignore[arg-type]
 
     if json_output:
         exit_code = 0 if dry_run else result.exit_code
@@ -1021,11 +1025,66 @@ class _FinalizerRenderContext:
         self.surface_repair_summary: DriftPolicySummary | None = None
         self.commit_paths: list[str] = []
         self.commit_warning: str | None = None
+        self.prepared_repairs: PreparedUpgradeRepairs | None = None
 
 
-def _finalizer_step_provision(project_path: Path, *, dry_run: bool) -> list[str]:
+def _finalizer_step_provision(project_path: Path, *, dry_run: bool, prepared: PreparedUpgradeRepairs | None = None) -> list[str]:
     """Injected ``provision_activations`` step (C4 order position 1)."""
-    return _provision_missing_mission_type_activations(project_path, dry_run=dry_run)
+    if prepared is None:
+        return _provision_missing_mission_type_activations(project_path, dry_run=dry_run)
+    try:
+        prepared.provisioning.apply()
+    except (OSError, ValueError) as exc:
+        return [str(exc)]
+    return []
+
+
+def _prepare_finalizer_repairs(project_path: Path, ctx: _FinalizerRenderContext) -> tuple[str, ...]:
+    from specify_cli.upgrade.assessment import prepare_upgrade_repairs
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from specify_cli.core.agent_config import AgentConfigError
+
+    try:
+        ctx.prepared_repairs = prepare_upgrade_repairs(project_path, consent=ApplyConsent(automatic=True))
+    except (OSError, ValueError, AgentConfigError) as exc:
+        return (str(exc),)
+    return ()
+
+
+@contextmanager
+def _finalizer_repair_preflight(prepared: PreparedUpgradeRepairs | None, errors: tuple[str, ...]) -> Iterator[tuple[str, ...]]:
+    if prepared is None:
+        yield errors
+        return
+    from specify_cli.upgrade.assessment import preflight_upgrade_repairs
+
+    with preflight_upgrade_repairs(prepared) as diagnostics:
+        yield errors + tuple(d.message for d in diagnostics)
+
+
+def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
+    """Describe canonical retained effects without entering any write boundary."""
+    from specify_cli.core.agent_config import AgentConfigError
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from specify_cli.upgrade.assessment import prepare_upgrade_repairs
+
+    hint = "Use --plan-json for full repair details."
+    try:
+        prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
+        if not prepared.complete:
+            detail = "; ".join(d.message for d in prepared.diagnostics if d.severity == "error")
+            return f"Supporting repair preview incomplete: {detail[:350] or 'Required owner assessment incomplete'}. {hint}", True
+        effects = prepared.effects
+    except (OSError, ValueError, AgentConfigError) as exc:
+        return f"Supporting repair preview incomplete: {str(exc)[:350]}. {hint}", True
+    preserved = sum(d.state == "consent_required" for owner in prepared.owners for d in owner.dispositions)
+    if not effects and not preserved:
+        return "", False
+    manifests = sum(effect.after.kind != "directory" and "manifest" in Path(effect.path).name.lower() for effect in effects)
+    lines = [f"Would repair {len(effects)} supporting surface paths (including {manifests} manifests)."] if effects else []
+    if preserved:
+        lines.append(f"Would preserve {preserved} paths requiring separate consent.")
+    return " ".join((*lines, hint)), False
 
 
 def _finalizer_step_surface_repair(
@@ -1045,6 +1104,32 @@ def _finalizer_step_surface_repair(
     """
     if not outcome.result.success:
         return False
+    if dry_run:
+        notice, incomplete = _supporting_repair_preview(project_path)
+        if notice and not json_output:
+            console.print(notice, markup=False)
+        if incomplete:
+            outcome.result.errors.append(notice)
+        return incomplete
+    if ctx.prepared_repairs is not None:
+        from specify_cli.upgrade.assessment import apply_upgrade_repairs
+        from specify_cli.tool_surface.repair import DriftPolicySummary
+
+        prepared = ctx.prepared_repairs
+        results = apply_upgrade_repairs(prepared)
+        succeeded = {effect_id for result in results for effect_id in result.succeeded}
+        summary = DriftPolicySummary()
+        for effect in prepared.effects:
+            if effect.id in succeeded:
+                (summary.created if effect.action == "create" else summary.repaired).append(effect.destination)
+        for owner in prepared.owners:
+            summary.drifted_reported.extend(
+                owner.root.path / disposition.path for disposition in owner.dispositions
+                if disposition.state == "consent_required" and disposition.path is not None
+            )
+        ctx.surface_repair_summary = summary
+        outcome.result.errors.extend(d.message for result in results for d in result.diagnostics if d.severity == "error")
+        return bool(summary.drifted_reported) or any(result.outcome not in {"applied", "skipped"} for result in results)
     ctx.surface_repair_summary = _run_upgrade_surface_repair(
         project_path,
         confirm=confirm,
@@ -1128,6 +1213,14 @@ def _finalizer_step_offer_repair(
     )
 
 
+def _resolve_upgrade_target(target: str | None) -> str:
+    if target is not None:
+        return target
+    from specify_cli import __version__
+
+    return __version__
+
+
 def _reject_downgrade_target(validation_error: str | None, *, current_version: str, target_version: str, json_output: bool) -> None:
     """Raise ``typer.Exit(1)`` when *validation_error* is set (a downgrade
     target); a no-op otherwise. Pure extraction — this is a legitimate
@@ -1154,11 +1247,245 @@ def _reject_downgrade_target(validation_error: str | None, *, current_version: s
     raise typer.Exit(1)
 
 
+def _full_plan_compatibility(project_path: Path) -> tuple[dict[str, object], int]:
+    """Return the frozen compatibility envelope without network or writes."""
+    from specify_cli.compat.planner import Invocation, plan
+
+    result = plan(
+        Invocation(
+            command_path=_PROJECT_COMPAT_CHECK_COMMAND,
+            raw_args=("--project", "--plan-json"),
+            is_help=False,
+            is_version=False,
+            flag_no_nag=True,
+            env_ci=True,
+            stdout_is_tty=False,
+        ),
+        read_only=True,
+        project_root_resolver=lambda _path: project_path,
+        include_migrations=False,
+    )
+    return dict(result.rendered_json), result.exit_code
+
+
+def _empty_full_plan(
+    *, project_path: Path, target: str | None, project: bool,
+    no_worktrees: bool, confirm: bool,
+) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "mode": "preview",
+        "intent": {
+            "project_mode": project,
+            "requested_target": target,
+            "include_worktrees": not no_worktrees,
+            "confirm": confirm,
+        },
+        "target": {"current": None, "requested": target, "relation": "unknown", "valid": False, "reason": ""},
+        "compatibility": {},
+        "complete": False,
+        "decision": "blocked",
+        "process_exit_code": 1,
+        "roots": [{"id": "project", "scope": "project", "path": str(project_path.resolve())}],
+        "migrations": [],
+        "effects": [],
+        "dispositions": [],
+        "diagnostics": [],
+        "execution_artifacts": [],
+        "commit_policy": {"project_enabled": False, "worktrees_enabled": False, "mission_repair_included": False},
+    }
+
+
+def _emit_blocked_full_plan(
+    *, project_path: Path, target: str | None, project: bool,
+    no_worktrees: bool, confirm: bool, code: int,
+    diagnostic_code: str, message: str,
+) -> None:
+    payload = _empty_full_plan(
+        project_path=project_path, target=target, project=project,
+        no_worktrees=no_worktrees, confirm=confirm,
+    )
+    payload["process_exit_code"] = code
+    with suppress(Exception):
+        payload["compatibility"], _compat_code = _full_plan_compatibility(project_path)
+    payload["target"] = {
+        "current": None, "requested": target, "relation": "unknown",
+        "valid": diagnostic_code != "invalid_target", "reason": message,
+    }
+    payload["diagnostics"] = [{"code": diagnostic_code, "owner": None, "severity": "error", "message": message}]
+    print(json.dumps(payload, indent=2))
+    raise typer.Exit(code)
+
+
+def _state_json(state: FileState) -> dict[str, object]:
+    return {
+        "kind": state.kind,
+        "sha256": state.sha256,
+        "target": state.target,
+        "mode": state.mode,
+    }
+
+
+def _run_full_plan_json(
+    *, project_path: Path, requested_target: str | None, project: bool,
+    include_worktrees: bool, confirm: bool,
+) -> None:
+    """Render the complete retained assessment. The document is never replayable."""
+    from packaging.version import InvalidVersion, Version
+    from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, get_project_schema_version
+    from specify_cli.tool_surface.operations import ApplyConsent
+    from specify_cli.upgrade.assessment import prepare_upgrade_repairs
+    from specify_cli.upgrade.detector import VersionDetector
+    from specify_cli.upgrade.runner import validate_upgrade_target
+
+    target = _resolve_upgrade_target(requested_target)
+    current = VersionDetector(project_path).detect_version()
+    compatibility, _compat_code = _full_plan_compatibility(project_path)
+    payload = _empty_full_plan(
+        project_path=project_path, target=requested_target, project=project,
+        no_worktrees=not include_worktrees, confirm=confirm,
+    )
+    payload["compatibility"] = compatibility
+    relation = "unknown"
+    try:
+        requested_v = Version(target)
+        relation = "unknown" if current == "unknown" else (
+            "lower" if requested_v < Version(current) else "equal" if requested_v == Version(current) else "higher"
+        )
+    except InvalidVersion:
+        relation = "invalid"
+    target_error = validate_upgrade_target(current, target)
+    payload["target"] = {
+        "current": current,
+        "requested": target,
+        "relation": relation,
+        "valid": target_error is None,
+        "reason": target_error or "Target is valid",
+    }
+    schema_version = get_project_schema_version(project_path)
+    compatibility_decision = compatibility.get("decision")
+    if compatibility_decision == "BLOCK_PROJECT_CORRUPT":
+        payload.update(decision="blocked", process_exit_code=6)
+        payload["diagnostics"] = [{
+            "code": "project_corrupt", "owner": None, "severity": "error",
+            "message": str(compatibility.get("rendered_human") or "Project metadata is corrupt"),
+        }]
+        print(json.dumps(payload, indent=2))
+        raise typer.Exit(6)
+    if schema_version is not None and not isinstance(schema_version, int):
+        _emit_blocked_full_plan(
+            project_path=project_path, target=requested_target, project=project,
+            no_worktrees=not include_worktrees, confirm=confirm, code=6,
+            diagnostic_code="project_corrupt", message="Project metadata schema version is corrupt",
+        )
+    if isinstance(schema_version, int) and schema_version > MAX_SUPPORTED_SCHEMA:
+        payload.update(decision="blocked", process_exit_code=5)
+        payload["diagnostics"] = [{
+            "code": "cli_upgrade_required", "owner": None, "severity": "error",
+            "message": f"Project schema {schema_version} exceeds supported schema {MAX_SUPPORTED_SCHEMA}",
+        }]
+        print(json.dumps(payload, indent=2))
+        raise typer.Exit(5)
+    if target_error:
+        payload.update(decision="blocked", process_exit_code=2)
+        payload["diagnostics"] = [{"code": "invalid_target", "owner": None, "severity": "error", "message": target_error}]
+        print(json.dumps(payload, indent=2))
+        raise typer.Exit(2)
+    try:
+        prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
+    except Exception as exc:  # noqa: BLE001 - assessment failure is contract data
+        payload.update(decision="incomplete", process_exit_code=1)
+        payload["diagnostics"] = [{"code": "assessment_failed", "owner": None, "severity": "error", "message": str(exc)}]
+        print(json.dumps(payload, indent=2))
+        raise typer.Exit(1) from None
+
+    owners = prepared.owners
+    roots = {owner.root.root_id: owner.root for owner in owners}
+    roots[prepared.root.root_id] = prepared.root
+    payload["roots"] = [
+        {"id": root.root_id, "scope": root.scope, "path": str(root.path)}
+        for root in sorted(roots.values(), key=lambda item: item.root_id)
+    ]
+    payload["migrations"] = _real_pending_migrations_contract(project_path, target)
+    payload["effects"] = [
+        {
+            "id": effect.id, "phase": effect.phase, "owner": effect.owner,
+            "logical_owners": list(effect.logical_owners), "surface_ids": list(effect.surface_ids),
+            "root_id": effect.root.root_id, "path": effect.path, "action": effect.action,
+            "before": _state_json(effect.before), "after": _state_json(effect.after),
+            "reason": effect.reason,
+            "ownership": {"kind": effect.ownership[0].kind, "reference": effect.ownership[0].reference},
+        }
+        for effect in prepared.effects
+    ]
+    payload["dispositions"] = [
+        {"owner": item.owner, "root_id": item.root_id, "path": item.path, "state": item.state, "reason": item.reason}
+        for owner in owners for item in owner.dispositions
+    ]
+    payload["diagnostics"] = [
+        {"code": item.code, "owner": item.owner, "severity": item.severity, "message": item.message}
+        for item in prepared.diagnostics
+    ]
+    artifacts: list[dict[str, object]] = []
+    for owner in owners:
+        for artifact in getattr(owner.prepared, "execution_artifacts", ()):
+            if hasattr(artifact, "directory"):
+                directory, pattern, purpose = artifact.directory, artifact.name_pattern, artifact.purpose
+            else:
+                directory, pattern, purpose = artifact
+            artifacts.append({
+                "owner": owner.owner_key, "root_id": owner.root.root_id,
+                "directory": directory, "name_pattern": pattern, "purpose": purpose,
+            })
+    payload["execution_artifacts"] = artifacts
+    payload["complete"] = prepared.complete
+    payload["decision"] = "ready" if prepared.complete else "incomplete"
+    payload["process_exit_code"] = 0 if prepared.complete else 1
+    payload["commit_policy"] = {
+        "project_enabled": should_auto_commit(project_path, dry_run=False, manual_review=False),
+        "worktrees_enabled": include_worktrees,
+        "mission_repair_included": False,
+    }
+    print(json.dumps(payload, indent=2))
+    raise typer.Exit(int(payload["process_exit_code"]))
+
+
+def _check_upgrade_intent_conflicts(
+    *, json_output: bool, plan_json: bool, target: str | None, project: bool, no_worktrees: bool,
+) -> None:
+    """Preserve the parser conflict contract before dispatching upgrade work."""
+    current_context = click.get_current_context(silent=True)
+    intent = current_context.meta.get("upgrade_intent") if current_context is not None else None
+    if intent is not None and intent.conflicts:
+        message = "\n".join(intent.conflicts)
+        if json_output or plan_json:
+            if plan_json:
+                _emit_blocked_full_plan(
+                    project_path=Path.cwd(), target=target, project=project,
+                    no_worktrees=no_worktrees, confirm=False, code=2,
+                    diagnostic_code="incompatible_flags", message=message,
+                )
+            from specify_cli.compat.planner import Invocation, plan
+
+            payload = dict(plan(Invocation(
+                command_path=("upgrade",), raw_args=("--cli", "--project"),
+                is_help=False, is_version=False, flag_no_nag=True,
+                env_ci=True, stdout_is_tty=False,
+            ), read_only=True, project_root_resolver=lambda _path: Path.cwd(), include_migrations=False).rendered_json)
+            payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, pending_migrations=[], rendered_human=message[:1024])
+            print(json.dumps(payload))
+        else:
+            console.print(message, markup=False)
+        raise typer.Exit(2)
+
+
+
 def upgrade(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
     target: str | None = typer.Option(None, "--target", help="Target version (defaults to current CLI version)"),
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    plan_json: bool = typer.Option(False, "--plan-json", help="Output the complete preview plan as JSON"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed migration information"),
     no_worktrees: bool = typer.Option(False, "--no-worktrees", help="Skip upgrading worktrees"),
     # --- WP09 new flags (T034) ---
@@ -1205,6 +1532,10 @@ def upgrade(
         spec-kitty upgrade --yes        # Non-interactive (same as --force)
         spec-kitty upgrade --dry-run --json  # Machine-readable plan
     """
+    _check_upgrade_intent_conflicts(
+        json_output=json_output, plan_json=plan_json, target=target, project=project, no_worktrees=no_worktrees,
+    )
+
     _dispatch_agent_flags(
         agent_check=agent_check,
         agent_choice=agent_choice,
@@ -1236,6 +1567,12 @@ def upgrade(
     # default (bare) invocation falls back to --cli guidance instead.
     project_path = Path.cwd()
     kittify_dir = project_path / ".kittify"
+    if plan_json and not _is_in_project(project_path):
+        _emit_blocked_full_plan(
+            project_path=project_path, target=target, project=project,
+            no_worktrees=no_worktrees, confirm=False, code=1,
+            diagnostic_code="project_not_initialized", message="Not a Spec Kitty project",
+        )
     _guard_project_or_fallback_to_cli(
         project_path,
         project=project,
@@ -1243,6 +1580,15 @@ def upgrade(
         dry_run=dry_run,
         no_nag=no_nag,
     )
+
+    if plan_json:
+        _run_full_plan_json(
+            project_path=project_path,
+            requested_target=target,
+            project=project,
+            include_worktrees=not no_worktrees,
+            confirm=False,
+        )
 
     # CHK037 / A-006 — Check if project is too new for this CLI.
     # This check runs BEFORE the existing upgrade flow so that
@@ -1261,17 +1607,11 @@ def upgrade(
         # Emit compat-planner contract. FR-009: the pending set is computed
         # against the same target the real run would use (explicit --target, or
         # the installed CLI version) so the preview matches the applied set.
-        if target is None:
-            from specify_cli import __version__ as _installed_version
-
-            planner_target = _installed_version
-        else:
-            planner_target = target
         _run_planner_json(
             dry_run=dry_run,
             no_nag=no_nag,
             project_path=project_path,
-            target_version=planner_target,
+            target_version=_resolve_upgrade_target(target),
         )
         return  # _run_planner_json always raises typer.Exit
 
@@ -1294,12 +1634,7 @@ def upgrade(
     current_version = detector.detect_version()
 
     # Determine target version
-    if target is None:
-        from specify_cli import __version__
-
-        target_version = __version__
-    else:
-        target_version = target
+    target_version = _resolve_upgrade_target(target)
 
     validation_error = validate_upgrade_target(current_version, target_version)
     _reject_downgrade_target(
@@ -1367,12 +1702,15 @@ def upgrade(
         project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths)
     )
     render_ctx = _FinalizerRenderContext()
+    preparation_errors: tuple[str, ...] = ()
+    if not dry_run and outcome.result.success:
+        preparation_errors = _prepare_finalizer_repairs(project_path, render_ctx)
 
     from specify_cli.upgrade.finalize import finalize_upgrade
 
     outcome = finalize_upgrade(
         outcome,
-        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run),
+        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run, prepared=render_ctx.prepared_repairs),
         run_surface_repair=functools.partial(
             _finalizer_step_surface_repair,
             outcome,
@@ -1398,6 +1736,7 @@ def upgrade(
             json_output=json_output,
         ),
         should_commit=should_commit_main,
+        repair_preflight=_finalizer_repair_preflight(render_ctx.prepared_repairs, preparation_errors),
     )
 
     surface_repair_summary = render_ctx.surface_repair_summary
@@ -1584,7 +1923,7 @@ def _run_planner_json(
     """Emit the compat-planner JSON contract to stdout and raise typer.Exit.
 
     Suppresses all human output.  Exit code follows R-08 unless ``dry_run``
-    is True, in which case exit code is always 0.
+    is True, except for a stronger refusal or incomplete supporting-repair preview.
 
     FR-009: the compat planner gates its own ``pending_migrations`` on a block
     decision, so a schema-compatible-but-stale project would preview ``[]``.
@@ -1600,7 +1939,7 @@ def _run_planner_json(
     machine surface stays contract-clean.
 
     Args:
-        dry_run: When True, always exit 0.
+        dry_run: Preview without writes; incomplete repair assessment fails closed.
         no_nag: Suppress nag flag passed to the Invocation.
         project_path: Root of the project being previewed.
         target_version: Resolved target version for the pending-set computation.
@@ -1631,14 +1970,45 @@ def _run_planner_json(
     if latest_version_provider is not None:
         kwargs["latest_version_provider"] = latest_version_provider
 
-    result = plan(invocation, **kwargs)  # type: ignore[arg-type]
+    from specify_cli.upgrade.detector import VersionDetector
+    from specify_cli.upgrade.runner import validate_upgrade_target
+
+    current_version = VersionDetector(project_path).detect_version()
+    validation_error = validate_upgrade_target(current_version, target_version)
+    result = plan(invocation, read_only=True, include_migrations=False, **kwargs)  # type: ignore[arg-type]
 
     payload = dict(result.rendered_json)
-    payload["pending_migrations"] = _real_pending_migrations_contract(project_path, target_version)
+    semantic_code = result.exit_code
+    if validation_error:
+        payload["pending_migrations"] = []
+        semantic_code = _legacy_target_refusal(payload, validation_error, semantic_code)
+    else:
+        payload["pending_migrations"] = _real_pending_migrations_contract(project_path, target_version)
 
-    exit_code = 0 if dry_run else result.exit_code
+    exit_code = 0 if dry_run and semantic_code != 5 else semantic_code
+    if dry_run and not validation_error and semantic_code not in {2, 5, 6}:
+        notice, incomplete = _supporting_repair_preview(project_path)
+        if notice:
+            # Keep the diagnostic prefix within the JSON text budget even if a
+            # future notice grows; compatibility text keeps the remaining room.
+            compatibility = str(payload["rendered_human"])
+            notice = notice[:1023]
+            payload["rendered_human"] = compatibility[: max(0, 1023 - len(notice))] + "\n" + notice
+        if incomplete:
+            exit_code = 1
+            payload["exit_code"] = exit_code
     print(json.dumps(payload, indent=2))
     raise typer.Exit(exit_code)
+
+
+def _legacy_target_refusal(payload: dict[str, object], reason: str, semantic_code: int) -> int:
+    """Project target refusal without changing truthful schema compatibility."""
+    stronger = {"BLOCK_PROJECT_CORRUPT", "BLOCK_CLI_UPGRADE", "BLOCK_PROJECT_MIGRATION"}
+    if payload["decision"] in stronger:
+        payload["rendered_human"] = str(payload["rendered_human"])[:512] + "\n" + reason[:511]
+        return semantic_code
+    payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, rendered_human=reason)
+    return 2
 
 
 __all__ = ["upgrade"]

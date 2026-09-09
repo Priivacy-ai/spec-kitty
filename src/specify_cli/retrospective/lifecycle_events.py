@@ -28,9 +28,12 @@ from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.retrospective.writer import resolve_retrospective_home
 import json
 import logging
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 import ulid as _ulid_mod
 
@@ -41,7 +44,75 @@ from specify_cli.retrospective.schema import (
     RecordValidationError,
 )
 
+# ``specify_cli.status`` and ``specify_cli.workspace`` are imported
+# function-locally below: ``status.models`` imports ``retrospective.schema``,
+# whose package ``__init__`` imports this module (and ``workspace`` imports
+# ``status``), so a module-level import of either here is a circular import at
+# package init time.
+
 logger = logging.getLogger(__name__)
+
+_EVENTS_FILENAME = "status.events.jsonl"
+
+#: Default status-lock timeout for the appenders in this module when a caller
+#: passes ``lock_timeout=None``. ``-1`` is the lock's own unbounded default
+#: (research Q2: a finite *default* is a follow-up). Outage-shaped callers
+#: (the merge-path terminus, FR-003(b) / NFR-003) scope a finite value with
+#: :func:`bounded_lock_timeout` so every appender reached from that scope --
+#: including the ones invoked through the runtime bridge, which this module
+#: cannot pass a keyword to -- is bounded.
+_LOCK_TIMEOUT_SCOPE: ContextVar[float] = ContextVar(
+    "retrospective_lifecycle_lock_timeout", default=-1.0
+)
+
+
+@contextmanager
+def bounded_lock_timeout(seconds: float) -> Iterator[None]:
+    """Scope a finite status-lock timeout over every appender call inside the block.
+
+    Applies to calls that leave ``lock_timeout`` unset (``None``); an explicit
+    keyword always wins. The scope is a :class:`contextvars.ContextVar`, so it
+    follows the calling context (and does not leak into other threads).
+    """
+    token = _LOCK_TIMEOUT_SCOPE.set(seconds)
+    try:
+        yield
+    finally:
+        _LOCK_TIMEOUT_SCOPE.reset(token)
+
+
+def _resolve_lock_timeout(lock_timeout: float | None) -> float:
+    """Return the effective lock timeout: explicit keyword, else the scoped default."""
+    return _LOCK_TIMEOUT_SCOPE.get() if lock_timeout is None else lock_timeout
+
+
+@contextmanager
+def retro_status_lock(feature_dir: Path, *, lock_timeout: float | None = None) -> Iterator[Path]:
+    """Hold the mission status lock (L1) that guards *feature_dir*'s event log.
+
+    Keyed on ``feature_dir.name`` (FR-004 / C-003: never the slug), rooted via
+    :func:`resolve_status_lock_root` so every process converges on the same
+    lock file regardless of CWD or worktree. This is the same lock the
+    transition shells and ``BookkeepingTransaction`` hold, which is what keeps
+    a retrospective append out of the transaction's rollback-truncate window
+    (SC-001).
+
+    No ``nullcontext()`` degrade at this site (spec edge case, conscious
+    choice): ``resolve_status_lock_root`` never raises and the lock itself
+    degrades to a deterministic ``<root>/.git/spec-kitty-locks`` file for a
+    non-git tree, so there is no "no root" case in which skipping the lock
+    would be the safer option. A :class:`FeatureStatusLockTimeoutError` is a
+    structured outage signal and propagates.
+    """
+    from specify_cli.status import feature_status_lock
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root
+
+    lock_root = resolve_status_lock_root(feature_dir)
+    with feature_status_lock(
+        lock_root, feature_dir.name, timeout=_resolve_lock_timeout(lock_timeout)
+    ) as lock_path:
+        yield lock_path
+
 
 # ---------------------------------------------------------------------------
 # Actor type for the canonical event envelope
@@ -247,13 +318,26 @@ def _generate_ulid() -> str:
     return str(_ulid_mod.ULID())
 
 
-def _append_retro_lifecycle_event(feature_dir: Path, event_dict: dict[str, Any]) -> None:
-    """Append a retrospective lifecycle event line to status.events.jsonl."""
-    events_path = feature_dir / "status.events.jsonl"
+def _append_retro_lifecycle_event(
+    feature_dir: Path,
+    event_dict: dict[str, Any],
+    *,
+    lock_timeout: float | None = None,
+) -> None:
+    """Append a retrospective lifecycle event row to ``status.events.jsonl``.
+
+    Atomic (``append_raw_rows_atomic``: write-ahead temp file + ``os.replace``)
+    AND serialized under the mission status lock (FR-002: atomicity travels
+    with the lock). The lock is re-entrant per thread, so a caller that already
+    holds it (:func:`_locked_append`, or a ``BookkeepingTransaction`` scope)
+    nests without deadlock.
+    """
+    from specify_cli.status._unsafe import append_raw_rows_atomic
+
+    events_path = feature_dir / _EVENTS_FILENAME
     events_path.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(event_dict, sort_keys=True)
-    with events_path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+    with retro_status_lock(feature_dir, lock_timeout=lock_timeout):
+        append_raw_rows_atomic(events_path, [event_dict])
     logger.debug(
         "Appended %s (event_id=%s) to %s",
         event_dict.get("type"),
@@ -262,9 +346,37 @@ def _append_retro_lifecycle_event(feature_dir: Path, event_dict: dict[str, Any])
     )
 
 
+_RetroEventT = TypeVar(
+    "_RetroEventT", "RetrospectiveCaptured", "RetrospectiveCaptureFailed", "RetrospectiveSkipped"
+)
+
+
+def _locked_append(
+    feature_dir: Path,
+    build_event: Callable[[int], _RetroEventT],
+    *,
+    lock_timeout: float | None = None,
+) -> _RetroEventT:
+    """Read the next Lamport value, build the event, and append -- under ONE lock.
+
+    The Lamport read (:func:`_next_lamport`) is a read-then-write on the event
+    log; performing it outside the lock is a TOCTOU that lets two appenders
+    mint the same ``lamport``. Holding the lock across read + build + append
+    closes that window (data-model.md section 2, family 5).
+    """
+    with retro_status_lock(feature_dir, lock_timeout=lock_timeout):
+        event = build_event(_next_lamport(feature_dir))
+        _append_retro_lifecycle_event(feature_dir, event.to_dict(), lock_timeout=lock_timeout)
+    return event
+
+
 def _next_lamport(feature_dir: Path) -> int:
-    """Return the next lamport clock value by reading the last event in the log."""
-    events_path = feature_dir / "status.events.jsonl"
+    """Return the next lamport clock value by reading the last event in the log.
+
+    Callers must hold the mission status lock (see :func:`_locked_append`);
+    this function performs the read only.
+    """
+    events_path = feature_dir / _EVENTS_FILENAME
     if not events_path.exists():
         return 1
     last_lamport = 0
@@ -297,6 +409,7 @@ def emit_captured(
     provenance_kind: ProvenanceKind,
     actor: Actor,
     execution_mode: Literal["worktree", "main"] = "main",
+    lock_timeout: float | None = None,
 ) -> RetrospectiveCaptured:
     """Emit a ``RetrospectiveCaptured`` event to the mission event log.
 
@@ -309,6 +422,8 @@ def emit_captured(
         provenance_kind: How the capture was invoked.
         actor: Who triggered the capture.
         execution_mode: Execution context (worktree or main).
+        lock_timeout: Mission status-lock wait bound in seconds; ``None``
+            inherits the :func:`bounded_lock_timeout` scope (default: unbounded).
 
     Returns:
         The ``RetrospectiveCaptured`` event dataclass (also written to JSONL).
@@ -331,37 +446,34 @@ def emit_captured(
         raise ValueError("record.mission_slug must be non-empty to determine feature_dir")
 
     feature_dir = resolve_retrospective_home(repo_root, record.mission_slug)
-    lamport = _next_lamport(feature_dir)
-    event_id = _generate_ulid()
-    at = now_utc_iso()
 
     # FR-001/003 (#2119): the record lives in the durable PRIMARY home for every
     # topology, resolved above through the single durable-home authority — never
     # the materialized ``-coord`` husk (the #1771 coord-leak this mission cures).
     canonical_path = feature_dir / RETROSPECTIVE_FILENAME
 
-    event = RetrospectiveCaptured(
-        schema_version=1,
-        event_id=event_id,
-        lamport=lamport,
-        at=at,
-        actor=actor,
-        mission_id=record.mission_id,
-        mission_slug=record.mission_slug,
-        wp_id=None,
-        force=False,
-        execution_mode=execution_mode,
-        findings_status=record.findings_status,
-        record_path=str(canonical_path),
-        generator_version=record.generator_version,
-        policy_source=dict(record.policy_source),
-        provenance_kind=provenance_kind,
-        proposal_count=len(record.proposals),
-        evidence_ref_count=len(record.evidence_refs),
-    )
+    def _build(lamport: int) -> RetrospectiveCaptured:
+        return RetrospectiveCaptured(
+            schema_version=1,
+            event_id=_generate_ulid(),
+            lamport=lamport,
+            at=now_utc_iso(),
+            actor=actor,
+            mission_id=record.mission_id,
+            mission_slug=record.mission_slug,
+            wp_id=None,
+            force=False,
+            execution_mode=execution_mode,
+            findings_status=record.findings_status,
+            record_path=str(canonical_path),
+            generator_version=record.generator_version,
+            policy_source=dict(record.policy_source),
+            provenance_kind=provenance_kind,
+            proposal_count=len(record.proposals),
+            evidence_ref_count=len(record.evidence_refs),
+        )
 
-    _append_retro_lifecycle_event(feature_dir, event.to_dict())
-    return event
+    return _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
 
 
 def emit_capture_failed(
@@ -383,6 +495,7 @@ def emit_capture_failed(
     missing_artifacts: list[str] | None,
     actor: Actor,
     execution_mode: Literal["worktree", "main"] = "main",
+    lock_timeout: float | None = None,
 ) -> RetrospectiveCaptureFailed:
     """Emit a ``RetrospectiveCaptureFailed`` event to the mission event log.
 
@@ -398,6 +511,8 @@ def emit_capture_failed(
         missing_artifacts: Specific artifact paths when failure_category == "missing_artifacts".
         actor: Who triggered the capture attempt.
         execution_mode: Execution context.
+        lock_timeout: Mission status-lock wait bound in seconds; ``None``
+            inherits the :func:`bounded_lock_timeout` scope (default: unbounded).
 
     Returns:
         The ``RetrospectiveCaptureFailed`` event dataclass.
@@ -406,31 +521,28 @@ def emit_capture_failed(
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
     feature_dir = resolve_retrospective_home(repo_root, mission_slug)
-    lamport = _next_lamport(feature_dir)
-    event_id = _generate_ulid()
-    at = now_utc_iso()
 
-    event = RetrospectiveCaptureFailed(
-        schema_version=1,
-        event_id=event_id,
-        lamport=lamport,
-        at=at,
-        actor=actor,
-        mission_id=mission_id,
-        mission_slug=mission_slug,
-        wp_id=None,
-        force=False,
-        execution_mode=execution_mode,
-        failure_category=failure_category,
-        failure_message=failure_message,
-        remediation_hint=remediation_hint,
-        policy_source=dict(policy_source),
-        attempted_provenance_kind=attempted_provenance_kind,
-        missing_artifacts=missing_artifacts,
-    )
+    def _build(lamport: int) -> RetrospectiveCaptureFailed:
+        return RetrospectiveCaptureFailed(
+            schema_version=1,
+            event_id=_generate_ulid(),
+            lamport=lamport,
+            at=now_utc_iso(),
+            actor=actor,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            wp_id=None,
+            force=False,
+            execution_mode=execution_mode,
+            failure_category=failure_category,
+            failure_message=failure_message,
+            remediation_hint=remediation_hint,
+            policy_source=dict(policy_source),
+            attempted_provenance_kind=attempted_provenance_kind,
+            missing_artifacts=missing_artifacts,
+        )
 
-    _append_retro_lifecycle_event(feature_dir, event.to_dict())
-    return event
+    return _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
 
 
 def emit_skipped(
@@ -444,6 +556,7 @@ def emit_skipped(
     actor: Actor,
     would_have_attempted: bool = True,
     execution_mode: Literal["worktree", "main"] = "main",
+    lock_timeout: float | None = None,
 ) -> RetrospectiveSkipped:
     """Emit a ``RetrospectiveSkipped`` event to the mission event log.
 
@@ -461,6 +574,8 @@ def emit_skipped(
         would_have_attempted: True if the runtime had loaded policy and was ready
             to dispatch. Always True today; reserved for future paths.
         execution_mode: Execution context.
+        lock_timeout: Mission status-lock wait bound in seconds; ``None``
+            inherits the :func:`bounded_lock_timeout` scope (default: unbounded).
 
     Returns:
         The ``RetrospectiveSkipped`` event dataclass.
@@ -475,27 +590,24 @@ def emit_skipped(
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
     feature_dir = resolve_retrospective_home(repo_root, mission_slug)
-    lamport = _next_lamport(feature_dir)
-    event_id = _generate_ulid()
-    at = now_utc_iso()
 
-    event = RetrospectiveSkipped(
-        schema_version=1,
-        event_id=event_id,
-        lamport=lamport,
-        at=at,
-        actor=actor,
-        mission_id=mission_id,
-        mission_slug=mission_slug,
-        wp_id=None,
-        force=False,
-        execution_mode=execution_mode,
-        skip_reason=skip_reason,
-        skip_reason_source=skip_reason_source,
-        policy_source=dict(policy_source),
-        bypassed_provenance_kind="runtime_strict_gate",
-        would_have_attempted=would_have_attempted,
-    )
+    def _build(lamport: int) -> RetrospectiveSkipped:
+        return RetrospectiveSkipped(
+            schema_version=1,
+            event_id=_generate_ulid(),
+            lamport=lamport,
+            at=now_utc_iso(),
+            actor=actor,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            wp_id=None,
+            force=False,
+            execution_mode=execution_mode,
+            skip_reason=skip_reason,
+            skip_reason_source=skip_reason_source,
+            policy_source=dict(policy_source),
+            bypassed_provenance_kind="runtime_strict_gate",
+            would_have_attempted=would_have_attempted,
+        )
 
-    _append_retro_lifecycle_event(feature_dir, event.to_dict())
-    return event
+    return _locked_append(feature_dir, _build, lock_timeout=lock_timeout)

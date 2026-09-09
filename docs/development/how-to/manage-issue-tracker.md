@@ -1,6 +1,6 @@
 ---
 title: Managing the Issue Tracker
-description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, native sub-issue parenting, blocked_by dependencies, triage (type, severity, release-blocking bugs), and the label taxonomy.'
+description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, blocked_by dependencies, triage (type, severity, blockers), and the label taxonomy.'
 doc_status: active
 updated: '2026-09-07'
 audience: docs/context/audience/internal/maintainer.md

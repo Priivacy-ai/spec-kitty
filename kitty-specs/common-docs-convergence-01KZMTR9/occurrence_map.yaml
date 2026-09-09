@@ -343,3 +343,7 @@ moves:
   # same as the WP02/#3324 blocks above; regen stays a no-op / redirect_map.yaml
   # stays fresh.
   - { from: ["docs/context/doctrine.md"], to: "docs/context/charter.md", reason: "charter-authority-flip-01M14RB3 M1/OC-40: doctrine->charter governing-term flip; 43 referrers re-pointed (path token only)." }
+
+  # WP11/#3903: preserve non-mission program evidence outside immediate corpus scanning.
+  - { from: ["kitty-specs/R2-T1-local-legacy-removal/deletion-manifest.md"], to: "docs/archive/program-evidence/R2-T1-local-legacy-removal/", reason: "WP11/#3903: byte-preserving relocation of historical program evidence" }
+  - { from: ["kitty-specs/R2-T1-local-legacy-removal/commit-history-notes.md"], to: "docs/archive/program-evidence/R2-T1-local-legacy-removal/", reason: "WP11/#3903: byte-preserving relocation of historical attribution evidence" }

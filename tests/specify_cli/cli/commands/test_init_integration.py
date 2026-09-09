@@ -7,6 +7,7 @@ to avoid touching ~/.kittify/ in CI.
 
 from __future__ import annotations
 
+import inspect
 import io
 import subprocess
 from pathlib import Path
@@ -488,10 +489,10 @@ def test_config_has_no_selection_block(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """FR-014: After WP01, config.yaml should not include a selection block.
+    """FR-014: config.yaml does not include a selection block.
 
-    In the current (pre-WP01) codebase the selection block is still written.
-    This test documents the target state; it is marked xfail until WP01 lands.
+    WP01 has landed: ``AgentSelectionConfig``'s ``selection`` key is no
+    longer written; this asserts the landed target state directly.
     """
     app, console = cli_app
     monkeypatch.chdir(tmp_path)
@@ -505,8 +506,6 @@ def test_config_has_no_selection_block(
     assert config_file.exists()
     config = yaml.safe_load(config_file.read_text())
     agents_section = config.get("agents", config.get("tools", {}))
-    # After WP01 the `selection` key must not be present
-    # xfail in pre-WP01 lane-c since AgentSelectionConfig still exists
     assert "available" in agents_section
 
 
@@ -602,3 +601,27 @@ def test_reinit_is_idempotent(
     assert parsed1.get("agents", parsed1.get("tools")) == parsed2.get(
         "agents", parsed2.get("tools")
     ), "Config changed between re-init runs"
+
+
+def test_selection_key_landmine_disposition_is_documented_accurately() -> None:
+    """WP06 (T028/T030, FR-015 fix-before-wiring): re-validate this test's
+    xfail landmine claim.
+
+    Re-validated on the current tree: ``test_config_has_no_selection_block``
+    carries no active xfail marker and passes plainly -- WP01 already landed
+    and ``config.yaml`` no longer writes a ``selection`` block. The
+    function's own docstring/comment ("marked xfail until WP01 lands" /
+    "xfail in pre-WP01 lane-c") describe a state that no longer holds; this
+    guard fails if that stale claim survives alongside an absent marker, so
+    the test cannot silently keep documenting an already-retired landmine.
+    """
+    marks = getattr(test_config_has_no_selection_block, "pytestmark", [])
+    assert not any(m.name == "xfail" for m in marks), (
+        "WP01 landed; this test should carry no active xfail marker"
+    )
+    source = inspect.getsource(test_config_has_no_selection_block)
+    assert "xfail" not in source.lower(), (
+        "test source still references a pending xfail landmine, but WP01 "
+        "already landed and no active marker exists -- update the stale "
+        "comment/docstring instead of leaving landmine language"
+    )

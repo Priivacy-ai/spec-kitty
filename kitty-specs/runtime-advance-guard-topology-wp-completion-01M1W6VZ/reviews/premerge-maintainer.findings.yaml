@@ -1,0 +1,122 @@
+schema: review-findings/v1
+complete: true
+phase: pre-merge
+lens_group: maintainer-operator
+lens: R3-maintainer-operator
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+issue: 3884
+branch: fix/runtime-advance-guard-3883
+commit: dad509538
+findings:
+  - id: MAINT-001
+    lens: maintainer / operator
+    severity: 4
+    title: >-
+      The drafted "Operator action after merge" note frames the rollout risk as
+      "a WP that was never claimed," but the actual FR-009 fix re-gates the
+      ENTIRE per-WP completion check for every coord-topology mission, not only
+      never-claimed WPs — any coord-topology mission with a WP that is merely
+      in_progress, blocked, or rejected-without-provenance will also newly
+      block, and the note's framing does not say so.
+    evidence:
+      - artifact: "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-approach.md, \"PR description operator note\" paragraph: \"shipping this fix will newly (and correctly) block a mission whose WP was never claimed (#3884)... including...a real COORD-topology mission in that state, not only a SINGLE_BRANCH/LANES one.\""
+      - artifact: "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/spec.md \"Rollout impact on real in-flight missions\" Edge Case (same narrow \"never claimed\" framing, carried into plan.md's Reflexivity section and then into the WP03 tracer note verbatim)"
+      - code: "src/runtime/next/runtime_bridge.py:759-765 (_should_advance_wp_step docstring, FR-009 note): \"the unanchored read hit this function's own no-`tasks/`-dir early return below and skipped the per-WP loop entirely, regardless of whether FR-004's disjunct exists\""
+      - code: "src/runtime/next/runtime_bridge.py:779-784 (pre-fix, `_dn_dependency_gate` never passed `repo_root`/`mission_slug` into `_should_advance_wp_step` at all, so for every coord-topology mission `tasks_dir = feature_dir / \"tasks\"` never existed and the function always returned True for `implement`, independent of any individual WP's lane)"
+    claim: >-
+      The code's own docstring is honest about the true scope: FR-009 makes the
+      per-WP loop reachable AT ALL for coord topology, "regardless of whether
+      FR-004's disjunct exists." Before this mission, `_should_advance_wp_step`
+      was called with no `repo_root`, so for every coord-topology mission the
+      `tasks/` lookup against the bare coordination worktree always failed and
+      the function always returned True on `implement` — meaning genuinely
+      in-progress, blocked, or rejected WPs were also silently waved through,
+      not just uninitialized ones. The operator-facing note (spec.md's Edge
+      Case → plan.md's Reflexivity section → the WP03 tracer's "PR description
+      operator note," which is the text slated to become the actual PR body
+      language) narrows this to "a mission whose WP was never claimed... in
+      that state," which undersells the blast radius: an operator reading only
+      that sentence could reasonably conclude "none of my WPs were literally
+      never claimed, so I'm unaffected," when a WP that is merely `in_progress`
+      and not yet handed off on a coord-topology mission will also newly block.
+      The recommended *action* ("spot-checks currently-in-`implement`
+      coord-topology missions") is coincidentally broad enough to catch this if
+      followed literally and exhaustively, but the stated *reason* for the
+      check is narrower than the actual risk, which is exactly the kind of gap
+      an operator skimming a PR body would miss.
+    remediation: >-
+      Before the PR is opened, broaden the operator note's wording to state
+      plainly that ANY coord-topology mission currently in `implement` whose
+      WPs are not ALL in an acceptable/handed-off state will newly block —
+      not only ones with a literally-never-claimed WP — because the anchoring
+      fix re-enables the per-WP completion check for coord topology as a
+      whole, which was previously a silent no-op for every coord mission
+      regardless of WP state.
+
+  - id: MAINT-002
+    lens: maintainer / operator
+    severity: 2
+    title: >-
+      The operator note does not mention the second, independent new blocking
+      surface this diff introduces: an ambiguous `mission_slug` handle can now
+      raise inside `_should_advance_wp_step`'s anchoring call and surface as a
+      structured `blocked` Decision from `_dn_dependency_gate`, where before
+      this diff that call path never invoked `placement_seam` at all.
+    evidence:
+      - code: "src/runtime/next/runtime_bridge.py:1734-1751 (new `except MissionSelectorAmbiguous` arm in `_dn_dependency_gate`, FR-010)"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:56-62 (`MissionSelectorAmbiguous.__init__` message: \"Mission handle {handle!r} matches multiple missions: {candidates}. Re-run with a more specific handle (full slug or full mission_id).\")"
+    claim: >-
+      This is a genuinely new failure mode at this specific call site (before
+      this diff, `_should_advance_wp_step` never called `placement_seam`, so
+      this exception could not originate from here). In practice it is likely
+      low-risk in the ordinary CLI flow, since `MissionSelectorAmbiguous` is
+      already raised earlier during handle canonicalization at many other call
+      sites (`next_cmd.py`, `decision.py`, etc.) for the same underlying
+      ambiguity, so a caller going through the normal `next` CLI path would
+      typically hit it there first. It is more reachable for an
+      orchestrator-api caller that constructs a `DecideNextContext` directly
+      with an already-ambiguous `mission_slug`. The resulting message is
+      actionable ("re-run with a more specific handle"), so this is not a
+      trust/honesty problem — just an undisclosed secondary behavior change,
+      worth one sentence in the PR body for completeness.
+    remediation: >-
+      Optional: add one sentence to the PR body noting that an ambiguous
+      `mission_slug` handle now surfaces as a structured `blocked` Decision
+      (with a re-run-more-specifically message) instead of an uncaught
+      exception, for any caller that reaches `_dn_dependency_gate` with an
+      unresolved/ambiguous slug.
+
+  - id: MAINT-003
+    lens: maintainer / operator
+    severity: 2
+    title: >-
+      TestT010JointFixIsolation's docstring says the disjunct-revert half of
+      the joint-fix proof is "covered by" test_advance_guard_uninitialized_wp.py's
+      TestT007DirectCallReproduction, but that test only asserts the CURRENT
+      (fixed) behavior — it does not, itself, demonstrate that reverting the
+      Lane.UNINITIALIZED disjunct alone breaks the coord-topology scenario. The
+      genuine single-revert proof for that half was done by hand by WP01's
+      reviewer and is recorded only in tracer-design-decisions.md, not in the
+      shipped test suite.
+    evidence:
+      - code: "tests/runtime/next/test_advance_guard_coord_reachability.py, TestT010JointFixIsolation docstring: \"Without T006's disjunct (direct `_wp_blocks_step` call against an `UninitializedState`, independent of anchoring): covered by test_advance_guard_uninitialized_wp.py's TestT007DirectCallReproduction -- re-cited here, not duplicated\""
+      - code: "tests/runtime/next/test_advance_guard_uninitialized_wp.py, TestT007DirectCallReproduction.test_wp_blocks_step_blocks_uninitialized_for_implement (asserts only the post-fix `True` result, on today's fixed code — no revert)"
+      - artifact: "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-design-decisions.md, \"Joint-fix proof: neither disjunct is redundant\" — describes the reviewer's manual single-revert probes as separate from the shipped test files"
+    claim: >-
+      This is a precision issue in the shipped test docstring, not a PR-body
+      honesty issue — the mission's own tracer record is accurate about what
+      was actually proven where (one half by an executable isolation
+      assertion in the shipped suite, the other half by the reviewer's
+      one-off manual revert, cited but not automated). A future maintainer
+      reading only the test file's docstring, without the tracer file, could
+      mistakenly believe both halves of the joint-fix proof are exercised by
+      CI on every run; only the anchoring half actually is.
+    remediation: >-
+      Optional: reword TestT010JointFixIsolation's docstring to say the
+      disjunct-necessity half was verified by manual single-revert during
+      review (not by a standing automated test), rather than "covered by"
+      language that implies equivalent automated coverage.
+
+findings_count_by_severity:
+  "4": 1
+  "2": 2

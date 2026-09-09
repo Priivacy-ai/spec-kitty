@@ -63,15 +63,11 @@ pytestmark = pytest.mark.architectural
 # Add entries here only for transitional / deprecated packages that will be
 # removed once migration is complete.  Entries MUST include a comment
 # explaining WHY they are excluded and when they can be removed.
-_EXCLUDED_FROM_LAYER_ENFORCEMENT: frozenset[str] = frozenset(
-    [
-        # `constitution` is the pre-3.x predecessor of `charter`.  It is kept
-        # for backward-compatibility shims until all 2.x consumers migrate.
-        # Remove once mission 063 (rename-constitution-to-charter) is complete
-        # and the compatibility layer is dropped.
-        "constitution",
-    ]
-)
+# Empty since mission dead-port-disposition-01M1TZVN (FR-013): the last entry,
+# `constitution` (the pre-3.x predecessor of `charter`), outlived mission 063's
+# rename by which it was retired. `test_layer_exclusions_name_existing_packages`
+# keeps every future entry honest.
+_EXCLUDED_FROM_LAYER_ENFORCEMENT: frozenset[str] = frozenset()
 
 _SRC = Path(__file__).resolve().parents[2] / "src"
 
@@ -293,6 +289,21 @@ class TestLayerCoverage:
             f"{sorted(unregistered)!r}.  "
             "Add a layer to tests/architectural/conftest.py or add to "
             "_EXCLUDED_FROM_LAYER_ENFORCEMENT with a documented reason."
+        )
+
+    def test_layer_exclusions_name_existing_packages(self) -> None:
+        """Every layer-enforcement exclusion must name a package that exists.
+
+        ``_EXCLUDED_FROM_LAYER_ENFORCEMENT`` is a transitional escape hatch: an
+        entry for a package that is no longer under ``src/`` is a stale
+        exclusion that would silently exempt the package if it were ever
+        re-created under that name (mission dead-port-disposition-01M1TZVN,
+        FR-013 / SC-008: the ``constitution`` exclusion outlived mission 063).
+        """
+        stale = sorted(name for name in _EXCLUDED_FROM_LAYER_ENFORCEMENT if not (_SRC / name / "__init__.py").exists())
+        assert not stale, (
+            f"_EXCLUDED_FROM_LAYER_ENFORCEMENT names packages that do not exist under src/: {stale!r}. "
+            "Delete the stale entries; an exclusion for a nonexistent package is a vacuous gate."
         )
 
     def test_all_defined_layers_match_at_least_one_module(self) -> None:

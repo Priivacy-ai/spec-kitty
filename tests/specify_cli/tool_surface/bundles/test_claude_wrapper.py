@@ -75,6 +75,21 @@ class TestWriteWrappers:
         with pytest.raises(ValueError, match="non-empty"):
             write_wrappers(tmp_path, "")
 
+    def test_retained_wrapper_apply_does_not_render(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.tool_surface.bundles import claude_wrapper
+
+        def forbidden(*args: object, **kwargs: object) -> str:
+            raise AssertionError("Retained wrapper rendered again")
+        monkeypatch.setattr(claude_wrapper, "wrapper_bash_content", forbidden)
+        monkeypatch.setattr(claude_wrapper, "wrapper_cmd_content", forbidden)
+        (tmp_path / "bin").mkdir()
+        path = tmp_path / "bin/spec-kitty-wrapper"
+        write_wrappers(tmp_path, prepared=(path, b"retained bytes", 0o700))
+        assert path.read_bytes() == b"retained bytes"
+        assert stat.S_IMODE(path.stat().st_mode) == 0o700
+        with pytest.raises(ValueError, match="outside the wrapper layout"):
+            write_wrappers(tmp_path, prepared=(tmp_path / "other", b"invalid", 0o644))
+
     def test_idempotent_second_write(self, tmp_path: Path) -> None:
         write_wrappers(tmp_path, "3.2.0")
         first = (tmp_path / "bin" / "spec-kitty-wrapper").read_bytes()
@@ -265,12 +280,16 @@ class TestMarketplaceJson:
             (tmp_path / "dist" / "marketplace.json").read_text(encoding="utf-8")
         )
         assert payload["name"] == "spec-kitty-plugins"
+        assert payload.get("owner") == {"name": "Spec Kitty"}
+        assert payload.get("description") == "Spec Kitty skills, agent profiles, and runtime wrappers for Claude Code."
+        assert "interface" not in payload
         assert "plugins" in payload
         assert len(payload["plugins"]) == 1
         plugin = payload["plugins"][0]
         assert plugin["name"] == "spec-kitty"
+        assert "policy" not in plugin
         assert plugin["source"]["source"] == "git-subdir"
-        assert "spec-kitty.git" in plugin["source"]["url"]
+        assert plugin["source"]["url"] == "https://github.com/spec-kitty/spec-kitty.git"
 
     def test_marketplace_json_not_inside_bundle(self, tmp_path: Path) -> None:
         """marketplace.json lives alongside the bundle dir, not inside it."""
@@ -308,6 +327,10 @@ class TestBuildIncludesWrappers:
         plugin_json = json.loads(
             (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
+        assert plugin_json["author"] == {
+            "name": "Spec Kitty",
+            "url": "https://github.com/spec-kitty/spec-kitty",
+        }
         version = plugin_json["version"]
         bash_content = (bundle_dir / "bin" / "spec-kitty-wrapper").read_text(encoding="utf-8")
         assert version in bash_content

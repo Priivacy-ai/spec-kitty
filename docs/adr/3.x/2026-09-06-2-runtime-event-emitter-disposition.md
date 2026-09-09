@@ -1,6 +1,6 @@
 ---
 title: 'ADR: RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement'
-description: 'Keeps runtime.next.event_emitter as the reserved E3 seam, merges its duplicate class into _internal_runtime NullEmitter, fixes the flush-target bug, and bounds Mission B scope.'
+description: 'Keeps the reserved E3 seam behind a factory, deletes the duplicate runtime.next.event_emitter class, fixes the flush-target bug, and bounds Mission B scope.'
 status: Accepted
 date: '2026-09-06'
 ---
@@ -40,9 +40,11 @@ and against the installed `spec_kitty_events` 9.1.6 package:
   per-type redaction entries. The seam is the designed last mile of that contract,
   not speculative 4.0.0 vocabulary.
 - **The seam is explicitly reserved in-tree.** Two conformance tests name
-  `runtime.next.event_emitter` as the reserved E3 producer seam and say its
-  payloads "belong back in this file" when a real emitter is wired
-  (`tests/status/test_producer_conformance.py`,
+  `runtime.next._internal_runtime.events` (post-decision: this ADR's own (d)
+  deleted `runtime.next.event_emitter`, and both tests were repointed at the
+  consolidated module in the same change) as the reserved E3 producer seam
+  and say its payloads "belong back in this file" when a real emitter is
+  wired (`tests/status/test_producer_conformance.py`,
   `tests/contract/test_identity_contract_matrix.py`).
 - **The retention docstring is stale.** `event_emitter.py:1-10` claims E3 will
   "register a real handler (the zeitgeist moment fan-out) at this seam." The

@@ -77,6 +77,7 @@ _SEAM_SYMBOLS = (
 # that merge the org-pack overlay. Each MUST obtain that overlay through the
 # activation seam and MUST NOT splice raw org roots. Relative to ``src/``.
 _ORG_HONOURING_SURFACES: tuple[str, ...] = (
+    "specify_cli/invocation/org_profiles.py",
     "specify_cli/invocation/registry.py",
     "charter/activation/context.py",
     "specify_cli/tool_surface/profiles/projection.py",

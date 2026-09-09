@@ -239,6 +239,7 @@ def test_payload_context_passes_valid() -> None:
     validate_outbound_payload(valid, "payload")  # should not raise
 
 
+@pytest.mark.performance
 def test_gate_validates_quickly() -> None:
     payload = _valid_envelope()
 

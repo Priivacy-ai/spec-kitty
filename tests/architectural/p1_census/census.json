@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "description": "P1 dead-code census (E3). Per-surface {status, evidence, authorizes} ledger, re-derived against the post-#3921 src/** tree. Evidence is concrete and reviewer-checkable; the oracle re-verifies every entry (tests/architectural/_p1_census_oracle.py). Dead surfaces authorize a base-red drop (WP03) or coverage-denominator exclusion (WP05/WP15). Live entries are pinned (E4 committed membership) so a live surface cannot later be relabeled dead.",
+  "surfaces": [
+    {
+      "surface": "specify_cli.sync",
+      "status": "dead",
+      "evidence": "retirement-gate:test_no_retired_subsystems",
+      "authorizes": "drop",
+      "note": "Sync transport retired in The Convergence (#115). Banned import prefix in tests/architectural/test_no_retired_subsystems.py; the retirement gate is independent, reviewer-checkable evidence."
+    },
+    {
+      "surface": "specify_cli.delivery",
+      "status": "dead",
+      "evidence": "retirement-gate:test_no_retired_subsystems",
+      "authorizes": "drop",
+      "note": "Delivery subsystem retired with the sync transport. Banned import prefix; enforced always-on by the retirement gate."
+    },
+    {
+      "surface": "specify_cli.saas",
+      "status": "dead",
+      "evidence": "retirement-gate:test_no_retired_subsystems",
+      "authorizes": "drop",
+      "note": "In-repo saas subsystem retired; SaaS is now an upstream client repo (saas_client is the live consumer). Banned import prefix."
+    },
+    {
+      "surface": "specify_cli.event_journal",
+      "status": "dead",
+      "evidence": "retirement-gate:test_no_retired_subsystems",
+      "authorizes": "drop",
+      "note": "Event-journal subsystem retired with the sync transport. Banned import prefix; retirement gate enforced."
+    },
+    {
+      "surface": "specify_cli.egress",
+      "status": "dead",
+      "evidence": "retirement-gate:test_no_retired_subsystems",
+      "authorizes": "drop",
+      "note": "Egress + egress_consent modules retired. Banned import prefix; retirement gate enforced."
+    },
+    {
+      "surface": "websockets",
+      "status": "dead",
+      "evidence": "retirement-gate:test_no_retired_subsystems",
+      "authorizes": "denominator-exclude",
+      "note": "The websockets transport dependency was retired; the retirement gate bans the import prefix. Excluded from the coverage denominator."
+    },
+    {
+      "surface": "specify_cli.mission_v1",
+      "status": "live",
+      "evidence": "importer-count:>0",
+      "authorizes": null,
+      "note": "LIVE post-#3921: imported by runtime/next/{decision,runtime_bridge_composition,next_invocation_lifecycle}.py, review/gate_registry.py and skills/manifest_store.py. Pinned live (E4 committed membership) so the 'mission_v1 dead-import' TEST files WP03 drops can never be misread as authorizing a drop of the LIVE mission_v1 package — the census subject is the src surface, not the test file."
+    }
+  ]
+}

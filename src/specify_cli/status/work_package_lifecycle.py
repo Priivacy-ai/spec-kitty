@@ -140,7 +140,7 @@ def start_implementation_status(
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
-    with feature_status_lock(lock_root, mission_slug):
+    with feature_status_lock(lock_root, feature_dir.name):
         current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
@@ -280,7 +280,7 @@ def start_review_status(
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
-    with feature_status_lock(lock_root, mission_slug):
+    with feature_status_lock(lock_root, feature_dir.name):
         current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,

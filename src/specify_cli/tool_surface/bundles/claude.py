@@ -12,15 +12,15 @@ returns an inert :class:`PluginBundle` descriptor. It never installs, registers,
 enables, or publishes the bundle to any marketplace.
 
 :class:`ClaudeBundleProjector` (WP04) is the CLI-driven build projector that
-calls :func:`~specify_cli.skills.command_installer._render_command_skill` to
-generate SKILL.md files and :class:`ClaudeCodeProfileRenderer` to render agent
-profiles; it is distinct from :class:`ClaudeCodeBundleProjector` (plan-level
+consumes public command and profile preparation APIs to retain the complete
+build before any staging write; it is distinct from :class:`ClaudeCodeBundleProjector` (plan-level
 projector used by the WP09 surface-plan pipeline).
 """
 
 from __future__ import annotations
 
 import subprocess
+import json
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -34,25 +34,35 @@ from ..findings import (
     make_finding,
 )
 from ..model import SurfacePlan
+from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment
 from .model import (
     TARGET_CLAUDE_CODE,
+    BundleEntry,
     BundleValidationResult,
     PluginBundle,
+    BundleObservation,
+    StagedFile,
 )
 from .projection import (
     BUNDLE_SURFACE_KINDS,
     bundle_entries_for_plans,
     plugin_manifest_payload,
     write_bundle,
+    confined_output,
+    json_bytes,
+    observe_confined,
+    observe_tree,
+    prepare_staging,
+    read_observed_file,
+    staging_root,
 )
 from ._builder import (
-    MIN_SKILL_COUNT,
     BuildError,
+    command_members,
+    finish_build,
     get_cli_version,
-    is_semver,
-    write_json,
 )
-from .claude_wrapper import write_wrappers
+from .claude_wrapper import wrapper_bash_content, wrapper_cmd_content
 
 # Claude Code plugin layout: manifest lives under ``.claude-plugin/``; hooks and
 # MCP config use ``hooks/hooks.json`` and ``.mcp.json`` (NEVER ``settings.json``).
@@ -90,6 +100,16 @@ class ClaudeCodeBundleProjector:
     # Manifest sits under ``.claude-plugin/`` for this target.
     manifest_relative_path = f"{_MANIFEST_DIR}/{_MANIFEST_NAME}"
 
+    def entries(self, plan: Sequence[SurfacePlan], project_root: Path) -> tuple[BundleEntry, ...]:
+        """Select the canonical members without writing the staging tree."""
+        return bundle_entries_for_plans(
+            plan,
+            project_root,
+            layout=_CLAUDE_LAYOUT,
+            agent_filename=_agent_filename,
+            bundle_kinds=BUNDLE_SURFACE_KINDS,
+        )
+
     def project(
         self,
         plan: Sequence[SurfacePlan],
@@ -101,13 +121,7 @@ class ClaudeCodeBundleProjector:
         Writes staging files under ``output_dir`` and returns an inert
         :class:`PluginBundle` descriptor. No install/publish side effect occurs.
         """
-        entries = bundle_entries_for_plans(
-            plan,
-            project_root,
-            layout=_CLAUDE_LAYOUT,
-            agent_filename=_agent_filename,
-            bundle_kinds=BUNDLE_SURFACE_KINDS,
-        )
+        entries = self.entries(plan, project_root)
         manifest_rel = self.manifest_relative_path
         manifest = plugin_manifest_payload(self.distribution_target)
         write_bundle(output_dir, entries, manifest_rel, manifest)
@@ -123,11 +137,7 @@ class ClaudeCodeBundleProjector:
         required_surface_kinds: set[ToolSurfaceKind] | None = None,
     ) -> BundleValidationResult:
         """Validate that every required surface kind is present in ``bundle``."""
-        required = (
-            frozenset(required_surface_kinds)
-            if required_surface_kinds is not None
-            else _REQUIRED_KINDS
-        )
+        required = frozenset(required_surface_kinds) if required_surface_kinds is not None else _REQUIRED_KINDS
         return _validate_bundle(bundle, required)
 
 
@@ -144,18 +154,13 @@ def _validate_bundle(
             make_finding(
                 BUNDLE_COMPONENT_MISSING,
                 SEVERITY_ERROR,
-                (
-                    f"Plugin bundle for {bundle.distribution_target} is missing "
-                    f"required surface kind: {kind}"
-                ),
+                (f"Plugin bundle for {bundle.distribution_target} is missing required surface kind: {kind}"),
                 surface_id=f"{bundle.distribution_target}.{kind}",
                 details={"distribution_target": bundle.distribution_target},
             )
         )
     if bundle.manifest_path is None:
-        warnings.append(
-            f"Bundle for {bundle.distribution_target} has no manifest path."
-        )
+        warnings.append(f"Bundle for {bundle.distribution_target} has no manifest path.")
     return BundleValidationResult(
         passed=not missing,
         missing_surfaces=tuple(missing),
@@ -204,45 +209,79 @@ class ClaudeBundleProjector:
             When ``claude plugin validate --strict`` exits non-zero.
         """
         bundle_dir = self._output_dir / "claude-code"
-        bundle_dir.mkdir(parents=True, exist_ok=True)
-
-        version = get_cli_version()
-        if not is_semver(version):
-            typer.echo(
-                f"Warning: version {version!r} is not a clean semver "
-                "string; the validator may reject it.",
-                err=True,
-            )
-
-        # Step 1: render and install canonical command skills.
-        skill_count = self._copy_skills(bundle_dir, version)
-        typer.echo(f"Skills: {skill_count} written to {bundle_dir / 'skills'}")
-
-        # Step 2: render built-in agent profiles and hooks placeholder.
-        agent_count = self._copy_agents(bundle_dir)
-        typer.echo(f"Agents: {agent_count} written to {bundle_dir / 'agents'}")
-
-        # Step 3: write the plugin manifest after components exist so Claude's
-        # validator can resolve explicit component paths.
-        self._generate_plugin_json(bundle_dir, version)
-
-        # Step 4: generate runtime bootstrap wrappers (bash + Windows CMD).
-        write_wrappers(bundle_dir, version)
-        typer.echo(f"Wrappers: bin/spec-kitty-wrapper written to {bundle_dir / 'bin'}")
-
-        # Step 5: generate marketplace.json alongside the bundle.
-        self._write_marketplace_json(self._output_dir, version)
-        typer.echo(f"Marketplace: marketplace.json written to {self._output_dir}")
-
-        # Step 6: run the Claude CLI validator (optional).
+        assessment = self.prepare(ApplyConsent(automatic=True))
+        finish_build(assessment)
         self._validate(bundle_dir, skip=skip_validate)
-
         return bundle_dir
 
-    def _generate_plugin_json(self, bundle_dir: Path, version: str) -> None:
-        """Write ``.claude-plugin/plugin.json`` with real version metadata."""
-        skills = _skill_manifest_paths(bundle_dir)
-        agents = _agent_manifest_paths(bundle_dir)
+    def prepare(self, consent: ApplyConsent = ApplyConsent()) -> OwnerAssessment:
+        """Freeze skills, profiles, hooks, wrappers and sibling catalog together."""
+        root = staging_root(self._output_dir)
+        output = confined_output(self._output_dir, root)
+        directory = output / "claude-code"
+        inputs = AssessmentInputs(root, consent=consent)
+        try:
+            version = get_cli_version()
+            files, commands = command_members(directory / "skills", root)
+            profiles, observations = self._profile_members(directory, root)
+            files += profiles
+            hooks_path = directory / "hooks/hooks.json"
+            hook_observations = observe_confined(root.path, hooks_path)
+            observations += hook_observations
+            hook_state = hook_observations[-1].state
+            if hook_state.kind not in {"file", "absent"}:
+                raise BuildError("Unknown hook destination is not a regular file")
+            hooks = read_observed_file(hook_observations[-1]) if hook_state.kind == "file" else json_bytes({"hooks": {}}, legacy=True)
+            hook_data = json.loads(hooks)
+            if not isinstance(hook_data, dict):
+                raise BuildError("Required Claude hooks must be a JSON object")
+            skills = sorted("./" + (root.path / f.path).parent.relative_to(directory).as_posix() for f in files if Path(f.path).name == "SKILL.md")
+            agents = sorted("./" + (root.path / f.path).relative_to(directory).as_posix() for f in profiles)
+            manifest = self._manifest_payload(version, skills, agents, bool(hook_data) and hook_data != {"hooks": {}})
+            files += (
+                StagedFile(hooks_path.relative_to(root.path).as_posix(), hooks, hook_state.mode or 0o644, managed=hook_state.kind == "absent"),
+                StagedFile(
+                    (directory / "bin/spec-kitty-wrapper").relative_to(root.path).as_posix(), wrapper_bash_content(version).encode("utf-8"), 0o700, wrapper=True
+                ),
+                StagedFile(
+                    (directory / "bin/spec-kitty-wrapper.cmd").relative_to(root.path).as_posix(), wrapper_cmd_content(version).encode("utf-8"), wrapper=True
+                ),
+                StagedFile((directory / ".claude-plugin/plugin.json").relative_to(root.path).as_posix(), json_bytes(manifest, legacy=True), manifest=True),
+                StagedFile(
+                    (output / "marketplace.json").relative_to(root.path).as_posix(), json_bytes(self._marketplace_payload(version), legacy=True), manifest=True
+                ),
+            )
+            return prepare_staging(inputs, files, (output,), observations, suppliers=(commands,), version=version)
+        except (OSError, ValueError, BuildError) as exc:
+            return OwnerAssessment(
+                "plugin_bundle", root, complete=False, consent=consent, diagnostics=(Diagnostic("bundle_input_invalid", "plugin_bundle", "error", str(exc)),)
+            )
+
+    @staticmethod
+    def _profile_members(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...]]:
+        from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
+        from ..profiles.projection import ProfileProjector
+
+        source = _built_in_profiles_dir().resolve()
+        observations = observe_tree(source)
+        repository = _build_activation_aware_doctrine_service(
+            root.path,
+            org_roots=[],
+        ).agent_profile_repository
+        if repository.skipped_profiles():
+            raise BuildError(f"Invalid built-in profile sources: {repository.skipped_profiles()}")
+        projections = ProfileProjector(repository).prepare("claude", root.path)
+        if not projections:
+            raise BuildError(f"No built-in agent profiles found under {source}. Bundle must include profiles per FR-020.")
+        files = tuple(
+            StagedFile((directory / "agents" / item.native.output_path.name).relative_to(root.path).as_posix(), item.content, logical_owners=("agent_profiles",))
+            for item in projections
+        )
+        return files, observations
+
+    @staticmethod
+    def _manifest_payload(version: str, skills: list[str], agents: list[str], has_hooks: bool) -> dict[str, object]:
+        """Retain explicit prepared component paths in the Claude manifest."""
         if not skills:
             raise BuildError("Claude plugin manifest has no skills to declare.")
         if not agents:
@@ -252,100 +291,20 @@ class ClaudeBundleProjector:
             "name": "spec-kitty",
             "displayName": "Spec Kitty",
             "version": version,
-            "description": (
-                "Spec-Driven Development toolkit — spec, plan, implement, review, merge."
-            ),
+            "description": ("Spec-Driven Development toolkit — spec, plan, implement, review, merge."),
             "author": {
-                "name": "Priivacy AI",
-                "url": "https://github.com/Priivacy-ai/spec-kitty",
+                "name": "Spec Kitty",
+                "url": "https://github.com/spec-kitty/spec-kitty",
             },
             "skills": skills,
             "agents": agents,
         }
-        if _has_non_trivial_hooks(bundle_dir):
+        if has_hooks:
             manifest["hooks"] = "hooks/hooks.json"
-        write_json(bundle_dir / ".claude-plugin" / "plugin.json", manifest)
+        return manifest
 
-    def _copy_skills(self, bundle_dir: Path, version: str) -> int:
-        """Render canonical command skills into ``bundle_dir/skills/``.
-
-        Returns the number of skill files written.
-        """
-        from specify_cli.skills.command_installer import (
-            CANONICAL_COMMANDS,
-            _render_command_skill,
-        )
-
-        skills_dst = bundle_dir / "skills"
-        skills_dst.mkdir(parents=True, exist_ok=True)
-
-        # The shared command renderer supports codex/vibe/pi/letta agent keys;
-        # the plugin bundle uses "codex" to produce an identical SKILL.md body
-        # (the body and frontmatter shape are agent-invariant per the renderer's
-        # single-body invariant — only the skill name prefix differs, and that
-        # is always "spec-kitty.<command>" regardless of agent key).
-        render_key = "codex"
-
-        count = 0
-        for command in CANONICAL_COMMANDS:
-            skill_bytes = _render_command_skill(Path("/"), command, render_key, version)
-            skill_dir = skills_dst / f"spec-kitty.{command}"
-            skill_dir.mkdir(parents=True, exist_ok=True)
-            (skill_dir / "SKILL.md").write_bytes(skill_bytes)
-            count += 1
-
-        if count < MIN_SKILL_COUNT:
-            raise BuildError(
-                f"Expected at least {MIN_SKILL_COUNT} skills, found {count}. "
-                "Check CANONICAL_COMMANDS in command_installer."
-            )
-        return count
-
-    def _copy_agents(self, bundle_dir: Path) -> int:
-        """Render built-in agent profiles into ``bundle_dir/agents/``.
-
-        Returns the number of profile files written.
-
-        Raises
-        ------
-        BuildError
-            When no built-in profiles are found (FR-020).
-        """
-        import yaml
-        from charter.profiles import AgentProfile
-        from specify_cli.tool_surface.profiles.renderers import ClaudeCodeProfileRenderer
-
-        agents_dst = bundle_dir / "agents"
-        agents_dst.mkdir(parents=True, exist_ok=True)
-
-        # Also create the hooks placeholder so the bundle layout is complete.
-        hooks_dir = bundle_dir / "hooks"
-        hooks_dir.mkdir(parents=True, exist_ok=True)
-        hooks_json = hooks_dir / "hooks.json"
-        if not hooks_json.exists():
-            write_json(hooks_json, {"hooks": {}})
-
-        profiles_src = _built_in_profiles_dir()
-        renderer = ClaudeCodeProfileRenderer()
-        count = 0
-        for yaml_file in sorted(profiles_src.glob("*.agent.yaml")):
-            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-            profile = AgentProfile.model_validate(data)
-            rendered = renderer.render(profile)
-            (agents_dst / f"{profile.profile_id}.md").write_text(
-                rendered, encoding="utf-8"
-            )
-            count += 1
-
-        if count == 0:
-            raise BuildError(
-                f"No built-in agent profiles found under {profiles_src}. "
-                "Bundle must include profiles per FR-020. "
-                "Check package data configuration."
-            )
-        return count
-
-    def _write_marketplace_json(self, output_dir: Path, version: str) -> None:
+    @staticmethod
+    def _marketplace_payload(version: str) -> dict[str, object]:
         """Write ``marketplace.json`` alongside the bundle in *output_dir*.
 
         The marketplace catalog enables ``claude plugin marketplace add <repo-url>``
@@ -363,25 +322,22 @@ class ClaudeBundleProjector:
         """
         catalog: dict[str, object] = {
             "name": "spec-kitty-plugins",
+            "description": "Spec Kitty skills, agent profiles, and runtime wrappers for Claude Code.",
             "version": version,
-            "interface": {"displayName": "Spec Kitty Plugins"},
+            "owner": {"name": "Spec Kitty"},
             "plugins": [
                 {
                     "name": "spec-kitty",
                     "source": {
                         "source": "git-subdir",
-                        "url": "https://github.com/Priivacy-ai/spec-kitty.git",
+                        "url": "https://github.com/spec-kitty/spec-kitty.git",
                         "path": "dist/spec-kitty-plugins/claude-code",
-                    },
-                    "policy": {
-                        "installation": "AVAILABLE",
-                        "authentication": "ON_INSTALL",
                     },
                     "category": "Developer Tools",
                 },
             ],
         }
-        write_json(output_dir / "marketplace.json", catalog)
+        return catalog
 
     def _validate(self, bundle_dir: Path, *, skip: bool) -> None:
         """Run ``claude plugin validate --strict`` against the bundle.
@@ -404,8 +360,7 @@ class ClaudeBundleProjector:
             )
         except FileNotFoundError:
             typer.echo(
-                "Warning: claude CLI not found — skipping validation. "
-                "Install claude CLI to validate.",
+                "Warning: claude CLI not found — skipping validation. Install claude CLI to validate.",
                 err=True,
             )
             return
@@ -437,49 +392,6 @@ def _built_in_profiles_dir() -> Path:
     # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
     profiles_dir: Path = built_in_dir(ArtifactKind.AGENT_PROFILE)
     return profiles_dir
-
-
-def _plugin_relative_path(path: Path, bundle_dir: Path) -> str:
-    """Return Claude plugin manifest path syntax for *path* under *bundle_dir*."""
-    return f"./{path.relative_to(bundle_dir).as_posix()}"
-
-
-def _skill_manifest_paths(bundle_dir: Path) -> list[str]:
-    """Return explicit Claude plugin manifest entries for staged skill dirs."""
-    return sorted(
-        _plugin_relative_path(skill_file.parent, bundle_dir)
-        for skill_file in (bundle_dir / "skills").glob("*/SKILL.md")
-    )
-
-
-def _agent_manifest_paths(bundle_dir: Path) -> list[str]:
-    """Return explicit Claude plugin manifest entries for staged agent files."""
-    return sorted(
-        _plugin_relative_path(agent_file, bundle_dir)
-        for agent_file in (bundle_dir / "agents").glob("*.md")
-    )
-
-
-def _has_non_trivial_hooks(bundle_dir: Path) -> bool:
-    """Return ``True`` when ``hooks/hooks.json`` contains non-empty content.
-
-    The placeholder written by :meth:`ClaudeBundleProjector._copy_agents` is
-    ``{"hooks": {}}``.  A ``hooks.json`` with only an empty hooks record is not
-    considered non-trivial; the ``"hooks"`` pointer is omitted from the manifest
-    in that case so repeated builds produce byte-identical manifests.
-    """
-    import json as _json  # noqa: PLC0415
-
-    hooks_json = bundle_dir / "hooks" / "hooks.json"
-    if not hooks_json.exists():
-        return False
-    try:
-        data = _json.loads(hooks_json.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        return False
-    if isinstance(data, dict) and set(data) == {"hooks"} and not data["hooks"]:
-        return False
-    return bool(data)  # non-empty dict / list counts as non-trivial
 
 
 # Re-export so ``copilot``/``vscode`` projectors can share validation logic.

@@ -51,13 +51,19 @@ def _enrich_transition_request(
     *,
     read_dir: Path,
     mission_slug: str,
+    current_actor: str | None = None,
 ) -> TransitionRequest:  # noqa: F821
-    """Inject aggregate-owned path/slug into a transition request."""
+    """Inject aggregate-owned path/slug (and the WP's current actor) into a request.
+
+    ``current_actor`` is the guard input the aggregate resolves from the
+    transactional read surface; a caller-supplied value is never overwritten.
+    """
     import dataclasses
 
     return dataclasses.replace(
         request,
         feature_dir=read_dir,
+        current_actor=request.current_actor if request.current_actor is not None else current_actor,
         mission_slug=mission_slug,
     )
 
@@ -603,97 +609,53 @@ class MissionStatus:
         )
 
     def transition(self, request: TransitionRequest) -> StatusEvent:
-        """Validate and apply a lane transition via ``BookkeepingTransaction`` internally.
+        """Apply a lane transition by composing the transactional shell.
 
-        Domain invariant: the transition is validated before it is handed off
-        to the transactional path.  ``BookkeepingTransaction`` is called
-        internally — it is not exposed to callers.
+        Validation runs exactly once per emit, tree-wide: in the status-owned
+        pipeline (``status.transition_pipeline.prepare_transition``), inside
+        the transaction, against the in-lock ``from_lane`` the shell derives
+        (decision Q4, ``01M1V80R6F6RTMR7Y3C2WBKR32``; spec FR-006 / US2-4).
+        The aggregate no longer re-derives the lane, re-infers the review
+        gates, or calls ``validate_transition`` itself; it contributes only
+        what it owns -- the resolved read surface, the mission slug, and the
+        WP's current actor (a guard input the shell cannot see) -- and
+        delegates. ``BookkeepingTransaction`` is called by the shell, never
+        exposed to callers (C-004).
 
         Args:
             request: Fully populated :class:`~specify_cli.status.TransitionRequest`.
 
         Returns:
-            The persisted :class:`~specify_cli.status.StatusEvent`.
+            The persisted :class:`~specify_cli.status.StatusEvent` (or the
+            shell's unpersisted synthetic event on the alias-collapse arm).
 
         Raises:
-            :class:`~specify_cli.status.InvalidTransitionError`: When the
-                requested (from_lane, to_lane) pair is not allowed.
+            :class:`~specify_cli.status.emit.TransitionError`: When the
+                pipeline refuses the (from_lane, to_lane) edge or a guard.
         """
-        from specify_cli.status import validate_transition
-        from specify_cli.status.models import GuardContext, Lane, actor_identity_str
+        # C-006 precedent violation, kept deliberately: ``status`` must never
+        # import ``coordination``, and this lazy reach is the one existing
+        # exception (decision Q4 rider). Removing it means migrating the
+        # aggregate's callers onto a status-owned write door -- the future
+        # caller-migration mission owns that; do NOT add a second reach.
         from specify_cli.coordination.status_transition import (
             emit_status_transition_transactional,
             read_current_wp_state_transactional,
         )
-        from specify_cli.status import emit as status_emit
+        from specify_cli.status.models import Lane
 
-        from specify_cli.status.transitions import resolve_lane_alias
-
-        from_lane_str, current_actor = self._resolve_current_lane(
+        _from_lane, current_actor = self._resolve_current_lane(
             request=request,
             read_current_wp_state_transactional=read_current_wp_state_transactional,
             lane_unseeded=Lane.GENESIS,
         )
-        to_lane_str = request.to_lane or ""
-        resolved_to_lane = resolve_lane_alias(to_lane_str)
-        workspace_context = self._resolve_workspace_context(request)
-        subtasks_complete, implementation_evidence_present = self._resolve_review_gate_inputs(
-            request=request,
-            from_lane_str=from_lane_str,
-            resolved_to_lane=resolved_to_lane,
-            status_emit=status_emit,
-            lane_in_progress=Lane.IN_PROGRESS,
-            lane_for_review=Lane.FOR_REVIEW,
-        )
-
-        if status_emit._legacy_alias_collapses_to_current_lane(
-            to_lane_str,
-            resolved_to_lane,
-            from_lane_str,
-        ):
-            enriched = _enrich_transition_request(
-                request,
-                read_dir=self.read_dir,
-                mission_slug=self.mission_slug,
-            )
-            return emit_status_transition_transactional(enriched)
-
-        raw_evidence = request.evidence
-        built_evidence = (
-            status_emit._build_done_evidence(raw_evidence)
-            if raw_evidence is not None
-            else None
-        )
-
-        # Build a GuardContext from behavior-preserving inferred request fields.
-        ctx = GuardContext(
-            actor=(
-                actor_identity_str(request.actor)
-                if request.actor is not None
-                else None
-            ),
-            workspace_context=workspace_context,
-            subtasks_complete=subtasks_complete,
-            implementation_evidence_present=implementation_evidence_present,
-            reason=request.reason,
-            review_ref=request.review_ref,
-            evidence=built_evidence,
-            force=request.force,
-            review_result=request.review_result,
-            current_actor=current_actor,
-        )
-        ok, error = validate_transition(from_lane_str, resolved_to_lane, ctx)
-        if not ok:
-            from specify_cli.status.emit import TransitionError
-
-            raise TransitionError(error or f"Illegal transition: {from_lane_str} -> {resolved_to_lane}")
-
         # Inject the resolved read_dir so the transactional path uses the
         # correct (possibly coord-worktree) directory.
         enriched = _enrich_transition_request(
             request,
             read_dir=self.read_dir,
             mission_slug=self.mission_slug,
+            current_actor=current_actor,
         )
         return emit_status_transition_transactional(enriched)
 
@@ -740,59 +702,6 @@ class MissionStatus:
         if from_lane_enum == _Lane.UNINITIALIZED:
             from_lane_enum = lane_unseeded
         return str(from_lane_enum), current.actor
-
-    def _resolve_workspace_context(self, request: TransitionRequest) -> str:
-        """Return the workspace context string used by transition guards."""
-        if request.workspace_context is not None:
-            return str(request.workspace_context)
-        context_root = request.repo_root if request.repo_root is not None else self.read_dir
-        return f"{request.execution_mode}:{context_root}"
-
-    def _resolve_review_gate_inputs(
-        self,
-        *,
-        request: TransitionRequest,
-        from_lane_str: str,
-        resolved_to_lane: str,
-        status_emit: Any,
-        lane_in_progress: Any,
-        lane_for_review: Any,
-    ) -> tuple[bool | None, bool | None]:
-        """Infer review gate inputs only for in-progress -> for-review transitions."""
-        subtasks_complete = request.subtasks_complete
-        implementation_evidence_present = request.implementation_evidence_present
-        entering_review = from_lane_str == lane_in_progress and resolved_to_lane == lane_for_review
-        if entering_review:
-            # T010/FR-003 (folded into the #2574 single seam): route through the
-            # canonical resolve_subtasks_gate_dir seam so a coord-topology
-            # mission's completeness check reads the PRIMARY tasks.md, not
-            # ``self.read_dir`` (which is the coordination-branch husk for
-            # coord-topology missions) -- ``self.repo_root``/``self.mission_slug``
-            # are dataclass-required fields, so no None-guard is needed here.
-            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir
-            from specify_cli.coordination.status_transition import (
-                read_event_stream_transactional,
-            )
-
-            subtasks_dir = resolve_subtasks_gate_dir(self.read_dir, self.repo_root, self.mission_slug)
-            event_stream = read_event_stream_transactional(
-                feature_dir=self.read_dir,
-                mission_slug=self.mission_slug,
-                repo_root=self.repo_root,
-            )
-            if not request.force:
-                subtasks_complete = status_emit._infer_subtasks_complete(
-                    subtasks_dir,
-                    request.wp_id or "",
-                    event_stream=event_stream,
-                )
-            if implementation_evidence_present is None:
-                implementation_evidence_present = (
-                    status_emit._infer_implementation_evidence_from_event_stream(
-                        event_stream, request.wp_id or ""
-                    )
-                )
-        return subtasks_complete, implementation_evidence_present
 
     def save(self, *, operation: str) -> CommitReceipt:
         """Persist staged transitions via ``BookkeepingTransaction``.

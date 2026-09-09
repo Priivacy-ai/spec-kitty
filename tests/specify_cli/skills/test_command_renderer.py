@@ -32,6 +32,7 @@ TODO (reconsider this test's design if it keeps causing friction):
 
 from __future__ import annotations
 
+
 import os
 import textwrap
 from pathlib import Path
@@ -53,6 +54,39 @@ from specify_cli.skills.render_versions import FIXTURE_SKILL_RENDER_VERSION
 # ---------------------------------------------------------------------------
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+@pytest.mark.parametrize("change", ["mission", "selector", "agents", "pointer", "unrelated", "wrong-target", "non-mapping", "null"])
+def test_mission_provisioning_render_equivalence(tmp_path: Path, change: str) -> None:
+    from specify_cli.skills.command_renderer import validate_mission_provisioning
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    before = b"agents: {available: [codex]}\nactivated_tactics: []\n"
+    config.write_bytes(before)
+    after = before + b"mission_type_activations: [software-dev]\n"
+    target = config.resolve()
+    if change == "selector":
+        after = after.replace(b"activated_tactics: []", b"activated_tactics: [reasons-canvas-fill]")
+    elif change == "agents":
+        after = after.replace(b"[codex]", b"[vibe]")
+    elif change == "pointer":
+        after += b"charter: another.yaml\n"
+    elif change == "unrelated":
+        after += b"custom: changed\n"
+    elif change == "wrong-target":
+        target = tmp_path / "foreign.yaml"
+    elif change == "non-mapping":
+        after = b"- invalid\n"
+    elif change == "null":
+        before = b"null\n"
+        after = b"mission_type_activations: []\n"
+    if change in {"mission", "null"}:
+        validate_mission_provisioning(tmp_path, before, after, target)
+    else:
+        with pytest.raises(ValueError):
+            validate_mission_provisioning(tmp_path, before, after, target)
+
 
 # New doctrine layout: packs/built-in/missions/mission-steps/<mission_type>/
 # (relocated from src/charter/offering/missions/mission-steps by mission
@@ -140,6 +174,23 @@ _CANONICAL_SKILL_AGENT = "codex"
 _CANONICAL_SKILL_COMMAND = "specify"
 
 
+def test_wp04_rendering_inputs_preserve_pointer_identity(tmp_path: Path) -> None:
+    from specify_cli.skills.command_renderer import rendering_inputs
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "custom-charter.yaml"
+    target.write_text("activated_tactics: []\n", encoding="utf-8")
+    config.write_text("charter: custom-charter.yaml\nagents:\n  available: [codex]\n", encoding="utf-8")
+    before = snapshot({"project": tmp_path})
+    assert rendering_inputs(tmp_path) == (config, target)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    target.unlink()
+    with pytest.raises(ValueError, match="unreadable"):
+        rendering_inputs(tmp_path)
+
+
 def test_canonical_skill_snapshot() -> None:
     """The canonical (codex/specify) skill render is byte-stable.
 
@@ -153,14 +204,8 @@ def test_canonical_skill_snapshot() -> None:
 
 def test_only_canonical_snapshot_is_committed() -> None:
     """Post-narrowing, exactly one canonical skill snapshot is committed."""
-    committed = sorted(
-        p.relative_to(SNAPSHOTS_DIR).as_posix()
-        for p in SNAPSHOTS_DIR.rglob("*")
-        if p.is_file() and p.name != "__init__.py"
-    )
-    assert committed == ["codex/specify.SKILL.md"], (
-        f"Expected only the canonical codex/specify.SKILL.md snapshot, found: {committed}"
-    )
+    committed = sorted(p.relative_to(SNAPSHOTS_DIR).as_posix() for p in SNAPSHOTS_DIR.rglob("*") if p.is_file() and p.name != "__init__.py")
+    assert committed == ["codex/specify.SKILL.md"], f"Expected only the canonical codex/specify.SKILL.md snapshot, found: {committed}"
 
 
 # ---------------------------------------------------------------------------

@@ -14,8 +14,8 @@ from specify_cli.status import (
     InnerStateChanged,
     ReviewOverride,
     WPInnerStateDelta,
-    append_annotations_atomic_verified,
 )
+from specify_cli.status._unsafe import append_annotations_atomic_verified
 
 from specify_cli.cli.commands.merge import (
     BaselineMergeCommitError,

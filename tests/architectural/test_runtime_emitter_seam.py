@@ -40,6 +40,29 @@ _DELETED_MODULE_IMPORT_RE = re.compile(r"runtime\.next\.event_emitter\b|from run
 # ``ctx.emitter_for_engine``; passing the plain seam reintroduces the bypass.
 _BRIDGE_BYPASS_NEEDLES = ("flush(ctx.sync_emitter)", "sync_emitter=ctx.sync_emitter")
 
+# The ADR's headline scope boundary: "no live producer is wired". A second
+# call site of this name under src/ would be exactly that -- a producer
+# registering itself -- so the invariant is "this text appears in exactly
+# one file", not "this text never appears" (the definition and its own
+# illustrative comment both live in the canonical seam module).
+#
+# THIS GATE IS A TRIPWIRE, NOT A PROHIBITION -- and it has a planned exit.
+# The ADR's ADR-BLOCKED list bound *Mission B* (`dead-port-disposition`),
+# which is merged and closed; it is not a standing ban on ever wiring a
+# producer. Wiring one is exactly what E3 (spec-kitty#3929) is for. When E3
+# lands, add its producer module to ``_ALLOWED_REGISTRATION_SITES`` below --
+# do not delete the gate, which still catches an *unplanned* second site.
+_ALLOWED_REGISTRATION_SITES: tuple[str, ...] = (_CANONICAL_SEAM,)
+
+# Matched as a regex, not a bare substring, so ``name (args)`` and stray
+# whitespace do not slip past; ``_registration_sites`` additionally resolves
+# ``from ... import register_runtime_emitter_factory as _alias`` so an
+# aliased import tail -- a common way to keep the public name out of a
+# producer's namespace -- cannot register invisibly.
+_REGISTRATION_NAME = "register_runtime_emitter_factory"
+_REGISTRATION_CALL_RE = re.compile(rf"\b{_REGISTRATION_NAME}\s*\(")
+_REGISTRATION_ALIAS_RE = re.compile(rf"\b{_REGISTRATION_NAME}\s+as\s+(\w+)")
+
 
 def _py_files(root: Path) -> list[Path]:
     """Every ``.py`` file under ``root``, skipping virtualenvs and this guard."""
@@ -81,6 +104,17 @@ def _bridge_function(source: str, name: str) -> ast.FunctionDef:
     functions = [node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == name]
     assert [node.name for node in functions] == [name], f"missing or duplicate bridge function {name}; see {_ADR}"
     return functions[0]
+
+
+def _registration_call_in(source: str) -> bool:
+    """True if ``source`` calls the registry -- directly or via an alias."""
+    if _REGISTRATION_CALL_RE.search(source):
+        return True
+    return any(re.search(rf"\b{re.escape(alias)}\s*\(", source) for alias in _REGISTRATION_ALIAS_RE.findall(source))
+
+
+def _registration_sites(root: Path) -> list[str]:
+    return [_relative(p) for p in _py_files(root) if _registration_call_in(p.read_text(encoding="utf-8"))]
 
 
 def test_exactly_one_runtime_event_emitter_class() -> None:
@@ -143,6 +177,22 @@ def test_bridge_never_hands_engine_paths_the_plain_seam(needle: str) -> None:
     )
 
 
+def test_only_events_module_registers_the_runtime_emitter_factory() -> None:
+    """ADR scope boundary: "no live producer is wired". The only file under
+    ``src/`` that calls the registry is the seam's own module -- both the
+    ``def`` and its illustrative registration-example comment live there.
+
+    Removal trigger: E3 (spec-kitty#3929) wires a real producer. That is the
+    boundary's planned exit, not a violation -- add the producer module to
+    ``_ALLOWED_REGISTRATION_SITES`` rather than deleting this gate, which
+    still catches an unplanned second registration site."""
+    assert _registration_sites(_REPO_ROOT / "src") == list(_ALLOWED_REGISTRATION_SITES), (
+        f"a registration site was added outside {list(_ALLOWED_REGISTRATION_SITES)}. If this is E3 "
+        f"(spec-kitty#3929) wiring the planned producer, add it to _ALLOWED_REGISTRATION_SITES; "
+        f"otherwise it is an unplanned live producer -- see {_ADR}"
+    )
+
+
 # --- helper self-checks (the guard's own branches, exercised on synthetic trees) ---
 
 
@@ -155,6 +205,44 @@ def test_seam_class_scan_reports_duplicates(tmp_path: Path) -> None:
     (tmp_path / "src/runtime/next/other.py").write_text("class RuntimeEventEmitterSpy:\n    pass\n", encoding="utf-8")
     hits = [p.relative_to(tmp_path).as_posix() for p in _py_files(tmp_path) if _SEAM_CLASS_RE.search(p.read_text(encoding="utf-8"))]
     assert hits == [_CANONICAL_SEAM, "src/runtime/next/event_emitter.py"]
+
+
+def test_registration_site_scan_flags_a_second_site(tmp_path: Path) -> None:
+    """Non-vacuity proof for ``test_only_events_module_registers_the_runtime_emitter_factory``:
+    a synthetic tree with a second registration site must report both files,
+    proving the scan actually detects a live producer rather than trivially
+    passing on any input."""
+    canonical = tmp_path / "src/runtime/next/_internal_runtime/events.py"
+    canonical.parent.mkdir(parents=True, exist_ok=True)
+    canonical.write_text("def register_runtime_emitter_factory(factory):\n    ...\n", encoding="utf-8")
+    producer = tmp_path / "src/runtime/next/_internal_runtime/some_producer.py"
+    producer.write_text("register_runtime_emitter_factory(MyProducer.for_mission)\n", encoding="utf-8")
+    hits = [p.relative_to(tmp_path).as_posix() for p in _py_files(tmp_path) if _registration_call_in(p.read_text(encoding="utf-8"))]
+    assert hits == [_CANONICAL_SEAM, "src/runtime/next/_internal_runtime/some_producer.py"]
+
+
+@pytest.mark.parametrize(
+    "tail",
+    [
+        pytest.param("register_runtime_emitter_factory(P.for_mission)\n", id="direct"),
+        pytest.param("register_runtime_emitter_factory (P.for_mission)\n", id="space-before-paren"),
+        pytest.param(
+            "from runtime.next._internal_runtime.events import register_runtime_emitter_factory as _reg\n_reg(P.for_mission)\n",
+            id="aliased-import",
+        ),
+    ],
+)
+def test_registration_scan_catches_the_evasive_registration_forms(tail: str) -> None:
+    """A producer that keeps the public name out of its namespace, or that
+    merely spaces the call oddly, still registers a live producer -- the scan
+    must see all three shapes, not just the obvious one."""
+    assert _registration_call_in(tail)
+
+
+def test_registration_scan_ignores_a_bare_mention_without_a_call() -> None:
+    """Prose and imports that never call the registry are not sites."""
+    assert not _registration_call_in("# see register_runtime_emitter_factory for the seam\n")
+    assert not _registration_call_in("from runtime.next._internal_runtime.events import register_runtime_emitter_factory\n")
 
 
 def test_relative_falls_back_to_absolute_outside_repo(tmp_path: Path) -> None:

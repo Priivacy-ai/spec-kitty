@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M1YJTAQ5ZZMB712BY296TM57",
+  "completed_at": "2026-09-07T19:04:28.974619+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "kitty-specs/upgrade-preview-mission-health-01M1V6E1/mission-review-report.md"
+}

@@ -25,7 +25,7 @@ from ..hooks.claude_code_hook import (
     STOP_EVENT,
     ClaudeCodeHookRegistrar,
 )
-from .markdown_rules import MarkdownRulesWriter
+from .markdown_rules import MarkdownRulesWriter, PreparedPresenceFile, observe_presence_path
 
 __all__ = ["ClaudeCodeWriter", "SESSION_START_CMD", "SESSION_STOP_CMD"]
 
@@ -51,9 +51,30 @@ class ClaudeCodeWriter(MarkdownRulesWriter):
 
     def write(self, project_root: Path, content: SessionPresenceContent) -> None:
         """Write the CLAUDE.md section AND register the SessionStart + Stop hooks."""
-        super().write(project_root, content)
-        ClaudeCodeHookRegistrar(SESSION_START_EVENT).register(project_root, SESSION_START_CMD)
-        ClaudeCodeHookRegistrar(STOP_EVENT).register(project_root, SESSION_STOP_CMD)
+        paths = (self.rules_path, ClaudeCodeHookRegistrar().settings_relative_path)
+        before = tuple(observe_presence_path(project_root, path) for path in paths)
+        prepared = self.prepare_batch(project_root, content)
+        if before != tuple(observe_presence_path(project_root, path) for path in paths):
+            raise ValueError("Session batch precondition changed")
+        for item in prepared:
+            self.apply_prepared(project_root, item)
+
+    def prepare_batch(self, project_root: Path, content: SessionPresenceContent) -> tuple[PreparedPresenceFile, ...]:
+        """Validate orientation and both hook entries before any sibling write."""
+        orientation = super().prepare(project_root, content)
+        settings = ClaudeCodeHookRegistrar().prepare_commands(
+            project_root,
+            ((SESSION_START_EVENT, SESSION_START_CMD), (STOP_EVENT, SESSION_STOP_CMD)),
+        )
+        return orientation, settings
+
+    def apply_prepared(self, project_root: Path, prepared: PreparedPresenceFile) -> None:
+        """Consume one retained member of the already validated writer batch."""
+        registrar = ClaudeCodeHookRegistrar()
+        if prepared.path == registrar.settings_relative_path:
+            registrar.apply_prepared(project_root, prepared)
+        else:
+            super().apply_prepared(project_root, prepared)
 
     def remove(self, project_root: Path) -> None:
         """Remove the CLAUDE.md section AND unregister the SessionStart + Stop hooks."""
@@ -65,8 +86,6 @@ class ClaudeCodeWriter(MarkdownRulesWriter):
         """Return ``True`` only when the CLAUDE.md section AND both hooks exist."""
         return (
             super().has_presence(project_root)
-            and ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(
-                project_root, SESSION_START_CMD
-            )
+            and ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(project_root, SESSION_START_CMD)
             and ClaudeCodeHookRegistrar(STOP_EVENT).is_registered(project_root, SESSION_STOP_CMD)
         )

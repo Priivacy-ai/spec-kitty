@@ -1,0 +1,189 @@
+{
+  "mission_slug": "fsm-write-path-integrity-01M1TZV6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP07 approved (lane-a 15df222cf; lane-g 07a88725b): census families 1-9 enumerated + lock-held parametrized test tests/status/test_writer_serialization.py; design-notes/WP01-lock-rules.md incl. WP07 addendum; stale comment at orchestrator_api/commands.py re-labelled historical.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:50:59.323894+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP07: four unlocked writers + families 8/9 hardened under feature_status_lock with atomic primitives; SC-001 rollback-truncate race RED->GREEN (tests/status/test_writer_serialization.py); tests/specify_cli/decisions/test_emit_locking.py; tests/specify_cli/migration/test_rebuild_state_locking.py.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:03.740090+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: lock rules (a)(b)(c) encoded; NFR-003 finite timeouts on L3-reachable and merge-path takes (BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS=10.0, tests/specify_cli/retrospective/test_merge_path_lock_timeout.py, tests/status/test_locking_key.py); design-notes/WP01-lock-rules.md.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:07.902447+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: feature_status_lock_path keyed on feature_dir.name via resolve_status_lock_root; lock-key collision + legacy-slug tests (tests/status/test_locking_key.py); reviewer audited all 18 call sites.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:12.393330+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved cycle 2 (lane-b af81e2072): status/transition_pipeline.py prepare_transition promoted verbatim from _prepare_event; pure (AST test); imports nothing from coordination; validate_transition once per emit (tests/status/test_transition_pipeline.py, 25 tests).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:16.514297+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved (lane-f 2cad2894a): _prepare_event deleted; single/batch/inner-state transactional doors and MissionStatus.transition compose prepare_transition; validate-once tree-wide tests; C-007 pins green (#3460/#1848/move-task).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:21.019529+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: batch door gains owned-mission ActionContextError + effective_root acquire via the shared preamble _resolve_transaction_entry/_acquire_status_transaction; parity pins in tests/specify_cli/coordination/test_status_transition.py (RED on base, reviewer-reproduced).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:24.857018+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: coord fallback arms emit with fan_out=False, commit, then fan out the committed tail; SC-002 phantom fan-out RED->GREEN for single and batch (tests/specify_cli/coordination/test_phantom_fanout.py).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:29.090538+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: one-sentence hunks in AGENTS.md (CLAUDE.md symlink) status row and docs/architecture/status-model.md:211; terminology guard green; Mission C owns final text.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:33.177350+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved (lane-c 264a83ae7): append_event* moved to status/_unsafe.py with ALLOWED_CALLERS (8, +1 in WP07); facade import raises ImportError (test); shrink-only BASELINE (tests/architectural/test_status_unsafe_allowlist.py).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:37.502040+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03+WP07: AST writes-gate tests/architectural/test_status_events_writes_gate.py with positive census, non-vacuity floors (15 synthetic shapes), per-key ledger counts (WP07), feature_status_lock composition-site census (15 modules); reviewer probes: synthetic writer reds the gate.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:41.744537+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved cycle 2 (lane-d 5d8b260c5): GuardContext.dependency_ready tri-state, fail-OPEN on None; clauses in PlannedState/ClaimedState.guard_for; force bypass via check_transition; probe-site pins (tests/status/test_dependency_guard.py, 65 tests).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:46.064991+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04: shells resolve readiness inside L1/the transaction against the write surface (emit._reduce_write_surface + _resolve_dependency_readiness; txn.feature_dir in coordination shells); coord-surface and pre-lock TOCTOU tests; NFR-004 call-count pins unchanged.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:49.787509+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04: dependency_readiness_for_wp reused via status/dependency_verdict.py; WPMetadata coercion shared (cycle-1 fix); six pre-flight sites demoted comments-only; no-op resume pin.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:53.934142+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved (lane-e 95e175aa6): _write_snapshot tmp+fsync+os.replace; _append_event hardened; crash-window test (tests/runtime/test_run_state_hardening.py).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:51:57.771945+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: feature-runs.json keyed by mission_id (legacy-<slug> fallback, decision Q9); RunStateMissing structured error replaces the silent fresh run; SC-006 slug-collision distinct runs RED->GREEN.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:52:01.686607+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: decision.py progress query uses materialize_snapshot (pure); status.json byte-identical test; swallowed exception replaced by a logged warning.",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:52:05.977415+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: emit_status_transition_batch acquires feature_status_lock once around derive/prepare/append/materialize/mirror; lock-held batch test (tests/status/test_emit.py::TestBatchShellLock); WP01's strict xfail flipped green on lane-d (596396b7d).",
+      "pass_fail": "pass",
+      "verified_by": "claude-fable-5-1",
+      "verified_at": "2026-09-06T16:52:09.928277+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

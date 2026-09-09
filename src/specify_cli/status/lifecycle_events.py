@@ -65,9 +65,7 @@ class MissionNotCompletedError(RuntimeError):
     def __init__(self, action: str, mission_slug: str) -> None:
         self.action = action
         self.mission_slug = mission_slug
-        super().__init__(
-            f"cannot {action}: mission {mission_slug!r} has not completed/merged"
-        )
+        super().__init__(f"cannot {action}: mission {mission_slug!r} has not completed/merged")
 
 
 # ---------------------------------------------------------------------------
@@ -106,20 +104,22 @@ FOLLOW_UP_RECORDED = "FollowUpRecorded"
 # it would let these reach strict validation and reject the whole batch.
 LOCAL_ONLY_LIFECYCLE_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
 
-LIFECYCLE_EVENT_TYPES = frozenset({
-    PROJECT_INITIALIZED,
-    MISSION_CREATED,
-    SPECIFY_STARTED,
-    SPECIFY_COMPLETED,
-    PLAN_STARTED,
-    PLAN_COMPLETED,
-    TASKS_STARTED,
-    TASKS_COMPLETED,
-    WP_CREATED,
-    REVIEWER_SELF_APPROVAL,
-    MISSION_REOPENED,
-    FOLLOW_UP_RECORDED,
-})
+LIFECYCLE_EVENT_TYPES = frozenset(
+    {
+        PROJECT_INITIALIZED,
+        MISSION_CREATED,
+        SPECIFY_STARTED,
+        SPECIFY_COMPLETED,
+        PLAN_STARTED,
+        PLAN_COMPLETED,
+        TASKS_STARTED,
+        TASKS_COMPLETED,
+        WP_CREATED,
+        REVIEWER_SELF_APPROVAL,
+        MISSION_REOPENED,
+        FOLLOW_UP_RECORDED,
+    }
+)
 
 PROJECT_EVENTS_FILENAME = "canonical-events.jsonl"
 MISSION_EVENTS_FILENAME = "status.events.jsonl"
@@ -231,9 +231,7 @@ def _atomic_append(path: Path, line: str) -> None:
     append_raw_rows_atomic(path, [json.loads(line)])
 
 
-def _lifecycle_write_lock(
-    repo_root: Path | None, mission_slug: str | None
-) -> AbstractContextManager[Path | None]:
+def _lifecycle_write_lock(repo_root: Path | None, mission_slug: str | None) -> AbstractContextManager[Path | None]:
     """Return the lock context that guards a lifecycle log writer.
 
     Mission-scoped writes (``mission_slug`` provided, i.e. every appender
@@ -336,14 +334,9 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
     result = validate_event(dict(payload), event_type, strict=True)
     if result.model_violations or result.schema_violations:
         model_details = [f"{v.field}: {v.message}" for v in result.model_violations]
-        schema_details = [
-            f"{v.json_path}: {v.message}" for v in result.schema_violations
-        ]
+        schema_details = [f"{v.json_path}: {v.message}" for v in result.schema_violations]
         details = "; ".join((*model_details, *schema_details))
-        raise ValueError(
-            f"Lifecycle payload for {event_type!r} fails canonical contract: "
-            f"{details}"
-        )
+        raise ValueError(f"Lifecycle payload for {event_type!r} fails canonical contract: {details}")
 
 
 def _canonical_lifecycle_payload_for_saas(
@@ -454,10 +447,7 @@ def _match_lifecycle_event(
     payload = candidate.get("payload") or {}
     if not isinstance(payload, Mapping):
         return False
-    return all(
-        _dedup_value_matches(key, payload.get(key), expected)
-        for key, expected in dedup_keys.items()
-    )
+    return all(_dedup_value_matches(key, payload.get(key), expected) for key, expected in dedup_keys.items())
 
 
 def _dedup_value_matches(key: str, actual: Any, expected: Any) -> bool:
@@ -475,10 +465,7 @@ def has_lifecycle_event(
     dedup_keys: Mapping[str, Any],
 ) -> bool:
     """Return True if the log already contains a matching lifecycle event."""
-    return any(
-        _match_lifecycle_event(entry, event_type=event_type, dedup_keys=dedup_keys)
-        for entry in _read_lifecycle_lines(log_path)
-    )
+    return any(_match_lifecycle_event(entry, event_type=event_type, dedup_keys=dedup_keys) for entry in _read_lifecycle_lines(log_path))
 
 
 def persist_lifecycle_event_local(
@@ -515,9 +502,7 @@ def persist_lifecycle_event_local(
         logger.debug("Refusing to append unknown lifecycle event type %r", event_type)
         return None
 
-    if dedup_keys and has_lifecycle_event(
-        log_path, event_type=event_type, dedup_keys=dedup_keys
-    ):
+    if dedup_keys and has_lifecycle_event(log_path, event_type=event_type, dedup_keys=dedup_keys):
         logger.debug(
             "Lifecycle event %s already present in %s; skipping append",
             event_type,
@@ -535,7 +520,7 @@ def persist_lifecycle_event_local(
     )
     repo_root = _repo_root_for_lifecycle_log(log_path)
     try:
-        with _lifecycle_write_lock(repo_root, mission_slug):
+        with _lifecycle_write_lock(repo_root, log_path.parent.name if mission_slug is not None else None):
             _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)
@@ -676,11 +661,13 @@ def emit_mission_created_local(
     purpose_context: str | None = None,
     created_at: str | None = None,
     actor: str | None = None,
+    fanout: bool = True,
 ) -> dict[str, Any] | None:
     """Record a local ``MissionCreated`` event for *feature_dir*.
 
     Idempotent on ``mission_slug``. The mission's
-    ``status.events.jsonl`` is created on first call.
+    ``status.events.jsonl`` is created on first call. Set ``fanout=False``
+    when a transaction must finish before the returned event can be published.
 
     ``mission_type`` and ``wp_count`` are required by the canonical
     ``mission_created_payload`` schema (events 5.1.0). The payload schema also
@@ -715,7 +702,8 @@ def emit_mission_created_local(
         actor=actor if actor else _resolve_local_actor(),
     )
 
-    return append_lifecycle_event(
+    persist = append_lifecycle_event if fanout else persist_lifecycle_event_local
+    return persist(
         log_path,
         MISSION_CREATED,
         payload,
@@ -797,9 +785,7 @@ def emit_artifact_phase_local(
         if event_type == TASKS_COMPLETED and wp_count is not None:
             fields["wp_count"] = wp_count
 
-    payload: dict[str, Any] = payload_model_cls(**fields).model_dump(
-        mode="json", exclude_none=False
-    )
+    payload: dict[str, Any] = payload_model_cls(**fields).model_dump(mode="json", exclude_none=False)
     if event_type.endswith("Started") and artifact_path is not None:
         payload["artifact_path"] = artifact_path
 
@@ -896,9 +882,7 @@ def emit_wp_created_local(
         actor=actor,
         created_at=_iso_str_to_datetime(created_at) or now_utc(),
     )
-    payload: dict[str, Any] = payload_model.model_dump(
-        mode="json", exclude_none=False
-    )
+    payload: dict[str, Any] = payload_model.model_dump(mode="json", exclude_none=False)
 
     log_path = mission_event_log_path(feature_dir)
     return append_lifecycle_event(
@@ -957,9 +941,7 @@ def emit_reviewer_self_approval(
     )
 
 
-def _require_mission_completed(
-    feature_dir: Path, *, action: str, mission_slug: str
-) -> None:
+def _require_mission_completed(feature_dir: Path, *, action: str, mission_slug: str) -> None:
     """Fail-closed guard: raise unless the mission has reached completion (#1926).
 
     Lazy-imports :func:`is_mission_completed` to avoid a circular import
@@ -1068,13 +1050,9 @@ def emit_follow_up_recorded(
             raise ValueError("pr_number is required when follow_up_type == 'pr'")
         dedup_keys = {"mission_id": mission_id, "pr_number": pr_number}
     else:
-        raise ValueError(
-            f"follow_up_type must be 'commit' or 'pr', got {follow_up_type!r}"
-        )
+        raise ValueError(f"follow_up_type must be 'commit' or 'pr', got {follow_up_type!r}")
 
-    _require_mission_completed(
-        feature_dir, action="record follow-up", mission_slug=mission_slug
-    )
+    _require_mission_completed(feature_dir, action="record follow-up", mission_slug=mission_slug)
 
     payload: dict[str, Any] = {
         "mission_id": mission_id,

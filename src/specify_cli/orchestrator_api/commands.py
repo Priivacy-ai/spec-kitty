@@ -1112,6 +1112,8 @@ def list_ready(
         # dependency is a documented removal, so surface its dependent as ready
         # rather than blocked. `wp_states` is the reduced snapshot already read
         # above, so this reuses the authoritative provenance with no extra I/O.
+        # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+        # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
         readiness = dependency_readiness_for_wp(wp_id, deps, wp_lanes, provenance=wp_states)
 
         ready_wps.append(
@@ -1437,6 +1439,8 @@ def start_implementation(
         # equivalent of implement.py's `_ensure_wp_claim_preconditions`. Without
         # this a dependent of a canceled-with-operator-provenance WP reproduces
         # the #2945 strand on the orchestrator-api claim path.
+        # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+        # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
         dependency_readiness = dependency_readiness_for_wp(
             wp,
             parse_wp_dependencies(wp_path),
@@ -3566,8 +3570,11 @@ def _tasks_are_finalized(mission_dir: Path) -> bool:
     two DISTINCT corruption shapes, two distinct defenses --
 
     1. A genuinely torn line (an unlocked-writer race landing mid-read;
-       only 2 of 6 ``status.events.jsonl`` writers take the feature status
-       lock) breaks JSON parsing itself: ``read_events`` raises
+       historically -- as of 2026-08 -- only 2 of 6 ``status.events.jsonl``
+       writers took the mission status lock; WP01 of
+       fsm-write-path-integrity-01M1TZV6 serialized all seven writer
+       families, see that mission's ``design-notes/WP01-lock-rules.md``)
+       breaks JSON parsing itself: ``read_events`` raises
        ``StoreError`` on a malformed JSON line or invalid event structure.
        This function does NOT catch that exception -- it propagates to
        ``design_status``, which turns it into a structured

@@ -91,10 +91,15 @@ _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # (test_next_shard_marker_completeness.py) still sees a total, disjoint
 # partition of every test under `tests/runtime`.
 _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
+    # 2026-09-07 (#3981 landing): mission runtime-advance-guard-topology-wp-
+    # completion-01M1W6VZ added three tests/runtime/next files; registered here
+    # so the GC-1 completeness guard keeps a disjoint partition of tests/runtime.
+    "tests/runtime/next/test_coord_topology_fixture.py",
     "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/next/test_import_paths.py",
     "tests/runtime/next/test_runtime_bridge_cancel_provenance.py",
     "tests/runtime/test_agent_skills.py",
+    "tests/runtime/test_artifact_presence_placement.py",
     "tests/runtime/test_bridge_cores.py",
     "tests/runtime/test_bridge_decide_next.py",
     "tests/runtime/test_cli_guard_family.py",
@@ -106,10 +111,20 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_runtime_identity_seam_wiring.py",
     "tests/runtime/test_runtime_seam.py",
     "tests/runtime/test_template_source_consolidation.py",
+    "tests/runtime/test_upgrade_preview_bootstrap.py",
     "tests/runtime/test_utils.py",
     "tests/runtime/test_workspace_context_unit.py",
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
+    # 2026-09-07 (#3995 landing fold): test_upgrade_preview_bootstrap.py landed on
+    # main via the #3923 codex/upgrade-preview-mission-health merge without a
+    # _next_shard_map registration. The `next` group has no auto-fallback (unlike
+    # `arch`), so the GC-1 completeness guard
+    # (test_arch_shard_marker_completeness::...[next]) went red on main. shard_2 and
+    # shard_3 were tied lightest (16 rows each) when this landed; shard_2 is the
+    # convention's first pick on a tie.
+    "tests/runtime/test_upgrade_preview_bootstrap.py",
+    "tests/runtime/next/test_advance_guard_uninitialized_wp.py",  # 2026-09-07 (#3981 landing)
     "tests/runtime/next/test_pertype_presence_gate.py",
     "tests/runtime/next/test_composed_guard_launder.py",
     "tests/runtime/test_banner_visibility.py",
@@ -118,6 +133,7 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_bridge_decision_builder.py",
     "tests/runtime/test_bridge_decision_log_flush.py",
     "tests/runtime/test_bridge_io.py",
+    "tests/runtime/test_run_state_hardening.py",
     "tests/runtime/test_config_show_origin_integration.py",
     "tests/runtime/test_doctor_command_file_health.py",
     "tests/runtime/test_doctor_unit.py",
@@ -129,6 +145,7 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     # 2026-09-03 (PR #1066 convergence port): upstream's next-committed-state
     # authority WP01 landed here without its conflicted WP02 sibling, so the
     # new test file registers now, mirroring upstream's own shard-3 row.
+    "tests/runtime/next/test_advance_guard_coord_reachability.py",  # 2026-09-07 (#3981 landing)
     "tests/runtime/next/test_committed_authority.py",
     "tests/runtime/next/test_presence_filenames.py",
     "tests/runtime/next/test_merged_mission_terminal.py",
