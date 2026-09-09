@@ -27,7 +27,10 @@ from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
-from specify_cli.lanes.merge import _ensure_merge_driver_git_config, _make_merge_env
+from specify_cli.lanes.merge import (
+    _ephemeral_merge_driver_activation,
+    _make_merge_env,
+)
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.mission_metadata import load_meta
 
@@ -619,38 +622,53 @@ def _merge_recorded_planning_commit(
     # #2709/#2711 self-heal: ``spec-kitty init`` writes the ``.gitattributes``
     # mapping (e.g. ``kitty-specs/**/status.events.jsonl merge=spec-kitty-
     # event-log``) but cannot always register the matching git-config driver
-    # definitions at init time (the project may not be a git repo yet). This
-    # lane worktree's checked-out tree already carries the committed
-    # ``.gitattributes``; without the git-config half, a divergent-on-both-
-    # sides bookkeeping file (status.events.jsonl, meta.json, traces/*.md,
-    # ...) falls back to a plain 3-way merge and conflicts here instead of
-    # reconciling via its custom driver. Defines the drivers' git config only
-    # (never seeds ``.git/info/attributes`` — the committed ``.gitattributes``
-    # already maps the patterns; see ``_ensure_merge_driver_git_config``'s own
-    # docstring for why info/attributes activation must stay ephemeral to the
-    # squash-merge path). Mirrors ``auto_rebase.attempt_auto_rebase``'s
-    # identical self-heal call.
-    _ensure_merge_driver_git_config(repo_root)
+    # definitions at init time (the project may not be a git repo yet). Without
+    # the git-config half, a divergent-on-both-sides bookkeeping file
+    # (status.events.jsonl, meta.json, traces/*.md, ...) falls back to a plain
+    # 3-way merge and conflicts here instead of reconciling via its custom
+    # driver. Mirrors ``auto_rebase.attempt_auto_rebase``'s identical self-heal
+    # call (performed inside the activation context manager below).
+    #
+    # #4120: the OTHER half of the same gap — the driver's *attribute mapping*
+    # can be missing too. The lane base structurally predates the mission's
+    # planning commits (``coordination_branch``/``mission_branch`` is minted
+    # before planning exists — that is exactly why this merge runs), so the lane
+    # worktree's checked-out tree may carry no committed ``.gitattributes`` at
+    # all (fresh repos, projects initialized before the mapping landed, or a
+    # lane base cut before the commit that added it). Without an active
+    # mapping, the add/add collision this merge is EXPECTED to produce on the
+    # append-only ``status.events.jsonl`` (a lone finalize-tasks bootstrap event
+    # on the lane side against the full specify/plan history on the planning
+    # side, both added after a merge-base that predates the file) is not
+    # union-merged by the ``spec-kitty-event-log`` driver — it surfaces as a
+    # raw git conflict the operator must splice by hand. Activate the driver
+    # attribute mappings ephemerally for exactly this merge — the same
+    # ``_ephemeral_merge_driver_activation`` the squash mission→target merge
+    # uses — so the union drivers fire regardless of what the branch committed.
+    # The seeding is torn down before returning (never persisted into a later
+    # ``auto_rebase`` — the #2709/#2711 regression), and a genuinely conflicting
+    # tree still fails closed below.
     # Issue #87: the registered drivers invoke bare ``spec-kitty ...`` (e.g.
     # ``merge-driver-event-log``), so the merge subprocess must resolve that
     # name to the RUNNING CLI, not to whatever the ambient PATH happens to
     # carry — an agent harness / CI wrapper may not have this CLI on PATH at
     # all. Route through the pipeline's single env authority (AC-F1).
     env = _make_merge_env()
-    merge = subprocess.run(
-        [
-            "git",
-            "merge",
-            "--no-edit",
-            "-m",
-            f"Merge recorded planning-artifact commit into {lane_id} (FR-009)",
-            planning_commit_sha,
-        ],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    with _ephemeral_merge_driver_activation(repo_root):
+        merge = subprocess.run(
+            [
+                "git",
+                "merge",
+                "--no-edit",
+                "-m",
+                f"Merge recorded planning-artifact commit into {lane_id} (FR-009)",
+                planning_commit_sha,
+            ],
+            cwd=str(worktree_path),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
     if merge.returncode != 0:
         subprocess.run(
             ["git", "merge", "--abort"],
@@ -766,12 +784,15 @@ def _merge_dependency_lane_tips(
     if not ordered:
         return
     # #2709/#2711 self-heal: same rationale as
-    # ``_merge_recorded_planning_commit`` above — define the custom merge
-    # drivers' git config (idempotent, config-only, no ``.git/info/attributes``
-    # seeding) before merging in a dependency lane's tip, so a both-sides-
-    # divergent ``kitty-specs/**`` bookkeeping file reconciles via its driver
-    # instead of producing a plain-3-way-merge conflict.
-    _ensure_merge_driver_git_config(repo_root)
+    # ``_merge_recorded_planning_commit`` above — a both-sides-divergent
+    # ``kitty-specs/**`` bookkeeping file must reconcile via its custom merge
+    # driver, not produce a plain-3-way-merge conflict. #4120 extends the same
+    # fix to the attribute-mapping half: the driver definitions alone are inert
+    # when the lane worktree's tree carries no committed ``.gitattributes``
+    # mapping (see ``_merge_recorded_planning_commit``'s #4120 note), so the
+    # whole dep-merge loop runs inside the ephemeral driver activation —
+    # seeded before the first merge, torn down after the last (never persisted
+    # into a later ``auto_rebase``, the #2709/#2711 regression).
     # Issue #87: same rationale as ``_merge_recorded_planning_commit`` — the
     # drivers fire inside this merge and resolve ``spec-kitty`` by name, so
     # route the env through the pipeline's single authority (AC-F1) instead
@@ -780,63 +801,64 @@ def _merge_dependency_lane_tips(
     # Snapshot the lane ref before the loop so a later-dep conflict can roll
     # the worktree back to its exact pre-merge HEAD (#1915 atomicity).
     pre_loop_ref = _current_head(worktree_path)
-    for dep_lane in ordered:
-        dep_branch = lane_branch_name(mission_slug, dep_lane.lane_id)
-        if not _branch_exists(repo_root, dep_branch):
-            # Merged-and-deleted (or never-started) dependency lane: fall back
-            # to the existing base. Do not crash, do not silently swallow —
-            # surface a warning so the operator can use --base if needed.
-            print(
-                f"WARNING: dependency lane {dep_lane.lane_id!r} branch "
-                f"{dep_branch!r} does not resolve; lane {lane.lane_id!r} will "
-                f"not contain its tip (it may have been merged-and-deleted). "
-                f"If you need its code, re-run with an explicit --base."
+    with _ephemeral_merge_driver_activation(repo_root):
+        for dep_lane in ordered:
+            dep_branch = lane_branch_name(mission_slug, dep_lane.lane_id)
+            if not _branch_exists(repo_root, dep_branch):
+                # Merged-and-deleted (or never-started) dependency lane: fall back
+                # to the existing base. Do not crash, do not silently swallow —
+                # surface a warning so the operator can use --base if needed.
+                print(
+                    f"WARNING: dependency lane {dep_lane.lane_id!r} branch "
+                    f"{dep_branch!r} does not resolve; lane {lane.lane_id!r} will "
+                    f"not contain its tip (it may have been merged-and-deleted). "
+                    f"If you need its code, re-run with an explicit --base."
+                )
+                continue
+            # Already an ancestor of HEAD? Then it is already merged — skip so we
+            # do not create a redundant merge commit (idempotent reuse-path).
+            is_ancestor = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", dep_branch, "HEAD"],
+                cwd=str(worktree_path),
+                capture_output=True,
+                text=True,
             )
-            continue
-        # Already an ancestor of HEAD? Then it is already merged — skip so we
-        # do not create a redundant merge commit (idempotent reuse-path).
-        is_ancestor = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", dep_branch, "HEAD"],
-            cwd=str(worktree_path),
-            capture_output=True,
-            text=True,
-        )
-        if is_ancestor.returncode == 0:
-            continue
-        merge = subprocess.run(
-            [
-                "git",
-                "merge",
-                "--no-edit",
-                "-m",
-                f"Merge dependency lane {dep_lane.lane_id} into {lane.lane_id}",
-                dep_branch,
-            ],
-            cwd=str(worktree_path),
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-        if merge.returncode != 0:
-            # Fail closed AND atomic (#1915): abort the half-merge, then reset
-            # hard to the pre-loop ref so no EARLIER clean dep merge survives
-            # this LATER conflict. The worktree is left exactly as it was before
-            # the loop began — clean, for the operator's manual merge.
-            subprocess.run(
-                ["git", "merge", "--abort"],
+            if is_ancestor.returncode == 0:
+                continue
+            merge = subprocess.run(
+                [
+                    "git",
+                    "merge",
+                    "--no-edit",
+                    "-m",
+                    f"Merge dependency lane {dep_lane.lane_id} into {lane.lane_id}",
+                    dep_branch,
+                ],
                 cwd=str(worktree_path),
                 capture_output=True,
                 text=True,
                 env=env,
             )
-            if pre_loop_ref is not None:
+            if merge.returncode != 0:
+                # Fail closed AND atomic (#1915): abort the half-merge, then reset
+                # hard to the pre-loop ref so no EARLIER clean dep merge survives
+                # this LATER conflict. The worktree is left exactly as it was before
+                # the loop began — clean, for the operator's manual merge.
                 subprocess.run(
-                    ["git", "reset", "--hard", pre_loop_ref],
+                    ["git", "merge", "--abort"],
                     cwd=str(worktree_path),
                     capture_output=True,
                     text=True,
+                    env=env,
                 )
-            raise DependencyLaneMergeConflictError(lane.lane_id, dep_lane.lane_id, dep_branch)
+                if pre_loop_ref is not None:
+                    subprocess.run(
+                        ["git", "reset", "--hard", pre_loop_ref],
+                        cwd=str(worktree_path),
+                        capture_output=True,
+                        text=True,
+                    )
+                raise DependencyLaneMergeConflictError(lane.lane_id, dep_lane.lane_id, dep_branch)
 
 
 def _register_sparse_checkout_if_coord(

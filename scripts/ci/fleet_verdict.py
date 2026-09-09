@@ -275,7 +275,8 @@ def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, at
     provenance = evidence.get("replay", {})
     host = provenance.get("host", "github-actions")
     session = provenance.get("session", f"github-actions-{reporter_id}")
-    lines = [f"[ci] {state} @{head} on {host}", "", MARKER, "Existing Actions gates for this exact PR head; no additional test run.", ""]
+    scope = "main-push head" if evidence.get("scope") == "continuous-main-push" else "PR head"
+    lines = [f"[ci] {state} @{head} on {host}", "", MARKER, f"Existing Actions gates for this exact {scope}; no additional test run.", ""]
     if state == "running":
         lines.append("Evidence is pending, incomplete, cancelled, or intentionally deferred; this is not a code failure verdict.")
     for name, run in evidence["runs"].items():
@@ -383,13 +384,28 @@ def main() -> None:
     if name not in PR_WORKFLOWS | {AGGREGATE} or trigger["workflow_id"] != ids[name]:
         raise ValueError("unrecognized triggering workflow")
     source = api.request(f"actions/runs/{trigger['id']}")
+    if (
+        source.get("id") != trigger["id"]
+        or source.get("workflow_id") != ids[name]
+        or source.get("path") != f".github/workflows/{name}"
+        or source.get("repository", {}).get("full_name") != api.repository
+    ):
+        raise ValueError("triggering run does not match the trusted workflow")
     if name == AGGREGATE:
         match = re.fullmatch(r"CI Aggregate source ([1-9][0-9]*) attempt ([1-9][0-9]*)", source["display_title"])
         if not match or source.get("event") != "workflow_run":
             return
         source = api.request(f"actions/runs/{match.group(1)}")
-        if source.get("workflow_id") != ids["ci-modules.yml"]:
+        if (
+            source.get("workflow_id") != ids["ci-modules.yml"]
+            or source.get("path") != ".github/workflows/ci-modules.yml"
+            or source.get("repository", {}).get("full_name") != api.repository
+        ):
             raise ValueError("aggregate source is not CI Modules")
+    if source.get("event") == "push" and source.get("head_branch") == "main":
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write("main=true\n")
+        return
     if source.get("event") != "pull_request" or source.get("repository", {}).get("full_name") != api.repository:
         return
     references = source.get("pull_requests", [])

@@ -527,3 +527,83 @@ def test_authored_only_binding_is_outside_eviction_verify(tmp_path: Path) -> Non
     assert first.action == "skip" and first.seeded_count == 0
     assert b.backfill_runtime_state(feature_dir).action == "skip"
     assert b.verify_backfill(feature_dir).ok is True
+
+
+# ---------------------------------------------------------------------------
+# #4120 — operator-supplied --profile resolves against the LOCAL catalog
+# ---------------------------------------------------------------------------
+
+_PROJECT_PROFILE_ID = "seeker-implementer"
+
+
+def _make_local_charter_profile_repo(root: Path) -> Path:
+    """A repo with one charter-activated project-local doctrine profile.
+
+    This is the exact #4120 shape: the profile resolves via ``agent profile
+    show`` and is one of the ids the ``finalize-tasks`` charter-activation gate
+    requires WP ``agent_profile`` frontmatter values to be, but the dispatch
+    *routing* catalog excludes the doctrine project layer — so threading it
+    through ``--profile`` used to fail with ``Available: []``.
+    """
+    profiles_dir = root / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir.mkdir(parents=True)
+    (profiles_dir / "seeker-implementer.agent.yaml").write_text(
+        "\n".join(
+            [
+                "profile-id: seeker-implementer",
+                "name: 'Seeker Implementer'",
+                "role: implementer",
+                "purpose: 'Implement mission WPs'",
+                "specialization:",
+                "  primary-focus: 'Code implementation'",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (root / ".kittify" / "config.yaml").write_text(
+        f"activated_agent_profiles:\n  - {_PROJECT_PROFILE_ID}\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+class TestResolveDispatchBindingLocalProfile:
+    def test_project_local_charter_profile_resolves(self, tmp_path: Path) -> None:
+        """``--profile <local charter id>`` records the profile + its version.
+
+        Pre-fix (#4120 bug 2) this raised ``Could not resolve dispatched
+        profile 'seeker-implementer': Profile 'seeker-implementer' not found.
+        Available: []`` because ``_resolved_profile_version`` resolved against
+        the routing catalog, which excludes the doctrine project layer.
+        """
+        repo = _make_local_charter_profile_repo(tmp_path)
+        binding = _resolve_dispatch_binding(
+            model=None,
+            profile=_PROJECT_PROFILE_ID,
+            invocation_id=None,
+            repo_root=repo,
+        )
+        assert binding.agent_profile == _PROJECT_PROFILE_ID
+        assert binding.agent_profile_version  # resolved, not fabricated
+
+    def test_unresolved_profile_error_names_the_frontmatter_fallback(
+        self, tmp_path: Path,
+    ) -> None:
+        """The failure surfaces the working alternative, not a bare ``[]``.
+
+        #4120's ask: the error must tell the operator that omitting
+        ``--profile`` falls back to the WP's own frontmatter
+        ``agent_profile``.
+        """
+        with pytest.raises(ValueError) as exc_info:
+            _resolve_dispatch_binding(
+                model=None,
+                profile="invented-profile",
+                invocation_id=None,
+                repo_root=tmp_path,
+            )
+        message = str(exc_info.value)
+        assert "invented-profile" in message
+        assert "Omit --profile" in message
+        assert "agent_profile" in message

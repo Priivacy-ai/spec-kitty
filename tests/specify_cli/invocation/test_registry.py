@@ -80,6 +80,88 @@ class TestRegistryResolve:
         assert profile.profile_id == "reviewer-fixture"
 
 
+class TestRegistryResolveLocal:
+    """#4120: ``resolve_local`` admits the doctrine project layer.
+
+    The dispatch *routing* catalog (``resolve``) deliberately excludes the
+    doctrine project layer (R3 parity — see ``_DOCTRINE_ROUTING_LAYERS``),
+    which made every project-local charter-activated profile unresolvable
+    when an operator passed it to ``agent action implement/review --profile``
+    ("Available: []"). ``resolve_local`` keeps the same activation gate but
+    admits every local layer.
+    """
+
+    _PROJECT_PROFILE_ID = "seeker-implementer"
+
+    @staticmethod
+    def _make_project_doctrine_repo(tmp_path: Path) -> Path:
+        """A repo with one charter-activated project-local doctrine profile."""
+        profiles_dir = tmp_path / ".kittify" / "doctrine" / "agent_profiles"
+        profiles_dir.mkdir(parents=True)
+        (profiles_dir / "seeker-implementer.agent.yaml").write_text(
+            "\n".join(
+                [
+                    "profile-id: seeker-implementer",
+                    "name: 'Seeker Implementer'",
+                    "role: implementer",
+                    "purpose: 'Implement mission WPs'",
+                    "specialization:",
+                    "  primary-focus: 'Code implementation'",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "activated_agent_profiles:\n  - seeker-implementer\n",
+            encoding="utf-8",
+        )
+        return tmp_path
+
+    def test_routing_resolve_rejects_project_doctrine_profile(self, tmp_path: Path) -> None:
+        """The #4120 precondition: the routing catalog excludes the project layer."""
+        repo = self._make_project_doctrine_repo(tmp_path)
+        registry = ProfileRegistry(repo)
+        with pytest.raises(ProfileNotFoundError) as exc_info:
+            registry.resolve(self._PROJECT_PROFILE_ID)
+        # The exact operator-visible failure #4120 reported.
+        assert "Available: []" in str(exc_info.value)
+
+    def test_resolve_local_resolves_project_doctrine_profile(self, tmp_path: Path) -> None:
+        repo = self._make_project_doctrine_repo(tmp_path)
+        profile = ProfileRegistry(repo).resolve_local(self._PROJECT_PROFILE_ID)
+        assert profile.profile_id == self._PROJECT_PROFILE_ID
+        assert profile.schema_version  # the version the claim binding records
+
+    def test_resolve_local_honours_the_activation_gate(self, tmp_path: Path) -> None:
+        """A project profile NOT in ``activated_agent_profiles`` stays absent.
+
+        ``resolve_local`` is a wider LAYER set, not a weaker gate: the same
+        three-state ``activated_agent_profiles`` contract applies.
+        """
+        repo = self._make_project_doctrine_repo(tmp_path)
+        (repo / ".kittify" / "config.yaml").write_text(
+            "activated_agent_profiles:\n  - some-other-profile\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ProfileNotFoundError):
+            ProfileRegistry(repo).resolve_local(self._PROJECT_PROFILE_ID)
+
+    def test_resolve_local_missing_names_local_catalog(self, tmp_path: Path) -> None:
+        """The not-found error lists what IS locally available, never a bare []."""
+        repo = self._make_project_doctrine_repo(tmp_path)
+        with pytest.raises(ProfileNotFoundError) as exc_info:
+            ProfileRegistry(repo).resolve_local("no-such-profile")
+        assert self._PROJECT_PROFILE_ID in exc_info.value.available
+        assert str(exc_info.value) == (f"Profile 'no-such-profile' not found. Available: ['{self._PROJECT_PROFILE_ID}']")
+
+    def test_resolve_local_still_resolves_builtin_profiles(self, tmp_path: Path) -> None:
+        """Routing-layer ids (built-ins) keep resolving through the local seam."""
+        registry = ProfileRegistry(tmp_path)
+        profile = registry.resolve_local("python-pedro")
+        assert profile.profile_id == "python-pedro"
+
+
 class TestRegistryFallbackNoProjectDir:
     def test_no_kittify_profiles_dir_does_not_raise(self, tmp_path: Path) -> None:
         """When .kittify/profiles/ does not exist, ProfileRegistry should not raise."""

@@ -748,3 +748,67 @@ def test_dry_run_ambiguous_without_json_renders_rich_output(tmp_path: Path) -> N
     assert "ambiguous" in result.output.lower()
     with pytest.raises(json.JSONDecodeError):
         json.loads(result.output)
+
+
+# ---------------------------------------------------------------------------
+# #4123: never-git-init-ed projects (spec-kitty init without git init)
+#
+# Unlike every other test in this file, these deliberately do NOT patch
+# ``build_charter_context`` — the real chain (executor ->
+# _resolve_routing_and_context -> build_charter_context ->
+# ensure_charter_bundle_fresh -> resolve_canonical_repo_root) is what
+# escaped as a raw NotInsideRepositoryError traceback in the field.
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_non_git_project_exits_1_with_git_init_advice(tmp_path: Path) -> None:
+    """Real charter resolution on a non-git project degrades to the
+    actionable git-init message instead of a raw traceback (#4123)."""
+    project = _setup_project(tmp_path)
+
+    with patch("specify_cli.cli.commands.dispatch.find_repo_root", return_value=project):
+        result = runner.invoke(
+            cli_app,
+            ["dispatch", "implement the feature", "--profile", "implementer-fixture"],
+        )
+
+    assert result.exit_code == 1
+    assert "not inside a git repository" in result.output
+    assert "git init" in result.output
+    # The old failure mode: the exception itself reached the runner.
+    from charter.resolution import NotInsideRepositoryError
+
+    assert not isinstance(result.exception, NotInsideRepositoryError)
+
+
+def test_dispatch_non_git_project_json_envelope_is_parseable(tmp_path: Path) -> None:
+    """``--json`` keeps one machine-parseable error envelope on the same
+    failure (#4123)."""
+    project = _setup_project(tmp_path)
+
+    with patch("specify_cli.cli.commands.dispatch.find_repo_root", return_value=project):
+        result = runner.invoke(
+            cli_app,
+            ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--json"],
+        )
+
+    assert result.exit_code == 1
+    error_obj = json.loads(result.output)
+    assert error_obj["error"] == "git_resolution_failed"
+    assert "git init" in error_obj["message"]
+
+
+def test_dispatch_dry_run_non_git_project_exits_1_with_git_init_advice(tmp_path: Path) -> None:
+    """The --dry-run path shares the same escape route and the same
+    actionable exit (#4123)."""
+    project = _setup_project(tmp_path)
+
+    with patch("specify_cli.cli.commands.dispatch.find_repo_root", return_value=project):
+        result = runner.invoke(
+            cli_app,
+            ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--dry-run"],
+        )
+
+    assert result.exit_code == 1
+    assert "not inside a git repository" in result.output
+    assert "git init" in result.output
