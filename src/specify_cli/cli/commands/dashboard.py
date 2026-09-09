@@ -71,13 +71,23 @@ def dashboard(
     # ``blocked_reason`` so the API surface can expose it as a critical
     # banner. Passed advisory warnings use the same persistence channel; a
     # clean success clears stale warning state.
+    from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
+
     from specify_cli.charter_runtime.preflight.dashboard_warning import (
         clear_preflight_warning,
         write_preflight_warning,
     )
     from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
+    from specify_cli.cli.helpers import exit_git_resolution_failure
 
-    preflight_result = run_preflight_for_dashboard(project_root)
+    # #4123: a `spec-kitty init`-ed project that was never `git init`-ed
+    # must get the actionable git-init message here, never a raw
+    # NotInsideRepositoryError traceback (nor the misleading "re-run
+    # init" advice the generic handler below used to print).
+    try:
+        preflight_result = run_preflight_for_dashboard(project_root)
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:
+        exit_git_resolution_failure(exc, project_root)
     warning = (
         preflight_result.blocked_reason
         if not preflight_result.passed
@@ -100,6 +110,8 @@ def dashboard(
         console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1) from exc
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:  # #4123
+        exit_git_resolution_failure(exc, project_root)
     except OSError as exc:  # Port conflict or permission error
         error_msg = str(exc).lower()
         if "address already in use" in error_msg or "port" in error_msg:

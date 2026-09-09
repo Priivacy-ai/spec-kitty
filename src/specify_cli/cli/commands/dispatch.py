@@ -19,6 +19,13 @@ from rich.panel import Panel
 if TYPE_CHECKING:
     from charter.model_routing import RoutingRecommendation
 
+# #4123: charter resolution raises these when the project was `spec-kitty
+# init`-ed but never `git init`-ed; without a command-layer catch they
+# escape as a raw traceback (both the invoke() and dry_run() paths reach
+# ``build_charter_context`` -> ``ensure_charter_bundle_fresh``).
+from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
+
+from specify_cli.cli.helpers import exit_git_resolution_failure
 from specify_cli.invocation.errors import (
     InvocationWriteError,
     ProfileNotFoundError,
@@ -314,6 +321,11 @@ def _dispatch_impl(
             # RouterAmbiguityError(error_code="PROFILE_NOT_FOUND") instead.)
             profile_not_found_routing(e)
             return  # pragma: no cover — handler always raises typer.Exit
+        except (NotInsideRepositoryError, GitCommonDirUnavailableError) as e:
+            # #4123: the real (unmocked) routing/context resolution shells out
+            # to git before any routing decision; on a never-git-init-ed
+            # project this is the first failure the operator sees.
+            exit_git_resolution_failure(e, repo_root, json_output=json_output)
         if json_output:
             typer.echo(json.dumps(payload.to_dry_run_dict()))
             return
@@ -330,6 +342,11 @@ def _dispatch_impl(
     except InvocationWriteError as e:
         typer.echo(json.dumps({"error": "write_failed", "message": str(e)}), err=True)
         raise typer.Exit(1) from e
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError) as e:
+        # #4123: mirror the dry-run-path catch above — same escape route
+        # (build_charter_context -> ensure_charter_bundle_fresh), same
+        # actionable exit, so both surfaces degrade identically.
+        exit_git_resolution_failure(e, repo_root, json_output=json_output)
 
     # FR-001/FR-002: the Op stays OPEN. The caller closes it via
     # `spec-kitty profile-invocation complete` with the real outcome.
