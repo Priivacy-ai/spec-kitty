@@ -122,6 +122,13 @@ jobs:
     name: SonarCloud (non-blocking)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Per-PR reporter ONLY. Both Sonar surfaces resolve the same
+    # sonar.projectKey from sonar-project.properties, and SonarCloud holds one
+    # current analysis per branch -- if this fast-tier-only scan also ran on
+    # pushes to main, it would outpace sonar.yml's nightly (0 3 * * *)
+    # full-coverage aggregation and become main's standing branch analysis,
+    # degrading the new-code baseline every PR is measured against. The
+    # nightly owns main; this job owns the per-PR view (spec-kitty#3993).
     # Reinstated per spec-kitty#3993 (owner ruling 2026-09-06: "There's no
     # discussion on Sonar, it was not meant to be permanently removed. It
     # should be reinstated."). The convergence-era workflow deletion
@@ -134,6 +141,7 @@ jobs:
     # include this job (the reasoned declaration lives in
     # tests/architectural/test_suite_jobs_gate_blocking.py's
     # NON_BLOCKING_ALLOWLIST).
+    if: github.event_name == 'pull_request'
     continue-on-error: true
     steps:
       - name: Check Sonar token availability
@@ -172,9 +180,12 @@ jobs:
         env:
           # Dotted module form (the post-#2975 convention) keeps the coverage
           # XML's filenames project-relative, which SonarCloud resolves. The
-          # output paths match sonar-project.properties (coverage reportPaths
-          # and xunit reportPath); the fast-tier selection itself stays
-          # single-sourced in the Makefile's test-fast target.
+          # coverage report path matches sonar-project.properties'
+          # sonar.python.coverage.reportPaths fallback default; the fast-tier
+          # selection itself stays single-sourced in the Makefile's test-fast
+          # target. No --junitxml: sonar.python.xunit.reportPath is
+          # deliberately NOT set (WP12 T065, sonar-project.properties), so an
+          # xunit report here would be written and read by nobody.
           PYTEST_ADDOPTS: >-
             --cov=specify_cli
             --cov=charter
@@ -184,14 +195,18 @@ jobs:
             --cov=runtime
             --cov=doctrine
             --cov-report=xml:out/reports/coverage/coverage.xml
-            --junitxml=out/reports/xunit-reports/xunit-result.xml
         run: |
-          mkdir -p out/reports/coverage out/reports/xunit-reports
+          mkdir -p out/reports/coverage
           make test-fast
 
+      # The four steps below carry `if: always()` (mirroring sonar.yml) so a
+      # red fast tier still reaches the scan: pytest --cov writes coverage.xml
+      # even on test failure, and this job is continue-on-error, so without
+      # the continuation a skipped upload would be indistinguishable from a
+      # clean run in a green workflow.
       - name: Derive sonar.projectVersion from pyproject.toml
         id: sonar_version
-        if: steps.sonar_token.outputs.enabled == 'true'
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
         run: |
           # scripts/ci/sonar_project_version.py raises loudly and emits
           # NOTHING on stdout on any failure, so an empty capture plus set -e
@@ -209,7 +224,7 @@ jobs:
 
       - name: Resolve SonarCloud branch arguments
         id: sonar_branch
-        if: steps.sonar_token.outputs.enabled == 'true'
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
         env:
           # Env-mapped so a branch name carrying shell metacharacters can
           # never be interpreted as code by this step's script.
@@ -221,12 +236,20 @@ jobs:
           if [ -n "$PR_NUMBER" ]; then
             echo "args=-Dsonar.pullrequest.key=$PR_NUMBER -Dsonar.pullrequest.branch=$PR_HEAD_REF -Dsonar.pullrequest.base=$PR_BASE_REF" >> "$GITHUB_OUTPUT"
           else
+            # Defensive only: the job-level `if:` restricts this job to
+            # pull_request events, where PR_NUMBER is always set. Kept so a
+            # future widening of that trigger cannot silently fall back to
+            # writing a branch analysis on a non-PR ref.
             echo "args=-Dsonar.branch.name=$REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
       - name: SonarCloud Scan
-        if: steps.sonar_token.outputs.enabled == 'true'
-        uses: SonarSource/sonarqube-scan-action@v7
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        # SHA-pinned (DIR-051) to the SAME commit sonar.yml vets for this
+        # action -- both surfaces analyze the same SonarCloud project, so the
+        # pins must not drift apart (enforced by
+        # tests/release/test_sonar_workflow.py).
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         with:
           # projectKey / organization / sources / coverage paths come from
           # sonar-project.properties; only the per-run values are passed here.
@@ -238,8 +261,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: SonarCloud Quality Gate (reported, not required)
-        if: steps.sonar_token.outputs.enabled == 'true'
-        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        # SHA-pinned (DIR-051) to the SAME commit sonar.yml vets for this
+        # action -- see the SonarCloud Scan step above.
+        uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
