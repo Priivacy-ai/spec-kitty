@@ -76,6 +76,7 @@ _MISSION_HELP = "Scope to a single mission (mission_id / mid8 / slug). Omit to p
 _JSON_HELP = "Emit the per-mission cutover result list as structured JSON."
 _RUNTIME_STATE_SUMMARY_TITLE = "backfill-runtime-state summary"
 _LABEL_FLIPPED = "Flipped"
+_LABEL_WOULD_FLIP = "Would flip"
 _LABEL_WOULD_SEED = "Would seed (verify pending)"
 _LABEL_SKIPPED = "Skipped (already migrated)"
 _LABEL_FAILED = "Failed"
@@ -957,7 +958,11 @@ def backfill_runtime_state_cmd(
 
     Per-mission best-effort (research D-03): a mission whose verify fails is left
     un-flipped (``status_phase`` untouched) and named in the summary; other missions
-    still flip. Use ``--dry-run`` to preview would-seed counts without writing.
+    still flip. Use ``--dry-run`` to preview would-seed and would-flip counts
+    without writing. The summary's ``Flipped`` counter names the missions this
+    run actually flipped — a mission with event-log evidence but no legacy
+    frontmatter state to seed still flips and is counted there, never as
+    "Skipped (already migrated)" (#3212).
 
     Exit codes:
 
@@ -1180,22 +1185,36 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
     ``failed`` / per-mission ``mismatches`` are dry-run-aware: under ``--dry-run`` a
     healthy legacy mission (verify not-ok only because seeds are unwritten) is NOT
     failed and emits no mismatch wall. ``verify_ok`` stays the raw verify value.
+
+    The ``flipped`` / ``would_flip`` counts and per-mission fields are the
+    RUN's truth, not the raw :class:`CutoverResult` field values (#3212):
+    ``flipped`` counts missions whose ``status_phase`` this run actually wrote
+    (``flipped and not already_migrated`` — the flip short-circuits with zero
+    bytes on an already-migrated mission), ``would_flip`` counts missions a
+    live run would write, and the missions that wrote/would write nothing are
+    reported explicitly as ``already_migrated``. The raw signals they replace
+    are derivable from what stays in the payload: ``verify_ok`` carries the
+    verify verdict, ``seeded_count`` the seed outcome.
     """
     return {
         "dry_run": dry_run,
         "summary": {
             "total": len(results),
-            "flipped": len([r for r in results if r.flipped]),
+            "flipped": len([r for r in results if r.flipped and not r.already_migrated]),
+            "already_migrated": len([r for r in results if r.already_migrated]),
             "would_seed": len([r for r in results if r.seeded_count > 0]),
-            "would_flip": len([r for r in results if r.would_flip]),
+            "would_flip": len(
+                [r for r in results if r.would_flip and not r.already_migrated]
+            ),
             "seeded": sum(r.seeded_count for r in results),
             "failed": len([r for r in results if _cutover_failed(r, dry_run=dry_run)]),
         },
         "results": [
             {
                 "slug": r.slug,
-                "flipped": r.flipped,
-                "would_flip": r.would_flip,
+                "flipped": r.flipped and not r.already_migrated,
+                "already_migrated": r.already_migrated,
+                "would_flip": r.would_flip and not r.already_migrated,
                 "would_seed": r.seeded_count > 0,
                 "seeded_count": r.seeded_count,
                 "verify_ok": None if r.verify is None else r.verify.ok,
@@ -1215,21 +1234,41 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
 def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
     """Render the rich summary for the backfill-runtime-state command.
 
+    The Flipped / Skipped (already migrated) counters key on the flip outcome,
+    never on ``seeded_count`` (#3212): seeding and flipping are independent —
+    a mission with event-log evidence but no legacy frontmatter state to seed
+    still flips — so ``seeded_count == 0`` cannot tell "flipped with no seeds"
+    from "nothing to do". ``CutoverResult.already_migrated`` is the bit that
+    does: flipped-this-run is ``flipped and not already_migrated`` on a live
+    run, and its dry-run equivalent is ``would_flip and not
+    already_migrated`` (``would_flip`` alone would promise a write the live
+    run's flip short-circuit would never make on an already-migrated mission).
+
     Dry-run reframes the primary count as "would seed (verify pending)" and never
     prints a Failed wall for verify-pending-pre-seed missions — only genuine hard
     aborts (``error`` set) count as failed under ``--dry-run``.
     """
     failed = [r for r in results if _cutover_failed(r, dry_run=dry_run)]
     active = [r for r in results if not _cutover_failed(r, dry_run=dry_run)]
-    migrated = [r for r in active if r.seeded_count > 0]
-    skipped = [r for r in active if r.seeded_count == 0]
     seeded = sum(r.seeded_count for r in results)
 
     prefix = "[dim](dry-run)[/dim] " if dry_run else ""
-    primary_label = _LABEL_WOULD_SEED if dry_run else _LABEL_FLIPPED
     console.print(f"\n{prefix}[bold]{_RUNTIME_STATE_SUMMARY_TITLE}[/bold]")
     console.print(f"  Total missions scanned : {len(results)}")
-    console.print(f"  {primary_label:<27} : {len(migrated)}")
+    if dry_run:
+        would_flip = [r for r in active if r.would_flip and not r.already_migrated]
+        would_seed = [r for r in active if r.seeded_count > 0]
+        skipped = [
+            r
+            for r in active
+            if not (r.would_flip and not r.already_migrated) and r.seeded_count == 0
+        ]
+        console.print(f"  {_LABEL_WOULD_FLIP:<27} : {len(would_flip)}")
+        console.print(f"  {_LABEL_WOULD_SEED:<27} : {len(would_seed)}")
+    else:
+        migrated = [r for r in active if r.flipped and not r.already_migrated]
+        skipped = [r for r in active if not (r.flipped and not r.already_migrated)]
+        console.print(f"  {_LABEL_FLIPPED:<27} : {len(migrated)}")
     console.print(f"  {_LABEL_SKIPPED:<27} : {len(skipped)}")
     console.print(f"  Seed events                 : {seeded}")
     console.print(f"  {_LABEL_FAILED:<27} : {len(failed)}")
@@ -1240,7 +1279,9 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
             console.print(f"  [red]{r.slug}:[/red] {_cutover_detail(r)}")
 
     if dry_run:
-        console.print("\n[dim]Dry run — no seeds written; verify runs post-seed on a live run.[/dim]")
+        console.print(
+            "\n[dim]Dry run — no seeds or flips written; verify runs post-seed on a live run.[/dim]"
+        )
 
 
 def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:

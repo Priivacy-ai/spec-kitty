@@ -108,6 +108,7 @@ def build_mission(
     with_history: bool = True,
     with_transitions: bool = True,
     with_claim: bool = True,
+    with_subtasks: bool = True,
     meta_created_at: str | None = None,
     claimed_at: str = CLAIMED_AT,
     at_encoding: str = "offset",
@@ -120,6 +121,13 @@ def build_mission(
     ``backfill_runtime_state._resolve_anchor``). ``meta_created_at`` optionally
     seeds ``meta.json``'s ``created_at`` (the claim-anchor synthesis fallback
     when ``shell_pid_created_at`` itself is absent/unparseable).
+
+    ``with_subtasks=False`` writes ``tasks.md`` with the WP heading but no
+    checklist — combined with ``with_claim=False`` / ``with_review=False`` /
+    ``with_history=False`` / empty ``assignee`` / ``tracker_refs`` it produces
+    the #3212 shape: a mission with event-log runtime evidence (transitions)
+    but NO seedable legacy frontmatter state, so a cutover run seeds zero
+    events and still flips.
 
     ``at_encoding`` selects the ISO-8601 UTC designator the seeded transition
     ``at`` values carry (see :data:`AT_ENCODINGS`). Real corpora use both, and
@@ -164,8 +172,11 @@ def build_mission(
     fm += ["---", "", "# WP01 body", ""]
     (tasks / "WP01-demo.md").write_text("\n".join(fm), encoding="utf-8")
 
+    subtask_lines = (
+        "- [x] T001 first subtask\n- [ ] T002 second subtask\n" if with_subtasks else ""
+    )
     (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01 Demo\n- [x] T001 first subtask\n- [ ] T002 second subtask\n",
+        f"# Tasks\n\n## WP01 Demo\n{subtask_lines}",
         encoding="utf-8",
     )
 
