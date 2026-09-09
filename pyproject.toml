@@ -341,6 +341,17 @@ module = ["specify_cli.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
+# core.errors defines the StructuredError base every typed error family
+# subclasses; under the ``specify_cli.*`` skip above it resolves as ``Any`` and
+# every subclass declaration reads "Class cannot subclass StructuredError (has
+# type Any)" (e.g. dashboard/server.py's PortUnavailableError and friends).
+# It imports only ``typing``, so following it cannot drag bootstrap errors
+# into a narrow check — same shape as the protection_policy entry (issue
+# #3719), and it must likewise stay after the ``specify_cli.*`` skip.
+module = ["specify_cli.core.errors"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
 # When checking charter.activation.neutrality in isolation, mypy walks into other
 # charter submodules (interview, resolver, context, …) that have pre-existing
 # strict issues being addressed in a separate mission. Skip them so that
