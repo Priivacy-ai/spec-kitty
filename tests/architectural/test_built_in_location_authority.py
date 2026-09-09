@@ -173,7 +173,9 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # is fixed by this mission -- net-shortening the docstring and pulling
         # the (unchanged) `flat / "built-in"` join back up from line 283 to
         # line 269; the org-tier legacy join itself is unchanged.
-        (Path("src/charter/activation/kind_vocabulary.py"), 269),
+        # 2026-09-09: project/org precedence wiring moved the unchanged
+        # caller-owned legacy org-pack join by four lines; same exact site.
+        (Path("src/charter/activation/kind_vocabulary.py"), 273),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import

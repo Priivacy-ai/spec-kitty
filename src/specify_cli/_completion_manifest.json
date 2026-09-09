@@ -421,6 +421,21 @@
      "hidden": false,
      "deprecated": false
     },
+    "new": {
+     "help": "Scaffold a stub doctrine artifact YAML (FR-016).\n\nThe scaffolder pre-fills the canonical schema's required fields with\n``TODO …`` placeholders so the file passes ``doctrine validate`` on\nfirst emit.  Refuses to overwrite an existing file.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "validate": {
+     "help": "Validate project-layer doctrine artifacts against their schemas (FR-017).\n\nWhen *path* is a single file, validates that file.  When *path* is a\ndirectory, walks the tree for ``*.yaml`` files whose filename suffix\nmatches a canonical artifact kind and validates each one.\n\nExit code: ``0`` if every artifact validates; ``1`` if any artifact\nfails.  A per-file error report is printed for failures.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "fetch": {
+     "help": "Fetch org doctrine pack(s) from their configured remote sources.",
+     "hidden": false,
+     "deprecated": false
+    },
     "interview": {
      "help": "Capture charter interview answers for later generation.",
      "hidden": false,
@@ -517,6 +532,23 @@
       },
       "apply": {
        "help": "Apply a built-in charter pack's activation keys into .kittify/config.yaml (#3064).\n\nUser Customization Preservation: by default this is an additive merge —\na ``config.yaml`` key the pack declares is only written when it is\ncurrently absent. An already-present key (even an empty list a user\nexplicitly authored) is left untouched unless ``--force`` is passed, in\nwhich case every key the pack declares is overwritten.\n\nPass ``--compile`` to also chain the existing compile seam\n(``spec-kitty charter generate --no-from-interview``) so\n``.kittify/charter/charter.yaml`` is produced in the same step. That\nflag requires a git repository (inherited from ``generate``); the\ndefault merge (no ``--compile``) stays a pure, git-agnostic additive\nmerge (C-004).",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "org": {
+     "help": "Manage org-layer doctrine pack authoring (init, validate).",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "init": {
+       "help": "Scaffold a minimal org doctrine pack skeleton (FR-006).\n\nCreates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "validate": {
+       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.",
        "hidden": false,
        "deprecated": false
       }

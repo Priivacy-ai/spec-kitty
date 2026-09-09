@@ -228,6 +228,19 @@ def charter_synthesize(  # noqa: C901
         )
 
         if is_fresh_project_synthesize:
+            from specify_cli.cli.commands.charter._fresh_doctrine import _synthesize_project_doctrine
+
+            project_result = _synthesize_project_doctrine(repo_root, dry_run=dry_run)
+            if project_result is not None:
+                if json_output:
+                    print(json.dumps(project_result, indent=2, sort_keys=True))
+                else:
+                    operation = "would preserve" if dry_run else "preserved"
+                    console.print(f"[green]Charter synthesis[/green]: {operation} project doctrine and provenance.")
+                    for warning in project_result["warnings"]:
+                        console.print(f"[yellow]Warning[/yellow]: {warning}")
+                mark_invocation_succeeded()
+                return
             # FR-002 / FR-003 / FR-005: fresh-project seed mode emits the
             # strict four-field envelope. ``written_artifacts`` is built from
             # the already-known minimal seed file list (PROVENANCE.md). No

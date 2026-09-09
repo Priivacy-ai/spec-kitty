@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#4097": {
+      "evidence_ref": "Real fresh synthesis preservation regression passes; 9 owning freshness tests pass.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4098": {
+      "evidence_ref": "28 CLI authoring/parity tests pass; final focused suite 47 pass.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4100": {
+      "evidence_ref": "61 cascade tests pass, all four project reference kinds and unreachable warning covered.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4101": {
+      "evidence_ref": "77 resolver tests, 70 context tests, 20 activation CLI tests pass; final focused 47 pass; first-load actual CLI shows project directive.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4102": {
+      "evidence_ref": "191 glossary tests pass, 3 skipped; seed and bare/URN lookup covered.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4103": {
+      "evidence_ref": "Procedure glossary capture step; regenerated builtin graph; original 652-test verification.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4104": {
+      "evidence_ref": "Existing PR retargeted to release/3.2.6.x, six-issue title/body and original verification plus clean acceptance transcript published. Remote CI remains mandatory post-acceptance delivery gate.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

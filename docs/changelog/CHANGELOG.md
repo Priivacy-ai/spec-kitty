@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-09'
 ---
 # Changelog
 
@@ -12,6 +12,24 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **The `migrate-project-guidance-to-spec-kitty-charter` procedure now captures the source's vocabulary in the glossary** (#4103). A new step between classification and drafting extracts the terms the guidance defines or uses with a specific meaning, triages them through the `glossary-maintenance-workflow` procedure into the narrowest owning scope, and makes the accepted surfaces the vocabulary the drafted artifacts must use verbatim. The exit condition and the parity-comparison step now require every defined term to resolve in the glossary or be excluded with a reason, and the procedure references `procedure:glossary-maintenance-workflow` in the DRG.
+
+### Fixed
+
+- **Resynthesis resolves activated IDs across built-in, org and project layers** (#4101). Project profiles use the same precedence as profile inspection. Eager activation checks synthesis prerequisites and the proposed selection before writing activations; lookup errors identify the charter activation store and searched layers.
+
+- **Agent-profile cascade reaches directly authored project guidance** (#4100). `--cascade all` activates referenced procedures, directives, tactics and styleguides from a clean deactivated state, and missing project references produce explicit warnings.
+
+- **Directly authored project doctrine enters the project graph and provenance during activation** (#4097). Procedures and agent profiles are registered alongside directives, tactics and styleguides without rewriting their source files. Charter status counts all five kinds and the shipped authoring skill documents their paths.
+
+- **Glossary show resolves seed-only terms** (#4102). When no compiled entity page exists, `glossary show` reads the same seed and event store as `glossary list`, rendering each scoped definition without requiring compilation.
+
+- **Charter exposes project authoring and org pack commands** (#4098). `charter new`, `validate`, `org` and `fetch` delegate to the existing doctrine handlers. Deprecation guidance identifies commands that remain under `doctrine`.
 
 ## [3.2.6.1] - 2026-09-08
 

@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mission_slug": "project-doctrine-ingestion-01M21MBY",
+  "mission_id": "01M21MBY0PVGRPXKKC614WWZE1",
+  "mission_branch": "kitty/mission-project-doctrine-ingestion-01M21MBY",
+  "target_branch": "issue-4103-migrate-guidance-glossary-step",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/procedure.graph.yaml",
+        "packs/built-in/procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml",
+        "src/charter/activation/**",
+        "src/charter/offering/drg/**",
+        "src/charter/offering/skills/spec-kitty-charter-doctrine/**",
+        "src/specify_cli/cli/commands/charter/**",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "src/specify_cli/cli/commands/glossary.py",
+        "tests/charter/**",
+        "tests/doctrine/**",
+        "tests/specify_cli/cli/commands/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-08T23:17:35.023853+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e2fe255023f5980c8e23b88ba68c50b7e902475b"
+}

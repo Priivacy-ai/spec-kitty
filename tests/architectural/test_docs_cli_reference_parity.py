@@ -71,19 +71,19 @@ AGENT_REFERENCE_PATH = _REPO_ROOT / "docs" / "api" / "agent-subcommands.md"
 
 def _build_live_app() -> typer.Typer:
     """Mirror the discovery pattern used by ``test_safety_registry_completeness``."""
-    from specify_cli import app
-    from specify_cli.cli.commands import register_commands
+    import specify_cli
 
-    saved = sys.argv[:]
-    sys.argv = ["spec-kitty", "--help"]
-    try:
-        register_commands(app)
-    finally:
-        sys.argv = saved
-    # ``specify_cli.app`` is declared as a bare ``object`` at module level to
-    # avoid a circular import on the public surface.  It is always a Typer
-    # instance at runtime; the cast is safe and removes a long-standing mypy
-    # complaint (pre-existing before this WP).
+    # This reference covers every command, including feature-gated tracker
+    # commands. Build a fresh tree so an earlier sync-off import cannot narrow
+    # the documented surface. Construction performs no live sync operation.
+    with pytest.MonkeyPatch.context() as env:
+        env.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+        saved = sys.argv[:]
+        sys.argv = ["spec-kitty", "--help"]
+        try:
+            app = specify_cli._build_app()
+        finally:
+            sys.argv = saved
     assert isinstance(app, typer.Typer), "specify_cli.app must be a Typer instance"
     return app
 
@@ -150,11 +150,14 @@ def test_reference_paths_are_present_and_generated() -> None:
     )
 
 
+@pytest.mark.parametrize("sync_flag", ["0", "1"])
 def test_visible_paths_match_reference(
-    reference_text: str, agent_reference_text: str
+    reference_text: str, agent_reference_text: str, sync_flag: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Every visible (non-hidden) command path must appear in one of the references."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", sync_flag)
     app = _build_live_app()
+    assert os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] == sync_flag
     entries = walk(app)
     live_visible = {e.path for e in entries if not e.hidden}
 

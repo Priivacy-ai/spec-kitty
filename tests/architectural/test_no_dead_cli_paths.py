@@ -360,6 +360,9 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
     kept_paths = {site.path for site in scan.violations} | {site.path for site in scan.forbidding_mentions}
     excluded = sorted(naive_paths - kept_paths)
     assert excluded == [
+        # Direct-authored artifact registration writes the live project overlay;
+        # this is the same project-tier path, not a retired built-in monolith.
+        "src/charter/activation/project_registration.py",
         "src/charter/activation/synthesizer/manifest.py",
         "src/charter/activation/synthesizer/project_drg.py",
         "src/charter/offering/drg/merge.py",

@@ -147,7 +147,18 @@ The interview fields map to target artifact kinds:
 For each synthesis target, derive: `kind`, `slug` (kebab-case, project-specific),
 `title`, and `body` (the full artifact content as YAML matching the shipped schema).
 
-### Step 4 — Write the doctrine YAML to `.kittify/charter/generated/`
+### Step 4 — Author the project doctrine
+
+All five supported project kinds are `directive`, `tactic`, `styleguide`,
+`procedure`, and `agent_profile`. For direct authoring, run `charter new <kind>
+<id>`, complete the scaffold, and run `charter validate .kittify/doctrine`.
+`charter activate agent-profile <id> --cascade all` registers authored project
+artifacts in the DRG and provenance manifest and activates referenced guidance.
+Project procedures live in `.kittify/doctrine/procedure/`; profiles live in
+`.kittify/doctrine/agent_profiles/`. These source files remain user-owned.
+
+For interview-generated directives, tactics and styleguides, use the generated
+input path below. Procedures and profiles use the direct-authoring path above.
 
 The harness writes artifact inputs here; `spec-kitty charter synthesize`
 validates, stages, and promotes them into the live doctrine tree.

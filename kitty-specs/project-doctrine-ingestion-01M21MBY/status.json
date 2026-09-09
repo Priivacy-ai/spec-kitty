@@ -1,0 +1,58 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M21SM3AF87NMZQ7KFHVQ1WH0",
+  "materialized_at": "2026-09-09T00:38:26.383313+00:00",
+  "mission_number": "",
+  "mission_slug": "project-doctrine-ingestion-01M21MBY",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "codex",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "codex",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M21SM3AF87NMZQ7KFHVQ1WH0",
+      "last_transition_at": "2026-09-09T00:38:26.383313+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Operator requires existing PR branch; owned single_branch checkout based on v3.2.6.1.",
+        "Independently reviewed 21-module bounded gate; temporary config committed for clean-checkout enforcement, restored after invocation. Remote CI remains delivery gate.",
+        "Independent reviewer-renata local review of ac5b3ec561c1e3be3b9247d3181335c63df2f2e2; 159 bounded tests pass with SaaS sync disabled. Remote CI remains delivery gate.",
+        "Independent local review approved: all six requirements, fresh acceptance and CI remediation inspected; combined sync-disabled 21-module suite 159 passed, 2 warnings. Remote CI remains mandatory delivery gate."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260909-005918-jfUKXo/spec-kitty/kitty-specs/project-doctrine-ingestion-01M21MBY/tasks/WP01-project-doctrine-ingestion/review-cycle-1.md",
+        "reference": "review-cycle://project-doctrine-ingestion-01M21MBY/WP01-project-doctrine-ingestion/review-cycle-1.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 79103,
+      "shell_pid_created_at": "1788913635.634374",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}
