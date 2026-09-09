@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import subprocess
 
 import pytest
 
@@ -12,25 +11,12 @@ from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta
 
 pytestmark = pytest.mark.integration
 CHECKOUT = Path(__file__).resolve().parents[2]
-SOURCE_CHECKOUT = (
-    Path(
-        subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=CHECKOUT,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-    )
-    .resolve()
-    .parent
-)
 
 
 @pytest.mark.parametrize("global_state", ["G0", "G1", "G5"])
 @pytest.mark.parametrize("args", [("--dry-run", "--json"), ("--plan-json",)])
 def test_preview_matrix_is_healthy_and_write_free(tmp_path: Path, global_state: str, args: tuple[str, ...]) -> None:
-    case = prepare_case(tmp_path / global_state, SOURCE_CHECKOUT, global_state=global_state)
+    case = prepare_case(tmp_path / global_state, CHECKOUT, global_state=global_state)
     before = case.observe()
     result = case.run("upgrade", *args, "--no-worktrees")
     after = case.observe()
@@ -51,7 +37,7 @@ def test_preview_matrix_is_healthy_and_write_free(tmp_path: Path, global_state: 
     [("3.2.6", 2, "lower"), ("3.2.7rc1", 0, "equal"), ("3.2.8", 0, "higher"), ("not-a-version", 2, "invalid")],
 )
 def test_full_plan_target_contract(tmp_path: Path, target: str, code: int, relation: str) -> None:
-    case = prepare_case(tmp_path / target.replace("/", "_"), SOURCE_CHECKOUT)
+    case = prepare_case(tmp_path / target.replace("/", "_"), CHECKOUT)
     before = case.observe()
     result = case.run("upgrade", "--plan-json", f"--target={target}", "--no-worktrees")
     assert result.returncode == code, result
@@ -63,7 +49,7 @@ def test_full_plan_target_contract(tmp_path: Path, target: str, code: int, relat
 
 
 def test_p6_declared_effects_match_apply_and_repeat_is_quiet(tmp_path: Path) -> None:
-    case = prepare_case(tmp_path / "p6", SOURCE_CHECKOUT, global_state="G0")
+    case = prepare_case(tmp_path / "p6", CHECKOUT, global_state="G0")
     degrade_p6(case)
     before = case.observe()
     plan = case.run("upgrade", "--plan-json", "--no-worktrees")
