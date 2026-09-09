@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 from charter.activation.evidence.code_reader import CodeReadingCollector, CodeReadingError
+from tests._perf_helpers import assert_timing_budget
 
 
 # ---------------------------------------------------------------------------
@@ -163,30 +164,42 @@ def test_nonexistent_root_raises(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.timeout(10)
-def test_performance_1000_files(tmp_path):
-    """collect() must complete in under 5 seconds on a 1 000-file tree."""
-    import time
-
+def _seed_1000_file_tree(tmp_path) -> None:
+    """Spread 1 000 files across 3 levels (≤ max_depth) under *tmp_path*."""
     _make_file(tmp_path / "pyproject.toml", "")
-
-    # Spread 1 000 files across 3 levels (≤ max_depth)
     count = 0
     for level1 in range(10):
         for level2 in range(10):
             for level3 in range(10):
-                f = (
-                    tmp_path
-                    / f"pkg{level1}"
-                    / f"sub{level2}"
-                    / f"mod{level3}.py"
-                )
+                f = tmp_path / f"pkg{level1}" / f"sub{level2}" / f"mod{level3}.py"
                 _make_file(f, f"# {count}")
                 count += 1
 
-    start = time.monotonic()
+
+@pytest.mark.timeout(10)
+def test_collect_detects_primary_language_on_a_1000_file_tree(tmp_path):
+    """Functional companion to test_performance_1000_files (split, #4015):
+    collect() correctly detects the primary language on a large tree. Timing
+    budget lives in the @performance sibling below."""
+    _seed_1000_file_tree(tmp_path)
+
     signals = CodeReadingCollector(tmp_path).collect()
-    elapsed = time.monotonic() - start
 
     assert signals.primary_language == "python"
-    assert elapsed < 5.0, f"collect() took {elapsed:.2f}s, expected < 5s"
+
+
+@pytest.mark.performance
+@pytest.mark.timeout(10)
+def test_performance_1000_files(tmp_path):
+    """NFR timing budget only (split, #4015): collect() must complete in
+    under 5 seconds on a 1 000-file tree. Functional coverage moved to
+    test_collect_detects_primary_language_on_a_1000_file_tree, above."""
+    import time
+
+    _seed_1000_file_tree(tmp_path)
+
+    start = time.monotonic()
+    CodeReadingCollector(tmp_path).collect()
+    elapsed = time.monotonic() - start
+
+    assert_timing_budget(elapsed, 5.0, name="collect_1000_files")

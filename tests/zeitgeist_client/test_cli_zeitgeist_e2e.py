@@ -22,6 +22,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.zeitgeist import app
 from specify_cli.zeitgeist_client import credentials
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = pytest.mark.fast
 
@@ -71,6 +72,30 @@ def test_watch_end_to_end_over_a_real_loopback_double(state_root: Path, managed_
 
 
 def test_watch_quiet_repo_returns_one_json_summary_within_timeout(state_root: Path, managed_stream_double) -> None:
+    """Functional half of the #4015 split; the wall-clock window now lives in
+    ``test_watch_quiet_repo_summary_arrives_within_window`` (nightly-only)."""
+    credentials.store(
+        repo="github.com/acme/spec-kitty",
+        relay_url=managed_stream_double.url,
+        token="team-a-cred",
+        token_kind="shared_team",
+    )
+    result = runner.invoke(
+        app,
+        ["watch", "github.com/acme/spec-kitty", "--timeout", "0.25", "--json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["type"] == "watch_summary"
+    assert payload["frames"] == 0
+    assert payload["reason"] == "timeout"
+
+
+@pytest.mark.performance
+def test_watch_quiet_repo_summary_arrives_within_window(state_root: Path, managed_stream_double) -> None:
+    """Split from ``test_watch_quiet_repo_returns_one_json_summary_within_timeout``
+    (#4015); budget preserved (nightly)."""
     credentials.store(
         repo="github.com/acme/spec-kitty",
         relay_url=managed_stream_double.url,
@@ -78,23 +103,63 @@ def test_watch_quiet_repo_returns_one_json_summary_within_timeout(state_root: Pa
         token_kind="shared_team",
     )
     started = time.monotonic()
-    result = runner.invoke(
+    runner.invoke(
         app,
         ["watch", "github.com/acme/spec-kitty", "--timeout", "0.25", "--json"],
     )
     elapsed = time.monotonic() - started
 
-    assert result.exit_code == 0
-    payload = json.loads(result.stdout)
-    assert payload["type"] == "watch_summary"
-    assert payload["frames"] == 0
-    assert payload["reason"] == "timeout"
     assert 0.20 <= elapsed < 0.75
 
 
 def test_watch_connection_that_never_establishes_http_fails_within_timeout(
     state_root: Path,
 ) -> None:
+    """Functional half of the #4015 split; the wall-clock ceiling now lives in
+    ``test_watch_connection_that_never_establishes_fails_within_window``
+    (nightly-only)."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    stop = threading.Event()
+
+    def _accept_without_reply() -> None:
+        connection, _ = listener.accept()
+        try:
+            stop.wait(2)
+        finally:
+            connection.close()
+
+    server = threading.Thread(target=_accept_without_reply, daemon=True)
+    server.start()
+    port = listener.getsockname()[1]
+    credentials.store(
+        repo="github.com/acme/spec-kitty",
+        relay_url=f"http://127.0.0.1:{port}",
+        token="team-a-cred",
+        token_kind="shared_team",
+    )
+    try:
+        result = runner.invoke(
+            app,
+            ["watch", "github.com/acme/spec-kitty", "--timeout", "0.25", "--json"],
+        )
+    finally:
+        stop.set()
+        listener.close()
+        server.join(timeout=1)
+
+    assert result.exit_code == 1
+    assert "could not reach the relay" in result.stdout
+    assert "timed out" in result.stdout
+
+
+@pytest.mark.performance
+def test_watch_connection_that_never_establishes_fails_within_window(
+    state_root: Path,
+) -> None:
+    """Split from ``test_watch_connection_that_never_establishes_http_fails_within_timeout``
+    (#4015); budget preserved (nightly)."""
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.bind(("127.0.0.1", 0))
     listener.listen()
@@ -118,7 +183,7 @@ def test_watch_connection_that_never_establishes_http_fails_within_timeout(
     )
     started = time.monotonic()
     try:
-        result = runner.invoke(
+        runner.invoke(
             app,
             ["watch", "github.com/acme/spec-kitty", "--timeout", "0.25", "--json"],
         )
@@ -126,11 +191,9 @@ def test_watch_connection_that_never_establishes_http_fails_within_timeout(
         stop.set()
         listener.close()
         server.join(timeout=1)
+    elapsed = time.monotonic() - started
 
-    assert result.exit_code == 1
-    assert "could not reach the relay" in result.stdout
-    assert "timed out" in result.stdout
-    assert time.monotonic() - started < 0.75
+    assert_timing_budget(elapsed, 0.75, name="watch_connection_never_establishes")
 
 
 @pytest.mark.parametrize(

@@ -11,6 +11,8 @@ from typing import Literal
 import pytest
 from typer.testing import CliRunner
 
+from tests._perf_helpers import assert_timing_budget
+
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
 from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops
@@ -367,6 +369,24 @@ def _generate_synthetic_ops(ops_dir: Path, count: int, started_at: str) -> None:
         (ops_dir / f"{invocation_id}.jsonl").write_text(line + "\n", encoding="utf-8")
 
 
+def test_sweep_enumeration_sweeps_1k_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The 1k-file sweep sweeps every synthetic stale Op."""
+    ops_dir = _ops_dir(tmp_path)
+    _generate_synthetic_ops(ops_dir, 1000, _iso(_NOW - timedelta(hours=48)))
+    monkeypatch.setattr(
+        ProfileInvocationExecutor,
+        "complete_invocation",
+        lambda self, invocation_id, *a, **k: None,
+    )
+
+    report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert report.swept == 1000
+
+
+@pytest.mark.performance
 def test_sweep_enumeration_perf_1k_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -389,14 +409,31 @@ def test_sweep_enumeration_perf_1k_files(
     )
 
     start = time.perf_counter()
-    report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+    close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
     elapsed = time.perf_counter() - start
 
-    assert report.swept == 1000
-    assert elapsed < 5.0, f"1k-file sweep took {elapsed:.3f}s (budget 5.0s)"
+    assert_timing_budget(elapsed, 5.0, name="1k-file sweep")
+
+
+def test_sweep_10k_files_sweeps_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """10,000 Op files are all swept (close mocked)."""
+    ops_dir = _ops_dir(tmp_path)
+    _generate_synthetic_ops(ops_dir, 10_000, _iso(_NOW - timedelta(hours=48)))
+    monkeypatch.setattr(
+        ProfileInvocationExecutor,
+        "complete_invocation",
+        lambda self, invocation_id, *a, **k: None,
+    )
+
+    report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert report.swept == 10_000
 
 
 @pytest.mark.slow
+@pytest.mark.performance
 def test_sweep_nfr_002_10k_files_under_5s(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -410,8 +447,7 @@ def test_sweep_nfr_002_10k_files_under_5s(
     )
 
     start = time.perf_counter()
-    report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+    close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
     elapsed = time.perf_counter() - start
 
-    assert report.swept == 10_000
-    assert elapsed < 5.0, f"10k-file sweep took {elapsed:.3f}s (NFR-002 budget 5s)"
+    assert_timing_budget(elapsed, 5.0, name="10k-file sweep (NFR-002)")

@@ -25,6 +25,7 @@ import pytest
 
 from specify_cli.audit import AuditOptions, RepoAuditReport, run_audit
 from specify_cli.audit.serializer import build_report_json
+from tests._perf_helpers import assert_timing_budget
 from tests._support.eacces import mode_bits_enforced
 
 # ---------------------------------------------------------------------------
@@ -294,8 +295,8 @@ def test_repo_summary_counts(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_performance_204_missions(tmp_path: Path) -> None:
-    """204 minimal missions complete in under 30 seconds (NFR-003)."""
+def _build_204_mission_specs_dir(tmp_path: Path) -> Path:
+    """Build 204 minimal missions under ``tmp_path/kitty-specs`` (shared #4015 split fixture)."""
     specs_dir = tmp_path / "kitty-specs"
     specs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -322,16 +323,32 @@ def test_performance_204_missions(tmp_path: Path) -> None:
         }
         (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
+    return specs_dir
+
+
+def test_scan_204_missions(tmp_path: Path) -> None:
+    """204 minimal missions are all scanned (functional, #4015 split)."""
+    specs_dir = _build_204_mission_specs_dir(tmp_path)
     opts = AuditOptions(repo_root=tmp_path, scan_root=specs_dir, fail_on=None)
 
-    start = time.perf_counter()
     report = run_audit(opts)
-    elapsed = time.perf_counter() - start
 
     assert len(report.missions) == 204, (  # golden-count: cardinality-is-contract
         f"Expected 204 missions, got {len(report.missions)}"
     )
-    assert elapsed < 30.0, f"204-mission audit took {elapsed:.2f}s, expected < 30s"
+
+
+@pytest.mark.performance
+def test_performance_204_missions(tmp_path: Path) -> None:
+    """204 minimal missions complete in under 30 seconds (NFR-003, #4015 split)."""
+    specs_dir = _build_204_mission_specs_dir(tmp_path)
+    opts = AuditOptions(repo_root=tmp_path, scan_root=specs_dir, fail_on=None)
+
+    start = time.perf_counter()
+    run_audit(opts)
+    elapsed = time.perf_counter() - start
+
+    assert_timing_budget(elapsed, 30.0, name="elapsed")
 
 
 # ---------------------------------------------------------------------------

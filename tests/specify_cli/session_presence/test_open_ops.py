@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._perf_helpers import assert_timing_budget
+
 from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.session_presence.open_ops import (
     render_open_ops_reminder,
@@ -101,16 +103,24 @@ class TestRenderOpenOpsSection:
         section = render_open_ops_section(tmp_path, now=_NOW)
         assert "01KTBROKEN0000000000000001 — close:" in section
 
+    def test_1k_open_ops_renders_the_count(self, tmp_path: Path) -> None:
+        """1,000 Op files render with the correct open-Ops count."""
+        ops_dir = tmp_path / EVENTS_DIR
+        for i in range(1000):
+            _write_op(ops_dir, f"01KTPERF{i:018d}")
+        section = render_open_ops_section(tmp_path, now=_NOW)
+        assert "⚠ Open Ops (1000)" in section
+
+    @pytest.mark.performance
     def test_perf_1k_open_ops_under_half_second(self, tmp_path: Path) -> None:
         """NFR pro-rata budget: 1,000 Op files rendered in < 0.5 s, no git calls."""
         ops_dir = tmp_path / EVENTS_DIR
         for i in range(1000):
             _write_op(ops_dir, f"01KTPERF{i:018d}")
         start = time.perf_counter()
-        section = render_open_ops_section(tmp_path, now=_NOW)
+        render_open_ops_section(tmp_path, now=_NOW)
         elapsed = time.perf_counter() - start
-        assert "⚠ Open Ops (1000)" in section
-        assert elapsed < 0.5, f"1k-file render took {elapsed:.3f}s (budget 0.5s)"
+        assert_timing_budget(elapsed, 0.5, name="1k-file open-Ops render")
 
 
 class TestRenderOpenOpsReminder:

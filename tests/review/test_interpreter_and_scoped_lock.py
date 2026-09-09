@@ -28,6 +28,7 @@ import pytest
 
 from specify_cli.review import _interpreter, pre_review_gate
 from specify_cli.review._interpreter import resolve_pytest_command
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = [pytest.mark.integration]
 
@@ -186,15 +187,16 @@ def test_scoped_run_lock_serializes_two_overlapping_holders() -> None:
     assert events[1] == f"{first_tag}-exit", f"interleaved holders: {events}"
 
 
-@pytest.mark.fast
-def test_lock_acquire_timeout_falls_back_without_charging_run_timeout(
+def _run_lock_acquire_timeout_scenario(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-) -> None:
-    """K-9: under permanent lock contention the acquire loop gives up after
-    its OWN short bound and the run proceeds anyway — the process observation
-    ``timeout`` budget (and the wall-clock spent) must reflect only the SHORT
-    lock-acquire bound, never the (much larger) run timeout."""
+) -> tuple[object, list[float], float]:
+    """Shared K-9 scenario: permanent lock contention, then a scoped run.
+
+    Returns ``(result, captured_timeouts, elapsed)`` so both the functional
+    and the (nightly-only) timing-budget test can share one setup without
+    duplicating the mocking (#4015 split).
+    """
     monkeypatch.setattr(pre_review_gate, "_LOCK_ACQUIRE_TIMEOUT_DEFAULT", 0.05)
 
     import fcntl
@@ -238,6 +240,39 @@ def test_lock_acquire_timeout_falls_back_without_charging_run_timeout(
     )
     elapsed = time.monotonic() - start
 
+    return result, captured_timeouts, elapsed
+
+
+@pytest.mark.fast
+def test_lock_acquire_timeout_falls_back_without_charging_run_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """K-9: under permanent lock contention the acquire loop gives up after
+    its OWN short bound and the run proceeds anyway — the process observation
+    ``timeout`` budget must reflect only the full run budget, never the
+    (much smaller) lock-acquire bound.
+
+    Functional half of the #4015 split; the wall-clock ceiling now lives in
+    ``test_lock_acquire_timeout_stays_bounded`` (nightly-only).
+    """
+    result, captured_timeouts, _elapsed = _run_lock_acquire_timeout_scenario(monkeypatch, tmp_path)
+
     assert result.ran is True
     assert captured_timeouts == [300]  # process observation receives the full run budget
-    assert elapsed < 2.0  # bounded by the short lock-acquire timeout, not the 300s run timeout
+
+
+@pytest.mark.performance
+def test_lock_acquire_timeout_stays_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """K-9 (nightly): wall-clock spent stays bounded by the SHORT lock-acquire
+    timeout, never the (much larger) run timeout.
+
+    Split from ``test_lock_acquire_timeout_falls_back_without_charging_run_timeout``
+    (#4015); budget preserved.
+    """
+    _result, _captured_timeouts, elapsed = _run_lock_acquire_timeout_scenario(monkeypatch, tmp_path)
+
+    assert_timing_budget(elapsed, 2.0, name="lock_acquire_timeout_fallback")

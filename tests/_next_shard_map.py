@@ -167,6 +167,12 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     "tests/runtime/test_show_origin_unit.py",
     "tests/runtime/test_tmp_prompt_namespace.py",
     "tests/runtime/test_tool_checker.py",
+    # 2026-09-09 (mission ci-suite-stability-test-isolation-01M22MM5, WP05
+    # T014b): runtime concurrency/re-assess/generic-scope tests for the
+    # #4017 fix. shard_3 was lightest at registration time.
+    "tests/runtime/test_ensure_runtime_concurrency.py",
+    "tests/runtime/test_reassess_under_lock.py",
+    "tests/runtime/test_generic_asset_scope.py",
 )
 
 # ``relpath -> shard`` for the whole ``next`` group (all 3 roots are whole-file

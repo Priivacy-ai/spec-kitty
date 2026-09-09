@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import pytest
 
 from tests._factories import provision_test_charter
+from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
@@ -724,20 +725,30 @@ class TestTasksMarkdownParsing:
 
         assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": ["FR-001", "NFR-002"]}
 
+    def test_parse_requirement_refs_on_adversarial_input(self) -> None:
+        """Functional half of the #4015 split: parses correctly under adversarial input."""
+        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+        filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
+        tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
+
+        refs = _parse_requirement_refs_from_tasks_md(tasks_md)
+
+        assert refs == {"WP01": ["FR-001", "FR-002", "C-003"]}
+
+    @pytest.mark.performance
     def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
+        """#4015 split: regex/backtracking budget on adversarial tasks.md input."""
         from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
         filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
         tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
 
         start = time.perf_counter()
-        refs = _parse_requirement_refs_from_tasks_md(tasks_md)
+        _parse_requirement_refs_from_tasks_md(tasks_md)
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 0.2, (
-            f"_parse_requirement_refs_from_tasks_md took {elapsed * 1000:.1f} ms on adversarial tasks.md input; possible regex/backtracking regression."
-        )
-        assert refs == {"WP01": ["FR-001", "FR-002", "C-003"]}
+        assert_timing_budget(elapsed, 0.2, name="elapsed")
 
 
 # ---------------------------------------------------------------------------

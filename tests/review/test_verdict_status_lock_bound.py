@@ -56,6 +56,7 @@ from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
 from specify_cli.review.cycle import CreatedRejectedReviewCycle, create_rejected_review_cycle
 from specify_cli.review.verdict_commit_queue import DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
 from specify_cli.status import FeatureStatusLockTimeoutError, feature_status_lock
+from tests._perf_helpers import assert_timing_budget
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeCoordCommitRouter,
     FakeFsReader,
@@ -204,11 +205,9 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
             else:
                 outcome.append(None)
 
-        started = time.perf_counter()
         driver = threading.Thread(target=_drive, daemon=True)
         driver.start()
         driver.join(_JOIN_CEILING_SECONDS)
-        elapsed = time.perf_counter() - started
 
         assert not driver.is_alive(), (
             "the verdict-save call did not return within "
@@ -217,7 +216,6 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
             "the SAME budget the checkout-wide verdict-save queue already uses, "
             "never an unbounded hang"
         )
-        assert elapsed < _JOIN_CEILING_SECONDS
 
         assert len(outcome) == 1  # golden-count: cardinality-is-contract
         [captured] = outcome
@@ -227,6 +225,76 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
         assert signal.outcome.classification == "busy"
         assert signal.outcome.reason == "feature_status_lock_busy"
         assert isinstance(captured.__cause__, FeatureStatusLockTimeoutError)
+    finally:
+        release.set()
+        holder.join(timeout=10)
+        if holder.is_alive():
+            holder.terminate()
+            holder.join(timeout=10)
+        parent.close()
+
+
+@pytest.mark.performance
+def test_wedged_status_lock_busy_failure_stays_within_the_join_ceiling(tmp_path: Path) -> None:
+    """The wedged-status-lock busy failure returns within ``_JOIN_CEILING_SECONDS`` (nightly).
+
+    Split from ``test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang``
+    (#4015); budget preserved.
+    """
+    repo = tmp_path
+    _build_fixture(repo)
+    feedback = repo / "feedback.md"
+    feedback.write_text("**Issue**: exercising the wedged status lock.\n", encoding="utf-8")
+
+    def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
+        return create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug=_MISSION,
+            wp_id=_WP_ID,
+            wp_slug=_WP_SLUG,
+            feedback_source=feedback,
+            reviewer_agent="reviewer-lock-test",
+            commit_router=commit_router,
+        )
+
+    context = multiprocessing.get_context("spawn")
+    parent, child = context.Pipe(duplex=False)
+    release = context.Event()
+    holder = context.Process(
+        target=_hold_status_lock_until_released,
+        args=(str(repo), _MISSION, child, release),
+    )
+    holder.start()
+    child.close()
+    try:
+        parent.poll(10)
+        parent.recv()
+
+        ports = TasksPorts(
+            fs=FakeFsReader(default_planning_dir=repo / "kitty-specs" / _MISSION),
+            coord=FakeCoordCommitRouter(write_dir=repo / "kitty-specs" / _MISSION),
+            git=FakeGitOps(),
+            render=FakeRender(),
+        )
+        state = _build_state(repo)
+
+        outcome: list[BaseException | None] = []
+
+        def _drive() -> None:
+            try:
+                _persist_review_cycle_with_queue(state, ports, _create)
+            except BaseException as exc:  # noqa: BLE001 - captured for assertion, not swallowed
+                outcome.append(exc)
+            else:
+                outcome.append(None)
+
+        started = time.perf_counter()
+        driver = threading.Thread(target=_drive, daemon=True)
+        driver.start()
+        driver.join(_JOIN_CEILING_SECONDS)
+        elapsed = time.perf_counter() - started
+
+        assert_timing_budget(elapsed, _JOIN_CEILING_SECONDS, name="wedged_status_lock_busy_failure")
     finally:
         release.set()
         holder.join(timeout=10)
