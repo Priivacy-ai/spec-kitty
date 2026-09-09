@@ -898,6 +898,111 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str |
 
 
 
+def preflight_commit(
+    *,
+    repo_root: Path,
+    worktree_root: Path,
+    target: CommitTarget,
+    message: str,
+    paths: tuple[Path, ...],
+    capability: GuardCapability = GuardCapability.STANDARD,
+) -> list[str]:
+    """Validate a commit destination and paths without mutating git or files.
+
+    Creation can use the same policy before writing its scaffold. The actual
+    commit repeats this validation so a preflight never grants stale authority.
+    Return the paths normalized for staging in the selected worktree.
+    """
+    destination_ref = target.ref
+    # 1. Shape: short branch name only.
+    if destination_ref.startswith("refs/heads/"):
+        raise SafeCommitDestinationRefShape(destination_ref=destination_ref)
+
+    # 2. Non-empty paths.
+    if not paths:
+        raise SafeCommitEmptyChangeset(destination_ref=destination_ref)
+
+    # 3. worktree_root is a worktree of repo_root.
+    if not _is_worktree_of(repo_root, worktree_root):
+        raise SafeCommitNotAWorktree(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+
+    # 4. HEAD assertion.
+    observed_head = _read_worktree_head(worktree_root)
+    if observed_head is None or observed_head != destination_ref:
+        raise SafeCommitHeadMismatch(
+            destination_ref=destination_ref,
+            observed_head=observed_head if observed_head is not None else "<detached>",
+            worktree_root=worktree_root,
+        )
+
+    # 5. destination_ref exists.
+    if not _destination_ref_exists(worktree_root, destination_ref):
+        raise SafeCommitDestinationNotFound(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+
+    resolved_worktree_root = worktree_root.resolve()
+    normalized_files: list[str] = []
+    for path in paths:
+        candidate: Path = path
+        if candidate.is_absolute():
+            # If the path is not under worktree_root, pass as-is.
+            with contextlib.suppress(ValueError):
+                candidate = candidate.resolve().relative_to(resolved_worktree_root)
+        normalized_files.append(str(candidate))
+
+    # 6a. Path policy: reject any path under .worktrees/ before staging.
+    # FR-005 / Issue #1887: .worktrees/ paths must never be staged from the
+    # primary repo root. Fires before any index mutation so the index is clean.
+    for _norm_path in normalized_files:
+        if Path(_norm_path).parts and Path(_norm_path).parts[0] == WORKTREES_DIR:
+            raise SafeCommitPathPolicyError(
+                offending_path=_norm_path,
+                worktree_root=worktree_root,
+            )
+
+    # 6. Protected-branch check. The protection DECISION is made SOLELY by the
+    #    SK policy module (``commit_guard.evaluate``) — the ONE decision
+    #    (C-GUARD-1). The legacy privilege channels (the message-prefix list,
+    #    the two ``allow_*`` bools, the op-record file-content exception, the
+    #    ``SPEC_KITTY_TEST_MODE`` env hatch) are deleted (WP03 / FR-008; the
+    #    last surviving test-mode pre-check reads went with the PR #1850
+    #    guard-bypass fix): the asserted-at-the-surface ``capability`` is now
+    #    the only authorization, never derived from message text, file
+    #    content, or environment.
+    #
+    #    The ONE retained operator escape hatch
+    #    (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` — solo-fork operators
+    #    who own ``main``) is now folded into ``ProtectionPolicy.is_protected``
+    #    (WP01 / T002): the policy is resolved at this boundary (FR-007) and the
+    #    hatch + set membership are decided together.  ``evaluate`` itself never
+    #    reads the environment — agent privilege stays capability-asserted (FR-008).
+    #
+    #    Both repo_root and worktree_root are checked (the worktree may be on a
+    #    different branch when run from inside a lane worktree).  Each resolves
+    #    its own ProtectionPolicy so the correct config is read for each root.
+    _policy_repo = ProtectionPolicy.resolve(repo_root)
+    _policy_wt = ProtectionPolicy.resolve(worktree_root)
+    is_protected = _policy_repo.is_protected(destination_ref) or _policy_wt.is_protected(destination_ref)
+    guard_verdict: GuardVerdict = evaluate_commit_guard(
+        target,
+        ProtectionState(is_protected=is_protected),
+        capability,
+    )
+    if not guard_verdict.allowed:
+        raise ProtectedBranchRefused(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            commit_message=message,
+        )
+
+    return normalized_files
+
+
 def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms readability
     *,
     repo_root: Path,
@@ -1000,91 +1105,14 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         target = CommitTarget(ref=destination_ref)
     destination_ref = target.ref
 
-    # 1. Shape: short branch name only.
-    if destination_ref.startswith("refs/heads/"):
-        raise SafeCommitDestinationRefShape(destination_ref=destination_ref)
-
-    # 2. Non-empty paths.
-    if not paths:
-        raise SafeCommitEmptyChangeset(destination_ref=destination_ref)
-
-    # 3. worktree_root is a worktree of repo_root.
-    if not _is_worktree_of(repo_root, worktree_root):
-        raise SafeCommitNotAWorktree(
-            destination_ref=destination_ref,
-            worktree_root=worktree_root,
-        )
-
-    # 4. HEAD assertion.
-    observed_head = _read_worktree_head(worktree_root)
-    if observed_head is None or observed_head != destination_ref:
-        raise SafeCommitHeadMismatch(
-            destination_ref=destination_ref,
-            observed_head=observed_head if observed_head is not None else "<detached>",
-            worktree_root=worktree_root,
-        )
-
-    # 5. destination_ref exists.
-    if not _destination_ref_exists(worktree_root, destination_ref):
-        raise SafeCommitDestinationNotFound(
-            destination_ref=destination_ref,
-            worktree_root=worktree_root,
-        )
-
-    resolved_worktree_root = worktree_root.resolve()
-    normalized_files: list[str] = []
-    for path in paths:
-        candidate: Path = path
-        if candidate.is_absolute():
-            # If the path is not under worktree_root, pass as-is.
-            with contextlib.suppress(ValueError):
-                candidate = candidate.resolve().relative_to(resolved_worktree_root)
-        normalized_files.append(str(candidate))
-
-    # 6a. Path policy: reject any path under .worktrees/ before staging.
-    # FR-005 / Issue #1887: .worktrees/ paths must never be staged from the
-    # primary repo root. Fires before any index mutation so the index is clean.
-    for _norm_path in normalized_files:
-        if Path(_norm_path).parts and Path(_norm_path).parts[0] == WORKTREES_DIR:
-            raise SafeCommitPathPolicyError(
-                offending_path=_norm_path,
-                worktree_root=worktree_root,
-            )
-
-    # 6. Protected-branch check. The protection DECISION is made SOLELY by the
-    #    SK policy module (``commit_guard.evaluate``) — the ONE decision
-    #    (C-GUARD-1). The legacy privilege channels (the message-prefix list,
-    #    the two ``allow_*`` bools, the op-record file-content exception, the
-    #    ``SPEC_KITTY_TEST_MODE`` env hatch) are deleted (WP03 / FR-008; the
-    #    last surviving test-mode pre-check reads went with the PR #1850
-    #    guard-bypass fix): the asserted-at-the-surface ``capability`` is now
-    #    the only authorization, never derived from message text, file
-    #    content, or environment.
-    #
-    #    The ONE retained operator escape hatch
-    #    (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` — solo-fork operators
-    #    who own ``main``) is now folded into ``ProtectionPolicy.is_protected``
-    #    (WP01 / T002): the policy is resolved at this boundary (FR-007) and the
-    #    hatch + set membership are decided together.  ``evaluate`` itself never
-    #    reads the environment — agent privilege stays capability-asserted (FR-008).
-    #
-    #    Both repo_root and worktree_root are checked (the worktree may be on a
-    #    different branch when run from inside a lane worktree).  Each resolves
-    #    its own ProtectionPolicy so the correct config is read for each root.
-    _policy_repo = ProtectionPolicy.resolve(repo_root)
-    _policy_wt = ProtectionPolicy.resolve(worktree_root)
-    is_protected = _policy_repo.is_protected(destination_ref) or _policy_wt.is_protected(destination_ref)
-    guard_verdict: GuardVerdict = evaluate_commit_guard(
-        target,
-        ProtectionState(is_protected=is_protected),
-        capability,
+    normalized_files = preflight_commit(
+        repo_root=repo_root,
+        worktree_root=worktree_root,
+        target=target,
+        message=message,
+        paths=paths,
+        capability=capability,
     )
-    if not guard_verdict.allowed:
-        raise ProtectedBranchRefused(
-            destination_ref=destination_ref,
-            worktree_root=worktree_root,
-            commit_message=message,
-        )
 
     # 7-9. Stage + backstop + commit, with prior-staging preservation.
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
