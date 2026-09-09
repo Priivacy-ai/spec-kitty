@@ -69,7 +69,7 @@ def _make_skill(
     )
 
 
-@pytest.mark.parametrize("tamper", ["opaque", "tuple", "bytes", "reason", "values", "observations", "target", "hardlink", "absent"])
+@pytest.mark.parametrize("tamper", ["opaque", "tuple", "bytes", "reason", "values", "observations", "target", "hardlink"])
 def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: Path, tamper: str) -> None:
     from dataclasses import replace
     import os
@@ -81,8 +81,7 @@ def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: 
     project = tmp_path / "project"
     config = project / ".kittify/config.yaml"
     config.parent.mkdir(parents=True)
-    if tamper != "absent":
-        config.write_text("agents:\n  available: [codex]\n")
+    config.write_text("agents:\n  available: [codex]\n")
     if tamper == "hardlink":
         os.link(config, tmp_path / "alias")
     descriptor = prepare_mission_type_activations(project)

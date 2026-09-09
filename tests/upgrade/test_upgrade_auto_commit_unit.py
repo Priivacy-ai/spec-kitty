@@ -687,6 +687,9 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
 
 
 def _run_upgrade(**kwargs):
+    kwargs.setdefault("plan_json", False)
+    kwargs.setdefault("yes", False)
+    kwargs.setdefault("no_nag", False)
     kwargs.setdefault("agent_check", False)
     kwargs.setdefault("agent_choice", None)
     kwargs.setdefault("agent_latest", None)

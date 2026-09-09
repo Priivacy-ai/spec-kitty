@@ -9,10 +9,10 @@ testing cut:
 3. Version progression is monotonic relative to existing git tags and, in tag
    mode, matches the release tag that triggered the workflow.
 
-Both validation modes accept stable versions (``X.Y.Z``) and prerelease
-versions such as ``X.Y.ZaN``. Tagged prereleases publish through the same
-release workflow, but GitHub marks them as prereleases and installers must opt
-into them explicitly.
+Both validation modes accept stable versions (``X.Y.Z`` or ``X.Y.Z.N``) and
+prerelease versions such as ``3.2.7rc1`` or ``3.2.6.1rc1``. Tagged prereleases
+publish through the same release workflow, but GitHub marks them as prereleases
+and installers must opt into them explicitly.
 
 It is intentionally dependency-light so it can run both locally and in CI
 without additional bootstrapping beyond Python 3.11.
@@ -38,10 +38,11 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for older interpreter
 
 RELEASE_VERSION_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"(?:\.(?P<hotfix>\d+))?"
     r"(?:(?P<stage>a|b|rc|alpha|beta)(?P<stage_num>\d*))?$",
     re.IGNORECASE,
 )
-_CHANGELOG_VERSION_SUB = r"\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?"
+_CHANGELOG_VERSION_SUB = r"\d+\.\d+\.\d+(?:\.\d+)?(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?"
 # A changelog heading may carry a version, an ``Unreleased`` marker, or both, in
 # any of these shapes (with or without the surrounding ``[ ]``):
 #   ## [3.2.3]                  -> finalized section for 3.2.3
@@ -92,11 +93,7 @@ def parse_changelog_heading(line: str) -> ChangelogHeading | None:
     if not match:
         return None
     version = match.group("version_a") or match.group("version_b")
-    unreleased = bool(
-        match.group("unreleased_a")
-        or match.group("unreleased_b")
-        or match.group("unreleased_c")
-    )
+    unreleased = bool(match.group("unreleased_a") or match.group("unreleased_b") or match.group("unreleased_c"))
     return ChangelogHeading(version=version, unreleased=unreleased)
 
 
@@ -145,9 +142,7 @@ class ReleaseValidatorError(Exception):
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Validate release readiness for Spec Kitty release automation"
-    )
+    parser = argparse.ArgumentParser(description="Validate release readiness for Spec Kitty release automation")
     parser.add_argument(
         "--mode",
         choices=("branch", "tag"),
@@ -158,8 +153,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--tag",
-        help="Explicit tag (e.g., v1.2.3 or v1.3.0a0). Defaults to the detected "
-        "GITHUB_REF or GITHUB_REF_NAME in tag mode.",
+        help="Explicit tag (e.g., v1.2.3 or v1.3.0a0). Defaults to the detected GITHUB_REF or GITHUB_REF_NAME in tag mode.",
     )
     parser.add_argument(
         "--pyproject",
@@ -179,16 +173,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--consistency-only",
         action="store_true",
-        help=(
-            "In branch mode, validate release-version source consistency without "
-            "requiring the project version to advance beyond the latest tag."
-        ),
+        help=("In branch mode, validate release-version source consistency without requiring the project version to advance beyond the latest tag."),
     )
     parser.add_argument(
         "--tag-pattern",
         default="v*.*.*",
-        help="Git tag glob pattern used for version progression checks "
-        "(default: %(default)s).",
+        help="Git tag glob pattern used for version progression checks (default: %(default)s).",
     )
     parser.add_argument(
         "--fail-on-missing-tag",
@@ -219,23 +209,18 @@ def is_prerelease_version(value: str) -> bool:
 
 def load_pyproject_version(path: Path) -> str:
     if not path.exists():
-        raise ReleaseValidatorError(
-            f"pyproject.toml not found at {path} – ensure you run from repository root."
-        )
+        raise ReleaseValidatorError(f"pyproject.toml not found at {path} – ensure you run from repository root.")
     with path.open("rb") as fp:
         data = tomllib.load(fp)
     try:
         version = data["project"]["version"]
     except KeyError as exc:  # pragma: no cover - defensive; unlikely if file well-formed
-        raise ReleaseValidatorError(
-            "Unable to locate [project].version in pyproject.toml."
-        ) from exc
+        raise ReleaseValidatorError("Unable to locate [project].version in pyproject.toml.") from exc
     if not isinstance(version, str):
         raise ReleaseValidatorError("pyproject version must be a string.")
     if not RELEASE_VERSION_RE.match(version):
         raise ReleaseValidatorError(
-            f"Version '{version}' is not a supported release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+            f"Version '{version}' is not a supported release version (expected X.Y.Z or X.Y.Z.N, optionally followed by a/b/rc/alpha/beta and a number)."
         )
     return version
 
@@ -245,21 +230,14 @@ def load_metadata_yaml_version(repo_root: Path) -> str:
     try:
         import yaml
     except ModuleNotFoundError as exc:  # pragma: no cover - pyyaml required
-        raise ReleaseValidatorError(
-            "PyYAML is required to load .kittify/metadata.yaml. "
-            "Run: pip install pyyaml"
-        ) from exc
+        raise ReleaseValidatorError("PyYAML is required to load .kittify/metadata.yaml. Run: pip install pyyaml") from exc
     metadata_path = repo_root / ".kittify" / "metadata.yaml"
     if not metadata_path.exists():
-        raise ReleaseValidatorError(
-            f".kittify/metadata.yaml not found at {metadata_path}"
-        )
+        raise ReleaseValidatorError(f".kittify/metadata.yaml not found at {metadata_path}")
     data = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
     version = data.get("spec_kitty", {}).get("version")
     if not version:
-        raise ReleaseValidatorError(
-            ".kittify/metadata.yaml missing spec_kitty.version"
-        )
+        raise ReleaseValidatorError(".kittify/metadata.yaml missing spec_kitty.version")
     return str(version)
 
 
@@ -277,15 +255,8 @@ def validate_metadata_yaml_version_sync(
         return ValidationIssue(message=str(exc))
     if pyproject_version != metadata_version:
         return ValidationIssue(
-            message=(
-                f"Version mismatch detected: "
-                f"pyproject.toml={pyproject_version!r} vs "
-                f".kittify/metadata.yaml={metadata_version!r}"
-            ),
-            hint=(
-                f"Update .kittify/metadata.yaml spec_kitty.version to "
-                f"{pyproject_version!r} so both files agree before cutting the release."
-            ),
+            message=(f"Version mismatch detected: pyproject.toml={pyproject_version!r} vs .kittify/metadata.yaml={metadata_version!r}"),
+            hint=(f"Update .kittify/metadata.yaml spec_kitty.version to {pyproject_version!r} so both files agree before cutting the release."),
         )
     return None
 
@@ -312,14 +283,9 @@ def load_uv_lock_project_version(
             continue
         version = package.get("version")
         if not isinstance(version, str):
-            raise ReleaseValidatorError(
-                f"uv.lock package {package_name!r} is missing a string version."
-            )
+            raise ReleaseValidatorError(f"uv.lock package {package_name!r} is missing a string version.")
         if not RELEASE_VERSION_RE.match(version):
-            raise ReleaseValidatorError(
-                f"uv.lock package {package_name!r} version {version!r} is not "
-                "a supported release version."
-            )
+            raise ReleaseValidatorError(f"uv.lock package {package_name!r} version {version!r} is not a supported release version.")
         return version
 
     raise ReleaseValidatorError(f"uv.lock does not contain package {package_name!r}.")
@@ -335,19 +301,10 @@ def validate_uv_lock_version_sync(
     except ReleaseValidatorError as exc:
         return ValidationIssue(message=str(exc))
 
-    if canonical_release_version(pyproject_version) != canonical_release_version(
-        lockfile_version
-    ):
+    if canonical_release_version(pyproject_version) != canonical_release_version(lockfile_version):
         return ValidationIssue(
-            message=(
-                f"Version mismatch detected: "
-                f"pyproject.toml={pyproject_version!r} vs "
-                f"uv.lock spec-kitty-cli={lockfile_version!r}"
-            ),
-            hint=(
-                "Run `uv lock` after updating pyproject.toml so uv.lock records "
-                f"spec-kitty-cli {pyproject_version!r}."
-            ),
+            message=(f"Version mismatch detected: pyproject.toml={pyproject_version!r} vs uv.lock spec-kitty-cli={lockfile_version!r}"),
+            hint=(f"Run `uv lock` after updating pyproject.toml so uv.lock records spec-kitty-cli {pyproject_version!r}."),
         )
     return None
 
@@ -434,18 +391,10 @@ def validate_changelog_latest_version_sync(
     if changelog_version is None:
         return None
 
-    if canonical_release_version(changelog_version) != canonical_release_version(
-        pyproject_version
-    ):
+    if canonical_release_version(changelog_version) != canonical_release_version(pyproject_version):
         return ValidationIssue(
-            message=(
-                f"CHANGELOG.md latest release entry is {changelog_version!r}, "
-                f"but pyproject.toml declares {pyproject_version!r}."
-            ),
-            hint=(
-                "Move or update the current release notes so the first populated "
-                "CHANGELOG.md release section matches [project].version."
-            ),
+            message=(f"CHANGELOG.md latest release entry is {changelog_version!r}, but pyproject.toml declares {pyproject_version!r}."),
+            hint=("Move or update the current release notes so the first populated CHANGELOG.md release section matches [project].version."),
         )
     return None
 
@@ -475,9 +424,7 @@ def git(*args: str, cwd: Path | None = None) -> str:
         text=True,
     )
     if result.returncode != 0:
-        raise ReleaseValidatorError(
-            f"git {' '.join(args)} failed: {result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise ReleaseValidatorError(f"git {' '.join(args)} failed: {result.stderr.strip() or result.stdout.strip()}")
     return result.stdout.strip()
 
 
@@ -485,35 +432,23 @@ def find_repo_root(start: Path) -> Path:
     try:
         output = git("rev-parse", "--show-toplevel", cwd=start)
     except ReleaseValidatorError as exc:
-        raise ReleaseValidatorError(
-            "Unable to locate git repository root. Ensure git is installed and run this script "
-            "inside the Spec Kitty repository."
-        ) from exc
+        raise ReleaseValidatorError("Unable to locate git repository root. Ensure git is installed and run this script inside the Spec Kitty repository.") from exc
     return Path(output)
 
 
-def discover_release_tags(
-    repo_root: Path, tag_pattern: str, exclude: str | None = None
-) -> list[str]:
+def discover_release_tags(repo_root: Path, tag_pattern: str, exclude: str | None = None) -> list[str]:
     output = git("tag", "--list", tag_pattern, cwd=repo_root)
     tags = [line.strip() for line in output.splitlines() if line.strip()]
-    filtered = [
-        tag
-        for tag in tags
-        if tag != exclude
-        and tag.startswith("v")
-        and RELEASE_VERSION_RE.match(tag.lstrip("v"))
-    ]
+    filtered = [tag for tag in tags if tag != exclude and tag.startswith("v") and RELEASE_VERSION_RE.match(tag.lstrip("v"))]
     filtered.sort(key=lambda tag: parse_release_version(tag.lstrip("v")), reverse=True)
     return filtered
 
 
-def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
+def parse_release_version(value: str) -> tuple[int, int, int, int, int, int]:
     match = RELEASE_VERSION_RE.match(value)
     if not match:
         raise ReleaseValidatorError(
-            f"Value '{value}' is not a valid release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+            f"Value '{value}' is not a valid release version (expected X.Y.Z or X.Y.Z.N, optionally followed by a/b/rc/alpha/beta and a number)."
         )
 
     stage = _normalize_stage(match.group("stage"))
@@ -528,6 +463,7 @@ def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
         int(match.group("major")),
         int(match.group("minor")),
         int(match.group("patch")),
+        int(match.group("hotfix") or "0"),
         stage_rank,
         stage_number,
     )
@@ -538,15 +474,12 @@ def canonical_release_version(value: str) -> str:
     match = RELEASE_VERSION_RE.match(value)
     if not match:
         raise ReleaseValidatorError(
-            f"Value '{value}' is not a valid release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+            f"Value '{value}' is not a valid release version (expected X.Y.Z or X.Y.Z.N, optionally followed by a/b/rc/alpha/beta and a number)."
         )
 
-    version = (
-        f"{int(match.group('major'))}."
-        f"{int(match.group('minor'))}."
-        f"{int(match.group('patch'))}"
-    )
+    version = f"{int(match.group('major'))}.{int(match.group('minor'))}.{int(match.group('patch'))}"
+    if match.group("hotfix") is not None:
+        version += f".{int(match.group('hotfix'))}"
     stage = _normalize_stage(match.group("stage"))
     if stage is None:
         return version
@@ -565,9 +498,7 @@ def detect_tag_from_env() -> str | None:
     return None
 
 
-def validate_version_progression(
-    current_version: str, existing_tags: Sequence[str]
-) -> ValidationIssue | None:
+def validate_version_progression(current_version: str, existing_tags: Sequence[str]) -> ValidationIssue | None:
     if not existing_tags:
         return None
     current_tuple = parse_release_version(current_version)
@@ -658,10 +589,7 @@ def validate_release_covers_migration_targets(
     unique_ahead = sorted(set(ahead), key=parse_release_version)
     latest = unique_ahead[-1]
     return ValidationIssue(
-        message=(
-            f"Release {release_version} is behind migration "
-            f"target(s): {', '.join(unique_ahead)}."
-        ),
+        message=(f"Release {release_version} is behind migration target(s): {', '.join(unique_ahead)}."),
         hint=(
             f"A user upgrading to {release_version} will not run migrations "
             f"targeted after {release_version}. Retarget those migrations to "
@@ -688,16 +616,8 @@ def ensure_tag_matches_version(version: str, tag: str | None) -> ValidationIssue
 
 def run_validation(args: argparse.Namespace) -> ValidationResult:
     pyproject_path = Path(args.pyproject).resolve()
-    changelog_path = (
-        Path(args.changelog).resolve()
-        if args.changelog
-        else pyproject_path.parent / "CHANGELOG.md"
-    )
-    lockfile_path = (
-        Path(args.lockfile).resolve()
-        if args.lockfile
-        else pyproject_path.parent / "uv.lock"
-    )
+    changelog_path = Path(args.changelog).resolve() if args.changelog else pyproject_path.parent / "CHANGELOG.md"
+    lockfile_path = Path(args.lockfile).resolve() if args.lockfile else pyproject_path.parent / "uv.lock"
     version = ""
     tag: str | None = None
     issues: list[ValidationIssue] = []
@@ -754,21 +674,13 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
                 hint="Add release notes under a '## {version}' heading.",
             )
         )
-    elif args.mode == "tag" and not changelog_section_is_finalized(
-        changelog_text, version
-    ):
+    elif args.mode == "tag" and not changelog_section_is_finalized(changelog_text, version):
         # Branch mode tolerates a pending ``## [Unreleased] - X.Y.Z`` heading, but
         # an actual publish run must point at a finalized ``## [X.Y.Z]`` section.
         issues.append(
             ValidationIssue(
-                message=(
-                    f"CHANGELOG.md lacks a finalized section for {version}: "
-                    "the section is still marked 'Unreleased'."
-                ),
-                hint=(
-                    f"Finalize the release notes by retitling the heading to "
-                    f"'## [{version}]' (with the release date) before tagging."
-                ),
+                message=(f"CHANGELOG.md lacks a finalized section for {version}: the section is still marked 'Unreleased'."),
+                hint=(f"Finalize the release notes by retitling the heading to '## [{version}]' (with the release date) before tagging."),
             )
         )
 
