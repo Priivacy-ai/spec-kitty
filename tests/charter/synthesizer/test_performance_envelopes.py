@@ -134,6 +134,7 @@ def repo_with_prior_synthesis(
 
 class TestNfr002FullSynthesis:
     @pytest.mark.timeout(30)
+    @pytest.mark.performance
     def test_full_synthesis_under_30_seconds(
         self,
         base_request: SynthesisRequest,
@@ -283,6 +284,7 @@ class TestNfr003BoundedResynthesize:
 
 class TestNfr004FailClosed:
     @pytest.mark.timeout(5)
+    @pytest.mark.performance
     def test_validation_failure_under_5_seconds(
         self,
         base_request: SynthesisRequest,
@@ -307,6 +309,7 @@ class TestNfr004FailClosed:
         )
 
     @pytest.mark.timeout(5)
+    @pytest.mark.performance
     def test_unresolved_topic_under_5_seconds(
         self,
         base_request: SynthesisRequest,
@@ -336,6 +339,7 @@ class TestNfr004FailClosed:
 
 
 class TestSc008UnresolvedSla:
+    @pytest.mark.performance
     def test_unresolved_selector_under_2_seconds(self) -> None:
         """SC-008: resolver returns TopicSelectorUnresolvedError < 2 s."""
         from charter.activation.synthesizer.request import SynthesisTarget

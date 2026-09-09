@@ -102,7 +102,21 @@ def test_move_task_starts_work_finalized_in_linked_checkout(finalized_checkouts,
                 if event.get("wp_id") == "WP01" and "to_lane" in event:
                     event["wp_id"] = "WP99"
             events_path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
-            (mission / "tasks/WP01-test.md").write_text("not the selected work package\n", encoding="utf-8")
+            # A same-slug SHADOW work package on the non-selected partition. It
+            # must be a READABLE WP file (valid frontmatter, no dependencies), not
+            # a malformed stub: the in-lock dependency gate resolves WP readiness
+            # from the primary partition, and the fail-closed policy (mission
+            # fsm-write-path-integrity-01M1TZV6) refuses the transition when it
+            # meets an unparseable WP file. The point of the fixture is that
+            # move-task still resolves the OWNED checkout's WP over this shadow —
+            # not that a corrupt shadow blocks the move.
+            (mission / "tasks/WP01-test.md").write_text(
+                "---\nwork_package_id: WP01\ntitle: not the selected work package\n"
+                "dependencies: []\nrequirement_refs: []\nsubtasks: []\nowned_files: []\n"
+                "authoritative_surface: app.py\nexecution_mode: code_change\n---\n\n"
+                "# not the selected work package\n",
+                encoding="utf-8",
+            )
     cwd = {"owned": owned, "primary": primary, "sibling": sibling}[caller]
     monkeypatch.chdir(cwd)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(cwd))

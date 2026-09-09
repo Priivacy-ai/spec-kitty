@@ -1,0 +1,131 @@
+# CI Modules — full per-module matrix caller.
+#
+# Mission ci-pipeline-reinstatement-01M1X35E, WP09 (FR-001/006/008; NFR-005).
+#
+# Reads the WP08-committed module registry
+# (.github/ci-module-registry.yml) — the SINGLE data source (T044) — and
+# expands it into one matrix leaf per (module, shard) row, then calls the
+# reusable module-tests.yml shard (contract contracts/router-two-authority.md
+# §"Module shard registry") through exactly ONE `uses:` reference — bounded
+# reusable-workflow fan-out, well within GitHub's <=20-reusable-workflows-
+# per-caller ceiling, never ~40 per-module files. Adding a module is a
+# registry row; this workflow never hardcodes a module list, so it can never
+# unship a row or fan a shard out over a non-registry module.
+#
+# `mode` (pr|full) is threaded from workflow_dispatch (or defaults to pr for
+# pull_request/push) into every shard, and gates this workflow's OWN
+# fail-fast behavior: pr mode fails the whole run fast on the first red
+# shard; full mode runs every shard to completion (FR-018/FR-019, T049).
+
+name: CI Modules
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'pr (fail-fast, pinned env) or full (run-all, if: always()).'
+        required: false
+        default: pr
+        type: choice
+        options:
+          - pr
+          - full
+
+concurrency:
+  group: ci-modules-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # generate-matrix: expand ci-module-registry.yml's modules[] rows into one
+  # matrix leaf per (module, shard) pair -- the single data source (WP08
+  # T044); this script never hand-picks a module subset, it iterates every
+  # row's shard_count.
+  # ---------------------------------------------------------------------------
+  generate-matrix:
+    name: Generate module-shard matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+      mode: ${{ steps.build.outputs.mode }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install PyYAML (matrix-generation only, no editable install needed)
+        shell: bash
+        run: pip install --quiet --disable-pip-version-check "pyyaml==6.0.2"
+
+      - name: Build the matrix from the committed module registry
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode="${{ inputs.mode }}"
+          if [ -z "$mode" ]; then
+            mode="pr"
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+          python3 - "$mode" <<'PY'
+          import json
+          import os
+          import sys
+
+          import yaml
+
+          mode = sys.argv[1]
+          with open(".github/ci-module-registry.yml", encoding="utf-8") as fh:
+              registry = yaml.safe_load(fh)
+
+          leaves = []
+          for row in registry["modules"]:
+              module = row["module"]
+              shard_count = row["shard_count"]
+              for idx in range(1, shard_count + 1):
+                  leaves.append(
+                      {
+                          "module": module,
+                          "roots": json.dumps(row["roots"]),
+                          "cov_target": json.dumps(row["cov_targets"]),
+                          "tier": row["tier"],
+                          "shard": f"{idx}/{shard_count}",
+                          "mode": mode,
+                          "test_dirs": json.dumps(row.get("test_dirs", [])),
+                      }
+                  )
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"matrix={json.dumps(leaves)}\n")
+
+          print(f"ci-modules: generated {len(leaves)} shard leaves across {len(registry['modules'])} registry modules")
+          PY
+
+  # ---------------------------------------------------------------------------
+  # test: matrixed caller of module-tests.yml -- one job instantiation per
+  # (module, shard) leaf, each an independent shard (no needs: between
+  # shards; only needs: generate-matrix). Coverage/xunit artefacts from every
+  # shard aggregate into this one workflow run (WP10 consumes them).
+  # ---------------------------------------------------------------------------
+  test:
+    name: "module-tests (${{ matrix.module }} shard ${{ matrix.shard }})"
+    needs: generate-matrix
+    strategy:
+      fail-fast: ${{ needs.generate-matrix.outputs.mode != 'full' }}
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    uses: ./.github/workflows/module-tests.yml
+    with:
+      module: ${{ matrix.module }}
+      roots: ${{ matrix.roots }}
+      cov_target: ${{ matrix.cov_target }}
+      tier: ${{ matrix.tier }}
+      shard: ${{ matrix.shard }}
+      mode: ${{ matrix.mode }}
+      test_dirs: ${{ matrix.test_dirs }}

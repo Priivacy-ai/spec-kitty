@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup lint format-check typecheck test-fast test-full convergence-census
+.PHONY: help dev-setup lint format-check typecheck test-fast test-full convergence-census ci-parity
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -26,6 +26,9 @@ convergence-census: ## Fetch upstream and report convergence dispositions
 
 typecheck: ## Run targeted mypy strict type checking
 	uv run --frozen mypy --strict src/specify_cli/runtime/agent_commands.py
+
+ci-parity: ## Preview locally which CI gates/shards your diff selects (#2476 parity)
+	uv run --frozen python scripts/ci/local_gate_parity.py
 
 # The subsystem directories an implementer's blast radius typically covers
 # (see AGENTS.md "Test policy"). `make test-fast` is a baseline, not a

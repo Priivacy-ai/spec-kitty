@@ -1,0 +1,207 @@
+{
+  "canonical_replay": "specify_cli.status.reducer.materialize_to_json(materialize_snapshot(mission_dir)) (read-only)",
+  "changed_derived_fields": {
+    "mission_number": "integer 198 becomes canonical string 198",
+    "mission_type": "empty becomes software-dev from unchanged metadata",
+    "per_wp": [
+      "agent_profile",
+      "agent_profile_version",
+      "model",
+      "notes",
+      "provider",
+      "role",
+      "shell_pid",
+      "shell_pid_created_at",
+      "subtasks"
+    ]
+  },
+  "excluded": "No event, annotation, metadata, review-result or other archived-file rewrite; no WP11 receipt/commit repin; no corpus-verifier change.",
+  "issue": "https://github.com/spec-kitty/spec-kitty/issues/4032",
+  "preserved_top_level": [
+    "event_count",
+    "last_event_id",
+    "materialized_at",
+    "mission_slug",
+    "summary"
+  ],
+  "preserved_wp_fields": [
+    "review_result",
+    "lane",
+    "force_count",
+    "last_event_id",
+    "last_transition_at",
+    "actor",
+    "agent"
+  ],
+  "pull_request": "https://github.com/spec-kitty/spec-kitty/pull/4082",
+  "review_evidence": "Independent read-only reconstruction verified exact output and preserved identities against the public-main source. This receipt records the one-snapshot admission; the gate and real Git counterfactuals are independently reviewed before integration.",
+  "schema_version": 1,
+  "scope": "One reviewed derived-snapshot recovery; no general archived-status exemption.",
+  "snapshot": {
+    "after_blob": "5c39a554f0958c22bfc8ffc3f2fcfd38023c0287",
+    "after_sha256": "9c904f5b83cf02140b57e205e63e496c2bef7c556969acd50ed7399f62575e26",
+    "before_blob": "341d7cf81db9232425ee315de9b72752ae8a4498",
+    "before_sha256": "6110f7b3661aaf7b2126cb49243e9ed206a30fd4ecbd634f91928f2a32442ce8",
+    "mode": "100644",
+    "path": "kitty-specs/dead-port-disposition-01M1VRA2/status.json"
+  },
+  "source_commit": "f2be03af4889c89184fdb3a4aeb90fc3f90b3a87",
+  "source_tree": "2d1038692c114b568b230e481892e30c04f68259",
+  "unchanged_inputs": [
+    {
+      "blob": "18cb4dbd1326fd124dc6ef827148915da167d78c",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/acceptance-matrix.json"
+    },
+    {
+      "blob": "e84bfd95c6dc5dbefd07b81e1c7fdc81dd7cc2a3",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/analysis-report.md"
+    },
+    {
+      "blob": "c224f91ca8b0bde2edec5f21a706758baeb7538f",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/checklists/requirements.md"
+    },
+    {
+      "blob": "9f7f5d01e8fdab409805feabc579867621c0bccf",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/contracts/decision-log-flush.md"
+    },
+    {
+      "blob": "5a1297d3e1b7595885ff8139601fd7accaa6ed73",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/contracts/emitter-seam.md"
+    },
+    {
+      "blob": "b41ff48f6b8c8612c45b7585e8012a451f750a34",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/data-model.md"
+    },
+    {
+      "blob": "bb7ea063a29617accc172e621fdad958ca015b50",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/decisions/DM-01M1VRJAJSF8A42WKBAPB74YSR.md"
+    },
+    {
+      "blob": "a5bd63d008e030fc961b0abf7f652fbe662192f2",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/decisions/DM-01M1VRM6HN09R2NX6C4A3YJZ5E.md"
+    },
+    {
+      "blob": "ce7dd7aef82134ecf53d0f3e1ca4048f79ae5215",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/decisions/DM-01M1VRQ40GTHHZBDZCP1GFY3A4.md"
+    },
+    {
+      "blob": "b446579eb345c6a8d50c2d77fdeb1aadb86f23f4",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/decisions/DM-01M1VSEWHJM4WAQD7EGN5PA4XJ.md"
+    },
+    {
+      "blob": "5173596d6b288bed2c537f5418023f7b82a03173",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/decisions/index.json"
+    },
+    {
+      "blob": "96097b3e2d7e70040cc17d7506355e9e085aa02a",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/lanes.json"
+    },
+    {
+      "blob": "2134cb28804db2c1df9ae88a082ab95ae7e682a5",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/meta.json"
+    },
+    {
+      "blob": "91f4148fb2c758c3176bdb689b356a94a0ff68a2",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/mission-review.md"
+    },
+    {
+      "blob": "72c38eeca1e7d63efb4ec61707eaf05c099bef98",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/plan.md"
+    },
+    {
+      "blob": "74b29baffb523820e8ed381b333c6a81a51f4bb7",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/quickstart.md"
+    },
+    {
+      "blob": "cb6065514a9a8cbe0f8fca4940ee6c79b6a51c04",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/research.md"
+    },
+    {
+      "blob": "5532d9af6328c6e44989d34cb5f73890dda15f93",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/retrospective.yaml"
+    },
+    {
+      "blob": "320be06d7d4ca98ec19146aa96d393988b292b93",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/spec.md"
+    },
+    {
+      "blob": "fee892888ee9ce3e0af4e796cff1cbcd34387ccc",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/status.events.jsonl"
+    },
+    {
+      "blob": "b140b8af96aa5d0300cd46b4bc6e8a43425b72ff",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks.md"
+    },
+    {
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/.gitkeep"
+    },
+    {
+      "blob": "a7fb984b36fdda8d4e59b23db5754815d18c3b3d",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/README.md"
+    },
+    {
+      "blob": "d0bdce7bc9d3441b75181950f7e1c00db39cecf6",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP01-seam-foundation.md"
+    },
+    {
+      "blob": "3f0ec2e5cb5a377d43d05f4767a163c39d3e2f82",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP01-seam-foundation/review-cycle-1.md"
+    },
+    {
+      "blob": "c2c9c7223d967ade22390fae859da4c7544e1a9c",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP02-flush-target-fixes.md"
+    },
+    {
+      "blob": "6d2e259252ecf70b76696502ff3125914e2bfb6b",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP02-flush-target-fixes/review-cycle-1.md"
+    },
+    {
+      "blob": "2967e18a0acd6d769d7672a849a0853ffa5b76b8",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP03-bridge-rewiring-and-test-migration.md"
+    },
+    {
+      "blob": "9fa7cd93de650c74664a1c8d1efbcd835864c196",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP03-bridge-rewiring-and-test-migration/review-cycle-1.md"
+    },
+    {
+      "blob": "a2e7db5d9213d1f82c58c3ef7e3cab628e19481e",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP04-deletion-guard-and-disclosure.md"
+    },
+    {
+      "blob": "cf5403a4915bcb377c53c857fce117f3da6621fb",
+      "mode": "100644",
+      "path": "kitty-specs/dead-port-disposition-01M1VRA2/tasks/WP04-deletion-guard-and-disclosure/review-cycle-1.md"
+    }
+  ]
+}

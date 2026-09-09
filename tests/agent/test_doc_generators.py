@@ -17,6 +17,7 @@ from specify_cli.doc_analysis.doc_generators import (
 
 pytestmark = [pytest.mark.integration]
 
+
 # T062: Test JSDoc Detection
 def test_jsdoc_detects_package_json(tmp_path):
     """Test JSDoc detects projects with package.json."""
@@ -114,9 +115,7 @@ def test_rustdoc_does_not_detect_python_project(tmp_path):
 def test_jsdoc_configure_creates_config(tmp_path):
     """Test JSDoc configure() creates jsdoc.json."""
     generator = JSDocGenerator()
-    config_file = generator.configure(
-        tmp_path, {"project_name": "Test Project", "description": "Test", "version": "1.0.0"}
-    )
+    config_file = generator.configure(tmp_path, {"project_name": "Test Project", "description": "Test", "version": "1.0.0"})
 
     assert config_file.exists()
     assert config_file.name == "jsdoc.json"
@@ -130,9 +129,7 @@ def test_jsdoc_configure_creates_config(tmp_path):
 def test_sphinx_configure_creates_conf_py(tmp_path):
     """Test Sphinx configure() creates conf.py."""
     generator = SphinxGenerator()
-    config_file = generator.configure(
-        tmp_path, {"project_name": "Test Project", "author": "Test Author", "version": "1.0.0"}
-    )
+    config_file = generator.configure(tmp_path, {"project_name": "Test Project", "author": "Test Author", "version": "1.0.0"})
 
     assert config_file.exists()
     assert config_file.name == "conf.py"
@@ -189,11 +186,15 @@ def test_jsdoc_raises_error_when_npx_missing(tmp_path, monkeypatch):
 @pytest.mark.integration
 def test_sphinx_generation_end_to_end(tmp_path):
     """Test Sphinx generates docs end-to-end (requires sphinx-build)."""
-    # Check if sphinx-build available
+    # Requires the full optional Sphinx toolchain (documented as a separate
+    # install: `pip install sphinx sphinx-rtd-theme`). Skip when either the
+    # sphinx-build CLI or the sphinx_rtd_theme the generated conf.py uses is
+    # absent, rather than asserting a build that cannot run.
     import shutil
 
     if shutil.which("sphinx-build") is None:
         pytest.skip("sphinx-build not installed")
+    pytest.importorskip("sphinx_rtd_theme", reason="sphinx_rtd_theme not installed (optional Sphinx generator dep)")
 
     # Create Python source with docstring
     source_dir = tmp_path / "src"

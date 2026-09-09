@@ -23,12 +23,11 @@ trusting any fixture.
   helpers -- and asserts it equals each base-captured tuple. This proves the new
   aggregation reproduces the base *decision* and that the metadata/console
   surface has not drifted from base.
-- :func:`test_through_the_inverted_hook_reproduces_base` (RED until WP09) drives
-  the fixtures **through** the refactored hook ``_mt_run_transition_gates``, the
-  surface under test for full NFR-001 parity. That symbol is WP09's -- it does not
-  exist yet, so this arm is an expected-fail (``xfail(strict=True)``) that WP09
-  flips to a hard assertion once it lands the inverted hook. This is the
-  "parity through the hook, not just the engine" guard.
+- :func:`test_through_the_inverted_hook_reproduces_base` drives the fixtures
+  **through** the refactored hook ``_mt_run_transition_gates``, the surface
+  under test for full NFR-001 parity. WP09 has landed that symbol and this
+  arm is a plain, unconditional assertion (no ``xfail`` marker) proving
+  parity through the hook, not just the engine.
 """
 
 from __future__ import annotations
@@ -276,3 +275,30 @@ def test_through_the_inverted_hook_reproduces_base(case: dict[str, Any]) -> None
     assert actual["metadata"] == expected["metadata"]
     assert actual["console"] == expected["console"]
     assert actual["exit_code"] == expected["exit_code"]
+
+
+def test_wp09_hook_landmine_disposition_is_documented_accurately() -> None:
+    """WP06 (T028/T029, FR-015 fix-before-wiring): re-validate this module's
+    xfail(strict=True) landmine claim.
+
+    Re-validated on the current tree: WP09 already landed
+    ``_mt_run_transition_gates`` and
+    :func:`test_through_the_inverted_hook_reproduces_base` carries no active
+    xfail marker -- it XPASSes plainly (confirmed: all parametrized cases
+    pass, run in isolation). The module docstring's "RED until WP09" /
+    "expected-fail (``xfail(strict=True)``)" language describes a state that
+    no longer holds; this guard fails if that stale claim survives alongside
+    an absent marker, so the module cannot silently keep documenting a
+    landmine that WP09 already retired.
+    """
+    marks = getattr(test_through_the_inverted_hook_reproduces_base, "pytestmark", [])
+    assert not any(m.name == "xfail" for m in marks), (
+        "WP09 landed _mt_run_transition_gates; this test should carry no "
+        "active xfail marker"
+    )
+    assert "xfail(strict=True)" not in (__doc__ or ""), (
+        "module docstring still claims a pending xfail(strict=True) landmine "
+        "for test_through_the_inverted_hook_reproduces_base, but WP09 "
+        "already landed and no active marker exists -- update the docstring "
+        "instead of leaving stale landmine language"
+    )
