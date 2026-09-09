@@ -5,8 +5,18 @@ subtasks:
 title: "Replace with work package title"
 task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
-assignee: ""      # Optional friendly name when claimed/in_progress
-agent: ""         # CLI agent identifier (claude, codex, etc.)
+execution_mode: "planning_artifact"  # code_change | planning_artifact — drives ownership consistency checks
+owned_files:  # Repo-root-relative paths/globs this WP owns (e.g. docs/..., kitty-specs/...) — never host-absolute or worktree-prefixed
+  - "docs/replace/with/owned/surface.md"
+  - "docs/replace/with/owned/reference.md"
+authoritative_surface: "docs/replace/with/primary/surface/"  # Repo-root-relative prefix; must prefix at least one owned_files entry
+create_intent:  # Repo-root-relative paths this WP will CREATE (suppresses literal-path zero-match at finalize)
+  - "docs/replace/with/new/surface.md"
+agent_profile: ""  # Agent profile identifier (e.g., implementer-ivan, architect-alphonso)
+role: ""           # Role within the profile (e.g., "implementer", "reviewer")
+agent: ""          # CLI agent/tool identifier (claude, codex, copilot, etc.)
+model: ""          # Model identifier (e.g., claude-sonnet-4-6) — optional
+assignee: ""       # Optional friendly name when claimed/in_progress
 shell_pid: ""     # PID captured when the task was claimed
 history:
   - at: "{{TIMESTAMP}}"
@@ -15,6 +25,18 @@ history:
 ---
 
 # Work Package Prompt: {{work_package_id}} – {{title}}
+
+## ⚡ Do This First: Load Agent Profile
+
+Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
+
+- **Profile**: `{{agent_profile}}`
+- **Role**: `{{role}}`
+- **Agent/tool**: `{{agent}}`
+
+If no profile is specified, run `spec-kitty agent profile list` and select the best match for this work package's `task_type` and `authoritative_surface`.
+
+---
 
 ## ⚠️ IMPORTANT: Review Feedback
 
