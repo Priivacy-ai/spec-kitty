@@ -15,6 +15,11 @@ pytestmark = pytest.mark.architectural
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
 _SANCTIONED_RESOLVER_MODULE = "src/specify_cli/context/mission_resolver.py"
+# Failed-create disposal must census malformed and incomplete directories too:
+# MissionResolver omits those, which could make pre-existing data look new.
+# Exempt only this top-level snapshot function, never the whole creation module.
+_SCAFFOLD_SNAPSHOT_MODULE = "src/specify_cli/core/mission_creation.py"
+_SCAFFOLD_SNAPSHOT_FUNCTION = "_list_mission_scaffolds"
 _LEGACY_WALKER_ALLOWLIST = frozenset(
     {
         "src/specify_cli/status/identity_audit.py",
@@ -117,6 +122,18 @@ def _tainted_names_in_file(tree: ast.AST) -> set[str]:
 def _find_raw_walker_calls(path: Path) -> list[tuple[int, str]]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     tainted = _tainted_names_in_file(tree)
+    parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)} if _rel(path) == _SCAFFOLD_SNAPSHOT_MODULE else {}
+
+    def is_scaffold_snapshot(node: ast.AST) -> bool:
+        if _rel(path) != _SCAFFOLD_SNAPSHOT_MODULE:
+            return False
+        scopes: list[ast.AST] = []
+        while node in parents:
+            node = parents[node]
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+                scopes.append(node)
+        return len(scopes) == 1 and isinstance(scopes[0], ast.FunctionDef) and scopes[0].name == _SCAFFOLD_SNAPSHOT_FUNCTION
+
     return [
         (node.lineno, node.func.attr)
         for node in ast.walk(tree)
@@ -124,6 +141,7 @@ def _find_raw_walker_calls(path: Path) -> list[tuple[int, str]]:
         and isinstance(node.func, ast.Attribute)
         and node.func.attr in _ENUMERATION_METHODS
         and ((isinstance(node.func.value, ast.Name) and node.func.value.id in tainted) or _references_kitty_specs(node.func.value))
+        and not is_scaffold_snapshot(node)
     ]
 
 
@@ -144,3 +162,29 @@ def test_no_unsanctioned_raw_kitty_specs_enumeration_in_src() -> None:
     assert not violations, (
         f"Raw kitty-specs enumeration bypasses MissionResolver; route the read through the resolver or document a distinct corpus walk: {violations}"
     )
+
+
+@pytest.mark.parametrize("extra_walker", ["sibling", "nested", "other-module"])
+def test_scaffold_snapshot_exception_does_not_hide_another_walker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra_walker: str) -> None:
+    """The real scan accepts the snapshot but still catches a planted bypass."""
+    monkeypatch.setitem(globals(), "_REPO_ROOT", tmp_path)
+    src = tmp_path / "src"
+    snapshot = tmp_path / _SCAFFOLD_SNAPSHOT_MODULE
+    snapshot.parent.mkdir(parents=True)
+    snapshot.write_text(
+        "def _list_mission_scaffolds(repo):\n    specs_root = repo / 'kitty-specs'\n    return list(specs_root.iterdir())\n",
+        encoding="utf-8",
+    )
+    assert _scan_tree_for_violations(src) == {}
+    target = snapshot
+    planted = "def unrelated_discovery(repo):\n    specs_root = repo / 'kitty-specs'\n    return list(specs_root.iterdir())\n"
+    if extra_walker == "nested":
+        planted = "\n".join("    " + line for line in planted.splitlines()) + "\n"
+    elif extra_walker == "other-module":
+        target = snapshot.with_name("other_creation.py")
+        planted = planted.replace("unrelated_discovery", _SCAFFOLD_SNAPSHOT_FUNCTION)
+    with target.open("a", encoding="utf-8") as stream:
+        stream.write(planted)
+    violations = _scan_tree_for_violations(src)
+    assert set(violations) == {target.relative_to(tmp_path).as_posix()}
+    assert len(violations[target.relative_to(tmp_path).as_posix()]) == 1  # golden-count: cardinality-is-contract
