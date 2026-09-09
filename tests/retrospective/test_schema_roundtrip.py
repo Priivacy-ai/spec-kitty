@@ -413,6 +413,7 @@ def test_duplicate_proposal_ids_raises() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_perf_200_findings_under_500ms(tmp_path: Path) -> None:
     """NFR-001: schema validation of a 200-finding record must be < 500 ms."""
     findings = [

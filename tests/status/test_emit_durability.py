@@ -377,6 +377,7 @@ class TestT015Responsiveness:
     """NFR-005: verdict recording, including durable persistence, completes
     under the existing 2-second budget."""
 
+    @pytest.mark.performance
     def test_verdict_recording_completes_under_two_seconds(self, feature_dir: Path) -> None:
         _advance_to_in_review(feature_dir, "WP01", _MISSION_SLUG)
 

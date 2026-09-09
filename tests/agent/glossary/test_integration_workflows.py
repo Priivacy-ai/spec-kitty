@@ -1327,6 +1327,7 @@ class TestErrorHandlingEdgeCases:
 class TestIntegrationPerformance:
     """Verify integration test workflows complete within performance budget."""
 
+    @pytest.mark.performance
     def test_full_pipeline_under_200ms(self, tmp_path):
         """Full pipeline execution (no conflict) completes in < 200ms."""
         _setup_multi_scope_repo(tmp_path)
@@ -1348,6 +1349,7 @@ class TestIntegrationPerformance:
 
         assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s (expected < 0.2s)"
 
+    @pytest.mark.performance
     def test_ten_iterations_under_five_seconds(self, tmp_path, monkeypatch):
         """10 full pipeline iterations with conflict resolution < 5 seconds total."""
         _setup_multi_scope_repo(tmp_path)
@@ -1387,6 +1389,7 @@ class TestIntegrationPerformance:
         elapsed = time.perf_counter() - start
         assert elapsed < 5.0, f"10 pipeline iterations too slow: {elapsed:.2f}s (expected < 5.0s)"
 
+    @pytest.mark.performance
     def test_hundred_watch_terms_under_200ms(self, tmp_path):
         """Pipeline with 100 metadata watch terms completes in < 200ms."""
         (tmp_path / ".kittify").mkdir()

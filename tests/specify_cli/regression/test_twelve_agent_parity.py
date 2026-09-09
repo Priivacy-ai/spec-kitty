@@ -23,18 +23,20 @@ When a template change is intentional::
 
 Commit the updated baseline files alongside the template change.
 
-TODO (reconsider this test's design if it keeps causing friction):
-    This guard pins *byte-identical* rendered output for 12 agents, so ANY
-    legitimate one-line prose edit to a doctrine source prompt
-    (``src/charter/offering/missions/mission-steps/**``) forces regenerating ~12
-    baseline files, none of which the reviewer reads. The baseline asserts
-    byte-identity, not semantic correctness — it catches accidental drift but
-    also fires loudly on every intended change, and the large mechanical diff
-    can bury the actual source change. If this churn becomes a recurring tax
-    (observed: primary/merge terminology sweep, mission primary-merge-vocabulary
-    -01KXP11C T009), reconsider: e.g. assert structural invariants + a single
-    canonical-agent snapshot rather than a full 12-agent byte grid, or derive
-    the per-agent expectation from the source template instead of a frozen copy.
+RESOLVED (was a TODO above this line): the churn this TODO warned about was
+observed (primary/merge terminology sweep, mission
+primary-merge-vocabulary-01KXP11C T009) and addressed by mission
+``twelve-agent-parity-narrowing`` #3447 WP05 (SC-005, see
+``CANONICAL_BASELINES`` below): the full 12-agent byte grid was replaced by
+exactly two per-render-branch canonical snapshots plus a structural invariant
+over every (agent, command) pair, so an intended one-line prompt edit no
+longer fans out to ~12-20 baseline-file diffs. Mission
+``ci-pipeline-reinstatement-01M1X35E`` WP16 (P2 shape-guard demotion,
+FR-014/C-007/NFR-007, #3458) classifies this suite ``behavioral`` — not
+``shape-guard`` — in ``tests/architectural/shape_guard_membership.yaml``: it
+is a real content/structural check derived from the ``AGENT_COMMAND_CONFIG``
+src SSOT, not the low-ROI byte-frozen grid NFR-007 targets, so no further
+demotion is needed here.
 """
 
 from __future__ import annotations
