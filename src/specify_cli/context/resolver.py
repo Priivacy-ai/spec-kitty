@@ -25,11 +25,11 @@ from specify_cli.context.models import MissionContext
 from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
 from specify_cli.core.git_ops import resolve_primary_branch
-from specify_cli.core.paths import read_target_branch_from_meta
+from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
-from specify_cli.mission_metadata import load_meta, mission_identity_fields
+from specify_cli.mission_metadata import mission_identity_fields
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from specify_cli.status import WPMetadata, read_authored_wp_frontmatter
@@ -66,17 +66,17 @@ def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
     context-bound commands can still operate deterministically on a
     single explicit mission directory.
     """
-    # FR-005 / post-#2091: this site hard-fails on a missing meta.json
-    # (MissingIdentityError) and propagates a malformed-JSON failure rather
-    # than silently tolerating it -- allow_missing=True or on_malformed="empty"
-    # would MASK that guard and silently re-introduce the removed legacy
-    # tolerance. ``allow_missing=False`` never returns None, so ``or {}`` only
-    # narrows the type for mypy (mirrors mission_metadata.load_meta_strict).
-    try:
-        data = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
-    except FileNotFoundError as exc:
+    # FR-005 / post-#2091 + FR-007 / #3162: this site hard-fails on a missing
+    # meta.json (MissingIdentityError) and propagates a malformed-JSON failure
+    # (now the typed MissionMetaReadError via the ONE fail-closed reader)
+    # rather than silently tolerating it -- allow_missing=True or
+    # on_malformed="empty" would MASK that guard and silently re-introduce the
+    # removed legacy tolerance. The fail-closed reader returns None only for a
+    # missing file, which maps to the same MissingIdentityError diagnostic.
+    data = load_meta_fail_closed(feature_dir)
+    if data is None:
         msg = f"meta.json not found at {feature_dir / 'meta.json'}."
-        raise MissingIdentityError(msg) from exc
+        raise MissingIdentityError(msg)
 
     mission_id = data.get("mission_id") or feature_dir.name
     # FR-008 / #2139: delegate to the single read_target_branch_from_meta

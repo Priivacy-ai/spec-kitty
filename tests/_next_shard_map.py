@@ -142,6 +142,12 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_resolver_unit.py",
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
+    # 2026-09-09 (PR #4008 fix round): test_meta_fail_closed_pending_batch_a.py
+    # split out of tests/specify_cli/ (top-level tests/specify_cli is in no CI
+    # module test_dirs, so its critical-path coverage was invisible to the
+    # ci-aggregate diff-cover gate). Registered in shard_3 — the uniquely
+    # lightest runtime shard (16 rows vs 17/20) at this landing.
+    "tests/runtime/test_meta_fail_closed_pending_batch_a.py",
     # 2026-09-03 (PR #1066 convergence port): upstream's next-committed-state
     # authority WP01 landed here without its conflicted WP02 sibling, so the
     # new test file registers now, mirroring upstream's own shard-3 row.

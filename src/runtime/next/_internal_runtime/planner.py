@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import load_meta_fail_closed
 
 # Internalized from spec-kitty-runtime 0.4.3 as part of
 # `shared-package-boundary-cutover-01KQ22DS` (mission). See
@@ -191,10 +191,11 @@ def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
         resolved by the registry.  FR-015 binding: no silent fallback.
     """
     project_root = _infer_project_root(mission_dir)
-    # load_meta (post-#2091 canonical contract): allow_missing=True absorbs a
-    # missing meta.json to None; malformed content still raises (on_malformed
-    # defaults to "raise"), matching the prior unguarded json.loads.
-    meta = load_meta(mission_dir)
+    # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
+    # meta.json still absorbs to None (the pre-Slice-F default arm); a corrupt
+    # or non-object one raises the typed MissionMetaReadError instead of a raw
+    # ValueError.
+    meta = load_meta_fail_closed(mission_dir)
     if meta is None:
         return get_workflow("software-dev-default", project_root=project_root)
     workflow_id: str | None = meta.get("workflow_id")

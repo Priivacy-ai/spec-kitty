@@ -580,9 +580,15 @@ def _husk_is_authoritative_surface(repo_root: Path, mission_slug: str) -> bool:
     circuit cannot be safely overridden — the downstream primary re-anchor still
     surfaces the malformed-meta diagnostic.
     """
+    from specify_cli.core.paths import MissionMetaReadError
+
     try:
         primary_meta, _ = read_primary_meta(repo_root, mission_slug)
-    except (ValueError, OSError):
+    except (ValueError, OSError, MissionMetaReadError):
+        # MissionMetaReadError (FR-007 / #3162): read_primary_meta is routed
+        # through the ONE fail-closed reader, so a corrupt/non-object primary
+        # meta now emits the typed error instead of a raw ValueError -- the
+        # documented degrade-to-True arm below must keep absorbing it.
         return True
     stored = stored_topology_from_meta(primary_meta)
     if stored is None:
