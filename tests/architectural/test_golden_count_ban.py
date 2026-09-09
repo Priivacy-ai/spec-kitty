@@ -18,19 +18,31 @@ This module has three jobs:
    file) is the directory-partitioned, human-readable rendering of this scan, built by
    ``python -m tests.architectural.test_golden_count_ban --emit-inventory <path>``.
 
-2. **Recurrence guard** — :func:`test_convert_sites_do_not_exceed_frozen_baseline`
-   re-scans the real tree and asserts the number of ``convert``-classified,
-   non-escaped sites in every top-level ``tests/<dir>`` never exceeds the frozen
-   ceiling in ``_golden_count_baseline.json`` (this guard's own new sidecar data file
-   — no other WP's ``owned_files`` claims it; see the mission's ownership-map leeway
-   for rationale-backed additions outside a WP's literal owned-file list). A brand
-   new directory, or one exceeding its recorded ceiling, fails — closing the class
-   going forward *everywhere* in ``tests/``, not only in this mission's batch-owned
-   directories. Batch WPs (WP12-WP14) burn their own directories' ceilings down
-   (T057-style: "decrement the baseline"); the ceiling is regenerated wholesale via
-   ``--freeze-baseline`` (a full re-scan snapshot, mirroring the gc3b
-   ``--update-baseline`` idiom) after each batch's conversions land, never edited by
-   hand for anything other than a documented decrease.
+2. **Recurrence guard (advisory since #3458/WP16)** —
+   :func:`test_convert_sites_do_not_exceed_frozen_baseline` re-scans the real tree
+   and reports (via :func:`warnings.warn`, not a hard assertion) whenever the
+   number of ``convert``-classified, non-escaped sites in a top-level
+   ``tests/<dir>`` exceeds the frozen ceiling in ``_golden_count_baseline.json``
+   (this guard's own sidecar data file — no other WP's ``owned_files`` claims it;
+   see the mission's ownership-map leeway for rationale-backed additions outside a
+   WP's literal owned-file list).
+
+   Mission ``ci-pipeline-reinstatement-01M1X35E`` WP16 (P2 shape-guard demotion,
+   FR-014/C-007/NFR-007, #3458) took this off the PR-blocking gate: a single
+   benign symbol addition anywhere in ``tests/`` was forcing either a spurious
+   escape-hatch annotation or a whole-tree re-freeze on every unrelated PR, for
+   zero real catches (#3458's own evidence: 0 catches, 2 forced annotations). The
+   classification/scan/baseline machinery is unchanged and still exercised by this
+   module's other (behavioral) unit tests; only the final guard's *consequence* on
+   breach changed from "fail the suite" to "warn". Its committed classification —
+   ``shape-guard``, demoted — lives in
+   ``tests/architectural/shape_guard_membership.yaml``, and
+   ``test_shape_guard_membership.py`` proves behaviorally (not just via the yaml
+   label) that a manufactured breach no longer raises. Batch WPs (WP12-WP14, an
+   earlier mission) burned their own directories' ceilings down; the ceiling is
+   still regenerated wholesale via ``--freeze-baseline`` (a full re-scan snapshot)
+   after a legitimate conversion or addition lands, so the advisory warning stays
+   meaningful rather than perpetually noisy.
 
 3. **Escape hatch** — a genuinely cardinality-only assertion the heuristic
    misclassifies as ``convert`` may carry an inline ``# golden-count:
@@ -91,6 +103,7 @@ import argparse
 import ast
 import json
 import re
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -510,17 +523,46 @@ def test_baseline_file_exists_and_parses() -> None:
 
 
 def test_convert_sites_do_not_exceed_frozen_baseline() -> None:
-    """The recurrence guard (T049/T053): re-scan the real tree and assert no
-    directory's non-escaped ``convert`` count exceeds its frozen baseline ceiling.
-    Green on the real tree today (the ceiling was just frozen from this exact
-    scan); goes red the moment a NEW un-annotated golden-count assertion is added
-    anywhere under ``tests/`` beyond what a directory's ceiling already accounts
-    for.
+    """The recurrence guard (T049/T053), demoted to ADVISORY by mission
+    ``ci-pipeline-reinstatement-01M1X35E`` WP16 (P2 shape-guard demotion,
+    FR-014/C-007/NFR-007, #3458 -- see the module docstring and
+    ``tests/architectural/shape_guard_membership.yaml``, which classes this
+    test ``shape-guard``).
+
+    Re-scans the real tree and, when a directory's non-escaped ``convert``
+    count exceeds its frozen baseline ceiling, emits a :class:`UserWarning`
+    naming the breach instead of raising. A benign symbol addition anywhere
+    under ``tests/`` therefore never reds CI on shape alone (NFR-007); the
+    warning still surfaces the drift for a human (or ``--freeze-baseline``)
+    to act on, it just no longer blocks the PR that triggered it.
     """
     current = convert_counts_by_dir(scan_repo())
     baseline = load_baseline()
     violations = ratchet_violations(current, baseline)
-    assert violations == [], "Golden-count regrowth detected:\n" + "\n".join(violations)
+    if violations:
+        warnings.warn(
+            "Golden-count regrowth detected (advisory, off the blocking gate "
+            "-- P2 demotion #3458):\n" + "\n".join(violations),
+            stacklevel=1,
+        )
+
+
+def test_benign_symbol_add_does_not_red_ci_on_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T087/NFR-007 proof (#3458): a benign symbol addition -- a fresh
+    ``len(<symbol>) == N`` assertion, the classic golden-count trigger -- does
+    not red CI on shape alone now that the guard above is demoted to advisory.
+
+    Manufactures the exact breach shape the guard used to fail on (a
+    directory whose non-escaped ``convert`` count exceeds its recorded
+    ceiling) and asserts the demoted test both (a) does not raise and
+    (b) still surfaces the drift as a warning, closing #3458 without
+    silently swallowing the signal.
+    """
+    monkeypatch.setattr(f"{__name__}.convert_counts_by_dir", lambda _sites: {"tests/architectural": 999})
+    monkeypatch.setattr(f"{__name__}.load_baseline", lambda: {"tests/architectural": 0})
+
+    with pytest.warns(UserWarning, match="Golden-count regrowth detected"):
+        test_convert_sites_do_not_exceed_frozen_baseline()  # must not raise
 
 
 # ---------------------------------------------------------------------------

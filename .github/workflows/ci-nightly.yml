@@ -1,0 +1,178 @@
+# CI Nightly — full-mode expensive cadence + interpreter lane.
+#
+# Mission ci-pipeline-reinstatement-01M1X35E, WP13 (FR-020/021; SC-011).
+#
+# This is the ONLY home for the performance / heavy-e2e test cadence (#3595)
+# and the above-3.12 interpreter matrix (FR-021) -- both stay OFF the per-PR
+# blocking path (SC-011: a per-PR run executes 0 of these jobs). This
+# workflow triggers on `schedule` (nightly) + `workflow_dispatch` ONLY: it
+# carries no `pull_request` / `push` trigger, so a PR event can never start
+# any job defined here (the structural half of SC-011; the guard in
+# tests/architectural/test_performance_marker_guard.py asserts the rest --
+# no OTHER pull_request-triggered workflow selects `-m performance` / `-m e2e`
+# / an interpreter matrix, and that this file's own shape holds).
+#
+# `mode` (full|pr) is honored via `workflow_dispatch.inputs.mode`, defaulting
+# to `full` -- the OPPOSITE default of the per-PR-triggered lanes
+# (ci-modules.yml / ci-router.yml default `pr`) -- because this workflow's
+# reason to exist IS the full-mode run-all-regardless cadence (FR-018/019):
+# `fail-fast: false` on every matrix strategy plus `if: always()` on every
+# step/job that must survive an upstream red, so a nightly run always
+# surfaces the COMPLETE failure set rather than short-circuiting on the
+# first red job like the PR fail-fast lanes. `mode: pr` remains selectable via
+# manual dispatch for a fail-fast diagnostic re-run, but is never the
+# scheduled trigger's mode. The cross-cutting dual-mode contract test
+# (test_dual_mode_contract) and its dispatched-run evidence are WP11's.
+#
+# The interpreter-matrix job runs the fast/unit suite on every Python version
+# ABOVE 3.12 up to the project's supported ceiling (pyproject.toml
+# `Programming Language :: Python :: 3.13` trove classifier) so
+# interpreter-divergence defects are visible instead of escaping CI (FR-021).
+# This lands the nightly lane only -- the full above-3.12 burn-down across
+# every suite is the deferred follow-up #3189 and is explicitly NOT claimed
+# by this workflow or this mission (see spec.md FR-021 / issue-matrix).
+#
+# All `uses:` action references below are SHA-pinned (`@<40-hex> # v<tag>`).
+
+name: CI Nightly
+
+on:
+  schedule:
+    # 03:17 UTC daily -- off-peak, deliberately not a round hour.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'full (run-all, if: always(), the scheduled default) or pr (fail-fast diagnostic re-run).'
+        required: false
+        default: full
+        type: choice
+        options:
+          - full
+          - pr
+
+concurrency:
+  group: ci-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # performance-and-e2e: the dedicated performance-test workflow home (#3595).
+  # Runs the `performance` + `e2e` marked suites that never execute on the
+  # per-PR path -- full-mode run-all-regardless, never fail-fast.
+  # ---------------------------------------------------------------------------
+  performance-and-e2e:
+    name: Performance + heavy e2e (nightly-only, #3595)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+    # conftest.py skips `performance`-marked tests unless SPEC_KITTY_RUN_PERFORMANCE=1
+    # (they are cold-start / runner-bound off the per-PR path). Without this the
+    # `-m performance` step below selects the suite but conftest skips every test
+    # in it — a vacuous lane. Set it here so the performance flow actually runs
+    # the wall-clock budget guards it is the sole home for. PWHEADLESS keeps any
+    # UI-touching heavy/e2e test headless.
+    env:
+      SPEC_KITTY_RUN_PERFORMANCE: "1"
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
+      - name: Run performance-marked suite (full-mode, run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          uv run pytest -m performance -q --junitxml=out/reports/xunit-nightly-performance.xml
+          echo "::notice::performance suite exit=$? (if: always() -- full mode never short-circuits)"
+
+      - name: Run heavy/e2e-marked suite (full-mode, run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          uv run pytest -m e2e -q --junitxml=out/reports/xunit-nightly-e2e.xml
+          echo "::notice::e2e suite exit=$? (if: always() -- full mode never short-circuits)"
+
+      - name: Upload nightly performance/e2e reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-performance-e2e-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # interpreter-matrix: FR-021 -- above-3.12 interpreter lane, nightly-only.
+  # Deliberately scoped to the nightly lane, NOT the full above-3.12 suite
+  # burn-down (#3189 is a deferred follow-up, not claimed here).
+  # ---------------------------------------------------------------------------
+  interpreter-matrix:
+    name: "Interpreter matrix (Python ${{ matrix.python-version }}, nightly-only, FR-021)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Above 3.12, up to the supported ceiling declared in pyproject.toml's
+        # `Programming Language :: Python :: 3.13` trove classifier. Bump this
+        # list, reviewed, when the ceiling classifier advances -- never ahead
+        # of it (the full multi-version burn-down beyond this nightly lane is
+        # #3189, not this workflow).
+        python-version:
+          - '3.13'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment on this interpreter
+        shell: bash
+        run: uv sync --frozen --all-extras --python "${{ matrix.python-version }}"
+
+      - name: Run fast/unit suite on this interpreter (full-mode, run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          uv run pytest -m "fast or unit" -q --junitxml="out/reports/xunit-nightly-interpreter-${{ matrix.python-version }}.xml"
+          echo "::notice::interpreter ${{ matrix.python-version }} suite exit=$? (if: always() -- full mode never short-circuits)"
+
+      - name: Upload interpreter-matrix reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: "ci-nightly-interpreter-${{ matrix.python-version }}-reports"
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
+  # run's complete failure set is visible in one place, never short-circuited.
+  # ---------------------------------------------------------------------------
+  nightly-summary:
+    name: Nightly full-mode summary
+    runs-on: ubuntu-latest
+    needs: [performance-and-e2e, interpreter-matrix]
+    if: always()
+    steps:
+      - name: Report full-mode results (run-all-regardless, never fail-fast)
+        shell: bash
+        run: |
+          echo "performance-and-e2e: ${{ needs.performance-and-e2e.result }}"
+          echo "interpreter-matrix: ${{ needs.interpreter-matrix.result }}"

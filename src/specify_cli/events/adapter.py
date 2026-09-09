@@ -140,7 +140,7 @@ class EventAdapter:
             "spec-kitty-events library not installed.\n\n"
             "This library is required for event log functionality.\n\n"
             "Setup instructions:\n"
-            "1. Ensure you have SSH access to https://github.com/Priivacy-ai/spec-kitty-events\n"
+            "1. Ensure you have SSH access to https://github.com/spec-kitty/spec-kitty-events\n"
             "2. Run: pip install -e .\n\n"
             "For CI/CD setup, see: docs/development/ssh-deploy-keys.md\n"
         )

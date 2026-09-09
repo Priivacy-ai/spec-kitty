@@ -690,6 +690,7 @@ class TestDiffScopeGateCLI:
 
 
 class TestGatePerformance:
+    @pytest.mark.performance
     def test_full_docs_scan_under_5_seconds(self) -> None:
         # NFR-001: full docs/ scan must complete in < 5 s.
         # The current live-tree scan takes ≈0.1–0.3 s; the 5 s threshold gives

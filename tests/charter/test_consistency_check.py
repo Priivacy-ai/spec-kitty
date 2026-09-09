@@ -294,11 +294,15 @@ def test_no_activation_keys_skips_doctrine_scan(
 # ~2.5x nominal: headroom for the 4-vCPU runner's single-thread speed while a
 # genuine algorithmic regression still trips it. (Not a #3246 regression:
 # nominal is identical on this branch and upstream/main's charter sources.)
+@pytest.mark.performance
 def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
     """NFR-003: consistency check against the built-in doctrine stays fast.
 
-    Runs in the serial ``timing-nfr-serial`` gate (no parallel cache
-    contention), so a plain wall-clock budget is stable; ~1.2s nominal.
+    A pure wall-clock budget guard — it belongs to the performance flow, not the
+    regular per-PR module slice. Marked ``performance`` so it is deselected from
+    the parallelized per-PR shards (where a loaded shared runner made the
+    wall-clock assertion flaky) and runs only in ci-nightly's ``-m performance``
+    lane. Nominal ~1.2s in that serial gate; the assertion itself is unchanged.
     """
     ctx = _ctx_with_config(tmp_path, "# minimal valid project\n")
 

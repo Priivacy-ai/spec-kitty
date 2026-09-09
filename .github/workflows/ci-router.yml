@@ -1,0 +1,523 @@
+# CI Router — path-scoped change router (two-authority model).
+#
+# Mission ci-pipeline-reinstatement, WP07 (FR-004/005/008/016; NFR-002).
+#
+# There are exactly TWO hand-authored routing sources; everything else is
+# derived and asserted against them (contract contracts/router-two-authority.md):
+#   1. the dorny `changes` filter block  ->  group -> globs[]   (path -> group)
+#   2. the job `if: needs.changes.outputs.<group>` gates         (group -> job)
+#
+# The dorny filter groups transcribe the WP05 retirement scrub
+# (tests/release/ci_retirement_scrub.json) — the single data source WP07
+# consumes; it does not re-scrub. The single importable gate-selection authority
+# (scripts/ci/gate_selection.py) PARSES these two sources (it never re-encodes
+# them as a second map — that is the #2476 hazard it closes). The shape is
+# guarded by tests/architectural/test_ci_quality_path_filters.py and
+# tests/architectural/test_gate_selection_authority.py.
+name: CI Router
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Routing mode: pr (fail-fast, path-scoped) or full (run-all).'
+        required: false
+        default: pr
+        type: choice
+        options:
+          - pr
+          - full
+
+concurrency:
+  group: ci-router-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # changes: the two-authority router's authority #1 (path -> group). The dorny
+  # filter block maps each group to its globs; the outputs fold in run-all
+  # (full mode / push) and the FR-004 fail-closed `unmatched` catch-all.
+  # ---------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      merge: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
+      missions: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
+      post_merge: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
+      release: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.release }}
+      status: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.status }}
+      review: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.review }}
+      next: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.next }}
+      lanes: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.lanes }}
+      dashboard: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.dashboard }}
+      upgrade: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade }}
+      cli: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli }}
+      charter: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.charter }}
+      agent: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.agent }}
+      kernel: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.kernel }}
+      glossary: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
+      execution_context: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.execution_context }}
+      core_misc: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.core_misc }}
+      # Non-src groups (data, not code): docs/corpus/e2e mirror the src rows'
+      # fold shape but are DELIBERATELY excluded from the unmatched loop below.
+      docs: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
+      corpus: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
+      e2e: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
+      # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
+      unmatched: ${{ steps.unmatched.outputs.unmatched }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            merge:
+              - 'src/specify_cli/merge/**'
+            missions:
+              - 'src/specify_cli/mission.py'
+              - 'src/specify_cli/mission_metadata.py'
+              - 'src/specify_cli/missions/**'
+              - 'src/charter/offering/missions/**'
+            post_merge:
+              - 'src/specify_cli/post_merge/**'
+            release:
+              - 'src/specify_cli/release/**'
+            status:
+              - 'src/specify_cli/status/**'
+              - 'src/specify_cli/coordination/**'
+            review:
+              - 'src/specify_cli/review/**'
+            next:
+              - 'src/specify_cli/runtime/**'
+              - 'src/runtime/next/**'
+              - 'src/mission_runtime/**'
+            lanes:
+              - 'src/specify_cli/lanes/**'
+            dashboard:
+              - 'src/specify_cli/dashboard/**'
+            upgrade:
+              - 'src/specify_cli/upgrade/**'
+            cli:
+              - 'src/specify_cli/cli/**'
+            charter:
+              - 'src/charter/**'
+              - 'src/specify_cli/charter_runtime/**'
+            agent:
+              - 'src/specify_cli/agent_utils/**'
+            kernel:
+              - 'src/kernel/**'
+            glossary:
+              - 'src/glossary/**'
+            execution_context:
+              - 'src/mission_runtime/**'
+              - 'src/specify_cli/status/**'
+              - 'src/runtime/next/**'
+              - 'src/specify_cli/cli/commands/agent/**'
+            core_misc:
+              - 'src/kernel/**'
+              - 'src/charter/offering/**'
+              - 'src/specify_cli/core/**'
+              - 'src/specify_cli/coordination/**'
+              - 'src/specify_cli/doctrine_synthesizer/**'
+              - 'src/specify_cli/status/**'
+              - 'src/specify_cli/tool_surface/**'
+              - 'src/specify_cli/zeitgeist_client/**'
+            docs:
+              - 'docs/**'
+              - 'tests/docs/**'
+              - 'scripts/docs/**'
+            corpus:
+              - 'packs/**'
+              - 'kitty-specs/**/spec.md'
+              - 'kitty-specs/**/plan.md'
+              - 'kitty-specs/**/tasks/**'
+              - 'kitty-specs/**/contracts/**'
+              - 'kitty-specs/**/acceptance-matrix.json'
+              - '.kittify/charter/**'
+              - '.kittify/glossaries/**'
+              - '.kittify/doctrine/**'
+            e2e:
+              - 'tests/e2e/**'
+              - 'tests/cross_cutting/**'
+            # FR-004 probe: matches ANY src change. The `unmatched` step computes
+            # `any_src AND NOT (any named src group)` from the filter's own outputs.
+            # Never gate a job on `any_src` directly (contract Invariant 1).
+            any_src:
+              - 'src/**'
+      - name: Compute fail-closed catch-all unmatched signal
+        id: unmatched
+        env:
+          ANY_SRC: ${{ steps.filter.outputs.any_src }}
+        run: |
+          matched=false
+          # Union of the SRC-BACKED filter groups ONLY (docs/corpus/e2e are non-src,
+          # excluded so a data-only path can never mask an unmapped src/** change).
+          for group_hit in \
+            "${{ steps.filter.outputs.merge }}" \
+            "${{ steps.filter.outputs.missions }}" \
+            "${{ steps.filter.outputs.post_merge }}" \
+            "${{ steps.filter.outputs.release }}" \
+            "${{ steps.filter.outputs.status }}" \
+            "${{ steps.filter.outputs.review }}" \
+            "${{ steps.filter.outputs.next }}" \
+            "${{ steps.filter.outputs.lanes }}" \
+            "${{ steps.filter.outputs.dashboard }}" \
+            "${{ steps.filter.outputs.upgrade }}" \
+            "${{ steps.filter.outputs.cli }}" \
+            "${{ steps.filter.outputs.charter }}" \
+            "${{ steps.filter.outputs.agent }}" \
+            "${{ steps.filter.outputs.kernel }}" \
+            "${{ steps.filter.outputs.glossary }}" \
+            "${{ steps.filter.outputs.execution_context }}" \
+            "${{ steps.filter.outputs.core_misc }}"; do
+            if [ "$group_hit" = "true" ]; then
+              matched=true
+            fi
+          done
+          if [ "$ANY_SRC" = "true" ] && [ "$matched" = "false" ]; then
+            echo "::warning::src/** change matched by NO named filter group — forcing run-all (FR-004 fail-closed catch-all). Add a named group for this directory."
+            echo "unmatched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "unmatched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ===========================================================================
+  # Shift-left front (FR-005): the cheapest static / lint / regen gates. Every
+  # one is ALWAYS-ON (no filter group) and carries NO `needs:` between the
+  # front-line lint jobs, so they run in parallel and fail first / cheapest.
+  # Ordered cheapest-first in declaration order.
+  # ===========================================================================
+  ruff:
+    name: ruff (lint + format)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      # ruff lives in the `lint` extra, not the default groups — sync it in
+      # first, or `uv run ruff` fails to spawn on a cold runner (the env has no
+      # ruff). Mirrors the proven ci-quality.yml Lint job.
+      - run: |
+          uv sync --frozen --extra lint
+          uv run --frozen ruff check .
+          uv run --frozen ruff format --check .
+
+  commit-msg:
+    name: commit message lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - run: git log --format=%s origin/${{ github.base_ref || 'main' }}..HEAD || true
+
+  markdownlint:
+    name: markdownlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: npx --yes markdownlint-cli2 "**/*.md" || true
+
+  uv-lock:
+    name: uv lock --check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: uv lock --check
+
+  import-linter:
+    name: import boundaries (TID251)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      # ruff lives in the `lint` extra — sync it in first or `uv run ruff` fails
+      # to spawn on a cold runner (env has no ruff). Mirrors the ruff job above.
+      - run: |
+          uv sync --frozen --extra lint
+          uv run --frozen ruff check --select TID251 .
+
+  regen-check:
+    name: regen --check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen spec-kitty regen --check
+
+  # ---------------------------------------------------------------------------
+  # FAST always-on architectural gates (FR-008 / NFR-002): terminology + the
+  # layer-rule / import-direction pole. They run UNCONDITIONALLY and carry NO
+  # filter group, so they add nothing to the code-scoped cone — a docs-only PR
+  # still pays for them but pays for NO code shard and NOT the heavy battery.
+  # ---------------------------------------------------------------------------
+  terminology:
+    name: terminology guard (fast, always-on)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q
+
+  layer-rules:
+    name: layer rules / import direction (fast, always-on)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/architectural/test_layer_rules.py tests/architectural/test_pyproject_shape.py -q
+
+  # ---------------------------------------------------------------------------
+  # HEAVY architectural battery (FR-008 / NFR-002): CODE-SCOPED. Its `if:` is
+  # authority #2 — the OR of every src-backed filter group — so ANY code change
+  # runs it and a docs-only PR runs NEITHER it nor a code shard. (The completeness
+  # oracle in WP17 asserts this OR-list equals the parsed src-backed group set.)
+  # ---------------------------------------------------------------------------
+  architectural-heavy:
+    name: architectural battery (heavy, code-scoped)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [changes]
+    if: >-
+      needs.changes.outputs.merge == 'true' ||
+      needs.changes.outputs.missions == 'true' ||
+      needs.changes.outputs.post_merge == 'true' ||
+      needs.changes.outputs.release == 'true' ||
+      needs.changes.outputs.status == 'true' ||
+      needs.changes.outputs.review == 'true' ||
+      needs.changes.outputs.next == 'true' ||
+      needs.changes.outputs.lanes == 'true' ||
+      needs.changes.outputs.dashboard == 'true' ||
+      needs.changes.outputs.upgrade == 'true' ||
+      needs.changes.outputs.cli == 'true' ||
+      needs.changes.outputs.charter == 'true' ||
+      needs.changes.outputs.agent == 'true' ||
+      needs.changes.outputs.kernel == 'true' ||
+      needs.changes.outputs.glossary == 'true' ||
+      needs.changes.outputs.execution_context == 'true' ||
+      needs.changes.outputs.core_misc == 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Full history: several architectural recovery/receipt tests
+          # `git archive` historical mission SHAs (e.g. the WP01 base commit),
+          # which a shallow (fetch-depth 1) checkout does not contain — they
+          # error at setup with `git archive <sha> ... exit 128` otherwise.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          # Run the battery in parallel (per-worker HOME isolation via conftest,
+          # --dist loadfile) — the full serial run overran the timeout. Deselect
+          # the parallel-unsafe / off-PR families (performance/stress/timing),
+          # matching make test-full's PARALLEL_UNSAFE_MARKERS.
+          uv run --frozen pytest tests/architectural -q \
+            -m "not performance and not stress and not timing" \
+            -n auto --dist loadfile \
+            --deselect tests/architectural/test_no_legacy_terminology.py \
+            --deselect tests/architectural/test_layer_rules.py \
+            --deselect tests/architectural/test_pyproject_shape.py
+
+  # ===========================================================================
+  # Code shards (group -> job, authority #2). Representative per-group shards;
+  # the full per-module matrix over the committed module registry is WP08 (T2).
+  # ===========================================================================
+  tests-merge:
+    name: tests (merge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes]
+    if: ${{ needs.changes.outputs.merge == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/merge -q
+
+  tests-status:
+    name: tests (status)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes]
+    if: ${{ needs.changes.outputs.status == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/status -q
+
+  tests-cli:
+    name: tests (cli)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes]
+    if: ${{ needs.changes.outputs.cli == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/cli -q
+
+  # ---------------------------------------------------------------------------
+  # Non-code shards (data groups). docs/corpus/e2e select these; NONE is a code
+  # shard, so a docs-only PR selects 0 code shards (NFR-002). corpus keeps its
+  # exit-5 floor (#3008): an empty corpus selection is a failure, not a pass.
+  # ---------------------------------------------------------------------------
+  tests-docs:
+    name: tests (docs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.docs == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/docs -q
+
+  tests-corpus:
+    name: tests (corpus)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.corpus == 'true' }}
+    steps:
+      # fetch-depth: 0 — the corpus suite includes the shrink-only ratchet
+      # (test_transition_guard_shrink_only), which walks history back to the EXP
+      # port base commit; a shallow clone can't reach it and the test fails
+      # closed "not reachable in this CI checkout". Full history makes the base
+      # reachable so the ratchet runs.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          # The corpus suite is MARKER-selected, not a directory: spec.md AC-3 and
+          # the WP14 contract prescribe the `-m corpus` exit-5 floor, and the
+          # `corpus` marker (pytest.ini) tags every corpus-reading test across the
+          # tree. `pytest tests/corpus` pointed at a directory that never existed
+          # (exit 4, "file or directory not found"). Select by marker per the
+          # marker's own documented invocation; pytest exits 5 if zero corpus
+          # tests are collected, which fails the job (the #3008 exit-5 floor).
+          # ~1400 corpus tests: run parallel (--dist loadfile, per-worker HOME
+          # isolation via conftest) to stay well inside the job timeout — serial
+          # is ~8-15 min on a stock runner.
+          uv run --frozen pytest -m "corpus and not windows_ci" -q -n auto --dist loadfile
+
+  tests-e2e:
+    name: tests (e2e)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [changes]
+    if: ${{ needs.changes.outputs.e2e == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/e2e -q
+
+  # ---------------------------------------------------------------------------
+  # router-gate: terminal aggregator. `if: always() && !cancelled()` realizes
+  # the FR-018/FR-019 full-mode semantics (skipped != pass) — it evaluates the
+  # real result of every dependency in both PR (fail-fast) and full mode.
+  # ---------------------------------------------------------------------------
+  router-gate:
+    name: router gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - changes
+      - ruff
+      - commit-msg
+      - markdownlint
+      - uv-lock
+      - import-linter
+      - regen-check
+      - terminology
+      - layer-rules
+      - architectural-heavy
+      - tests-merge
+      - tests-status
+      - tests-cli
+      - tests-docs
+      - tests-corpus
+      - tests-e2e
+    if: ${{ always() && !cancelled() }}
+    steps:
+      - name: Evaluate router-gate decision
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          MODE: ${{ inputs.mode || 'pr' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          # A dependency that was short-circuit-skipped by the router (path-scoped
+          # PR mode) reports "skipped"; a genuinely failed one reports "failure"
+          # or "cancelled". Skipped != pass, but a router-scoped skip is allowed
+          # (it means "this shard was not selected for this diff").
+          blocking = {
+              job: result.get("result")
+              for job, result in needs.items()
+              if result.get("result") in {"failure", "cancelled"}
+          }
+          if blocking:
+              raise SystemExit(f"blocking job(s) did not succeed: {blocking}")
+          print(f"router-gate OK (mode={os.environ['MODE']})")
+          PY

@@ -59,6 +59,7 @@ def make_started_record() -> OpStartedEvent:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_propagator_non_blocking(tmp_path: pytest.TempPathFactory) -> None:
     """submit() returns in < 50ms even if the SaaS call takes 500ms."""
     record = make_started_record()

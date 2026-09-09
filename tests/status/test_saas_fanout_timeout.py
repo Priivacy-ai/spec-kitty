@@ -132,6 +132,7 @@ def test_orphaned_handler_suppresses_an_overlapping_invocation(
     release.set()  # let the orphan unwind and clear the in-flight key
 
 
+@pytest.mark.performance
 def test_hanging_lifecycle_handler_does_not_block(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

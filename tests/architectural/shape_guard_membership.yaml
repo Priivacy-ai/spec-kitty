@@ -1,0 +1,56 @@
+# Enforcement-allowlist vs shape-guard membership — WP16 (E4, C-007, FR-014,
+# NFR-007; mission ci-pipeline-reinstatement-01M1X35E; closes #3458).
+#
+# Governed by tests/architectural/test_shape_guard_membership.py, whose module
+# docstring records the full rationale. READ IT BEFORE EDITING THIS FILE.
+#
+# This is the COMMITTED, MACHINE-CHECKABLE partition C-007 requires: a test's
+# `class` decides whether it sits on the PR-blocking gate, and relabeling it
+# here alone cannot move it on/off the gate in either direction — the guard
+# test cross-checks each entry against the real file/function on disk and,
+# for `shape-guard` entries, against the demoted function's actual runtime
+# behavior (it must not raise under a manufactured ceiling breach).
+#
+# class values:
+#   enforcement-allowlist — catches real defects (dead symbols, retired
+#     subsystems, dead modules, integration-boundary violations). ALWAYS-ON
+#     blocking. NEVER demote a member of this class (the P2 footgun this
+#     mission's Risks section names).
+#   shape-guard — a low-ROI cardinality/byte-parity guard (P2 demotion
+#     target). Demoted OFF the blocking gate: a breach is reported (warning /
+#     advisory telemetry) rather than raised as a hard pytest failure, so a
+#     benign symbol addition elsewhere in the repo cannot red CI on shape
+#     alone (NFR-007).
+#   behavioral — an ordinary test (unit test of a pure helper, a structural
+#     invariant, a content-pinned snapshot derived from source). Neither
+#     ratchet class; runs and blocks like any other test in its suite, but is
+#     not itself a shape-guard subject to this mission's P2 demotion.
+#
+# Key shape: `<module relpath>` classifies every test in that module UNLESS
+# overridden by a more specific `<module relpath>::<function name>` entry for
+# one test within it. A `::`-qualified key always wins over its bare-module
+# key for that one function.
+membership:
+  # --- Enforcement allowlists (P1) — ALWAYS-ON, out of P2 demotion scope. ---
+  # (mission Risks: "a naive 'delete all whitelists' would gut the enforcement
+  # allowlists P1 depends on" — this partition is the defense.)
+  tests/architectural/test_no_dead_symbols.py: enforcement-allowlist
+  tests/architectural/test_no_retired_subsystems.py: enforcement-allowlist
+  tests/architectural/test_no_dead_modules.py: enforcement-allowlist
+  tests/architectural/test_integration_boundary.py: enforcement-allowlist
+
+  # --- P2 shape-guard demotion targets (#3458). ---
+  # The frozen-ceiling ratchet is the one low-ROI shape guard in this module;
+  # every other test here is a behavioral unit test of the pure
+  # classify_golden_count/ratchet_violations/convert_counts_by_dir helpers
+  # (still real, still blocking — they test logic, not a frozen count).
+  tests/architectural/test_golden_count_ban.py: behavioral
+  tests/architectural/test_golden_count_ban.py::test_convert_sites_do_not_exceed_frozen_baseline: shape-guard
+
+  # --- Already narrowed, reclassified out of shape-guard (#3447 WP05). ---
+  # Was the low-ROI 12-agent byte-for-byte grid NFR-007 names; narrowed to two
+  # canonical per-render-branch snapshots + a structural invariant derived
+  # from AGENT_COMMAND_CONFIG (the src SSOT), so it no longer re-enumerates a
+  # frozen ~20-file grid. Classified behavioral, not shape-guard: it is a
+  # real content/structure check now, not a cardinality/byte-parity tax.
+  tests/specify_cli/regression/test_twelve_agent_parity.py: behavioral
