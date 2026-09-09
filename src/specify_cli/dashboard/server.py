@@ -3,20 +3,22 @@
 from __future__ import annotations
 
 import logging
+import os
 import socket
 import subprocess
 import sys
-import textwrap
 import threading
+import time
 from pathlib import Path
-from typing import Optional, Tuple
 
 from specify_cli.core.errors import StructuredError
 from specify_cli.core.loopback_http import create_loopback_server, serve_loopback_server
+from specify_cli.paths import get_runtime_root
 
 from .handlers.router import DashboardRouter
 
 __all__ = [
+    "DashboardSpawnError",
     "PortUnavailableError",
     "find_free_port",
     "start_dashboard",
@@ -36,6 +38,21 @@ class PortUnavailableError(StructuredError):
     error_code: str = "DASHBOARD_PORT_UNAVAILABLE"
 
 
+class DashboardSpawnError(StructuredError):
+    """Raised when the detached dashboard child dies before its port is reachable.
+
+    Carries the child's exit status and a log tail in the message so the crash
+    that killed it is diagnosable at the call site instead of vanishing into a
+    detached process's discarded output (#4125).
+    """
+
+    error_code: str = "DASHBOARD_SPAWN_FAILED"
+
+    def __init__(self, message: str, *, exit_code: int | None) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
+
+
 def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
     """
     Find an available port starting from start_port.
@@ -46,7 +63,7 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
         try:
             test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_sock.settimeout(0.1)
-            if test_sock.connect_ex(('127.0.0.1', port)) == 0:
+            if test_sock.connect_ex(("127.0.0.1", port)) == 0:
                 test_sock.close()
                 continue
             test_sock.close()
@@ -56,7 +73,7 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                sock.bind(('127.0.0.1', port))
+                sock.bind(("127.0.0.1", port))
                 return port
         except OSError:
             continue
@@ -66,11 +83,11 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
 
 def _build_handler_class(project_dir: Path, project_token: str | None) -> type[DashboardRouter]:
     return type(
-        'DashboardHandler',
+        "DashboardHandler",
         (DashboardRouter,),
         {
-            'project_dir': str(project_dir),
-            'project_token': project_token,
+            "project_dir": str(project_dir),
+            "project_token": project_token,
         },
     )
 
@@ -91,20 +108,170 @@ def run_dashboard_server(project_dir: Path, port: int, project_token: str | None
     serve_loopback_server(port, handler_class)
 
 
-def _background_script(project_dir: Path, port: int, project_token: str | None) -> str:
-    repo_root = Path(__file__).resolve().parents[2]
-    return textwrap.dedent(
-        f"""
-        import sys
-        from pathlib import Path
-        repo_root = Path({repr(str(repo_root))})
-        # Always insert at position 0 to ensure correct spec-kitty version takes priority
-        # over any other paths in PYTHONPATH or .pth files
-        sys.path.insert(0, str(repo_root))
-        from specify_cli.dashboard.server import run_dashboard_server
-        run_dashboard_server(Path({repr(str(project_dir))}), {port}, {repr(project_token)})
-        """
-    )
+# Detached children are spawned as ``python -m`` of this module, never via
+# ``python -c`` with a generated script: ``-c`` leaves ``__main__`` without a
+# ``__file__`` attribute, which a Windows-platform transitive import in the
+# server import chain reads, killing the child before it binds (#4125).
+_SPAWN_MODULE = "specify_cli.dashboard._server_main"
+_SPAWN_READINESS_TIMEOUT_SECONDS = 10.0
+_SPAWN_READINESS_POLL_SECONDS = 0.1
+_SPAWN_LOG_TAIL_BYTES = 4096
+
+
+def _dashboard_spawn_log_file() -> Path:
+    """Log file detached dashboard children's stdout/stderr are piped to.
+
+    Mirrors the former sync daemon's ``~/.spec-kitty/sync-daemon.log``
+    observability pattern: a detached child's output must land somewhere a
+    human can read after the fact, or the next spawn-path crash is
+    undiagnosable (#4125).
+    """
+    runtime_base: Path = get_runtime_root().base
+    return runtime_base / "dashboard-server.log"
+
+
+def _spawn_child_env() -> dict[str, str]:
+    """Child env with this checkout's import root prepended to ``PYTHONPATH``.
+
+    The parent of the running ``specify_cli`` package directory, prepended to
+    ``PYTHONPATH``, makes the ``-m`` child resolve the same spec-kitty the
+    parent is running — taking priority over any other paths in ``PYTHONPATH``
+    or ``.pth`` files — regardless of the child interpreter's own
+    site-packages.
+    """
+    import_root = Path(__file__).resolve().parents[2]
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = str(import_root) if not existing else os.pathsep.join([str(import_root), existing])
+    return env
+
+
+def _read_spawn_log_tail(log_path: Path) -> str:
+    """Return the last ``_SPAWN_LOG_TAIL_BYTES`` of the spawn log, '' if empty."""
+    try:
+        with open(log_path, "rb") as log_fh:
+            log_fh.seek(0, os.SEEK_END)
+            size = log_fh.tell()
+            log_fh.seek(max(0, size - _SPAWN_LOG_TAIL_BYTES))
+            return log_fh.read().decode("utf-8", errors="replace").strip()
+    except OSError:
+        return ""
+
+
+def _spawn_log_detail(log_path: Path) -> str:
+    tail = _read_spawn_log_tail(log_path)
+    if tail:
+        return f"\nLog tail ({log_path}):\n{tail}"
+    return f"\nLog file is empty ({log_path})."
+
+
+def _spawn_dashboard_process(
+    project_dir: Path,
+    port: int,
+    project_token: str | None,
+) -> tuple[subprocess.Popen[bytes], Path]:
+    """Spawn the detached dashboard child via ``python -m`` and return it.
+
+    Output goes to the spawn log (never DEVNULL), stdin is closed, and the
+    child is detached per platform: a new session on POSIX, the
+    ``DETACHED_PROCESS`` creation flag on Windows (where ``start_new_session``
+    is inert).
+    """
+    argv = [sys.executable, "-m", _SPAWN_MODULE, str(project_dir), str(port)]
+    if project_token is not None:
+        argv.append(project_token)
+
+    log_path = _dashboard_spawn_log_file()
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_fh = open(log_path, "a")  # noqa: SIM115 — the child inherits the fd across Popen; the parent copy is closed immediately after
+    try:
+        # DETACHED_PROCESS exists only on Windows; getattr keeps this importable
+        # (and this function unit-testable with a stubbed subprocess) elsewhere.
+        creationflags = getattr(subprocess, "DETACHED_PROCESS", 0) if sys.platform == "win32" else 0
+        proc = subprocess.Popen(
+            argv,
+            stdout=log_fh,
+            stderr=log_fh,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            creationflags=creationflags,
+            env=_spawn_child_env(),
+        )
+    finally:
+        log_fh.close()
+    return proc, log_path
+
+
+def _port_accepts_connection(port: int) -> bool:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(0.2)
+            return sock.connect_ex(("127.0.0.1", port)) == 0
+    except OSError:
+        return False
+
+
+def _child_serves_project(port: int, project_dir: Path) -> bool:
+    """True when the listener on ``port`` is *this* project's dashboard.
+
+    ``_port_accepts_connection`` only proves some process is listening. Under
+    parallel test workers (or a busy operator machine) a sequentially chosen
+    port can be held by another dashboard for a moment, which would let the
+    readiness probe return for a child that then dies of "address in use".
+    The ``/api/health`` payload names the project it serves, so match on it.
+    """
+    import json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(  # nosec B310 — loopback URL built from our own port
+            f"http://127.0.0.1:{port}/api/health", timeout=1.0
+        ) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(payload, dict) and payload.get("project_path") == str(project_dir)
+
+
+def _wait_for_spawn_readiness(
+    proc: subprocess.Popen[bytes],
+    port: int,
+    log_path: Path,
+    *,
+    project_dir: Path | None = None,
+    timeout_seconds: float = _SPAWN_READINESS_TIMEOUT_SECONDS,
+) -> None:
+    """Poll until the detached child's port is reachable; raise on early exit.
+
+    A child that dies before binding used to leave the caller reporting a
+    started dashboard that silently wasn't there (#4125). Now its exit status
+    and log tail surface here. A child still alive but not bound within the
+    window is left to the caller's (longer) health-check poll rather than
+    failed here — a slow-but-healthy spawn is not an error.
+    """
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        exit_code = proc.poll()
+        if exit_code is not None:
+            raise DashboardSpawnError(
+                f"Detached dashboard process exited with status {exit_code} before binding port {port}.{_spawn_log_detail(log_path)}",
+                exit_code=exit_code,
+            )
+        if _port_accepts_connection(port) and (
+            project_dir is None or _child_serves_project(port, project_dir)
+        ):
+            return
+        time.sleep(_SPAWN_READINESS_POLL_SECONDS)
+
+
+def _start_background_dashboard(
+    project_dir_abs: Path,
+    port: int,
+    project_token: str | None,
+) -> tuple[int, int]:
+    proc, log_path = _spawn_dashboard_process(project_dir_abs, port, project_token)
+    _wait_for_spawn_readiness(proc, port, log_path, project_dir=project_dir_abs)
+    return port, proc.pid
 
 
 def start_dashboard(
@@ -127,6 +294,10 @@ def start_dashboard(
 
     Returns:
         Tuple[port, pid]: Port number and process ID (None if threaded mode)
+
+    Raises:
+        DashboardSpawnError: the detached child exited before its port was
+            reachable (the message carries the child's log tail, #4125)
     """
     if port is None:
         port = find_free_port()
@@ -134,15 +305,7 @@ def start_dashboard(
     project_dir_abs = project_dir.resolve()
 
     if background_process:
-        script = _background_script(project_dir_abs, port, project_token)
-        proc = subprocess.Popen(
-            [sys.executable, '-c', script],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-        return port, proc.pid
+        return _start_background_dashboard(project_dir_abs, port, project_token)
 
     handler_class = _build_handler_class(project_dir_abs, project_token)
     server = create_loopback_server(port, handler_class)

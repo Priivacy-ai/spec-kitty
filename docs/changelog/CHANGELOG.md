@@ -15,6 +15,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.7] - 2026-09-09
+
+_Maintenance release from the 3.2.6 line carrying the 2026-09-09 fixes for project-layer agent profiles, first-run and Windows reliability, and `finalize-tasks`. It does not include the convergence work in progress on `main`._
+
+### Fixed
+
+- **Dispatch routes activated project-layer agent profiles** (#4114). The routing catalog now draws from every doctrine layer the `activated_agent_profiles` gate admits, including profiles authored under `.kittify/doctrine/agent_profiles/`, so `charter activate agent-profile <id>` is sufficient to make a project profile dispatchable and deactivating the shipped profiles routes to the project's own. The empty-catalog `ROUTER_NO_MATCH` message names charter activation instead of `charter synthesize`.
+
+- **Built-in missions fall back by role when a shipped step-default profile is deactivated** (#4115). `software-dev`, `research` and `documentation` steps resolve their default profile against the invocation catalog and, when the default is deactivated, pick an activated profile with the same role instead of blocking the mission with `ProfileNotFoundError`. `charter deactivate agent-profile` and `charter preflight` warn when a deactivated profile is bound by an activated mission type.
+
+- **`spec-kitty init` installs the event-log merge-driver git config** (#4146, #4143). Init wrote the `.gitattributes` half of the union-merge wiring for `status.events.jsonl` but never the `merge.<key>.name`/`.driver` config, so the driver stayed inert until a later merge self-healed it and every early lane claim hit an add/add conflict. Both halves now land together at init; a non-git target gets the same advice the init output already prints.
+
+- **`finalize-tasks` treats an empty frontmatter `dependencies: []` as absent** (#4135). `agent tasks map-requirements` rewrites WP frontmatter and serialised an empty list, which the 3-tier dependency resolver then read as an authoritative user declaration and silently discarded the chain declared in `tasks.md`. An empty list now falls through to `tasks.md`; a non-empty list remains authoritative.
+
+- **`agent mission finalize-tasks --refresh-planning-commit` advances the frozen `planning_commit_sha`** (#4141). After a mid-execution plan change every WP was forced past the `kitty-specs/` tracking-state gate with no refresh path. The new flag re-points the recorded SHA to the current planning tip when the recorded SHA is an ancestor of it, refuses otherwise, and reports the decision in the `--json` payload. The orchestrator-api contract moves from 1.4.0 to 1.5.0.
+
+- **A corrupt `__pycache__/*.pyc` no longer crashes every `spec-kitty` command at startup** (#4124). CLI app assembly, the compat-planner migration-registry load and `spec-kitty upgrade`'s discovery step run through a bytecode self-heal seam: an import failure plausibly caused by a stale cache (`bad marshal data`, `marshal data too short`, `Non-code object in '…pyc'`, the `co_filename` AttributeError) purges the installed package's derived `*.pyc` caches, invalidates the import caches and retries once with a one-line warning. Genuine failures still propagate, and the planner seam degrades loudly instead of the previous silent `except: pass`.
+
+- **The dashboard spawns its detached server via `python -m`, with a log file and a readiness probe** (#4125). Spawning via `python -c` crashed on Windows (`__main__.__file__` AttributeError) silently, with output sent to `DEVNULL` and no readiness check. The server now starts through `specify_cli.dashboard._server_main`, child output goes to `~/.spec-kitty/dashboard-server.log`, and an early exit raises `DashboardSpawnError` with the exit status and the log tail. The ephemeral-port (`port=0`) protocol that accompanies this fix on `main` is not part of the 3.2.6 line and is not included.
+
+- **Non-git projects get actionable advice instead of an unhandled `NotInsideRepositoryError`** (#4123). `dispatch` (invoke and `--dry-run`, with a parseable `--json` envelope) and `dashboard` catch charter-resolution failures on a never-initialised project and print how to run `git init` and make an initial commit.
+
+- **Windows: coordination artifact writes fall back to a path-based confined write** (#3173). The fd-relative confined write (`dir_fd`, `O_DIRECTORY`, `O_NOFOLLOW`) has no equivalent on Windows, so every coordination write hard-failed. A capability predicate now routes the write and the unlink through a path-based fallback that re-verifies containment and rejects symlinked path components.
+
+### Not included
+
+- #4120 (union-merge of a stale lane base's event log; `--profile` resolution of project-local charter profiles) stays on `main`. Its lane-merge half depends on the merge-driver activation plumbing from #2709/#2711 that this line never received; the profile half is covered here by #4114.
+
 ## [3.2.6.2] - 2026-09-09
 
 ### Added

@@ -18,14 +18,17 @@ the WP01 golden harness. The relocated ``_collect_finalize_artifacts`` /
 
 from __future__ import annotations
 
+import io
 import json
 import re
 from pathlib import Path
 
 import pytest
 import typer
+from rich.console import Console
 
 from specify_cli.cli.commands.agent import mission_finalize as seam
+from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership import validation as ownership_validation
 from specify_cli.ownership.models import OwnershipManifest, WorkProductKind
 from specify_cli.status import WPMetadata
@@ -1040,3 +1043,173 @@ def test_gather_validation_frontmatter_falls_back_to_disk(tmp_path: Path) -> Non
     state = seam._BootstrapState()
     fms, _bodies = seam._gather_validation_frontmatter([wp], state)
     assert list(fms["WP01"].dependencies) == ["WP00"]
+
+
+# ---------------------------------------------------------------------------
+# #4141 — the planning_commit_sha refresh decision helpers
+# ---------------------------------------------------------------------------
+
+
+def _capture_console(monkeypatch: pytest.MonkeyPatch) -> io.StringIO:
+    """Point ``seam.console`` at an in-memory buffer and return it."""
+    buf = io.StringIO()
+    monkeypatch.setattr(seam, "console", Console(file=buf, force_terminal=False, width=200))
+    return buf
+
+
+def _manifest_with_planning_sha(sha: str | None) -> LanesManifest:
+    return LanesManifest(
+        version=1,
+        mission_slug="001-mission",
+        mission_id=None,
+        mission_branch="kitty/mission-001-mission",
+        target_branch="main",
+        lanes=[],
+        computed_at="2026-09-09T00:00:00Z",
+        computed_from="test",
+        planning_commit_sha=sha,
+    )
+
+
+def test_report_planning_sha_decision_silent_in_json_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    buf = _capture_console(monkeypatch)
+    seam._report_planning_sha_decision(
+        "main",
+        seam.PlanningCommitResolution(sha="b" * 40, action="refreshed", previous_sha="a" * 40),
+        json_output=True,
+    )
+    assert buf.getvalue() == ""
+
+
+def test_report_planning_sha_decision_silent_on_none_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
+    buf = _capture_console(monkeypatch)
+    seam._report_planning_sha_decision("main", None, json_output=False)
+    assert buf.getvalue() == ""
+
+
+def test_report_planning_sha_decision_reports_refresh(monkeypatch: pytest.MonkeyPatch) -> None:
+    buf = _capture_console(monkeypatch)
+    seam._report_planning_sha_decision(
+        "main",
+        seam.PlanningCommitResolution(sha="b" * 40, action="refreshed", previous_sha="a" * 40),
+        json_output=False,
+    )
+    out = buf.getvalue()
+    assert "Refreshed planning_commit_sha" in out
+    assert "a" * 40 in out and "b" * 40 in out
+
+
+def test_report_planning_sha_decision_warns_on_preserved_drift(monkeypatch: pytest.MonkeyPatch) -> None:
+    buf = _capture_console(monkeypatch)
+    seam._report_planning_sha_decision(
+        "main",
+        seam.PlanningCommitResolution(
+            sha="a" * 40,
+            action="preserved",
+            previous_sha="a" * 40,
+            branch_tip="b" * 40,
+        ),
+        json_output=False,
+    )
+    out = buf.getvalue()
+    assert "--refresh-planning-commit" in out
+    assert "a" * 40 in out and "b" * 40 in out
+
+
+def test_report_planning_sha_decision_silent_when_no_drift(monkeypatch: pytest.MonkeyPatch) -> None:
+    buf = _capture_console(monkeypatch)
+    seam._report_planning_sha_decision(
+        "main",
+        seam.PlanningCommitResolution(sha="a" * 40, action="preserved", previous_sha="a" * 40, branch_tip="a" * 40),
+        json_output=False,
+    )
+    # No drift (tip == recorded) and no recorded provenance gap → nothing to say.
+    assert buf.getvalue() == ""
+
+
+def test_refuse_planning_sha_refresh_prints_error_in_human_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    buf = _capture_console(monkeypatch)
+    with pytest.raises(typer.Exit):
+        seam._refuse_planning_sha_refresh("refusal message", json_output=False)
+    assert "refusal message" in buf.getvalue()
+
+
+def _preserve_or_capture(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    execution_begun: bool,
+    recorded_sha: str | None,
+    tip: str | None,
+    ancestor: bool = True,
+    refresh: bool = False,
+) -> object:
+    """Drive ``_preserve_or_capture_planning_commit_sha`` with git faked out."""
+    monkeypatch.setattr(seam, "_execution_has_begun", lambda *a, **k: execution_begun)
+    monkeypatch.setattr(seam, "_capture_target_branch_tip", lambda *a, **k: tip)
+    monkeypatch.setattr(
+        seam,
+        "_recorded_planning_sha_is_ancestor_of_tip",
+        lambda *a, **k: ancestor,
+    )
+    monkeypatch.setattr(
+        "specify_cli.lanes.persistence.read_lanes_json",
+        lambda *_a, **_k: _manifest_with_planning_sha(recorded_sha),
+    )
+    return seam._preserve_or_capture_planning_commit_sha(
+        tmp_path,
+        tmp_path,
+        "001-mission",
+        "main",
+        json_output=True,
+        refresh_planning_commit=refresh,
+    )
+
+
+def test_preserve_or_capture_pre_execution_captures_tip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    resolution = _preserve_or_capture(monkeypatch, tmp_path, execution_begun=False, recorded_sha="a" * 40, tip="b" * 40)
+    assert resolution == seam.PlanningCommitResolution(sha="b" * 40, action="captured")
+
+
+def test_preserve_or_capture_execution_begun_preserves_by_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    resolution = _preserve_or_capture(monkeypatch, tmp_path, execution_begun=True, recorded_sha="a" * 40, tip="b" * 40)
+    assert resolution == seam.PlanningCommitResolution(
+        sha="a" * 40,
+        action="preserved",
+        previous_sha="a" * 40,
+        branch_tip="b" * 40,
+    )
+
+
+def test_preserve_or_capture_refresh_repoints_to_tip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    resolution = _preserve_or_capture(monkeypatch, tmp_path, execution_begun=True, recorded_sha="a" * 40, tip="b" * 40, ancestor=True, refresh=True)
+    assert resolution == seam.PlanningCommitResolution(
+        sha="b" * 40,
+        action="refreshed",
+        previous_sha="a" * 40,
+        branch_tip="b" * 40,
+    )
+
+
+def test_preserve_or_capture_refresh_from_none_recorded_sha_is_a_safe_advance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A legacy lanes.json with no recorded SHA has no provenance to clobber."""
+    resolution = _preserve_or_capture(monkeypatch, tmp_path, execution_begun=True, recorded_sha=None, tip="b" * 40, refresh=True)
+    assert resolution == seam.PlanningCommitResolution(sha="b" * 40, action="refreshed", previous_sha=None, branch_tip="b" * 40)
+
+
+def test_preserve_or_capture_refresh_refused_when_tip_uncapturable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    with pytest.raises(typer.Exit):
+        _preserve_or_capture(monkeypatch, tmp_path, execution_begun=True, recorded_sha="a" * 40, tip=None, refresh=True)
+    assert any("could not be captured" in str(e.get("error", "")) for e in emitted)
+
+
+def test_preserve_or_capture_refresh_refused_when_recorded_not_ancestor(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    with pytest.raises(typer.Exit):
+        _preserve_or_capture(monkeypatch, tmp_path, execution_begun=True, recorded_sha="a" * 40, tip="b" * 40, ancestor=False, refresh=True)
+    assert any("not an ancestor" in str(e.get("error", "")) for e in emitted)

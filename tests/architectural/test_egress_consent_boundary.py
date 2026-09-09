@@ -655,6 +655,16 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="Localhost dashboard shutdown/control endpoints.",
     ),
+    "specify_cli/dashboard/server.py": Allowance(
+        kind=AllowanceKind.LOOPBACK_CONTROL,
+        inventory_id="E18",
+        note=(
+            "Localhost readiness probe: the parent GETs its own just-spawned "
+            "child's http://127.0.0.1:<port>/api/health to confirm the listener "
+            "is this project's dashboard (#4125, 3.2.7). No project data leaves "
+            "the machine; the request carries no payload."
+        ),
+    ),
     "specify_cli/sync/daemon.py": Allowance(
         kind=AllowanceKind.LOOPBACK_CONTROL,
         inventory_id="E18",

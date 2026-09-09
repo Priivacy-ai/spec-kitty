@@ -109,6 +109,19 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
+        # specify_cli.dashboard.server::DashboardSpawnError -- #4125: same
+        # shape as BackgroundPortReportError above — a deliberately exported
+        # typed failure contract (the detached child died before its port was
+        # reachable; the message carries the child's log tail). Raised by
+        # _wait_for_spawn_readiness and surfaced to the CLI through the
+        # generic StructuredError/Exception handling, which prints the message
+        # and exits 1; no runtime caller catches it by name yet.
+        # TODO(triage): wire the first named catcher or drop from __all__ (FR-303).
+        SymbolKey(
+            "DashboardSpawnError",
+            "fb3c91c8d98baf2d13bdc793e6b3911299e1ec77967e184c7bfcc64a1b9cab0a",
+            source_module="specify_cli.dashboard.server",
+        ),
         SymbolKey(
             "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter.activation._catalog_miss"
         ),  # charter.activation._catalog_miss::CatalogMissCause

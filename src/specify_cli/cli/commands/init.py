@@ -680,7 +680,8 @@ def init(  # noqa: C901
         if not _is_inside_git_work_tree(probe_dir):
             _console.print(
                 "[yellow]Target is not a git repository.[/yellow] "
-                "After init, run `git init` in the target before using `spec-kitty agent ...` commands."
+                "After init, run `git init` in the target before using "
+                "`spec-kitty agent`, `dashboard`, `dispatch`, `next`, or `implement` commands."
             )
     except VCSNotFoundError:
         # git not available - not an error, just informational
@@ -1060,7 +1061,7 @@ def init(  # noqa: C901
         step_num += 1
     if not inside_git:
         steps_lines.append(
-            f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent/worktree commands"
+            f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent, dashboard, dispatch, next, and implement commands"
         )
         step_num += 1
 
@@ -1154,6 +1155,16 @@ def init(  # noqa: C901
 
     if _ensure_event_log_merge_attributes(project_path):
         _console.print("[dim]Updated .gitattributes for Spec Kitty generated artifacts[/dim]")
+
+    # #4146: the attribute mapping above is inert without its git-config half
+    # (``merge.<key>.name`` / ``.driver``). Install both halves of every
+    # registered merge driver here so the union driver is active from the very
+    # first lane claim, not only after the first merge/auto-rebase self-heals
+    # it. No-op (by the helper's own guard) when the target is not a git
+    # repository yet -- that case keeps relying on the merge-path self-heal.
+    from specify_cli.lanes.merge import _ensure_merge_driver_git_config
+
+    _ensure_merge_driver_git_config(project_path)
 
     # Fresh-init provisioning (FR-009/010/011, NFR-004): seed
     # mission_type_activations from the shipped default charter pack so a

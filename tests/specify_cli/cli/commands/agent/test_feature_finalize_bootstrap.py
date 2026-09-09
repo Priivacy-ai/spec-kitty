@@ -686,13 +686,24 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Explicit WP frontmatter deps are authoritative over tasks.md prose."""
+        """Non-empty WP frontmatter deps are authoritative over tasks.md prose.
+
+        #4135 reclassified a present-but-*empty* ``dependencies: []`` as a
+        map-requirements serialization artifact (covered by
+        test_issue_4135_empty_frontmatter_deps_fallback.py), so TIER-2
+        authority here is exercised with a non-empty disagreement: frontmatter
+        declares WP02 → WP01 while tasks.md declares no dependency for WP02.
+        """
         mission_slug = "060-test-feature"
-        # WP02 frontmatter says [] but tasks.md says "Depends on WP01".
-        _setup_feature_with_existing_deps(
+        # WP02 frontmatter says [WP01] but tasks.md says nothing.
+        feature_dir = _setup_feature_with_existing_deps(
             tmp_path,
             mission_slug,
-            wp02_existing_deps=[],
+            wp02_existing_deps=["WP01"],
+        )
+        (feature_dir / "tasks.md").write_text(
+            "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nSome content, no dep line.\n",
+            encoding="utf-8",
         )
 
         patches = _common_patches(tmp_path, mission_slug)
@@ -714,18 +725,28 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
             try:
                 data = json.loads(line)
                 if data.get("result") == "success":
-                    assert data["dependencies_parsed"]["WP02"] == []
+                    assert data["dependencies_parsed"]["WP02"] == ["WP01"]
                     return
             except json.JSONDecodeError:
                 continue
         pytest.fail("No JSON success payload found")
 
-    def test_explicit_empty_frontmatter_ignores_tasks_md_cycle(
+    def test_empty_frontmatter_artifact_lets_tasks_md_cycle_surface(
         self,
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Explicit dependencies: [] must not be overwritten by parsed back-edges."""
+        """A cyclic tasks.md chain is surfaced, not masked, behind empty frontmatter.
+
+        Pre-#4135, a present-but-empty ``dependencies: []`` (the map-requirements
+        serialization artifact) was treated as an authoritative dependency-free
+        declaration and silently discarded the parsed back-edges. #4135
+        reclassifies the empty list as absent, so the cyclic tasks.md chain now
+        resolves and the circular-dependency gate fires visibly instead of the
+        chain being silently dropped. An operator who genuinely wants a
+        dependency-free WP against tasks.md prose declares it in wps.yaml
+        (TIER-1, ``dependencies_are_explicit``), which still wins.
+        """
         mission_slug = "060-test-feature"
         feature_dir = _setup_feature(tmp_path, mission_slug)
         (feature_dir / "tasks.md").write_text(
@@ -741,23 +762,26 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         for p in ctx_patches.values():
             p.start()
+        exit_code: int | None = None
         try:
             finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+        except (typer.Exit, SystemExit) as exc:
+            exit_code = getattr(exc, "code", 1) or 1
         finally:
             for p in ctx_patches.values():
                 p.stop()
 
+        assert exit_code == 1, "A cyclic dependency chain must exit with code 1"
         captured = capsys.readouterr()
         for line in captured.out.strip().splitlines():
             try:
                 data = json.loads(line)
-                if data.get("result") == "validation_passed":
-                    assert data["would_modify"]
-                    assert "Circular dependencies detected" not in captured.out
+                if "Circular dependencies detected" in str(data.get("error", "")):
+                    assert data["cycles"]
                     return
             except json.JSONDecodeError:
                 continue
-        pytest.fail("No JSON validation payload found")
+        pytest.fail("No circular-dependency error payload found")
 
     def test_empty_parse_preserves_existing_deps(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """When parser finds no deps but frontmatter has deps, preserve existing."""

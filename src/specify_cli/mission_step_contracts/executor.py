@@ -10,12 +10,18 @@ invocation primitive.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    # Concrete module, not the ``charter.profiles`` facade: the facade's
+    # re-export types as ``Any`` under ``mypy --strict`` (same known pattern
+    # as ``load_validated_graph`` below), which would leak into
+    # ``_select_role_fallback``'s return type.
     from charter.activation.pack_context import PackContext
+    from charter.offering.agent_profiles.profile import AgentProfile
 
 from charter.activation._drg_helpers import load_validated_graph
 from charter.drg import (
@@ -46,6 +52,11 @@ from charter.mission_steps import (
 )
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
+from specify_cli.mission_step_contracts.profile_defaults import (
+    _ACTION_PROFILE_DEFAULTS,
+    _DEFAULT_PROFILE_ROLES,
+    mission_default_profile_warning,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -63,30 +74,6 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
     ArtifactKind.TEMPLATE: NodeKind.TEMPLATE,
     ArtifactKind.ASSET: NodeKind.ASSET,
     ArtifactKind.GLOSSARY_PACK: NodeKind.GLOSSARY_PACK,
-}
-
-# FR-008 / Phase 6 #505: this table is for built-in missions ONLY.
-# Custom missions MUST resolve profile_hint via PromptStep.agent_profile;
-# expanding this table for arbitrary custom missions is forbidden.
-# See kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md §R-003.
-_ACTION_PROFILE_DEFAULTS: dict[tuple[str, str], str] = {
-    ("software-dev", "specify"): "researcher-robbie",
-    ("software-dev", "plan"): "architect-alphonso",
-    ("software-dev", "tasks"): "architect-alphonso",
-    ("software-dev", "implement"): "implementer-ivan",
-    ("software-dev", "review"): "reviewer-renata",
-    ("research", "scoping"): "researcher-robbie",
-    ("research", "methodology"): "researcher-robbie",
-    ("research", "gathering"): "researcher-robbie",
-    ("research", "synthesis"): "researcher-robbie",
-    ("research", "output"): "reviewer-renata",
-    ("documentation", "discover"): "researcher-robbie",
-    ("documentation", "audit"): "researcher-robbie",
-    ("documentation", "design"): "architect-alphonso",
-    ("documentation", "generate"): "implementer-ivan",
-    ("documentation", "validate"): "reviewer-renata",
-    ("documentation", "publish"): "reviewer-renata",
-    ("documentation", "accept"): "reviewer-renata",
 }
 
 
@@ -288,11 +275,112 @@ class StepContractExecutor:
             return context.profile_hint
         default = _ACTION_PROFILE_DEFAULTS.get((contract.mission, contract.action))
         if default is not None:
-            return default
+            return self._resolve_available_default(contract, default)
         raise StepContractExecutionError(
             "profile_hint is required when no action default exists for "
             f"{contract.mission}/{contract.action}"
         )
+
+    def _resolve_available_default(
+        self,
+        contract: MissionStepContract,
+        default: str,
+    ) -> str:
+        """Return *default* when the invocation catalog can resolve it; an
+        available same-role profile when it cannot (#4115); raise otherwise.
+
+        Pre-#4115 this method's body was a bare ``return default``: a project
+        that deactivated a shipped profile named in ``_ACTION_PROFILE_DEFAULTS``
+        (``charter deactivate agent-profile researcher-robbie`` succeeds and
+        ``charter preflight`` passes) blocked every built-in mission at that
+        step with a laundered ``ProfileNotFoundError`` crash — the table named
+        deactivated profiles unconditionally and offered no project-level
+        remap. Resolution order:
+
+        1. Catalog unavailable → return *default* unchanged (legacy
+           behavior; the real invocation executor then surfaces
+           ``ProfileNotFoundError`` exactly as before). The catalog seam is
+           duck-typed because the executor accepts fake invocation executors
+           (the established test pattern), which carry no registry.
+        2. *default* present in the catalog → return it: byte-identical
+           dispatch for every project that never deactivated it.
+        3. *default* absent → role-based fallback over the SAME catalog
+           ``invoke`` resolves against: the highest-``routing-priority``
+           available profile carrying *default*'s role
+           (``_DEFAULT_PROFILE_ROLES``), profile_id-ascending as the
+           deterministic tie-break, with a WARNING naming both profiles.
+           A fallback chosen from this catalog is guaranteed resolvable at
+           invoke time — it can never trade the default's
+           ``ProfileNotFoundError`` for the fallback's.
+        4. No same-role profile → structured ``StepContractExecutionError``
+           (the FR-009 composition-failure surface, not the pre-fix
+           crash-laundering path) naming the mission/action, the deactivated
+           default, its role, and the remedy.
+        """
+        catalog = self._available_profiles()
+        if catalog is None or any(profile.profile_id == default for profile in catalog):
+            return default
+        role = _DEFAULT_PROFILE_ROLES.get(default)
+        if role is not None:
+            chosen = self._select_role_fallback(catalog, role)
+            if chosen is not None:
+                # Typed locals absorb the ``follow_imports=skip`` Any that
+                # ``AgentProfile`` carries in a narrow strict check of this
+                # module (the established pattern in this file, e.g.
+                # ``_load_graph_degrading_malformed_org_pack``'s graph locals).
+                fallback_id: str = chosen.profile_id
+                fallback_priority: int = chosen.routing_priority
+                logger.warning(
+                    "Built-in default profile %r is not available for %s/%s; "
+                    "dispatching through %r instead (role %r, routing-priority %d).",
+                    default,
+                    contract.mission,
+                    contract.action,
+                    fallback_id,
+                    role,
+                    fallback_priority,
+                )
+                return fallback_id
+        role_note = f" (role '{role}')" if role is not None else ""
+        raise StepContractExecutionError(
+            f"No available profile for {contract.mission}/{contract.action}: the "
+            f"built-in default profile '{default}'{role_note} is deactivated and "
+            "no available profile carries that role. Activate an agent profile "
+            "with that role, or supply an explicit profile for the step."
+        )
+
+    @staticmethod
+    def _select_role_fallback(
+        catalog: list[AgentProfile], role: str
+    ) -> AgentProfile | None:
+        """Return the deterministic same-role fallback from *catalog*, or None.
+
+        Highest ``routing_priority`` first (the router's own tie-break
+        semantics, ``invocation/router.py``); profile_id ascending breaks
+        remaining ties so two same-priority candidates can never dispatch
+        nondeterministically.
+        """
+        same_role = sorted(
+            (profile for profile in catalog if role in profile.roles),
+            key=lambda profile: (-profile.routing_priority, profile.profile_id),
+        )
+        return same_role[0] if same_role else None
+
+    def _available_profiles(self) -> list[AgentProfile] | None:
+        """Return the invocation catalog (profiles ``invoke`` can resolve).
+
+        ``None`` when the invocation executor does not expose one (the fake
+        executors tests inject), which callers treat as "cannot judge
+        availability" and keep the legacy resolution — never as "the catalog
+        is empty". The catalog is the same ``ProfileRegistry`` the real
+        ``ProfileInvocationExecutor`` resolves ``profile_hint`` against.
+        """
+        list_profiles: Callable[[], list[AgentProfile]] | None = getattr(
+            self._invocation_executor, "list_available_profiles", None
+        )
+        if list_profiles is None:
+            return None
+        return list_profiles()
 
     @staticmethod
     def _load_graph_degrading_malformed_org_pack(
@@ -641,4 +729,5 @@ __all__ = [
     "StepContractExecutionResult",
     "StepContractExecutor",
     "StepContractStepResult",
+    "mission_default_profile_warning",
 ]

@@ -57,7 +57,12 @@ test_no_dead_modules:
   # outright rather than relocated. charter.offering.hatch_build no longer
   # exists as a module, so its allowlist entry is removed too (shrink — no
   # extra workflow steps needed).
-  category_3_external_cli_entrypoints: 1
+  # justification (3.2.7, #4125): specify_cli.dashboard._server_main is the
+  # detached dashboard server child's entry point, spawned by dashboard/server.py
+  # as `python -m specify_cli.dashboard._server_main`; the reference is an argv
+  # string constant, not an import, so the module is a documented external CLI
+  # entrypoint rather than dead code. 1 -> 2.
+  category_3_external_cli_entrypoints: 2
   # justification: 0 documented backward-compat shim modules. (unshim-wave1 WP01
   # #2289 deleted the 7 other category_4 shims — acceptance_matrix,
   # core.identity_aliases, doc_generators, doc_state, gap_analysis,
@@ -286,7 +291,12 @@ test_egress_consent_boundary:
   # operator-configured repository/path/name needed for an inbound fetch. Reset
   # the ceiling to the exact new live count rather than spending hidden room.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 27
+  # justification (3.2.7, #4125): +1 — specify_cli/dashboard/server.py now holds
+  # one loopback-control urlopen: the parent probes its own just-spawned child's
+  # http://127.0.0.1:<port>/api/health so readiness means "this project's dashboard
+  # is serving", not "something listens on the port". Allowlisted as
+  # LOOPBACK_CONTROL (E18); no project data leaves the machine. 27 -> 28.
+  egress_allowlist_files: 28
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
