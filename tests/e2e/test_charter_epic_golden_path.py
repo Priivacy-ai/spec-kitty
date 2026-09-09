@@ -794,12 +794,6 @@ def _run_golden_path(project: Path, run_cli: RunCli) -> None:
     _run_retrospect(project, run_cli)
 
 
-@pytest.mark.skip(
-    reason="#4017: the installed-CLI e2e harness trips ensure_runtime()'s "
-    "'Global asset input changed' recheck against the shared spec-kitty-home. "
-    "Quarantined pending the runtime asset-recheck fix — same root cause as the "
-    "owned-worktree concurrency e2e."
-)
 @pytest.mark.timeout(120)
 def test_charter_epic_golden_path(
     fresh_e2e_project: Path,

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, replace
 import hashlib
 import json
@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 import stat
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 if TYPE_CHECKING:
     from specify_cli.runtime.agent_skills import GlobalSkillSelection
@@ -81,6 +81,19 @@ class AssetWrite:
     content: bytes | None
 
 
+#: Role of an observed node, tagged by CALL SITE, never by path geography --
+#: sources can share the HOME prefix under test layouts (SPEC_KITTY_TEMPLATE_ROOT,
+#: editable installs), so a path-based classifier would misclassify them.
+#: ``source_read``: a package/template source read (``source()``, or a
+#: ``tree()``/child observation walking the SOURCE side of a copy).
+#: ``destination_probe``: an inventory probe of this owner's managed
+#: destination under home (``asset()``, the destination side of ``tree()``,
+#: ``parents()``, ``retire()``, ``backup()``, and ``finish()``'s inventory/
+#: version-stamp/lock bookkeeping). A concurrent peer materializing HOME
+#: destination nodes must not be mistaken for asset-input drift (FR-002/C-002).
+ObservationRole = Literal["source_read", "destination_probe"]
+
+
 @dataclass(frozen=True)
 class AssetObservation:
     """Exact node plus directory membership, including ignored children."""
@@ -89,6 +102,7 @@ class AssetObservation:
     state: FileState
     children: tuple[str, ...] | None = None
     identity: tuple[int, int] | None = None
+    role: ObservationRole = "source_read"
 
 
 @dataclass(frozen=True)
@@ -127,11 +141,11 @@ def global_asset_root(owner: str, paths: tuple[Path, ...]) -> OperationRoot:
     return OperationRoot(owner, "global", anchor)
 
 
-def _observation(path: Path, state: FileState, children: tuple[str, ...] | None = None) -> AssetObservation:
+def _observation(path: Path, state: FileState, children: tuple[str, ...] | None = None, role: ObservationRole = "destination_probe") -> AssetObservation:
     if state.kind == "directory":
         info = path.lstat()
-        return AssetObservation(path, replace(state, mtime_ns=None), children, (info.st_dev, info.st_ino))
-    return AssetObservation(path, state, children)
+        return AssetObservation(path, replace(state, mtime_ns=None), children, (info.st_dev, info.st_ino), role)
+    return AssetObservation(path, state, children, role=role)
 
 
 class AssetPreparation:
@@ -154,7 +168,7 @@ class AssetPreparation:
         self.selected: set[Path] = set()
         self.temporary_paths: set[Path] = set()
         self.environment = tuple((name, os.environ.get(name)) for name in _SOURCE_ENV)
-        state = self.observe(self.inventory)
+        state = self.observe(self.inventory, role="destination_probe")
         if state.kind == "file":
             payload = json.loads(self.inventory.read_bytes())
             if not isinstance(payload, dict) or payload.get("schema_version") != 1 or not isinstance(payload.get("entries"), dict):
@@ -174,8 +188,16 @@ class AssetPreparation:
         elif state.kind != "absent":
             raise ValueError(f"Global inventory is not a regular file: {self.inventory}")
 
-    def observe(self, path: Path, *, members: bool = False) -> FileState:
-        """Observe ancestry before opening a node; reject escaping parents."""
+    def observe(self, path: Path, *, members: bool = False, role: ObservationRole = "source_read") -> FileState:
+        """Observe ancestry before opening a node; reject escaping parents.
+
+        ``role`` is tagged by the CALLER's call site (source read vs a probe of
+        this owner's managed destination under home), never derived from the
+        path itself. A path already recorded as ``source_read`` stays
+        ``source_read`` even if later probed as a destination (source and
+        destination trees can share the HOME prefix under test layouts) so
+        genuine source drift is never over-narrowed away (FR-003/C-002).
+        """
         for parent in reversed(path.parents):
             if parent != Path(parent.anchor):
                 state = node_state(parent)
@@ -184,13 +206,19 @@ class AssetPreparation:
                 )
                 if state.kind not in {"absent", "directory"} and not system_alias:
                     raise ValueError(f"Asset parent is not a directory: {parent}")
-                self.observed.setdefault(parent, _observation(parent, state))
+                existing_parent = self.observed.get(parent)
+                if existing_parent is None:
+                    self.observed[parent] = _observation(parent, state, role=role)
+                elif role == "source_read" and existing_parent.role != "source_read":
+                    self.observed[parent] = replace(existing_parent, role="source_read")
         state = node_state(path)
         children = tuple(sorted(p.name for p in path.iterdir())) if members and state.kind == "directory" else None
         previous = self.observed.get(path)
-        current = _observation(path, state, children if children is not None else previous.children if previous else None)
+        current = _observation(path, state, children if children is not None else previous.children if previous else None, role=role)
         if previous is not None and (previous.state, previous.identity) != (current.state, current.identity):
             raise ValueError(f"Asset changed during preparation: {path}")
+        if previous is not None and previous.role == "source_read":
+            current = replace(current, role="source_read")
         self.observed[path] = current
         return state
 
@@ -212,7 +240,7 @@ class AssetPreparation:
         )
 
     def _effect(self, path: Path, after: FileState, content: bytes | None, proof: OwnershipProof) -> None:
-        before = self.observe(path)
+        before = self.observe(path, role="destination_probe")
         action = _action(before, after)
         relative = path.relative_to(self.root.path).as_posix()
         if action is None:
@@ -220,7 +248,7 @@ class AssetPreparation:
             return
         if after.kind == "file" and action != "chmod" and path != self.lock_path:
             temporary = generated_temporary_path(path)
-            if self.observe(temporary).kind != "absent":
+            if self.observe(temporary, role="destination_probe").kind != "absent":
                 raise ValueError(f"Unproven atomic writer artifact must be preserved: {temporary}")
             self.temporary_paths.add(temporary)
         effect = PhysicalEffect(
@@ -235,13 +263,13 @@ class AssetPreparation:
         for parent in reversed(path.parents):
             if parent == self.root.path or self.root.path not in parent.parents:
                 continue
-            state = self.observe(parent)
+            state = self.observe(parent, role="destination_probe")
             if state.kind == "absent":
                 self._effect(parent, FileState("directory", mode=0o755), None, OwnershipProof("managed_path", f"{self.owner}:required-parent"))
 
     def asset(self, path: Path, content: bytes | None, mode: int, *, managed_tree: bool = False, canonical_predecessor: bool = False) -> None:
         """Compare canonical output; preserve drift and unknown links/content."""
-        before = self.observe(path)
+        before = self.observe(path, role="destination_probe")
         self.selected.add(path)
         relative = path.relative_to(self.root.path).as_posix()
         desired = FileState("directory", mode=mode) if content is None else FileState("file", sha256=digest(content), mode=mode)
@@ -271,7 +299,7 @@ class AssetPreparation:
         base = self.inventory.parent / "backups" / ("state-" + digest(identity))
         candidate = base
         suffix = 0
-        while self.observe(candidate).kind != "absent":
+        while self.observe(candidate, role="destination_probe").kind != "absent":
             suffix += 1
             candidate = base.with_name(f"{base.name}-{suffix}")
         target = candidate / relative
@@ -281,7 +309,7 @@ class AssetPreparation:
 
     def retire(self, path: Path) -> bool:
         """Remove only exact inventory-owned unchanged nodes; retain drift."""
-        before = self.observe(path, members=True)
+        before = self.observe(path, members=True, role="destination_probe")
         if before.kind == "absent":
             return True
         relative = path.relative_to(self.root.path).as_posix()
@@ -313,7 +341,7 @@ class AssetPreparation:
         source_state = self.observe(source, members=True)
         if source_state.kind != "directory":
             raise ValueError(f"Required asset tree unavailable: {source}")
-        dest_state = self.observe(destination)
+        dest_state = self.observe(destination, role="destination_probe")
         if dest_state.kind not in {"directory", "absent"}:
             self.preserve(destination, "Unproven asset tree replacement")
             return
@@ -344,7 +372,7 @@ class AssetPreparation:
             self._effect(version_path, FileState("file", sha256=digest(data), mode=0o644), data, OwnershipProof("managed_path", f"{self.owner}:version-stamp"))
         if self.writes:
             self.parents(self.lock_path)
-            lock = self.observe(self.lock_path)
+            lock = self.observe(self.lock_path, role="destination_probe")
             if lock.kind == "absent":
                 self._effect(
                     self.lock_path, FileState("file", sha256=digest(b""), mode=0o644), b"", OwnershipProof("managed_path", f"{self.owner}:persistent-lock")
@@ -369,6 +397,50 @@ def incomplete(owner: str, root: OperationRoot, error: Exception) -> OwnerAssess
     return OwnerAssessment(owner, root, complete=False, diagnostics=(Diagnostic("global_assets_unavailable", owner, "error", str(error)),))
 
 
+_RetriedBuild = TypeVar("_RetriedBuild")
+
+#: #4017 rescope, sequential after WP02's own lock-path work in this file: a
+#: SECOND, distinct race from the post-lock recheck WP03 already fixed in
+#: bootstrap.py. This one is unlocked-phase and generic to every owner.
+_TORN_READ_RETRY_ATTEMPTS = 3
+_TORN_READ_MESSAGE_PREFIX = "Asset changed during preparation:"
+
+
+def retry_torn_read(build: Callable[[], _RetriedBuild]) -> _RetriedBuild:
+    """Re-run one owner's WHOLE unlocked assess pass on a benign observe-phase torn read.
+
+    ``observe()`` raises "Asset changed during preparation" when the SAME
+    path is observed twice with different states within one assess pass --
+    e.g. an owner's own inventory JSON, read once at
+    ``AssetPreparation.__init__`` and again at ``finish()``'s effect
+    computation, materialized by a concurrent peer sharing this same
+    spec-kitty-home in between. That is a torn read of the peer's in-flight
+    write, not asset-input drift (FR-002/C-002 already cover genuine drift);
+    the peer converges to canonical bytes quickly, so re-running the whole
+    pass from scratch resolves it.
+
+    ``build`` MUST construct a fresh ``AssetPreparation`` (and do everything
+    through ``finish()``) on every call, so a retry starts from a clean,
+    re-read ``self.observed`` rather than the stale snapshot that raised --
+    and it MUST stop short of any shared, non-retriable side effect (such as
+    ``_GlobalAssetPreparation.include()``), which callers perform exactly
+    once on the stabilized result. This is generic across every global
+    owner (bootstrap/commands/skills); none is special-cased.
+
+    Only ``ValueError`` messages starting with the torn-read prefix are
+    retried, and only up to a small, fixed bound -- any other exception, or
+    a torn read that still has not stabilized on the final attempt,
+    propagates immediately so a genuine failure is never masked.
+    """
+    for _ in range(_TORN_READ_RETRY_ATTEMPTS - 1):
+        try:
+            return build()
+        except ValueError as exc:
+            if not str(exc).startswith(_TORN_READ_MESSAGE_PREFIX):
+                raise
+    return build()
+
+
 class _GlobalAssetPreparation:
     """One physical preparation built by the three runtime format owners.
 
@@ -388,7 +460,19 @@ class _GlobalAssetPreparation:
     def include(self, builder: AssetPreparation, effects: tuple[PhysicalEffect, ...]) -> None:
         if builder.environment != self.environment or builder.consent != self.consent:
             raise ValueError("Global preparation inputs changed between families")
-        if builder.observe(builder.lock_path).kind not in {"absent", "file"}:
+        # #4017 rescope: reuse the builder's own ``finish()``-time observation
+        # of its lock path when one is already on record, instead of calling
+        # ``observe()`` again here. ``include()`` runs OUTSIDE the retried
+        # ``build()`` (this batch is shared across owners and must never
+        # replay a partial merge), so a second, needless observation of the
+        # SAME path here is exactly the shape of torn read this rescope
+        # fixes -- eliminating the duplicate observation removes the race
+        # rather than adding another retry layer for it. Only fall back to a
+        # fresh probe when ``build()`` never had reason to observe the lock
+        # (an empty batch, e.g. nothing to write).
+        existing_lock_state = builder.observed.get(builder.lock_path)
+        lock_state = existing_lock_state.state if existing_lock_state is not None else builder.observe(builder.lock_path, role="destination_probe")
+        if lock_state.kind not in {"absent", "file"}:
             raise ValueError(f"Global family lock is not a regular file: {builder.lock_path}")
         self.locks.add(builder.lock_path)
         self.anchors.add(builder.root.path)
@@ -474,8 +558,52 @@ def assess_global_assets(
     return batch.finish(tuple(families))
 
 
+#: ``OwnershipProof.reference`` suffixes ``finish()`` mints for its own
+#: certification bookkeeping (inventory manifest, version stamp, the
+#: persistent owner lock) -- never a real asset's relative path. Used only
+#: to gate bookkeeping toleration below; a real asset coincidentally
+#: relative-pathed exactly like one of these is not a live concern (none
+#: of the managed catalogs use these names).
+_BOOKKEEPING_PROOF_SUFFIXES = frozenset({"inventory", "version-stamp", "persistent-lock"})
+
+
+def _content_equal(current: FileState, desired: FileState) -> bool:
+    """Same canonical payload, ignoring mode/mtime (never part of "bytes")."""
+    return bool(current.kind == desired.kind and current.sha256 == desired.sha256)
+
+
+def _is_bookkeeping_write(write: AssetWrite) -> bool:
+    """Is this owner's own completion marker, not a genuine asset payload?
+
+    A version stamp, lock file, or inventory manifest CERTIFIES that a
+    batch finished -- it must never certify on its own. A concurrent peer
+    that planted only a matching stamp, without the real payload files
+    that stamp is supposed to certify, is exactly the unproven partial
+    state this module must still refuse (the batch's own ``finish()``
+    writes these last, deliberately, as a completion marker).
+    """
+    return any(proof.kind == "managed_path" and proof.reference.rsplit(":", 1)[-1] in _BOOKKEEPING_PROOF_SUFFIXES for proof in write.effect.ownership)
+
+
 def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
-    """Compare the entire batch before opening any write-capable handle."""
+    """Compare the entire batch before opening any write-capable handle.
+
+    A ``destination_probe`` node (this owner's own managed output under
+    home) whose observed state drifted is tolerated ONLY when the node's
+    CURRENT on-disk content is byte-identical to the canonical content this
+    same batch is about to (re)write there -- a benign concurrent peer
+    materialized the exact same owned bytes, never asset-input drift
+    (FR-002/C-002). A bookkeeping stamp (inventory/version-stamp/persistent-
+    lock) additionally requires every genuine content-file write in the
+    SAME batch to already be present with matching canonical bytes: a lone
+    matching stamp with the rest of the tree still unproven is exactly the
+    partial-completion case this must keep catching (the stamp is what
+    CERTIFIES the batch, so it can never certify itself in isolation). Any
+    other drift on a ``destination_probe`` node -- different bytes, a node
+    this batch is not itself about to write, or a ``source_read`` node
+    (package/template source) -- still refuses. Role-tagging is by call
+    site, never path geography (FR-003).
+    """
     prepared = assessment.prepared
     if not isinstance(prepared, PreparedAssets):
         return (Diagnostic("invalid_preparation", assessment.owner_key, "error", "Expected retained global asset data"),)
@@ -483,11 +611,24 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
         for name, value in prepared.environment:
             if os.environ.get(name) != value:
                 raise ValueError(f"Global asset environment changed: {name}")
+        writes_by_path = {write.effect.destination: write for write in prepared.writes}
+        content_paths = tuple(path for path, write in writes_by_path.items() if write.effect.after.kind == "file" and not _is_bookkeeping_write(write))
+        content_confirmed: bool | None = None  # computed lazily; a batch with no writes never needs it
         # Ancestors precede child file reads, including parents outside the root.
         for observation in sorted(prepared.observations, key=lambda item: len(item.path.parts)):
             current = _observation(observation.path, node_state(observation.path))
             if (current.state, current.identity) != (observation.state, observation.identity):
-                raise ValueError(f"Global asset input changed: {observation.path}")
+                write = writes_by_path.get(observation.path) if observation.role == "destination_probe" else None
+                tolerated = write is not None and _content_equal(current.state, write.effect.after)
+                if tolerated and write is not None and (write.effect.after.kind != "file" or _is_bookkeeping_write(write)):
+                    # A matching directory or a matching bookkeeping stamp proves
+                    # nothing on its own -- only a matching genuine content FILE
+                    # proves a peer actually materialized this batch's payload.
+                    if content_confirmed is None:
+                        content_confirmed = all(_content_equal(node_state(p), writes_by_path[p].effect.after) for p in content_paths)
+                    tolerated = content_confirmed
+                if not tolerated:
+                    raise ValueError(f"Global asset input changed: {observation.path}")
             if observation.children is not None and tuple(sorted(p.name for p in observation.path.iterdir())) != observation.children:
                 raise ValueError(f"Global asset inventory changed: {observation.path}")
     except (OSError, ValueError) as exc:

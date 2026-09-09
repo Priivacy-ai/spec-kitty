@@ -156,12 +156,13 @@ def _cleanup_orphaned_update_dirs(parent: Path) -> None:
 
 def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAssetPreparation | None = None) -> OwnerAssessment:
     """Prepare managed package assets directly, without staging or bootstrap."""
-    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete, retry_torn_read
     from specify_cli.runtime.merge import MANAGED_DIRS, MANAGED_FILES
 
     home = get_kittify_home()
     root = global_asset_root("runtime_bootstrap", (home,))
-    try:
+
+    def _build() -> tuple[AssetPreparation, OwnerAssessment]:
         prepared = AssetPreparation("runtime_bootstrap", root, home / "cache", ".update.lock", consent)
         assets = get_package_asset_root()
         if prepared.observe(assets, members=True).kind != "directory":
@@ -183,6 +184,13 @@ def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAss
                 if candidate.name.startswith(".kittify_update_"):
                     prepared.preserve(candidate, "Unproven orphan staging directory; preserved")
         assessment = prepared.finish(home / "cache/version.lock", _get_cli_version())
+        return prepared, assessment
+
+    try:
+        # #4017 rescope: retry ONLY the local build (never `_batch.include()`,
+        # called once below on the stabilized result) so a retry can never
+        # replay stale partial mutations into a shared, cross-owner batch.
+        prepared, assessment = retry_torn_read(_build)
         if _batch is not None:
             _batch.include(prepared, assessment.effects)
         return assessment
@@ -191,7 +199,23 @@ def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAss
 
 
 def ensure_runtime() -> None:
-    """Repair actual managed health; a version stamp alone is insufficient."""
+    """Repair actual managed health; a version stamp alone is insufficient.
+
+    #4017: on the cold/effects path, a concurrent peer sharing this same
+    ``spec-kitty-home`` may materialize the canonical assets while this
+    process waits on the anchor flock ``recheck_assets`` takes below. Once
+    the flock is held, ``check_assets`` (role-tag-aware, WP02) tolerates
+    the peer's now-identical destination bytes as benign drift -- but the
+    STALE ``assessment`` above still carries a create-plan computed against
+    the empty pre-race home, and its ``action``s (``mkdir``, ``open("x")``)
+    are non-idempotent against the peer's already-materialized tree. Rather
+    than apply that stale plan, RE-ASSESS under the held lock: this is the
+    single authoritative seam upstream of the other two recheck nestings
+    (``apply_assets``'s own ``recheck_assets`` call, and ``merge.py``'s
+    ``_merge_prepared_assets``) -- both only ever run once this function
+    decides to apply, so converging here to a no-op protects them too
+    without duplicating the fix at each nesting.
+    """
     from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 
     assessment = assess_runtime()
@@ -202,7 +226,16 @@ def ensure_runtime() -> None:
     with recheck_assets(assessment) as diagnostics:
         if diagnostics:
             raise RuntimeError("; ".join(d.message for d in diagnostics))
-        result = apply_assets(assessment, ApplyConsent(automatic=True))
+        reassessment = assess_runtime()
+        if not reassessment.complete:
+            raise RuntimeError("; ".join(d.message for d in reassessment.diagnostics))
+        if not reassessment.effects:
+            # OPERATOR_SIGNAL_CONTRACT: the machine half (exit 0, no raise)
+            # is silent by construction -- this existing log sink carries
+            # the human half so a converged-no-op race is never invisible.
+            logger.info("runtime assets already materialized by a concurrent peer; nothing applied.")
+            return
+        result = apply_assets(reassessment, ApplyConsent(automatic=True))
     if result.outcome != "applied":
         raise RuntimeError("; ".join(d.message for d in result.diagnostics))
 
