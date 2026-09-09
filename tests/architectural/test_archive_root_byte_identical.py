@@ -13,6 +13,8 @@ appends. Only the exact lifecycle log may extend a preserved byte prefix.
 Unsigned suffix validation establishes format, not cryptographic authenticity.
 WP11's independently reviewed recovery has exact Git provenance, output pins
 AND current read-only canonical replay. It is not a general snapshot exception.
+The separate dead-port recovery below binds one additional output to public-main
+inputs and independently reviewed blob/receipt pins; it does not repin WP11.
 Both index and working tree are checked against merge-base(HEAD, origin/main).
 """
 
@@ -453,6 +455,54 @@ def _check_recovery(index: dict[str, Blob]) -> set[str]:
     return {*SNAPSHOTS, *(old for old, _ in MOVES)}
 
 
+# PR4082's independently reviewed one-snapshot recovery. The source is public
+# main, and output/receipt are content pins: no topic commit must survive squash.
+_DEAD_PORT_SOURCE = "f2be03af4889c89184fdb3a4aeb90fc3f90b3a87"
+_DEAD_PORT_DIR = "kitty-specs/dead-port-disposition-01M1VRA2"
+_DEAD_PORT_STATUS = _DEAD_PORT_DIR + "/status.json"
+_DEAD_PORT_BEFORE = "341d7cf81db9232425ee315de9b72752ae8a4498"
+_DEAD_PORT_AFTER = Blob("100644", "5c39a554f0958c22bfc8ffc3f2fcfd38023c0287")
+_DEAD_PORT_SHA256 = "9c904f5b83cf02140b57e205e63e496c2bef7c556969acd50ed7399f62575e26"
+_DEAD_PORT_RECEIPT = "docs/archive/program-evidence/upgrade-preview-mission-health-01M1V6E1/dead-port-snapshot-recovery.json"
+_DEAD_PORT_RECEIPT_BLOB = Blob("100644", "654362863ebe86c9ecf604abc1a2bca1a2491c5a")
+_DEAD_PORT_RECEIPT_SHA256 = "d8c6e48518b99d2f77834c1f2ec1296106af8cb25db48dbe4f9aad003f7c1c68"
+
+
+def _dead_port_recovery_present(baseline: dict[str, Blob], index: dict[str, Blob]) -> bool:
+    receipt = REPO_ROOT / _DEAD_PORT_RECEIPT
+    if _DEAD_PORT_RECEIPT in baseline or _DEAD_PORT_RECEIPT in index or receipt.exists() or receipt.is_symlink():
+        return True
+    # Baseline activation survives deleting both outputs after landing. The
+    # untouched historical snapshots remain subject only to ordinary byte freeze.
+    return any(_DEAD_PORT_STATUS in tree and tree[_DEAD_PORT_STATUS].oid == _DEAD_PORT_AFTER.oid for tree in (baseline, index))
+
+
+def _check_dead_port_recovery(index: dict[str, Blob]) -> set[str]:
+    receipt = _exact_candidate(_DEAD_PORT_RECEIPT, _DEAD_PORT_RECEIPT_BLOB, index)
+    assert _sha256(receipt) == _DEAD_PORT_RECEIPT_SHA256, "dead-port reviewed receipt digest"
+    source = _tree(_DEAD_PORT_SOURCE, _DEAD_PORT_DIR)
+    assert source[_DEAD_PORT_STATUS].oid == _DEAD_PORT_BEFORE, "dead-port original snapshot provenance"
+    indexed = {path for path in index if path.startswith(_DEAD_PORT_DIR + "/")}
+    disk = {path.relative_to(REPO_ROOT).as_posix() for path in (REPO_ROOT / _DEAD_PORT_DIR).rglob("*") if not path.is_dir() or path.is_symlink()}
+    assert indexed == source.keys(), "dead-port index input inventory changed"
+    assert disk == source.keys(), "dead-port disk input inventory changed"
+    for path, expected in source.items():
+        if path != _DEAD_PORT_STATUS:
+            _exact_candidate(path, expected, index)
+    candidate = _exact_candidate(_DEAD_PORT_STATUS, _DEAD_PORT_AFTER, index)
+    assert _sha256(candidate) == _DEAD_PORT_SHA256, "dead-port reviewed output digest"
+    canonical = materialize_to_json(materialize_snapshot(REPO_ROOT / _DEAD_PORT_DIR)).encode("utf-8")
+    assert candidate == canonical, "dead-port canonical replay differs from reviewed output"
+    before, after = _json_object(source[_DEAD_PORT_STATUS].read()), _json_object(candidate)
+    for key in ("event_count", "last_event_id", "materialized_at", "mission_slug", "summary"):
+        assert before[key] == after[key], f"dead-port historical {key} changed"
+    assert before["work_packages"].keys() == after["work_packages"].keys(), "dead-port WP membership changed"
+    for wp, state in before["work_packages"].items():
+        for key in ("review_result", "lane", "force_count", "last_event_id", "last_transition_at", "actor", "agent"):
+            assert state.get(key) == after["work_packages"][wp].get(key), f"dead-port {wp} historical {key} changed"
+    return {_DEAD_PORT_STATUS}
+
+
 def _files_under_roots_at(rev: str) -> set[str]:
     """Every tracked file under an archive root at ``rev``."""
     return {path for path in _tree(rev) if any(path.startswith(root) for root in _ARCHIVE_ROOTS)}
@@ -484,6 +534,8 @@ def test_no_preexisting_archived_file_was_modified() -> None:
     index = _index()
     _check_lifecycle(baseline, index)
     admitted = _check_recovery(index) if _recovery_present(baseline, index) else set()
+    if _dead_port_recovery_present(baseline, index):
+        admitted |= _check_dead_port_recovery(index)
     admitted |= _terminal_lifecycle_paths(baseline, index)
     violations: list[str] = []
     for status, paths in [*_changes(port_base_rev), *_changes(port_base_rev, cached=True)]:
