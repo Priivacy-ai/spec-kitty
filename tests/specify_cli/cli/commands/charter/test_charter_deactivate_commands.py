@@ -442,3 +442,49 @@ class TestDeactivateKindFilteredNodeRendering:
         # `.deactivate` or `.skipped_shared` candidate in the first place.
         assert "Cascade-deactivated" not in deactivate_result.output
         assert "Skipped (shared artifact)" not in deactivate_result.output
+
+
+# ---------------------------------------------------------------------------
+# #4115 — warn when a deactivated agent profile is a built-in mission-step
+# default (the executor's role-based fallback is the behavioral half).
+# ---------------------------------------------------------------------------
+
+
+def test_deactivate_agent_profile_warns_when_mission_step_default(tmp_path: Path) -> None:
+    """``charter deactivate agent-profile researcher-robbie`` must WARN that
+    the removed profile is the built-in default for mission steps, naming a
+    bound step and the role the fallback will look for — not succeed
+    silently while every built-in mission heads for a blocked composition."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text(
+        "activated_agent_profiles:\n  - researcher-robbie\n"
+        "mission_type_activations:\n  - software-dev\n",
+        encoding="utf-8",
+    )
+
+    result = _invoke_deactivate(tmp_path, "agent-profile", "researcher-robbie")
+
+    assert result.exit_code == 0, result.output
+    assert "Deactivated" in result.output
+    assert "built-in default profile" in result.output
+    assert "software-dev/specify" in result.output
+    assert "'researcher'-role" in result.output
+
+
+def test_deactivate_agent_profile_no_warning_for_ordinary_profile(tmp_path: Path) -> None:
+    """Negative case: a profile no mission step binds deactivates with the
+    pre-#4115 output and no mission warning."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text(
+        "activated_agent_profiles:\n  - scribe-sally\n"
+        "mission_type_activations:\n  - software-dev\n",
+        encoding="utf-8",
+    )
+
+    result = _invoke_deactivate(tmp_path, "agent-profile", "scribe-sally")
+
+    assert result.exit_code == 0, result.output
+    assert "Deactivated" in result.output
+    assert "built-in default profile" not in result.output

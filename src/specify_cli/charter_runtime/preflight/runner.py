@@ -46,9 +46,11 @@ failure produces a result with a sensible ``blocked_reason``.
 
 from __future__ import annotations
 
+import logging
 import os
 import shlex
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -60,6 +62,8 @@ if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
 
 __all__ = ["SYNTHESIZED_DRG_LAYER", "run_charter_preflight"]
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +151,15 @@ def run_charter_preflight(
 ) -> CharterPreflightResult:
     """Compute charter freshness, optionally refresh, return a result.
 
+    In addition to the freshness layers, the result carries advisory
+    ``warnings`` (never affecting ``passed``) for shipped mission-step
+    default profiles the activation state has deactivated (#4115) — a
+    project that deactivated e.g. ``researcher-robbie`` still reports
+    FRESH on every freshness layer while its built-in missions are one
+    dispatch away from a role fallback (or a blocked step when no
+    same-role profile is activated); the warning names that state instead
+    of leaving it invisible.
+
     Args:
         repo_root: Path to the repository root.  Must contain ``.kittify/``
             for non-trivial results; missing artifacts produce ``missing``
@@ -168,6 +181,67 @@ def run_charter_preflight(
     Returns:
         A frozen :class:`CharterPreflightResult`.  Never raises.
     """
+    result = _run_charter_preflight_freshness(
+        repo_root,
+        auto_refresh=auto_refresh,
+        allow_missing_charter=allow_missing_charter,
+        strict=strict,
+    )
+    profile_warnings = _deactivated_mission_default_profile_warnings(repo_root)
+    if not profile_warnings:
+        return result
+    return replace(result, warnings=[*result.warnings, *profile_warnings])
+
+
+def _deactivated_mission_default_profile_warnings(repo_root: Path) -> list[str]:
+    """#4115: advisory warnings for deactivated mission-step default profiles.
+
+    Reads the three-state ``activated_agent_profiles`` set from project
+    config: ``None`` (default-allow) is inert and yields no warnings; an
+    explicit set yields one warning per
+    ``mission_step_contracts.profile_defaults._ACTION_PROFILE_DEFAULTS``
+    profile it does not contain. Never raises (the runner's own contract):
+    a config that cannot be read produces no warnings and a DEBUG note, not
+    a crash — a broken config is the freshness layers' problem to block on,
+    not this advisory note's.
+    """
+    try:
+        from charter.activation.pack_context import PackContext  # noqa: PLC0415
+
+        activated = PackContext.from_config(repo_root).activated_agent_profiles
+    except Exception:  # noqa: BLE001 — the never-raise contract above; the
+        # freshness layers own fail-closed treatment of a malformed config.
+        logger.debug(
+            "could not read activation state for the mission-default-profile "
+            "preflight warning at %s; skipping the advisory",
+            repo_root,
+        )
+        return []
+    if activated is None:
+        return []
+    from specify_cli.mission_step_contracts.profile_defaults import (  # noqa: PLC0415
+        _ACTION_PROFILE_DEFAULTS,
+        mission_default_profile_warning,
+    )
+
+    warnings: list[str] = []
+    for profile_id in sorted(set(_ACTION_PROFILE_DEFAULTS.values())):
+        if profile_id in activated:
+            continue
+        warning = mission_default_profile_warning(profile_id)
+        if warning is not None:
+            warnings.append(warning)
+    return warnings
+
+
+def _run_charter_preflight_freshness(
+    repo_root: Path,
+    *,
+    auto_refresh: bool = False,
+    allow_missing_charter: bool = False,
+    strict: bool = False,
+) -> CharterPreflightResult:
+    """Freshness-only core of :func:`run_charter_preflight` (pre-#4115 body)."""
     del strict  # kept for caller symmetry; consumed by the CLI exit-code mapping, not by the runner itself.
     freshness = compute_freshness(repo_root)
     checks = _build_checks(freshness)
