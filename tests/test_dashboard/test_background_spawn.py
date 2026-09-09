@@ -10,8 +10,8 @@ readiness probe before ``start_dashboard`` returns.
 
 These tests spawn the real child process and assert the port actually accepts
 a connection and serves the project's health payload — the exact guarantee
-the previous suite never exercised, which is how the break shipped. The
-spawn machinery is platform-independent, so the baseline test runs everywhere;
+the previous suite never exercised, which is how the break shipped. The spawn
+machinery is platform-independent, so the baseline test runs everywhere;
 the Windows-critical twin carries ``windows_ci`` so the native Windows lane
 (the only place the original crash reproduced) exercises it too.
 """
@@ -32,11 +32,11 @@ _READINESS_BUDGET_SECONDS = 15.0
 _POLL_INTERVAL_SECONDS = 0.1
 
 
-def _spawn_and_assert_serving(tmp_path: Path) -> None:
+def _spawn_and_assert_serving(tmp_path: Path, *, port: int) -> None:
     (tmp_path / ".kittify").mkdir(exist_ok=True)
     port, pid = server.start_dashboard(
         tmp_path,
-        port=server.find_free_port(),
+        port=port,
         background_process=True,
         project_token="regression-token",
     )
@@ -78,7 +78,7 @@ def _terminate_child(pid: int) -> None:
 @pytest.mark.regression
 @pytest.mark.non_sandbox
 def test_background_dashboard_spawn_binds_and_serves(tmp_path: Path) -> None:
-    _spawn_and_assert_serving(tmp_path)
+    _spawn_and_assert_serving(tmp_path, port=server.find_free_port())
 
 
 @pytest.mark.windows_ci
@@ -90,4 +90,4 @@ def test_background_dashboard_spawn_binds_and_serves_windows_critical(tmp_path: 
     ``tests/conftest.py``); the native Windows CI lane selects it via
     ``-m windows_ci``.
     """
-    _spawn_and_assert_serving(tmp_path)
+    _spawn_and_assert_serving(tmp_path, port=server.find_free_port())
