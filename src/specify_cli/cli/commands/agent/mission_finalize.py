@@ -994,9 +994,22 @@ def _resolve_dependencies_and_refs(
     """Phase: TIER 1+ — 3-tier dependency + requirement-ref resolution.
 
     1. wps.yaml manifest when present
-    2. explicit WP frontmatter dependencies (including explicit [])
-    3. tasks.md text parsing as a legacy fallback only when frontmatter lacks
-       the dependencies field entirely
+    2. non-empty WP frontmatter dependencies — an *empty* ``dependencies: []``
+       is treated as absent (see below), not as an authoritative declaration
+    3. tasks.md text parsing when frontmatter lacks a usable dependencies
+       value (field absent entirely, or present-but-empty)
+
+    An empty frontmatter ``dependencies: []`` is a serialization artifact, not
+    a user declaration: ``agent tasks map-requirements`` rewrites WP frontmatter
+    for its own purposes via ``WPMetadata.model_dump(exclude_none=True)`` and
+    ``dependencies`` defaults to ``[]`` (never ``None``), so every WP that
+    command touches gains a literal ``dependencies: []`` line the user never
+    wrote. Treating that incidental empty list as TIER-2 authority silently
+    discarded the tasks.md-declared chain (#4135) — every WP came out
+    independent/parallel in lanes.json with no warning. Falling through to
+    TIER-3 on empty is also lossless for a user who *does* want a WP declared
+    dependency-free: tasks.md parsing yields ``[]`` for a WP with no
+    ``depends on`` entries, so the resolved value is the same either way.
     """
     tasks_md = planning_dir / TASKS_MD_FILENAME
     res = _DependencyResolution()
@@ -1027,9 +1040,13 @@ def _resolve_dependencies_and_refs(
             wp_id = wp_id_match.group(1)
             raw_content = wp_file.read_text(encoding="utf-8")
             wp_meta, _ = _read_wp_frontmatter(wp_file)
-            if _raw_frontmatter_has_field(raw_content, "dependencies"):
-                res.wp_dependencies[wp_id] = list(wp_meta.dependencies)
+            frontmatter_deps = list(wp_meta.dependencies) if _raw_frontmatter_has_field(raw_content, "dependencies") else []
+            if frontmatter_deps:
+                res.wp_dependencies[wp_id] = frontmatter_deps
             else:
+                # FALLBACK: tasks.md text (backward compat for pre-API projects,
+                # and for frontmatter ``dependencies: []`` — the map-requirements
+                # serialization artifact, #4135)
                 res.wp_dependencies[wp_id] = list(res.tasks_md_dependencies.get(wp_id, []))
     return res
 
