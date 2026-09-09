@@ -50,6 +50,7 @@ from specify_cli.provisioning.default_charter import (
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+from specify_cli.skills.registry import SkillRegistry
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -795,7 +796,6 @@ def init(  # noqa: C901
     tracker.add("ai-select", "Select AI assistant(s)")
     tracker.complete("ai-select", ai_display)
     tracker.add("runtime", "Bootstrap global runtime")
-    tracker.add("skills", "Install skills globally")
     for agent_key in selected_agents:
         label = AI_CHOICES[agent_key]
         tracker.add(f"{agent_key}-fetch", f"{label}: fetch latest release")
@@ -833,27 +833,15 @@ def init(  # noqa: C901
                 _console.print(f"[red]Error:[/red] Failed to bootstrap global runtime: {exc}")
                 raise typer.Exit(1) from exc
 
-            # Install skills globally (FR-007)
-            tracker.start("skills")
-            try:
-                from specify_cli.skills.registry import SkillRegistry
-                from specify_cli.skills.paths import iter_installable_agents
-                from specify_cli.skills.installer import _sync_global_skill
-
-                skill_registry = SkillRegistry.from_package()
-                skills = skill_registry.discover_skills()
-                for skill in skills:
-                    for agent_key in iter_installable_agents():
-                        from specify_cli.skills.paths import get_primary_global_skill_root
-                        global_root = get_primary_global_skill_root(agent_key)
-                        if global_root is not None:
-                            _sync_global_skill(skill, global_root)
-                tracker.complete("skills", f"{len(skills)} skills installed globally")
-            except Exception as exc:
-                tracker.error("skills", str(exc))
-                _console.print(f"[yellow]Warning:[/yellow] Skill installation incomplete: {exc}")
-                # Non-fatal: skills can be re-installed on next upgrade
-
+            # Global canonical skills are NOT installed here: the CLI root
+            # callback already dispatched the retained global owner
+            # (``ensure_global_agent_skills()`` in ``specify_cli/__init__.py``)
+            # before this command body ran, and the per-agent loop below
+            # installs each selected agent's project skills through the
+            # current installer contract (``install_skills_for_agent`` /
+            # command delivery). The former standalone phase here imported
+            # the removed private ``_sync_global_skill`` writer and failed
+            # with an ImportError on every first run (#4166).
             # Skill pack installation state
             from specify_cli import __version__ as _sk_version
 
@@ -1203,6 +1191,16 @@ def init(  # noqa: C901
 
     if _ensure_event_log_merge_attributes(project_path):
         _console.print("[dim]Updated .gitattributes for Spec Kitty generated artifacts[/dim]")
+
+    # #4146: the attribute mapping above is inert without its git-config half
+    # (``merge.<key>.name`` / ``.driver``). Install both halves of every
+    # registered merge driver here so the union driver is active from the very
+    # first lane claim, not only after the first merge/auto-rebase self-heals
+    # it. No-op (by the helper's own guard) when the target is not a git
+    # repository yet -- that case keeps relying on the merge-path self-heal.
+    from specify_cli.lanes.merge import _ensure_merge_driver_git_config
+
+    _ensure_merge_driver_git_config(project_path)
 
     # Fresh-init provisioning (FR-009/010/011, NFR-004): seed
     # mission_type_activations from the shipped default charter pack so a

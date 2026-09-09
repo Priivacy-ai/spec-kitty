@@ -34,10 +34,14 @@ from specify_cli.bootstrap.env_file import load_operator_env_file  # noqa: E402
 
 load_operator_env_file()
 
+import logging  # noqa: E402
 import os  # noqa: E402
 import sys  # noqa: E402
+from collections.abc import Callable  # noqa: E402
 from pathlib import Path  # noqa: E402
-from typing import TYPE_CHECKING, Any  # noqa: E402
+from typing import TYPE_CHECKING, Any, TypeVar  # noqa: E402
+
+T = TypeVar("T")
 
 
 import typer  # noqa: E402
@@ -341,6 +345,65 @@ def _argv_requests_json_mode(argv: list[str]) -> bool:
     return False
 
 
+def _assemble_app() -> typer.Typer:
+    """Import-check the events adapter, then assemble the Typer app.
+
+    Pure import/registration work (the events availability check exits before
+    any command runs), which is what makes it safe to retry after a bytecode
+    heal — see ``main()``.
+    """
+    # Check for spec-kitty-events library availability (required for 2.x branch)
+    from specify_cli.events.adapter import EventAdapter
+
+    if not EventAdapter.check_library_available():
+        _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
+        raise typer.Exit(1)
+
+    return _get_app()
+
+
+def _invoke_unguarded(operation: Callable[[], T], **_kwargs: Any) -> T:
+    """Run *operation* as-is (pre-#4124 behavior, used only as a fallback)."""
+    return operation()
+
+
+def _warn_bytecode_healed(removed: int) -> None:
+    """Tell the operator an interrupted install was repaired, once, on stderr."""
+    logging.getLogger("specify_cli").warning(
+        "repaired %d stale bytecode cache file(s) left by an interrupted install; if this recurs, reinstall spec-kitty",
+        removed,
+    )
+
+
+def _load_bytecode_heal_invoker() -> Callable[..., Any]:
+    """Return ``invoke_with_bytecode_heal``, or a pass-through if unreachable.
+
+    The heal module's own ``.pyc`` can be the corrupted one; delete just that
+    cache file and retry the import once before falling back to running the
+    CLI unguarded (#4124).
+    """
+    try:
+        from specify_cli.bytecode_heal import invoke_with_bytecode_heal
+
+        return invoke_with_bytecode_heal
+    except Exception:
+        import importlib
+        from importlib.util import cache_from_source
+
+        own_cache = Path(cache_from_source(str(Path(__file__).with_name("bytecode_heal.py"))))
+        try:
+            own_cache.unlink(missing_ok=True)
+        except OSError:
+            return _invoke_unguarded
+        importlib.invalidate_caches()
+        try:
+            from specify_cli.bytecode_heal import invoke_with_bytecode_heal
+
+            return invoke_with_bytecode_heal
+        except Exception:
+            return _invoke_unguarded
+
+
 def main() -> None:
     # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
     # Typer app runs — so that warnings.warn(...) calls (including
@@ -382,13 +445,14 @@ def main() -> None:
         raise SystemExit(completion_exit)
 
     # Check for spec-kitty-events library availability (required for 2.x branch)
-    from specify_cli.events.adapter import EventAdapter
-
-    if not EventAdapter.check_library_available():
-        _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
-        raise typer.Exit(1)
-
-    _get_app()()
+    # plus app assembly run inside the bytecode-heal wrapper (#4124): an
+    # interrupted install can leave truncated ``.pyc`` bytecode that kills the
+    # module-level ``specify_cli.upgrade`` import chain before any command
+    # runs. Assembly is pure import/registration work, so a heal-and-retry
+    # here is side-effect free; the command invocation itself stays outside
+    # the wrapper so a mid-command failure is never re-run.
+    app = _load_bytecode_heal_invoker()(_assemble_app, on_healed=_warn_bytecode_healed)
+    app()
 
 
 __all__ = ["main", "app", "__version__"]

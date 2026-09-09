@@ -17,6 +17,7 @@ Design notes
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import sys
 from dataclasses import dataclass, replace
@@ -54,20 +55,52 @@ def is_ci_env() -> bool:
 
 _REGISTRY_AUTOLOADED = False
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def _ensure_registry_loaded() -> None:
-    """Auto-discover migrations once per process, fail-open on any error."""
+    """Auto-discover migrations once per process, fail-open on any error.
+
+    A stale ``.pyc`` from an interrupted install (Windows file locking /
+    antivirus) can kill the whole ``specify_cli.upgrade`` import chain before
+    discovery even runs; that failure class is self-healed once — cache purge
+    plus retry — before degrading (#4124, ``specify_cli.bytecode_heal``). Any
+    remaining failure degrades *loudly* to an empty registry: the upgrade
+    nag/preview quietly goes away either way, but the operator now gets one
+    warning saying why, and the manual fix.
+    """
     global _REGISTRY_AUTOLOADED
     if _REGISTRY_AUTOLOADED:
         return
     try:
+        _load_migration_registry_with_heal()
+    except Exception as exc:  # noqa: BLE001 — fail-open: empty pending_migrations is preferable to crash
+        _LOGGER.warning(
+            "upgrade migrations unavailable: %s. If this persists, delete the "
+            "__pycache__ directories under the installed specify_cli package "
+            "and reinstall spec-kitty. Continuing without the upgrade check.",
+            exc,
+        )
+    finally:
+        _REGISTRY_AUTOLOADED = True
+
+
+def _load_migration_registry_with_heal() -> None:
+    """Import and auto-discover migrations, healing a stale bytecode cache once."""
+    from specify_cli.bytecode_heal import invoke_with_bytecode_heal
+
+    def _load() -> None:
         from specify_cli.upgrade.migrations import auto_discover_migrations
 
         auto_discover_migrations()
-    except Exception:  # noqa: BLE001 — fail-open: empty pending_migrations is preferable to crash
-        pass
-    finally:
-        _REGISTRY_AUTOLOADED = True
+
+    invoke_with_bytecode_heal(
+        _load,
+        on_healed=lambda removed: _LOGGER.warning(
+            "repaired %d stale bytecode cache file(s) left by an interrupted install; migrations reloaded from source",
+            removed,
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
