@@ -8,19 +8,13 @@
 # has no cross-workflow `needs:`), so it consumes the shards' already-uploaded
 # `*-reports` artefacts through a cross-run `actions/download-artifact`
 # (`run-id:` pointed at the triggering run) and never re-runs pytest (FR-007).
-# Coverage basenames are deduped (contracts/artefact-naming.md Invariant 1: a
-# basename collision would otherwise silently drop a shard's data — this is
-# GUARDED, i.e. detected and failed loudly, never silently overwritten). For a
-# partial re-trigger (a manual single-shard re-run), any shard missing from
-# the triggering run falls back to the most-recent SUCCESSFUL "CI Modules"
-# run's artefact for that same basename — the stale-artefact edge case
-# (contracts/artefact-naming.md "Stale-artefact fallback"). The EXPECTED
-# per-shard basename set is derived from the committed
-# `.github/ci-module-registry.yml` (the same module x shard_count derivation
-# ci-modules.yml's generate-matrix uses); a shard absent from BOTH the current
-# and fallback runs is the cross-run generalization of the same-run collision
-# above and is likewise GUARDED — detected and failed loudly (nonzero exit),
-# never silently treated as a complete run.
+# Coverage basenames are deduped and collisions fail loudly. PR coverage uses
+# only the exact CI Modules attempt, with no stale fallback. Its registry and
+# diff come from the verified synthetic merge tree (parents must match the
+# source run's immutable tested workflow reference); the trusted default-branch checkout remains
+# in place. Missing source provenance or a current shard fails closed.
+# Automatic non-PR diagnostic runs retain the successful-run stale fallback;
+# manual replay always requires complete evidence from its exact source attempt.
 #
 # `mode` (pr|full) is honored in THIS workflow's own fail-fast/`needs`
 # behavior: pr short-circuits the diff-cover gate the moment `collect` cannot
@@ -34,6 +28,7 @@
 # (Sonar merges server-side via a comma-joined reportPaths list).
 
 name: CI Aggregate
+run-name: "CI Aggregate source ${{ github.event.workflow_run.id || inputs.source_run_id }} attempt ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}"
 
 on:
   workflow_run:
@@ -41,6 +36,14 @@ on:
     types: [completed]
   workflow_dispatch:
     inputs:
+      source_run_id:
+        description: 'Exact CI Modules run to aggregate.'
+        required: true
+        type: string
+      source_run_attempt:
+        description: 'Exact CI Modules run attempt to aggregate.'
+        required: true
+        type: string
       mode:
         description: 'pr (fail-fast) or full (run-all, if: always()) — overrides the mode inferred from the triggering "CI Modules" run''s own trigger event.'
         required: false
@@ -57,12 +60,11 @@ concurrency:
 permissions:
   contents: read
   actions: read
-  checks: write
 
 jobs:
   # ---------------------------------------------------------------------------
-  # collect: download this run's + the fallback (most-recent successful) run's
-  # shard artefacts, reconcile by basename (stale-fallback + collision guard),
+  # collect: download the exact source attempt (plus non-PR diagnostic fallback),
+  # reconcile by basename with collision and completeness guards,
   # and upload the reconciled coverage set for the diff-cover job to consume.
   # ---------------------------------------------------------------------------
   collect:
@@ -79,6 +81,27 @@ jobs:
       missing: ${{ steps.reconcile.outputs.missing }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Prepare exact source registry and diff (data only; trusted checkout stays in place)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > "$RUNNER_TEMP/source-run.json"
+          python3 scripts/ci/aggregate_source.py "$RUNNER_TEMP/source-run.json" \
+            --repository "$SOURCE_REPOSITORY" --run-id "$SOURCE_RUN_ID" --attempt "$SOURCE_RUN_ATTEMPT"
+
+      - name: Upload exact source data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-aggregate-source
+          path: out/aggregate/source/
+          if-no-files-found: error
 
       - name: Resolve run mode (workflow_dispatch input, else inferred from the triggering run's own trigger event)
         id: resolve-mode
@@ -101,23 +124,23 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          pattern: '*-reports'
+          pattern: 'module-tests-*-attempt-${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}-reports'
           path: out/aggregate/current
           merge-multiple: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+          run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
 
       - name: Find the most-recent successful "CI Modules" run (stale-artefact fallback source)
         id: last-success
+        # PR coverage must never borrow a different head's report.
+        if: github.event.workflow_run.event != 'pull_request' && github.event_name != 'workflow_dispatch'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
         run: |
           set -euo pipefail
-          branch="${{ github.event.workflow_run.head_branch }}"
-          if [ -z "$branch" ]; then
-            branch="${{ github.ref_name }}"
-          fi
+          branch="$SOURCE_BRANCH"
           run_id=$(gh run list --repo "${{ github.repository }}" --workflow ci-modules.yml \
             --branch "$branch" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
           echo "run-id=${run_id}" >> "$GITHUB_OUTPUT"
@@ -146,6 +169,7 @@ jobs:
           python3 - <<'PY'
           import json
           import os
+          import re
           import sys
           from collections import defaultdict
           from pathlib import Path
@@ -170,19 +194,35 @@ jobs:
               return found
 
           def expected_basenames(registry_path: Path) -> set[str]:
-              """The EXACT per-shard coverage basenames the committed module
-              registry expects -- the SAME (tier, module, shard) derivation
+              """The EXACT per-shard coverage basenames the module registry
+              expects -- the SAME (tier, module, shard) derivation
               ci-modules.yml's generate-matrix uses to expand module x
               shard_count into matrix leaves. This is what makes a shard
               missing from BOTH the current and fallback runs detectable,
-              instead of silently accepting whatever happened to download."""
+              instead of silently accepting whatever happened to download.
+
+              The registry read here comes from the TESTED PR merge tree
+              (`out/aggregate/source/`, filled by aggregate_source.py from
+              the immutable merge SHA), NOT from this trusted default-branch
+              checkout -- so every row is validated BEFORE any derived value
+              reaches a step output: an untrusted `module` carrying a
+              newline must never be able to inject `key=value` lines into
+              $GITHUB_OUTPUT and override the completeness re-check."""
               with open(registry_path, encoding="utf-8") as fh:
                   registry = yaml.safe_load(fh)
+              row_field = re.compile(r"[A-Za-z0-9._-]+")
               names: set[str] = set()
               for row in registry["modules"]:
                   tier = row["tier"]
                   module = row["module"]
                   shard_count = row["shard_count"]
+                  for field_name, value in (("tier", tier), ("module", module)):
+                      if not (isinstance(value, str) and row_field.fullmatch(value)):
+                          print(f"::error::ci-aggregate: registry row has a {field_name} outside [A-Za-z0-9._-]: {value!r} -- untrusted PR-authored registry value refused")
+                          sys.exit(1)
+                  if not isinstance(shard_count, int) or isinstance(shard_count, bool) or shard_count < 1:
+                      print(f"::error::ci-aggregate: registry row has a non-positive/non-integer shard_count: {shard_count!r} -- untrusted PR-authored registry value refused")
+                      sys.exit(1)
                   for idx in range(1, shard_count + 1):
                       names.add(f"coverage-{tier}-{module}-shard{idx}-of-{shard_count}.xml")
               return names
@@ -200,7 +240,7 @@ jobs:
               print(f"::error::ci-aggregate: {len(collisions)} basename collision(s) detected — a collision silently drops a shard's coverage data; refusing to proceed")
               sys.exit(1)
 
-          expected = expected_basenames(Path(".github/ci-module-registry.yml"))
+          expected = expected_basenames(Path("out/aggregate/source/ci-module-registry.yml"))
 
           stale: list[str] = []
           missing: list[str] = []
@@ -221,9 +261,15 @@ jobs:
 
           summary_path = os.environ.get("GITHUB_OUTPUT")
           if summary_path:
+              # Delimiter (heredoc) form, never bare `key=value`: the runner's
+              # FileCommandManager assigns outputs line-by-line, so a value
+              # containing a newline would inject additional step outputs.
+              # The registry validation above keeps `missing` newline-free;
+              # the delimiter form also contains ordinary embedded newlines.
+              # Validation remains necessary to exclude delimiter collisions.
               with open(summary_path, "a", encoding="utf-8") as fh:
-                  fh.write(f"complete={'true' if complete else 'false'}\n")
-                  fh.write(f"missing={','.join(sorted(missing))}\n")
+                  fh.write(f"complete<<RECONCILE_EOF\n{'true' if complete else 'false'}\nRECONCILE_EOF\n")
+                  fh.write(f"missing<<RECONCILE_EOF\n{','.join(sorted(missing))}\nRECONCILE_EOF\n")
 
           if missing:
               # C-005: a shard absent from BOTH the current and fallback runs
@@ -252,7 +298,7 @@ jobs:
   # silently scores an incomplete artefact set as if it were fine. In `pr`
   # mode the job-level `if:` requires BOTH `collect` to have succeeded AND
   # `complete == 'true'` — a `collect` failure (a same-run collision, or a
-  # registry-expected shard missing from both the current and fallback runs)
+  # registry-expected shard missing from the exact PR attempt)
   # short-circuits the gate rather than burning runner compute on data that is
   # already known-incomplete (NFR-008).
   # ---------------------------------------------------------------------------
@@ -269,8 +315,10 @@ jobs:
       - name: Fail loudly if the reconciled shard set is incomplete (full mode's always() re-check)
         if: needs.collect.outputs.complete != 'true'
         shell: bash
+        env:
+          MISSING_SHARDS: ${{ needs.collect.outputs.missing }}
         run: |
-          echo "::error::ci-aggregate: reconciled coverage set is INCOMPLETE (missing: ${{ needs.collect.outputs.missing }}) -- refusing to score diff-cover over data missing from both the current and fallback runs (C-005)"
+          echo "::error::ci-aggregate: reconciled coverage set is INCOMPLETE (missing: $MISSING_SHARDS) -- refusing to score diff-cover over data missing from both the current and fallback runs (C-005)"
           exit 1
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -299,7 +347,7 @@ jobs:
 
       - name: Install diff-cover
         shell: bash
-        run: pip install --quiet --disable-pip-version-check "diff-cover==10.3.0"
+        run: uv pip install --python .venv/bin/python "diff-cover==10.3.0" "defusedxml==0.7.1"
 
       - name: Compute the census-dead denominator exclusion (WP02 oracle)
         id: census
@@ -314,23 +362,17 @@ jobs:
           from tests.architectural._p1_census_oracle import denominator_excluded_surfaces
 
           surfaces = denominator_excluded_surfaces()
-          excludes = " ".join(f"--exclude 'src/{surface.replace('.', '/')}*'" for surface in sorted(surfaces))
+          excludes = "--exclude " + " ".join(f"'*/src/{surface.replace('.', '/')}*'" for surface in sorted(surfaces)) if surfaces else ""
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"exclude-flags={excludes}\n")
           print(f"ci-aggregate: excluding {len(surfaces)} census-dead surface(s) from the diff-cover denominator: {sorted(surfaces)}")
           PY
 
-      - name: Resolve the PR base ref
-        id: base-ref
-        shell: bash
-        run: |
-          set -euo pipefail
-          base="${{ github.event.workflow_run.pull_requests[0].base.ref }}"
-          if [ -z "$base" ]; then
-            base="main"
-          fi
-          git fetch --no-tags --quiet origin "$base":"refs/remotes/origin/$base" || true
-          echo "base=$base" >> "$GITHUB_OUTPUT"
+      - name: Download exact source diff
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ci-aggregate-source
+          path: out/aggregate/source
 
       - name: diff-cover — critical-path, enforced (>=90%)
         shell: bash
@@ -342,16 +384,13 @@ jobs:
             echo "::error::ci-aggregate: zero reconciled coverage files — nothing for diff-cover to score"
             exit 1
           fi
-          diff-cover "${coverage_files[@]}" \
-            --compare-branch="origin/${{ steps.base-ref.outputs.base }}" \
+          .venv/bin/python scripts/ci/validate_diff_coverage.py \
+            --diff-file=out/aggregate/source/critical.diff.patch \
+            --sources=out/aggregate/source/critical-sources.json \
+            --output=out/aggregate/source/statement.diff.patch \
+            "${coverage_files[@]}" \
+            ${{ steps.census.outputs.exclude-flags }}
+          .venv/bin/diff-cover "${coverage_files[@]}" \
+            --diff-file=out/aggregate/source/statement.diff.patch \
             --fail-under=90 \
-            --include 'src/kernel/*' \
-            --include 'src/charter/*' \
-            --include 'src/specify_cli/status/*' \
-            --include 'src/specify_cli/lanes/branch_naming.py' \
-            --include 'src/specify_cli/dashboard/handlers/*' \
-            --include 'src/specify_cli/dashboard/scanner.py' \
-            --include 'src/specify_cli/merge/*' \
-            --include 'src/runtime/next/*' \
-            --include 'src/mission_runtime/*' \
             ${{ steps.census.outputs.exclude-flags }}
