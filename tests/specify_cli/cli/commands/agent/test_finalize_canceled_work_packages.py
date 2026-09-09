@@ -847,7 +847,11 @@ def test_existing_manifest_preserves_planning_sha_after_claim_then_cancel(
     manifest = read_lanes_json(mission_dir)
     assert manifest is not None
     assert manifest.planning_commit_sha == "planning-old"
-    capture.assert_called_once()
+    # #4141: the preserve path now reads the target tip a second time so it can
+    # warn when the recorded SHA has drifted from the branch (read-only
+    # ``git rev-parse``; no write, no lanes.json re-read). The frozen SHA above
+    # is what #3311 protects, and it is still preserved.
+    assert capture.call_count == 2
 
 
 def test_existing_manifest_recaptures_moved_tip_while_all_work_is_planned(
@@ -894,7 +898,11 @@ def test_existing_manifest_preserves_planning_sha_after_plan_then_cancel(
     manifest = read_lanes_json(mission_dir)
     assert manifest is not None
     assert manifest.planning_commit_sha == "planning-old"
-    capture.assert_called_once()
+    # #4141: the preserve path now reads the target tip a second time so it can
+    # warn when the recorded SHA has drifted from the branch (read-only
+    # ``git rev-parse``; no write, no lanes.json re-read). The frozen SHA above
+    # is what #3311 protects, and it is still preserved.
+    assert capture.call_count == 2
 
 
 def test_planned_to_canceled_without_manifest_is_pre_execution(tmp_path: Path) -> None:
