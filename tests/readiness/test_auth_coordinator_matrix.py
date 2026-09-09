@@ -238,7 +238,7 @@ def test_auth_matrix(
     if row.hosted_enabled:
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     else:
-        monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     # CI env (affects OutputPolicy).
     if row.ci_env:

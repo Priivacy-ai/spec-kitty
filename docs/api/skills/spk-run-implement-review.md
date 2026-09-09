@@ -42,8 +42,8 @@ implement and review", "sprint through WPs" — with `argument-hint:
 part of the transition. A dispatched implement/review sub-agent must poll
 that command to completion rather than treating it as fire-and-forget. Pass
 `--skip-pre-review-gate` to skip it for one invocation, or set
-`SPEC_KITTY_SYNC_DISABLE` / `SPEC_KITTY_SYNC_MINIMAL_IMPORT` to disable it
-process-wide.
+`SPEC_KITTY_SKIP_PRE_REVIEW_GATE` to disable it process-wide (the gate's own
+opt-out name, #3980).
 
 ## What it does NOT do
 

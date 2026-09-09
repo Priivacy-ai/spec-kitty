@@ -277,7 +277,7 @@ def test_incident_regression_two_subprocess_workers(
         env["SPEC_KITTY_SAAS_URL"] = server_url
         env["BARRIER_DIR"] = str(barrier_dir)
         # Suppress accidental SaaS sync; tests must not touch real SaaS.
-        env.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+        env["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
         # Make sure subprocesses can find ``specify_cli`` even when this
         # test runs from a non-editable checkout. Inheriting sys.path
         # via PYTHONPATH is the standard contract.

@@ -201,19 +201,33 @@ class TestAuthLoginDispatch:
 
 class TestAuthLoginConfigErrors:
 
-    def test_missing_env_and_config_exits_nonzero(self, monkeypatch):
-        # #3406 FR-005: with NEITHER SPEC_KITTY_SAAS_URL nor a configured
-        # `[sync].server_url`, login refuses rather than silently targeting the
-        # descriptive dev default. The remedy names both ways to set a server.
+    def test_missing_env_and_config_targets_packaged_default(self, monkeypatch, tmp_path):
+        # #3406 FR-005, retargeted by #3980 (D-5 revised): with NEITHER
+        # SPEC_KITTY_SAAS_URL nor a configured `[sync].server_url`, login no
+        # longer refuses — the packaged default `https://team.spec-kitty.ai`
+        # is the target (the #3980 acceptance criterion), and the browser flow
+        # is handed exactly that URL.
+        runtime_root = tmp_path / "runtime-root"
+        runtime_root.mkdir()
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        result = runner.invoke(app, ["login"])
 
-        assert result.exit_code != 0
-        assert "No hosted server is configured" in result.stdout
-        assert "SPEC_KITTY_SAAS_URL" in result.stdout
-        # #182: unescaped, Rich markup parses "[sync]" as a style tag and
-        # silently drops it from the remedy.
-        assert "[sync].server_url" in result.stdout
+        async def _noop(*_args, **_kwargs):
+            return None
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser:
+            mock_factory.return_value.is_authenticated = False
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert mock_browser.called
+        # Login resolved the packaged default and handed it to the flow.
+        assert mock_browser.call_args.args[1] == "https://team.spec-kitty.ai"
 
     def test_missing_env_uses_configured_sync_server_url(self, monkeypatch, tmp_path):
         # #3406 FR-005: the actual bug. When the env var is unset but the user
@@ -246,10 +260,12 @@ class TestAuthLoginConfigErrors:
         # Login resolved the configured server_url and handed it to the flow.
         assert mock_browser.call_args.args[1] == "https://configured.example"
 
-    def test_blank_configured_server_url_still_refuses(self, monkeypatch, tmp_path):
-        # #182 squad MAJOR: `server_url = ""` names no endpoint, so login must
-        # refuse exactly as it does when `[sync].server_url` is absent — not
-        # treat the blank string as a configured (but empty) endpoint.
+    def test_blank_configured_server_url_targets_packaged_default(self, monkeypatch, tmp_path):
+        # #182 squad MAJOR, retargeted by #3980: `server_url = ""` names no
+        # endpoint — it is *no opinion* — so login targets the packaged
+        # default exactly as it does when `[sync].server_url` is absent,
+        # never treating the blank string as a configured (but empty)
+        # endpoint.
         runtime_root = tmp_path / "runtime-root"
         runtime_root.mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
@@ -258,10 +274,23 @@ class TestAuthLoginConfigErrors:
             '[sync]\nserver_url = ""\n', encoding="utf-8"
         )
 
-        result = runner.invoke(app, ["login"])
+        async def _noop(*_args, **_kwargs):
+            return None
 
-        assert result.exit_code != 0
-        assert "No hosted server is configured" in result.stdout
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser:
+            mock_factory.return_value.is_authenticated = False
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert mock_browser.called
+        # The blank value is no opinion: the packaged default wins, and the
+        # blank string is never handed to the flow as a configured endpoint.
+        assert mock_browser.call_args.args[1] == "https://team.spec-kitty.ai"
 
 
 class TestAuthLoginSaasLineRendering:

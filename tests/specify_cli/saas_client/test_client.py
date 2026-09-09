@@ -17,6 +17,7 @@ import pytest
 from kernel.clock import now_utc, timedelta
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 from specify_cli.auth.errors import ConfigurationError, NetworkError, RefreshTokenExpiredError
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
@@ -122,22 +123,31 @@ def test_load_auth_context_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert ctx.team_slug == "my-team"
 
 
-def test_load_auth_context_raises_when_no_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    """D-5: with a token but no SaaS URL from env or file, fail closed — no
-    hardcoded ``api.spec-kitty.io`` fallback (#2248 / #2146)."""
+def test_load_auth_context_env_token_no_url_resolves_packaged_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#3980 (D-5 revised): with a token but no SaaS URL from env or file, the
+    packaged default is the target — no hardcoded ``api.spec-kitty.io``
+    fallback ever existed (#2248 / #2146); the packaged launch host is not a
+    guess, it is the shipped default."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "test-token")
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
-        load_auth_context()
+    ctx = load_auth_context()
+    assert ctx.token == "test-token"
+    assert ctx.saas_url == DEFAULT_HOSTED_SAAS_URL
 
 
-def test_load_auth_context_env_token_no_url_names_env_and_config_only(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_auth_context_env_token_no_url_names_env_and_config_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#290: an env-supplied token's "no URL" remedy must name only
     SPEC_KITTY_SAAS_URL and config.toml's [sync].server_url — never
     .kittify/saas-auth.json's saas_url, which #237 already refuses to pair
-    with an env-supplied token."""
+    with an env-supplied token. The refusal is reached here with the
+    canonical resolver degraded (#3980: with it available, the packaged
+    default is the target instead)."""
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "test-token")
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", _raise_unavailable)
     with pytest.raises(SaasAuthError) as exc_info:
         load_auth_context()
     message = str(exc_info.value)
@@ -256,23 +266,31 @@ def test_load_auth_context_file_token_pairs_with_env_url_when_file_has_no_url(tm
     assert ctx.saas_url == "https://env-url.example"
 
 
-def test_load_auth_context_raises_when_file_has_no_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """D-5 file branch: file token present but no saas_url key → fail closed."""
+def test_load_auth_context_file_token_no_url_resolves_packaged_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#3980 (D-5 revised) file branch: file token present but no saas_url key
+    → the packaged default (the file's own url still only ever rides with its
+    own token, #237)."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
     (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token"}))
-    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
-        load_auth_context(repo_root=tmp_path)
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "file-token"
+    assert ctx.saas_url == DEFAULT_HOSTED_SAAS_URL
 
 
 def test_load_auth_context_file_token_no_url_still_names_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#290: the file-token "no URL" remedy is unchanged by the env-token
     branch above — naming the file's own saas_url is still a fair remedy on
-    this path, since #237's trust boundary never applied to it."""
+    this path, since #237's trust boundary never applied to it. Reached with
+    the canonical resolver degraded (#3980)."""
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", _raise_unavailable)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
     (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token"}))
@@ -281,15 +299,19 @@ def test_load_auth_context_file_token_no_url_still_names_file(tmp_path: Path, mo
     assert '"saas_url" in .kittify/saas-auth.json' in str(exc_info.value)
 
 
-def test_load_auth_context_raises_when_file_has_empty_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """D-5 file branch: empty-string saas_url in file → fail closed (strip normalises it)."""
+def test_load_auth_context_file_token_empty_url_resolves_packaged_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#3980 (D-5 revised) file branch: empty-string saas_url in file is no
+    opinion (strip normalises it) → the packaged default."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
     (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": ""}))
-    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
-        load_auth_context(repo_root=tmp_path)
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.saas_url == DEFAULT_HOSTED_SAAS_URL
 
 
 def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

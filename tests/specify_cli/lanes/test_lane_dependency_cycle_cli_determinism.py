@@ -94,7 +94,7 @@ def test_canonical_finalize_cycle_fields_are_stable_across_hash_seeds(
                 "SPEC_KITTY_SYNC_DISABLE": "1",
             }
         )
-        env.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+        env["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
         result = subprocess.run(
             [sys.executable, "-c", _CHILD],
             cwd=checkout_root,

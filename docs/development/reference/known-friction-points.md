@@ -38,9 +38,9 @@ closed — so the "known reds" below are already a different set than a month ag
   green-wash a `@pytest.mark.regression` red; that erases a deliberate
   release-blocker signal.
 - **CI-environment false reds that pass locally:** auth
-  (`logged_out_on_connected_teamspace`) and the sync toggles
-  (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`, which also skip
-  the pre-review gate). Config, not your diff.
+  (`logged_out_on_connected_teamspace`) and the pre-review gate opt-out
+  (`SPEC_KITTY_SKIP_PRE_REVIEW_GATE`, its own name since #3980). Config, not
+  your diff.
 - **Stale-install false reds.** Commands that shell out to `spec-kitty` (e.g.
   the `merge-driver-*` commands) only reflect your working tree after
   `pip install -e .` / `uv pip install -e .`. Re-install after every rebase.
@@ -94,8 +94,9 @@ closed — so the "known reds" below are already a different set than a month ag
   runs.
 - **No `git stash` in lane worktrees** — the stash stack is shared across
   worktrees, so a `pop` can steal a sibling lane's work-in-progress.
-- **`move-task` can hang on sync-daemon fan-out.** Background it and set
-  `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1`.
+- **`move-task` can hang on fan-out.** Background it and set
+  `SPEC_KITTY_NO_MOMENT_HANDLERS=1` (the deprecated alias
+  `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1` still works, #3980).
 - **After `finalize-tasks`, verify the issue-matrix / coordination state.** 3.2.6
   made the PRIMARY scaffolder idempotent; the coord/merge reset path is not fully
   verified.

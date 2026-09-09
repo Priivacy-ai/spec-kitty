@@ -36,7 +36,7 @@ _EXPECTED_LANES = [
 @pytest.fixture(autouse=True)
 def _disable_saas_sync(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep the command on its local finalization path for this contract suite."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 def _write_cyclic_mission(

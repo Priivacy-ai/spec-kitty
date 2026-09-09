@@ -216,12 +216,12 @@ class TestConstructor:
         flow = DeviceCodeFlow()
         assert flow._saas_base_url == "https://env.test"
 
-    def test_missing_env_raises(self, monkeypatch):
-        from specify_cli.auth.errors import ConfigurationError
+    def test_missing_env_uses_packaged_default(self, monkeypatch):
+        from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        with pytest.raises(ConfigurationError):
-            DeviceCodeFlow()
+        flow = DeviceCodeFlow()
+        assert flow._saas_base_url == DEFAULT_HOSTED_SAAS_URL
 
     def test_rstrips_trailing_slash(self):
         flow = DeviceCodeFlow(saas_base_url="https://saas.test/")

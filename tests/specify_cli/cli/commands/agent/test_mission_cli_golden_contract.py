@@ -415,7 +415,7 @@ def test_setup_plan_unresolved_error_envelope_keys(runner: CliRunner, tmp_path: 
     _git(tmp_path, "commit", "-m", "two missions")
     # The SaaS-auth FR-011 guard fires first when sync is opt-in; the mission
     # detection (PLAN_CONTEXT_UNRESOLVED) is the surface under test here.
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(mission_app, ["setup-plan", "--json"], catch_exceptions=False)
@@ -444,7 +444,7 @@ def test_setup_plan_no_missions_error_envelope_keys(runner: CliRunner, tmp_path:
     ``error_code``, ``error``, ``spec_kitty_version``, ``remediation``.
     """
     _init_repo(tmp_path)
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(mission_app, ["setup-plan", "--json"], catch_exceptions=False)

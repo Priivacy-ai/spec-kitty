@@ -49,7 +49,7 @@ def _disable_saas_sync_for_finalize_bootstrap_tests(
     preflight. Leaving the flag enabled lets a machine-local daemon owner
     record short-circuit finalize-tasks before these assertions run.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 def _setup_feature(tmp_path: Path, mission_slug: str = "060-test-feature") -> Path:

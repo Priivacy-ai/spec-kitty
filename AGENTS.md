@@ -284,8 +284,9 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
    #1834. Do **not** "fix" them — leave them red. Confirm by running the same test on the
    merge-base / `upstream/main` (via `PYTHONPATH=<worktree>/src`), or check the tracker.
 2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the
-   gate opt-outs (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`).
-   These pass locally; they are config, not your diff.
+   gate opt-out (`SPEC_KITTY_SKIP_PRE_REVIEW_GATE`; the pre-review gate no longer
+   reads the sync-disable vocabulary, #3980). These pass locally; they are config,
+   not your diff.
 3. **Stale-install false reds** — code that shells out to `spec-kitty` (e.g. the
    `merge-driver-*` commands) only fires after `pip install -e .`; a stale install reports
    false reds until you reinstall.

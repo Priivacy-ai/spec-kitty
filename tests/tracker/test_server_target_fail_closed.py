@@ -33,7 +33,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from specify_cli.auth.errors import ConfigurationError
+from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 from specify_cli.auth.server_target import SAAS_URL_ENV_VAR, ServerTargetSplitBrainError
 from specify_cli.tracker.saas_client import SaaSTrackerClient
 from specify_cli.tracker.saas_readiness import ReadinessState, evaluate_readiness
@@ -62,22 +62,23 @@ def _refuse_network(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_saas_client_construction_without_host_fails_closed(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No env and no config ⇒ ``ConfigurationError``, not a bound dead host."""
+def test_saas_client_construction_without_host_binds_packaged_default(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No env and no config ⇒ the packaged default, not a bound dead host
+    (#3980) and not a refusal. Construction opens no network connection."""
     _refuse_network(monkeypatch)
 
-    with pytest.raises(ConfigurationError) as excinfo:
-        SaaSTrackerClient(project_root=unconfigured_host / "repo")
+    client = SaaSTrackerClient(project_root=unconfigured_host / "repo")
 
-    assert SAAS_URL_ENV_VAR in str(excinfo.value)
+    assert client._base_url == DEFAULT_HOSTED_SAAS_URL
 
 
-def test_evaluate_readiness_without_host_yields_missing_host_config(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The readiness evaluator translates the same condition into
-    ``MISSING_HOST_CONFIG`` (its no-raise contract) without probing the wire."""
+def test_evaluate_readiness_without_host_resolves_packaged_default(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#3980: the readiness evaluator resolves the packaged default on an
+    unconfigured machine (``MISSING_HOST_CONFIG`` is gone for that case); with
+    the wire refused it reports ``HOST_UNREACHABLE`` against that default."""
     _refuse_network(monkeypatch)
-    # Order: rollout gate → auth → host config. Pass the first two so the
-    # evaluation actually reaches the host-config check under test.
+    # Order: rollout gate → auth → host config → reachability. Pass the first
+    # two so the evaluation reaches the host-config check under test.
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.setattr("specify_cli.tracker.saas_readiness._probe_auth", lambda _repo_root: True)
 
@@ -86,9 +87,32 @@ def test_evaluate_readiness_without_host_yields_missing_host_config(unconfigured
         probe_reachability=True,
     )
 
+    assert result.state is ReadinessState.HOST_UNREACHABLE
+    assert not result.is_ready
+    assert DEFAULT_HOSTED_SAAS_URL in result.message or DEFAULT_HOSTED_SAAS_URL in (result.next_action or "")
+
+
+def test_evaluate_readiness_yields_missing_host_config_only_when_resolver_degrades(
+    unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``MISSING_HOST_CONFIG`` survives only for a resolver that itself
+    degrades (its no-raise representation of an unresolvable target)."""
+    _refuse_network(monkeypatch)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.setattr("specify_cli.tracker.saas_readiness._probe_auth", lambda _repo_root: True)
+
+    def _degraded(**_kwargs: object) -> str | None:
+        return None
+
+    monkeypatch.setattr("specify_cli.tracker.saas_readiness._probe_host_config", _degraded)
+
+    result = evaluate_readiness(
+        repo_root=unconfigured_host / "repo",
+        probe_reachability=True,
+    )
+
     assert result.state is ReadinessState.MISSING_HOST_CONFIG
     assert not result.is_ready
-    assert "SPEC_KITTY_SAAS_URL" in (result.next_action or "")
 
 
 # ---------------------------------------------------------------------------

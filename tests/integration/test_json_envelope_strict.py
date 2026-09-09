@@ -124,7 +124,7 @@ def set_saas_state(monkeypatch: pytest.MonkeyPatch) -> Any:
 
     def _apply(state: str) -> None:
         if state == "disabled":
-            monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
         elif state == "unauthorized":
             monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
             # Force the token manager to report "not authenticated" if any
@@ -269,12 +269,14 @@ def test_forbidden_string_list_is_non_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_set_saas_state_disabled_unsets_env_var(
+def test_set_saas_state_disabled_sets_explicit_opt_out(
     set_saas_state: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     set_saas_state("disabled")
-    assert "SPEC_KITTY_ENABLE_SAAS_SYNC" not in os.environ
+    # #3980: the default flipped to ON, so "disabled" must be the explicit
+    # opt-out value — unsetting the variable would leave sync enabled.
+    assert os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "0"
 
 
 def test_set_saas_state_unauthorized_sets_env_var(set_saas_state: Any) -> None:

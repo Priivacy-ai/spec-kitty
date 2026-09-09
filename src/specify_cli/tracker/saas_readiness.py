@@ -77,8 +77,8 @@ class ReadinessResult:
 
 _WORDING: dict[ReadinessState, tuple[str, str]] = {
     ReadinessState.ROLLOUT_DISABLED: (
-        "Hosted SaaS sync is not enabled on this machine.",
-        "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in.",
+        "Hosted SaaS sync is disabled on this machine.",
+        "Unset `SPEC_KITTY_ENABLE_SAAS_SYNC` (or set it to `1`) to re-enable it.",
     ),
     ReadinessState.MISSING_AUTH: (
         "No SaaS authentication token is present.",
@@ -158,20 +158,23 @@ def _probe_auth(repo_root: Path) -> bool:
 
 
 def _probe_host_config() -> str | None:
-    """Return the resolved SaaS base URL, or ``None`` if no host is configured.
+    """Return the resolved SaaS base URL, or ``None`` if it cannot be resolved.
 
     Two invariants are reconciled here:
 
-    * **D-5 opt-in gate** (unchanged): hosted SaaS sync requires
-      ``SPEC_KITTY_SAAS_URL``. When that env var is unset this returns ``None``
-      so the evaluator yields ``MISSING_HOST_CONFIG`` — config-file
-      ``[sync].server_url`` alone never opts a machine into hosted readiness.
-    * **Target authority** (WP02, contract §1): when the env var *is* set, the
-      URL returned is the canonical ``resolved_server_url`` from
+    * **D-5 revised (#3980)**: the packaged default
+      ``https://team.spec-kitty.ai`` is the target — ``SPEC_KITTY_SAAS_URL``
+      is a dev/self-host override and ``config.toml [sync].server_url`` a
+      per-machine configured target. With neither set the resolver answers
+      the packaged default, so the former "env var unset ⇒
+      ``MISSING_HOST_CONFIG``" opt-in gate no longer exists; ``None`` now
+      means only "the resolver itself degraded".
+    * **Target authority** (WP02, contract §1): the URL returned is the
+      canonical ``resolved_server_url`` from
       :func:`~specify_cli.auth.server_target.resolve_server_target`, i.e. the
-      **same** target sync/WebSocket/tracker/queue-scope key off. So readiness
-      can never green-light a different URL than sync uses, even when the env
-      var overrides ``config.toml`` (SC-008).
+      **same** target the hosted surfaces key off. So readiness can never
+      green-light a different URL than they use, even when the env var
+      overrides ``config.toml`` (SC-008).
 
     No-raise contract, with one named exception: any failure degrades to
     ``None`` (treated as an absent host) rather than propagating, **except**
@@ -181,21 +184,6 @@ def _probe_host_config() -> str | None:
     remedy (#305 — the operator has already set ``SPEC_KITTY_SAAS_URL``, so
     telling them to set it again is a dead end).
     """
-    from specify_cli.auth.config import get_saas_base_url
-    from specify_cli.auth.errors import ConfigurationError
-
-    try:
-        # D-5 opt-in gate: ``SPEC_KITTY_SAAS_URL`` must be set for hosted
-        # readiness. ``ConfigurationError`` here means "no host configured".
-        get_saas_base_url()
-    except ConfigurationError:
-        return None
-
-    # Opted in → report the canonical resolved target. When the env var
-    # overrides ``config.toml`` the resolver picks the env URL (process
-    # override), so readiness probes the **same** URL sync uses (SC-008).
-    # ``specify_cli.*`` cross-package imports are ``Any`` to mypy
-    # (follow_imports=skip); coerce ``resolved_server_url`` (a ``str``).
     from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target
 
     try:
@@ -264,9 +252,10 @@ def evaluate_readiness(
 
     Check order (short-circuits on first failure):
 
-    1. Rollout gate (``SPEC_KITTY_ENABLE_SAAS_SYNC``)
+    1. Rollout gate (``SPEC_KITTY_ENABLE_SAAS_SYNC`` — opt-out-only, #3980)
     2. Auth (``TokenManager.is_authenticated``)
-    3. Host config (``SPEC_KITTY_SAAS_URL`` via ``get_saas_base_url()``); an
+    3. Host config (``resolve_server_target``: env override over
+       ``config.toml [sync].server_url`` over the packaged default); an
        env/``config.toml`` disagreement yields ``AMBIGUOUS_HOST_CONFIG``
        instead of ``MISSING_HOST_CONFIG`` (#305)
     4. Reachability — only when ``probe_reachability=True``

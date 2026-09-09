@@ -129,7 +129,7 @@ def _run_setup_plan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str
 
     # Disable the autouse SaaS-sync flag so setup-plan does not refuse on the
     # unauthenticated hosted-sync guard (which fires before mission detection).
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.chdir(tmp_path)
     captured: dict[str, object] = {}
 
@@ -525,7 +525,7 @@ def test_finalize_tasks_reads_primary_on_materialized_empty_coord(
     _git(coord_worktree, "rm", "-r", f"kitty-specs/{slug_dir}")
     _git(coord_worktree, "commit", "-m", "empty coord surface")
 
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.chdir(tmp_path)
     captured: dict[str, object] = {}
 

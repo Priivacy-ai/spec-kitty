@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
@@ -45,7 +44,7 @@ from runtime.next._internal_runtime.significance import (
 # ``specify_cli.*`` except ``specify_cli.cli`` / ``specify_cli.next``; both ``core``
 # and ``mission_metadata`` are already on the runtime outbound ledger
 # (``tests/architectural/test_layer_rules.py``), so these add no ledger entry.
-from specify_cli.core.env import is_truthy
+from specify_cli.core.env import moment_handlers_disabled_reason
 from specify_cli.mission_metadata import resolve_mission_identity
 
 # Explicit re-exports so `from runtime.next._internal_runtime.events import X`
@@ -195,11 +194,12 @@ class NullEmitter:
 # intact.
 #
 # A future producer registers once at its import tail via
-# :func:`register_runtime_emitter_factory`, under the
-# ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` gate, mirroring
+# :func:`register_runtime_emitter_factory`, under the moment-handler gate
+# (#3980: ``SPEC_KITTY_NO_MOMENT_HANDLERS``, the kill switch, or the
+# deprecated ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias), mirroring
 # ``specify_cli.status.adapters.ensure_zeitgeist_moment_handlers``::
 #
-#     if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
+#     if moment_handlers_disabled_reason() is None:
 #         register_runtime_emitter_factory(MyProducer.for_mission)
 #
 # The zeitgeist *moment fan-out* is a separate, already-live seam in
@@ -291,7 +291,11 @@ def runtime_emitter_for_mission(
 ) -> RuntimeEventEmitter:
     """Return the mission's runtime emitter seam.
 
-    Under ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` the null seam is returned
+    Under the moment-handler gate (#3980: ``SPEC_KITTY_NO_MOMENT_HANDLERS``,
+    the ``SPEC_KITTY_SYNC_DISABLE`` kill switch, or the deprecated
+    ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias, resolved by
+    :func:`specify_cli.core.env.moment_handlers_disabled_reason`) the null
+    seam is returned
     unconditionally and the registered factory is not called (S2). Otherwise
     the registered factory wins (S3); with none registered the null seam is
     returned (S1). The env gate is read at call time so tests can toggle it
@@ -305,7 +309,7 @@ def runtime_emitter_for_mission(
     instead of degrading gracefully. The failure is logged at WARNING, not
     silent.
     """
-    if is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
+    if moment_handlers_disabled_reason() is not None:
         return NullEmitter.for_mission(
             feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
         )

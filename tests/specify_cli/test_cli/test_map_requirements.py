@@ -43,7 +43,7 @@ def _bypass_protected_branch_guard(monkeypatch: pytest.MonkeyPatch) -> None:
     waives the pre-check — PR #1850 guard-bypass fix).
     """
     monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 def _setup_feature(tmp_path: Path, *, wp_ids: list[str] | None = None) -> Path:

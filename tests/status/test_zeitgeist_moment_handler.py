@@ -369,13 +369,23 @@ def test_wire_envelopes_satisfy_the_relay_schema(
     assert captured[2].get_header("X-zeitgeist-capability") == "focus-jwt"
 
 
-def test_import_tail_honours_the_minimal_import_gate() -> None:
-    """SPEC_KITTY_SYNC_MINIMAL_IMPORT means 'register no transport at import' —
-    the Zeitgeist tail is bound by the same gate the sync package obeys."""
+@pytest.mark.parametrize(
+    "gate_var",
+    [
+        "SPEC_KITTY_NO_MOMENT_HANDLERS",
+        "SPEC_KITTY_SYNC_DISABLE",
+        "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
+    ],
+)
+def test_import_tail_honours_the_moment_handler_gate(gate_var: str) -> None:
+    """The moment-handler import gate (#3980) means 'register no transport at
+    import': ``SPEC_KITTY_NO_MOMENT_HANDLERS`` is its own name, the
+    ``SPEC_KITTY_SYNC_DISABLE`` kill switch folds in, and the deprecated
+    ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias is still honored."""
     script = "from specify_cli.status import adapters\nprint(len([h for h in adapters._saas_handlers if h.__module__.endswith('zeitgeist_bridge')]))\n"
     gated_env = dict(os.environ)
-    gated_env["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
-    ungated_env = {k: v for k, v in os.environ.items() if k != "SPEC_KITTY_SYNC_MINIMAL_IMPORT"}
+    gated_env[gate_var] = "1"
+    ungated_env = {k: v for k, v in os.environ.items() if k not in ("SPEC_KITTY_NO_MOMENT_HANDLERS", "SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT")}
 
     gated = subprocess.run([sys.executable, "-c", script], env=gated_env, text=True, capture_output=True, timeout=120)
     ungated = subprocess.run([sys.executable, "-c", script], env=ungated_env, text=True, capture_output=True, timeout=120)

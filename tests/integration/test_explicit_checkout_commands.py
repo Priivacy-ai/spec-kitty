@@ -103,7 +103,7 @@ def checkouts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Pa
     git(owned, "commit", "-qm", "owned mission")
     monkeypatch.chdir(owned)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(owned))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     return primary, owned, sibling
 
 

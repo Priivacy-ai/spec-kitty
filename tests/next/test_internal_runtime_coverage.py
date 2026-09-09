@@ -252,16 +252,26 @@ def test_factory_reset_restores_default(tmp_path: Path) -> None:
 
 
 @pytest.mark.usefixtures("clean_emitter_factory")
+@pytest.mark.parametrize(
+    "gate_var",
+    [
+        "SPEC_KITTY_NO_MOMENT_HANDLERS",
+        "SPEC_KITTY_SYNC_DISABLE",
+        "SPEC_KITTY_SYNC_MINIMAL_IMPORT",  # deprecated alias, honored until post-launch (#3980)
+    ],
+)
 @pytest.mark.parametrize("gate_value", ["1", "true", "yes"])
-def test_factory_minimal_import_gate_wins(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gate_value: str
+def test_factory_moment_handler_gate_wins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gate_var: str, gate_value: str
 ) -> None:
-    # S2: env gate read at call time; registered factory must not be called
+    # S2: env gate read at call time; registered factory must not be called.
+    # #3980: the seam consumes the canonical moment-handler gate, so its own
+    # name, the kill switch, and the deprecated alias all disarm it.
     def _must_not_be_called(**_: Any) -> Any:
         raise AssertionError("must not be called")
 
     events_mod.register_runtime_emitter_factory(_must_not_be_called)
-    monkeypatch.setenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", gate_value)
+    monkeypatch.setenv(gate_var, gate_value)
 
     result = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, **_SEAM_KWARGS)
 

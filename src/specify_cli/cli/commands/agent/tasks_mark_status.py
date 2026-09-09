@@ -179,13 +179,12 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
         primary = _tasks.get_main_repo_root(repo_root)
         st.owned = resolve_owned_mission(primary, st.owned_checkout, st.mission)
         require_unstaged_index(st.owned)
-        from specify_cli.core.saas_sync_config import sync_active
-
-        if sync_active():
-            raise ActionContextError(
-                "OWNED_SYNC_UNSUPPORTED",
-                "Owned mark-status does not support active synchronization.",
-            )
+        # #3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal died with the launch
+        # flip — owned checkouts publish moments like any checkout. The
+        # fan-out handlers on the status emit seam are individually bounded
+        # and non-raising, and the Zeitgeist moment handler no-ops without a
+        # session/team, so an owned mark-status under active sync completes
+        # with at worst a skipped fan-out warning.
         st.repo_root = st.owned.root
         _tasks._emit_sparse_session_warning(
             st.repo_root, command="spec-kitty agent tasks mark-status"

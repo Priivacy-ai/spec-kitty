@@ -3,9 +3,11 @@
 Re-homed and slimmed down from the deleted ``tests/sync/test_target_authority.py``
 (``specify_cli.sync.target_authority``) to match the surviving surface at
 ``specify_cli.auth.server_target``: no queue scope, no user/team identity, no
-network. What remains is the precedence contract (env over config), the
-fail-closed guard when *neither* source names a target (#179 — the resolver
-never guesses a tenant), and the fail-closed split-brain guard.
+network. What remains is the precedence contract (env over config over the
+packaged default, #3980 — D-5 revised) and the fail-closed split-brain guard.
+#179's "no target at all" fail-closed died with the opt-in era: with neither
+source naming a target the resolver answers the packaged default
+``https://team.spec-kitty.ai``.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.auth.errors import ConfigurationError
+from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 from specify_cli.auth.server_target import (
     SAAS_URL_ENV_VAR,
     OverrideMode,
@@ -77,20 +79,22 @@ def test_to_diagnostics_dict_is_json_safe_with_all_keys(target_root: Path) -> No
     json.dumps(diag)  # must round-trip through JSON
 
 
-def test_neither_config_nor_env_fails_closed(target_root: Path) -> None:
-    """#179: no env value and no config value is an error, not a stale default."""
-    with pytest.raises(ConfigurationError) as excinfo:
-        resolve_server_target()
+def test_neither_config_nor_env_resolves_to_packaged_default(target_root: Path) -> None:
+    """#3980 (D-5 revised): no env value and no config value resolves to the
+    packaged default — the launch host — instead of failing closed."""
+    target = resolve_server_target()
 
-    message = str(excinfo.value)
-    assert SAAS_URL_ENV_VAR in message
-    assert "[sync].server_url" in message
+    assert target.configured_server_url is None
+    assert target.env_server_url is None
+    assert target.override_mode is OverrideMode.PACKAGED_DEFAULT
+    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
 
 
-def test_corrupt_config_toml_with_no_env_fails_closed(target_root: Path) -> None:
+def test_corrupt_config_toml_with_no_env_resolves_to_packaged_default(target_root: Path) -> None:
     (target_root / "config.toml").write_text("this is = = not valid toml", encoding="utf-8")
-    with pytest.raises(ConfigurationError):
-        resolve_server_target()
+    target = resolve_server_target()
+    assert target.configured_server_url is None
+    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
 
 
 def test_corrupt_config_toml_is_treated_as_no_configured_url(
@@ -103,18 +107,19 @@ def test_corrupt_config_toml_is_treated_as_no_configured_url(
     assert target.resolved_server_url == ENV_URL
 
 
-def test_non_table_sync_key_with_no_env_fails_closed(target_root: Path) -> None:
+def test_non_table_sync_key_with_no_env_resolves_to_packaged_default(target_root: Path) -> None:
     (target_root / "config.toml").write_text('sync = "oops"\n', encoding="utf-8")
-    with pytest.raises(ConfigurationError):
-        resolve_server_target()
+    target = resolve_server_target()
+    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
 
 
-def test_blank_config_server_url_is_no_opinion_and_fails_closed(target_root: Path) -> None:
-    """A blank ``server_url`` is no opinion (#179): with no env value the
-    resolver fails closed instead of resolving to an empty target."""
+def test_blank_config_server_url_is_no_opinion_and_yields_packaged_default(target_root: Path) -> None:
+    """A blank ``server_url`` is no opinion: with no env value the resolver
+    answers the packaged default instead of resolving to an empty target."""
     (target_root / "config.toml").write_text('[sync]\nserver_url = "  "\n', encoding="utf-8")
-    with pytest.raises(ConfigurationError):
-        resolve_server_target()
+    target = resolve_server_target()
+    assert target.configured_server_url is None
+    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
 
 
 def test_blank_config_server_url_defers_to_env(
@@ -290,3 +295,44 @@ def test_env_equals_config_does_not_log_warning(
 
     assert target.override_mode is OverrideMode.NONE
     assert caplog.records == []
+
+
+# ---------------------------------------------------------------------------
+# #3980 (D-5 revised): the packaged default is "no opinion"
+# ---------------------------------------------------------------------------
+
+
+def test_env_naming_the_packaged_default_is_no_opinion_config_wins(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An env variable explicitly set to the packaged default never disagrees
+    with a configured target: the config wins without a split-brain."""
+    _write_config(target_root, CONFIG_URL)
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_HOSTED_SAAS_URL)
+
+    target = resolve_server_target(process_wide_override=False)
+
+    assert target.override_mode is OverrideMode.NONE
+    assert target.resolved_server_url == CONFIG_URL
+
+
+def test_env_naming_the_packaged_default_with_no_config_yields_default(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_HOSTED_SAAS_URL)
+    target = resolve_server_target(process_wide_override=False)
+    assert target.override_mode is OverrideMode.PACKAGED_DEFAULT
+    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
+
+
+def test_configured_dev_host_with_no_env_resolves_to_dev_host(
+    target_root: Path,
+) -> None:
+    """#3980 acceptance: a config.toml pointing at a dev host plus no env
+    override resolves to the dev host without a split-brain error."""
+    _write_config(target_root, "https://spec-kitty-dev.fly.dev")
+
+    target = resolve_server_target(process_wide_override=False)
+
+    assert target.override_mode is OverrideMode.NONE
+    assert target.resolved_server_url == "https://spec-kitty-dev.fly.dev"
