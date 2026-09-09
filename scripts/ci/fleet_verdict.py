@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import tempfile
+import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import ExitStack
@@ -94,6 +95,32 @@ def classify(runs: dict[str, dict[str, Any] | None], labels: set[str]) -> str:
     return "green" if all(r.get("status") == "completed" and r.get("conclusion") == "success" for r in present) else "running"
 
 
+def _http_failure(error: urllib.error.HTTPError, token: str) -> str:
+    """Expose bounded GitHub diagnostics without credentials or raw responses."""
+    message: Any = None
+    try:
+        with error:
+            payload = json.loads(error.read(4096))
+        if isinstance(payload, dict):
+            message = payload.get("message")
+    except (OSError, ValueError, RecursionError):
+        pass
+
+    def bounded(value: Any, limit: int) -> str:
+        text = value if isinstance(value, str) else "unavailable"
+        if token:
+            text = text.replace(token, "[redacted]")
+        # Quote control characters before bounding the final emitted text.
+        return json.dumps(text, ensure_ascii=True)[:limit]
+
+    headers = error.headers
+    return (
+        f"GitHub API HTTP {error.code}: message={bounded(message, 512)}; "
+        f"request_id={bounded(headers.get('X-GitHub-Request-Id') if headers else None, 128)}; "
+        f"accepted_permissions={bounded(headers.get('X-Accepted-GitHub-Permissions') if headers else None, 256)}"
+    )
+
+
 class GitHub:
     """Small authenticated API boundary; errors never include credentials."""
 
@@ -103,13 +130,17 @@ class GitHub:
         self.repository = repository
 
     def request(self, path: str, payload: dict[str, Any] | None = None) -> Any:
+        token = os.environ["GH_TOKEN"]
         request = urllib.request.Request(
             f"https://api.github.com/repos/{self.repository}/{path}",
             data=json.dumps(payload).encode() if payload is not None else None,
-            headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return json.load(response)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            raise ValueError(_http_failure(error, token)) from None
 
     def pages(self, path: str, field: str | None = None) -> list[dict[str, Any]]:
         rows = []
