@@ -142,16 +142,10 @@ def check_uninitialized_status(
 
     root_cause = cycle_root_cause(feature_dir)
     if root_cause is not None:
-        message = (
-            f"Mission has {len(wp_files)} work package(s) defined but canonical "
-            f"status is not initialized: {root_cause}"
-        )
+        message = f"Mission has {len(wp_files)} work package(s) defined but canonical status is not initialized: {root_cause}"
         action = "Resolve the dependency cycle, then run `spec-kitty agent mission finalize-tasks`."
     else:
-        message = (
-            f"Mission has {len(wp_files)} work package(s) defined but canonical "
-            f"status is not initialized (event log missing/empty)."
-        )
+        message = f"Mission has {len(wp_files)} work package(s) defined but canonical status is not initialized (event log missing/empty)."
         action = "Run `spec-kitty agent mission finalize-tasks` to bootstrap the event log."
     return [
         Finding(
@@ -197,14 +191,9 @@ def check_stale_claims(
                     category=Category.STALE_CLAIM,
                     wp_id=wp_id,
                     message=(
-                        f"{wp_id} has been in 'claimed' for {age_days} days "
-                        f"(threshold: {claimed_threshold_days} days). "
-                        f"Actor: {wp_state.get('actor', 'unknown')}"
+                        f"{wp_id} has been in 'claimed' for {age_days} days (threshold: {claimed_threshold_days} days). Actor: {wp_state.get('actor', 'unknown')}"
                     ),
-                    recommended_action=(
-                        f"Either begin work on {wp_id} (move to in_progress) "
-                        f"or release the claim (move back to planned)."
-                    ),
+                    recommended_action=(f"Either begin work on {wp_id} (move to in_progress) or release the claim (move back to planned)."),
                 )
             )
 
@@ -219,10 +208,7 @@ def check_stale_claims(
                         f"(threshold: {in_progress_threshold_days} days). "
                         f"Actor: {wp_state.get('actor', 'unknown')}"
                     ),
-                    recommended_action=(
-                        f"Check if {wp_id} is blocked (move to blocked with reason) "
-                        f"or complete the work (move to for_review)."
-                    ),
+                    recommended_action=(f"Check if {wp_id} is blocked (move to blocked with reason) or complete the work (move to for_review)."),
                 )
             )
 
@@ -255,11 +241,7 @@ def check_blanked_runtime_slots(snapshot: dict[str, Any]) -> list[Finding]:
                         severity=Severity.ERROR,
                         category=Category.BLANKED_RUNTIME_SLOT,
                         wp_id=wp_id,
-                        message=(
-                            f"{wp_id} runtime slot '{slot}' is an empty string — "
-                            f"recorded attribution was blanked (corrupt canonical "
-                            f"state, #2960)."
-                        ),
+                        message=(f"{wp_id} runtime slot '{slot}' is an empty string — recorded attribution was blanked (corrupt canonical state, #2960)."),
                         recommended_action=(
                             f"Re-record {wp_id}'s '{slot}' with a real value, or "
                             f"drop the blanking annotation from the event log; the "
@@ -340,9 +322,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
                 category=Category.MATERIALIZATION_DRIFT,
                 wp_id=None,
                 message=msg,
-                recommended_action=(
-                    "Run 'spec-kitty agent status materialize' to regenerate status.json from the canonical event log."
-                ),
+                recommended_action=("Run 'spec-kitty agent status materialize' to regenerate status.json from the canonical event log."),
             )
         )
 
@@ -394,9 +374,7 @@ def check_reviewer_self_approval(feature_dir: Path) -> list[Finding]:
     return findings
 
 
-def check_issue_matrix(
-    feature_dir: Path, *, issue_matrix_dir: Path | None = None
-) -> list[Finding]:
+def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = None) -> list[Finding]:
     """Flag missions with issue references whose issue-matrix verdicts are missing.
 
     ``issue_matrix_dir`` (coord-commit-integrity SURFACE A #1c): the COORD-partition
@@ -470,10 +448,7 @@ def check_issue_matrix(
                 severity=Severity.WARNING,
                 category=Category.ISSUE_MATRIX,
                 wp_id=None,
-                message=(
-                    "issue-matrix.md is missing rows for referenced issue(s): "
-                    f"{', '.join(missing_issues)}."
-                ),
+                message=(f"issue-matrix.md is missing rows for referenced issue(s): {', '.join(missing_issues)}."),
                 recommended_action="Add one row per referenced issue before approval/merge.",
             )
         )
@@ -520,10 +495,7 @@ def check_duplicate_frontmatter_keys(scan_dir: Path) -> list[Finding]:
                     f"'{finding.key}' (lines {line_list}) — invalid YAML that "
                     f"fails closed at the frontmatter boundary and will trip an upgrade."
                 ),
-                recommended_action=(
-                    "Run 'spec-kitty doctor mission-state --fix' to repair "
-                    "duplicate-key artifacts (keep-last-non-empty, batch-atomic)."
-                ),
+                recommended_action=("Run 'spec-kitty doctor mission-state --fix' to repair duplicate-key artifacts (keep-last-non-empty, batch-atomic)."),
             )
         )
     return findings
@@ -573,10 +545,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
     if report.primary.is_active:
         pattern_note = ""
         if report.primary.pattern_file_present:
-            pattern_note = (
-                f" (pattern file: {report.primary.pattern_file_path}, "
-                f"{report.primary.pattern_line_count} lines)"
-            )
+            pattern_note = f" (pattern file: {report.primary.pattern_file_path}, {report.primary.pattern_line_count} lines)"
         lines.append(f"Primary: {report.primary.path}{pattern_note}")
     active_wts = [w for w in report.worktrees if w.is_blocking]
     if active_wts:
@@ -587,7 +556,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
         "Why this matters: spec-kitty v3.0+ removed sparse-checkout "
         "support but did not ship a migration. This state can cause "
         "silent data loss during mission merge and broken lane worktrees "
-        "on agent action implement. See Priivacy-ai/spec-kitty#588."
+        "on agent action implement. See spec-kitty/spec-kitty#588."
     )
 
     findings.append(
@@ -669,12 +638,8 @@ def run_doctor(
     # the coord worktree is gone). ``spec.md`` stays on ``feature_dir`` (PRIMARY).
     from mission_runtime import MissionArtifactKind, coord_read_dir_for
 
-    issue_matrix_dir = coord_read_dir_for(
-        repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX
-    )
-    result.findings.extend(
-        check_issue_matrix(feature_dir, issue_matrix_dir=issue_matrix_dir)
-    )
+    issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+    result.findings.extend(check_issue_matrix(feature_dir, issue_matrix_dir=issue_matrix_dir))
 
     # Repo-level sparse-checkout finding (FR-002). Appended last so existing
     # findings keep their position — scripts scraping doctor output rely on

@@ -232,8 +232,16 @@ def _live_registered() -> set[str]:
 
 
 def test_restored_windows_ci_marker_is_routed_live() -> None:
-    """The restored direct suite runner positively selects ``windows_ci``."""
-    assert gc.routed_marker_names(gc.load_gates()) == frozenset({"windows_ci"})
+    """The restored direct suite runner positively selects ``windows_ci``.
+
+    The ci-pipeline-reinstatement mission reinstated the modular test CI, so the
+    routed-marker set is no longer *only* ``windows_ci`` — the module matrix and
+    nightly workflows also positively route tier markers (``fast``/``unit``/
+    ``e2e``/``performance``). Assert ``windows_ci`` is *among* the routed markers
+    (a superset check) rather than pinning the exact set, which would be a brittle
+    shape guard the mission's own P2 directive discourages.
+    """
+    assert "windows_ci" in gc.routed_marker_names(gc.load_gates())
 
 
 def test_ci_invisible_keys_are_registered_live() -> None:
