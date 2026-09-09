@@ -35,6 +35,8 @@ def prepare_source(run: dict[str, Any], repository: str, run_id: int, attempt: i
         ".github/workflows/ci-modules.yml",
     ):
         raise ValueError("source run identity, attempt, repository or workflow does not match")
+    if run.get("status") != "completed":
+        raise ValueError("source run attempt has not completed")
     head = run.get("head_sha", "")
     if not isinstance(head, str) or not re.fullmatch("[0-9a-f]{40}", head):
         raise ValueError("source head is not a full commit SHA")
