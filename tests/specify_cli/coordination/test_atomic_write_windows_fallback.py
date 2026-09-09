@@ -20,11 +20,11 @@ from pathlib import Path
 import pytest
 
 from specify_cli.coordination.atomic_write import (
-    _fd_relative_writes_supported,
     _resolve_confined_artifact_path,
     _unlink_confined_artifact_path,
     _write_confined_artifact_bytes,
 )
+from specify_cli.core.no_follow import fd_relative_dir_ops_supported
 
 pytestmark = [pytest.mark.unit]
 
@@ -74,13 +74,13 @@ def _tmp_files(directory: Path) -> list[Path]:
 def test_capability_predicate_false_without_fd_relative_support(
     simulated_windows: None,
 ) -> None:
-    assert _fd_relative_writes_supported() is False
+    assert fd_relative_dir_ops_supported() is False
 
 
 def test_capability_predicate_true_on_posix() -> None:
     # The suite's reference platforms (Linux/macOS CI) support all three
     # primitives; this pins that the fallback never engages there silently.
-    assert _fd_relative_writes_supported() is True
+    assert fd_relative_dir_ops_supported() is True
 
 
 # ---------------------------------------------------------------------------
