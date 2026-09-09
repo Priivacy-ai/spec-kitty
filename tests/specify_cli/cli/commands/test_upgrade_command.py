@@ -1267,3 +1267,64 @@ def test_no_op_upgrade_stamps_last_upgraded_at_as_aware_utc(tmp_path: Path) -> N
         f"last_upgraded_at={last_upgraded_at!r} is missing the aware-UTC offset suffix "
         "-- the naive datetime.now() regression has returned"
     )
+
+
+# ---------------------------------------------------------------------------
+# #4124 — stale-bytecode self-heal on the upgrade-system import seam
+# ---------------------------------------------------------------------------
+
+
+def test_load_upgrade_system_with_heal_retries_after_pycache_heal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale-``.pyc`` import failure is healed once, then retried (#4124).
+
+    Non-vacuity: with the heal removed, the first ``auto_discover_migrations``
+    call raises through ``_load_upgrade_system_with_heal`` and this test
+    errors instead of returning the four upgrade-system callables.
+    """
+    import specify_cli.bytecode_heal as bytecode_heal
+    import specify_cli.cli.commands.upgrade as upgrade_mod
+    import specify_cli.upgrade.migrations as migrations
+
+    calls: list[int] = []
+
+    def flaky() -> None:
+        calls.append(1)
+        if len(calls) == 1:
+            root = bytecode_heal.package_root()
+            assert root is not None
+            fake_pyc = root / "upgrade" / "migrations" / "__pycache__" / "base.cpython-311.pyc"
+            raise ImportError(f"Non-code object in '{fake_pyc}'")
+
+    printed: list[str] = []
+    monkeypatch.setattr(migrations, "auto_discover_migrations", flaky)
+    monkeypatch.setattr(bytecode_heal, "purge_package_bytecode", lambda: 7)
+    monkeypatch.setattr(
+        upgrade_mod.console, "print", lambda *args, **kwargs: printed.append(" ".join(str(a) for a in args))
+    )
+
+    detector, registry, runner, validate = upgrade_mod._load_upgrade_system_with_heal()
+
+    assert len(calls) == 2  # healed, then retried exactly once
+    assert detector.__name__ == "VersionDetector"
+    assert registry.__name__ == "MigrationRegistry"
+    assert runner.__name__ == "MigrationRunner"
+    assert callable(validate)
+    assert any("Repaired 7 stale bytecode cache file" in line for line in printed)
+
+
+def test_load_upgrade_system_with_heal_propagates_genuine_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-cache discovery failure still surfaces — the heal is not a swallow."""
+    import specify_cli.cli.commands.upgrade as upgrade_mod
+    import specify_cli.upgrade.migrations as migrations
+
+    def boom() -> None:
+        raise RuntimeError("discovery exploded")
+
+    monkeypatch.setattr(migrations, "auto_discover_migrations", boom)
+
+    with pytest.raises(RuntimeError, match="discovery exploded"):
+        upgrade_mod._load_upgrade_system_with_heal()
