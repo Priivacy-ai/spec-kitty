@@ -102,7 +102,10 @@ _GH_ISSUE_PATTERN = re.compile(
 # No canonical repo-slug constant existed elsewhere in the codebase to
 # reuse (D7 research finding); this is the single Python-side
 # discrimination point (match-then-filter), not a second regex.
-_CANONICAL_REPO_SLUG = "Priivacy-ai/spec-kitty"
+_CANONICAL_REPO_SLUG = "spec-kitty/spec-kitty"
+# Historical mission references remain same-repo after the repository rename.
+_LEGACY_REPO_SLUGS = frozenset({"priivacy-ai/spec-kitty"})
+_SAME_REPO_SLUGS = frozenset({_CANONICAL_REPO_SLUG.casefold()}) | _LEGACY_REPO_SLUGS
 
 
 def _matched_issue_number(match: re.Match[str]) -> int | None:
@@ -122,7 +125,7 @@ def _matched_issue_number(match: re.Match[str]) -> int | None:
     # false-negative that lets a real same-repo issue escape the completeness
     # gate (SC-008). Compare case-folded on both sides.
     owner_repo = f"{match.group('owner')}/{match.group('repo')}"
-    if owner_repo.casefold() != _CANONICAL_REPO_SLUG.casefold():
+    if owner_repo.casefold() not in _SAME_REPO_SLUGS:
         return None
     return int(match.group("url_number"))
 
@@ -249,11 +252,7 @@ def parse_issue_matrix_document(data: Mapping[str, Any]) -> dict[str, IssueMatri
     raw_rows = data.get("rows", {})
     if not isinstance(raw_rows, Mapping):
         return {}
-    return {
-        str(issue_ref): IssueMatrixEntry.from_dict(entry)
-        for issue_ref, entry in raw_rows.items()
-        if isinstance(entry, Mapping)
-    }
+    return {str(issue_ref): IssueMatrixEntry.from_dict(entry) for issue_ref, entry in raw_rows.items() if isinstance(entry, Mapping)}
 
 
 def write_issue_matrix(
@@ -293,9 +292,7 @@ def write_issue_matrix(
     def _stage() -> tuple[Path, ...]:
         # T029 (#3073): the write moves INTO the thunk so a refused write
         # never materializes ``issue-matrix.json`` on disk (no residue).
-        path.write_text(
-            json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return (path,)
 
     return write_artifact(
@@ -361,14 +358,9 @@ def scaffold_issue_matrix(
     if effective_root is not None:
         from mission_runtime import placement_seam
 
-        issue_matrix_dir = placement_seam(repo_root, mission_slug, effective_root=effective_root).read_dir(
-            MissionArtifactKind.ISSUE_MATRIX
-        )
+        issue_matrix_dir = placement_seam(repo_root, mission_slug, effective_root=effective_root).read_dir(MissionArtifactKind.ISSUE_MATRIX)
     else:
-        issue_matrix_dir = (
-            coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
-            or feature_dir
-        )
+        issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
     json_path = issue_matrix_dir / ISSUE_MATRIX_JSON_FILENAME
     if json_path.exists() or (issue_matrix_dir / ISSUE_MATRIX_MD_FILENAME).exists():
         # Respect existing content (JSON or legacy .md) -- idempotent re-runs

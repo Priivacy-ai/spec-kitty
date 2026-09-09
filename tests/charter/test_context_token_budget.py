@@ -2,7 +2,7 @@
 
 The tests cover the standalone :func:`apply_token_budget` helper plus
 the end-to-end self-sufficiency check that the full bootstrap render
-respects the budget for the ``python-pedro`` profile fixture.
+respects the budget for a bounded, single-directive profile fixture.
 """
 
 from __future__ import annotations
@@ -482,25 +482,48 @@ class TestEdgeCases:
 
 
 class TestAggregateUnderBudget:
-    """The full bootstrap render against the python-pedro fixture stays under budget."""
+    """A bounded bootstrap includes directive navigation without compaction."""
 
-    def test_aggregate_self_sufficiency_under_budget(self, tmp_path) -> None:
-        from pathlib import Path
+    def test_aggregate_self_sufficiency_under_budget(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from types import SimpleNamespace
 
         from charter.activation.context import build_charter_context
+        from charter.activation.profile_resolution import _reset_agent_profile_cache
+        from charter.offering.agent_profiles import AgentProfile
 
-        # Use the spec-kitty repo's own charter as a representative fixture.
-        repo_root = Path(__file__).resolve().parents[2]
-        if not (repo_root / ".kittify" / "charter" / "charter.md").exists():
-            pytest.skip("No charter.md present in repo (fixture unavailable)")
-
-        result = build_charter_context(
-            repo_root,
-            profile="python-pedro",
-            action="implement",
-            mark_loaded=False,
+        # Keep the input bounded independently of the development repo's growing
+        # charter and profile corpus. Exercise the actual aggregate renderer.
+        charter_dir = tmp_path / ".kittify/charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "# Project Charter\n\n## Policy Summary\n\n- Intent: deterministic delivery\n",
+            encoding="utf-8",
         )
+        (charter_dir / "charter.yaml").write_text(
+            'schema_version: "2.0.0"\ngovernance:\n  charter:\n    selected_directives: [DIRECTIVE_025]\n',
+            encoding="utf-8",
+        )
+        (tmp_path / ".kittify/config.yaml").write_text("mission_type_activations: [software-dev]\n", encoding="utf-8")
+        profile = AgentProfile.model_validate(
+            {
+                "profile-id": "budget-fixture-agent",
+                "name": "Budget Fixture Agent",
+                "roles": ["implementer"],
+                "purpose": "Bounded bootstrap fixture",
+                "specialization": {"primary-focus": "testing"},
+                "directive-references": [{"code": "025", "name": "Boy Scout Rule", "rationale": "Preserve local cleanup"}],
+            }
+        )
+        repository = SimpleNamespace(get=lambda name: profile if name == profile.profile_id else None)
+        monkeypatch.setattr("charter.activation.context._default_agent_profile_repository", lambda: repository)
+        _reset_agent_profile_cache()
+        try:
+            result = build_charter_context(tmp_path, profile=profile.profile_id, action="implement", mark_loaded=False)
+        finally:
+            _reset_agent_profile_cache()
         assert len(result.text) <= BUDGET_DEFAULT, f"Bootstrap render produced {len(result.text)} chars, exceeding NFR-001 budget of {BUDGET_DEFAULT}."
         assert "Selected directives:" in result.text
-        assert "directive:SELECTED_ID" in result.text
+        assert "Profile-Cited Directives (budget-fixture-agent):" in result.text
+        assert "Run: spec-kitty charter context --include directive:DIRECTIVE_025" in result.text
         assert "DIRECTIVE_025" in result.text or "025-boy-scout-rule" in result.text
+        assert "sections substituted with fetch commands" not in result.text

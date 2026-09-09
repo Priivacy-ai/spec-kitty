@@ -522,11 +522,11 @@ def rendering_inputs(repo_root: Path) -> tuple[Path, ...]:
     return (config, target) if target is not None else (config,)
 
 
-def validate_mission_provisioning(repo_root: Path, before: bytes, after: bytes, target: Path) -> None:
+def validate_mission_provisioning(repo_root: Path, before: bytes | None, after: bytes, target: Path) -> None:
     """Prove ordinary command rendering is equivalent across mission provisioning.
 
     This is not an activation resolver. The compiler alone authorizes the write;
-    only its mission-type field may differ, on the existing rendering authority.
+    only its mission-type field may differ on the canonical rendering authority.
     All selectors, agent configuration and pointer values remain unchanged.
     """
     from charter.activation.charter_yaml_io import yaml_documents_equal
@@ -534,7 +534,7 @@ def validate_mission_provisioning(repo_root: Path, before: bytes, after: bytes, 
 
     if target != rendering_inputs(repo_root)[-1].resolve():
         raise ValueError("Command provisioning must target the existing rendering authority")
-    documents = tuple(YAML(typ="rt").load(content) for content in (before, after))
+    documents = tuple(YAML(typ="rt").load(content or b"") for content in (before, after))
     if any(document is not None and not isinstance(document, dict) for document in documents):
         raise ValueError("Command provisioning requires mapping rendering inputs")
     original, desired = (document if document is not None else {} for document in documents)
