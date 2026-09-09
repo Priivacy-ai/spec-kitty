@@ -46,7 +46,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from kernel.clock import now_utc
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 import click
@@ -1479,6 +1479,33 @@ def _check_upgrade_intent_conflicts(
         raise typer.Exit(2)
 
 
+def _load_upgrade_system_with_heal() -> tuple[Any, Any, Any, Any]:
+    """Import the upgrade system and auto-discover migrations (#4124 heal seam).
+
+    The lazy imports avoid circular imports; the heal wrapper repairs a stale
+    ``.pyc`` bytecode cache (interrupted install) once before treating an
+    import failure as real. Returns ``(VersionDetector, MigrationRegistry,
+    MigrationRunner, validate_upgrade_target)``.
+    """
+    from specify_cli.bytecode_heal import invoke_with_bytecode_heal
+
+    def _load() -> tuple[Any, Any, Any, Any]:
+        from specify_cli.upgrade.detector import VersionDetector
+        from specify_cli.upgrade.migrations import auto_discover_migrations
+        from specify_cli.upgrade.registry import MigrationRegistry
+        from specify_cli.upgrade.runner import MigrationRunner, validate_upgrade_target
+
+        auto_discover_migrations()
+        return VersionDetector, MigrationRegistry, MigrationRunner, validate_upgrade_target
+
+    def _report_heal(removed: int) -> None:
+        console.print(
+            f"[yellow]Repaired {removed} stale bytecode cache file(s) left by an "
+            "interrupted install; migrations reloaded from source.[/yellow]"
+        )
+
+    return invoke_with_bytecode_heal(_load, on_healed=_report_heal)
+
 
 def upgrade(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying"),
@@ -1620,14 +1647,12 @@ def upgrade(
 
     baseline_changed_paths = capture_upgrade_baseline(project_path)
 
-    # Import upgrade system (lazy to avoid circular imports)
-    from specify_cli.upgrade.detector import VersionDetector
-    from specify_cli.upgrade.registry import MigrationRegistry
-    from specify_cli.upgrade.runner import MigrationRunner, validate_upgrade_target
-
-    from specify_cli.upgrade.migrations import auto_discover_migrations
-
-    auto_discover_migrations()
+    # Import upgrade system (lazy to avoid circular imports), healing a stale
+    # bytecode cache once if the import chain is broken by an interrupted
+    # install (#4124).
+    VersionDetector, MigrationRegistry, MigrationRunner, validate_upgrade_target = (
+        _load_upgrade_system_with_heal()
+    )
 
     # Detect current version
     detector = VersionDetector(project_path)
