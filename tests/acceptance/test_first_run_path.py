@@ -342,3 +342,130 @@ def test_installed_wheel_tutorial_reaches_plan(
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "Initial commit")
     test_plan_runs_on_the_mission_the_tutorial_creates(repo)
+
+
+# ---------------------------------------------------------------------------
+# #4166 — first init must not import a removed private installer function
+# ---------------------------------------------------------------------------
+
+
+def _isolate_fresh_home(monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
+    """Point HOME and every XDG state var at a never-before-used home."""
+    home.mkdir(parents=True, exist_ok=True)
+    for var in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(var, str(home))
+    for var, subdir in {
+        "XDG_CONFIG_HOME": ".config",
+        "XDG_DATA_HOME": ".local/share",
+        "XDG_STATE_HOME": ".local/state",
+        "XDG_CACHE_HOME": ".cache",
+    }.items():
+        (home / subdir).mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv(var, str(home / subdir))
+
+
+def _assert_clean_first_init_skill_installation(
+    result: subprocess.CompletedProcess[str], home: Path, repo: Path
+) -> None:
+    """The #4166 contract: clean warning surface plus real skill evidence."""
+    assert result.returncode == 0, f"`spec-kitty init` failed:\n{result.stdout}\n{result.stderr}"
+    unwrapped = _unwrapped(result)
+    assert "Skill installation incomplete" not in unwrapped, unwrapped
+    assert "_sync_global_skill" not in unwrapped, unwrapped
+    assert "cannot import name" not in unwrapped, unwrapped
+    # Global canonical skills for the selected shared root, installed by the
+    # retained global owner the CLI root callback dispatches.
+    global_skill_docs = sorted((home / ".agents" / "skills").glob("*/SKILL.md"))
+    assert global_skill_docs, f"no global canonical skills under the fresh HOME: {home}"
+    # Project command skills for the selected agent, with delivery complete
+    # (no pending record left behind claiming otherwise).
+    project_skill_docs = sorted((repo / ".agents" / "skills").glob("spec-kitty.*/SKILL.md"))
+    assert project_skill_docs, f"no command skills installed into the project: {repo}"
+    assert (repo / ".kittify" / "command-skills-manifest.json").is_file()
+    assert not (repo / ".kittify" / "init-command-skills.pending.json").exists()
+
+
+def test_first_init_codex_non_interactive_reports_clean_skill_installation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#4166: `init --ai codex --non-interactive` on a fresh HOME.
+
+    The former standalone global-skill phase imported the removed private
+    ``_sync_global_skill`` writer and warned about an incomplete installation
+    while later phases masked the failure. The entrypoint must instead show a
+    clean warning surface AND leave the required selected-agent global/project
+    skill evidence, without touching an unrelated skill owner under the HOME.
+    """
+    home = tmp_path / "fresh-home"
+    _isolate_fresh_home(monkeypatch, home)
+    unrelated_skill = home / ".agents" / "skills" / "my-personal-skill" / "SKILL.md"
+    unrelated_skill.parent.mkdir(parents=True, exist_ok=True)
+    unrelated_content = "---\nname: my-personal-skill\n---\nHands off.\n"
+    unrelated_skill.write_text(unrelated_content, encoding="utf-8")
+
+    repo = tmp_path / "codex-project"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "test@test.com")
+    _git(repo, "config", "user.name", "Test")
+
+    result = _cli(repo, "init", ".", "--ai", "codex", "--non-interactive")
+
+    _assert_clean_first_init_skill_installation(result, home, repo)
+    # Unrelated skill owners under the HOME are preserved, never replaced.
+    assert unrelated_skill.read_text(encoding="utf-8") == unrelated_content
+
+
+@pytest.mark.distribution
+@pytest.mark.slow
+def test_installed_wheel_first_init_codex_non_interactive_clean(
+    installed_wheel_venv: dict[str, Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4166: the installed-wheel build of the same entrypoint, fresh HOME.
+
+    The original report reproduced against an installed wheel (3.2.7rc1), so
+    the regression runs the wheel install too, not just the source tree.
+    """
+    python = installed_wheel_venv["python"]
+    venv = installed_wheel_venv["venv_dir"].resolve()
+    home = tmp_path / "wheel-fresh-home"
+    _isolate_fresh_home(monkeypatch, home)
+    repo = tmp_path / "wheel-codex-project"
+    repo.mkdir()
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {
+            "PYTHONPATH",
+            "SPEC_KITTY_TEMPLATE_ROOT",
+            "SPEC_KITTY_TEST_MODE",
+            "SPEC_KITTY_CLI_VERSION",
+        }
+    }
+    probe = subprocess.run(
+        [str(python), "-c", "import specify_cli; print(specify_cli.__file__)"],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    module = Path(probe.stdout.strip()).resolve()
+    assert module.is_relative_to(venv)
+    assert not module.is_relative_to(_REPO_ROOT.resolve())
+    original = _cli
+
+    def installed_cli(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        return original(cwd, *args, python=python)
+
+    monkeypatch.setattr(sys.modules[__name__], "_cli", installed_cli)
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "test@test.com")
+    _git(repo, "config", "user.name", "Test")
+
+    result = _cli(repo, "init", ".", "--ai", "codex", "--non-interactive")
+
+    _assert_clean_first_init_skill_installation(result, home, repo)
