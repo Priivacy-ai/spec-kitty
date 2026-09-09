@@ -291,7 +291,12 @@ test_egress_consent_boundary:
   # operator-configured repository/path/name needed for an inbound fetch. Reset
   # the ceiling to the exact new live count rather than spending hidden room.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 27
+  # justification (3.2.7, #4125): +1 — specify_cli/dashboard/server.py now holds
+  # one loopback-control urlopen: the parent probes its own just-spawned child's
+  # http://127.0.0.1:<port>/api/health so readiness means "this project's dashboard
+  # is serving", not "something listens on the port". Allowlisted as
+  # LOOPBACK_CONTROL (E18); no project data leaves the machine. 27 -> 28.
+  egress_allowlist_files: 28
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
