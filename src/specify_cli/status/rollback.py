@@ -22,11 +22,20 @@ ownership window that records what an operation appended:
 * :func:`capture_events_tail_ids` -- the expectation read. Called on the
   log's tail while the lock is held (the window calls it; the coord fallback
   arm reads its own ``EventStream`` instead).
-* :func:`rollback_events_log_tail` -- the rollback. It re-acquires the same
-  per-mission ``feature_status_lock`` the write pipeline uses (re-entrant for
-  a caller that already holds it), re-reads the tail, verifies it still
-  contains EXACTLY the expected rows, and only then truncates through the
-  store's raw durability primitive :func:`specify_cli.status.store.truncate_events_log`.
+* :func:`rollback_events_log_tail` -- the log-only rollback. It acquires the
+  same per-mission ``feature_status_lock`` the write pipeline uses (re-entrant for
+  a caller that already holds it) BEFORE looking at the log, re-reads the tail,
+  verifies it still contains EXACTLY the expected rows, and only then truncates
+  through the store's raw durability primitive :func:`specify_cli.status.store.truncate_events_log`.
+* :func:`rollback_status_artifacts` -- BOTH artifacts in ONE lock hold. The
+  operator acceptance follow-up (spec-kitty #4087, 2026-09-08) demonstrated a
+  schedule where the log half verified and truncated under the lock, the lock
+  released, a second writer appended/materialized/Git-committed both artifacts,
+  and the derived ``status.json`` restore then ran UNLOCKED and clobbered the
+  acknowledged newer snapshot. The rollback decision, the truncation (or its
+  refusal/no-op), and the derived-snapshot restore therefore share ONE
+  ``feature_status_lock`` hold here -- there is no seam between "the log half
+  verified" and "the snapshot bytes are restored" for another writer to enter.
 
 Fail-safe direction: a tail that does not verify (foreign rows landed, a torn
 row, or the log shrank below the pre-emit size) is NEVER cut. The helper logs
@@ -64,6 +73,7 @@ __all__ = [
     "capture_events_tail_ids",
     "owned_emission_window",
     "rollback_events_log_tail",
+    "rollback_status_artifacts",
 ]
 
 logger = logging.getLogger(__name__)
@@ -201,42 +211,19 @@ def owned_emission_window(
         emission.expected_event_ids = capture_events_tail_ids(events_path, emission.pre_emit_event_size)
 
 
-def rollback_events_log_tail(
+def _rollback_events_log_locked(
     feature_dir: Path,
     *,
-    repo_root: Path | None,
     pre_emit_event_size: int,
-    expected_event_ids: Sequence[str] | None = None,
-    timeout: float = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    expected_event_ids: Sequence[str] | None,
 ) -> bool:
-    """Tail-verified, lock-held rollback truncate of a mission's event log.
+    """The in-lock rollback core: verify the tail, cut only what this operation appended.
 
-    Acquires the same per-mission status lock the write pipeline uses (same
-    lock-root resolution as ``status.emit``, same ``feature_dir.name`` key;
-    re-entrant for a caller already holding it), then verifies the log's tail
-    beyond *pre_emit_event_size* before cutting it:
-
-    * structurally -- every non-blank line in the cut region must be a whole
-      JSON object (never a torn row);
-    * when *expected_event_ids* is provided -- the tail's event ids must be
-      exactly that multiset (never a concurrent writer's rows).
-
-    *expected_event_ids* must come from an in-lock capture
-    (:func:`owned_emission_window`, or the coord fallback arm's own
-    in-hold ``EventStream`` read) -- never from a tail read taken outside the
-    lock-held window that spans the emit.
-
-    Returns ``True`` when the log was (or already was) at/below the pre-emit
-    size -- the rollback outcome every caller wants. Returns ``False`` when
-    verification refused the cut (foreign rows, torn row, shrunken log, a
-    log that vanished after the caller observed it exist, or the lock could
-    not be acquired): the log is left untouched and the refusal is logged
-    loudly. Refusal strands one already-emitted row; it never destroys
-    another writer's durable events.
+    Must be called while the mission status lock is HELD (either entry point
+    below takes it; a caller that already holds it re-enters). Returns ``True``
+    when the log is (or already was) at/below the pre-emit size; ``False`` on
+    every refusal (the log is left untouched).
     """
-    from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415 -- cycle-safe lazy import, same seam status.emit uses
-
-    lock_root = resolve_status_lock_root(feature_dir, repo_root)
     events_path = feature_dir / EVENTS_FILENAME
     try:
         size = events_path.stat().st_size
@@ -268,36 +255,168 @@ def rollback_events_log_tail(
         return False
     if size == pre_emit_event_size:
         return True  # idempotent no-op: the log is already at the pre-emit size
+    # ``missing_as_empty=False`` (#4087): the ``stat()`` above observed the
+    # log exist (or returned via one of the guards), so a missing log inside
+    # the lock is an unsanctioned delete in the window -- never a "verified
+    # empty" tail (truncating would recreate the file NUL-filled to the
+    # pre-emit size via the store's ``"ab"`` open).
+    rows = _tail_rows(events_path, pre_emit_event_size, missing_as_empty=False)
+    if rows is None:
+        logger.warning(
+            "Refused rollback truncate of %s: tail beyond %d bytes is not whole JSONL rows (torn write or foreign content); log left intact",
+            events_path,
+            pre_emit_event_size,
+        )
+        return False
+    if expected_event_ids is not None and sorted(_row_event_ids(rows)) != sorted(expected_event_ids):
+        logger.warning(
+            "Refused rollback truncate of %s: tail holds %r, expected %r (a concurrent writer's rows would be destroyed); log left intact",
+            events_path,
+            _row_event_ids(rows),
+            list(expected_event_ids),
+        )
+        return False
+    truncate_events_log(feature_dir, pre_emit_event_size=pre_emit_event_size)
+    return True
+
+
+def rollback_events_log_tail(
+    feature_dir: Path,
+    *,
+    repo_root: Path | None,
+    pre_emit_event_size: int,
+    expected_event_ids: Sequence[str] | None = None,
+    timeout: float = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+) -> bool:
+    """Tail-verified, lock-held rollback truncate of a mission's event log.
+
+    Acquires the same per-mission status lock the write pipeline uses (same
+    lock-root resolution as ``status.emit``, same ``feature_dir.name`` key;
+    re-entrant for a caller already holding it) BEFORE the first ``stat()``,
+    then verifies the log's tail beyond *pre_emit_event_size* before cutting
+    it:
+
+    * structurally -- every non-blank line in the cut region must be a whole
+      JSON object (never a torn row);
+    * when *expected_event_ids* is provided -- the tail's event ids must be
+      exactly that multiset (never a concurrent writer's rows).
+
+    *expected_event_ids* must come from an in-lock capture
+    (:func:`owned_emission_window`, or the coord fallback arm's own
+    in-hold ``EventStream`` read) -- never from a tail read taken outside the
+    lock-held window that spans the emit.
+
+    Callers that also restore the derived ``status.json`` must use
+    :func:`rollback_status_artifacts` instead: restoring the snapshot after
+    THIS function returns runs outside the lock, which is exactly the
+    successful-truncation/snapshot-restore race #4087 demonstrated.
+
+    Returns ``True`` when the log was (or already was) at/below the pre-emit
+    size -- the rollback outcome every caller wants. Returns ``False`` when
+    verification refused the cut (foreign rows, torn row, shrunken log, a
+    log that vanished after the caller observed it exist, or the lock could
+    not be acquired): the log is left untouched and the refusal is logged
+    loudly. Refusal strands one already-emitted row; it never destroys
+    another writer's durable events.
+    """
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415 -- cycle-safe lazy import, same seam status.emit uses
+
+    lock_root = resolve_status_lock_root(feature_dir, repo_root)
     try:
         with feature_status_lock(lock_root, feature_dir.name, timeout=timeout):
-            # ``missing_as_empty=False`` (#4087): the outer ``stat()`` above
-            # observed the log exist, so a missing log inside the lock is an
-            # unsanctioned delete in the window -- never a "verified empty"
-            # tail (truncating would recreate the file NUL-filled to the
-            # pre-emit size via the store's ``"ab"`` open).
-            rows = _tail_rows(events_path, pre_emit_event_size, missing_as_empty=False)
-            if rows is None:
-                logger.warning(
-                    "Refused rollback truncate of %s: tail beyond %d bytes is not whole JSONL rows (torn write or foreign content); log left intact",
-                    events_path,
-                    pre_emit_event_size,
-                )
-                return False
-            if expected_event_ids is not None and sorted(_row_event_ids(rows)) != sorted(expected_event_ids):
-                logger.warning(
-                    "Refused rollback truncate of %s: tail holds %r, expected %r (a concurrent writer's rows would be destroyed); log left intact",
-                    events_path,
-                    _row_event_ids(rows),
-                    list(expected_event_ids),
-                )
-                return False
-            truncate_events_log(feature_dir, pre_emit_event_size=pre_emit_event_size)
-            return True
+            return _rollback_events_log_locked(
+                feature_dir,
+                pre_emit_event_size=pre_emit_event_size,
+                expected_event_ids=expected_event_ids,
+            )
     except FeatureStatusLockTimeoutError as exc:
         logger.warning(
             "Refused rollback truncate of %s: could not acquire the mission status lock within %ss (%s); log left intact",
-            events_path,
+            feature_dir / EVENTS_FILENAME,
             timeout,
+            exc,
+        )
+        return False
+
+
+def rollback_status_artifacts(
+    feature_dir: Path,
+    *,
+    repo_root: Path | None,
+    pre_emit_event_size: int,
+    pre_emit_status_bytes: bytes | None,
+    expected_event_ids: Sequence[str] | None = None,
+    timeout: float = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+) -> bool:
+    """Tail-verified rollback of BOTH status artifacts under ONE lock hold.
+
+    The #4087 operator acceptance seam: the rollback decision, the event-log
+    truncation (or its refusal/no-op), and the derived ``status.json``
+    restore all run inside ONE ``feature_status_lock`` hold -- the same lock,
+    lock-root resolution and lock key the write pipeline uses, re-entrant for
+    a caller that already holds it (the coord fallback arm's L1, the review
+    shell). Without that single hold, a second writer could append a valid
+    event, canonically materialize the snapshot and Git-commit both artifacts
+    between a SUCCESSFUL log truncation and this operation's snapshot
+    restore; the restore would then clobber the acknowledged newer snapshot
+    with obsolete pre-emit bytes, leaving the working derived state
+    incoherent with both the committed snapshot and canonical replay.
+
+    Fail-safe direction, shared by both halves: when the log half refuses --
+    foreign rows in the tail, a torn row, a shrunken or vanished log, an
+    un-acquirable lock -- the derived snapshot is left at its newer coherent
+    state too (restoring the pre-emit bytes over a log that still holds the
+    surviving rows would leave the surface incoherent) and ``False`` is
+    returned as the explicit recoverable diagnostic. Only a verified (or
+    genuinely no-op) log rollback also restores the snapshot bytes:
+    *pre_emit_status_bytes* writes them back, ``None`` unlinks the snapshot
+    (the pre-emit state had none).
+
+    Returns ``True`` when both artifacts were restored (or the log was
+    already at its pre-emit size and the snapshot bytes were restored /
+    unlinked), ``False`` on any refusal -- the log is never cut and the
+    snapshot is never rewritten on a refusal.
+    """
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415 -- cycle-safe lazy import, same seam status.emit uses
+
+    lock_root = resolve_status_lock_root(feature_dir, repo_root)
+    status_path = feature_dir / SNAPSHOT_FILENAME
+    try:
+        with feature_status_lock(lock_root, feature_dir.name, timeout=timeout):
+            rolled_back = _rollback_events_log_locked(
+                feature_dir,
+                pre_emit_event_size=pre_emit_event_size,
+                expected_event_ids=expected_event_ids,
+            )
+            if not rolled_back:
+                return False
+            try:
+                if pre_emit_status_bytes is None:
+                    status_path.unlink(missing_ok=True)
+                else:
+                    status_path.parent.mkdir(parents=True, exist_ok=True)
+                    status_path.write_bytes(pre_emit_status_bytes)
+            except OSError:
+                # The LOG half verified and was restored; a failed snapshot
+                # write is logged, not fatal -- the log remains the sole
+                # authority and `agent status materialize` regenerates the
+                # derived snapshot from it.
+                logger.exception("Could not restore %s on rollback; regenerate with 'spec-kitty agent status materialize'", status_path)
+            return True
+    except FeatureStatusLockTimeoutError as exc:
+        logger.warning(
+            "Refused rollback restore of %s (and %s): could not acquire the mission status lock within %ss (%s); both artifacts are left intact",
+            feature_dir / EVENTS_FILENAME,
+            status_path,
+            timeout,
+            exc,
+        )
+        return False
+    except OSError as exc:
+        logger.warning(
+            "Refused rollback restore of %s (and %s): %s; both artifacts are left intact",
+            feature_dir / EVENTS_FILENAME,
+            status_path,
             exc,
         )
         return False

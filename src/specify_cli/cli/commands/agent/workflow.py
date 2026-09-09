@@ -100,7 +100,7 @@ from specify_cli.review.cycle import (
     review_feedback_source_path,
 )
 from specify_cli.status import feature_status_lock
-from specify_cli.status import rollback_events_log_tail
+from specify_cli.status import rollback_status_artifacts
 from specify_cli.status import AgentAssignment, Lane
 from specify_cli.status import (
     ResolvedBinding,
@@ -297,17 +297,23 @@ def _restore_status_artifacts(
 
     Closes mission-review DRIFT-2 (spec-kitty #3960): the event-log half routes
     through the status-owned, lock-held, tail-verified rollback
-    (``specify_cli.status.rollback.rollback_events_log_tail``) instead of a
+    (``specify_cli.status.rollback.rollback_status_artifacts``) instead of a
     blind byte truncate -- the helper takes the same per-mission
     ``feature_status_lock`` the emit pipeline uses (re-entrant for the
     already-locked shells) and refuses to cut a tail that is not exactly the
     rows this operation appended.
 
-    The derived ``status.json`` restore SHARES that ownership decision
-    (spec-kitty #4072 operator acceptance): when the log rollback refuses --
-    a concurrent writer's rows are in the tail, the log was torn or rewritten
-    in the window -- the newer derived snapshot is preserved as-is (restoring
-    the pre-emit bytes would leave ``status.json`` incoherent with a log that
+    The derived ``status.json`` restore SHARES that ownership decision AND
+    that lock hold (spec-kitty #4072 / #4087 operator acceptance): the
+    rollback decision, the truncation (or its refusal/no-op), and the snapshot
+    restore all run inside ONE lock-held window, so a separately locked
+    writer that materializes and Git-commits both artifacts cannot land
+    between a successful tail cut and this operation's snapshot restore --
+    the schedule where A's restored pre-emit bytes clobbered B's acknowledged
+    committed snapshot. When the log rollback refuses -- a concurrent
+    writer's rows are in the tail, the log was torn or rewritten in the
+    window -- the newer derived snapshot is preserved as-is (restoring the
+    pre-emit bytes would leave ``status.json`` incoherent with a log that
     still holds those rows) and the refusal is logged loudly as the
     recoverable outcome. Only a verified rollback (or a genuine no-op) also
     restores the snapshot bytes.
@@ -319,18 +325,19 @@ def _restore_status_artifacts(
     """
     events_path = feature_dir / _STATUS_EVENTS_FILENAME
     status_path = feature_dir / _STATUS_FILENAME
-    rolled_back: bool
+    restored: bool
     try:
-        rolled_back = rollback_events_log_tail(
+        restored = rollback_status_artifacts(
             feature_dir,
             repo_root=repo_root,
             pre_emit_event_size=pre_emit_event_size,
+            pre_emit_status_bytes=pre_emit_status_bytes,
             expected_event_ids=expected_event_ids,
         )
     except OSError:
         logger.exception("Could not truncate %s on commit failure", events_path)
-        rolled_back = False
-    if not rolled_back:
+        restored = False
+    if not restored:
         logger.warning(
             "Refused rollback restore of %s (and %s): the event-log tail did not verify "
             "against this operation's emitted rows; both artifacts are left at their "
@@ -340,15 +347,6 @@ def _restore_status_artifacts(
             status_path,
         )
         return False
-
-    try:
-        if pre_emit_status_bytes is None:
-            status_path.unlink(missing_ok=True)
-        else:
-            status_path.parent.mkdir(parents=True, exist_ok=True)
-            status_path.write_bytes(pre_emit_status_bytes)
-    except OSError:
-        logger.exception("Could not restore %s on commit failure", status_path)
     return True
 
 

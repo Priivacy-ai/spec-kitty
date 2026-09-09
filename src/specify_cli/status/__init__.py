@@ -82,6 +82,12 @@ from .rollback import (
     capture_events_tail_ids,
     owned_emission_window,
     rollback_events_log_tail,
+    # spec-kitty #4087 (operator acceptance follow-up): the BOTH-artifacts
+    # rollback -- one lock-held window across the rollback decision, the
+    # truncation, and the derived-snapshot restore -- so a separately locked
+    # writer can never land between a successful tail cut and the snapshot
+    # restore.
+    rollback_status_artifacts,
 )
 from .transitions import (
     # Non-authoritative derived projection (NFR-002, I1): re-exported for tests
@@ -583,6 +589,7 @@ __all__ = [
     "capture_events_tail_ids",
     "owned_emission_window",
     "rollback_events_log_tail",
+    "rollback_status_artifacts",
     # WP01 (verdict-seam-boundary-hardening-01KZG179, FR-001/FR-006): promoted
     # the REST of the verdict_vocab public surface onto the facade -- mirrors
     # the comment on the ``is_changes_requested``/``to_artifact_verdict``
