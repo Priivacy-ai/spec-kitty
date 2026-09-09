@@ -42,6 +42,8 @@ from typing import Any
 
 import jsonschema
 
+from specify_cli.core.no_follow import chmod_fd
+
 from .manifest_errors import ManifestError
 
 __all__ = [
@@ -363,7 +365,7 @@ def _save_bytes(target: Path, encoded: bytes, *, mode: int = 0o644) -> None:
             created = True
             fh.write(encoded)
             fh.flush()
-            os.fchmod(fh.fileno(), mode)
+            chmod_fd(fh.fileno(), tmp_path, mode)
             os.fsync(fh.fileno())
         os.replace(tmp_path, target)
     except Exception:

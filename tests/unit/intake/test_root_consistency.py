@@ -1,4 +1,5 @@
 """Scanner-vs-writer root consistency tests (WP02 T012)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,6 +8,7 @@ import pytest
 
 from specify_cli.intake.brief_writer import (
     _validate_root_consistency,
+    _write_payload_via_parent_dirfd,
     write_brief_atomic,
 )
 from specify_cli.intake.errors import IntakePathEscapeError, IntakeRootInconsistentError
@@ -94,3 +96,29 @@ def test_write_brief_atomic_rejects_paths_outside_root(tmp_path):
         )
 
     assert not escaped.exists()
+
+
+def test_write_payload_via_parent_dirfd_windows_fallback(tmp_path, monkeypatch):
+    """Simulated Windows (no dir_fd support): the cross-fs fallback writer still works.
+
+    Before the fix, ``os.open(target.name, ..., dir_fd=parent_fd)`` would
+    raise on a platform without ``dir_fd`` support (``os.supports_dir_fd``
+    empty, as on Windows).
+    """
+    import os
+
+    monkeypatch.setattr(os, "supports_dir_fd", set())
+    target = tmp_path / "brief.md"
+
+    _write_payload_via_parent_dirfd(target, b"payload bytes")
+
+    assert target.read_bytes() == b"payload bytes"
+
+
+def test_write_payload_via_parent_dirfd_uses_dir_fd_when_supported(tmp_path):
+    """On a normal POSIX target, the dir_fd-relative path still works unchanged."""
+    target = tmp_path / "brief.md"
+
+    _write_payload_via_parent_dirfd(target, b"payload bytes")
+
+    assert target.read_bytes() == b"payload bytes"

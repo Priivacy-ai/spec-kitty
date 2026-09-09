@@ -95,6 +95,33 @@ def test_real_profile_assessment_apply_exact_and_repeat_no_churn(tmp_path: Path)
         assert_unchanged(after, snapshot({"project": tmp_path}))
 
 
+def test_real_profile_apply_windows_fchmod_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulated Windows (no ``os.fchmod``): applying a fresh profile still writes and chmods.
+
+    Exercises ``_write_profile_effect``'s create branch (agent_profiles.py
+    site #831), which previously called ``os.fchmod`` unconditionally.
+    Before the fix, this raised ``AttributeError: module 'os' has no
+    attribute 'fchmod'`` on a platform without the syscall.
+    """
+    import os
+    import stat
+
+    monkeypatch.delattr(os, "fchmod", raising=False)
+    assessment = _assess_real(tmp_path, ("claude",))
+    assert assessment.complete, assessment.diagnostics
+
+    result = _apply_real(assessment)
+
+    assert result.outcome == "applied", result
+    file_effects = [e for e in assessment.effects if e.after.kind == "file" and e.action == "create"]
+    assert file_effects
+    for effect in file_effects:
+        destination = tmp_path / effect.path
+        assert destination.is_file()
+        assert effect.after.mode is not None
+        assert stat.S_IMODE(destination.stat().st_mode) == effect.after.mode
+
+
 @pytest.mark.parametrize("changed", ["destination", "manifest", "source", "source_added", "source_removed", "config", "parent"])
 def test_profile_whole_batch_recheck_refuses_changes(tmp_path: Path, changed: str) -> None:
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot

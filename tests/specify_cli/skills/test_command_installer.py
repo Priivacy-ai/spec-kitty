@@ -1167,3 +1167,20 @@ class TestSelectiveRemove:
 
         manifest = manifest_store.load(repo)
         assert manifest.entries == []
+
+
+def test_atomic_write_windows_fchmod_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulated Windows (no ``os.fchmod``): ``_atomic_write`` still writes and applies mode.
+
+    Before the fix ``_atomic_write`` raised ``AttributeError: module 'os'
+    has no attribute 'fchmod'`` on a platform without the syscall.
+    """
+    from specify_cli.skills import command_installer as owner
+
+    monkeypatch.delattr(os, "fchmod", raising=False)
+    target = tmp_path / "SKILL.md"
+
+    owner._atomic_write(target, b"skill content", mode=0o640)
+
+    assert target.read_bytes() == b"skill content"
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640

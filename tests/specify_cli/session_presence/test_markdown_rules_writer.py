@@ -240,3 +240,77 @@ class TestAtomicity:
 
         # Original file should be unchanged
         assert target.read_text(encoding="utf-8") == original_content
+
+
+class TestWindowsFallback:
+    """Simulated-Windows coverage for the dir_fd-free ``_atomic_write`` branch.
+
+    Windows lacks ``os.supports_dir_fd`` coverage for ``os.open`` and has no
+    ``os.O_DIRECTORY`` / ``os.O_NOFOLLOW``, so the fd-relative
+    ``_presence_parent`` dance used to crash there. These tests monkeypatch
+    the platform predicate to force the ``_windows_atomic_write`` fallback
+    and confirm it both succeeds and preserves the no-symlink-following
+    containment guarantee.
+    """
+
+    def test_atomic_write_succeeds_without_dir_fd_support(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import os
+
+        from specify_cli.session_presence.writers.markdown_rules import _atomic_write
+
+        monkeypatch.setattr(os, "supports_dir_fd", set())
+        target = tmp_path / "sub" / "dir" / "AGENTS.md"
+
+        _atomic_write(target, "hello from windows\n", root=tmp_path)
+
+        assert target.read_text(encoding="utf-8") == "hello from windows\n"
+
+    def test_writer_write_end_to_end_without_dir_fd_support(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The full public ``MarkdownRulesWriter.write`` path also survives."""
+        import os
+
+        monkeypatch.setattr(os, "supports_dir_fd", set())
+        writer = MarkdownRulesWriter(harness_key="test", rules_path=".cursor/rules/spec-kitty.mdc", append_mode=False)
+
+        writer.write(tmp_path, _make_content())
+
+        target = tmp_path / ".cursor" / "rules" / "spec-kitty.mdc"
+        assert target.is_file()
+        assert SECTION_OPEN in target.read_text(encoding="utf-8")
+
+    def test_walk_confined_parent_rejects_symlinked_component(self, tmp_path: Path) -> None:
+        """The Windows fallback's containment walk still refuses a symlinked directory."""
+        from specify_cli.session_presence.writers.markdown_rules import _walk_confined_parent
+
+        real = tmp_path / "real"
+        real.mkdir()
+        linked = tmp_path / "linked"
+        linked.symlink_to(real)
+
+        with pytest.raises(ValueError, match="symlink"):
+            _walk_confined_parent(tmp_path, Path("linked/sub"), create=True)
+
+    def test_windows_atomic_write_rejects_symlinked_parent_component(self, tmp_path: Path) -> None:
+        """``_windows_atomic_write`` itself refuses to write through a symlinked directory.
+
+        Calls the Windows fallback function directly (rather than via the
+        outer ``_atomic_write``, whose earlier ``observe_presence_path``
+        precondition already catches a symlinked path -- on POSIX too, so
+        that route would not prove this fallback's own guard). Same
+        containment guarantee the fd-relative ``O_NOFOLLOW`` chain provides
+        on POSIX, preserved on the no-dir_fd fallback path.
+        """
+        from specify_cli.session_presence.writers.markdown_rules import _windows_atomic_write
+        from specify_cli.tool_surface.operations import FileState
+
+        real = tmp_path / "real"
+        real.mkdir()
+        linked = tmp_path / "linked"
+        linked.symlink_to(real)
+        target = linked / "AGENTS.md"
+        relative = target.relative_to(tmp_path)
+
+        with pytest.raises(ValueError, match="symlink"):
+            _windows_atomic_write(tmp_path, relative, target, b"content\n", 0o644, FileState("absent"))
+
+        assert not (real / "AGENTS.md").exists()
