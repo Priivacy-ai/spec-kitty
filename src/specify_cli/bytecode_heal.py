@@ -54,7 +54,7 @@ def package_root() -> Path | None:
 def failure_during_package_import(exc: BaseException) -> bool:
     """Return True when *exc* was plausibly raised loading this package's bytecode.
 
-    Three shapes qualify:
+    Three shapes qualify directly:
 
     * a marshal-flavored failure (``ValueError``/``EOFError``) raised from a
       frozen ``importlib`` frame — the truncated-cache signature;
@@ -65,12 +65,29 @@ def failure_during_package_import(exc: BaseException) -> bool:
     * the ``AttributeError ... no attribute 'co_filename'`` signature observed
       in the field on a partially-unmarshalled code object.
 
+    A *laundered* failure also qualifies when the exception it wraps does:
+    ``upgrade.migrations.auto_discover_migrations`` collects per-module import
+    failures and raises one fresh ``MigrationDiscoveryError`` chained to the
+    first original (``raise ... from``), so the corrupt-cache signature lives
+    on the wrapped exception in the ``__cause__``/``__context__`` chain, not on
+    the wrapper. Only the marshal/non-code/``co_filename`` signatures qualify
+    when wrapped — a genuinely broken migration module (``SyntaxError``,
+    ``ModuleNotFoundError``) fails inside an import too, and healing it would
+    just purge every cache and fail again.
+
     An ordinary bug in package code matches none of these: it propagates
     untouched.
     """
     root = package_root()
     if root is None:
         return False
+    if _directly_plausibly_stale(exc, root):
+        return True
+    return _wrapped_plausibly_stale(exc, root)
+
+
+def _directly_plausibly_stale(exc: BaseException, root: Path) -> bool:
+    """The three direct shapes described in ``failure_during_package_import``."""
     if isinstance(exc, AttributeError) and _CORRUPT_CODE_ATTRIBUTE_MARKER in str(exc):
         return True
     if isinstance(exc, ImportError) and _names_package_path(exc, root):
@@ -88,6 +105,49 @@ def failure_during_package_import(exc: BaseException) -> bool:
     if not saw_frozen_import_frame:
         return False
     return saw_package_frame or isinstance(exc, (ValueError, EOFError))
+
+
+def _wrapped_plausibly_stale(exc: BaseException, root: Path) -> bool:
+    """True when a failure wrapped in *exc*'s cause/context chain is stale-cache-shaped."""
+    pending: list[BaseException | None] = [exc.__cause__, exc.__context__]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        if _corrupt_cache_signature(current, root):
+            return True
+        pending.append(current.__cause__)
+        pending.append(current.__context__)
+    return False
+
+
+def _corrupt_cache_signature(exc: BaseException, root: Path) -> bool:
+    """The truncated-``.pyc`` signature, independent of where it surfaced.
+
+    Used on *wrapped* failures, where the looser direct frame heuristic would
+    also match a genuine import-time bug in a migration module (any exception
+    raised while a package module imports carries frozen ``importlib`` and
+    package frames): only the marshal-flavored failure from the import
+    machinery itself, the non-code ``ImportError`` naming a package ``.pyc``,
+    or the ``co_filename`` ``AttributeError`` prove a stale cache.
+    """
+    if isinstance(exc, AttributeError) and _CORRUPT_CODE_ATTRIBUTE_MARKER in str(exc):
+        return True
+    if isinstance(exc, ImportError) and _names_package_path(exc, root):
+        return True
+    return isinstance(exc, (ValueError, EOFError)) and _saw_frozen_import_frame(exc)
+
+
+def _saw_frozen_import_frame(exc: BaseException) -> bool:
+    """True when *exc*'s traceback passes through frozen ``importlib`` frames."""
+    tb = exc.__traceback__
+    while tb is not None:
+        if _FROZEN_IMPORTLIB_MARKER in tb.tb_frame.f_code.co_filename:
+            return True
+        tb = tb.tb_next
+    return False
 
 
 def purge_package_bytecode() -> int:
