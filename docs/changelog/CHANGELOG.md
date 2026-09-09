@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.6.2] - 2026-09-09
+
 ### Added
 
 - **The `migrate-project-guidance-to-spec-kitty-charter` procedure now captures the source's vocabulary in the glossary** (#4103). A new step between classification and drafting extracts the terms the guidance defines or uses with a specific meaning, triages them through the `glossary-maintenance-workflow` procedure into the narrowest owning scope, and makes the accepted surfaces the vocabulary the drafted artifacts must use verbatim. The exit condition and the parity-comparison step now require every defined term to resolve in the glossary or be excluded with a reason, and the procedure references `procedure:glossary-maintenance-workflow` in the DRG.
