@@ -1,0 +1,129 @@
+{
+  "mission_slug": "upgrade-no-migrations-provisioning-fix-01M20NK8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "fail",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_guard_absent.py + idempotency: config-absent upgrade exits 0 (WP02)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:56:55.725751+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "assessment.py single-seam Optional provisioning nulled on absent authority (WP02; reviewer-verified)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:57:08.673687+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_upgrade_guard_absent asserts deferred_provisioning info diagnostic, errors==[]/warnings==[] (WP02)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:57:21.671467+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_installer 8 tamper cases reject + defers_absent test; guard non-vacuous (WP02/WP03)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:57:34.563834+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_no_stray_noqa_c901_marker green; upgrade() decomposed, ruff/mypy clean (WP01)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:57:47.485906+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_upgrade_char_net re-pinned to init-ed apply path w/ affirmative apply-effect witness (WP03)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:58:00.474675+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_upgrade_guard_absent drives config-absent path through real upgrade() (WP02)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:58:13.446271+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "config-absent witnesses KEPT; re-pins cite evidence; WP03 disposition table",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:58:26.484964+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_failed_run_exit_code redesigned into two-channel (errors + deferred) assertions (WP03)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:58:39.545385+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/_fixtures.py shared builders; triplicated scaffold consolidated (WP03)",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:58:52.609036+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 red-first witness reproduced exact 'requires an existing authority' signal, then green",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:59:05.327574+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "issue-matrix #4032 verdict=fixed; all items traceable",
+      "pass_fail": "<<<<<<< ours\n\"pending\"\n=======\n\"pass\"\n>>>>>>> theirs",
+      "verified_by": "claude",
+      "verified_at": "2026-09-08T18:59:18.314440+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

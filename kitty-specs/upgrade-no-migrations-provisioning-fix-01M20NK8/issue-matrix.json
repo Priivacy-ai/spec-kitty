@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#1931": {
+      "evidence_ref": "Follow-up: #1931 \u2014 parent epic remains open; this mission is one child",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3995": {
+      "evidence_ref": "Merged CI-reinstatement PR that surfaced these pre-existing reds; not modified by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4015": {
+      "evidence_ref": "Follow-up: #4015 \u2014 deferred to Mission B (timing-guard residual); epic #1931",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4017": {
+      "evidence_ref": "Follow-up: #4017 \u2014 deferred to Mission B (ensure_runtime e2e); epic #1931",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4022": {
+      "evidence_ref": "Follow-up: #4022 \u2014 deferred to Mission B (CI suite stability); epic #1931",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4032": {
+      "evidence_ref": "Fixed by WP01 (decompose upgrade()) + WP02 (non-fatal absent-authority provisioning at assessment layer, deferred_provisioning diagnostic, guard->validator, C-001 no-create) + WP03 (config-absent Group A re-evaluated green). tests/upgrade 851 pass; 0 new regressions.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#4047": {
+      "evidence_ref": "Follow-up: #4047 \u2014 deferred create-from-absent, milestone 4.0.0",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-08T14:09:59.728447Z",
+      "decision_id": "01M20NNCDGD7T7WP3XYX256P4F",
+      "final_answer": "A: file a new tracked follow-up issue \u2014 created #4047 on milestone 4.0.0, assigned to operator, with a note that pulling it forward may be needed for stability.",
+      "input_key": "deferred_followup_disposition",
+      "mission_id": "01M20NK88QYBMJEA7JTTPXEWGW",
+      "mission_slug": "upgrade-no-migrations-provisioning-fix-01M20NK8",
+      "opened_by": "cli",
+      "options": [
+        "A: file a new tracked follow-up issue",
+        "B: note-only in spec",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The 'true create-from-absent' fix (relax guard + extend recheck so upgrade bootstraps config.yaml on a never-init'd bare dir) is deferred. Should this mission (A) file a NEW tracked issue for it now as a deliverable, or (B) only note it as a deferred scope boundary in the spec?",
+      "rationale": null,
+      "resolved_at": "2026-09-08T14:19:02.953076Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.deferred-followup-disposition",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M20NK88QYBMJEA7JTTPXEWGW",
+  "version": 1
+}

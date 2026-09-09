@@ -1,0 +1,32 @@
+{
+  "accept_commit": "002887e8d5051afff4f12deaef0d59753e86cd35",
+  "acceptance_history": [
+    {
+      "accept_commit": "002887e8d5051afff4f12deaef0d59753e86cd35",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-08T18:59:31.563393+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "e0ffb7f3943e5005051379171ebaac7ee5ca1da0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-08T18:59:31.563393+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "e0ffb7f3943e5005051379171ebaac7ee5ca1da0",
+  "baseline_merge_commit": "9c2917b3fc0e30e9fc7d46d0241287acce123e17",
+  "created_at": "2026-09-08T14:08:49.943730+00:00",
+  "flattened": true,
+  "friendly_name": "Upgrade no-migrations provisioning fix + upgrade() tidy-first",
+  "mission_id": "01M20NK88QYBMJEA7JTTPXEWGW",
+  "mission_number": null,
+  "mission_slug": "upgrade-no-migrations-provisioning-fix-01M20NK8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Reinstated CI (#3995) exposed that spec-kitty upgrade hard-errors ('requires an existing authority') on the no-migrations/fresh-project path, leaving ~40 upgrade tests red. This mission makes the managed-skill provisioning guard non-fatal, re-evaluates each failing test against intended behavior (keep realistic heals, re-pin impossible fixtures), and first decomposes the ~345-line upgrade() entry point as a tidy-first enabler so the fix lands on a testable, un-suppressed surface. Scoped to issue #4032; true create-from-absent is deferred.",
+  "purpose_tldr": "Stop spec-kitty upgrade erroring on fresh/no-migrations projects, and decompose the oversized upgrade entry point first.",
+  "slug": "upgrade-no-migrations-provisioning-fix-01M20NK8",
+  "status_phase": "1",
+  "target_branch": "issue-1931-ci-rework-test-remainders",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-08T15:02:21.443148+00:00"
+}

@@ -1,0 +1,66 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M216E5AYAN37ANWTWQBYQN9J",
+  "materialized_at": "2026-09-08T19:03:08.894790+00:00",
+  "mission_number": "",
+  "mission_slug": "upgrade-no-migrations-provisioning-fix-01M20NK8",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M216E27FA8BE0VM3E4H141E5",
+      "last_transition_at": "2026-09-08T19:03:05.711526+00:00",
+      "review_result": {
+        "reference": "Review passed (opus/reviewer-renata): behavior-preserving decomposition; C901 removed; preflight span+exit-code guard+no-op seam verified; ruff+mypy+c901 green; 0 regressions vs baseline",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 964197,
+      "shell_pid_created_at": "1788879728.43"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M216E3S7NP0NN1N7QW08XPWY",
+      "last_transition_at": "2026-09-08T19:03:07.303641+00:00",
+      "review_result": {
+        "reference": "Review passed: single-seam Optional provisioning nulled once in assessment.py and threaded to both guard call sites + dataclass (FR-002/A1); finalizer .apply() no-ops on None + no create effect, config.yaml not created (C-001); deferred_provisioning is info-severity, out of errors/warnings, complete stays true, flows through _print_non_error_diagnostics + JSON payload (FR-003); guard still raises exact ValueError on present non-canonical descriptor (FR-004/DIRECTIVE_043); b\"\" degenerate authority non-fatal (C-006); 3 out-of-map upgrade.py edits minimal+rationale-commented. test_upgrade_guard_absent 5 passed, ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1050645,
+      "shell_pid_created_at": "1788884740.36"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M216E5AYAN37ANWTWQBYQN9J",
+      "last_transition_at": "2026-09-08T19:03:08.894790+00:00",
+      "review_result": {
+        "reference": "Review passed: WP03 anti-laziness verified. (1) No green-by-avoidance: plan_json=False is an orthogonal pre-existing OptionInfo-trap fix, does not alter the config-absent shape; config-absent witnesses KEPT via build_config_absent_project (before_bytes is None) run through real CliRunner in integration/idempotency. (2) Re-pin justified: char_net re-pinned to real init-ed fixture, strips mission_type_activations to force genuine apply, affirmative assertions (config bytes changed, reason=='key_present', non-empty activations). (3) Genuine T014 redesign: split into real e2e deferral (a) + direct _finalizer_step_provision(prepared=None) forced-error seam (b); source confirms old monkeypatch point unreachable on real config-absent path. (4) installer split: dropped only 'absent', 8 tamper cases still assert full rejection, new defer test asserts complete=True + deferred_provisioning info/owner=provisioning + no config.yaml. (5) No weakened assertions; deletions are scaffold consolidation onto _fixtures.py. Spot-run 169 tests pass, ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1102580,
+      "shell_pid_created_at": "1788888908.08"
+    }
+  }
+}
