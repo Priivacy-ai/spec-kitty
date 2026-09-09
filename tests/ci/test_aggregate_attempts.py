@@ -113,7 +113,8 @@ def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, latest: 
             module = record["name"].split("-shard-")[0].removeprefix("module-tests-")
             directory = repo / "out/aggregate/current" / record["name"]
             directory.mkdir(parents=True, exist_ok=True)
-            (directory / f"coverage-standard-{module}-shard1-of-1.xml").write_text("<coverage/>")
+            for name in record.get("coverage_names", [f"coverage-standard-{module}-shard1-of-1.xml"]):
+                (directory / name).write_text("<coverage/>")
     reconcile = next(s for s in steps if s.get("id") == "reconcile")
     return subprocess.run(["bash", "-c", reconcile["run"]], cwd=repo, env=env, capture_output=True, text=True)
 
@@ -246,3 +247,14 @@ def test_selector_cli_outputs_safe_patterns_for_empty_or_one_report(tmp_path: Pa
         paths[2].write_text(json.dumps([{"artifacts": [{"name": "unrelated-report"}]}, {"artifacts": records}]))
         main()
         assert capsys.readouterr().out == f"artifact-pattern={pattern}\n"
+
+
+def test_empty_selection_cannot_download_a_sentinel_named_artifact(tmp_path: Path) -> None:
+    forged = {
+        "name": "no-source-shard-reports",
+        "workflow_run": {"id": 42},
+        "coverage_names": ["coverage-standard-kernel-shard1-of-1.xml", "coverage-standard-charter-shard1-of-1.xml"],
+    }
+    result = collect(tmp_path, [forged], [job("kernel", 1), job("charter", 2)])
+    assert result.returncode != 0, "collector accepted unselected coverage from the sentinel-named artifact"
+    assert "registry-expected shard(s) missing" in result.stdout
