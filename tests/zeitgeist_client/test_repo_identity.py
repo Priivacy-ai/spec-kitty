@@ -725,6 +725,7 @@ def test_an_exhausted_deadline_skips_further_probes(tmp_path, monkeypatch):
     assert deadline.expired()
 
 
+@pytest.mark.performance
 def test_a_healthy_repo_is_not_slowed_by_the_deadline(tmp_path, origin):
     clone = _clone(origin, tmp_path / "clone")
     start = time.monotonic()

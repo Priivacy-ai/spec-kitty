@@ -1533,6 +1533,7 @@ def test_create_rejected_review_cycle_without_commit_router_is_unchanged(
     )
 
 
+@pytest.mark.performance
 def test_create_rejected_review_cycle_completes_within_a_fixed_time_budget(
     tmp_path: Path,
 ) -> None:

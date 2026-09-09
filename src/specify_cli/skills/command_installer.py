@@ -493,6 +493,7 @@ class _CommandBatch:
     def __init__(self, inputs: AssessmentInputs, agents: tuple[str, ...]) -> None:
         self.inputs = inputs
         self.root = inputs.root.path
+        self.provisioning = _prepare_command_provisioning(self.root, inputs.projected)
         self.agents = agents
         self.observations: dict[Path, CommandInput] = {}
         self.effects: dict[str, PhysicalEffect] = {}
@@ -571,6 +572,8 @@ class _CommandBatch:
                 continue
             name = parent.as_posix()
             if self.observe_destination(name).kind == "absent":
+                if self.provisioning is not None and self.root / name in self.provisioning.write.absent_parents:
+                    continue  # The canonical YAML writer owns these directories.
                 self.effect(name, FileState("directory", mode=0o755), owners, OwnershipProof("managed_path", f"parent:{rel}"))
 
     def atomic_artifact(self, rel: str) -> None:
@@ -700,7 +703,7 @@ class _CommandBatch:
             self.version,
             tuple(self.artifacts),
             tuple(self.template_paths),
-            _prepare_command_provisioning(self.root, self.inputs.projected),
+            self.provisioning,
         )
         return OwnerAssessment(
             _OWNER,
@@ -738,10 +741,8 @@ def _prepare_command_provisioning(repo_root: Path, projected: object) -> _Prepar
     if prepared != prepare_mission_type_activations(repo_root):
         raise ValueError("Command provisioning differs from the canonical compiler preparation")
     write = prepared.write
-    if write.before_bytes is None or write.absent_parents:
-        raise ValueError("Command provisioning requires an existing rendering authority")
     original = next(item for item in write.observations if item.path == write.target)
-    if write.changed and (original.identity is None or original.identity[-1] != 1):
+    if write.changed and original.identity is not None and original.identity[-1] != 1:
         raise ValueError("Changed command provisioning requires a single-link rendering authority")
     command_renderer.validate_mission_provisioning(repo_root, write.before_bytes, write.desired_bytes, write.target)
     return prepared
@@ -763,6 +764,9 @@ def _recheck_command_provisioning(payload: PreparedCommands, phase: Literal["pre
         if phase == "apply" and write.changed:
             raise ValueError("precondition_changed: mission provisioning has not been applied")
         return None
+    if write.before_bytes is None:
+        write.recheck_applied()
+        return cast("Path", write.target)
     original = next(item for item in write.observations if item.path == write.target)
     old, new = original.identity, current.identity
     # The existing YAML writer truncates in place. Only target size/mtime/ctime
@@ -857,14 +861,28 @@ def recheck_commands(assessment: OwnerAssessment, *, phase: Literal["preflight",
             if phase != "preflight":
                 item = _bundle_parent_input(assessment, item.path) or item
             current = _state(item.path)
-            if provisioned_target is not None and _resolve_observed_input(item.path) == provisioned_target and item.state.kind == "file":
+            if provisioned_target is not None and _resolve_observed_input(item.path) == provisioned_target and item.state.kind in {"file", "absent"}:
                 assert payload.provisioning is not None
-                expected = FileState("file", sha256=payload.provisioning.write.desired_sha256, mode=item.state.mode, mtime_ns=current.mtime_ns)
+                expected = FileState(
+                    "file", sha256=payload.provisioning.write.desired_sha256,
+                    mode=current.mode if item.state.kind == "absent" else item.state.mode, mtime_ns=current.mtime_ns,
+                )
             else:
                 expected = item.state
+            children = item.children
+            if provisioned_target is not None and payload.provisioning is not None and payload.provisioning.write.before_bytes is None:
+                created = (*payload.provisioning.write.absent_parents, provisioned_target)
+                additions = tuple(path.name for path in created if path.parent == item.path)
+                if additions and item.state.kind in {"absent", "directory"}:
+                    # The YAML receipt already verifies these parent identities.
+                    # Creating its direct children may change directory mtime.
+                    expected = FileState("directory", mode=current.mode if item.state.kind == "absent" else item.state.mode,
+                                         mtime_ns=current.mtime_ns)
+                    if children is not None:
+                        children = tuple(sorted((*children, *additions)))
             if current != expected:
                 raise InstallerError("precondition_changed", path=str(item.path))
-            if item.children is not None and tuple(sorted(p.name for p in item.path.iterdir())) != item.children:
+            if children is not None and tuple(sorted(p.name for p in item.path.iterdir())) != children:
                 raise InstallerError("precondition_changed", path=str(item.path))
     except (OSError, ValueError, InstallerError) as exc:
         return (Diagnostic("precondition_changed", _OWNER, "error", str(exc)),)

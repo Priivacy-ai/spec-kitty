@@ -1,0 +1,242 @@
+# Sonar workflow -- net-new (`introduced`), WP12 of ci-pipeline-reinstatement-01M1X35E
+# (C-008/FR-010; contracts/artefact-naming.md).
+#
+# Restores SonarCloud scanning -- fully removed at Convergence -- as an
+# INFORMATIONAL nightly/workflow_dispatch producer. This is a SEPARATE workflow
+# file with no `pull_request` trigger, so it structurally cannot enter any PR
+# merge-blocking `needs:` chain (never gates a merge). Fork-safe: without a
+# `SONAR_TOKEN` repository secret the job SKIPS-GREEN (an advisory notice, never a
+# hard failure) -- see the "Check Sonar token availability" step below and
+# kitty-specs/ci-pipeline-reinstatement-01M1X35E/sonar-identity-verification.md
+# (T064 fork-safe precedent: NFR-004's `skip_drift` on a missing token).
+#
+# Identity (T062, C-008): the `Priivacy-ai_spec-kitty` project / `priivacy-ai`
+# organization was VERIFIED LIVE against the SonarCloud + GitHub APIs in-session
+# (2026-09-07) -- see sonar-identity-verification.md for the full evidence trail,
+# including the open cross-org-rename question this WP explicitly does NOT gate
+# anything on. `sonar-project.properties` carries that verified identity unchanged.
+#
+# Artefact aggregation (contracts/artefact-naming.md): this workflow is triggered
+# by `schedule`/`workflow_dispatch` only -- NOT `workflow_run` on "CI Modules" (unlike
+# ci-aggregate.yml, WP10) -- so it resolves its OWN "current" run by finding the
+# most-recent successful "CI Modules" run for the analyzed ref, then a second
+# most-recent successful run as the stale-artefact fallback (the same current/
+# fallback pattern ci-aggregate.yml uses, generalized here to a cross-workflow,
+# not same-run-triggered, lookup). Coverage basenames are deduped by basename
+# (current-run wins; fallback fills gaps) and comma-joined into
+# `sonar.python.coverage.reportPaths` -- Sonar merges server-side, so NO single
+# merged coverage.xml is produced here (matches ci-aggregate.yml's own consumer
+# note). `sonar.python.xunit.reportPath` is deliberately NOT wired (decision
+# recorded in sonar-identity-verification.md's "xunit gap" section) -- this WP
+# aggregates coverage only.
+#
+# Per-PR promotion path (SC-007, no rearchitecture): documented in
+# sonar-identity-verification.md -- switching to a pull_request/workflow_run
+# trigger and reusing ci-aggregate.yml's own reconciled artefact is the only
+# change needed; the naming contract already supports it.
+#
+# `mode` (pr|full, default pr) is threaded through workflow_dispatch for
+# forward-compat with WP11's cross-cutting dual-mode contract
+# (tests/architectural/test_dual_mode_contract.py, not yet merged into this
+# lane) -- this workflow has no pull_request trigger and a single job, so there
+# is no per-mode fail-fast/needs: branch to gate; the resolved mode is
+# logged for visibility only, and every step here runs run-all/`if: always()`
+# per FR-018/FR-019's full-mode semantics (a nightly/dispatch producer with no
+# PR fail-fast short-circuit to honor).
+
+name: Sonar
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # nightly, 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'pr (fail-fast) or full (run-all) -- forward-compat with the reinstated-workflow dual-mode contract (WP11); this single-job informational workflow always runs full/if: always() regardless.'
+        required: false
+        default: pr
+        type: choice
+        options:
+          - pr
+          - full
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  scan:
+    name: SonarCloud scan (informational, nightly/dispatch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Resolve run mode (visibility only -- no per-mode branch in this single-job workflow)
+        id: resolve-mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode="${{ inputs.mode }}"
+          if [ -z "$mode" ]; then
+            mode="full"
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "sonar: resolved mode=$mode (informational only -- this workflow has no PR fail-fast branch to gate)"
+
+      - name: Check Sonar token availability (fork-safe skip-green)
+        id: sonar_token
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::sonar.yml: SONAR_TOKEN is not configured -- skipping analysis (fork-safe, advisory-only). See kitty-specs/ci-pipeline-reinstatement-01M1X35E/sonar-identity-verification.md for the verified project/org identity and how to provision the secret."
+          fi
+
+      - name: Check out repository
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Find the most-recent successful "CI Modules" run for this ref
+        id: current-run
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            // This workflow is schedule/dispatch-only (never workflow_run), so
+            // it has no "triggering run" to key off like ci-aggregate.yml does
+            // -- it resolves its own current + fallback runs by branch, newest
+            // first (the cross-workflow generalization of ci-aggregate.yml's
+            // same-run-triggered current/fallback pattern).
+            const branch = context.ref.replace('refs/heads/', '');
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci-modules.yml',
+              branch,
+              status: 'success',
+              per_page: 5,
+            });
+            const runs = data.workflow_runs;
+            const runId = runs[0] ? String(runs[0].id) : '';
+            const fallbackRunId = runs[1] ? String(runs[1].id) : '';
+            core.setOutput('run_id', runId);
+            core.setOutput('fallback_run_id', fallbackRunId);
+            if (runId) {
+              console.log(`sonar: current CI Modules run=${runId}${fallbackRunId ? `, fallback run=${fallbackRunId}` : ' (no fallback run found)'}`);
+            } else {
+              console.log('sonar: no successful "CI Modules" run found for this branch -- scan will run with zero coverage report paths.');
+            }
+
+      - name: Download current-run shard artefacts
+        id: download-current
+        if: steps.sonar_token.outputs.enabled == 'true' && steps.current-run.outputs.run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: '*-reports'
+          path: out/reports/artifacts/current
+          merge-multiple: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.current-run.outputs.run_id }}
+
+      - name: Download fallback-run shard artefacts (stale-artefact fallback)
+        id: download-previous
+        if: steps.sonar_token.outputs.enabled == 'true' && steps.current-run.outputs.fallback_run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: '*-reports'
+          path: out/reports/artifacts/previous
+          merge-multiple: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.current-run.outputs.fallback_run_id }}
+
+      - name: Reconcile coverage basenames (dedup, stale-fallback) -> comma-joined reportPaths
+        id: coverage
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          root = Path("out/reports/artifacts")
+          current_dir = root / "current"
+          previous_dir = root / "previous"
+
+          # Current-run wins; the previous (fallback) run only fills basenames
+          # missing from current -- the stale-artefact fallback edge case
+          # (contracts/artefact-naming.md "Stale-artefact fallback"). Dedup is
+          # by basename (Invariant 1): a same-run collision would otherwise
+          # silently drop a shard's data, so pick the FIRST match deterministically
+          # rather than let a later glob entry silently overwrite it.
+          resolved: dict[str, Path] = {}
+          stale: list[str] = []
+
+          if current_dir.exists():
+              for path in sorted(current_dir.rglob("coverage-*.xml")):
+                  resolved.setdefault(path.name, path)
+
+          if previous_dir.exists():
+              for path in sorted(previous_dir.rglob("coverage-*.xml")):
+                  if path.name not in resolved:
+                      resolved[path.name] = path
+                      stale.append(path.name)
+
+          report_paths = ",".join(str(p) for p in resolved.values())
+          print(f"sonar: resolved {len(resolved)} coverage report(s); {len(stale)} served from the stale-artefact fallback: {sorted(stale)}")
+
+          summary_path = os.environ.get("GITHUB_OUTPUT")
+          if summary_path:
+              with open(summary_path, "a", encoding="utf-8") as fh:
+                  fh.write(f"report-paths={report_paths}\n")
+          PY
+
+      - name: Derive sonar.projectVersion from pyproject.toml
+        id: version
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c "
+          import re
+          text = open('pyproject.toml', encoding='utf-8').read()
+          match = re.search(r'(?m)^version\s*=\s*\"([^\"]+)\"', text)
+          if not match:
+              raise SystemExit('sonar.projectVersion could not be derived: no version= in pyproject.toml')
+          print(match.group(1))
+          ")"
+          if [ -z "$version" ]; then
+            echo "::error::sonar.projectVersion could not be derived from pyproject.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sonar: resolved sonar.projectVersion=$version (from pyproject.toml)"
+
+      - name: SonarCloud Scan
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        with:
+          args: >
+            -Dsonar.projectVersion=${{ steps.version.outputs.version }}
+            -Dsonar.python.coverage.reportPaths=${{ steps.coverage.outputs.report-paths }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SonarCloud Quality Gate (informational; never PR-blocking)
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

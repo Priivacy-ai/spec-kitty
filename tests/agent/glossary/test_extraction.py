@@ -596,6 +596,7 @@ class TestPerformance:
         # Should extract some terms
         assert len(terms) > 0
 
+    @pytest.mark.performance
     def test_large_input_performance(self):
         """Large inputs handled gracefully with limit."""
         # 5000 words, exceeds limit
