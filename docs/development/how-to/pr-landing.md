@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-08-04'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -332,7 +332,8 @@ What the maintainer reads the diff for, beyond the checks:
 
 - **Canonical sources** — does the change edit the source of truth, or a
   generated mirror/agent copy? (Agent directories under `.claude/`,
-  `.amazonq/`, etc. are generated; sources live under `src/doctrine/`.)
+  `.amazonq/`, etc. are generated; sources live under `packs/built-in/` and
+  `src/charter/offering/`.)
 - **SSOT / duplication** — does new code near-copy an existing canonical seam
   or resolver? Justified divergence must be adjudicated explicitly (name the
   contract difference), never assumed.

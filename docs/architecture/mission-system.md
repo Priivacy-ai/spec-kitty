@@ -2,7 +2,7 @@
 title: The Mission System Explained
 description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
-updated: '2026-07-14'
+updated: '2026-09-08'
 related:
 - docs/architecture/divio-documentation.md
 - docs/architecture/kanban-workflow.md
@@ -97,7 +97,7 @@ Different missions can use different mission types simultaneously:
 ## Mission Types Are Doctrine Artifacts
 
 A mission type is not hardcoded into the runtime — it is a **doctrine-defined
-artifact**. The canonical catalogue lives in `src/doctrine/missions/<type>/`,
+artifact**. The canonical catalogue lives in `packs/built-in/missions/<type>/`,
 where each type *offers* its governance, action indices, step contracts, and
 templates. The runtime is a finite-state machine that reads the *resolved* mission
 type keyed off the `mission` field in `meta.json`; it holds no per-type knowledge
@@ -131,7 +131,7 @@ Two mission trees exist today:
 
 | Tree | Role |
 |------|------|
-| `src/doctrine/missions/<type>/` | **Canonical** — the source of truth for mission-type behaviour |
+| `packs/built-in/missions/<type>/` | **Canonical** — the source of truth for mission-type behaviour |
 | `src/specify_cli/missions/<type>/` | **Derived copies** that a shrinking set of core readers still bind to directly |
 
 The derived tree is **on the deprecation path**, not to be entrenched: no new

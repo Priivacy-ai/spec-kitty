@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-08-27'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -235,6 +235,11 @@ shard-topology re-flip) have moved to
 in engineering notes — this how-to page stays focused on the durable local workflow above.
 
 ## Reproducing #3115 (the folded-uuid render-width defect)
+
+> **Historical recipe.** The `sync` surface this section reproduces a defect on was retired
+> with the local sync transport (Convergence #3881); `src/specify_cli/cli/commands/sync.py`
+> no longer exists. The recipe is retained as the record of how #3115 was isolated — the
+> `rich` dumb-terminal 80-column fold behavior it demonstrates is still the general lesson.
 
 `sync status` / `sync doctor` render a `Project` column with `overflow="fold"`
 (`src/specify_cli/cli/commands/sync.py:1440`, deliberate). At an 80-column

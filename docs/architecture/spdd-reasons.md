@@ -2,7 +2,7 @@
 title: SPDD and the REASONS Canvas
 description: Optional Spec Kitty doctrine pack that records change-intent and change-boundary as a structured artifact alongside the spec and plan.
 doc_status: active
-updated: '2026-05-26'
+updated: '2026-09-08'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 ---
@@ -97,7 +97,7 @@ of the mission canvas during implement and review prompts — there is no
 separate per-WP canvas file.
 
 The seven-section skeleton lives at
-`src/doctrine/templates/fragments/reasons-canvas-template.md` and is what
+`src/charter/offering/templates/fragments/reasons-canvas-template.md` and is what
 the skill renders for new missions.
 
 ---
@@ -155,7 +155,7 @@ output.
 
 The canvas is authored by the agent skill
 `spec-kitty-spdd-reasons` (built-in at
-`src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md`). The skill is
+`src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md`). The skill is
 triggered by any of the following phrases in user input:
 
 - "use SPDD"
@@ -368,7 +368,7 @@ a deviation is explicitly recorded."
 
 ## Related artifacts
 
-Data artifacts ship under the built-in pack root `packs/built-in/`; the template fragment and skill stay under `src/doctrine/`:
+Data artifacts ship under the built-in pack root `packs/built-in/`; the template fragment and skill stay in the source tree under `src/charter/offering/`:
 
 | Kind | Path |
 |---|---|
@@ -377,8 +377,8 @@ Data artifacts ship under the built-in pack root `packs/built-in/`; the template
 | Tactic — review | `packs/built-in/tactics/reasons-canvas-review.tactic.yaml` |
 | Styleguide | `packs/built-in/styleguides/reasons-canvas-writing.styleguide.yaml` |
 | Directive | `packs/built-in/directives/038-structured-prompt-boundary.directive.yaml` |
-| Template fragment | `src/doctrine/templates/fragments/reasons-canvas-template.md` |
-| Skill | `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md` |
+| Template fragment | `src/charter/offering/templates/fragments/reasons-canvas-template.md` |
+| Skill | `src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md` |
 
 Mission seed material:
 

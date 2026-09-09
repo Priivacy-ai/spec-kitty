@@ -2,7 +2,7 @@
 title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate'
 description: The review-cycle-artifact and merge-gate mechanics, the --skip-review-artifact-check override, and the issue-matrix discovery surface, so review and merge focus on substance.
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -323,7 +323,7 @@ under the relevant `[Unreleased]` category in
 
 ## Shippable doctrine: built-in doctrine must work in a consumer repo
 
-**Built-in doctrine (anything under `src/doctrine/**/built-in/`) MUST be valid
+**Built-in doctrine (anything under `packs/built-in/`) MUST be valid
 and actionable in a consumer repository that has activated the pack but has NO
 access to the spec-kitty source tree, CI, or tooling.** A doctrine pack is
 installed/activated as a *pack* in an arbitrary customer repo — it does not ship
@@ -352,15 +352,15 @@ toolguide, or glossary pack, reject any of these:
 
 ```bash
 # repo-local tooling paths
-grep -rEn 'scripts/|\.github/|src/specify_cli|tests/' src/doctrine/*/built-in/
+grep -rEn 'scripts/|\.github/|src/specify_cli|tests/' packs/built-in/
 # source-tree PREFIXES -- the content ships, the `src/` prefix does not
 grep -rEn 'src/doctrine/|src/mission_runtime|src/charter/|src/runtime/|src/glossary/' \
-  src/doctrine/*/built-in/
+  packs/built-in/
 ```
 
 Neither should return anything a consumer is expected to *resolve or run*. The
 second pattern matters as much as the first and is easy to forget: an installed
-consumer has `doctrine/` in site-packages, never `src/doctrine/`, so a
+consumer has the pack in site-packages, never a `src/` tree prefix, so a
 `guide_path:` or `references:` entry carrying the source-tree prefix is a
 dangling reference downstream even though the artefact itself ships.
 

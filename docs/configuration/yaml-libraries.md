@@ -2,7 +2,7 @@
 title: 'YAML library choice: ruamel.yaml vs PyYAML'
 description: 'When Spec Kitty uses ruamel.yaml versus PyYAML: the round-trip-vs-read-only deciding criterion and the named codebase sites that currently deviate from it.'
 doc_status: active
-updated: '2026-06-23'
+updated: '2026-09-08'
 ---
 # YAML library choice: ruamel.yaml vs PyYAML
 
@@ -47,23 +47,23 @@ PyYAML's `yaml.safe_load` is a single-call read with no write path. It is approp
 
 | Site | Line | Pattern | Purpose |
 |------|------|---------|---------|
-| `src/doctrine/drg/org_pack_config.py` | 33–36 | `_yaml()` factory: `YAML(); yaml.preserve_quotes = True` | Read and write `.kittify/config.yaml` — the operator-facing pack registry |
-| `src/specify_cli/frontmatter.py` | 17–18, 31 | `from ruamel.yaml import YAML, CommentedMap` | `FrontmatterManager` — read and write WP frontmatter files in place (rule 1: always use ruamel.yaml; rule 4: preserve comments) |
-| `src/doctrine/yaml_utils.py` | 21 | `from ruamel.yaml import YAML` | `canonical_yaml()` — deterministic sorted-key serializer for hashing; uses ruamel for consistent output |
-| `src/doctrine/drg/loader.py` | 12–13 | `from ruamel.yaml import YAML, YAMLError` | Doctrine relationship graph (DRG) loader — round-trip parse |
-| `src/charter/pack_manager.py` | 63–64 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `CharterPackManager` |
-| `src/specify_cli/review/artifacts.py` | 21 | `from ruamel.yaml import YAML` | Review artifact serialization — preserve existing frontmatter style |
+| `src/charter/offering/drg/org_pack_config.py` | 216–218 | `_yaml()` factory: `YAML(); yaml.preserve_quotes = True` | Read and write `.kittify/config.yaml` — the operator-facing pack registry |
+| `src/specify_cli/frontmatter.py` | 16–18 | `from ruamel.yaml import YAML, CommentedMap` | `FrontmatterManager` — read and write WP frontmatter files in place (rule 1: always use ruamel.yaml; rule 4: preserve comments) |
+| `src/charter/offering/yaml_utils.py` | 21 | `from ruamel.yaml import YAML` | `canonical_yaml()` — deterministic sorted-key serializer for hashing; uses ruamel for consistent output |
+| `src/charter/offering/drg/loader.py` | 12–13 | `from ruamel.yaml import YAML, YAMLError` | Doctrine relationship graph (DRG) loader — round-trip parse |
+| `src/charter/activation/pack_manager.py` | 453–454 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `CharterPackManager` |
+| `src/specify_cli/review/artifacts.py` | 20 | `from ruamel.yaml import YAML` | Review artifact serialization — preserve existing frontmatter style |
 
 ### 2.2 PyYAML `safe_load` sites (read-only)
 
 | Site | Line | What is read |
 |------|------|-------------|
-| `src/doctrine/drg/org_pack_loader.py` | 376 | `fragment.yaml` from an org pack's `drg/` subdirectory — generated, no comments |
-| `src/doctrine/drg/org_pack_loader.py` | 474 | Individual doctrine artifact YAML files — read-only inspection of `id` key |
-| `src/doctrine/drg/override_policy.py` | 121 | Override policy file — read-only load |
-| `src/specify_cli/doctrine/pack_assembler.py` | 502, 547 | Generated graph fragment and `org-charter.yaml` — write path uses `pyyaml.safe_dump`, not round-trip |
-| `src/specify_cli/dashboard/handlers/glossary.py` | 40 | `graph.yaml` (generated DRG) — read-only orphan count |
-| `src/runtime/next/_internal_runtime/discovery.py` | 120, 183 | Runtime discovery config files — read-only |
+| `src/charter/offering/drg/org_pack_loader.py` | 504 | `fragment.yaml` from an org pack's `drg/` subdirectory — generated, no comments |
+| `src/charter/offering/drg/org_pack_loader.py` | 617 | Individual doctrine artifact YAML files — read-only inspection of `id` key |
+| `src/charter/offering/drg/override_policy.py` | 130 | Override policy file — read-only load |
+| `src/specify_cli/doctrine/pack_assembler.py` | 572–575, 617–621 | Generated graph fragment and `org-charter.yaml` — write path uses `pyyaml.safe_dump`, not round-trip |
+| `src/specify_cli/dashboard/handlers/glossary.py` | 41 | `graph.yaml` (generated DRG) — read-only orphan count |
+| `src/runtime/next/_internal_runtime/discovery.py` | 128, 191 | Runtime discovery config files — read-only |
 
 ---
 
@@ -77,28 +77,27 @@ PyYAML's `yaml.safe_load` is a single-call read with no write path. It is approp
 
 **The same `.kittify/config.yaml` data is read via two different libraries:**
 
-- `src/doctrine/drg/org_pack_config.py` (line 33–36): uses **ruamel.yaml** with `preserve_quotes=True`. This is the **write** path — `save_pack_registry()` writes back via the same ruamel instance.
-- `src/charter/pack_manager.py` (line 286–326): uses **ruamel.yaml** for reads *and* writes (`_load_config()` / `_save_config()`). This is consistent with the criterion.
+- `src/charter/offering/drg/org_pack_config.py` (line 216–218): uses **ruamel.yaml** with `preserve_quotes=True`. This is the **write** path — `save_pack_registry()` writes back via the same ruamel instance.
+- `src/charter/activation/pack_manager.py` (line 447–476): uses **ruamel.yaml** for reads *and* writes (`_load_config()` / `_save_config()`). This is consistent with the criterion.
 
 However, several *other* callers read `config.yaml`-class data via PyYAML `safe_load`:
 
-- `src/specify_cli/agent_utils/status.py` (lines 139–140): `_yaml.safe_load(config_file.read_text())` reads a config file that is the same shape as `.kittify/config.yaml`.
-- `src/specify_cli/cli/commands/agent/tasks.py` (lines 580–582): `yaml.safe_load(config_file...)` reads `.kittify/config.yaml` for the `agent tasks` command.
-- `src/specify_cli/sync/runtime.py` (line 89): `yaml.safe_load(config_path...)` reads `.kittify/config.yaml` for sync.
+- `src/specify_cli/agent_utils/status.py` (line 134): `_yaml.safe_load(config_file.read_text())` reads a config file that is the same shape as `.kittify/config.yaml`.
+- `src/specify_cli/cli/commands/agent/tasks_status_cmd.py` (line 910): `yaml.safe_load(config_file...)` reads `.kittify/config.yaml` for the `agent tasks` command. (Two former callers — the sync runtime's config read and an older `agent tasks` call site — were deleted or moved with the sync transport's retirement, Convergence #3881.)
 
 These callers are read-only (no write-back) so PyYAML `safe_load` does not corrupt the file; however they are inconsistent with the pattern in the canonical write paths. If any of these callers were extended to perform writes, they would need to be converted to ruamel.yaml to avoid formatting loss.
 
 ### 3.2 Secondary: `pack_assembler.py` dual-use
 
-`src/specify_cli/doctrine/pack_assembler.py` imports both ruamel (top-level, line 34) for the main assembly pipeline and PyYAML (`import yaml as pyyaml`, lines 502, 547) for write-back of generated `graph.yaml` and `org-charter.yaml`. The generated files have no user-authored comments, so `safe_dump` is acceptable — but the in-file comment `# ruamel.yaml or pyyaml` on the glossary handler (see `src/specify_cli/dashboard/handlers/glossary.py`, line 34) indicates ambiguity was noticed but not resolved.
+`src/specify_cli/doctrine/pack_assembler.py` imports both ruamel (top-level, line 34) for the main assembly pipeline and PyYAML (`import yaml as pyyaml`, lines 572–575, 617–621) for write-back of generated `graph.yaml` and `org-charter.yaml`. The generated files have no user-authored comments, so `safe_dump` is acceptable — but the in-file comment `# ruamel.yaml or pyyaml` on the glossary handler (see `src/specify_cli/dashboard/handlers/glossary.py`, line 35) indicates ambiguity was noticed but not resolved.
 
 ### 3.3 `dashboard/handlers/glossary.py` ambiguous import
 
-`src/specify_cli/dashboard/handlers/glossary.py` line 34 contains:
+`src/specify_cli/dashboard/handlers/glossary.py` line 35 contains:
 ```python
 import yaml  # ruamel.yaml or pyyaml
 ```
-The comment acknowledges the ambiguity. The subsequent `yaml.safe_load` call (line 40) reads `graph.yaml` (a generated file), so PyYAML is appropriate here — but the comment suggests the author was unsure.
+The comment acknowledges the ambiguity. The subsequent `yaml.safe_load` call (line 41) reads `graph.yaml` (a generated file), so PyYAML is appropriate here — but the comment suggests the author was unsure.
 
 ---
 
