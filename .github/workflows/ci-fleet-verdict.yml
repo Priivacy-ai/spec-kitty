@@ -45,8 +45,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-      issues: write
-      pull-requests: read
+      pull-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

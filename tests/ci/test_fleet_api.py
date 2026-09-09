@@ -55,10 +55,12 @@ def test_http_post_success_sends_exact_payload_once(monkeypatch: pytest.MonkeyPa
         b"[123]",
         b'{"message": 123}',
         b'{"message": "' + b"x" * 9000 + b'"}',
+        None,
+        b"[" * 1500,
     ],
-    ids=["github-message", "non-json", "non-object", "non-string-message", "oversized"],
+    ids=["github-message", "non-json", "non-object", "non-string-message", "oversized", "read-error", "deeply-nested"],
 )
-def test_http_failure_is_bounded_safe_and_never_retries(monkeypatch: pytest.MonkeyPatch, body: bytes) -> None:
+def test_http_failure_is_bounded_safe_and_never_retries(monkeypatch: pytest.MonkeyPatch, body: bytes | None) -> None:
     calls = []
     reads = []
 
@@ -66,30 +68,36 @@ def test_http_failure_is_bounded_safe_and_never_retries(monkeypatch: pytest.Monk
         def read(self, size=-1):
             reads.append(size)
             assert 0 < size <= 4096
+            if body is None:
+                raise OSError(f"private read failure {TOKEN}")
             return super().read(size)
 
     headers = Message()
-    headers["X-GitHub-Request-Id"] = "TEST:REQUEST:ID"
-    headers["X-Accepted-GitHub-Permissions"] = "pull_requests=write"
+    headers["X-GitHub-Request-Id"] = f"TEST:REQUEST:ID {TOKEN}\n" + "x" * 1000
+    headers["X-Accepted-GitHub-Permissions"] = f"pull_requests=write {TOKEN}\t" + "x" * 1000
     headers["Authorization"] = f"Bearer {TOKEN}"
     headers["X-Private"] = "private-header-value"
 
     def refuse(request, *, timeout):
         calls.append(request)
-        raise urllib.error.HTTPError(request.full_url, 403, TOKEN, headers, BoundedResponse(body))
+        raise urllib.error.HTTPError(request.full_url, 403, TOKEN, headers, BoundedResponse(body or b""))
 
     monkeypatch.setenv("GH_TOKEN", TOKEN)
     monkeypatch.setattr(fleet_verdict.urllib.request, "urlopen", refuse)
+    payload = {"body": "verdict-private"}
     with pytest.raises(ValueError) as caught:
-        fleet_verdict.GitHub("spec-kitty/spec-kitty").request("issues/7/comments", {"body": "verdict-private"})
+        fleet_verdict.GitHub("spec-kitty/spec-kitty").request("issues/7/comments", payload)
     output = "".join(traceback.format_exception(caught.value))
     assert "HTTP 403" in str(caught.value)
     assert "TEST:REQUEST:ID" in output
     assert "pull_requests=write" in output
     assert all(secret not in output for secret in [TOKEN, "raw-body-private", "private-header-value", "verdict-private"])
     assert len(str(caught.value)) < 1100
+    assert "\n" not in str(caught.value)
+    assert "\t" not in str(caught.value)
+    assert "[redacted]" in output
     assert len(calls) == 1
     assert reads == [4096]
-    if body.startswith(b'{"message": "Resource'):
+    if body and body.startswith(b'{"message": "Resource'):
         assert "Resource not accessible by integration" in output
         assert "[redacted]" in output
