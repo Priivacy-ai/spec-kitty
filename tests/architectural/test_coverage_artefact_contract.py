@@ -162,7 +162,7 @@ def test_ci_aggregate_downloads_reports_glob_pattern() -> None:
         for step in job.get("steps", [])
         if isinstance(step, dict) and "download-artifact" in str(step.get("uses", ""))
     ]
-    assert "*-reports" in patterns, f"ci-aggregate.yml must download with pattern: '*-reports', found {patterns!r}"
+    assert any(pattern and pattern.endswith("-reports") for pattern in patterns), f"ci-aggregate.yml must download with pattern: '*-reports', found {patterns!r}"
 
 
 def test_ci_aggregate_declares_workflow_dispatch_and_honors_mode() -> None:
@@ -243,11 +243,11 @@ def test_ci_aggregate_all_actions_sha_pinned() -> None:
 
 
 def test_ci_aggregate_critical_path_allowlist_uses_live_modularity_ssot_paths() -> None:
-    """The diff-cover ``--include`` critical-path allowlist must reference the
+    """The immutable Git diff critical-path allowlist must reference the
     CURRENT Modularity SSOT chain (``kernel <- charter <- {glossary, runtime,
     mission_runtime} <- specify_cli``) -- never the retired ``src/doctrine``
     path (absorbed into ``src/charter/offering/`` pre-fork)."""
-    text = _aggregate_text()
+    text = (_REPO_ROOT / "scripts/ci/aggregate_source.py").read_text()
     assert "src/kernel" in text
     assert "src/charter" in text
     assert "src/doctrine" not in text, "src/doctrine is a retired path (absorbed into src/charter/offering/) -- the critical-path allowlist must not reference it"
@@ -383,7 +383,7 @@ def _run_reconcile_script(
     workdir = tmp_path / "workdir"
     current_dir = workdir / "out" / "aggregate" / "current"
     previous_dir = workdir / "out" / "aggregate" / "previous"
-    github_dir = workdir / ".github"
+    github_dir = workdir / "out" / "aggregate" / "source"
     for directory in (current_dir, previous_dir, github_dir):
         directory.mkdir(parents=True, exist_ok=True)
     for name, content in current.items():
@@ -416,6 +416,34 @@ _MERGE_BASENAME = "coverage-standard-merge-shard1-of-1.xml"
 _MISSIONS_BASENAME = "coverage-standard-missions-shard1-of-1.xml"
 
 
+def _parse_github_output(raw: str) -> dict[str, str]:
+    """Parse a $GITHUB_OUTPUT file the way GitHub's runner does
+    (FileCommandManager): a line `key=value` sets one output; a line
+    `key<<DELIM` starts a multi-line value terminated by a bare `DELIM`
+    line. Later assignments override earlier ones (dictionary indexer),
+    which is exactly why an injected `complete=true` line after a
+    `complete=false` would WIN -- the property the delimiter-form write
+    and the registry-row validation below must make impossible."""
+    outputs: dict[str, str] = {}
+    lines = raw.split("\n")
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        heredoc = re.match(r"^(?P<key>[^=]+)<<(?P<delim>.+)$", line)
+        if heredoc:
+            value_lines: list[str] = []
+            idx += 1
+            while idx < len(lines) and lines[idx] != heredoc.group("delim"):
+                value_lines.append(lines[idx])
+                idx += 1
+            outputs[heredoc.group("key")] = "\n".join(value_lines)
+        elif "=" in line:
+            key, _, value = line.partition("=")
+            outputs[key] = value
+        idx += 1
+    return outputs
+
+
 def test_shipped_reconcile_script_falls_back_to_previous_run_for_missing_shard(tmp_path: Path) -> None:
     """The SHIPPED script (not the twin) must serve a registry-expected shard
     missing from `current` from `previous`, while never letting `previous`
@@ -427,7 +455,10 @@ def test_shipped_reconcile_script_falls_back_to_previous_run_for_missing_shard(t
         registry_rows=[_MERGE_ROW, _MISSIONS_ROW],
     )
     assert completed.returncode == 0, f"shipped script must exit 0 on a complete (current+fallback) set:\n{completed.stdout}\n{completed.stderr}"
-    assert "complete=true" in github_output, github_output
+    parsed = _parse_github_output(github_output)
+    assert parsed.get("complete") == "true", github_output
+    assert "missing<<RECONCILE_EOF" in github_output, "the missing output must use the runner delimiter form, never bare `missing=`"
+    assert not re.search(r"^missing=", github_output, re.M), github_output
 
     resolved_dir = tmp_path / "workdir" / "out" / "aggregate" / "coverage"
     assert (resolved_dir / _MERGE_BASENAME).read_bytes() == b"CURRENT-MERGE", "current must never be shadowed by the stale fallback"
@@ -446,7 +477,9 @@ def test_shipped_reconcile_script_fails_loudly_when_shard_missing_from_both_runs
         registry_rows=[_MERGE_ROW],
     )
     assert completed.returncode != 0, f"shipped script must fail loudly on a shard missing from both runs, got exit 0:\n{completed.stdout}"
-    assert "complete=false" in github_output, github_output
+    parsed = _parse_github_output(github_output)
+    assert parsed.get("complete") == "false", github_output
+    assert parsed.get("missing") == _MERGE_BASENAME, github_output
     assert "missing from BOTH" in completed.stdout, completed.stdout
 
 
@@ -462,7 +495,7 @@ def test_shipped_reconcile_script_rejects_same_run_basename_collision(tmp_path: 
 
     script_path = tmp_path / "reconcile_extracted.py"
     script_path.write_text(_reconcile_script_source(), encoding="utf-8")
-    github_dir = tmp_path / "workdir" / ".github"
+    github_dir = tmp_path / "workdir" / "out" / "aggregate" / "source"
     github_dir.mkdir(parents=True, exist_ok=True)
     (github_dir / "ci-module-registry.yml").write_text(yaml.safe_dump({"modules": [_MERGE_ROW]}), encoding="utf-8")
     output_path = tmp_path / "github_output.txt"
@@ -480,6 +513,91 @@ def test_shipped_reconcile_script_rejects_same_run_basename_collision(tmp_path: 
     )
     assert completed.returncode != 0, f"shipped script must reject a same-run basename collision:\n{completed.stdout}"
     assert "collision" in completed.stdout.lower(), completed.stdout
+
+
+@pytest.mark.parametrize(
+    ("field", "bad_value"),
+    [
+        ("module", "kernel\ncomplete=true\nx="),
+        ("module", "kernel\nRECONCILE_EOF\ncomplete=true\nx="),
+        ("module", "kernel; rm -rf /"),
+        ("tier", "standard\ncomplete=true"),
+        ("tier", "tier with spaces"),
+        ("shard_count", "2"),
+        ("shard_count", True),
+        ("shard_count", 1.5),
+        ("shard_count", 0),
+        ("shard_count", -1),
+    ],
+)
+def test_shipped_reconcile_script_rejects_untrusted_registry_row_values(tmp_path: Path, field: str, bad_value: Any) -> None:
+    """BLOCKING squad finding (pass 2, #4068): the expected-shard set is
+    sourced from the UNTRUSTED PR merge tree (`out/aggregate/source/`,
+    not the trusted checkout), and the derived basenames used to reach
+    `$GITHUB_OUTPUT`. A PR whose registry row carries a `module` value with
+    an embedded newline could inject arbitrary `key=value` step outputs --
+    the runner assigns outputs line-by-line with a dictionary indexer, so
+    an injected `complete=true` would override the real `complete=false`
+    and defeat the full-mode completeness re-check. The shipped script
+    must REFUSE the row outright: nonzero exit, an untrusted-value error,
+    and nothing written to $GITHUB_OUTPUT."""
+    row: dict[str, Any] = dict(_MERGE_ROW)
+    row[field] = bad_value
+    completed, github_output = _run_reconcile_script(
+        tmp_path,
+        current={_MERGE_BASENAME: b"CURRENT-MERGE"},
+        previous={},
+        registry_rows=[row],
+    )
+    assert completed.returncode != 0, f"shipped script must reject an untrusted registry {field} value {bad_value!r}:\n{completed.stdout}"
+    assert "untrusted PR-authored registry value refused" in completed.stdout, completed.stdout
+    # Fail-closed means the outputs are never written at all -- the refusal
+    # happens in expected_basenames(), before the summary write.
+    assert github_output == "", f"a refused registry row must not reach $GITHUB_OUTPUT:\n{github_output}"
+
+
+def test_shipped_reconcile_script_output_cannot_inject_step_outputs(tmp_path: Path) -> None:
+    """Validated missing names produce exactly the two intended outputs.
+
+    The real script preserves its incomplete verdict and uses delimiter form;
+    the separate refusal cases guard newline and delimiter-bearing row values.
+    """
+    completed, github_output = _run_reconcile_script(
+        tmp_path,
+        current={},
+        previous={},
+        registry_rows=[_MERGE_ROW],
+    )
+    assert completed.returncode != 0, completed.stdout
+    # No bare `key=value` write for either output: the delimiter form is
+    # structural, not incidental.
+    assert not re.search(r"^(complete|missing)=", github_output, re.M), github_output
+    parsed = _parse_github_output(github_output)
+    assert set(parsed) == {"complete", "missing"}, f"injected or stray step outputs: {sorted(parsed)}"
+    assert parsed["complete"] == "false", github_output
+    assert parsed["missing"] == _MERGE_BASENAME, github_output
+
+
+def test_delimiter_output_form_neutralizes_newline_injection() -> None:
+    """WHY the delimiter form, pinned as runner semantics: a newline-carrying
+    `missing` value written the OLD bare way (`missing=<value>`) lets the
+    runner's line-based parser see `complete=true` as a fresh output line
+    and override the real `complete=false` (dictionary indexer, file order
+    -- FileCommandManager); the SAME value written with the delimiter form
+    is absorbed into the `missing` value and the completeness re-check
+    survives. The registry-row validation refuses newline-carrying values
+    outright, including delimiter collisions; this pins containment for the
+    demonstrated payload, not safety for arbitrary unvalidated values."""
+    malicious = "coverage-standard-merge-shard1-of-1.xml\ncomplete=true\nx="
+    bare_form = f"complete=false\nmissing={malicious}\n"
+    parsed_bare = _parse_github_output(bare_form)
+    assert parsed_bare.get("complete") == "true", "the bare `key=value` form IS injectable -- the vulnerability the delimiter form removes"
+
+    delimiter_form = f"complete<<RECONCILE_EOF\nfalse\nRECONCILE_EOF\nmissing<<RECONCILE_EOF\n{malicious}\nRECONCILE_EOF\n"
+    parsed_delim = _parse_github_output(delimiter_form)
+    assert parsed_delim.get("complete") == "false", "an injected line inside a delimiter-form value must never override a real output"
+    assert parsed_delim.get("missing") == malicious
+    assert set(parsed_delim) == {"complete", "missing"}
 
 
 def test_ci_aggregate_embeds_stale_fallback_and_collision_guard_language() -> None:

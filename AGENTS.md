@@ -234,6 +234,7 @@ former self-declared authority `docs/architecture/05_ownership_manifest.yaml` wa
 make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
 make test-full    # everything, parallel + serial passes
 ruff check .
+ruff format --check .  # formatter gate — same whole-repo check CI runs (`make format-check` is the target form)
 ```
 
 Both make targets set `PWHEADLESS=1` themselves and need the synced dev environment (`make dev-setup`: the `test` extras plus `pytest-xdist`, declared in the `dev` group so a plain `uv sync` has it too).
@@ -305,6 +306,8 @@ green-wash category 1, and never misattribute categories 2–4 to your own work.
 Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require a version bump in `pyproject.toml` and a `CHANGELOG.md` entry.
 
 **New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
+
+**Formatting is a separate gate from linting (#3952).** `ruff check .` passing says nothing about format: CI (`ci-quality.yml`, `ci-router.yml`) runs `ruff format --check .` over the whole repo, and `tests/architectural/test_ruff_format_enforcement.py` enforces the same command in `make test-full` (#473/#558), so an unformatted file goes red regardless of whether anyone ran the check locally. Run `make format-check` (or `uv run --frozen ruff format --check .`) before pushing; `uv run --frozen ruff format <files>` fixes what it flags.
 
 **Pre-push: run the terminology guard when touching `src/charter/offering/` or user-facing prose.** The heavyweight GitHub-hosted test matrix was retired in The Convergence (PR #3881; see [`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)) and the lean modular GitHub CI was reinstated in `#3995`; a forbidden-term regression can still pass a local `src/charter/offering/`-or-prose run and only surface at CI. Before pushing such changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it gates exactly two retired terms — canonical `status commit`, never `ceremony` or `status-writing`. It does **not** check `Mission` vs `feature` — that half of the Terminology Canon is review-enforced, not gated. The full `tests/architectural/` suite is the complete safety net.
 
