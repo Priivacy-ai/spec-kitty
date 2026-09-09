@@ -1,0 +1,156 @@
+{
+  "event_count": 73,
+  "last_event_id": "01M23NZ7G7JJTS7AW5MDS55T6E",
+  "materialized_at": "2026-09-09T18:13:05.671516+00:00",
+  "mission_number": "",
+  "mission_slug": "ci-suite-stability-test-isolation-01M22MM5",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M23NYTPKB8HJ8JNJD4B7A7YC",
+      "last_transition_at": "2026-09-09T18:12:52.563617+00:00",
+      "review_result": {
+        "reference": "Review passed: deterministic interleave, signal emitted organically by check_assets (asset_preparation.py) via RuntimeError, not hand-raised; monkeypatch only substitutes the assess_runtime assessment seam; asserts 'Global asset input changed' + home path; e2e untouched/still skipped; test+ruff green (1 passed, ruff clean).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1366820,
+      "shell_pid_created_at": "1788945622.31"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M23NYXXEGKK9HW39S2Y9X71E",
+      "last_transition_at": "2026-09-09T18:12:55.854212+00:00",
+      "review_result": {
+        "reference": "Review passed: role-tag source_read/destination_probe by call-site (not geography); check_assets tolerates destination drift ONLY when byte-identical to batch canonical (_content_equal vs write.effect.after), else raises 'Global asset input changed' (protects concurrent user writes); source_read drift still refuses (FR-003, sticky role); bookkeeping stamp tolerated only when every genuine content file confirmed canonical (lone stamp still refuses); observations not stripped (C-002, fingerprint intact); scope=asset_preparation.py only. ruff+mypy clean; 5 recheck tests pass; WP01 interleave shows documented File-exists intermediate (WP03 greens).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1381732,
+      "shell_pid_created_at": "1788946654.51"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M23NZ5XE83QHEJ7695B0H7NR",
+      "last_transition_at": "2026-09-09T18:13:04.046714+00:00",
+      "review_result": {
+        "reference": "Re-review: format gate now clean (ruff format), logic unchanged since the 26-passed/0-skipped e2e proof; approved",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1725084,
+      "shell_pid_created_at": "1788962491.74"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M23NZ7G7JJTS7AW5MDS55T6E",
+      "last_transition_at": "2026-09-09T18:13:05.671516+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, opus): tests-only (test_generic_asset_scope.py +462); T012 non-runtime owners (agent_skills+agent_commands) converge via real re-assess-under-lock (CONCURRENT_PEER_NO_OP present, 3 race signals absent); merge.py-unreachable-from-batch proven with poisoned populate (owner_key=global_assets); T013 manifest installed_at race is a distinct defect filed #4134; ruff/mypy clean, 5/5 pass, full tests/runtime 926 passed.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1741931,
+      "shell_pid_created_at": "1788962845.8"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M23NYW9Z8VT7ZKQV7SFY8DXZ",
+      "last_transition_at": "2026-09-09T18:12:54.207870+00:00",
+      "review_result": {
+        "reference": "Review passed: helper guard-clean by construction (assert raised inside module, TIMING_ASSERTION_VOCABULARY untouched, guard suite green); coverage-invariant non-vacuous (4 self-tests: good-rename-clean, drop-flagged, smuggle-onto-performance-flagged, known-exception-excluded), baseline mechanically derived from canonical 1d59ed2ca6 (62 files/182 occ, exact-match on unique MIXED files, single-source vocab import); shard-map registration-only (3 shard_3 additions, no churn); triage complete/sound (74 MIXED delete-ineligible via committed AST baseline, 9 BLOCKED all pure sole-timing, 83 total categorized, operator HiC sign-off); ruff+mypy+3 arch suites green (81 passed).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1748888,
+      "shell_pid_created_at": "1788963012.39"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M23NYZGJ3HPA3H20BW12T664",
+      "last_transition_at": "2026-09-09T18:12:57.490581+00:00",
+      "review_result": {
+        "reference": "Review passed: 14 MIXED splits verified (functional asserts stay per-PR unmarked, timing→@performance via assert_timing_budget with budgets preserved; lanes cycle-detection split ADDS real per-PR functional coverage by dropping the skipif gate). Vocab-blocked deletion test_resolve_context_within_research_2x fully removed, file collects (12 tests), time/statistics imports cleaned. backfill 'left unchanged' call is sound (happens-after ordering assert, not a wall-clock budget). Guards green (85 passed incl timing-coverage-invariant + ratchet), TIMING_ASSERTION_VOCABULARY untouched (C-004). @performance run 18 passed budgets intact + nightly-collected; per-PR 235 passed; ruff clean. Minor non-blocking: orphaned _RESEARCH_ACTIONS constant left in drg-nodes.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1902606,
+      "shell_pid_created_at": "1788972568.23"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M23NZ13G3WMVQHW9F3GZECSE",
+      "last_transition_at": "2026-09-09T18:12:59.120167+00:00",
+      "review_result": {
+        "reference": "Cycle-2 review passed: timeout marker moved off helper onto both split siblings (functional companion + @performance), both carry 10s hang-cap and collect/pass with pytest-timeout 2.4.0; exclude-ratchet green (85 passed); test_observation graduated + format-clean, test_reconcile clean, other excluded files still genuinely reformat; TIMING_ASSERTION_VOCABULARY unchanged (C-004); vocab-blocked deletion gone; ruff check clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2016525,
+      "shell_pid_created_at": "1788975530.28"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M23NZ2PJDFYTTR6TVBBBA9QQ",
+      "last_transition_at": "2026-09-09T18:13:00.754488+00:00",
+      "review_result": {
+        "reference": "Review passed: #4015 MIXED splits across auth/cross_cutting/review/status/zeitgeist_client all preserve functional coverage (functional assert stays unmarked per-PR; timing assert relocated to @pytest.mark.performance via assert_timing_budget with budget PRESERVED). Spot-checked auth_doctor(3s), tail_reader(0.05), repo_identity(x2), cross_cutting/misc(x3), verdict_commit_queue(x2). auth_doctor <3s split not deleted. No deletions (diff-filter=D empty). Guards green 79 passed; TIMING_ASSERTION_VOCABULARY token set byte-identical to base (C-004). @performance suite 29 passed/1 pre-existing-quarantine skip. Per-PR -m 'not performance' 238 passed. ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1906740,
+      "shell_pid_created_at": "1788972739.73"
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M23NZ49ZJ2ZX3WD93ZR5H3YD",
+      "last_transition_at": "2026-09-09T18:13:02.399082+00:00",
+      "review_result": {
+        "reference": "Review passed: 15 MIXED splits verified (functional per-PR unmarked; timing to @performance via assert_timing_budget, budgets preserved); test_sigkill no-op confirmed; 4 vocab-blocked deletions correct and complete, no dangling latency_budget shard ref; 3 guards green (81 passed, vocabulary unchanged); 18 @performance pass under RUN_PERFORMANCE=1; 532 per-PR functional pass; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1906740,
+      "shell_pid_created_at": "1788972739.73"
+    }
+  }
+}
