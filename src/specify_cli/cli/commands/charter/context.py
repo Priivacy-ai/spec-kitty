@@ -5,6 +5,9 @@ import json
 
 import typer
 
+from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
+
+from specify_cli.cli.helpers import git_resolution_failure_message
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
@@ -208,6 +211,18 @@ def context(
         raise typer.Exit(code=1) from e
     except ValueError as e:
         _emit_error(console, json_output=json_output, message=str(e))
+        raise typer.Exit(code=1) from e
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError) as e:
+        # #4123: a never-`git init`-ed project used to fall into the generic
+        # "Unexpected error" branch below with a non-actionable message.
+        # Same escape route as dispatch (build_charter_context ->
+        # ensure_charter_bundle_fresh), same actionable git-init advice;
+        # ``--json`` keeps its parseable envelope via _emit_error.
+        _emit_error(
+            console,
+            json_output=json_output,
+            message=git_resolution_failure_message(e, e.path),
+        )
         raise typer.Exit(code=1) from e
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
