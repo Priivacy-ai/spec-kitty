@@ -50,11 +50,37 @@ mission-type-activation errors, no surface-drift failure), where both
 formulas already agree — so it cannot accidentally freeze the buggy
 divergence in place. Do not extend this file to assert exit codes on a
 failure/drift-failure scenario; that belongs to WP04's own red-first tests.
+
+WP03 T013 (#4032, mission upgrade-no-migrations-provisioning-fix-01M20NK8):
+re-pinned onto a REAL ``spec-kitty init``-ed fixture (``_fixtures.py``'s
+``build_initialized_project``), not the config-absent scaffold this file
+used before. Two independent findings drove the re-pin:
+
+1. The old config-absent scaffold (``.kittify/metadata.yaml`` only) made
+   ``prepare_mission_type_activations`` observe ``write.before_bytes is
+   None`` -- exactly the #4032 absent-authority shape WP02 now defers
+   rather than applies. Keeping this fixture after WP02 would have silently
+   flipped this NFR-002 oracle onto the SKIP path (``PreparedUpgradeRepairs.
+   provisioning is None``, ``_finalizer_step_provision`` returns ``[]``
+   without calling ``.apply()``) -- a regression this net exists to catch,
+   not commit. FR-006/NFR-003 require this oracle to keep exercising the
+   provisioning **apply** path.
+2. Independently of authority state, the module-level ``_run_upgrade``
+   helper here calls the undecorated ``upgrade()`` function directly, never
+   through ``CliRunner``/Click -- every ``typer.Option(...)`` default is a
+   live, always-truthy ``OptionInfo`` instance until Click resolves it, so
+   an un-set ``plan_json`` always entered the unconditional ``if plan_json:
+   raise typer.Exit(...)`` branch (``upgrade.py``) before this test's
+   migration/commit flow ever ran -- confirmed pre-existing on the mission's
+   pre-WP01 base commit (``804a6d7ece``) too, so it is orthogonal to the
+   authority-presence fix and would have persisted even under the old
+   fixture. ``_run_upgrade`` now pins ``plan_json=False`` explicitly.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -64,50 +90,99 @@ import pytest
 from mission_runtime import CommitTarget
 
 import specify_cli.cli.commands.upgrade as upgrade_cmd
+from charter.activation.compiler import prepare_mission_type_activations
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.upgrade import autocommit
 from specify_cli.upgrade.migrations.base import MigrationResult
 from specify_cli.upgrade.runner import UpgradeResult
 
+from tests.upgrade._fixtures import build_initialized_project
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # Deliberately more than one path so set-equality (vs. subset) is a
-# meaningful assertion below.
+# meaningful assertion below. Re-derived for the T013 real-init-ed fixture:
+# both paths are genuinely written by a real `spec-kitty init`-ed project's
+# upgrade run (the metadata version stamp, and -- since this net degrades
+# `mission_type_activations` back out below to force a real apply -- the
+# provisioning authority itself), unlike the old config-absent scaffold's
+# arbitrary `.claude/commands/spec-kitty.tasks.md` literal.
 EXPECTED_CHURN_PATHS = {
     ".kittify/metadata.yaml",
-    ".claude/commands/spec-kitty.tasks.md",
+    ".kittify/config.yaml",
 }
 
 
-def _setup_upgrade_project(tmp_path: Path) -> Path:
-    """Minimal `.kittify` project scaffold.
+def _setup_upgrade_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A REAL ``spec-kitty init``-ed project (T013 -- config authority
+    present), degraded to strip the ``mission_type_activations`` key that
+    fresh ``init`` already seeds.
 
-    Mirrors ``tests/upgrade/test_upgrade_auto_commit_unit.py::_setup_upgrade_project``
-    (duplicated locally so this file stays self-contained — it is this WP's
-    only owned file).
+    This net's whole point is to prove the provisioning **apply** path (not
+    merely a green run on an init-ed project, which a skip-path run could
+    also produce with different churn -- WP03 T013 reviewer guidance): a
+    project with the key already present would make
+    ``_PreparedMissionTypeActivations.apply()`` a same-bytes no-op rewrite,
+    which is not an affirmative witness. Stripping the key here reproduces
+    the real-world PR #3246 scenario ``_provision_missing_mission_type_
+    activations``'s own docstring describes (a project whose authority
+    predates that provisioner) so ``apply()`` performs a genuine content
+    change the test can observe.
     """
-    kittify_dir = tmp_path / ".kittify"
-    kittify_dir.mkdir()
-    (kittify_dir / "metadata.yaml").write_text(
-        "spec_kitty:\n"
-        "  version: '1.0.0a1'\n"
-        "  initialized_at: '2026-01-01T00:00:00'\n"
-        "environment:\n"
-        "  python_version: '3.12'\n"
-        "  platform: linux\n"
-        "  platform_version: ''\n"
-        "migrations:\n"
-        "  applied: []\n"
+    project_path = build_initialized_project(tmp_path, monkeypatch)
+    config_path = project_path / ".kittify" / "config.yaml"
+    descriptor_before = prepare_mission_type_activations(project_path)
+    assert descriptor_before.write.before_bytes is not None, "sanity: this must be a present-authority descriptor"
+    config_text = config_path.read_text(encoding="utf-8")
+    stripped_lines = []
+    skipping = False
+    for line in config_text.splitlines(keepends=True):
+        if line.startswith("mission_type_activations:"):
+            skipping = True
+            continue
+        if skipping and line.startswith(("-", " ")):
+            continue
+        skipping = False
+        stripped_lines.append(line)
+    config_path.write_text("".join(stripped_lines), encoding="utf-8")
+
+    # Real `init` stamps the CURRENT CLI version into metadata.yaml; this
+    # net's mocked `MigrationRegistry.get_applicable`/`MigrationRunner.upgrade`
+    # (below) simulate an upgrade FROM "1.0.0a1" regardless of real metadata
+    # content (`outcome.result.from_version`/`to_version` -- the commit
+    # message's inputs -- are sourced from that mocked `UpgradeResult`, not a
+    # metadata re-read), but the REAL, unmocked downgrade guard
+    # (`validate_upgrade_target`) DOES read the real on-disk version before
+    # migrations run at all -- so it must agree with the scenario's premise
+    # or every real-init-ed project (already on the current, newer CLI
+    # version) would look like a downgrade against this net's "3.2.0a4"
+    # target.
+    metadata_path = project_path / ".kittify" / "metadata.yaml"
+    metadata_text = metadata_path.read_text(encoding="utf-8")
+    metadata_path.write_text(
+        re.sub(r"(?m)^(\s*version:\s*).*$", r"\g<1>'1.0.0a1'", metadata_text, count=1),
+        encoding="utf-8",
     )
-    return tmp_path
+    return project_path
 
 
 def _run_upgrade(**kwargs: object) -> None:
-    """Drive the real `upgrade()` entry point (mirrors the sibling harness)."""
+    """Drive the real `upgrade()` entry point (mirrors the sibling harness).
+
+    WP03 (#4032, recorded out-of-map edit): ``upgrade()``'s ``typer.Option``
+    defaults are live ``OptionInfo`` instances (always truthy) until Click
+    resolves them -- calling the undecorated function directly without an
+    explicit ``plan_json`` always entered the unconditional ``if plan_json:``
+    branch and crashed via its own unconditional ``raise typer.Exit(...)``
+    before this test's flow ever ran. Confirmed pre-existing on the
+    mission's pre-WP01 base commit too (see module docstring point 2) --
+    orthogonal to the T013 fixture re-pin, fixed here regardless.
+    """
     kwargs.setdefault("agent_check", False)
     kwargs.setdefault("agent_choice", None)
     kwargs.setdefault("agent_latest", None)
+    kwargs.setdefault("plan_json", False)
     upgrade_cmd.upgrade(**kwargs)
 
 
@@ -122,7 +197,9 @@ def test_default_migrations_pending_commit_behavior_characterization(
     list (a)-(e). This is the char-net's single scenario: WP03/WP04 must
     keep it green across the finalizer refactor.
     """
-    project_path = _setup_upgrade_project(tmp_path)
+    project_path = _setup_upgrade_project(tmp_path / "proj", monkeypatch)
+    config_path = project_path / ".kittify" / "config.yaml"
+    config_bytes_before = config_path.read_bytes()
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
 
     # --- git_status_paths: call #1 is the pre-migration baseline (clean),
@@ -263,3 +340,18 @@ def test_default_migrations_pending_commit_behavior_characterization(
     assert len(commit_touched_checkout_from_versions) == 1
     assert commit_touched_checkout_from_versions[0] == "1.0.0a1"
     assert commit_touched_checkout_to_versions[0] == "3.2.0a4"
+
+    # T013 -- affirmative apply-path witness (not green-by-accident): a
+    # skip-path run (config-absent, `PreparedUpgradeRepairs.provisioning is
+    # None`) could ALSO reach `data["success"] is True` with a different
+    # churn set, so green alone does not prove the apply path fired. Prove
+    # the provisioning authority was genuinely WRITTEN TO, not merely
+    # planned: the degraded `mission_type_activations` key this fixture
+    # stripped is back, with the canonical default set, and the file's
+    # bytes actually changed on disk.
+    config_bytes_after = config_path.read_bytes()
+    assert config_bytes_after != config_bytes_before, "T013: no observable apply-effect -- config.yaml is byte-identical to the degraded pre-run state"
+    descriptor_after = prepare_mission_type_activations(project_path)
+    assert descriptor_after.write.before_bytes is not None
+    assert descriptor_after.reason == "key_present", "the provisioning apply() call must have (re)written the key"
+    assert descriptor_after.mission_type_activations, "the (re)written key must carry the seeded default values, not an empty list"

@@ -414,7 +414,18 @@ class PreparedProjectSkills:
 
 
 def _prepare_skill_provisioning(root: Path, projected: object) -> _PreparedMissionTypeActivations | None:
-    """Admit only the actual compiler descriptor, without changing skill selection."""
+    """Admit only the actual compiler descriptor, without changing skill selection.
+
+    Pure integrity validator (#4032/T008): raises ONLY on a genuinely
+    malformed/non-canonical descriptor. An absent config authority
+    (``write.before_bytes is None`` / ``write.absent_parents``) is no longer
+    rejected here -- that is now the benign "nothing to provision" case,
+    decided once at the assessment layer (``upgrade/assessment.py``, which
+    nulls ``PreparedUpgradeRepairs.provisioning`` so the finalizer's raw
+    ``.apply()`` never creates the authority, C-001). The hardlink-safety
+    check below only applies when a target file actually exists to protect --
+    there is nothing to protect against rewriting when it does not.
+    """
     if projected is None:
         return None
     if type(projected) is not _PreparedMissionTypeActivations:
@@ -424,11 +435,10 @@ def _prepare_skill_provisioning(root: Path, projected: object) -> _PreparedMissi
     if descriptor != prepare_mission_type_activations(root):
         raise ValueError("Managed skill provisioning differs from the canonical compiler")
     write = descriptor.write
-    if write.before_bytes is None or write.absent_parents:
-        raise ValueError("Managed skill provisioning requires an existing authority")
-    original = next(item for item in write.observations if item.path == write.target)
-    if write.changed and (original.identity is None or original.identity[-1] != 1):
-        raise ValueError("Managed skill provisioning cannot rewrite a hardlinked authority")
+    if write.before_bytes is not None:
+        original = next(item for item in write.observations if item.path == write.target)
+        if write.changed and (original.identity is None or original.identity[-1] != 1):
+            raise ValueError("Managed skill provisioning cannot rewrite a hardlinked authority")
     # Skills render solely from the retained catalog and selected agents. The
     # compiler's mission-type field cannot alter agent/config selection policy.
     documents = tuple(YAML(typ="rt").load(content) for content in (write.before_bytes, write.desired_bytes))

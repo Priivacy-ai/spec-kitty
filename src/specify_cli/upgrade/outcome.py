@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.tool_surface.operations import Diagnostic
+
 from .runner import UpgradeResult
 
 
@@ -50,6 +52,29 @@ class UpgradeOutcome:
     repair: RepairOutcome = field(default_factory=RepairOutcome)
     committed: bool = False
     exit_code: int = 0
+    #: Non-error diagnostics carried generically on the outcome (#4032/WP02,
+    #: ownership-map leeway -- ``outcome.py`` is unowned by WP01, which owns
+    #: only ``cli/commands/upgrade.py``, and sits inside WP02's
+    #: ``src/specify_cli/upgrade/`` authoritative surface). Consumed by
+    #: ``cli.commands.upgrade._print_non_error_diagnostics`` (human ``Note:``
+    #: lines) and by ``deferred_provisioning_payload`` below (JSON). Never
+    #: contains ``error``-severity diagnostics -- those flow through
+    #: ``result.errors``/``activation_errors`` instead.
+    diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
+
+    @property
+    def deferred_provisioning_payload(self) -> dict[str, object] | None:
+        """JSON contract (contracts/deferred-provisioning-diagnostic.md).
+
+        ``None`` when no ``deferred_provisioning`` diagnostic is present.
+        Otherwise a small dict carrying actual content (not a bare `True`
+        sentinel) so a presence-only assertion cannot be satisfied without
+        the real signal (RT5).
+        """
+        for diagnostic in self.diagnostics:
+            if diagnostic.code == "deferred_provisioning":
+                return {"deferred": True, "reason": "no_config_authority"}
+        return None
 
     @property
     def effective_success(self) -> bool:

@@ -687,9 +687,30 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
 
 
 def _run_upgrade(**kwargs):
+    """Call the undecorated ``upgrade()`` function directly (not through
+    ``CliRunner``/Click).
+
+    WP03 (#4032, recorded out-of-map edit): every ``typer.Option(...)``
+    default on ``upgrade()`` is a live ``typer.models.OptionInfo`` instance,
+    not the plain Python value it wraps -- Click/Typer only resolves those
+    to real values when the CLI machinery parses arguments. ``OptionInfo``
+    has no ``__bool__``, so it is truthy as a generic object regardless of
+    its wrapped default. Calling ``upgrade()`` directly without an explicit
+    ``plan_json`` therefore ALWAYS entered the ``if plan_json:`` branch
+    (``upgrade.py``) and hit ``_run_full_plan_json``'s unconditional
+    ``raise typer.Exit(...)`` -- uncaught here (no ``CliRunner`` to convert
+    it into a ``Result.exit_code``), crashing every test in this module
+    before it ever reached the migration/commit flow under test. This
+    predates WP01/WP02 (confirmed against the mission's pre-WP01 base
+    commit, ``804a6d7ece``: the same tests failed there too, just via the
+    OLD hard "requires an existing authority" error instead of the exit
+    the fix now produces) -- an unrelated, pre-existing test-harness gap
+    this WP closes so the module actually exercises its intended code path.
+    """
     kwargs.setdefault("agent_check", False)
     kwargs.setdefault("agent_choice", None)
     kwargs.setdefault("agent_latest", None)
+    kwargs.setdefault("plan_json", False)
     return upgrade_cmd.upgrade(**kwargs)
 
 

@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager, nullcontext
 
+from specify_cli.tool_surface.operations import Diagnostic
+
 from .outcome import RepairOutcome, UpgradeOutcome
 
 
@@ -33,10 +35,18 @@ def finalize_upgrade(
     commit_churn: Callable[[], bool],
     should_commit: bool,
     repair_preflight: AbstractContextManager[Sequence[str]] | None = None,
+    diagnostics: Sequence[Diagnostic] = (),
 ) -> UpgradeOutcome:
     """Sequence the shared post-migration tail and derive the exit code once.
 
     Ordered steps (C4/D-4):
+      0. Non-error *diagnostics* (e.g. the #4032 ``deferred_provisioning``
+         signal) carried by the caller's assessment layer are stamped onto
+         ``outcome.diagnostics`` before anything else runs, so both renderers
+         (``_print_non_error_diagnostics`` / the JSON payload) can source them
+         from the single finalized ``outcome`` object. Error-severity entries
+         are dropped here -- they belong on ``result.errors``/
+         ``activation_errors`` instead and must never double-report.
       1. ``provision_activations()`` — mission-type activation provisioning
          (+ any dry-run notice the callable itself prints, D-11). Its
          returned error strings feed ``outcome.activation_errors``.
@@ -54,6 +64,7 @@ def finalize_upgrade(
     The exit code is derived exactly once, at the end, from ``outcome``
     (D-5) — no other site in the upgrade flow may compute it independently.
     """
+    outcome.diagnostics = tuple(d for d in diagnostics if d.severity != "error")
     # Keep owner locks around only the two dependent write phases, never Git
     # commits or the independently consented mission-state repair prompt.
     with repair_preflight if repair_preflight is not None else nullcontext(()) as errors:

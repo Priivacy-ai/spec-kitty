@@ -28,35 +28,24 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.upgrade import upgrade
 
+from tests.upgrade._fixtures import build_config_absent_project
+
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _test_app = typer.Typer(add_completion=False)
 _test_app.command()(upgrade)
 _runner = CliRunner()
 
-_METADATA_YAML = (
-    "spec_kitty:\n"
-    "  version: '{version}'\n"
-    "  initialized_at: '2026-01-01T00:00:00'\n"
-    "environment:\n"
-    "  python_version: '3.12'\n"
-    "  platform: linux\n"
-    "  platform_version: ''\n"
-    "migrations:\n"
-    "  applied: []\n"
-)
-
 
 def _init_project(root: Path, *, version: str = "1.0.0a1") -> None:
-    root.mkdir(parents=True, exist_ok=True)
-    kittify = root / ".kittify"
-    kittify.mkdir()
-    (kittify / "metadata.yaml").write_text(_METADATA_YAML.format(version=version), encoding="utf-8")
-    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
-    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
+    """The legacy, config-absent project shape (WP03 T012/FR-010: delegates
+    to the shared ``_fixtures.py`` builder -- previously a local
+    ``.kittify/metadata.yaml``-only + git-init scaffold duplicated across
+    this file, ``test_upgrade_integration.py``, and
+    ``test_upgrade_char_net.py``). Confirmed still green under WP02 (this
+    file's NFR-001 idempotency scenarios were never in the frozen Group A
+    failing set -- T011's baseline run passed both before this migration)."""
+    build_config_absent_project(root, version=version)
 
 
 def _run_upgrade(args: list[str], cwd: Path):

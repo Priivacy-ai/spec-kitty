@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from specify_cli.tool_surface.operations import FileState
     from specify_cli.tool_surface.repair import DriftPolicySummary
     from specify_cli.upgrade.migrations.base import BaseMigration
+    from specify_cli.upgrade.intent import UpgradeIntent
 from rich.panel import Panel
 from rich.table import Table
 
@@ -959,6 +960,10 @@ def _build_migration_json_payload(
         "auto_committed": outcome.committed,
         "auto_commit_paths": auto_commit_paths,
         "surface_repair": _surface_repair_payload(surface_repair_summary),
+        # WP02 (#4032, recorded out-of-map edit): non-error deferred-
+        # provisioning signal (contracts/deferred-provisioning-diagnostic.md),
+        # sourced from the WP02-owned `UpgradeOutcome.deferred_provisioning_payload`.
+        "deferred_provisioning": outcome.deferred_provisioning_payload,
     }
 
 
@@ -987,6 +992,9 @@ def _build_no_migrations_json_payload(
         "auto_commit_paths": auto_commit_paths,
         "warnings": result.warnings,
         "surface_repair": _surface_repair_payload(surface_repair_summary),
+        # WP02 (#4032, recorded out-of-map edit): see the sibling comment in
+        # ``_build_migration_json_payload``.
+        "deferred_provisioning": outcome.deferred_provisioning_payload,
     }
 
 
@@ -1029,9 +1037,18 @@ class _FinalizerRenderContext:
 
 
 def _finalizer_step_provision(project_path: Path, *, dry_run: bool, prepared: PreparedUpgradeRepairs | None = None) -> list[str]:
-    """Injected ``provision_activations`` step (C4 order position 1)."""
+    """Injected ``provision_activations`` step (C4 order position 1).
+
+    WP02/C-001 (#4032, recorded out-of-map edit -- owned by WP01, sequential
+    hand-off): ``prepared.provisioning`` is ``None`` when the config
+    authority was absent at assessment time (deferred, non-fatal). There is
+    then nothing to apply -- calling ``.apply()`` on the absent descriptor
+    would otherwise perform the deferred #4047 create-from-absent write.
+    """
     if prepared is None:
         return _provision_missing_mission_type_activations(project_path, dry_run=dry_run)
+    if prepared.provisioning is None:
+        return []
     try:
         prepared.provisioning.apply()
     except (OSError, ValueError) as exc:
@@ -1418,7 +1435,399 @@ def _run_full_plan_json(
     raise typer.Exit(int(payload["process_exit_code"]))
 
 
-def upgrade(  # noqa: C901 - public command preserves legacy routing while adding explicit full preview
+# ---------------------------------------------------------------------------
+# WP01 — upgrade() decomposition (behavior-preserving, C-004): named
+# sub-functions extracted from the pre-decomposition ~345-line entry point so
+# each cohesive block is independently testable and the whole file drops the
+# C901 suppression. No logic changes; see kitty-specs/
+# upgrade-no-migrations-provisioning-fix-01M20NK8/tasks/WP01-decompose-upgrade-entry.md.
+# ---------------------------------------------------------------------------
+
+
+def _enforce_no_intent_conflicts(
+    intent: UpgradeIntent | None,
+    *,
+    json_output: bool,
+    plan_json: bool,
+    project: bool,
+    no_worktrees: bool,
+    target: str | None,
+) -> None:
+    """Pure extraction of the pre-refactor inline flag-conflict guard.
+
+    Returns normally when *intent* is ``None`` or carries no conflicts;
+    otherwise renders the conflict (JSON — ``--plan-json`` full-plan shape,
+    the compat-planner contract shape, or plain human text) and raises
+    ``typer.Exit(2)``.
+    """
+    if intent is None or not intent.conflicts:
+        return
+    message = "\n".join(intent.conflicts)
+    if json_output or plan_json:
+        if plan_json:
+            _emit_blocked_full_plan(
+                project_path=Path.cwd(), target=target, project=project,
+                no_worktrees=no_worktrees, confirm=False, code=2,
+                diagnostic_code="incompatible_flags", message=message,
+            )
+        from specify_cli.compat.planner import Invocation, plan
+
+        payload = dict(plan(Invocation(
+            command_path=("upgrade",), raw_args=("--cli", "--project"),
+            is_help=False, is_version=False, flag_no_nag=True,
+            env_ci=True, stdout_is_tty=False,
+        ), read_only=True, project_root_resolver=lambda _path: Path.cwd(), include_migrations=False).rendered_json)
+        payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, pending_migrations=[], rendered_human=message[:1024])
+        print(json.dumps(payload))
+    else:
+        console.print(message, markup=False)
+    raise typer.Exit(2)
+
+
+def _enforce_cli_project_exclusivity(cli: bool, project: bool) -> None:
+    """T034: ``--cli`` and ``--project`` together exit 2. Pure extraction."""
+    if cli and project:
+        console.print("[red]Error:[/red] --cli and --project are mutually exclusive.")
+        console.print("[dim]Use --cli for CLI guidance only, or --project for project migrations only.[/dim]")
+        raise typer.Exit(2)
+
+
+def _resolve_project_context(
+    *,
+    plan_json: bool,
+    target: str | None,
+    project: bool,
+    no_worktrees: bool,
+    json_output: bool,
+    dry_run: bool,
+    no_nag: bool,
+) -> tuple[Path, Path]:
+    """T036/T019: resolve the project root and enforce project-mode guards.
+
+    Pure extraction of the pre-refactor inline block — returns
+    ``(project_path, kittify_dir)`` only when the invocation may proceed;
+    every blocked/fallback path raises ``typer.Exit`` (directly via
+    ``_emit_blocked_full_plan``, or via ``_guard_project_or_fallback_to_cli``,
+    which itself always exits when it does not return).
+    """
+    project_path = Path.cwd()
+    kittify_dir = project_path / ".kittify"
+    if plan_json and not _is_in_project(project_path):
+        _emit_blocked_full_plan(
+            project_path=project_path, target=target, project=project,
+            no_worktrees=no_worktrees, confirm=False, code=1,
+            diagnostic_code="project_not_initialized", message="Not a Spec Kitty project",
+        )
+    _guard_project_or_fallback_to_cli(
+        project_path,
+        project=project,
+        json_output=json_output,
+        dry_run=dry_run,
+        no_nag=no_nag,
+    )
+    return project_path, kittify_dir
+
+
+def _maybe_emit_planner_json(
+    *,
+    json_output: bool,
+    project: bool,
+    dry_run: bool,
+    no_nag: bool,
+    project_path: Path,
+    target: str | None,
+) -> None:
+    """T037: ``--json`` with ``--project`` or ``--dry-run`` emits the
+    compat-planner contract (for ``--project`` or default mode with
+    ``--json``, the planner is always consulted).
+
+    Pure extraction of the pre-refactor inline guard: a no-op when the
+    condition is false; otherwise ``_run_planner_json`` always raises
+    ``typer.Exit``.
+    """
+    if json_output and (project or dry_run):
+        # FR-009: the pending set is computed against the same target the
+        # real run would use (explicit --target, or the installed CLI
+        # version) so the preview matches the applied set.
+        _run_planner_json(
+            dry_run=dry_run,
+            no_nag=no_nag,
+            project_path=project_path,
+            target_version=_resolve_upgrade_target(target),
+        )
+
+
+def _run_migration_phase(
+    *,
+    project_path: Path,
+    kittify_dir: Path,
+    target: str | None,
+    dry_run: bool,
+    no_worktrees: bool,
+    json_output: bool,
+    verbose: bool,
+    confirm: bool,
+) -> tuple[UpgradeOutcome, list[BaseMigration], list[str]]:
+    """T017/T021: detect versions, gather applicable migrations, and run them.
+
+    Pure extraction of the pre-refactor inline block. Returns the produced
+    ``UpgradeOutcome``, the migrations that were applicable (empty when the
+    project is already up to date), and the manual-review paths collected
+    from the migration run (empty on the no-migrations branch).
+    ``_reject_downgrade_target`` remains a legitimate pre-finalizer
+    ``typer.Exit`` gate — no ``UpgradeOutcome`` exists yet at that point.
+    """
+    # Import upgrade system (lazy to avoid circular imports)
+    from specify_cli.upgrade.detector import VersionDetector
+    from specify_cli.upgrade.registry import MigrationRegistry
+    from specify_cli.upgrade.runner import MigrationRunner, validate_upgrade_target
+
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+
+    auto_discover_migrations()
+
+    # Detect current version
+    detector = VersionDetector(project_path)
+    current_version = detector.detect_version()
+
+    # Determine target version
+    target_version = _resolve_upgrade_target(target)
+
+    validation_error = validate_upgrade_target(current_version, target_version)
+    _reject_downgrade_target(
+        validation_error,
+        current_version=current_version,
+        target_version=target_version,
+        json_output=json_output,
+    )
+
+    if not json_output:
+        console.print(f"[cyan]Current version:[/cyan] {current_version}")
+        console.print(f"[cyan]Target version:[/cyan]  {target_version}")
+        console.print()
+
+    # Get needed migrations
+    # Handle "unknown" version by treating it as very old (0.0.0)
+    version_for_migration = "0.0.0" if current_version == "unknown" else current_version
+    migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
+
+    manual_review_paths: list[str] = []
+    if not migrations_needed:
+        outcome = _build_no_migrations_outcome(
+            project_path=project_path,
+            kittify_dir=kittify_dir,
+            current_version=current_version,
+            target_version=target_version,
+            dry_run=dry_run,
+            no_worktrees=no_worktrees,
+        )
+        return outcome, migrations_needed, manual_review_paths
+
+    _show_migration_plan_and_confirm(
+        migrations_needed,
+        project_path=project_path,
+        json_output=json_output,
+        dry_run=dry_run,
+        verbose=verbose,
+        confirm=confirm,
+    )
+
+    # auto_commit: the runner commits each worktree's upgrade churn on its
+    # own branch (#2385) so a later `spec-kitty merge` isn't blocked by
+    # dirty coord/lane worktrees. D-10: the worktree-scope decision, not a
+    # bare `not dry_run`. The main checkout is committed by the finalizer
+    # (see ``_run_upgrade_finalizer``).
+    result = MigrationRunner(project_path, console).upgrade(
+        target_version,
+        dry_run=dry_run,
+        force=confirm,  # pass the unified confirm flag
+        include_worktrees=not no_worktrees,
+        auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+    )
+    manual_review_paths = _collect_manual_review_paths(result.migration_results)
+    if manual_review_paths:
+        result.warnings.append("Skipped auto-commit because the upgrade preserved customized files that require manual review.")
+    outcome = UpgradeOutcome(
+        result=result,
+        manual_review_paths=[Path(p) for p in manual_review_paths],
+        worktree_failures=list(result.worktree_failures),
+    )
+    return outcome, migrations_needed, manual_review_paths
+
+
+def _run_upgrade_finalizer(
+    outcome: UpgradeOutcome,
+    *,
+    project_path: Path,
+    dry_run: bool,
+    confirm: bool,
+    json_output: bool,
+    baseline_changed_paths: set[str] | None,
+    should_commit_main: bool,
+) -> tuple[UpgradeOutcome, _FinalizerRenderContext]:
+    """T017/C4 — one shared tail: wire the finalizer with the step
+    implementations as injected callables (the finalizer itself does not
+    import cli.commands — see upgrade/finalize.py's module docstring).
+
+    **Atomic extraction (reviewer note, do not split):** ``render_ctx``
+    creation, the preflight-error preparation, and the ``finalize_upgrade``
+    call — including the ``repair_preflight`` context-manager construction —
+    all live in this ONE function, so the ``ExitStack`` /
+    ``_RECHECKED_PROJECT`` / ``_COMMAND_PARENTS`` ContextVars /
+    ``_PROJECT_SKILL_LOCK`` RLock span (``upgrade/finalize.py``,
+    ``skills/installer.py``) is never split across functions that open and
+    close their own contexts.
+    """
+    render_ctx = _FinalizerRenderContext()
+    preparation_errors: tuple[str, ...] = ()
+    if not dry_run and outcome.result.success:
+        preparation_errors = _prepare_finalizer_repairs(project_path, render_ctx)
+
+    from specify_cli.upgrade.finalize import finalize_upgrade
+
+    outcome = finalize_upgrade(
+        outcome,
+        # WP02 (#4032, recorded out-of-map edit): thread the assessment
+        # layer's own diagnostics (e.g. the non-error `deferred_provisioning`
+        # signal) into the finalized outcome. No per-signal render logic
+        # lives here -- `finalize_upgrade` (WP02-owned) stamps them onto
+        # `outcome.diagnostics`, and the existing generic seams
+        # (`_print_non_error_diagnostics` / the JSON payload builders) do
+        # the rendering.
+        diagnostics=render_ctx.prepared_repairs.diagnostics if render_ctx.prepared_repairs is not None else (),
+        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run, prepared=render_ctx.prepared_repairs),
+        run_surface_repair=functools.partial(
+            _finalizer_step_surface_repair,
+            outcome,
+            render_ctx,
+            project_path=project_path,
+            confirm=confirm,
+            dry_run=dry_run,
+            json_output=json_output,
+        ),
+        commit_churn=functools.partial(
+            _finalizer_step_commit_churn,
+            outcome,
+            render_ctx,
+            project_path=project_path,
+            baseline_changed_paths=baseline_changed_paths,
+        ),
+        offer_repair=functools.partial(
+            _finalizer_step_offer_repair,
+            outcome,
+            project_path=project_path,
+            confirm=confirm,
+            dry_run=dry_run,
+            json_output=json_output,
+        ),
+        should_commit=should_commit_main,
+        repair_preflight=_finalizer_repair_preflight(render_ctx.prepared_repairs, preparation_errors),
+    )
+    return outcome, render_ctx
+
+
+def _print_non_error_diagnostics(outcome: UpgradeOutcome) -> None:
+    """Render any non-error diagnostics carried generically on the outcome.
+
+    **Generic render seam (WP01/WP02 ownership split, C-004).**
+    ``UpgradeOutcome`` carries no ``diagnostics`` collection yet, so
+    ``getattr`` with an empty-tuple default keeps this call a
+    behavior-preserving no-op today — nothing is printed. A later WP that
+    populates a non-error diagnostic (e.g. a deferred-provisioning notice)
+    from its own owned layer needs no edit to this file: it flows out
+    through this seam as a ``Note:`` line, keyed only on ``severity`` /
+    ``message`` duck-typing (mirrors ``tool_surface.operations.Diagnostic``).
+    """
+    for diagnostic in getattr(outcome, "diagnostics", ()):
+        if getattr(diagnostic, "severity", "error") == "error":
+            continue
+        console.print(f"[dim]Note: {diagnostic.message}[/dim]")
+
+
+def _report_upgrade_outcome(
+    outcome: UpgradeOutcome,
+    render_ctx: _FinalizerRenderContext,
+    *,
+    migrations_needed: Sequence[BaseMigration],
+    manual_review_paths: list[str],
+    json_output: bool,
+    dry_run: bool,
+    should_commit_main: bool,
+    project_path: Path,
+    baseline_changed_paths: set[str] | None,
+) -> None:
+    """T020/T022/D-5 tail: render the finalized outcome as JSON or human
+    output.
+
+    Pure rendering plus the churn-left-uncommitted computation (itself
+    side-effect-free) — never raises, and never derives the exit code (that
+    happens exactly once, inside ``finalize_upgrade``, before this is
+    called). Exposes the generic non-error-diagnostic render seam (see
+    ``_print_non_error_diagnostics``) in the human-output branches.
+    """
+    surface_repair_summary = render_ctx.surface_repair_summary
+    if render_ctx.commit_warning:
+        outcome.result.warnings.append(render_ctx.commit_warning)
+    auto_commit_paths = list(render_ctx.commit_paths)
+    # Human-mode-only (FR-003/US2 scenario 1): the JSON contract already
+    # reports the config opt-out honestly via `auto_committed: false`, so
+    # this extra churn-detection git-status call is skipped for `--json`.
+    left_uncommitted = not json_output and _churn_left_uncommitted_by_config(
+        outcome,
+        dry_run=dry_run,
+        should_commit_main=should_commit_main,
+        project_path=project_path,
+        baseline_changed_paths=baseline_changed_paths,
+    )
+
+    if json_output:
+        json_payload = (
+            _build_migration_json_payload(
+                outcome,
+                migrations_needed,
+                manual_review_paths=manual_review_paths,
+                auto_commit_paths=auto_commit_paths,
+                surface_repair_summary=surface_repair_summary,
+            )
+            if migrations_needed
+            else _build_no_migrations_json_payload(
+                outcome,
+                auto_commit_paths=auto_commit_paths,
+                surface_repair_summary=surface_repair_summary,
+            )
+        )
+        print(json.dumps(json_payload))
+        return
+
+    if migrations_needed:
+        _display_upgrade_results(
+            outcome.result,
+            manual_review_paths=manual_review_paths,
+            auto_committed=outcome.committed,
+            auto_commit_paths=auto_commit_paths,
+            effective_success=outcome.effective_success,
+            errors=_combined_errors(outcome, surface_repair_summary),
+            left_uncommitted=left_uncommitted,
+        )
+    else:
+        _display_no_migrations_results(
+            outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted
+        )
+        # Dry-run parity: the finalizer provisions mission_type_activations on
+        # BOTH the migration and no-migrations paths (upgrade/finalize.py — the
+        # single tail), so an up-to-date project still missing the key is seeded
+        # on a real run. The migration path previews that via
+        # _show_migration_plan_and_confirm; the up-to-date path must too, or a
+        # --dry-run silently under-reports the pending seed (no-ops for --json
+        # and outside dry-run).
+        _print_dry_run_provisioning_notice(
+            project_path, dry_run=dry_run, json_output=json_output
+        )
+
+    _print_non_error_diagnostics(outcome)
+
+
+def upgrade(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
     target: str | None = typer.Option(None, "--target", help="Target version (defaults to current CLI version)"),
@@ -1472,27 +1881,14 @@ def upgrade(  # noqa: C901 - public command preserves legacy routing while addin
     """
     current_context = click.get_current_context(silent=True)
     intent = current_context.meta.get("upgrade_intent") if current_context is not None else None
-    if intent is not None and intent.conflicts:
-        message = "\n".join(intent.conflicts)
-        if json_output or plan_json:
-            if plan_json:
-                _emit_blocked_full_plan(
-                    project_path=Path.cwd(), target=target, project=project,
-                    no_worktrees=no_worktrees, confirm=False, code=2,
-                    diagnostic_code="incompatible_flags", message=message,
-                )
-            from specify_cli.compat.planner import Invocation, plan
-
-            payload = dict(plan(Invocation(
-                command_path=("upgrade",), raw_args=("--cli", "--project"),
-                is_help=False, is_version=False, flag_no_nag=True,
-                env_ci=True, stdout_is_tty=False,
-            ), read_only=True, project_root_resolver=lambda _path: Path.cwd(), include_migrations=False).rendered_json)
-            payload.update(decision="BLOCK_INCOMPATIBLE_FLAGS", case="none", exit_code=2, pending_migrations=[], rendered_human=message[:1024])
-            print(json.dumps(payload))
-        else:
-            console.print(message, markup=False)
-        raise typer.Exit(2)
+    _enforce_no_intent_conflicts(
+        intent,
+        json_output=json_output,
+        plan_json=plan_json,
+        project=project,
+        no_worktrees=no_worktrees,
+        target=target,
+    )
 
     _dispatch_agent_flags(
         agent_check=agent_check,
@@ -1502,10 +1898,7 @@ def upgrade(  # noqa: C901 - public command preserves legacy routing while addin
     )
 
     # T034 — mutual exclusion check
-    if cli and project:
-        console.print("[red]Error:[/red] --cli and --project are mutually exclusive.")
-        console.print("[dim]Use --cli for CLI guidance only, or --project for project migrations only.[/dim]")
-        raise typer.Exit(2)
+    _enforce_cli_project_exclusivity(cli, project)
 
     # T034 — --yes aliases --force (both remain functional)
     confirm = (yes is True) or (force is True)
@@ -1523,17 +1916,11 @@ def upgrade(  # noqa: C901 - public command preserves legacy routing while addin
 
     # T036/T019 — in --project mode, fail fast outside a project; the
     # default (bare) invocation falls back to --cli guidance instead.
-    project_path = Path.cwd()
-    kittify_dir = project_path / ".kittify"
-    if plan_json and not _is_in_project(project_path):
-        _emit_blocked_full_plan(
-            project_path=project_path, target=target, project=project,
-            no_worktrees=no_worktrees, confirm=False, code=1,
-            diagnostic_code="project_not_initialized", message="Not a Spec Kitty project",
-        )
-    _guard_project_or_fallback_to_cli(
-        project_path,
+    project_path, kittify_dir = _resolve_project_context(
+        plan_json=plan_json,
+        target=target,
         project=project,
+        no_worktrees=no_worktrees,
         json_output=json_output,
         dry_run=dry_run,
         no_nag=no_nag,
@@ -1561,97 +1948,30 @@ def upgrade(  # noqa: C901 - public command preserves legacy routing while addin
     # from contracts/compat-planner.json in addition to (or instead of) the
     # old project-upgrade JSON.  For --project mode, the planner is always
     # consulted; for default mode, the planner runs only when --json is used.
-    if json_output and (project or dry_run):
-        # Emit compat-planner contract. FR-009: the pending set is computed
-        # against the same target the real run would use (explicit --target, or
-        # the installed CLI version) so the preview matches the applied set.
-        _run_planner_json(
-            dry_run=dry_run,
-            no_nag=no_nag,
-            project_path=project_path,
-            target_version=_resolve_upgrade_target(target),
-        )
-        return  # _run_planner_json always raises typer.Exit
+    _maybe_emit_planner_json(
+        json_output=json_output,
+        project=project,
+        dry_run=dry_run,
+        no_nag=no_nag,
+        project_path=project_path,
+        target=target,
+    )
 
     if not json_output:
         show_banner()
 
     baseline_changed_paths = capture_upgrade_baseline(project_path)
 
-    # Import upgrade system (lazy to avoid circular imports)
-    from specify_cli.upgrade.detector import VersionDetector
-    from specify_cli.upgrade.registry import MigrationRegistry
-    from specify_cli.upgrade.runner import MigrationRunner, validate_upgrade_target
-
-    from specify_cli.upgrade.migrations import auto_discover_migrations
-
-    auto_discover_migrations()
-
-    # Detect current version
-    detector = VersionDetector(project_path)
-    current_version = detector.detect_version()
-
-    # Determine target version
-    target_version = _resolve_upgrade_target(target)
-
-    validation_error = validate_upgrade_target(current_version, target_version)
-    _reject_downgrade_target(
-        validation_error,
-        current_version=current_version,
-        target_version=target_version,
+    outcome, migrations_needed, manual_review_paths = _run_migration_phase(
+        project_path=project_path,
+        kittify_dir=kittify_dir,
+        target=target,
+        dry_run=dry_run,
+        no_worktrees=no_worktrees,
         json_output=json_output,
+        verbose=verbose,
+        confirm=confirm,
     )
-
-    if not json_output:
-        console.print(f"[cyan]Current version:[/cyan] {current_version}")
-        console.print(f"[cyan]Target version:[/cyan]  {target_version}")
-        console.print()
-
-    # Get needed migrations
-    # Handle "unknown" version by treating it as very old (0.0.0)
-    version_for_migration = "0.0.0" if current_version == "unknown" else current_version
-    migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
-
-    manual_review_paths: list[str] = []
-    if not migrations_needed:
-        outcome = _build_no_migrations_outcome(
-            project_path=project_path,
-            kittify_dir=kittify_dir,
-            current_version=current_version,
-            target_version=target_version,
-            dry_run=dry_run,
-            no_worktrees=no_worktrees,
-        )
-    else:
-        _show_migration_plan_and_confirm(
-            migrations_needed,
-            project_path=project_path,
-            json_output=json_output,
-            dry_run=dry_run,
-            verbose=verbose,
-            confirm=confirm,
-        )
-
-        # auto_commit: the runner commits each worktree's upgrade churn on its
-        # own branch (#2385) so a later `spec-kitty merge` isn't blocked by
-        # dirty coord/lane worktrees. D-10: the worktree-scope decision, not a
-        # bare `not dry_run`. The main checkout is committed by the finalizer
-        # below.
-        result = MigrationRunner(project_path, console).upgrade(
-            target_version,
-            dry_run=dry_run,
-            force=confirm,  # pass the unified confirm flag
-            include_worktrees=not no_worktrees,
-            auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
-        )
-        manual_review_paths = _collect_manual_review_paths(result.migration_results)
-        if manual_review_paths:
-            result.warnings.append("Skipped auto-commit because the upgrade preserved customized files that require manual review.")
-        outcome = UpgradeOutcome(
-            result=result,
-            manual_review_paths=[Path(p) for p in manual_review_paths],
-            worktree_failures=list(result.worktree_failures),
-        )
 
     # T017/C4 — one shared tail: wire the finalizer with the step
     # implementations as injected callables (the finalizer itself does not
@@ -1659,106 +1979,34 @@ def upgrade(  # noqa: C901 - public command preserves legacy routing while addin
     should_commit_main = should_auto_commit(
         project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths)
     )
-    render_ctx = _FinalizerRenderContext()
-    preparation_errors: tuple[str, ...] = ()
-    if not dry_run and outcome.result.success:
-        preparation_errors = _prepare_finalizer_repairs(project_path, render_ctx)
-
-    from specify_cli.upgrade.finalize import finalize_upgrade
-
-    outcome = finalize_upgrade(
+    outcome, render_ctx = _run_upgrade_finalizer(
         outcome,
-        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run, prepared=render_ctx.prepared_repairs),
-        run_surface_repair=functools.partial(
-            _finalizer_step_surface_repair,
-            outcome,
-            render_ctx,
-            project_path=project_path,
-            confirm=confirm,
-            dry_run=dry_run,
-            json_output=json_output,
-        ),
-        commit_churn=functools.partial(
-            _finalizer_step_commit_churn,
-            outcome,
-            render_ctx,
-            project_path=project_path,
-            baseline_changed_paths=baseline_changed_paths,
-        ),
-        offer_repair=functools.partial(
-            _finalizer_step_offer_repair,
-            outcome,
-            project_path=project_path,
-            confirm=confirm,
-            dry_run=dry_run,
-            json_output=json_output,
-        ),
-        should_commit=should_commit_main,
-        repair_preflight=_finalizer_repair_preflight(render_ctx.prepared_repairs, preparation_errors),
+        project_path=project_path,
+        dry_run=dry_run,
+        confirm=confirm,
+        json_output=json_output,
+        baseline_changed_paths=baseline_changed_paths,
+        should_commit_main=should_commit_main,
     )
 
-    surface_repair_summary = render_ctx.surface_repair_summary
-    if render_ctx.commit_warning:
-        outcome.result.warnings.append(render_ctx.commit_warning)
-    auto_commit_paths = list(render_ctx.commit_paths)
-    # Human-mode-only (FR-003/US2 scenario 1): the JSON contract already
-    # reports the config opt-out honestly via `auto_committed: false`, so
-    # this extra churn-detection git-status call is skipped for `--json`.
-    left_uncommitted = not json_output and _churn_left_uncommitted_by_config(
+    _report_upgrade_outcome(
         outcome,
+        render_ctx,
+        migrations_needed=migrations_needed,
+        manual_review_paths=manual_review_paths,
+        json_output=json_output,
         dry_run=dry_run,
         should_commit_main=should_commit_main,
         project_path=project_path,
         baseline_changed_paths=baseline_changed_paths,
     )
 
-    if json_output:
-        json_payload = (
-            _build_migration_json_payload(
-                outcome,
-                migrations_needed,
-                manual_review_paths=manual_review_paths,
-                auto_commit_paths=auto_commit_paths,
-                surface_repair_summary=surface_repair_summary,
-            )
-            if migrations_needed
-            else _build_no_migrations_json_payload(
-                outcome,
-                auto_commit_paths=auto_commit_paths,
-                surface_repair_summary=surface_repair_summary,
-            )
-        )
-        print(json.dumps(json_payload))
-    elif migrations_needed:
-        _display_upgrade_results(
-            outcome.result,
-            manual_review_paths=manual_review_paths,
-            auto_committed=outcome.committed,
-            auto_commit_paths=auto_commit_paths,
-            effective_success=outcome.effective_success,
-            errors=_combined_errors(outcome, surface_repair_summary),
-            left_uncommitted=left_uncommitted,
-        )
-    else:
-        _display_no_migrations_results(
-            outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted
-        )
-        # Dry-run parity: the finalizer provisions mission_type_activations on
-        # BOTH the migration and no-migrations paths (upgrade/finalize.py — the
-        # single tail), so an up-to-date project still missing the key is seeded
-        # on a real run. The migration path previews that via
-        # _show_migration_plan_and_confirm; the up-to-date path must too, or a
-        # --dry-run silently under-reports the pending seed (no-ops for --json
-        # and outside dry-run).
-        _print_dry_run_provisioning_notice(
-            project_path, dry_run=dry_run, json_output=json_output
-        )
-
-    # D-5 — the exit code is derived exactly once, here, from the finalized
-    # outcome. No other site in the tail may raise typer.Exit. A successful
-    # outcome falls through to a bare return (exit code 0 either via Click's
-    # normal command-return path, or — for tests that call this function
-    # directly — without raising at all, matching the pre-refactor contract).
+    # D-5 — the exit code is derived exactly once, inside finalize_upgrade,
+    # from the finalized outcome. No other site in the tail may raise
+    # typer.Exit independently of it. A successful outcome falls through to
+    # a bare return (exit code 0 either via Click's normal command-return
+    # path, or — for tests that call this function directly — without
+    # raising at all, matching the pre-refactor contract).
     if outcome.exit_code != 0:
         raise typer.Exit(outcome.exit_code)
 

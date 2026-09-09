@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -40,6 +39,8 @@ from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.upgrade import autocommit
 from specify_cli.upgrade.migrations.base import MigrationResult
 from specify_cli.upgrade.runner import UpgradeResult
+
+from tests.upgrade._fixtures import build_config_absent_project
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -72,30 +73,18 @@ _test_app = typer.Typer(add_completion=False)
 _test_app.command()(upgrade)
 _runner = CliRunner()
 
-_METADATA_YAML = (
-    "spec_kitty:\n"
-    "  version: '{version}'\n"
-    "  initialized_at: '2026-01-01T00:00:00'\n"
-    "environment:\n"
-    "  python_version: '3.12'\n"
-    "  platform: linux\n"
-    "  platform_version: ''\n"
-    "migrations:\n"
-    "  applied: []\n"
-)
-
 
 def _init_project(root: Path, *, version: str = "1.0.0a1") -> None:
-    """A minimal, real git-backed Spec Kitty project (up to date at *version*)."""
-    root.mkdir(parents=True, exist_ok=True)
-    kittify = root / ".kittify"
-    kittify.mkdir()
-    (kittify / "metadata.yaml").write_text(_METADATA_YAML.format(version=version), encoding="utf-8")
-    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
-    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
+    """The legacy, config-absent project shape (WP03 T012/FR-010: delegates
+    to the shared ``_fixtures.py`` builder -- previously a local
+    ``.kittify/metadata.yaml``-only + git-init scaffold duplicated across
+    this file, ``test_upgrade_idempotency.py``, and
+    ``test_upgrade_char_net.py``). This is the SAME config-absent shape
+    WP02's own ``test_upgrade_guard_absent.py`` exercises: no
+    ``.kittify/config.yaml`` is ever written, so these tests still drive the
+    real ``write.before_bytes is None`` deferral path (FR-008 -- KEPT, not
+    re-pinned)."""
+    build_config_absent_project(root, version=version)
 
 
 def _run_upgrade(args: list[str], cwd: Path):
@@ -177,50 +166,87 @@ def test_project_yes_full_success_exits_zero_with_printed_outcome(tmp_path: Path
 
 
 def test_failed_run_exit_code_equals_outcome_exit_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A FAILED run's exit code comes from ``UpgradeOutcome.exit_code`` — not
-    a stray ``typer.Exit`` surviving in the tail (post-tasks squad concern;
-    the pre-refactor code raised independently at several sites). Forces the
-    failure through the activation-provisioning channel (D-11), the exact
-    signal the pre-refactor code used to mutate ``result``/`errors` for."""
+    """WP03 T014 redesign (#4032): the pre-existing single-scenario test
+    straddled two independent subsystems through ONE monkeypatch + ONE call
+    -- the managed-skill guard (``installer.py:427``, now WP02's non-fatal
+    ``deferred_provisioning`` skip on this SAME config-absent fixture) and
+    the mission-type-activation backfill (``_provision_missing_mission_type_
+    activations``, ``upgrade.py:517``). WP02 nulls
+    ``PreparedUpgradeRepairs.provisioning`` for a config-absent project
+    (``write.before_bytes is None``), so ``_finalizer_step_provision``'s
+    ``prepared.provisioning is None`` branch now returns ``[]`` *before ever
+    calling* ``_provision_missing_mission_type_activations`` -- the ONLY
+    branch that calls it is ``prepared is None`` (the caller's fallback,
+    reached when ``_prepare_finalizer_repairs`` itself raised, or on
+    ``dry_run``). The old test's forced-failure injection point is therefore
+    unreachable through the real ``upgrade()`` entry point on THIS fixture
+    (proof: ``grep -n "prepared.provisioning is None"
+    src/specify_cli/cli/commands/upgrade.py``) -- re-pinning to an
+    authority-PRESENT fixture would not fix it either, since
+    ``prepared.provisioning`` is populated (not ``None``) there too and the
+    real path calls ``.apply()``, never the monkeypatched function. This is
+    a genuine contract redesign (T014), not a fixture swap (FR-008 forbids
+    dropping the config-absent witness): split into two independently
+    verified channels on the SAME config-absent fixture.
+
+    (a) below: the real end-to-end config-absent guard/skip signal --
+        exit 0, success True, zero errors, ``deferred_provisioning``
+        present (the managed-skill-guard subsystem).
+    (b) below: a direct, scoped call into ``_finalizer_step_provision``'s
+        OWN fallback branch (``prepared=None``) proves the
+        activation-backfill subsystem still threads a forced failure into
+        its return value -- the exact contract ``_combined_errors``/the
+        JSON ``errors`` field consume, without needing (and no longer
+        able to reach) a full CLI round-trip for it.
+    """
     project = tmp_path / "proj"
     _init_project(project)
 
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._provision_missing_mission_type_activations",
-        lambda *_a, **_k: ["forced activation failure"],
-    )
-
+    # (a) real end-to-end: the config-absent guard defers, non-fatally.
     result = _run_upgrade(
         ["--target", "1.0.0a1", "--yes", "--no-worktrees", "--json"],
         cwd=project,
     )
-
-    assert result.exit_code == 1
+    assert result.exit_code == 0, result.output
     payload = _last_json_line(result.output)
-    assert payload["success"] is False
-    assert "forced activation failure" in payload["errors"]
+    assert payload["success"] is True
+    assert payload["errors"] == []
+    assert payload["deferred_provisioning"] == {"deferred": True, "reason": "no_config_authority"}
+
+    # (b) direct seam call: the activation-backfill fallback (``prepared is
+    # None``) still threads a forced failure into its return value.
+    monkeypatch.setattr(
+        upgrade_cmd,
+        "_provision_missing_mission_type_activations",
+        lambda *_a, **_k: ["forced activation failure"],
+    )
+    errors = upgrade_cmd._finalizer_step_provision(project, dry_run=False, prepared=None)
+    assert errors == ["forced activation failure"]
 
 
 def test_failed_run_exit_code_equals_outcome_exit_code_human_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Same failure channel, human-readable renderer: still exits 1, and the
-    failure is rendered (not silently swallowed)."""
+    """Same T014 redesign, human-readable renderer half: (a) the config-absent
+    guard/skip signal renders as a ``Note:`` line (not an error) with exit 0,
+    and (b) the same direct seam-call proof as the JSON-mode twin above."""
     project = tmp_path / "proj"
     _init_project(project)
 
+    # (a) real end-to-end, human mode: config-absent defers, non-fatally.
+    result = _run_upgrade(["--target", "1.0.0a1", "--yes", "--no-worktrees"], cwd=project)
+    assert result.exit_code == 0, result.output
+    assert "Note:" in result.output
+    assert "config authority" in result.output
+    assert "deferred" in result.output
+
+    # (b) direct seam call: the activation-backfill fallback (``prepared is
+    # None``) still threads a forced failure into its return value.
     monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._provision_missing_mission_type_activations",
+        upgrade_cmd,
+        "_provision_missing_mission_type_activations",
         lambda *_a, **_k: ["forced activation failure"],
     )
-
-    result = _run_upgrade(["--target", "1.0.0a1", "--yes", "--no-worktrees"], cwd=project)
-
-    assert result.exit_code == 1
-    # The no-migrations human renderer (_display_no_migrations_results) never
-    # printed an "Upgrade failed." banner even pre-refactor — it surfaces the
-    # error line directly. What matters here is: the error is rendered AND
-    # the exit code is 1, with no stray typer.Exit short-circuiting the tail
-    # before the renderer runs.
-    assert "forced activation failure" in result.output
+    errors = upgrade_cmd._finalizer_step_provision(project, dry_run=False, prepared=None)
+    assert errors == ["forced activation failure"]
 
 
 # ---------------------------------------------------------------------------
@@ -303,6 +329,26 @@ def _stub_churn_git_status(monkeypatch: pytest.MonkeyPatch, churn_paths: set[str
     monkeypatch.setattr(autocommit, "git_status_paths", _fake_status)
 
 
+def _run_upgrade_direct(**kwargs: object) -> None:
+    """Call the undecorated ``upgrade()`` function directly (not through
+    ``CliRunner``/Click), for the tests below that need to inspect
+    ``capsys``-captured output rather than a ``CliRunner`` ``Result``.
+
+    WP03 (#4032, recorded out-of-map edit): every ``typer.Option(...)``
+    default on ``upgrade()`` is a live ``typer.models.OptionInfo`` instance
+    (always truthy as a generic object) until Click resolves it during real
+    CLI parsing. Calling ``upgrade()`` directly without an explicit
+    ``plan_json`` therefore always entered the unconditional ``if
+    plan_json:`` branch and crashed via its own unconditional ``raise
+    typer.Exit(...)`` before ever reaching the auto-commit flow these tests
+    exercise -- confirmed pre-existing on the mission's pre-WP01 base commit
+    too (mirrors the identical fix in ``test_upgrade_auto_commit_unit.py``
+    and ``test_upgrade_char_net.py``), orthogonal to WP02's fix.
+    """
+    kwargs.setdefault("plan_json", False)
+    upgrade_cmd.upgrade(**kwargs)
+
+
 def test_auto_commit_disabled_reports_left_uncommitted_human_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """FR-003/US2 scenario 1: `auto_commit: false` + real churn must print an
     explicit "left uncommitted" line in human-mode output — not stay silent."""
@@ -313,7 +359,7 @@ def test_auto_commit_disabled_reports_left_uncommitted_human_mode(tmp_path: Path
     _stub_churn_git_status(monkeypatch, {".kittify/metadata.yaml"})
     _stub_fake_migration_run(monkeypatch)
 
-    upgrade_cmd.upgrade(
+    _run_upgrade_direct(
         dry_run=False,
         force=True,
         target="3.2.0a4",
@@ -345,7 +391,7 @@ def test_auto_commit_disabled_json_mode_still_reports_auto_committed_false(
     _stub_churn_git_status(monkeypatch, {".kittify/metadata.yaml"})
     _stub_fake_migration_run(monkeypatch)
 
-    upgrade_cmd.upgrade(
+    _run_upgrade_direct(
         dry_run=False,
         force=True,
         target="3.2.0a4",
@@ -412,7 +458,7 @@ def test_auto_commit_disabled_worktree_decision_reaches_runner_fanout(tmp_path: 
         _spy_runner_upgrade,
     )
 
-    upgrade_cmd.upgrade(
+    _run_upgrade_direct(
         dry_run=False,
         force=True,
         target="3.2.0a4",

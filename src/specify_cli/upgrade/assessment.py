@@ -43,10 +43,19 @@ from specify_cli.tool_surface.service import build_providers, build_registry
 
 @dataclass(frozen=True)
 class PreparedUpgradeRepairs:
-    """One resolved project's original compiler and whole-owner preparations."""
+    """One resolved project's original compiler and whole-owner preparations.
+
+    ``provisioning`` is ``None`` exactly when the config authority is absent
+    at assessment time (``write.before_bytes is None`` or
+    ``write.absent_parents``, data-model.md ``authority_present``) -- the
+    single seam that decides the #4032 deferral. Nulling it here, rather
+    than only suppressing the guard raise in ``skills/installer.py``, is
+    what keeps the decoupled raw ``.apply()`` (used by the finalizer) from
+    silently creating the authority (C-001): there is nothing left to apply.
+    """
 
     root: OperationRoot
-    provisioning: _PreparedMissionTypeActivations
+    provisioning: _PreparedMissionTypeActivations | None
     installation: SkillInstallationAssessment
     commands: tuple[OwnerAssessment, ...]
     composition: SkillCommandComposition | None
@@ -75,7 +84,14 @@ class PreparedUpgradeRepairs:
 
     @property
     def provisioning_effects(self) -> tuple[PhysicalEffect, ...]:
-        """Adapt charter-owned bytes without reconstructing its YAML policy."""
+        """Adapt charter-owned bytes without reconstructing its YAML policy.
+
+        Deferred (no config authority, ``provisioning is None``): no
+        ``create`` effect and no parent-dir ``create`` effect are emitted --
+        there is nothing to provision yet (C-001; #4047 owns create-from-absent).
+        """
+        if self.provisioning is None:
+            return ()
         write = self.provisioning.write
         if not write.changed:
             return ()
@@ -119,10 +135,23 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
     slash_command_agents = tuple(agent for agent in agents if agent in AGENT_COMMAND_CONFIG)
     command_skill_agents = tuple(agent for agent in agents if agent in SUPPORTED_AGENTS)
     provisioning = prepare_mission_type_activations(root.path)
+    # FR-002/FR-003/C-001 (#4032): the single seam that decides the
+    # absent-authority deferral (data-model.md `authority_present`). The
+    # SAME Optional value is threaded through every `projected=` consumer
+    # below (installer guard/recheck in `skills/installer.py`, the
+    # command-skill guard in `skills/command_installer.py`, and the
+    # finalizer's raw `.apply()` via the `PreparedUpgradeRepairs.provisioning`
+    # field) -- a partial null (e.g. only on the final dataclass field) would
+    # leave the paired preflight/apply machinery believing a write happened
+    # that the finalizer actually skipped, corrupting the retained-transition
+    # recheck. Nulling once, upstream of every consumer, keeps them all
+    # consistent by construction.
+    authority_present = provisioning.write.before_bytes is not None and not provisioning.write.absent_parents
+    retained_provisioning = provisioning if authority_present else None
     providers = build_providers()
     builder = SurfacePlanBuilder(build_registry((*agents, PLUGIN_BUNDLE_TOOL_KEY)), providers)
     installation = assess_skill_installation(
-        AssessmentInputs(root, projected=provisioning, consent=consent),
+        AssessmentInputs(root, projected=retained_provisioning, consent=consent),
         SkillRegistry.from_package(),
         agents,
         runtime=True,
@@ -132,7 +161,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
     managed = builder.assess(agents, AssessmentInputs(root, projected=installation, consent=consent), kinds=(ToolSurfaceKind.DOCTRINE_SKILL,))
     commands = builder.assess(
         command_skill_agents,
-        AssessmentInputs(root, projected=provisioning, consent=consent),
+        AssessmentInputs(root, projected=retained_provisioning, consent=consent),
         kinds=(ToolSurfaceKind.COMMAND_SKILL,),
     ).assessments
     # Slash-command preparation is already in the paired coordinated global
@@ -161,7 +190,20 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
         composition = ManagedSkillsProvider().compose_installation(installation, concrete[0])
     elif len(concrete) > 1:
         diagnostics += (Diagnostic("command_owner_conflict", "command_skills", "error", "Expected one whole-root command preparation"),)
-    prepared = PreparedUpgradeRepairs(root, provisioning, installation, commands, composition, remaining, diagnostics, consent)
+    if not authority_present:
+        # Non-error diagnostic (FR-003/INV-2): keeps the deferral observable
+        # without poisoning `complete` or landing in `errors`/`warnings`.
+        diagnostics += (
+            Diagnostic(
+                "deferred_provisioning",
+                "provisioning",
+                "info",
+                "No config authority (.kittify/config.yaml) found; skill provisioning "
+                "deferred until `spec-kitty init` runs. See #4047 for automatic "
+                "provisioning support.",
+            ),
+        )
+    prepared = PreparedUpgradeRepairs(root, retained_provisioning, installation, commands, composition, remaining, diagnostics, consent)
     # Detect physical conflicts before any finalizer write, not during rendering.
     _ = prepared.effects
     return prepared

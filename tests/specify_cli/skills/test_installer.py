@@ -69,8 +69,20 @@ def _make_skill(
     )
 
 
-@pytest.mark.parametrize("tamper", ["opaque", "tuple", "bytes", "reason", "values", "observations", "target", "hardlink", "absent"])
+@pytest.mark.parametrize("tamper", ["opaque", "tuple", "bytes", "reason", "values", "observations", "target", "hardlink"])
 def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: Path, tamper: str) -> None:
+    """WP03 (#4032, recorded out-of-map edit, tests-only): ``"absent"`` was
+    removed from this parametrization -- it is no longer "rejected". WP02
+    (mission upgrade-no-migrations-provisioning-fix-01M20NK8) deliberately
+    changed the absent-authority contract from reject-on-absent to
+    non-fatal deferral, decided ONCE at ``upgrade/assessment.py::
+    prepare_upgrade_repairs`` (see its own module docstring): an absent
+    authority now nulls ``PreparedUpgradeRepairs.provisioning`` to ``None``
+    upstream, so a raw, un-nulled absent-authority descriptor reaching
+    ``_prepare_skill_provisioning`` directly (this test's old "absent" tamper
+    shape) is not a code path the real pipeline exercises any more --
+    see ``test_skill_provisioning_admission_defers_absent_authority`` below
+    for the actual post-WP02 contract."""
     from dataclasses import replace
     import os
     from charter.activation.compiler import prepare_mission_type_activations
@@ -81,8 +93,7 @@ def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: 
     project = tmp_path / "project"
     config = project / ".kittify/config.yaml"
     config.parent.mkdir(parents=True)
-    if tamper != "absent":
-        config.write_text("agents:\n  available: [codex]\n")
+    config.write_text("agents:\n  available: [codex]\n")
     if tamper == "hardlink":
         os.link(config, tmp_path / "alias")
     descriptor = prepare_mission_type_activations(project)
@@ -111,6 +122,72 @@ def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: 
     )
     assert not assessment.complete and assessment.diagnostics and not assessment.effects
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_skill_provisioning_admission_defers_absent_authority(tmp_path: Path) -> None:
+    """WP03 (#4032, recorded out-of-map edit, tests-only): the post-WP02
+    absent-authority contract, split out of the reject-noncanonical
+    parametrization above (its "absent" case no longer rejects).
+
+    Two layers of the SAME absent-authority scenario, both confirmed by
+    actually running the code (not asserted from the WP prompt's
+    description):
+
+    1. ``upgrade/assessment.py::prepare_upgrade_repairs`` -- the real
+       caller -- decides the deferral ONCE: ``provisioning`` is nulled to
+       ``None`` and a non-error ``deferred_provisioning`` (severity
+       "info") diagnostic is recorded. This is the exact scenario
+       ``tests/upgrade/test_upgrade_guard_absent.py::
+       test_config_absent_upgrade_defers_provisioning_non_fatally``
+       exercises end-to-end through the CLI; this assertion pins the same
+       fact at the assessment-layer API this file otherwise tests against.
+    2. ``specify_cli.skills.installer.assess_project_skills`` -- given the
+       ALREADY-nulled ``projected=None`` the real caller supplies for this
+       case (never the raw absent descriptor -- see the reject-test's
+       docstring above) -- completes non-fatally
+       (``assessment.complete is True``) with NO diagnostics of its own at
+       this layer (the info diagnostic lives one layer up, in (1)) and
+       performs legitimate skill-install effects (there ARE effects here --
+       this is not a blanket "no effects" case like a genuine rejection),
+       but asserts NONE of them is a config-authority CREATE effect and
+       that ``.kittify/config.yaml`` is not created on disk (C-001).
+    """
+    from charter.activation.compiler import prepare_mission_type_activations
+    from specify_cli.skills.installer import assess_project_skills
+    from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
+    from specify_cli.upgrade.assessment import prepare_upgrade_repairs
+    from specify_cli.tool_surface.operations import ApplyConsent
+
+    project = tmp_path / "project"
+    project.mkdir(parents=True)
+    config = project / ".kittify" / "config.yaml"
+    assert not config.exists(), "sanity: this is the absent-authority shape"
+
+    # (1) the real caller's own deferral decision.
+    prepared = prepare_upgrade_repairs(project, consent=ApplyConsent())
+    assert prepared.provisioning is None
+    deferred = [d for d in prepared.diagnostics if d.code == "deferred_provisioning"]
+    assert len(deferred) == 1, prepared.diagnostics
+    assert deferred[0].severity == "info"
+    assert deferred[0].owner == "provisioning"
+
+    # (2) assess_project_skills, given that same nulled input, still
+    # completes and performs real skill-install work -- just never an
+    # authority CREATE.
+    descriptor = prepare_mission_type_activations(project)
+    assert descriptor.write.before_bytes is None, "sanity: this must be an absent-authority descriptor"
+    _make_skill(tmp_path / "source", "a")
+    assessment = assess_project_skills(
+        AssessmentInputs(OperationRoot("project", "project", project), projected=None),
+        SkillRegistry(tmp_path / "source"), ("codex",),
+    )
+    assert assessment.complete is True
+    assert assessment.diagnostics == ()
+    assert assessment.effects, "the absent-authority path still performs legitimate skill-install effects"
+    assert not any(effect.path == ".kittify/config.yaml" for effect in assessment.effects), (
+        "no config-authority CREATE effect must be planned for an absent authority (C-001)"
+    )
+    assert not config.exists()
 
 
 def test_skill_provisioning_retained_descriptor_cannot_be_removed(tmp_path: Path) -> None:
