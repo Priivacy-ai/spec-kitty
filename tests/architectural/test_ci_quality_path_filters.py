@@ -1,10 +1,11 @@
 """Architectural guards for the CI path-router two-authority model.
 
 The restored interim ``ci-quality.yml`` husk deliberately still runs on every
-pull request with **no** path filter: it is a small five-job producer cheap
-enough to run unconditionally. The path→job *routing* lives in its own
-workflow, ``ci-router.yml`` (mission ``ci-pipeline-reinstatement``, WP07), which
-reinstates the two-authority model:
+pull request with **no** path filter: it is a small six-job producer (the four
+blocking producers plus ``quality-gate`` and the non-blocking ``sonarcloud``
+reporter reinstated by spec-kitty#3993) cheap enough to run unconditionally.
+The path→job *routing* lives in its own workflow, ``ci-router.yml`` (mission
+``ci-pipeline-reinstatement``, WP07), which reinstates the two-authority model:
 
 1. the dorny ``changes`` filter block (``group → globs[]``, path→group), and
 2. the job ``if: needs.changes.outputs.<group>`` gates (group→job).
