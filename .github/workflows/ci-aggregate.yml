@@ -9,12 +9,13 @@
 # `*-reports` artefacts through a cross-run `actions/download-artifact`
 # (`run-id:` pointed at the triggering run) and never re-runs pytest (FR-007).
 # Coverage basenames are deduped and collisions fail loudly. PR coverage uses
-# only the exact CI Modules attempt, with no stale fallback. Its registry and
+# only executions retained by the exact CI Modules attempt, including shards
+# carried forward by rerun-failed-jobs, with no cross-run fallback. Its registry and
 # diff come from the verified synthetic merge tree (parents must match the
 # source run's immutable tested workflow reference); the trusted default-branch checkout remains
 # in place. Missing source provenance or a current shard fails closed.
 # Automatic non-PR diagnostic runs retain the successful-run stale fallback;
-# manual replay always requires complete evidence from its exact source attempt.
+# manual replay always requires complete evidence retained by its exact source attempt.
 #
 # `mode` (pr|full) is honored in THIS workflow's own fail-fast/`needs`
 # behavior: pr short-circuits the diff-cover gate the moment `collect` cannot
@@ -92,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
-          gh api "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > "$RUNNER_TEMP/source-run.json"
+          gh api "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID/attempts/$SOURCE_RUN_ATTEMPT" > "$RUNNER_TEMP/source-run.json"
           python3 scripts/ci/aggregate_source.py "$RUNNER_TEMP/source-run.json" \
             --repository "$SOURCE_REPOSITORY" --run-id "$SOURCE_RUN_ID" --attempt "$SOURCE_RUN_ATTEMPT"
 
@@ -119,12 +120,27 @@ jobs:
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "ci-aggregate: resolved mode=$mode"
 
+      - name: Select reports from executions retained by the source attempt
+        id: select-current
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID/attempts/$SOURCE_RUN_ATTEMPT/jobs?per_page=100" | jq --slurp . > "$RUNNER_TEMP/source-jobs.json"
+          gh api --paginate "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" | jq --slurp . > "$RUNNER_TEMP/source-artifacts.json"
+          python3 scripts/ci/select_source_artifacts.py out/aggregate/source/source.json \
+            "$RUNNER_TEMP/source-jobs.json" "$RUNNER_TEMP/source-artifacts.json" >> "$GITHUB_OUTPUT"
+
       - name: Download the triggering run's shard artefacts
         id: download-current
         continue-on-error: true
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          pattern: 'module-tests-*-attempt-${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}-reports'
+          pattern: ${{ steps.select-current.outputs.artifact-pattern }}
           path: out/aggregate/current
           merge-multiple: false
           github-token: ${{ secrets.GITHUB_TOKEN }}

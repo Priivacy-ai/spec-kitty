@@ -65,7 +65,10 @@ def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, latest: 
     bindir.mkdir()
     gh = bindir / "gh"
     gh.write_text(
-        f"#!{sys.executable}\nimport json, os, sys\nendpoint = next(a for a in sys.argv if a.startswith('repos/'))\nprint(json.dumps(json.load(open(os.environ['FAKE_API']))[endpoint]))\n"
+        f"#!{sys.executable}\nimport json, os, sys\n"
+        "endpoint = next(a for a in sys.argv if a.startswith('repos/'))\n"
+        "result = json.load(open(os.environ['FAKE_API']))[endpoint]\n"
+        "print('\\n'.join(json.dumps(page) for page in result) if isinstance(result, list) else json.dumps(result))\n"
     )
     gh.chmod(0o755)
     (repo / "scripts").symlink_to(ROOT / "scripts", target_is_directory=True)
@@ -131,3 +134,115 @@ def test_manual_replay_uses_requested_attempt_after_a_newer_rerun(tmp_path: Path
         event="workflow_dispatch",
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_selection_binds_timestamps_inclusively_and_normalizes_offsets() -> None:
+    from scripts.ci.select_source_artifacts import select_artifacts
+
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+    record = artifact("kernel", 1, 1)
+    record["workflow_run"]["head_sha"] = source["head_sha"]
+    execution = dict(job("kernel", 1), head_sha=source["head_sha"])
+    for created in ("2026-09-09T01:00:00Z", "2026-09-09T01:10:00Z", "2026-09-08T20:05:00-05:00"):
+        record["created_at"] = created
+        assert select_artifacts(source, [execution], [record]) == [record["name"]]
+    for created in ("2026-09-09T00:59:59Z", "2026-09-09T01:10:01Z"):
+        record["created_at"] = created
+        assert select_artifacts(source, [execution], [record]) == []
+
+
+@pytest.mark.parametrize("mutation", ["rerun_without_upload", "expired", "future_only", "absent"])
+def test_missing_current_evidence_never_borrows_an_old_report(tmp_path: Path, mutation: str) -> None:
+    records = [artifact("kernel", 1, 1), artifact("charter", 2, 2)]
+    executions = [job("kernel", 1), job("charter", 2)]
+    if mutation == "rerun_without_upload":
+        executions[0] = job("kernel", 2)
+    elif mutation == "expired":
+        records[0]["expired"] = True
+    elif mutation == "future_only":
+        records[0] = artifact("kernel", 3, 3)
+    else:
+        records.pop(0)
+    result = collect(tmp_path, records, executions)
+    assert result.returncode != 0
+    assert "registry-expected shard(s) missing" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "mutation,diagnostic",
+    [
+        ("foreign_run", "artifact does not belong"),
+        ("foreign_head", "artifact does not belong"),
+        ("job_run", "job does not belong"),
+        ("job_head", "job does not belong"),
+        ("job_attempt", "job does not belong"),
+        ("job_running", "has not completed"),
+        ("missing_start", "missing execution/upload timestamp"),
+        ("missing_end", "missing execution/upload timestamp"),
+        ("missing_created", "missing execution/upload timestamp"),
+        ("naive_created", "has no timezone"),
+        ("reversed_interval", "ambiguous source shard execution"),
+        ("duplicate_job", "ambiguous source shard execution"),
+        ("duplicate_artifact", "multiple artifacts"),
+        ("duplicate_name_outside_execution", "multiple artifacts"),
+        ("duplicate_execution_artifact", "multiple artifacts"),
+        ("bad_job_name", "unrecognized module shard job name"),
+    ],
+)
+def test_ambiguous_provenance_fails_closed(mutation: str, diagnostic: str) -> None:
+    from scripts.ci.select_source_artifacts import select_artifacts
+
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+    record = artifact("kernel", 1, 1)
+    record["workflow_run"]["head_sha"] = source["head_sha"]
+    execution = dict(job("kernel", 1), head_sha=source["head_sha"])
+    records, executions = [record], [execution]
+    if mutation in {"foreign_run", "foreign_head"}:
+        record["workflow_run"].update({"foreign_run": {"id": 43}, "foreign_head": {"head_sha": "b" * 40}}[mutation])
+    elif mutation == "job_run":
+        execution["run_id"] = 43
+    elif mutation == "job_head":
+        execution["head_sha"] = "b" * 40
+    elif mutation == "job_attempt":
+        execution["run_attempt"] = 3
+    elif mutation == "job_running":
+        execution["status"] = "in_progress"
+    elif mutation == "missing_start":
+        execution.pop("started_at")
+    elif mutation == "missing_end":
+        execution.pop("completed_at")
+    elif mutation == "missing_created":
+        record.pop("created_at")
+    elif mutation == "naive_created":
+        record["created_at"] = "2026-09-09T01:05:00"
+    elif mutation == "reversed_interval":
+        execution["completed_at"] = "2026-09-09T00:00:00Z"
+    elif mutation == "duplicate_job":
+        executions.append(dict(execution))
+    elif mutation == "duplicate_artifact":
+        records.append(dict(record, id=2))
+    elif mutation == "duplicate_name_outside_execution":
+        records.append(dict(record, id=2, created_at="2026-09-09T02:05:00Z"))
+    elif mutation == "duplicate_execution_artifact":
+        records.append(dict(record, id=2, name=record["name"].replace("attempt-1", "attempt-2")))
+    else:
+        execution["name"] = "module-tests (kernel shard 1/1) / other"
+    with pytest.raises(ValueError, match=diagnostic):
+        select_artifacts(source, executions, records)
+
+
+def test_selector_cli_outputs_safe_patterns_for_empty_or_one_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    from scripts.ci.select_source_artifacts import main
+
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+    record = artifact("kernel", 1, 1)
+    record["workflow_run"]["head_sha"] = source["head_sha"]
+    execution = dict(job("kernel", 1), head_sha=source["head_sha"])
+    paths = [tmp_path / name for name in ("source.json", "jobs.json", "artifacts.json")]
+    paths[0].write_text(json.dumps(source))
+    paths[1].write_text(json.dumps([{"jobs": [{"name": "Generate module-shard matrix"}]}, {"jobs": [execution]}]))
+    monkeypatch.setattr(sys, "argv", ["select_source_artifacts.py", *map(str, paths)])
+    for records, pattern in (([], "no-source-shard-reports"), ([record], record["name"])):
+        paths[2].write_text(json.dumps([{"artifacts": [{"name": "unrelated-report"}]}, {"artifacts": records}]))
+        main()
+        assert capsys.readouterr().out == f"artifact-pattern={pattern}\n"

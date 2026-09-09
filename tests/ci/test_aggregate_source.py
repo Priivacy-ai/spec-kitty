@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
-from fnmatch import fnmatchcase
 import subprocess
 import sys
 from pathlib import Path
@@ -48,6 +46,7 @@ def source_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
     run = {
         "id": 42,
         "run_attempt": 1,
+        "status": "completed",
         "path": ".github/workflows/ci-modules.yml",
         "event": "pull_request",
         "head_sha": head,
@@ -84,6 +83,7 @@ def test_source_registry_and_diff_are_from_pr_while_checkout_stays_trusted(tmp_p
 @pytest.mark.parametrize(
     "mutation,diagnostic",
     [
+        ("in_progress", "source run attempt has not completed"),
         ("stale_attempt", "source run identity, attempt, repository or workflow does not match"),
         ("wrong_run", "source run identity, attempt, repository or workflow does not match"),
         ("wrong_repo", "source run identity, attempt, repository or workflow does not match"),
@@ -98,7 +98,9 @@ def test_source_registry_and_diff_are_from_pr_while_checkout_stays_trusted(tmp_p
 )
 def test_source_rejects_ambiguous_or_stale_evidence(tmp_path: Path, mutation: str, diagnostic: str) -> None:
     repo, run, trusted = source_fixture(tmp_path)
-    if mutation == "stale_attempt":
+    if mutation == "in_progress":
+        run["status"] = "in_progress"
+    elif mutation == "stale_attempt":
         run["run_attempt"] = 2
     elif mutation == "wrong_run":
         run["id"] = 43
@@ -214,36 +216,6 @@ def test_immutable_reference_must_bind_the_source_head(tmp_path: Path) -> None:
     result = run_source(repo, run)
     assert result.returncode != 0
     assert "tested merge parents" in result.stderr
-
-
-@pytest.mark.parametrize("event", ["workflow_run", "workflow_dispatch"])
-def test_current_download_matches_only_the_producers_source_attempt(event: str) -> None:
-    workflows = ROOT / ".github/workflows"
-    producer = yaml.safe_load((workflows / "module-tests.yml").read_text())
-    upload = next(step["with"]["name"] for job in producer["jobs"].values() for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact@"))
-    aggregate = yaml.safe_load((workflows / "ci-aggregate.yml").read_text())
-    current = next(step["with"]["pattern"] for job in aggregate["jobs"].values() for step in job.get("steps", []) if step.get("id") == "download-current")
-    # Resolve the actual shipped expressions for each supported trigger. The
-    # aggregate's own attempt is deliberately different from its source run.
-    context = {
-        "inputs.module": "kernel",
-        "steps.shard-info.outputs.slug": "2-of-4",
-        "github.run_attempt": "9",
-        "github.event.workflow_run.run_attempt": "3" if event == "workflow_run" else "",
-        "inputs.source_run_attempt": "3" if event == "workflow_dispatch" else "",
-    }
-
-    def render(template: str, values: dict[str, str]) -> str:
-        def resolve(match: re.Match[str]) -> str:
-            return next(value for key in match.group(1).split("||") if (value := values[key.strip()]))
-
-        return re.sub(r"\$\{\{\s*(.*?)\s*\}\}", resolve, template)
-
-    pattern = render(current, context)
-    matching_upload = render(upload, dict(context, **{"github.run_attempt": "3"}))
-    older_upload = render(upload, dict(context, **{"github.run_attempt": "2"}))
-    assert fnmatchcase(matching_upload, pattern), (matching_upload, pattern)
-    assert not fnmatchcase(older_upload, pattern), (older_upload, pattern)
 
 
 CRITICAL_EXAMPLES = (
