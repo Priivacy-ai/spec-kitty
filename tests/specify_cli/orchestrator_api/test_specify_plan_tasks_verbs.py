@@ -91,7 +91,8 @@ A user does the thing via the orchestrator-api.
 # raw payload verbatim, ``mission_slug`` always filled in). Captured against
 # a real, live invocation (NOT re-derived from the implementation) so a
 # future delegate ``--json`` shape change trips this test instead of
-# silently mutating the versioned 1.4.0 external contract.
+# silently mutating the versioned external contract (1.5.0 after the additive
+# ``planning_commit`` object, #4141; 1.4.0 before it).
 _SPECIFY_SUCCESS_DATA_KEYS = frozenset(
     {
         "BASE_BRANCH",
@@ -186,6 +187,7 @@ _TASKS_SUCCESS_DATA_KEYS = frozenset(
         "mission_slug",
         "modified_wps",
         "ownership_warnings",
+        "planning_commit",
         "post_integration_acceptance_warnings",
         "preserved_wps",
         "requirement_extraction_warnings",
@@ -622,7 +624,7 @@ def test_tasks_delegate_typer_exit_with_no_json_falls_back_to_tasks_finalize_fai
 
 def test_specify_plan_tasks_success_data_key_shape_is_pinned(tmp_path: Path) -> None:
     """``specify``/``plan``/``tasks`` re-emit their host-CLI delegate's
-    ``--json`` dict verbatim as the versioned 1.4.0 contract ``data`` --
+    ``--json`` dict verbatim as the versioned (now 1.5.0) contract ``data`` --
     nothing pins that shape to the contract version, so a delegate
     ``--json`` change would otherwise silently mutate the external contract
     with no test ever failing. Assert the exact key-SET (not values -- git

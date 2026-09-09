@@ -828,6 +828,15 @@ _Mission lifecycle commands for AI agents_
  ownership overlaps,
  dependency cycles) without making any changes or committing.
 
+ Use --refresh-planning-commit once execution has begun and a legitimate
+ planning
+ amendment has landed on the target branch: it advances the recorded
+ planning_commit_sha in lanes.json to the current tip so lanes merge the
+ amended
+ planning state instead of a stale snapshot (#4141). It is refused when the
+ recorded
+ SHA is not an ancestor of the tip (a history rewrite, not an amendment).
+
  Bootstrap Mutation Surface (FR-003 / SC-002)
  =============================================
  The 8 frontmatter fields below may be written or overwritten by this command.
@@ -835,7 +844,10 @@ _Mission lifecycle commands for AI agents_
  ``frontmatter_changed and not validate_only`` guard ensures zero bytes of
  mutation on disk (INV-6). In validate-only mode the bootstrap loop still
  infers all 8 fields in memory so downstream validation operates against the
- post-bootstrap state — not the stale on-disk frontmatter.
+ post-bootstrap state — not the stale on-disk frontmatter. The T017 tasks.md
+ regeneration is likewise skipped (its staleness relative to wps.yaml is
+ reported instead of repaired — #3221), so INV-6 covers every tracked-file
+ write the command performs.
 
  See also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via
  ``build_document() + write_text()`` — guarded the same way (T002).
@@ -844,25 +856,47 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
      spec-kitty agent mission finalize-tasks --mission 020-my-feature
  --validate-only --json
+     spec-kitty agent mission finalize-tasks --mission 020-my-feature
+ --refresh-planning-commit
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
-│ --json                         Output JSON format                            │
-│ --validate-only                Run all validations without committing.       │
-│                                Reports issues that would block finalization. │
-│ --target-branch          TEXT  Override the canonical planning target branch │
-│                                read from meta.json. Use this for legacy      │
-│                                missions created before WP07 persisted        │
-│                                target_branch in meta.json, or to correct a   │
-│                                mission whose target_branch is stale (FR-012  │
-│                                escape hatch). The override is persisted into │
-│                                the primary meta.json as part of this run, so │
-│                                every other target_branch consumer converges  │
-│                                on it too (#3466).                            │
-│ --help           -h            Show this message and exit.                   │
+│ --mission                          TEXT  Mission slug (e.g.,                 │
+│                                          '020-my-mission')                   │
+│ --json                                   Output JSON format                  │
+│ --validate-only                          Run all validations without         │
+│                                          committing. Reports issues that     │
+│                                          would block finalization.           │
+│ --target-branch                    TEXT  Override the canonical planning     │
+│                                          target branch read from meta.json.  │
+│                                          Use this for legacy missions        │
+│                                          created before WP07 persisted       │
+│                                          target_branch in meta.json, or to   │
+│                                          correct a mission whose             │
+│                                          target_branch is stale (FR-012      │
+│                                          escape hatch). The override is      │
+│                                          persisted into the primary          │
+│                                          meta.json as part of this run, so   │
+│                                          every other target_branch consumer  │
+│                                          converges on it too (#3466).        │
+│ --owned-checkout                   PATH  Explicit owned checkout for a       │
+│                                          single-branch mission.              │
+│ --refresh-planning-commit                Advance the recorded                │
+│                                          planning_commit_sha in lanes.json   │
+│                                          to the current target-branch tip    │
+│                                          after a legitimate planning         │
+│                                          amendment, even though execution    │
+│                                          has begun (#4141). Without it, a    │
+│                                          re-finalize after execution has     │
+│                                          begun preserves the recorded SHA    │
+│                                          (#3311) and every lane keeps        │
+│                                          merging the stale planning          │
+│                                          snapshot. Refused when the recorded │
+│                                          SHA is not an ancestor of the tip   │
+│                                          (a history rewrite, not an          │
+│                                          amendment).                         │
+│ --help                     -h            Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
-
 ## spec-kitty agent mission merge
 
 ```

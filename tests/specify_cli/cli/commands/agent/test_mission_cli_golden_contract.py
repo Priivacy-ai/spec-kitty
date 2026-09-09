@@ -143,9 +143,11 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--no-auto-retry",
         }
     ),
-    "finalize-tasks": frozenset(
-        {"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout"}
-    ),
+    # 2026-09-09 (#4141): re-pinned to add --refresh-planning-commit (the
+    # planning_commit_sha re-point affordance once execution has begun).
+    # `missing: []` on the prior pin proves nothing was removed, only added —
+    # same in-place amendment precedent as the 2026-08-04 fold below.
+    "finalize-tasks": frozenset({"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout", "--refresh-planning-commit"}),
     "repair": frozenset({"--mission"}),
     # 2026-08-04 landing fold (PR #3175, fold-golden-flag-surface): re-pinned
     # to add the six negative-invariant-mode flags (--negative-invariant,
