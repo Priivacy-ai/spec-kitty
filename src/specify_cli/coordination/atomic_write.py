@@ -54,7 +54,8 @@ def _generate_ulid() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Low-level leaf primitives (containment + fd-relative no-follow writes)
+# Low-level leaf primitives (containment + fd-relative no-follow writes, plus
+# the path-based fallback for platforms — Windows — without fd-relative I/O)
 # ---------------------------------------------------------------------------
 
 
@@ -76,13 +77,24 @@ def _confine_path_to_worktree(worktree_root: Path, path: Path) -> Path:
     return candidate
 
 
-def _open_confined_parent_fd(worktree_root: Path, path: Path) -> int:
-    """Open ``path.parent`` component-by-component without following symlinks."""
-    if not (
+def _fd_relative_writes_supported() -> bool:
+    """Whether fd-relative no-follow writes are available on this platform.
+
+    Windows (and any platform without ``dir_fd`` support) lacks all three
+    primitives the confined write leans on: ``os.open`` is not in
+    ``os.supports_dir_fd`` and ``os.O_DIRECTORY`` / ``os.O_NOFOLLOW`` are
+    undefined. Callers use this to route to the path-based fallback below.
+    """
+    return (
         os.open in os.supports_dir_fd
         and hasattr(os, "O_DIRECTORY")
         and hasattr(os, "O_NOFOLLOW")
-    ):
+    )
+
+
+def _open_confined_parent_fd(worktree_root: Path, path: Path) -> int:
+    """Open ``path.parent`` component-by-component without following symlinks."""
+    if not _fd_relative_writes_supported():
         raise ValueError(
             "Refusing to write artifact outside coordination worktree "
             "(fd-relative no-follow writes unsupported on this platform): "
@@ -129,6 +141,98 @@ def _write_and_replace_via_parent_fd(
     finally:
         os.close(tmp_fd)
     os.replace(tmp_name, target_name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+
+
+def _reject_symlinked_components(
+    resolved_worktree: Path, resolved_path: Path
+) -> None:
+    """Refuse any symlinked component between worktree root and ``resolved_path``.
+
+    The path-based fallback's replacement for the fd-relative sequence's
+    ``O_NOFOLLOW`` guarantee: every component walked from the (already
+    resolved) worktree root must be a real directory, never a symlink —
+    even one whose target stays inside the worktree.
+    """
+    current = resolved_worktree
+    for part in resolved_path.relative_to(resolved_worktree).parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(
+                "Refusing to write artifact outside coordination worktree "
+                "(symlinked path component): "
+                f"{current}"
+            )
+
+
+def _windows_confined_write(
+    worktree_root: Path,
+    resolved_path: Path,
+    content: bytes,
+    existing_mode: int | None,
+) -> None:
+    """Path-based confined write for platforms without fd-relative I/O (#3173).
+
+    Windows has no ``dir_fd`` support and no ``O_DIRECTORY`` / ``O_NOFOLLOW``,
+    so the fd-relative no-follow sequence cannot run there and every
+    coordination artifact write used to hard-fail. This fallback preserves
+    the same guarantees as far as the platform allows: containment is
+    re-verified by resolving the parent against the worktree root, every
+    path component from the root is checked for being a symlink, the bytes
+    go to a uniquely named tempfile in the target directory, and
+    ``os.replace`` (atomic on the same volume) moves it into place. The
+    tempfile is unlinked on failure.
+    """
+    resolved_worktree = worktree_root.resolve()
+    resolved_parent = resolved_path.parent.resolve(strict=False)
+    if not resolved_parent.is_relative_to(resolved_worktree):
+        raise ValueError(
+            "Refusing to write artifact outside coordination worktree "
+            "(parent resolves outside worktree): "
+            f"{resolved_path.parent}"
+        )
+    _reject_symlinked_components(resolved_worktree, resolved_path)
+
+    tmp_path = resolved_path.with_name(f".spec-kitty-{_generate_ulid()}.tmp")
+    try:
+        tmp_fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            if existing_mode is not None:
+                os.chmod(tmp_path, existing_mode)
+            remaining = memoryview(content)
+            while remaining:
+                written = os.write(tmp_fd, remaining)
+                remaining = remaining[written:]
+        finally:
+            os.close(tmp_fd)
+        os.replace(tmp_path, resolved_path)
+    except BaseException:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            logger.debug(
+                "atomic_write: failed to remove temp artifact %s", tmp_path
+            )
+        raise
+
+
+def _windows_confined_unlink(worktree_root: Path, resolved_path: Path) -> None:
+    """Path-based confined unlink for platforms without fd-relative I/O (#3173).
+
+    The rollback compensator's unlink twin of :func:`_windows_confined_write`:
+    same containment re-verification and symlinked-component rejection, then a
+    plain unlink. A missing target is a no-op, matching the fd-relative path's
+    ``FileNotFoundError`` pass-through.
+    """
+    resolved_worktree = worktree_root.resolve()
+    resolved_parent = resolved_path.parent.resolve(strict=False)
+    if not resolved_parent.is_relative_to(resolved_worktree):
+        raise ValueError(
+            "Refusing to unlink artifact outside coordination worktree "
+            "(parent resolves outside worktree): "
+            f"{resolved_path.parent}"
+        )
+    _reject_symlinked_components(resolved_worktree, resolved_path)
+    resolved_path.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +297,10 @@ def _write_confined_artifact_bytes(
         else None
     )
 
+    if not _fd_relative_writes_supported():
+        _windows_confined_write(worktree_root, resolved_path, content, existing_mode)
+        return resolved_path
+
     parent_fd: int | None = None
     tmp_name = f".spec-kitty-{_generate_ulid()}.tmp"
     try:
@@ -236,6 +344,9 @@ def _unlink_confined_artifact_path(
 ) -> None:
     """Unlink an artifact relative to a verified no-follow parent directory."""
     resolved_path = resolve(worktree_root, path)
+    if not _fd_relative_writes_supported():
+        _windows_confined_unlink(worktree_root, resolved_path)
+        return
     parent_fd: int | None = None
     try:
         parent_fd = _open_confined_parent_fd(worktree_root, resolved_path)
