@@ -43,14 +43,15 @@ def _spawn_and_assert_serving(tmp_path: Path, *, port: int) -> None:
     try:
         deadline = time.monotonic() + _READINESS_BUDGET_SECONDS
         while time.monotonic() < deadline:
-            if server._port_accepts_connection(port):
+            if server._port_serves_our_dashboard(port, tmp_path.resolve(), "regression-token"):
                 break
             time.sleep(_POLL_INTERVAL_SECONDS)
         else:
-            pytest.fail(f"dashboard child (pid {pid}) never accepted a connection on port {port}")
+            pytest.fail(f"dashboard child (pid {pid}) never served this project's health payload on port {port}")
 
-        # Not just a listener: the real dashboard, serving this project's
-        # health payload with the token the parent handed the child.
+        # Belt-and-braces: not just any listener answering the identity probe —
+        # the real dashboard, serving this project's health payload with the
+        # token the parent handed the child.
         with urllib.request.urlopen(  # nosec B310 — loopback URL built from the OS-assigned port above
             f"http://127.0.0.1:{port}/api/health", timeout=2
         ) as response:

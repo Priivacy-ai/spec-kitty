@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 from specify_cli.core.errors import StructuredError
@@ -142,6 +144,7 @@ def run_dashboard_server(
 _SPAWN_MODULE = "specify_cli.dashboard._server_main"
 _SPAWN_READINESS_TIMEOUT_SECONDS = 10.0
 _SPAWN_READINESS_POLL_SECONDS = 0.1
+_SPAWN_READINESS_HTTP_TIMEOUT_SECONDS = 0.5
 _SPAWN_LOG_TAIL_BYTES = 4096
 
 
@@ -233,29 +236,70 @@ def _spawn_dashboard_process(
     return proc, log_path
 
 
-def _port_accepts_connection(port: int) -> bool:
+def _port_serves_our_dashboard(port: int, project_dir: Path, project_token: str | None) -> bool:
+    """True when the listener on ``port`` is a dashboard serving ``project_dir``.
+
+    A bare "something accepts on this port" probe cannot tell our child's
+    listener from a foreign one that won the same ``find_free_port`` race
+    (#4125, fix round 2): ``find_free_port`` probes-binds-releases, so two
+    concurrent spawns can be handed the same port, and the loser's child dies
+    with ``Address already in use`` while the winner's listener makes the port
+    look "ready". Readiness must therefore be attributable to the child the
+    caller spawned: the probe asks the listener for the identity the caller
+    already holds — the resolved ``project_path`` off ``/api/health``, plus
+    the token when one was handed to the child — the same contract
+    ``lifecycle._check_dashboard_health`` enforces downstream.
+    """
+    url = f"http://127.0.0.1:{port}/api/health"
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(0.2)
-            return sock.connect_ex(("127.0.0.1", port)) == 0
-    except OSError:
+        with urllib.request.urlopen(url, timeout=_SPAWN_READINESS_HTTP_TIMEOUT_SECONDS) as response:  # nosec B310 — loopback-only URL built from the port int above
+            if response.status != 200:
+                return False
+            payload = response.read()
+    except Exception:
         return False
+
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(data, dict):
+        return False
+
+    remote_path = data.get("project_path")
+    if not isinstance(remote_path, str):
+        return False
+    try:
+        paths_match = Path(remote_path).resolve() == project_dir.resolve()
+    except OSError:
+        paths_match = Path(remote_path) == project_dir
+    if not paths_match:
+        return False
+
+    return project_token is None or data.get("token") == project_token
 
 
 def _wait_for_spawn_readiness(
     proc: subprocess.Popen[bytes],
     port: int,
     log_path: Path,
+    project_dir: Path,
+    project_token: str | None,
     *,
     timeout_seconds: float = _SPAWN_READINESS_TIMEOUT_SECONDS,
 ) -> None:
-    """Poll until the detached child's port is reachable; raise on early exit.
+    """Poll until the port serves this project's dashboard; raise on early exit.
 
     A child that dies before binding used to leave the caller reporting a
     started dashboard that silently wasn't there (#4125). Now its exit status
-    and log tail surface here. A child still alive but not bound within the
-    window is left to the caller's (longer) health-check poll rather than
-    failed here — a slow-but-healthy spawn is not an error.
+    and log tail surface here. Readiness is the listener *serving this
+    project's identity* over ``/api/health`` — not merely a port accepting a
+    connection — so a foreign dashboard that won the same free-port race can
+    never stand in for our child: its listener fails the identity check every
+    iteration, our own child's bind failure kills it, and ``poll()`` surfaces
+    the exit status with the log tail. A child still alive but not serving
+    within the window is left to the caller's (longer) health-check poll
+    rather than failed here — a slow-but-healthy spawn is not an error.
     """
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
@@ -265,7 +309,7 @@ def _wait_for_spawn_readiness(
                 f"Detached dashboard process exited with status {exit_code} before binding port {port}.{_spawn_log_detail(log_path)}",
                 exit_code=exit_code,
             )
-        if _port_accepts_connection(port):
+        if _port_serves_our_dashboard(port, project_dir, project_token):
             return
         time.sleep(_SPAWN_READINESS_POLL_SECONDS)
 
@@ -328,7 +372,7 @@ def _start_background_dashboard(
         except (UnicodeDecodeError, ValueError) as exc:
             raise _background_port_report_error(proc, raw_report, log_path) from exc
 
-    _wait_for_spawn_readiness(proc, port, log_path)
+    _wait_for_spawn_readiness(proc, port, log_path, project_dir_abs, project_token)
     return port, proc.pid
 
 
@@ -355,8 +399,9 @@ def start_dashboard(
         Tuple[port, pid]: Port number and process ID (None if threaded mode)
 
     Raises:
-        DashboardSpawnError: the detached child exited before its port was
-            reachable (the message carries the child's log tail, #4125)
+        DashboardSpawnError: the detached child exited before its port served
+            this project's dashboard (the message carries the child's log
+            tail, #4125)
     """
     if port is None:
         port = find_free_port()
