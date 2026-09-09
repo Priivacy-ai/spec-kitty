@@ -7,6 +7,12 @@ from pathlib import Path
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
+# Deliberately NOT folded through ``core.constants.OCCURRENCE_MAP_FILENAME``
+# (#3559): a shipped migration's emitted .gitattributes entries are pinned to
+# what 3.2.0rc28 historically wrote — ``_missing_entries`` must keep matching
+# those exact lines in existing checkouts rather than drift with a future
+# rename of the constant. The live generator (``cli.commands.init``) tracks
+# the constant; this historical record stays literal.
 _ATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
     "kitty-specs/**/status.events.jsonl linguist-generated=true",
