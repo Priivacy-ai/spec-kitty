@@ -45,6 +45,7 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -319,10 +320,12 @@ def test_unborn_head_error_names_a_remedy_that_works(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_version_is_the_patch_release(project: Path) -> None:
+def test_version_matches_release_metadata(project: Path) -> None:
+    with (_REPO_ROOT / "pyproject.toml").open("rb") as source:
+        expected = tomllib.load(source)["project"]["version"]
     result = _cli(project, "--version")
     assert result.returncode == 0
-    assert "3.2.6.1" in _unwrapped(result)
+    assert _unwrapped(result) == f"spec-kitty-cli version {expected}"
 
 
 def test_no_retired_org_in_user_facing_urls() -> None:

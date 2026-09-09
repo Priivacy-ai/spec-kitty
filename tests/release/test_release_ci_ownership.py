@@ -86,6 +86,8 @@ def workflow_script_text(name: str) -> str:
 @pytest.mark.parametrize(
     ("workflow_name", "event"),
     [
+        ("check-spec-kitty-events-alignment.yml", "pull_request"),
+        ("check-spec-kitty-events-alignment.yml", "push"),
         ("ci-quality.yml", "pull_request"),
         ("ci-quality.yml", "push"),
         ("release-readiness.yml", "pull_request"),
@@ -218,13 +220,16 @@ def test_shared_drift_has_scheduled_and_manual_monitoring() -> None:
     assert "workflow_dispatch" in workflow_on
 
 
-def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
+def test_shared_drift_checks_candidate_metadata_without_retired_consumer() -> None:
     workflow = load_workflow("check-spec-kitty-events-alignment.yml")
     jobs = workflow["jobs"]
 
     prepare_dump = repr(jobs["prepare-candidate-metadata"])
     assert "SPEC_KITTY_SAAS_READ_TOKEN" not in prepare_dump
     assert "python -m build" not in prepare_dump
+    upload = next(step for step in jobs["prepare-candidate-metadata"]["steps"] if step.get("name") == "Upload candidate package metadata")
+    assert upload["with"]["include-hidden-files"] is True
+    assert set(upload["with"]["path"].split()) == {"pyproject.toml", "uv.lock", ".kittify/release/shared-package-compatibility.json"}
 
     verify = jobs["verify-drift"]
     verify_dump = repr(verify)
@@ -235,8 +240,12 @@ def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
     assert "check_shared_package_drift.py --help" in verify_dump
     assert "MANIFEST_ARGS" in verify_dump
 
-    fetch_step = next(step for step in verify["steps"] if step.get("id") == "fetch_refs")
-    assert "CROSS_REPO_TOKEN" in fetch_step["env"]
+    for retired in ("fetch_refs", "CROSS_REPO_TOKEN", "--saas-pyproject", "SPEC_KITTY_SAAS_READ_TOKEN"):
+        assert retired not in verify_dump
+    validate = next(step for step in verify["steps"] if step.get("name") == "Validate shared package drift")
+    assert "if" not in validate
+    assert "--pyproject candidate/pyproject.toml" in validate["run"]
+    assert "--lockfile candidate/uv.lock" in validate["run"]
 
 
 def test_ci_quality_has_no_saas_consumer_compatibility_job() -> None:
