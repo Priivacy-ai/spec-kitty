@@ -37,17 +37,6 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v8.1.0
 
-      - name: Configure private git dependencies
-        env:
-          GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::SK_CI_TOKEN is required to install the pinned private git dependencies."
-            exit 1
-          fi
-          git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
-        shell: bash
-
       - name: Install tooling
         run: |
           uv sync --python "$(which python)" --extra test --extra lint
