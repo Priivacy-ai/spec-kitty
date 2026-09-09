@@ -25,6 +25,7 @@ from specify_cli.status.rollback import (
     capture_events_tail_ids,
     owned_emission_window,
     rollback_events_log_tail,
+    rollback_status_artifacts,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -317,3 +318,161 @@ def test_missing_log_inside_the_lock_is_a_refusal_not_an_empty_tail(feature_dir:
 
     assert rollback_module._tail_rows(feature_dir / "status.events.jsonl", 0, missing_as_empty=False) is None
     assert rollback_module._tail_rows(feature_dir / "status.events.jsonl", 0, missing_as_empty=True) == []
+
+
+# ---------------------------------------------------------------------------
+# The refusal/degradation ladder's tail (spec-kitty #4072 operator coverage
+# fix round): the degradation arms of ``_tail_rows`` and BOTH outer refusal
+# arms of ``rollback_status_artifacts``. Every one of them leaves the
+# artifacts it did not verify exactly as found and returns the explicit
+# recoverable diagnostic -- never a traceback, never a blind cut.
+# ---------------------------------------------------------------------------
+
+
+def test_refuses_when_the_log_cannot_be_read(feature_dir: Path) -> None:
+    """A log that exists but cannot be read as bytes is "cannot verify".
+
+    The log path here is a directory -- a deterministic stand-in for any
+    non-``FileNotFoundError`` read failure (permissions, an I/O error): the
+    outer ``stat()`` succeeds, ``_tail_rows``' read refuses, and the rollback
+    leaves the surface exactly as found rather than judging a log it never
+    saw the contents of.
+    """
+    _events_path(feature_dir).mkdir()
+
+    assert not rollback_events_log_tail(
+        feature_dir,
+        repo_root=feature_dir.parent.parent,
+        pre_emit_event_size=1,
+        expected_event_ids=None,
+    )
+    assert _events_path(feature_dir).is_dir()
+
+
+def test_capture_degrades_to_none_when_the_read_shrank_below_the_pre_emit_size(feature_dir: Path) -> None:
+    """``_tail_rows`` re-checks the shrink guard on the READ, not just the stat.
+
+    The window recorded ``pre_emit_event_size`` at entry; a log now SHORTER
+    than that (a whole-log rewrite landed in the window) degrades the capture
+    to ``None`` -- structural verification -- rather than parsing a region
+    that starts mid-row. The rollback's own ``stat()`` guard gives the same
+    refusal one step earlier; this is the same defense held against the
+    stat -> read race.
+    """
+    _events_path(feature_dir).write_text(_row("only"), encoding="utf-8")
+
+    assert capture_events_tail_ids(_events_path(feature_dir), 10_000) is None
+
+
+def test_tolerates_a_leading_blank_line_in_the_cut_region(feature_dir: Path) -> None:
+    """The append primitive normalizes a missing trailing newline by inserting
+    one, which leaves a leading blank line in the ``[pre_emit:]`` region --
+    blank lines are skipped, so a no-trailing-newline log still verifies and
+    the owned rows still roll back."""
+    pre = json.dumps({"event_id": "before", "wp_id": "WP01"})  # no trailing newline
+    _events_path(feature_dir).write_text(pre + "\n" + _row("mine"), encoding="utf-8")
+
+    assert rollback_events_log_tail(
+        feature_dir,
+        repo_root=feature_dir.parent.parent,
+        pre_emit_event_size=len(pre),
+        expected_event_ids=["mine"],
+    )
+    assert _events_path(feature_dir).read_text(encoding="utf-8") == pre
+
+
+def test_refuses_when_a_tail_row_is_not_a_json_object(feature_dir: Path) -> None:
+    """A whole, valid JSON line that is not an object (an array, a scalar) is
+    as unverifiable as a torn row -- the tail is never cut blind."""
+    _events_path(feature_dir).write_text(_row("before") + "[1, 2]\n", encoding="utf-8")
+
+    assert not rollback_events_log_tail(
+        feature_dir,
+        repo_root=feature_dir.parent.parent,
+        pre_emit_event_size=len(_row("before")),
+        expected_event_ids=None,
+    )
+    assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + "[1, 2]\n"
+
+
+def test_a_failed_snapshot_write_is_logged_not_fatal(feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """The log half verified and was restored; a snapshot restore that cannot
+    write degrades loudly, not fatally.
+
+    The snapshot path here is a directory -- a deterministic stand-in for any
+    unwritable/corrupt snapshot file: the verified log rollback still lands
+    (the log is the sole authority), the caller still gets ``True``, and the
+    recoverable diagnostic names the regeneration command.
+    """
+    import logging
+
+    _events_path(feature_dir).write_text(_row("before") + _row("mine"), encoding="utf-8")
+    (feature_dir / "status.json").mkdir()
+
+    with caplog.at_level(logging.WARNING, logger="specify_cli.status.rollback"):
+        assert rollback_status_artifacts(
+            feature_dir,
+            repo_root=feature_dir.parent.parent,
+            pre_emit_event_size=len(_row("before")),
+            pre_emit_status_bytes=b'{"before":true}\n',
+            expected_event_ids=["mine"],
+        )
+    assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before")
+    assert (feature_dir / "status.json").is_dir()
+    assert any("agent status materialize" in record.getMessage() for record in caplog.records)
+
+
+def test_artifacts_lock_timeout_refusal_leaves_both_artifacts_intact(feature_dir: Path) -> None:
+    """A stalled sibling holder surfaces as the explicit recoverable refusal
+    for BOTH artifacts: while the mission lock cannot be taken, the log is
+    never cut and the derived snapshot is never rewritten."""
+    import threading
+
+    _events_path(feature_dir).write_text(_row("before") + _row("mine"), encoding="utf-8")
+    (feature_dir / "status.json").write_text('{"after":true}\n', encoding="utf-8")
+    acquired = threading.Event()
+    release = threading.Event()
+
+    def _hold() -> None:
+        with feature_status_lock(feature_dir.parent.parent, feature_dir.name):
+            acquired.set()
+            release.wait(timeout=30)
+
+    holder = threading.Thread(target=_hold, name="writer-B", daemon=True)
+    holder.start()
+    try:
+        assert acquired.wait(timeout=10), "writer B never acquired the mission lock"
+        assert not rollback_status_artifacts(
+            feature_dir,
+            repo_root=feature_dir.parent.parent,
+            pre_emit_event_size=len(_row("before")),
+            pre_emit_status_bytes=b'{"before":true}\n',
+            expected_event_ids=["mine"],
+            timeout=0.3,
+        )
+    finally:
+        release.set()
+        holder.join(timeout=10)
+        assert not holder.is_alive(), "writer B never released the mission lock"
+
+    assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + _row("mine")
+    assert (feature_dir / "status.json").read_text(encoding="utf-8") == '{"after":true}\n'
+
+
+def test_artifacts_outer_oserror_refusal_leaves_both_artifacts_intact(tmp_path: Path) -> None:
+    """A structurally broken status surface (the mission dir itself is not a
+    directory) surfaces as the explicit refusal, never a traceback: the lock
+    is taken, the first artifact ``stat()`` raises, and both artifacts --
+    whatever exists -- are left exactly as found."""
+    broken = tmp_path / "kitty-specs" / "001-demo-01ABCDEF"
+    broken.parent.mkdir(parents=True)
+    broken.write_text("not a directory", encoding="utf-8")
+
+    assert not rollback_status_artifacts(
+        broken,
+        repo_root=tmp_path,
+        pre_emit_event_size=10,
+        pre_emit_status_bytes=b"{}",
+        expected_event_ids=None,
+    )
+    assert broken.read_text(encoding="utf-8") == "not a directory"
