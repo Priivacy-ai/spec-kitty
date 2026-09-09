@@ -18,6 +18,7 @@ state fails for the right reason (missing file), not a collection error.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +61,45 @@ def test_action_file_exists() -> None:
 def test_is_a_composite_action() -> None:
     action = _load_action()
     assert action["runs"]["using"] == "composite"
+
+
+@pytest.mark.git_repo
+def test_checkout_preserves_pinned_history_for_shared_test_clones(tmp_path: Path) -> None:
+    """A nested checkout must not undo the module caller's full-history fetch."""
+
+    def git(repo: Path, *args: str) -> bytes:
+        return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True).stdout
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    git(origin, "init", "--initial-branch=main")
+    git(origin, "config", "user.name", "Warmup history fixture")
+    git(origin, "config", "user.email", "warmup@example.invalid")
+    git(origin, "config", "commit.gpgsign", "false")
+    receipt = b"immutable reviewed receipt\n"
+    (origin / "receipt.json").write_bytes(receipt)
+    git(origin, "add", ".")
+    git(origin, "commit", "-m", "Reviewed receipt")
+    pinned = git(origin, "rev-parse", "HEAD").decode().strip()
+    (origin / "current.txt").write_text("later source revision\n")
+    git(origin, "add", ".")
+    git(origin, "commit", "-m", "Current source")
+    source = tmp_path / "source"
+    git(origin, "clone", "--shared", "--no-checkout", str(origin), str(source))
+
+    # Emulate the composite's checkout after the caller already fetched history.
+    # actions/checkout defaults to depth 1 unless its input explicitly says 0.
+    checkouts = [step for step in _steps() if str(step.get("uses", "")).startswith("actions/checkout@")]
+    assert checkouts, "warmup checkout contract disappeared"
+    for checkout in checkouts:
+        depth = int(checkout.get("with", {}).get("fetch-depth", 1))
+        git(source, "fetch", *([f"--depth={depth}"] if depth else []), "origin", "main")
+    assert git(source, "show", f"{pinned}:receipt.json") == receipt
+
+    # Shallowing leaves objects in source, but its test clone loses the old pin.
+    clone = tmp_path / "test-clone"
+    git(source, "clone", "--shared", "--no-checkout", str(source), str(clone))
+    assert git(clone, "show", f"{pinned}:receipt.json") == receipt
 
 
 def test_declares_a_mode_input_covering_pr_and_full() -> None:
