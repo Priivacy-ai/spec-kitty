@@ -211,11 +211,34 @@ def _port_accepts_connection(port: int) -> bool:
         return False
 
 
+def _child_serves_project(port: int, project_dir: Path) -> bool:
+    """True when the listener on ``port`` is *this* project's dashboard.
+
+    ``_port_accepts_connection`` only proves some process is listening. Under
+    parallel test workers (or a busy operator machine) a sequentially chosen
+    port can be held by another dashboard for a moment, which would let the
+    readiness probe return for a child that then dies of "address in use".
+    The ``/api/health`` payload names the project it serves, so match on it.
+    """
+    import json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(  # nosec B310 — loopback URL built from our own port
+            f"http://127.0.0.1:{port}/api/health", timeout=1.0
+        ) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(payload, dict) and payload.get("project_path") == str(project_dir)
+
+
 def _wait_for_spawn_readiness(
     proc: subprocess.Popen[bytes],
     port: int,
     log_path: Path,
     *,
+    project_dir: Path | None = None,
     timeout_seconds: float = _SPAWN_READINESS_TIMEOUT_SECONDS,
 ) -> None:
     """Poll until the detached child's port is reachable; raise on early exit.
@@ -234,7 +257,9 @@ def _wait_for_spawn_readiness(
                 f"Detached dashboard process exited with status {exit_code} before binding port {port}.{_spawn_log_detail(log_path)}",
                 exit_code=exit_code,
             )
-        if _port_accepts_connection(port):
+        if _port_accepts_connection(port) and (
+            project_dir is None or _child_serves_project(port, project_dir)
+        ):
             return
         time.sleep(_SPAWN_READINESS_POLL_SECONDS)
 
@@ -245,7 +270,7 @@ def _start_background_dashboard(
     project_token: str | None,
 ) -> tuple[int, int]:
     proc, log_path = _spawn_dashboard_process(project_dir_abs, port, project_token)
-    _wait_for_spawn_readiness(proc, port, log_path)
+    _wait_for_spawn_readiness(proc, port, log_path, project_dir=project_dir_abs)
     return port, proc.pid
 
 

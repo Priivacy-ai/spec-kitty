@@ -32,6 +32,21 @@ _READINESS_BUDGET_SECONDS = 15.0
 _POLL_INTERVAL_SECONDS = 0.1
 
 
+def _os_assigned_port() -> int:
+    """An OS-assigned loopback port for the spawn tests.
+
+    ``server.find_free_port`` scans sequentially from 9237, so parallel test
+    workers converge on the same few ports and a sibling's short-lived server
+    can satisfy a naive readiness probe. Binding port 0 hands each worker an
+    ephemeral port from the OS instead.
+    """
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
 def _spawn_and_assert_serving(tmp_path: Path, *, port: int) -> None:
     (tmp_path / ".kittify").mkdir(exist_ok=True)
     port, pid = server.start_dashboard(
@@ -78,7 +93,7 @@ def _terminate_child(pid: int) -> None:
 @pytest.mark.regression
 @pytest.mark.non_sandbox
 def test_background_dashboard_spawn_binds_and_serves(tmp_path: Path) -> None:
-    _spawn_and_assert_serving(tmp_path, port=server.find_free_port())
+    _spawn_and_assert_serving(tmp_path, port=_os_assigned_port())
 
 
 @pytest.mark.windows_ci
@@ -90,4 +105,4 @@ def test_background_dashboard_spawn_binds_and_serves_windows_critical(tmp_path: 
     ``tests/conftest.py``); the native Windows CI lane selects it via
     ``-m windows_ci``.
     """
-    _spawn_and_assert_serving(tmp_path, port=server.find_free_port())
+    _spawn_and_assert_serving(tmp_path, port=_os_assigned_port())
