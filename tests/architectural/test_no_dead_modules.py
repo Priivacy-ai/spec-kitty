@@ -353,6 +353,13 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
         # `path = "hatch_build.py"` declaration) was deleted outright, not merely
         # relocated -- there is no longer a src/charter/offering/hatch_build.py
         # module for this allowlist entry to describe.
+        # specify_cli.dashboard._server_main: the detached dashboard server
+        # child's entry point, spawned by dashboard/server.py as
+        # `python -m specify_cli.dashboard._server_main` (#4125) -- the argv
+        # reference is a string constant (_SPAWN_MODULE), not an import, which
+        # is the point: `python -m` is how the child gets a __main__.__file__
+        # that `python -c` never provided.
+        "specify_cli.dashboard._server_main",
     }
 )
 
