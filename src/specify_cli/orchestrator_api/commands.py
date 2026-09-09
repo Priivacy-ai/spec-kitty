@@ -197,38 +197,6 @@ _CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exc
 _EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
 
 
-def _vendored_click_exception(name: str) -> type[BaseException] | None:
-    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
-
-    Looks in the vendored ``exceptions`` submodule first, then the package
-    root, and never touches an attribute it has not confirmed exists.
-    """
-    module = getattr(typer_core, "_click", None)
-    if module is None:
-        return None
-    for holder in (getattr(module, "exceptions", None), module):
-        candidate = getattr(holder, name, None) if holder is not None else None
-        if isinstance(candidate, type) and issubclass(candidate, BaseException):
-            return candidate
-    return None
-
-
-def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
-    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
-    classes: list[type[BaseException]] = []
-    for candidate in candidates:
-        if candidate is not None and candidate not in classes:
-            classes.append(candidate)
-    return tuple(classes)
-
-
-_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
-_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
-# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
-# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
-_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
-
-
 class _JSONErrorGroup(TyperGroup):
     """Click Group that guarantees JSON envelopes for all error paths.
 
