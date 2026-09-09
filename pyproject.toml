@@ -2966,6 +2966,17 @@ module = ["specify_cli.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
+# protection_policy.py is strict-clean and imports nothing but the stdlib and
+# ruamel.yaml, so following it cannot drag unrelated bootstrap errors into a
+# narrow check. Re-enable it (mypy: the LAST matching override wins, so this
+# entry must stay after the ``specify_cli.*`` skip above) so the concrete
+# ``frozenset[str]`` on ``ProtectionPolicy.protected_branches`` stays visible
+# to every narrow-file check that imports it — otherwise the delegate in
+# ``git/commit_helpers.py`` returns ``Any`` under ``--strict`` (issue #3719).
+module = ["specify_cli.git.protection_policy"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
 # When checking charter.activation.neutrality in isolation, mypy walks into other
 # charter submodules (interview, resolver, context, …) that have pre-existing
 # strict issues being addressed in a separate mission. Skip them so that

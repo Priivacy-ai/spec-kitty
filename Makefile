@@ -25,7 +25,9 @@ convergence-census: ## Fetch upstream and report convergence dispositions
 	uv run --frozen python scripts/convergence/census_status.py
 
 typecheck: ## Run targeted mypy strict type checking
-	uv run --frozen mypy --strict src/specify_cli/runtime/agent_commands.py
+	uv run --frozen mypy --strict \
+	  src/specify_cli/runtime/agent_commands.py \
+	  src/specify_cli/git/commit_helpers.py
 
 ci-parity: ## Preview locally which CI gates/shards your diff selects (#2476 parity)
 	uv run --frozen python scripts/ci/local_gate_parity.py
