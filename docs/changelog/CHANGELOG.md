@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The standalone shared-package drift workflow now checks the maintenance release line without fetching the retired SaaS comparison.** Candidate metadata, lockfile and release-manifest consistency remain mandatory, including when no cross-repository secret is configured.
+
 - **Resynthesis resolves activated IDs across built-in, org and project layers** (#4101). Project profiles use the same precedence as profile inspection. Eager activation checks synthesis prerequisites and the proposed selection before writing activations; lookup errors identify the charter activation store and searched layers.
 
 - **Agent-profile cascade reaches directly authored project guidance** (#4100). `--cascade all` activates referenced procedures, directives, tactics and styleguides from a clean deactivated state, and missing project references produce explicit warnings.
