@@ -99,6 +99,25 @@ def test_init_next_steps_names_spec_kitty_next(
     assert "4. Run the mission loop" in output
     assert "5." not in output
 
+    # #4123: both non-git warning surfaces name the full affected command
+    # set, not just "agent" — the user's next command after init is often
+    # `dashboard` or `dispatch`, and those need git too. Whitespace and the
+    # next-steps panel's ``│`` borders are normalized out because Rich wraps
+    # these long lines at console width.
+    flat_output = " ".join(output.replace("│", " ").split())
+    assert "Target is not a git repository." in flat_output, (
+        "Expected the non-git VCS warning in init console output.\n"
+        f"Actual console output:\n{output}"
+    )
+    assert "`spec-kitty agent`, `dashboard`, `dispatch`, `next`, or `implement` commands" in flat_output, (
+        "The non-git VCS warning must name the full affected command set (#4123).\n"
+        f"Actual console output:\n{output}"
+    )
+    assert "agent, dashboard, dispatch, next, and implement commands" in flat_output, (
+        "The required next-step must name the full affected command set (#4123).\n"
+        f"Actual console output:\n{output}"
+    )
+
     assert "/spec-kitty.dashboard" not in output, (
         "Codex init next steps must not list slash commands that are not installed as command skills.\n"
         f"Actual console output:\n{output}"
