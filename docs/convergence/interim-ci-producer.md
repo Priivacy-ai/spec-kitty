@@ -1,12 +1,36 @@
 ---
 doc_status: active
-updated: '2026-09-05'
+updated: '2026-09-07'
 ---
 
-The existing factory `.github/workflows/ci.yml` is not an upstream restore. It runs only in the private EXPERIMENTAL repository; the byte-identical public promotion uses the restored public release gates below. Those gates resolve the released PyPI dependencies without private-repository credentials.
+The reinstated CI on this repository is the **primary/sole** CI producer. The pre-fork factory `.github/workflows/ci.yml` was a Blacksmith producer fenced to the `spec-kitty/EXPERIMENTAL-spec-kitty` repository; that repository is now **archived** and runs no Actions, so the fenced producer is **inert**. It is therefore **retired** (`never-restore`) rather than promoted — there is no second live producer to coexist with, and no surviving public job carries the private `blacksmith` runner or `SK_CI_TOKEN`. The restored public gates below resolve the released PyPI dependencies without private-repository credentials, and the nightly/full mode carries the whole-tree architectural + terminology + coverage signal Blacksmith formerly produced.
+
+## Dispositions
+
+Every `.github/workflows/*.yml` maps to exactly one disposition. The enforcer (`tests/release/test_release_ci_ownership.py`) asserts each disposition as an **exact set over the map ROWS below** — not over filesystem presence of the workflow file.
+
+| disposition | meaning |
+|---|---|
+| restore | pre-fork workflow reinstated on stock runners |
+| defer | pre-fork workflow not yet restored |
+| never-restore | pre-fork or dead workflow retired forever (no live subject) |
+| introduced | net-new workflow with no pre-fork ancestor (router, module-*, aggregate, sonar, nightly, packs) |
+
+### Invariants
+
+1. Every `.github/workflows/*.yml` maps to exactly one disposition.
+2. `introduced` and `restore` workflows use **stock runners** (`blacksmith` never appears) and carry **no `SK_CI_TOKEN`** on public jobs.
+3. Any de-defer (`defer`→`restore`) or net-new (`∅`→`introduced`) edits this map **in the same change** (C-001 lockstep).
+4. The enforcer **runs on every workflow-changing PR** (not only a tag push).
+5. Adding `introduced` must not weaken the existing three-set assertions — deleting any row reds the enforcer (self-mutation / non-vacuity, SO#5).
+
+The `introduced` set is **frozen** at exactly the seven net-new workflow names this mission adds: `sonar.yml`, `ci-router.yml`, `module-tests.yml`, `ci-modules.yml`, `ci-aggregate.yml`, `ci-nightly.yml`, `packs.yml`. An eighth net-new workflow is not representable in the exact set and **reopens WP01** (documented) rather than being appended silently downstream.
+
+## Disposition rows
 
 | path | disposition | reason |
 |---|---|---|
+| `.github/workflows/ci.yml` | never-restore | Dead EXPERIMENTAL-fenced Blacksmith producer: fenced to the archived `spec-kitty/EXPERIMENTAL-spec-kitty` repo (runs no Actions), so it is inert. Retired in lockstep with its enforcing seam; the reinstated CI on this repo is the primary/sole producer (FR-017 / C-010). |
 | `.github/workflows/ci-quality.yml` | restore | Restored as the reduced five-job interim producer on stock runners: `lint`, `build-wheel`, `clean-install-verification`, `uv-lock-check`, and `quality-gate`. |
 | `.github/workflows/protect-main.yml` | restore | Restored on `ubuntu-latest` so the promoted tree has the Phase-1 exit check-run; rebase-merge association checking is retained. |
 | `.github/workflows/ci-windows.yml` | restore | Restored on stock runners with the obsolete `tests/sync/*` path filters removed. |
@@ -42,3 +66,10 @@ The existing factory `.github/workflows/ci.yml` is not an upstream restore. It r
 | `.github/workflows/performance.yml` | never-restore | Performance pipelines are out of the MVP; timing coverage remains in the local full suite. |
 | `.github/workflows/ci-flake-report.yml` | never-restore | Flake classification is the deterministic CI and merge agents' responsibility, not a separate GitHub Actions producer. |
 | `.github/workflows/mutation-remediation.md` | never-restore | Documentation for an absent mutation workflow; it has no live subject on this tree. |
+| `.github/workflows/ci-router.yml` | introduced | Net-new path-router that classifies a PR's changed files and dispatches the eligible module/aggregate suites; no pre-fork ancestor. |
+| `.github/workflows/module-tests.yml` | introduced | Net-new reusable module test-runner (per-module roots, coverage target, tier, shards); no pre-fork ancestor. |
+| `.github/workflows/ci-modules.yml` | introduced | Net-new matrix caller that fans `module-tests.yml` across the registry-declared modules; no pre-fork ancestor. |
+| `.github/workflows/ci-aggregate.yml` | introduced | Net-new artefact-aggregation + diff-coverage gate over the module runs; no pre-fork ancestor. |
+| `.github/workflows/sonar.yml` | introduced | Net-new SonarQube analysis producer; no pre-fork ancestor on this tree. |
+| `.github/workflows/ci-nightly.yml` | introduced | Net-new nightly/full-mode interpreter carrying the whole-tree arch + terminology + coverage signal; no pre-fork ancestor. |
+| `.github/workflows/packs.yml` | introduced | Net-new packs/doctrine-asset verification producer; no pre-fork ancestor. |

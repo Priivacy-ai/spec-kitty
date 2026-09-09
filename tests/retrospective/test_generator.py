@@ -148,6 +148,7 @@ class TestGeneratorPerformance:
         # Sanity check: record was actually produced
         assert record.mission_slug == LARGE_WITH_GAPS
 
+    @pytest.mark.performance
     def test_simple_fixture_under_500ms(self) -> None:
         """Generating the simple-clean fixture takes < 500ms (should be very fast)."""
         policy = make_policy()

@@ -373,11 +373,27 @@ def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:
         raise pytest.UsageError(format_wall_clock_assertion_violations(violations))
 
 
+#: WP06 fix-before-wiring (FR-015) extension point: the full ``SPEC_KITTY_*``
+#: env namespace, snapshotted and restored around every test by
+#: ``_isolated_worker_home`` below (folded into that existing fixture's body,
+#: not a new top-level definition, per C-001/NFR-005 — see
+#: ``tests/architectural/test_home_owner_behaviour.py``'s single-permitted-edit
+#: gate on this file). The fix-before-wiring audit found two tests mutating
+#: ``SPEC_KITTY_*`` env vars directly (a production helper, and an inline
+#: ``os.environ[...] =``) with no restore --
+#: ``tests/agent/test_context_validation_unit.py`` (fixed locally with its own
+#: ``_isolate_context_env_vars`` fixture) and
+#: ``tests/docs/test_check_cli_reference_freshness.py`` (fixed inline with a
+#: snapshot/restore). Both are now order-independent on their own; this is the
+#: systemic safety net closing the whole CLASS of such leaks across ``tests/``.
+_SPEC_KITTY_ENV_PREFIX = "SPEC_KITTY_"
+
+
 @pytest.fixture(autouse=True)
 def _isolated_worker_home(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
-) -> Path:
+) -> Iterator[Path]:
     """WP04: redirect the *default* home (HOME/XDG env) into a per-worker temp dir.
 
     Autouse and function-scoped so it applies to *every* test and is keyed by
@@ -407,6 +423,14 @@ def _isolated_worker_home(
     set up and assert their own tmp home. Setting only the env source keeps the
     real-``~/.spec-kitty``-untouched guarantee (the env vars are reset per test
     and before collection) while yielding precedence to in-test overrides.
+
+    WP06 (FR-015) extension: also snapshots + restores the full
+    ``SPEC_KITTY_*`` env namespace around the test (see
+    ``_SPEC_KITTY_ENV_PREFIX`` above) — session-scoped ``SPEC_KITTY_*`` setup
+    already in place before this fixture's first invocation
+    (``SPEC_KITTY_ENABLE_SAAS_SYNC``, ``SPEC_KITTY_TEST_VENV``, ...) survives
+    unchanged across every test; only per-test additions/removals within the
+    namespace are undone at teardown, regardless of shard order.
     """
     home_base = _worker_home_base(request.config)
     home_base.mkdir(parents=True, exist_ok=True)
@@ -418,7 +442,19 @@ def _isolated_worker_home(
         target.mkdir(parents=True, exist_ok=True)
         monkeypatch.setenv(var, str(target))
 
-    return home_base
+    before_spec_kitty_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key.startswith(_SPEC_KITTY_ENV_PREFIX)
+    }
+    try:
+        yield home_base
+    finally:
+        for key in [k for k in os.environ if k.startswith(_SPEC_KITTY_ENV_PREFIX)]:
+            if key not in before_spec_kitty_env:
+                os.environ.pop(key, None)
+        for key, value in before_spec_kitty_env.items():
+            os.environ[key] = value
 
 
 @pytest.fixture
