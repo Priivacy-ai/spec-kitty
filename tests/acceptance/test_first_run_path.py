@@ -364,9 +364,7 @@ def _isolate_fresh_home(monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
         monkeypatch.setenv(var, str(home / subdir))
 
 
-def _assert_clean_first_init_skill_installation(
-    result: subprocess.CompletedProcess[str], home: Path, repo: Path
-) -> None:
+def _assert_clean_first_init_skill_installation(result: subprocess.CompletedProcess[str], home: Path, repo: Path) -> None:
     """The #4166 contract: clean warning surface plus real skill evidence."""
     assert result.returncode == 0, f"`spec-kitty init` failed:\n{result.stdout}\n{result.stderr}"
     unwrapped = _unwrapped(result)
@@ -385,9 +383,7 @@ def _assert_clean_first_init_skill_installation(
     assert not (repo / ".kittify" / "init-command-skills.pending.json").exists()
 
 
-def test_first_init_codex_non_interactive_reports_clean_skill_installation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_first_init_codex_non_interactive_reports_clean_skill_installation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#4166: `init --ai codex --non-interactive` on a fresh HOME.
 
     The former standalone global-skill phase imported the removed private
