@@ -6,7 +6,7 @@ Every command returns a canonical JSON envelope:
 
 ```json
 {
-  "contract_version": "1.4.0",
+  "contract_version": "1.5.0",
   "command": "orchestrator-api.<subcommand-name>",
   "timestamp": "2026-03-21T08:00:00Z",
   "correlation_id": "uuid-v4",
