@@ -494,7 +494,7 @@ def test_corrupt_sidecar_degrades_to_untouched_not_crash(tmp_path):
     """
     from charter.activation.project_registration import plan_project_registration, commit_project_registration
 
-    paths = author_guidance(tmp_path)
+    author_guidance(tmp_path)
     commit_project_registration(plan_project_registration(tmp_path))
     sidecar = tmp_path / ".kittify/charter/provenance/procedure-incident-runbook.yaml"
     sidecar.write_text("artifact_urn: [unclosed")
