@@ -38,6 +38,7 @@ import yaml
 
 from charter.offering.drg.migration.extractor import _GOVERNANCE_PROFILE_SCOPE_FIELDS
 from charter.offering.drg.migration.id_normalizer import artifact_to_urn
+from charter.offering.drg.org_pack_loader import OrgPackSchemaError
 
 __all__ = ["collect_org_governance_scope_edges"]
 
@@ -59,13 +60,17 @@ class OrgGovernanceScopeEdge(NamedTuple):
 def _load_profile(path: Path) -> dict[str, Any] | None:
     """Best-effort read of one ``governance-profile.yaml`` into a mapping.
 
-    Malformed YAML or a non-mapping document yields ``None`` so a broken
-    per-type profile is skipped rather than crashing the whole pack load; the
-    pack validator surfaces authoring errors through its own paths.
+    Malformed YAML, non-UTF-8 bytes, or a non-mapping document yields ``None``
+    so a broken per-type profile is skipped rather than crashing the whole
+    pack load; the pack validator surfaces authoring errors through its own
+    paths. ``UnicodeDecodeError`` is named alongside ``yaml.YAMLError`` for
+    the same reason the fragment reader names it (#4200 defect 2): an
+    encoding fault is a translation fault of the profile being read, never an
+    uncaught traceback out of the collector.
     """
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
+    except (OSError, yaml.YAMLError, UnicodeDecodeError):
         return None
     return data if isinstance(data, dict) else None
 
@@ -113,12 +118,21 @@ def _profile_scope_edges(
     Extracted from :func:`collect_org_governance_scope_edges` so the outer loop
     stays flat (ruff C901 <= 15). *seen* is threaded across profiles so a repeat
     of the same ``(mission_type, target)`` selection is emitted once.
+
+    A malformed ``selected_*`` value raises :class:`OrgPackSchemaError`
+    carrying the profile's own path in ``source_file`` — the same fault class
+    the org-pack loader raises for fragment faults, so a sibling-source fault
+    is attributed to the profile, never to ``drg/fragment.yaml`` (#4200
+    defect 1).
     """
     edges: list[OrgGovernanceScopeEdge] = []
     for field_name, kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS:
         selections = data.get(field_name) or []
         if not isinstance(selections, list):
-            raise ValueError(f"{profile_path}: {field_name} must be a list or null")
+            raise OrgPackSchemaError(
+                f"{profile_path}: {field_name} must be a list or null",
+                source_file=profile_path,
+            )
         for raw_id in selections:
             if not isinstance(raw_id, str) or not raw_id:
                 continue

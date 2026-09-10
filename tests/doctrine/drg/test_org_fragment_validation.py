@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,9 @@ def test_pack_cli_rejects_graph_node_in_org_fragment(tmp_path: Path) -> None:
     assert finding["category"] == "schema_invalid"
     assert finding["artifact_type"] == "drg"
     assert finding["file"] == str(fragment)
-    assert "nodes.0.id" in finding["message"]
+    # Coarse message assertions only: "unknown kind" is this repo's own
+    # binding wording, but pydantic loc substrings like ``nodes.0.id`` drift
+    # across pydantic versions and must not be pinned (#4200 nit c).
     assert "unknown kind 'directive'" in finding["message"]
 
 
@@ -152,6 +155,9 @@ def test_governance_projection_validation(tmp_path: Path, selection: str) -> Non
     else:
         assert len(result.errors) == 1
         assert result.errors[0].category == "schema_invalid"
+        # The fault lives in the governance profile, not the fragment: the
+        # finding names the real source file (#4200 defect 1).
+        assert result.errors[0].file == str(profile)
         assert str(profile) in result.errors[0].message
         assert "selected_directives" in result.errors[0].message
         with pytest.raises(OrgPackSchemaError, match="selected_directives"):
@@ -159,6 +165,170 @@ def test_governance_projection_validation(tmp_path: Path, selection: str) -> Non
     for command in ("pack", "org"):
         cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
         assert cli.exit_code == (0 if valid else 1), cli.output
+        # ``CliRunner`` swallows an uncaught crash into ``exception`` with
+        # exit_code 1 and no "Traceback" in output, so the exit-code assert
+        # alone cannot pin "no traceback": the only exception a clean exit
+        # may carry is the ``SystemExit`` signal itself (pass-2 squad MINOR).
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
         assert "Traceback" not in cli.output
         if not valid:
             assert "selected_directives" in cli.output
+
+
+# ---------------------------------------------------------------------------
+# #4200: authority gap — governance-profile validation must not be gated on
+# drg/fragment.yaml existing.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("selection", ["3", "[ACME-001-FOO]"])
+def test_governance_validation_not_gated_on_fragment(tmp_path: Path, selection: str) -> None:
+    """A governance-profile fault is a CLI finding even with NO fragment.
+
+    The profile is read by ``load_org_pack`` the moment any fragment exists,
+    so a pack that ships ``mission_types/*/governance-profile.yaml`` without
+    ``drg/fragment.yaml`` previously passed CLI validation green while the
+    same loader raised at runtime (#4200 defect 3).
+    """
+    from specify_cli.doctrine.pack_validator import validate_pack
+
+    profile = tmp_path / "mission_types" / "example" / "governance-profile.yaml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(f"selected_directives: {selection}\n", encoding="utf-8")
+    valid = selection.startswith("[")
+    result = validate_pack(tmp_path, check_drg_root=False)
+    assert result.ok is valid
+    if not valid:
+        assert len(result.errors) == 1
+        finding = result.errors[0]
+        assert finding.category == "schema_invalid"
+        assert finding.file == str(profile)
+        assert "selected_directives" in finding.message
+    for command in ("pack", "org"):
+        cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
+        assert cli.exit_code == (0 if valid else 1), cli.output
+        # Same ``CliRunner``-swallows-crashes guard as above (pass-2 squad MINOR).
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
+        assert "Traceback" not in cli.output
+
+
+def test_non_utf8_governance_profile_is_skipped_not_a_traceback(tmp_path: Path) -> None:
+    """A non-UTF-8 governance profile cannot crash ``validate`` with no fragment.
+
+    ``UnicodeDecodeError`` subclasses ``ValueError``, not ``OSError``, so a
+    ``governance-profile.yaml`` written in a non-UTF-8 encoding escaped the
+    fragment-less branch's ``(OrgPackSchemaError, OSError)`` catch and crashed
+    ``pack validate`` / ``org validate`` with an uncaught traceback — #4200
+    defect 2's own failure mode reintroduced on the defect-3 branch (pass-2
+    squad MAJOR). The profile's own loader now names the encoding fault
+    alongside ``yaml.YAMLError`` and skips the profile, so the validator and
+    the runtime loader agree on both the fragment-less and the
+    fragment-present path — where the same fault previously surfaced as a
+    ``schema_invalid`` finding misattributed to ``drg/fragment.yaml`` by the
+    loader's broad backstop.
+    """
+    from charter.offering.drg.org_governance import collect_org_governance_scope_edges
+    from specify_cli.doctrine.pack_validator import validate_pack
+
+    profile = tmp_path / "mission_types" / "example" / "governance-profile.yaml"
+    profile.parent.mkdir(parents=True)
+    profile.write_bytes(b"mission_type: example\nselected_directives: [caf\xe9-d]\n")
+    # Runtime seam: the collector skips the unreadable profile, never raises.
+    assert collect_org_governance_scope_edges(tmp_path) == []
+    result = validate_pack(tmp_path, check_drg_root=False)
+    assert result.ok, result.errors
+    # Fragment-present sibling: the same profile is skipped there too, so
+    # the CLI verdict and the runtime loader cannot diverge.
+    fragment = tmp_path / "drg" / "fragment.yaml"
+    fragment.parent.mkdir()
+    fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
+    assert validate_pack(tmp_path, check_drg_root=False).ok
+    for command in ("pack", "org"):
+        cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
+        assert cli.exit_code == 0, cli.output
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
+        assert "Traceback" not in cli.output
+
+
+# ---------------------------------------------------------------------------
+# #4200: an unreadable fragment is an I/O finding, never a traceback and
+# never a masked "YAML parse error".
+# ---------------------------------------------------------------------------
+
+
+def test_unreadable_fragment_is_a_finding_not_a_traceback(tmp_path: Path) -> None:
+    """A directory where ``drg/fragment.yaml`` should be cannot be read.
+
+    ``read_text`` on a directory raises ``OSError`` on every platform, so
+    this exercises the unreadable-file channel without chmod (which is a
+    no-op for root) — the exact fault that previously aborted the whole
+    ``validate`` command with a traceback once it stopped being masked as a
+    YAML parse error (#4200 defect 2).
+    """
+    from specify_cli.doctrine.pack_validator import validate_pack
+
+    fragment = tmp_path / "drg" / "fragment.yaml"
+    fragment.parent.mkdir()
+    fragment.mkdir()
+    result = validate_pack(tmp_path, check_drg_root=False)
+    assert not result.ok
+    assert len(result.errors) == 1
+    finding = result.errors[0]
+    assert finding.category == "unreadable_file"
+    assert finding.file == str(fragment)
+    for command in ("pack", "org"):
+        cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
+        assert cli.exit_code == 1, cli.output
+        # Same ``CliRunner``-swallows-crashes guard as above (pass-2 squad MINOR).
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
+        assert "Traceback" not in cli.output
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0,
+    reason="chmod-based unreadability needs POSIX and a non-root user",
+)
+def test_permission_denied_fragment_is_a_finding(tmp_path: Path) -> None:
+    """A permission-denied fragment surfaces as ``unreadable_file``, not a crash."""
+    from specify_cli.doctrine.pack_validator import validate_pack
+
+    fragment = tmp_path / "drg" / "fragment.yaml"
+    fragment.parent.mkdir()
+    fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
+    fragment.chmod(0)
+    try:
+        result = validate_pack(tmp_path, check_drg_root=False)
+    finally:
+        fragment.chmod(0o644)
+    assert not result.ok
+    assert len(result.errors) == 1
+    finding = result.errors[0]
+    assert finding.category == "unreadable_file"
+    assert finding.file == str(fragment)
+
+
+def test_missing_pack_fault_has_its_own_category(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``OrgPackMissingError`` maps to ``org_pack_missing``, not ``parse_error``.
+
+    A missing referenced artifact is not a parse failure (#4200 nit a). The
+    loader only raises it mid-validation in a delete race, so the mapping is
+    pinned by simulating the raise at the seam the validator calls.
+    """
+    from charter.offering.drg.org_pack_loader import OrgPackMissingError
+    from specify_cli.doctrine import pack_validator
+    from specify_cli.doctrine.pack_validator import validate_pack
+
+    fragment = tmp_path / "drg" / "fragment.yaml"
+    fragment.parent.mkdir()
+    fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
+
+    def _vanished(pack_name: str, pack_root: Path, layer_index: int) -> None:
+        raise OrgPackMissingError(pack_name, pack_root / "drg" / "fragment.yaml")
+
+    monkeypatch.setattr(pack_validator, "load_org_pack", _vanished)
+    result = validate_pack(tmp_path, check_drg_root=False)
+    assert not result.ok
+    assert len(result.errors) == 1
+    finding = result.errors[0]
+    assert finding.category == "org_pack_missing"
+    assert finding.file == str(fragment)
