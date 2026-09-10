@@ -38,8 +38,6 @@ from specify_cli.tool_surface.operations import (
     coalesce_effects,
 )
 
-logger = logging.getLogger(__name__)
-
 
 def digest(data: bytes) -> str:
     """Hash exact asset bytes, without text or timestamp normalization."""
