@@ -3728,6 +3728,9 @@ pages:
     - {slug: "hosted-auth-and-sync", text: "Hosted Auth and Sync", level: 2}
     - {slug: "spec-kitty-enable-saas-sync", text: "SPEC_KITTY_ENABLE_SAAS_SYNC", level: 3}
     - {slug: "spec-kitty-saas-url", text: "SPEC_KITTY_SAAS_URL", level: 3}
+    - {slug: "spec-kitty-sync-disable", text: "SPEC_KITTY_SYNC_DISABLE", level: 3}
+    - {slug: "spec-kitty-no-moment-handlers", text: "SPEC_KITTY_NO_MOMENT_HANDLERS", level: 3}
+    - {slug: "spec-kitty-skip-pre-review-gate", text: "SPEC_KITTY_SKIP_PRE_REVIEW_GATE", level: 3}
     - {slug: "release-channel", text: "Release Channel", level: 2}
     - {slug: "spec-kitty-prerelease", text: "SPEC_KITTY_PRERELEASE", level: 3}
     - {slug: "the-kitty-env-file", text: "The `.kitty.env` file", level: 2}
@@ -3785,10 +3788,11 @@ pages:
   - path: "docs/api/finalize-tasks-internals.md"
     title: "finalize-tasks internals reference"
     divio_type: "none"
-    abstract: "Deep dive into the finalize-tasks internal command behavior. Learn about empty owned_files handling, status events, and dependency-depth cycle detection."
+    abstract: "Deep dive into finalize-tasks internals - empty owned_files handling, status events, lane-depth cycle safety, and the planning_commit_sha refresh override."
     anchors:
     - {slug: "1-explicit-empty-owned-files", text: "1. Explicit empty `owned_files`", level: 2}
     - {slug: "2-lane-depth-cycle-safety", text: "2. Lane-depth cycle safety", level: 2}
+    - {slug: "3-refreshing-the-recorded-planning-commit-after-an-amendment-4141", text: "3. Refreshing the recorded planning commit after an amendment (#4141)", level: 2}
   - path: "docs/api/index.md"
     title: "Reference"
     divio_type: "reference"
@@ -5285,6 +5289,31 @@ pages:
     - {slug: "6-invariants-acceptance-criteria", text: "6. Invariants & acceptance criteria", level: 2}
     - {slug: "7-explicitly-out-of-scope-later-missions", text: "7. Explicitly out of scope (later missions)", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/archive/program-evidence/R2-T1-local-legacy-removal/README.md"
+    title: "R2-T1 historical program evidence"
+    divio_type: "reference"
+    abstract: "This directory preserves two immutable historical program documents. The original bundle described R2-T1 retirement scope and commit attribution. It was not a mission record and had no mission identity metadata. Moving it outside the immediate mission corpus preserves that distinction."
+    anchors:
+    - {slug: "original-documents", text: "Original Documents", level: 2}
+    - {slug: "path-mapping", text: "Path Mapping", level: 2}
+    - {slug: "git-provenance", text: "Git Provenance", level: 2}
+    - {slug: "reference-context", text: "Reference Context", level: 2}
+  - path: "docs/archive/program-evidence/R2-T1-local-legacy-removal/commit-history-notes.md"
+    title: "R2-T1 commit-history attribution notes"
+    divio_type: "none"
+    abstract: "This file exists solely to correct a misattribution flagged by Renata's attempt-6 review (MEDIUM finding) that cannot be fixed by editing git history, because this repo's own hard constraint forbids amending a reviewed commit -- rework is always a new commit, never a rewrite of one already reported. It records, out-of-band, what the affected commit's message alone does not say."
+    anchors:
+    - {slug: "006aaebff9a2b61b662db093687a72dfe6541792-mixed-purpose-commit", text: "`006aaebff9a2b61b662db093687a72dfe6541792` — mixed-purpose commit", level: 2}
+  - path: "docs/archive/program-evidence/R2-T1-local-legacy-removal/deletion-manifest.md"
+    title: "R2-T1 destructive manifest (frozen module scope)"
+    divio_type: "none"
+    abstract: "**Bead:** `R2-T1` (parent feature `R2`, `docs/BEADS_PROGRAM_GRAPH.json`) · **Reviewer:** reviewer-renata **Frozen:** 2026-08-21 · **Base:** `38090b6493dd9fdf77826200348a82a22c5f61c4` (`spec-kitty`) **Source contract:** `m1-contract-drafts/R2.md` §3.4 (\"Physical absence — public interface\")"
+    anchors:
+    - {slug: "delete-full-module-package-all-tests-whose-only-subject-is-the-module-all-doc-cli-help-references", text: "DELETE (full module/package, all tests whose only subject is the module, all doc/CLI-help references)", level: 2}
+    - {slug: "retain-unchanged-r2-t1-must-not-touch", text: "RETAIN (unchanged — R2-T1 must not touch)", level: 2}
+    - {slug: "mixed-must-split-not-delete-wholesale", text: "MIXED / must-split-not-delete-wholesale", level: 2}
+    - {slug: "egress-allowlist-arithmetic-tests-architectural-test-egress-consent-boundary-py", text: "Egress-allowlist arithmetic (`tests/architectural/test_egress_consent_boundary.py`)", level: 2}
+    - {slug: "sequencing-r2-md-5-internal-wp-order-one-beads-task-no-graph-fork", text: "Sequencing (R2.md §5 — internal WP order, one Beads task, no graph fork)", level: 2}
   - path: "docs/assets/index.md"
     title: "Documentation assets"
     divio_type: "none"
@@ -5491,7 +5520,7 @@ pages:
     divio_type: "none"
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
-    - {slug: "unreleased-3-2-7rc1", text: "[Unreleased] - 3.2.7rc1", level: 2}
+    - {slug: "unreleased-3-2-8rc1", text: "[Unreleased] - 3.2.8rc1", level: 2}
     - {slug: "breaking", text: "💥 Breaking", level: 3}
     - {slug: "changed", text: "Changed", level: 3}
     - {slug: "removed", text: "Removed", level: 3}
@@ -6514,7 +6543,7 @@ pages:
     - {slug: "domain-index", text: "Domain Index", level: 2}
     - {slug: "status-lifecycle", text: "Status Lifecycle", level: 2}
     - {slug: "term-entry-schema", text: "Term Entry Schema", level: 2}
-    - {slug: "runtime-anchors-2-x", text: "Runtime Anchors (`2.x`)", level: 2}
+    - {slug: "runtime-anchors", text: "Runtime Anchors", level: 2}
     - {slug: "pdr-alignment-notes", text: "PDR Alignment Notes", level: 2}
   - path: "docs/context/governance-files.md"
     title: "Governance Files Reference"
@@ -6859,8 +6888,11 @@ pages:
   - path: "docs/convergence/interim-ci-producer.md"
     title: "interim-ci-producer"
     divio_type: "none"
-    abstract: "The existing factory `.github/workflows/ci.yml` is not an upstream restore. It runs only in the private EXPERIMENTAL repository; the byte-identical public promotion uses the restored public release gates below. Those gates resolve the released PyPI dependencies without private-repository credentials."
-    anchors: []
+    abstract: "The reinstated CI on this repository is the **primary/sole** CI producer. The pre-fork factory `.github/workflows/ci.yml` was a Blacksmith producer fenced to the `spec-kitty/EXPERIMENTAL-spec-kitty` repository; that repository is now **archived** and runs no Actions, so the fenced producer is **inert**. It is therefore **retired** (`never-restore`) rather than promoted — there is no second live producer to coexist with, and no surviving public job carries the private `blacksmith` runner or `SK_CI_TOKEN`. The restored public gates below resolve the released PyPI dependencies without private-repository credentials, and the nightly/full mode carries the whole-tree architectural + terminology + coverage signal Blacksmith formerly produced."
+    anchors:
+    - {slug: "dispositions", text: "Dispositions", level: 2}
+    - {slug: "invariants", text: "Invariants", level: 3}
+    - {slug: "disposition-rows", text: "Disposition rows", level: 2}
   - path: "docs/convergence/landing.md"
     title: "landing"
     divio_type: "none"
