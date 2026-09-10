@@ -4,7 +4,7 @@ description: >-
   Curate and apply canonical terminology across Spec Kitty missions.
   Triggers: "update the glossary", "use canonical terms", "check terminology",
   "add a term", "fix term drift", "glossary conflicts", "resolve ambiguity",
-  "review terminology consistency", "shape a domain model",
+  "review terminology consistency", "shape a domain model's terms",
   "validate domain language against code".
   Does NOT handle: runtime loop advancement, setup or repair requests,
   agent configuration, or direct code implementation tasks.
@@ -271,9 +271,9 @@ API contracts, and tests before accepting it. Name the surfaces checked and
 report concrete mismatches. If code evidence is unavailable, label the claim
 as a hypothesis rather than presenting it as confirmed.
 
-### Challenge the term with a concrete edge scenario
+### Challenge the term with a concrete edge case
 
-Choose at least one small concrete edge scenario that could expose ambiguity.
+Choose at least one small concrete edge case that could expose ambiguity.
 State the expected behavior, then check whether the proposed definition,
 boundary, or relationship explains it. If not, refine the model instead of
 adding more terminology around the mismatch.
@@ -291,7 +291,7 @@ When an ADR already covers the decision, update or reference it instead of
 creating a duplicate.
 
 **Expected outcome:** The term is supported by available code evidence,
-survives a concrete edge scenario, and creates an ADR only for a decision that
+survives a concrete edge case, and creates an ADR only for a decision that
 passes all three conditions.
 
 ---
