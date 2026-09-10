@@ -40,6 +40,10 @@ def test_cli_accepts_minimal_authored_fragment(tmp_path: Path, command: str) -> 
     fragment.write_text("nodes:\n  - id: ACME-001-FOO\n    kind: directives\nedges: []\n", encoding="utf-8")
     result = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
     assert result.exit_code == 0, result.output
+    from charter.offering.drg.org_pack_loader import load_org_pack
+
+    loaded = load_org_pack(pack_name="test", pack_root=tmp_path, layer_index=1)
+    assert [(node.id, node.kind) for node in loaded.nodes] == [("ACME-001-FOO", "directives")]
 
 
 @pytest.mark.parametrize(

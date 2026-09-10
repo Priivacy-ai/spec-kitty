@@ -225,7 +225,10 @@ def _derive_plural_to_singular() -> dict[str, str]:
     node_kinds = {kind.value for kind in NodeKind}
     not_node_kinds = sorted(set(resolved.values()) - node_kinds)
     if not_node_kinds:
-        raise ValueError(f"singular URN kind(s) {not_node_kinds} have no NodeKind member, so the merge could never mint a valid node for them.")
+        raise ValueError(
+            f"singular URN kind(s) {not_node_kinds} have no NodeKind member, "
+            "so the merge could never mint a valid node for them."
+        )
     return resolved
 
 
@@ -240,7 +243,11 @@ ORG_PLURAL_TO_SINGULAR_KIND: dict[str, str] = _derive_plural_to_singular()
 #: ``template`` and ``asset``) plus the mission-type extension — no second
 #: kind enumeration is hand-maintained.
 AUGMENTATION_ELIGIBLE_KINDS: dict[str, str] = {
-    **{kind.value: kind.plural for kind in ArtifactKind if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS},
+    **{
+        kind.value: kind.plural
+        for kind in ArtifactKind
+        if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS
+    },
     _MISSION_TYPE_SINGULAR: _MISSION_TYPE_PLURAL,
 }
 
@@ -258,7 +265,9 @@ AUGMENTATION_RELATIONS: tuple[Relation, ...] = (
 #: The augmentation-eligible kinds that carry an internal action-sequence /
 #: step-I/O topology, whose ``enhances`` field-merge has extra ordering- and
 #: contract-preservation obligations (FR-029, T018, ADR 2026-05-16-1).
-TOPOLOGY_KINDS: frozenset[str] = frozenset({ArtifactKind.MISSION_STEP_CONTRACT.value, _MISSION_TYPE_SINGULAR})
+TOPOLOGY_KINDS: frozenset[str] = frozenset(
+    {ArtifactKind.MISSION_STEP_CONTRACT.value, _MISSION_TYPE_SINGULAR}
+)
 
 #: File-discovery globs per plural directory for the legacy field-projection
 #: emission path (see :func:`_collect_field_projection_edges`). Built from the
@@ -267,7 +276,11 @@ TOPOLOGY_KINDS: frozenset[str] = frozenset({ArtifactKind.MISSION_STEP_CONTRACT.v
 #: authored as fragment edges only). Excludes the same
 #: :data:`charter.offering.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS` set as
 #: :data:`AUGMENTATION_ELIGIBLE_KINDS` (``template``, ``asset``).
-_AUGMENTATION_GLOBS: dict[str, str] = {kind.plural: kind.glob_pattern for kind in ArtifactKind if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS}
+_AUGMENTATION_GLOBS: dict[str, str] = {
+    kind.plural: kind.glob_pattern
+    for kind in ArtifactKind
+    if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS
+}
 
 
 def augmentation_plural_kinds() -> frozenset[str]:
@@ -293,12 +306,18 @@ class OrgPackMissingError(Exception):
     with an operator-actionable error. No silent fallback.
     """
 
-    REMEDIATION: ClassVar[str] = "Either fetch the pack (`spec-kitty doctrine fetch --pack <name>`) or remove the entry from `.kittify/config.yaml`."
+    REMEDIATION: ClassVar[str] = (
+        "Either fetch the pack (`spec-kitty doctrine fetch --pack <name>`) "
+        "or remove the entry from `.kittify/config.yaml`."
+    )
 
     def __init__(self, pack_name: str, configured_path: str | Path):
         self.pack_name = pack_name
         self.configured_path = str(configured_path)
-        super().__init__(f"Org pack {pack_name!r} configured at {self.configured_path!r} not found. {self.REMEDIATION}")
+        super().__init__(
+            f"Org pack {pack_name!r} configured at {self.configured_path!r} "
+            f"not found. {self.REMEDIATION}"
+        )
 
 
 class OrgPackParseError(Exception):
@@ -438,7 +457,7 @@ class OrgDRGFragment(BaseModel):
 def _read_fragment_yaml(pack_name: str, fragment_yaml: Path) -> Any:
     """Read authored YAML and translate parsing failures at the loader boundary."""
     try:
-        return yaml.safe_load(fragment_yaml.read_text(encoding="utf-8")) or {}
+        return yaml.safe_load(fragment_yaml.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
         raise OrgPackParseError(f"Org pack {pack_name!r}: YAML parse error in {fragment_yaml}: {exc}") from exc
 
@@ -490,6 +509,15 @@ def load_org_pack(
         raise OrgPackMissingError(pack_name, fragment_yaml)
 
     fragment_data = _read_fragment_yaml(pack_name, fragment_yaml)
+    if fragment_data is None:
+        fragment_data = {}
+    if not isinstance(fragment_data, dict):
+        raise OrgPackSchemaError(f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: fragment must be a mapping")
+    authored_edges = fragment_data.get("edges")
+    if authored_edges is None:
+        authored_edges = []
+    if not isinstance(authored_edges, list):
+        raise OrgPackSchemaError(f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: edges must be a list or null")
 
     # Operator-side authoritative fields override pack-side declarations.
     # This is intentional: the loader knows the canonical pack name,
@@ -535,13 +563,18 @@ def load_org_pack(
     # ``model_validate`` passes through untouched) so that downstream code can
     # tell machine provenance from an author's ``reason:`` without matching on
     # the generated text — a string the emitter above owns and could reword.
-    authored_edges: list[Any] = list(fragment_data.get("edges") or [])
-    fragment_data["edges"] = authored_edges + _collect_augmentation_edges(pack_root) + _collect_governance_scope_edges(pack_root)
+    fragment_data["edges"] = (
+        authored_edges
+        + _collect_augmentation_edges(pack_root)
+        + _collect_governance_scope_edges(pack_root)
+    )
 
     try:
         fragment = OrgDRGFragment.model_validate(fragment_data)
     except Exception as exc:  # noqa: BLE001
-        raise OrgPackSchemaError(f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: {exc}") from exc
+        raise OrgPackSchemaError(
+            f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: {exc}"
+        ) from exc
 
     # Validate authored nodes first: alias normalization and schema failures must
     # precede inference, and authored metadata wins for the same kind/identity.
@@ -610,17 +643,25 @@ def _load_artifact_data(path: Path) -> dict[str, Any]:
 #: Map the projection field name -> its canonical relation, derived from the
 #: single relation source so adding a relation is a one-line change to
 #: :data:`AUGMENTATION_RELATIONS`.
-_PROJECTION_FIELD_TO_RELATION: dict[str, Relation] = {relation.value: relation for relation in AUGMENTATION_RELATIONS}
+_PROJECTION_FIELD_TO_RELATION: dict[str, Relation] = {
+    relation.value: relation for relation in AUGMENTATION_RELATIONS
+}
 
 
 def _augmentation_files(type_dir: Path, plural: str, glob: str) -> list[Path]:
     """Return augmentation-bearing files in *type_dir* (rglob for styleguides)."""
     if not type_dir.is_dir() or not glob:
         return []
-    return sorted(type_dir.rglob(glob)) if plural == "styleguides" else sorted(type_dir.glob(glob))
+    return (
+        sorted(type_dir.rglob(glob))
+        if plural == "styleguides"
+        else sorted(type_dir.glob(glob))
+    )
 
 
-def _projection_edges_for_file(yaml_file: Path, urn_kind: str) -> list[_ProjectedOrgDRGEdge]:
+def _projection_edges_for_file(
+    yaml_file: Path, urn_kind: str
+) -> list[_ProjectedOrgDRGEdge]:
     """Emit projection edges for one artifact file (best-effort).
 
     Reads the artifact's ``id`` and any augmentation/lineage field present,
@@ -756,7 +797,10 @@ def merge_topology_artifact(
     if mode is Relation.OVERRIDES:
         return deepcopy(dict(overlay))
     if mode is not Relation.ENHANCES:
-        raise ValueError(f"merge_topology_artifact only supports ENHANCES / OVERRIDES, got {mode!r}")
+        raise ValueError(
+            f"merge_topology_artifact only supports ENHANCES / OVERRIDES, "
+            f"got {mode!r}"
+        )
 
     merged: dict[str, Any] = {**deepcopy(dict(base)), **deepcopy(dict(overlay))}
 
@@ -773,7 +817,10 @@ def merge_topology_artifact(
             merged[seq_field] = deepcopy(base_seq)
             continue
         if not isinstance(overlay_seq, list):
-            raise TopologyMergeError(f"enhances overlay set {seq_field!r} to a non-list; an action sequence must remain a list")
+            raise TopologyMergeError(
+                f"enhances overlay set {seq_field!r} to a non-list; an "
+                f"action sequence must remain a list"
+            )
         merged[seq_field] = _merge_action_sequence(base_seq, overlay_seq, seq_field)
     return merged
 
@@ -806,7 +853,9 @@ def _merge_action_sequence(
     dropped = sorted(set(base_by_id) - overlay_ids)
     if dropped:
         raise TopologyMergeError(
-            f"enhances overlay silently drops {seq_field} step(s) {dropped} from the base action sequence; declare 'overrides' for a full replacement instead"
+            f"enhances overlay silently drops {seq_field} step(s) {dropped} "
+            f"from the base action sequence; declare 'overrides' for a full "
+            f"replacement instead"
         )
 
     return [_merge_action_sequence_step(step, base_by_id, seq_field) for step in overlay_seq]
@@ -836,5 +885,9 @@ def _merge_action_sequence_step(
         # omitting the field entirely preserves the base I/O (the merge
         # keeps the base value via the dict-merge above).
         if base_io and io_field in step and not step.get(io_field):
-            raise TopologyMergeError(f"enhances overlay strips {io_field!r} from {seq_field} step {sid!r}; step input/output contracts must be preserved")
+            raise TopologyMergeError(
+                f"enhances overlay strips {io_field!r} from {seq_field} "
+                f"step {sid!r}; step input/output contracts must be "
+                f"preserved"
+            )
     return merged_step
