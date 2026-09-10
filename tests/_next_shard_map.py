@@ -140,6 +140,12 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_e2e_runtime_integration.py",
     "tests/runtime/test_package_exports.py",
     "tests/runtime/test_resolver_unit.py",
+    # 2026-09-10 (PR #4174 landing folds): the #4017 seam-hardening residual-
+    # window tests the review squad drove red-first. shard_2 was the uniquely
+    # lightest runtime shard (17 rows vs 20/20) when these registered.
+    "tests/runtime/test_recheck_mid_write_convergence.py",
+    "tests/runtime/test_check_assets_membership_tolerance.py",
+    "tests/runtime/test_global_preparation_include_role_stickiness.py",
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     # 2026-09-09 (PR #4008 fix round): test_meta_fail_closed_pending_batch_a.py
