@@ -141,9 +141,7 @@ _DELIVERY_REASON_BY_KIND: dict[NodeKind, str] = {
     NodeKind.PARADIGM: "delivered via the charter selection block, not the action bundle",
     NodeKind.AGENT_PROFILE: "delivered through the profile channel (FR-020), not the action bundle",
     NodeKind.MISSION_STEP_CONTRACT: "consumed by the step executor, not a bundle artefact",
-    NodeKind.ANTI_PATTERN: (
-        "validation-tier topology only (rejects edges) -- never a delivered bundle artefact"
-    ),
+    NodeKind.ANTI_PATTERN: ("validation-tier topology only (rejects edges) -- never a delivered bundle artefact"),
     NodeKind.TEMPLATE: "template-file selection (C-004), not a doctrine bundle artefact",
     NodeKind.ACTION: "an action node is the resolution root, not a delivered artefact",
     NodeKind.MISSION_TYPE: "a mission-type node is graph structure, not a delivered artefact",
@@ -157,10 +155,7 @@ def _kind_delivery(kind: NodeKind) -> _KindDelivery:
     try:
         return _ACTION_BUNDLE_DELIVERY_BY_KIND[kind]
     except KeyError as exc:
-        raise LookupError(
-            f"NodeKind {kind!r} has no delivery row. Add it to "
-            "_ACTION_BUNDLE_DELIVERY_BY_KIND (slot + gate)."
-        ) from exc
+        raise LookupError(f"NodeKind {kind!r} has no delivery row. Add it to _ACTION_BUNDLE_DELIVERY_BY_KIND (slot + gate).") from exc
 
 
 def action_bundle_bucket(kind: NodeKind) -> str | None:
@@ -183,11 +178,7 @@ def _empty_slot_map() -> dict[str, list[str]]:
     Derived from the delivery table so a kind flipped into a slot grows an
     accumulator automatically -- totality and delivery are one statement.
     """
-    return {
-        row.slot: []
-        for row in _ACTION_BUNDLE_DELIVERY_BY_KIND.values()
-        if row.slot is not None
-    }
+    return {row.slot: [] for row in _ACTION_BUNDLE_DELIVERY_BY_KIND.values() if row.slot is not None}
 
 
 def _classify_artifact_urns(
@@ -274,10 +265,9 @@ def _classify_artifact_urns(
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()
     additional_directives = additional_directives or set()
-    start_urns = {
-        f"directive:{directive_id}"
-        for directive_id in (project_directives or ()) | additional_directives
-    }
+    # ``project_directives`` keeps its three-state None-ness for the delivery
+    # guard below; the union here normalizes through set() so ``|`` is typed.
+    start_urns = {f"directive:{directive_id}" for directive_id in set(project_directives or ()) | additional_directives}
     start_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_tactics)
     start_urns.update(f"paradigm:{paradigm_id}" for paradigm_id in selected_paradigms)
     selected_closure = resolve_transitive_refs(
@@ -342,11 +332,7 @@ def _classify_artifact_urns(
         if slot is None:
             continue
         artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
-        if (
-            node.kind is NodeKind.DIRECTIVE
-            and project_directives is not None
-            and artifact_id not in project_directives | additional_directives
-        ):
+        if node.kind is NodeKind.DIRECTIVE and project_directives is not None and artifact_id not in project_directives | additional_directives:
             continue
         slots[slot].append(artifact_id)
     return {slot: tuple(ids) for slot, ids in slots.items()}
