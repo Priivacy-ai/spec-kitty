@@ -489,6 +489,15 @@ class _GlobalAssetPreparation:
                     if observation.children is not None and previous.children != observation.children:
                         raise ValueError(f"Global family membership changed: {observation.path}")
                     observation = replace(observation, children=previous.children)
+                if previous.role == "source_read":
+                    # #4174 landing-pass: mirror observe()'s own intra-builder
+                    # stickiness (a path once recorded source_read stays
+                    # source_read) across FAMILIES too. Without this, a later
+                    # family's destination_probe include() for a path an
+                    # earlier family already tagged source_read silently wins
+                    # last-writer-take-all, reopening the exact role-tagged
+                    # toleration hole WP02 closed (FR-003/C-002).
+                    observation = replace(observation, role="source_read")
             self.observations[observation.path] = observation
         for effect in effects:
             write = builder.writes[effect.destination]
