@@ -35,6 +35,7 @@ PR_WORKFLOWS = frozenset(
 )
 AGGREGATE = "ci-aggregate.yml"
 MARKER = "<!-- spec-kitty-actions-verdict-v1 -->"
+AGGREGATE_SOURCE_TITLE = re.compile(r"CI Aggregate source ([1-9][0-9]*) attempt ([1-9][0-9]*)")
 
 
 def applicable_workflows(root: Path, pr: dict[str, Any], paths: list[str]) -> set[str]:
@@ -237,37 +238,115 @@ def snapshot(api: GitHub, root: Path, number: int, workflow_ids: dict[str, int],
                 or aggregate.get("repository", {}).get("full_name") != api.repository
             ):
                 raise ValueError("manual aggregate does not bind the reviewed reporter and current source attempt")
+            if verified_source_run(api, workflow_ids, modules, source_event="pull_request", source_head=head, source_pr=number) is None:
+                raise ValueError("manual aggregate source run does not live-resolve to this exact PR head")
             runs[AGGREGATE] = aggregate
         else:
-            runs[AGGREGATE] = automatic_aggregate(api, workflow_ids[AGGREGATE], modules, title)
+            runs[AGGREGATE] = automatic_aggregate(api, workflow_ids, modules, title, source_event="pull_request", source_head=head, source_pr=number)
     elif replay is not None:
         raise ValueError("manual aggregate has no matching current source run")
     labels = {label["name"] for label in pr["labels"]}
     state = classify(runs, labels)
     evidence = {name: ({k: run.get(k) for k in ("id", "run_attempt", "status", "conclusion", "html_url")} if run else None) for name, run in sorted(runs.items())}
+    if runs[AGGREGATE] is not None and modules is not None and (aggregate_evidence := evidence.get(AGGREGATE)) is not None:
+        # planning#2134: publish the exact-head binding the aggregate was matched on. A
+        # workflow_run child's own head is always a default-branch commit, so without this
+        # a reader cannot distinguish an exact-head gate child from another branch's rollup
+        # and may misclassify a true verdict (spec-kitty#4201, 2026-09-10).
+        aggregate_evidence["source_run_id"] = modules["id"]
+        aggregate_evidence["source_run_attempt"] = modules["run_attempt"]
+        aggregate_evidence["source_head"] = head
     result = {"head": head, "state": state, "runs": evidence, "labels": sorted(labels)}
     if replay is not None:
         result["replay"] = dict(replay)
     return pr, result
 
 
-def automatic_aggregate(api: GitHub, workflow_id: int, modules: dict[str, Any], title: str) -> dict[str, Any] | None:
-    """Find only the normal default-branch workflow_run aggregate evidence."""
+def automatic_aggregate(
+    api: GitHub,
+    workflow_ids: dict[str, int],
+    modules: dict[str, Any],
+    title: str,
+    *,
+    source_event: str,
+    source_head: str,
+    source_pr: int | None = None,
+) -> dict[str, Any] | None:
+    """Find the normal default-branch workflow_run aggregate evidence for one exact tested head.
+
+    A `workflow_run` child never carries the tested head itself: GitHub always
+    executes the default branch's trusted workflow file for it, so its own
+    `head_branch`/`head_sha` are the default branch's. Exact-head attribution
+    therefore lives entirely in the CI Modules run whose completion triggered
+    the child, which the child's run-name records by source run id and attempt.
+    The title filter below selects only the child bound to `modules`; the
+    `verified_source_run` re-fetch afterwards makes that binding structural
+    rather than run-name convention: the referenced source run must live-resolve
+    to the exact run `modules` selected, on the exact `source_head` this verdict
+    is for (a PR head, or main's head for the main-push report). Otherwise the
+    aggregate is "awaiting matching run" for this gate — never evidence from
+    another branch's rollup (spec-kitty/spec-kitty-planning#2134).
+    """
     created = modules.get("created_at", "")
     if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", created):
         raise ValueError("source run creation time missing; cannot bound aggregate lookup")
     query = urllib.parse.urlencode({"event": "workflow_run", "created": ">=" + created})
-    aggregates = api.pages(f"actions/workflows/{workflow_id}/runs?{query}", "workflow_runs")
+    aggregates = api.pages(f"actions/workflows/{workflow_ids[AGGREGATE]}/runs?{query}", "workflow_runs")
     matching = [
         r
         for r in aggregates
         if r.get("display_title") == title
-        and r.get("workflow_id") == workflow_id
+        and r.get("workflow_id") == workflow_ids[AGGREGATE]
         and r.get("path") == f".github/workflows/{AGGREGATE}"
         and r.get("event") == "workflow_run"
         and r.get("repository", {}).get("full_name") == api.repository
     ]
-    return max(matching, key=lambda r: (r["id"], r["run_attempt"]), default=None)
+    candidate = max(matching, key=lambda r: (r["id"], r["run_attempt"]), default=None)
+    if candidate is None:
+        return None
+    if verified_source_run(api, workflow_ids, modules, source_event=source_event, source_head=source_head, source_pr=source_pr) is None:
+        return None
+    return candidate
+
+
+def verified_source_run(
+    api: GitHub,
+    workflow_ids: dict[str, int],
+    modules: dict[str, Any],
+    *,
+    source_event: str,
+    source_head: str,
+    source_pr: int | None = None,
+) -> dict[str, Any] | None:
+    """Re-fetch, directly, the CI Modules run an aggregate's run-name binds (planning#2134).
+
+    The listing that selected `modules` is never verdict evidence on its own:
+    fetch the run by id and require it to still be this repository's CI Modules
+    run, triggered by `source_event`, on the exact `source_head`, referencing
+    `source_pr` when the verdict is for a PR. Any disagreement — or an
+    unfetchable run — means "no verdict yet" for the aggregate gate, never a
+    match for some other branch's rollup.
+    """
+    try:
+        source: dict[str, Any] = api.request(f"actions/runs/{modules['id']}")
+    except ValueError:
+        return None
+    if (
+        source.get("id") != modules.get("id")
+        or source.get("workflow_id") != workflow_ids["ci-modules.yml"]
+        or source.get("path") != ".github/workflows/ci-modules.yml"
+        or source.get("repository", {}).get("full_name") != api.repository
+        or source.get("event") != source_event
+        or source.get("head_sha") != source_head
+        or (
+            source_pr is not None
+            and not any(
+                p.get("number") == source_pr and p.get("head", {}).get("sha") == source_head for p in source.get("pull_requests", []) if isinstance(p, dict)
+            )
+        )
+    ):
+        return None
+    return source
 
 
 def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, attempt: int) -> str:
@@ -280,9 +359,21 @@ def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, at
     if state == "running":
         lines.append("Evidence is pending, incomplete, cancelled, or intentionally deferred; this is not a code failure verdict.")
     for name, run in evidence["runs"].items():
-        lines.append(
-            f"- {name}: {run['status']}/{run['conclusion']} ({run['html_url']}, attempt {run['run_attempt']})" if run else f"- {name}: awaiting matching run"
-        )
+        if not run:
+            lines.append(f"- {name}: awaiting matching run")
+            continue
+        line = f"- {name}: {run['status']}/{run['conclusion']} ({run['html_url']}, attempt {run['run_attempt']})"
+        if run.get("source_run_id") is not None:
+            # planning#2134: a workflow_run child never carries the tested head itself, so
+            # name the CI Modules run and the exact head it was matched on. Without this a
+            # reader seeing the child's own default-branch head on its run page cannot tell
+            # an exact-head gate child from another branch's rollup.
+            line += (
+                f"; workflow_run child of ci-modules run {run['source_run_id']} attempt {run['source_run_attempt']}"
+                f" on this exact head {run['source_head']} — executes the default branch's trusted workflow file,"
+                " so its own head is a default-branch commit, never the tested head"
+            )
+        lines.append(line)
     lines.extend(
         [
             "",
@@ -392,7 +483,7 @@ def main() -> None:
     ):
         raise ValueError("triggering run does not match the trusted workflow")
     if name == AGGREGATE:
-        match = re.fullmatch(r"CI Aggregate source ([1-9][0-9]*) attempt ([1-9][0-9]*)", source["display_title"])
+        match = AGGREGATE_SOURCE_TITLE.fullmatch(source["display_title"])
         if not match or source.get("event") != "workflow_run":
             return
         source = api.request(f"actions/runs/{match.group(1)}")

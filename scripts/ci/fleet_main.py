@@ -70,7 +70,11 @@ def snapshot(api: GitHub, root: Path, workflow_ids: dict[str, int]) -> dict[str,
             runs[name] = latest
     modules = runs.get("ci-modules.yml")
     runs[AGGREGATE] = (
-        automatic_aggregate(api, workflow_ids[AGGREGATE], modules, f"CI Aggregate source {modules['id']} attempt {modules['run_attempt']}") if modules else None
+        automatic_aggregate(
+            api, workflow_ids, modules, f"CI Aggregate source {modules['id']} attempt {modules['run_attempt']}", source_event="push", source_head=head
+        )
+        if modules
+        else None
     )
     evidence = {
         name: ({key: run.get(key) for key in ("id", "run_attempt", "head_sha", "event", "status", "conclusion", "html_url")} if run else None)

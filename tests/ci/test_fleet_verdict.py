@@ -177,6 +177,83 @@ def test_aggregate_from_wrong_source_or_attempt_cannot_green() -> None:
     assert snapshot(api, ROOT, 7, IDS)[1]["state"] == "running"
 
 
+class SpoofedSourceAPI(API):
+    """The direct fetch of the bound source run disagrees with the listing row (planning#2134).
+
+    The aggregate listing row matches by title, but the run it names must
+    live-resolve to this PR's exact-head ci-modules run before it is evidence.
+    """
+
+    def __init__(self, **overrides: Any) -> None:
+        super().__init__()
+        self.source_overrides = overrides
+
+    def request(self, path: str, payload: dict[str, Any] | None = None) -> Any:
+        modules_id = self.runs["ci-modules.yml"][0]["id"]
+        if payload is None and path == f"actions/runs/{modules_id}":
+            row = copy.deepcopy(self.runs["ci-modules.yml"][0])
+            row.update(self.source_overrides)
+            return row
+        return super().request(path, payload)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"event": "push"},  # a main-push rollup source, not this PR's run
+        {"head_sha": "b" * 40},  # a ci-modules run on another head
+        {"pull_requests": []},  # no reference to this PR
+        {"pull_requests": [{"number": 7, "head": {"sha": "b" * 40}, "base": {"repo": {"url": f"https://api.github.com/repos/{REPO}"}}}]},
+        {"path": ".github/workflows/ci-aggregate.yml"},
+        {"workflow_id": 999},
+        {"repository": {"full_name": "other/repo"}},
+        {"id": 99999},
+    ],
+)
+def test_title_matched_aggregate_without_verified_exact_head_source_is_awaiting(overrides: dict[str, Any]) -> None:
+    api = SpoofedSourceAPI(**overrides)
+    _, evidence = snapshot(api, ROOT, 7, IDS)
+    assert evidence["runs"][AGGREGATE] is None
+    assert evidence["state"] == "running"
+
+
+def test_unfetchable_source_run_is_awaiting_not_evidence() -> None:
+    class UnfetchableAPI(API):
+        def request(self, path: str, payload: dict[str, Any] | None = None) -> Any:
+            modules_id = self.runs["ci-modules.yml"][0]["id"]
+            if payload is None and path == f"actions/runs/{modules_id}":
+                raise ValueError("GitHub API HTTP 404: message=Not Found")
+            return super().request(path, payload)
+
+    api = UnfetchableAPI()
+    _, evidence = snapshot(api, ROOT, 7, IDS)
+    assert evidence["runs"][AGGREGATE] is None
+    assert evidence["state"] == "running"
+
+
+def test_aggregate_verdict_publishes_its_exact_head_source_binding() -> None:
+    # spec-kitty#4201 (2026-09-10): every PR-head workflow green, the PR's own
+    # aggregate child red at the diff-cover gate. The verdict must say which
+    # ci-modules run on which exact head the aggregate was matched on, so a
+    # reader seeing the child's own default-branch head on its run page cannot
+    # misclassify it as another branch's rollup.
+    api = API()
+    api.runs[AGGREGATE][0]["conclusion"] = "failure"
+    _, evidence = snapshot(api, ROOT, 7, IDS)
+    assert evidence["state"] == "red"
+    entry = evidence["runs"][AGGREGATE]
+    assert entry["source_run_id"] == api.runs["ci-modules.yml"][0]["id"]
+    assert entry["source_run_attempt"] == 1
+    assert entry["source_head"] == HEAD
+    body = comment_body(REPO, evidence, 123, 1)
+    assert body.startswith(f"[ci] red @{HEAD}")
+    assert f"workflow_run child of ci-modules run {entry['source_run_id']} attempt 1 on this exact head {HEAD}" in body
+    assert "never the tested head" in body
+    # The five direct PR gates carry no source binding: their own head already is the tested head.
+    assert "ci-modules.yml: completed/success" in body
+    assert body.count("workflow_run child of") == 1
+
+
 def test_missing_path_applicable_gate_is_pending() -> None:
     api = API()
     api.files = [{"filename": "pyproject.toml"}]

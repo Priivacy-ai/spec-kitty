@@ -158,6 +158,25 @@ def test_aggregate_must_match_current_modules_attempt() -> None:
     assert evidence["state"] == "running"
 
 
+def test_main_aggregate_requires_live_verified_push_source() -> None:
+    # planning#2134: a title-matched aggregate whose named source run does not
+    # live-resolve to main's exact-head push run is awaiting, never evidence.
+
+    class SpoofedMainSourceAPI(MainAPI):
+        def request(self, path, payload=None):
+            modules_id = self.runs["ci-modules.yml"][0]["id"]
+            if payload is None and path == f"actions/runs/{modules_id}":
+                row = copy.deepcopy(self.runs["ci-modules.yml"][0])
+                row.update(event="pull_request")
+                return row
+            return super().request(path, payload)
+
+    api = SpoofedMainSourceAPI()
+    evidence = fleet_main.snapshot(api, ROOT, IDS)
+    assert evidence["runs"][fleet_verdict.AGGREGATE] is None
+    assert evidence["state"] == "running"
+
+
 def test_main_report_job_has_only_issue_write_permission() -> None:
 
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci-fleet-verdict.yml").read_text())
