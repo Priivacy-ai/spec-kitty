@@ -49,37 +49,64 @@ class ProjectRegistrationPlan:
     writes: tuple[tuple[Path, str], ...]
     deletes: tuple[Path, ...] = ()
     """Provenance sidecars whose registration is pruned (#4121): committed
-    direct-write registrations whose authored source no longer exists."""
+    direct-write registrations whose artifact URN the current project scan no
+    longer produces (a deleted source, or an in-place identity edit)."""
 
 
-def _direct_write_registrations(root: Path) -> tuple[tuple[str, ManifestArtifactEntry], ...]:
-    """Committed direct-write registrations whose authored source no longer exists.
+def _sidecar_recorded_urn(root: Path, entry: ManifestArtifactEntry) -> str | None:
+    """The artifact URN a committed entry's sidecar records, or ``None``.
 
-    A registration is prunable only when it can be identified as this lane's
-    own: the manifest entry's ``path`` is gone from the live tree AND its
-    provenance sidecar still records ``adapter_id == "project-direct-write"``.
-    Synthesis-owned entries (a deleted *synthesized* artifact) are skipped —
-    their prune policy belongs to ``charter synthesize --prune`` and the
-    FR-014 orphan refusal, not to registration. A missing sidecar is skipped
-    too: without it the registration's URN cannot be recovered, so pruning
-    its graph node is not safe.
+    ``None`` when the sidecar is missing (the registration's URN cannot be
+    recovered, so the entry is not this lane's to touch), when the sidecar
+    belongs to another adapter (a synthesized artifact is the synthesis
+    lane's orphan, not registration's), or when the sidecar cannot be read —
+    a malformed sidecar degrades to "not this lane's to touch" instead of
+    crashing planning, mirroring the best-effort probe in
+    ``reconcile._provenance_urn``.
     """
     from .synthesizer.provenance import load_yaml as load_provenance
 
+    sidecar = root / entry.provenance_path
+    if not sidecar.is_file():
+        return None
+    try:
+        record = load_provenance(sidecar)
+    except Exception:  # noqa: BLE001 -- identity probe, not a load-bearing
+        # read: a corrupt sidecar must not take planning down with it.
+        return None
+    if record.adapter_id != "project-direct-write":
+        return None
+    return str(record.artifact_urn)
+
+
+def _direct_write_registrations(
+    root: Path,
+    live_urns: frozenset[str],
+) -> tuple[tuple[str, ManifestArtifactEntry], ...]:
+    """Committed direct-write registrations the current scan no longer produces.
+
+    A registration is prunable only when it can be identified as this lane's
+    own — its provenance sidecar still records ``adapter_id ==
+    "project-direct-write"`` — AND the ``artifact_urn`` that sidecar records
+    is not produced by the current project scan (#4121 pass 2). URN
+    reachability, not path existence, is the staleness key: an in-place
+    identity edit (``id:`` rewritten in the same file) leaves the path very
+    much alive while the registered identity is gone, and a path-existence
+    key is blind to it. Synthesis-owned entries are skipped — their prune
+    policy belongs to ``charter synthesize --prune`` and the FR-014 orphan
+    refusal, not to registration. A missing sidecar is skipped too: without
+    it the registration's URN cannot be recovered, so pruning its graph node
+    is not safe.
+    """
     manifest_path = root / MANIFEST_PATH
     if not manifest_path.exists():
         return ()
     stale: list[tuple[str, ManifestArtifactEntry]] = []
     for entry in load_manifest(manifest_path).artifacts:
-        if (root / entry.path).exists():
+        urn = _sidecar_recorded_urn(root, entry)
+        if urn is None or urn in live_urns:
             continue
-        sidecar = root / entry.provenance_path
-        if not sidecar.is_file():
-            continue
-        record = load_provenance(sidecar)
-        if record.adapter_id != "project-direct-write":
-            continue
-        stale.append((record.artifact_urn, entry))
+        stale.append((urn, entry))
     return tuple(stale)
 
 
@@ -92,8 +119,10 @@ def _project_graph(
     directory = root / ".kittify/doctrine"
     existing = load_graph_or_dir(directory) if has_graph_files(directory) else None
     nodes = {node.urn: node for node in existing.nodes} if existing else {}
-    # Prune phantom nodes (#4121): a committed registration whose source file
-    # was deleted must not keep satisfying profile references.
+    # Prune phantom nodes (#4121): a committed registration whose URN the
+    # current scan no longer produces must not keep satisfying profile
+    # references — whether its source file was deleted or its identity was
+    # edited in place.
     for urn in stale_urns:
         nodes.pop(urn, None)
     nodes.update({artifact.node.urn: artifact.node for artifact in artifacts})
@@ -137,6 +166,16 @@ def _registration_records(
     # makes verify() raise on every subsequent read with no in-tool recovery.
     for _, entry in stale:
         entries.pop((entry.kind, entry.slug), None)
+    # Reconcile by URN (#4121 pass 2): a registration's identity is the URN
+    # its sidecar records, never its source path or (kind, slug) key — an
+    # in-place identity edit must not silently re-point the predecessor's
+    # entry (and thereby orphan the old URN's graph node) but register fresh
+    # while the predecessor is pruned as stale above.
+    urn_entries: dict[str, ManifestArtifactEntry] = {}
+    for entry in entries.values():
+        urn = _sidecar_recorded_urn(root, entry)
+        if urn is not None:
+            urn_entries.setdefault(urn, entry)
     writes: list[tuple[Path, str]] = []
     timestamp = now_utc_seconds()
     run_id = str(ULID())
@@ -148,11 +187,10 @@ def _registration_records(
         slug = quote(identifier.lower().replace("_", "-") if kind == "directive" else identifier, safe="")
         content_hash = hash_content_bytes(artifact.path.read_bytes())
         source_path = artifact.path.relative_to(root).as_posix()
-        previous = next((entry for entry in entries.values() if entry.path == source_path), None)
+        previous = urn_entries.get(artifact.node.urn) or entries.get((kind, slug))
         if previous:
             slug = previous.slug
         key = (kind, slug)
-        previous = previous or entries.get(key)
         sidecar = provenance_path_for(kind, slug)
         if previous and previous.content_hash == content_hash and (root / previous.provenance_path).is_file():
             continue
@@ -207,13 +245,14 @@ def plan_project_registration(repo_root: Path, *, base_graph: DRGGraph | None = 
             org_fragments=load_org_drg(root, strict=False),
         )
     )
-    stale = _direct_write_registrations(root)
+    stale = _direct_write_registrations(root, frozenset(artifact.node.urn for artifact in artifacts))
     stale_urns = frozenset(urn for urn, _ in stale)
     if not artifacts and not stale:
         return ProjectRegistrationPlan(root, base, (), (), ())
     project, warnings = _project_graph(root, artifacts, base, stale_urns)
     stale_warnings = tuple(
-        f"Pruned project registration for {urn}: source {entry.path} no longer exists (removed its graph node and edge, manifest entry, and provenance sidecar)."
+        f"Pruned project registration for {urn}: the current project scan no longer produces it "
+        f"(registered source {entry.path}); removed its graph node and edges, manifest entry, and provenance sidecar."
         for urn, entry in stale
     )
     project_triples = {(e.source, e.target, e.relation) for e in project.edges}

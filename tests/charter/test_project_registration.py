@@ -270,6 +270,81 @@ def test_recreated_artifact_with_same_identity_keeps_its_sidecar(tmp_path):
     assert sidecar.is_file()
 
 
+# ---------------------------------------------------------------------------
+# In-place identity edit prunes the predecessor (#4121, squad pass-2 MAJOR)
+# ---------------------------------------------------------------------------
+
+
+def test_in_place_identity_edit_prunes_the_predecessor_registration(tmp_path):
+    """An in-place ``id:`` edit must prune the predecessor, not re-point it.
+
+    Pre-fix (live-probed by the squad on this head): staleness was keyed on the
+    manifest entry's path, so a same-file identity edit left the old
+    ``procedure:incident-runbook`` node in ``graph.yaml`` still satisfying the
+    profile's reference — ``WARNINGS: ()``, exactly the silence #4100 exists
+    to remove — while the predecessor's manifest entry was silently re-pointed
+    at the new identity.
+    """
+    from charter.activation.project_registration import plan_project_registration, commit_project_registration
+    from charter.offering.drg.loader import load_graph_or_dir
+
+    paths = author_guidance(tmp_path)
+    commit_project_registration(plan_project_registration(tmp_path))
+    paths["procedure"].write_text(paths["procedure"].read_text().replace("incident-runbook", "incident-runbook-v2"))
+
+    plan = plan_project_registration(tmp_path)
+    assert any("Pruned project registration for procedure:incident-runbook" in warning for warning in plan.warnings)
+    # the profile still references the old identity: the #4100 warning fires
+    assert any("references unresolved procedure:incident-runbook" in warning for warning in plan.warnings)
+    assert plan.graph.get_node("procedure:incident-runbook") is None
+    assert plan.graph.get_node("procedure:incident-runbook-v2") is not None
+    assert any(str(path).endswith("procedure-incident-runbook.yaml") for path in plan.deletes)
+    commit_project_registration(plan)
+
+    manifest = load_yaml(tmp_path / ".kittify/charter/synthesis-manifest.yaml")
+    verify(manifest, tmp_path)
+    entry = next(entry for entry in manifest.artifacts if entry.kind == "procedure")
+    assert entry.slug == "incident-runbook-v2"
+    assert tmp_path / entry.path == paths["procedure"]
+    assert not (tmp_path / ".kittify/charter/provenance/procedure-incident-runbook.yaml").exists()
+    assert (tmp_path / ".kittify/charter/provenance/procedure-incident-runbook-v2.yaml").is_file()
+    committed = load_graph_or_dir(tmp_path / ".kittify/doctrine")
+    assert committed.get_node("procedure:incident-runbook") is None
+    assert committed.get_node("procedure:incident-runbook-v2") is not None
+
+
+def test_deleting_the_renamed_source_leaves_no_permanent_phantom(tmp_path):
+    """The follow-up delete the finding probed: nothing may stay invisible.
+
+    Pre-fix, after the in-place edit the phantom ``incident-runbook`` node had
+    no manifest entry at all, so the entry-iterating prune could never see it:
+    deleting the renamed source pruned only ``incident-runbook-v2`` and the
+    phantom node and its edge persisted permanently in the committed graph
+    with ``WARNINGS: ()``.
+    """
+    from charter.activation.project_registration import plan_project_registration, commit_project_registration
+    from charter.offering.drg.loader import load_graph_or_dir
+
+    paths = author_guidance(tmp_path)
+    commit_project_registration(plan_project_registration(tmp_path))
+    paths["procedure"].write_text(paths["procedure"].read_text().replace("incident-runbook", "incident-runbook-v2"))
+    commit_project_registration(plan_project_registration(tmp_path))
+    paths["procedure"].unlink()
+
+    plan = plan_project_registration(tmp_path)
+    assert any("Pruned project registration for procedure:incident-runbook-v2" in warning for warning in plan.warnings)
+    assert any("references unresolved procedure:incident-runbook" in warning for warning in plan.warnings)
+    commit_project_registration(plan)
+
+    manifest = load_yaml(tmp_path / ".kittify/charter/synthesis-manifest.yaml")
+    verify(manifest, tmp_path)
+    assert all(entry.kind != "procedure" for entry in manifest.artifacts)
+    committed = load_graph_or_dir(tmp_path / ".kittify/doctrine")
+    assert committed.get_node("procedure:incident-runbook") is None
+    assert committed.get_node("procedure:incident-runbook-v2") is None
+    assert list((tmp_path / ".kittify/charter/provenance").glob("procedure-*.yaml")) == []
+
+
 def test_synthesis_owned_entry_with_missing_source_is_not_pruned(tmp_path):
     """Registration prunes only its own direct-write entries.
 
@@ -407,3 +482,24 @@ def test_artifactless_repo_plans_nothing_and_missing_sidecar_is_left_untouched(t
     plan = plan_project_registration(tmp_path)
     assert not any("Pruned project registration" in warning for warning in plan.warnings)
     assert plan.deletes == ()
+
+
+def test_corrupt_sidecar_degrades_to_untouched_not_crash(tmp_path):
+    """An unreadable sidecar must not take planning down with it (#4121 pass 2).
+
+    The URN probe is best-effort, mirroring ``reconcile._provenance_urn``:
+    a sidecar that fails to load degrades to "not this lane's to touch", so
+    planning completes and the entry is left for its owning lane rather than
+    crashing every subsequent activation.
+    """
+    from charter.activation.project_registration import plan_project_registration, commit_project_registration
+
+    paths = author_guidance(tmp_path)
+    commit_project_registration(plan_project_registration(tmp_path))
+    sidecar = tmp_path / ".kittify/charter/provenance/procedure-incident-runbook.yaml"
+    sidecar.write_text("artifact_urn: [unclosed")
+
+    plan = plan_project_registration(tmp_path)  # must not raise
+    assert not any("Pruned project registration" in warning for warning in plan.warnings)
+    assert plan.deletes == ()
+    commit_project_registration(plan)
