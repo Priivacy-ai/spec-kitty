@@ -215,37 +215,41 @@ def ensure_runtime() -> None:
     call, and ``merge.py``'s ``_merge_prepared_assets``), so the fix is not
     duplicated at each nesting.
 
-    Scope caveat (not a claim of totality): ``apply_assets`` is ALSO entered
-    independently by seam callers outside the ``ensure_*`` graph -- the
-    skills installer (``apply_skill_installation``) and the tool-surface
-    providers (``SlashCommandProvider`` / ``ManagedSkillsProvider``) build
-    their own assessment and call ``recheck_assets`` + ``apply_assets``
-    directly. Those callers do NOT re-assess under the lock, so a shared-home
-    race can still leave them at the ``global_asset_write_failed: File exists``
-    intermediate this function converges past. Extending the re-assess seam to
-    them is tracked as a follow-up (see the mission dossier / PR notes).
+    #4174 landing-pass: the mechanism itself now lives once in
+    ``asset_preparation.apply_with_reassess`` -- this function,
+    ``agent_commands.py``'s and ``agent_skills.py``'s ``ensure_*`` mirrors,
+    and the ``skills/installer.py`` / ``tool_surface/providers/
+    slash_commands.py`` external seam callers all adopt the SAME helper
+    rather than each triplicating the block.
+
+    Scope caveat (not a claim of totality): ``tool_surface/providers/
+    managed_skills.py``'s paired global+project composition apply
+    (``ManagedSkillsProvider.apply_composition`` / ``apply_installation`` /
+    ``GlobalSkillAssetsProvider``) is NOT covered by this seam -- its
+    ``_PAIRED_GLOBAL``/``_PROVISIONING_PAIR`` cross-owner coordination would
+    need a rebuild callable threaded through ``upgrade/assessment.py`` as
+    well, and that composition already carries a separate, documented,
+    scoped-out race of its own (``_recheck_command_completion``'s manifest
+    ``installed_at`` timestamp never converges across two independent
+    assessments -- see ``tests/runtime/test_generic_asset_scope.py``'s
+    ``TestRecheckCommandCompletionConcurrentPeerVerdict``). Extending the
+    re-assess seam there is tracked as a follow-up, not silently assumed.
     """
-    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
+    from specify_cli.runtime.asset_preparation import apply_with_reassess
 
     assessment = assess_runtime()
     if not assessment.complete:
         raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
     if not assessment.effects:
         return
-    with recheck_assets(assessment) as diagnostics:
-        if diagnostics:
-            raise RuntimeError("; ".join(d.message for d in diagnostics))
-        reassessment = assess_runtime()
-        if not reassessment.complete:
-            raise RuntimeError("; ".join(d.message for d in reassessment.diagnostics))
-        if not reassessment.effects:
-            # OPERATOR_SIGNAL_CONTRACT: the machine half (exit 0, no raise)
-            # is silent by construction -- this existing log sink carries
-            # the human half so a converged-no-op race is never invisible.
-            logger.info("runtime assets already materialized by a concurrent peer; nothing applied.")
-            return
-        result = apply_assets(reassessment, ApplyConsent(automatic=True))
-    if result.outcome != "applied":
+    result = apply_with_reassess(
+        assessment,
+        assess_runtime,
+        ApplyConsent(automatic=True),
+        converged_log_message="runtime assets already materialized by a concurrent peer; nothing applied.",
+        logger=logger,
+    )
+    if result.outcome not in {"applied", "skipped"}:
         raise RuntimeError("; ".join(d.message for d in result.diagnostics))
 
 

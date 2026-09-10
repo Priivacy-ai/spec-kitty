@@ -379,34 +379,24 @@ def assess_global_agent_commands(
 
 
 def _apply_command_assessment(assessment: OwnerAssessment, *, rebuild: Callable[[], OwnerAssessment]) -> None:
-    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
+    """Mirror ``bootstrap.ensure_runtime()``'s re-assess-under-lock (#4017 WP03)
+    via the shared ``asset_preparation.apply_with_reassess`` helper (#4174
+    landing-pass) -- see its docstring for the full mechanism.
+    """
+    from specify_cli.runtime.asset_preparation import apply_with_reassess
 
     if not assessment.complete:
         raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
     if not assessment.effects:
         return
-    with recheck_assets(assessment) as diagnostics:
-        if diagnostics:
-            raise RuntimeError("; ".join(d.message for d in diagnostics))
-        # #4017 rescope: mirror bootstrap.ensure_runtime()'s re-assess-under-lock
-        # (WP03) -- see its docstring for the full mechanism. Once the flock is
-        # held, check_assets tolerates a concurrent peer's now-identical
-        # destination bytes as benign drift, but the STALE `assessment` above
-        # still carries a create-plan computed against the pre-race state,
-        # whose actions (mkdir, open("x")) are non-idempotent against the
-        # peer's already-materialized tree. Re-assess under the held lock
-        # rather than replay that stale plan.
-        reassessment = rebuild()
-        if not reassessment.complete:
-            raise RuntimeError("; ".join(d.message for d in reassessment.diagnostics))
-        if not reassessment.effects:
-            # OPERATOR_SIGNAL_CONTRACT: the machine half (exit 0, no raise) is
-            # silent by construction -- this existing log sink carries the
-            # human half so a converged-no-op race is never invisible.
-            logger.info("global agent commands already materialized by a concurrent peer; nothing applied.")
-            return
-        result = apply_assets(reassessment, ApplyConsent(automatic=True))
-    if result.outcome != "applied":
+    result = apply_with_reassess(
+        assessment,
+        rebuild,
+        ApplyConsent(automatic=True),
+        converged_log_message="global agent commands already materialized by a concurrent peer; nothing applied.",
+        logger=logger,
+    )
+    if result.outcome not in {"applied", "skipped"}:
         raise RuntimeError("; ".join(d.message for d in result.diagnostics))
 
 

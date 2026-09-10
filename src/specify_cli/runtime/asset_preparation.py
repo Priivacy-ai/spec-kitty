@@ -13,6 +13,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, replace
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import stat
@@ -36,6 +37,8 @@ from specify_cli.tool_surface.operations import (
     PhysicalEffect,
     coalesce_effects,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def digest(data: bytes) -> str:
@@ -727,6 +730,69 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
             yield check_assets(assessment)
         finally:
             _HELD_LOCKS.reset(token)
+
+
+def apply_with_reassess(
+    assessment: OwnerAssessment,
+    rebuild: Callable[[], OwnerAssessment],
+    consent: ApplyConsent,
+    *,
+    converged_log_message: str,
+    logger: logging.Logger | None = None,
+) -> OwnerApplyResult:
+    """Hold *assessment*'s lock, re-assess under it, and converge or apply.
+
+    Generalizes ``bootstrap.ensure_runtime()``'s original #4017 WP03
+    re-assess-under-lock mechanism (see its docstring for the full
+    mechanism) into ONE shared implementation every owner adopts, rather
+    than triplicating the block. Once ``recheck_assets`` grants the lock, a
+    genuine concurrent peer that was racing this same batch has finished --
+    but the *assessment* passed in may still carry a STALE plan computed
+    before that peer ran, whose actions (``mkdir``, ``open("x")``) are
+    non-idempotent against the peer's now-materialized tree. Re-assessing
+    via *rebuild* under the held lock, rather than applying the stale plan
+    directly, converges to a no-op when the peer already did the work.
+
+    Callers must already have confirmed ``assessment.complete`` and
+    ``assessment.effects`` before calling this (matching the existing
+    early-return shape every adopter already has); this helper only owns
+    the ``recheck_assets`` boundary onward.
+
+    ``rebuild`` MUST recompute a fresh, complete assessment against current
+    state (an owner's own ``assess_*`` entry point) -- never replay or
+    mutate the *assessment* argument.
+
+    *logger* is the OPERATOR_SIGNAL_CONTRACT sink for the converged-no-op
+    message: pass the calling module's own logger (each existing ``ensure_*``
+    adopter already has one, and existing tests scope their ``caplog``
+    capture to it by name) so the message is emitted at that logger's own
+    configured level -- this module's logger defaults only when the caller
+    genuinely has none of its own.
+    """
+    log = logger if logger is not None else logging.getLogger(__name__)
+    with recheck_assets(assessment) as diagnostics:
+        if diagnostics:
+            return OwnerApplyResult(
+                assessment.owner_key,
+                skipped=tuple(effect.id for effect in assessment.effects),
+                outcome="precondition_changed",
+                diagnostics=diagnostics,
+            )
+        reassessment = rebuild()
+        if not reassessment.complete:
+            return OwnerApplyResult(
+                reassessment.owner_key,
+                skipped=tuple(effect.id for effect in reassessment.effects),
+                outcome="failed",
+                diagnostics=reassessment.diagnostics,
+            )
+        if not reassessment.effects:
+            # OPERATOR_SIGNAL_CONTRACT: the machine half (a skipped/no-raise
+            # outcome) is silent by construction -- this log sink carries the
+            # human half so a converged-no-op race is never invisible.
+            log.info(converged_log_message)
+            return OwnerApplyResult(reassessment.owner_key, outcome="skipped")
+        return apply_assets(reassessment, consent)
 
 
 def _write_asset(write: AssetWrite) -> None:
