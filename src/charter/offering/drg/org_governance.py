@@ -60,13 +60,17 @@ class OrgGovernanceScopeEdge(NamedTuple):
 def _load_profile(path: Path) -> dict[str, Any] | None:
     """Best-effort read of one ``governance-profile.yaml`` into a mapping.
 
-    Malformed YAML or a non-mapping document yields ``None`` so a broken
-    per-type profile is skipped rather than crashing the whole pack load; the
-    pack validator surfaces authoring errors through its own paths.
+    Malformed YAML, non-UTF-8 bytes, or a non-mapping document yields ``None``
+    so a broken per-type profile is skipped rather than crashing the whole
+    pack load; the pack validator surfaces authoring errors through its own
+    paths. ``UnicodeDecodeError`` is named alongside ``yaml.YAMLError`` for
+    the same reason the fragment reader names it (#4200 defect 2): an
+    encoding fault is a translation fault of the profile being read, never an
+    uncaught traceback out of the collector.
     """
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
+    except (OSError, yaml.YAMLError, UnicodeDecodeError):
         return None
     return data if isinstance(data, dict) else None
 

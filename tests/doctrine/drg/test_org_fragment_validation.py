@@ -165,6 +165,11 @@ def test_governance_projection_validation(tmp_path: Path, selection: str) -> Non
     for command in ("pack", "org"):
         cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
         assert cli.exit_code == (0 if valid else 1), cli.output
+        # ``CliRunner`` swallows an uncaught crash into ``exception`` with
+        # exit_code 1 and no "Traceback" in output, so the exit-code assert
+        # alone cannot pin "no traceback": the only exception a clean exit
+        # may carry is the ``SystemExit`` signal itself (pass-2 squad MINOR).
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
         assert "Traceback" not in cli.output
         if not valid:
             assert "selected_directives" in cli.output
@@ -202,6 +207,46 @@ def test_governance_validation_not_gated_on_fragment(tmp_path: Path, selection: 
     for command in ("pack", "org"):
         cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
         assert cli.exit_code == (0 if valid else 1), cli.output
+        # Same ``CliRunner``-swallows-crashes guard as above (pass-2 squad MINOR).
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
+        assert "Traceback" not in cli.output
+
+
+def test_non_utf8_governance_profile_is_skipped_not_a_traceback(tmp_path: Path) -> None:
+    """A non-UTF-8 governance profile cannot crash ``validate`` with no fragment.
+
+    ``UnicodeDecodeError`` subclasses ``ValueError``, not ``OSError``, so a
+    ``governance-profile.yaml`` written in a non-UTF-8 encoding escaped the
+    fragment-less branch's ``(OrgPackSchemaError, OSError)`` catch and crashed
+    ``pack validate`` / ``org validate`` with an uncaught traceback — #4200
+    defect 2's own failure mode reintroduced on the defect-3 branch (pass-2
+    squad MAJOR). The profile's own loader now names the encoding fault
+    alongside ``yaml.YAMLError`` and skips the profile, so the validator and
+    the runtime loader agree on both the fragment-less and the
+    fragment-present path — where the same fault previously surfaced as a
+    ``schema_invalid`` finding misattributed to ``drg/fragment.yaml`` by the
+    loader's broad backstop.
+    """
+    from charter.offering.drg.org_governance import collect_org_governance_scope_edges
+    from specify_cli.doctrine.pack_validator import validate_pack
+
+    profile = tmp_path / "mission_types" / "example" / "governance-profile.yaml"
+    profile.parent.mkdir(parents=True)
+    profile.write_bytes(b"mission_type: example\nselected_directives: [caf\xe9-d]\n")
+    # Runtime seam: the collector skips the unreadable profile, never raises.
+    assert collect_org_governance_scope_edges(tmp_path) == []
+    result = validate_pack(tmp_path, check_drg_root=False)
+    assert result.ok, result.errors
+    # Fragment-present sibling: the same profile is skipped there too, so
+    # the CLI verdict and the runtime loader cannot diverge.
+    fragment = tmp_path / "drg" / "fragment.yaml"
+    fragment.parent.mkdir()
+    fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
+    assert validate_pack(tmp_path, check_drg_root=False).ok
+    for command in ("pack", "org"):
+        cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
+        assert cli.exit_code == 0, cli.output
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
         assert "Traceback" not in cli.output
 
 
@@ -234,6 +279,8 @@ def test_unreadable_fragment_is_a_finding_not_a_traceback(tmp_path: Path) -> Non
     for command in ("pack", "org"):
         cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
         assert cli.exit_code == 1, cli.output
+        # Same ``CliRunner``-swallows-crashes guard as above (pass-2 squad MINOR).
+        assert cli.exception is None or isinstance(cli.exception, SystemExit), cli.exception
         assert "Traceback" not in cli.output
 
 
