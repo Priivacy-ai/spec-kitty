@@ -63,6 +63,12 @@ Follow the review prompt. It is the source of truth for what to check and how
 to check it. The review criteria come from charter.offering and the WP definition, not
 from this skill.
 
+If the WP diff includes TypeScript, confirm the implementer ran the project's
+compiler typecheck (`npm run typecheck`, `tsc -b`, or CI's compile step) and
+that it is green. A passing Vitest/Jest run does not satisfy DIRECTIVE_030's
+typecheck gate (`noUnusedLocals` / unused parameters). Reject if typecheck
+was skipped or is red.
+
 ---
 
 ## Step 3.5: Contract Round-Trip Check

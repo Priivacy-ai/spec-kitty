@@ -288,6 +288,15 @@ The prompt contains all context, acceptance criteria, and review feedback
      (e.g. `"<lint-command> diff-scoped check: 0 issues, exit 0"`).
 - On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
      `git diff --name-only $(git merge-base HEAD main)`.
+8b. **Compiler typecheck (MANDATORY when the WP touches typed sources)**:
+    A test runner is not typecheck. Vitest, Jest, Mocha, and pytest do not apply
+    TypeScript `noUnusedLocals` / `noUnusedParameters`. If the diff includes
+    `.ts` / `.tsx` (including tests), run the project's typecheck — prefer
+    `npm run typecheck`, else `npx tsc -b --pretty false`, else `tsc --noEmit`.
+    Match the command CI uses when the README or pipeline compiles as a
+    distinct step (for example `npm run build` that starts with `tsc -b`).
+    The command MUST exit 0. Paste command + exit code into the handoff note.
+    Reviewers reject the WP if typecheck was skipped or is red.
 9. Commit: git add -A && git commit -m "feat(WP##): <description>"
 10. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
 11. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"

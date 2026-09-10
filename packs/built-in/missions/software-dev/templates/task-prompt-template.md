@@ -100,6 +100,9 @@ Use language identifiers in code blocks: ````python`,````bash`
 - Specify mandatory tests and where they live.
 - Provide commands or scripts to run.
 - Describe fixtures or data seeding expectations.
+- If this WP owns TypeScript files (including tests), include the project's
+  compiler typecheck (`npm run typecheck`, `tsc -b`, or the same compile CI
+  uses). Vitest/Jest are not a substitute — they do not enforce `noUnusedLocals`.
 
 ## Risks & Mitigations
 
@@ -110,6 +113,8 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 - Key acceptance checkpoints for `/spec-kitty.review`.
 - Any context reviewers should revisit before approving.
+- If TypeScript changed, confirm the implementer ran compiler typecheck (not
+  only the test runner) and that unused locals/parameters did not land.
 
 ## Activity Log
 

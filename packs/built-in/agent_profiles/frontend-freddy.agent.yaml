@@ -139,8 +139,10 @@ self-review-protocol:
       command: "eslint src/ --ext .ts,.tsx,.vue,.svelte || npx biome check src/"
       gate: zero linting errors
     - name: type-check
-      command: "tsc --noEmit"
-      gate: zero TypeScript errors (for TypeScript projects)
+      command: "npm run typecheck || npx tsc -b --pretty false || tsc --noEmit"
+      gate: >
+        zero TypeScript compiler diagnostics for TypeScript projects, including
+        unused locals/parameters. Vitest is not this gate.
     - name: unit-and-component-tests
       command: "vitest run"
       gate: all unit and component tests pass

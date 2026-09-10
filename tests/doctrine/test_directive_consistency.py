@@ -417,3 +417,25 @@ def test_no_paradigm_carries_inline_tactic_refs() -> None:
         "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
         + "\n".join(offenders)
     )
+
+
+def test_directive_030_typecheck_is_not_the_test_runner() -> None:
+    """DIRECTIVE_030 must keep typecheck distinct from the test runner.
+
+    Product CI often compiles TypeScript (`tsc -b` / `noUnusedLocals`) after
+    Vitest. Implementers who only run the WP test command miss unused locals.
+    """
+    path = _PACKS_BUILT_IN / "directives" / "030-test-and-typecheck-quality-gate.directive.yaml"
+    data = _load_yaml(path)
+    blob = " ".join(
+        [
+            str(data.get("intent", "")),
+            " ".join(data.get("procedures") or []),
+            " ".join(data.get("integrity_rules") or []),
+            " ".join(data.get("validation_criteria") or []),
+        ]
+    ).lower()
+    assert "vitest" in blob
+    assert "typecheck" in blob
+    assert "test runner" in blob or "test-runner" in blob
+    assert "nounusedlocals" in blob or "unused" in blob
