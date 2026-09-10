@@ -149,3 +149,12 @@ def test_unrelated_files_and_dangling_edge_targets_are_not_nodes(tmp_path: Path)
     fragment = load_org_pack("test", tmp_path, 1)
     assert [node.id for node in fragment.nodes] == ["real"]
     assert [e.model_dump(exclude_none=True) for e in fragment.edges] == [edge]
+
+
+def test_unreadable_artifact_and_non_utf8_yaml_are_skipped(tmp_path: Path) -> None:
+    _fragment(tmp_path, {})
+    artifact = _artifact(tmp_path, ArtifactKind.DIRECTIVE, {}, name="binary")
+    artifact.write_bytes(b"\xff\xfe")
+    # A directory matching the suffix reaches discovery but cannot be read.
+    (tmp_path / "directives" / "directory.directive.yaml").mkdir()
+    assert load_org_pack("test", tmp_path, 1).nodes == []

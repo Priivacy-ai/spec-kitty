@@ -2,7 +2,7 @@
 title: How to Create an Org Doctrine Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
 doc_status: active
-updated: '2026-08-14'
+updated: '2026-09-10'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -172,11 +172,41 @@ edges:
     relation: scope
 ```
 
+Nodes are inferred recursively from matching artifact files in `directives/`,
+`tactics/`, `styleguides/`, `toolguides/`, `paradigms/`, `procedures/`,
+`agent_profiles/`, `glossary_packs/`, `assets/`, and `mission_step_contracts/`.
+Discovery uses each kind's standard suffix (for example, `.agent.yaml`,
+`.glossary-pack.yaml`, and `.asset.yaml`). Agent profiles use `profile-id`;
+other artifacts use `id`. Filenames never supply an identity. Inference preserves
+these IDs exactly. Use canonical directive IDs such as
+`ACME_001_SECRET_HANDLING` for action-context delivery; node inference does not
+normalize directive IDs.
+
+Inference supplements an omitted, empty, or partially authored `nodes:` list.
+An explicit node with the same kind and ID takes precedence, including its title
+and body path. Use `id` and the **plural** node kind for an explicit declaration:
+
+```yaml
+nodes:
+  - id: ACME_001_SECRET_HANDLING
+    kind: directives
+    title: Secret handling policy
+    body_path: bodies/secret-handling.md
+```
+
+Mission types and templates still require explicit nodes; inference does not
+create graph-only anti-pattern nodes. Step-contract files infer the plural node
+kind `mission_steps`. Malformed or unreadable artifact YAML and missing or
+non-string IDs are skipped during discovery; run pack validation to diagnose
+artifact schema errors. Non-string optional titles/body paths are ignored.
+Explicit node schema errors still fail loading. No nodes are invented for missing
+edge endpoints, and artifact discovery does not infer scope or reference edges.
+
 **Write endpoints in full: `<kind>:<id>`.** The kind half must be a real node
 kind (`directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`,
 `agent_profile`, `mission_step_contract`, `mission_type`, `template`, `asset`,
 `action`, `glossary_pack`, `anti_pattern`). A bare id with no kind prefix only
-works if the same fragment's own `nodes:` block declares it, or if it matches a
+works if the same fragment declares or infers it, or if it matches a
 built-in artifact — it will **not** find an artifact contributed by another pack,
 because pack-to-pack resolution would make the result depend on the order the
 packs are listed in. Anything that cannot be resolved is refused at merge time
