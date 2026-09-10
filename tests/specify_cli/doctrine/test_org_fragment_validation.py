@@ -121,6 +121,8 @@ def test_fragment_is_optional(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("selection", ["3", "[ACME-001-FOO]"])
 def test_governance_projection_validation(tmp_path: Path, selection: str) -> None:
+    import yaml
+
     from charter.offering.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
     from specify_cli.doctrine.pack_validator import validate_pack
 
@@ -130,11 +132,18 @@ def test_governance_projection_validation(tmp_path: Path, selection: str) -> Non
     profile = tmp_path / "mission_types" / "example" / "governance-profile.yaml"
     profile.parent.mkdir(parents=True)
     profile.write_text(f"selected_directives: {selection}\n", encoding="utf-8")
+    source = Path(__file__).resolve().parents[3] / "packs/built-in/directives/001-architectural-integrity-standard.directive.yaml"
+    directive = yaml.safe_load(source.read_text(encoding="utf-8"))
+    directive["id"] = "ACME_001_FOO"
+    artifact = tmp_path / "directives" / "acme.directive.yaml"
+    artifact.parent.mkdir()
+    artifact.write_text(yaml.safe_dump(directive), encoding="utf-8")
     valid = selection.startswith("[")
     result = validate_pack(tmp_path)
     assert result.ok is valid
     if valid:
         loaded = load_org_pack(pack_name="test", pack_root=tmp_path, layer_index=1)
+        assert [(node.id, node.kind) for node in loaded.nodes] == [("ACME_001_FOO", "directives")]
         assert len(loaded.edges) == 1
         edge = loaded.edges[0]
         assert (edge.source, edge.target, edge.relation) == ("mission_type:example", "directive:ACME_001_FOO", "scope")
