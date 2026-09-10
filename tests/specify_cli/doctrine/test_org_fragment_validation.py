@@ -63,7 +63,7 @@ def test_cli_accepts_minimal_authored_fragment(tmp_path: Path, command: str) -> 
         ("edges: false", "schema_invalid", "edges"),
         ("edges: ''", "schema_invalid", "edges"),
         ("edges: [{source: foo, target: bar, relation: requires, surprise: true}]", "schema_invalid", "surprise"),
-        ("edges: [{source: foo, target: bar, relation: invalid}]", "schema_invalid", "relation"),
+        ("edges: [{source: foo, target: bar, relation: []}]", "schema_invalid", "relation"),
     ],
 )
 def test_malformed_fragments_have_actionable_findings(tmp_path: Path, content: str, category: str, diagnostic: str) -> None:
