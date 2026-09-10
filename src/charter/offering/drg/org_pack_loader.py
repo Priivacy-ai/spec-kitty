@@ -563,13 +563,12 @@ def load_org_pack(
     # ``model_validate`` passes through untouched) so that downstream code can
     # tell machine provenance from an author's ``reason:`` without matching on
     # the generated text — a string the emitter above owns and could reword.
-    fragment_data["edges"] = (
-        authored_edges
-        + _collect_augmentation_edges(pack_root)
-        + _collect_governance_scope_edges(pack_root)
-    )
-
     try:
+        fragment_data["edges"] = (
+            authored_edges
+            + _collect_augmentation_edges(pack_root)
+            + _collect_governance_scope_edges(pack_root)
+        )
         fragment = OrgDRGFragment.model_validate(fragment_data)
     except Exception as exc:  # noqa: BLE001
         raise OrgPackSchemaError(

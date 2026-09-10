@@ -139,7 +139,7 @@ def test_governance_projection_validation(tmp_path: Path, selection: str) -> Non
         edge = loaded.edges[0]
         assert (edge.source, edge.target, edge.relation) == ("mission_type:example", "directive:ACME_001_FOO", "scope")
         assert edge.reason is None
-        assert getattr(edge, "generated_reason") == "declared via governance-profile.yaml selected_directives selection"
+        assert edge.generated_reason == "declared via governance-profile.yaml selected_directives selection"
     else:
         assert len(result.errors) == 1
         assert result.errors[0].category == "schema_invalid"
