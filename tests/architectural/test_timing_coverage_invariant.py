@@ -116,12 +116,41 @@ def current_functional_assert_counts(relpath: str) -> Counter[str]:
     return _functional_assert_counts_from_source(source, relpath)
 
 
+def _canonical_assert_text(text: str) -> str:
+    """Quote-style-stable form of an unparsed assert expression.
+
+    ``ast.unparse`` renders an f-string with a nested quote differently across
+    interpreter versions: pre-3.12 wraps the outer f-string in ``"`` and keeps
+    the inner subscript quote ``'`` (``f"... {x['k']}"``); PEP 701 (3.12+) lets
+    the outer quote reuse ``'`` (``f'... {x['k']}'``). The BASELINE below was
+    captured under one interpreter, but CI runs another, so a byte-exact match
+    would spuriously report a dropped functional assertion (#4174 landing:
+    ``tests/status/test_locking_key.py``'s ``held by pid`` f-string). Quote
+    character is the only such variance, so canonicalizing it (applied to BOTH
+    sides) is version-stable. Collapsing two genuinely distinct asserts onto one
+    key can only RAISE a count, never manufacture a shortfall, so it cannot
+    green-wash a real regression.
+    """
+    return text.replace('"', "'")
+
+
 def coverage_shortfalls(baseline: dict[str, int], current: Counter[str]) -> dict[str, tuple[int, int]]:
     """Return ``{text: (baseline_count, current_count)}`` for every regressed entry.
 
     Empty means every baseline occurrence count is still met by *current*.
+    Comparison is quote-style-canonical (see :func:`_canonical_assert_text`) so
+    an interpreter's f-string unparse quoting never reads as a regression; the
+    reported key stays the baseline's own (readable) text.
     """
-    return {text: (count, current.get(text, 0)) for text, count in baseline.items() if current.get(text, 0) < count}
+    canonical_current: Counter[str] = Counter()
+    for text, occurrences in current.items():
+        canonical_current[_canonical_assert_text(text)] += occurrences
+    shortfalls: dict[str, tuple[int, int]] = {}
+    for text, count in baseline.items():
+        have = canonical_current.get(_canonical_assert_text(text), 0)
+        if have < count:
+            shortfalls[text] = (count, have)
+    return shortfalls
 
 
 # ---------------------------------------------------------------------------
@@ -435,6 +464,20 @@ def test_bad_split_smuggling_the_functional_assert_onto_performance_is_flagged()
     current = _functional_assert_counts_from_source(_SOURCE_AFTER_BAD_SPLIT_SMUGGLED_ONTO_PERFORMANCE, relpath)
     shortfalls = coverage_shortfalls(baseline, current)
     assert shortfalls == {"result.status == 'ok'": (1, 0)}
+
+
+def test_fstring_quote_unparse_variance_across_interpreters_is_not_a_regression() -> None:
+    """#4174 landing: an f-string with a nested quote unparses with a different
+    OUTER quote pre-3.12 vs 3.12+ (PEP 701). The two renderings below are the
+    literal ``ast.unparse`` outputs of the SAME source assert on the two
+    interpreters (kept as string constants because the 3.12 form does not parse
+    on <3.12). A baseline captured under one interpreter must not read as a
+    dropped functional assertion under the other."""
+    py_lt_312 = "f\"held by pid {exc.holder['pid']}\" in message"
+    py_ge_312 = "f'held by pid {exc.holder['pid']}' in message"
+    assert _canonical_assert_text(py_lt_312) == _canonical_assert_text(py_ge_312)
+    assert coverage_shortfalls({py_lt_312: 1}, Counter({py_ge_312: 1})) == {}
+    assert coverage_shortfalls({py_ge_312: 1}, Counter({py_lt_312: 1})) == {}
 
 
 def test_known_exception_excludes_a_vocab_invisible_timing_assert() -> None:
