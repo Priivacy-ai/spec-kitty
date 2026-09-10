@@ -331,12 +331,7 @@ def _resolve_activated_urns_for_kind(
     urns: set[str] = set()
     for stem in activated_ids:
         try:
-            urns.add(
-                resolve_artifact_urn(
-                    kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots,
-                    layer_roots=layer_roots
-                )
-            )
+            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots))
         except UnknownArtifactIdError:
             continue  # Skip-with-report (contract): _check_unknown_references reports it.
     return frozenset(urns)

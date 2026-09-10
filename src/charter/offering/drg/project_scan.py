@@ -178,7 +178,9 @@ class ProjectArtifact:
 
 
 def scan_project_artifacts(
-    project_root: Path, *, paths: frozenset[Path] | None = None,
+    project_root: Path,
+    *,
+    paths: frozenset[Path] | None = None,
 ) -> tuple[ProjectArtifact, ...]:
     """Validate the five supported direct-write kinds in their canonical directories."""
     from charter.offering.agent_profiles.profile import AgentProfile
@@ -203,8 +205,9 @@ def scan_project_artifacts(
                 model = schema.model_validate(data)
                 body = model.model_dump(mode="json", by_alias=True)
                 identifier = str(body["profile-id"] if kind_name == "agent_profile" else body["id"])
-                node = DRGNode(urn=artifact_to_urn(kind_name, identifier), kind=NodeKind(kind_name),
-                               label=body.get("name") or body.get("title"), provenance="project")
+                node = DRGNode(
+                    urn=artifact_to_urn(kind_name, identifier), kind=NodeKind(kind_name), label=body.get("name") or body.get("title"), provenance="project"
+                )
             except (ValueError, OSError, YAMLError, KeyError) as exc:
                 raise ValueError(f"Invalid project {kind_name} artifact {path}: {exc}") from exc
             if node.urn in seen:
@@ -215,7 +218,8 @@ def scan_project_artifacts(
 
 
 def project_reference_edges(
-    artifacts: tuple[ProjectArtifact, ...], available_nodes: list[DRGNode],
+    artifacts: tuple[ProjectArtifact, ...],
+    available_nodes: list[DRGNode],
 ) -> tuple[list[DRGEdge], tuple[str, ...]]:
     """Project authored profile references, reporting unresolved targets without phantom nodes."""
     from charter.offering.drg.migration.extractor import _project_profile_reference_edges
@@ -229,12 +233,12 @@ def project_reference_edges(
         candidates: list[DRGEdge] = []
         _project_profile_reference_edges(artifact.body, artifact.node.urn, dict(universe), candidates.append)
         for entry in (artifact.body.get("collaboration") or {}).get("operating-procedures", []):
-            candidates.append(DRGEdge(source=artifact.node.urn, target=artifact_to_urn("procedure", entry),
-                                      relation=Relation.REQUIRES))
+            candidates.append(DRGEdge(source=artifact.node.urn, target=artifact_to_urn("procedure", entry), relation=Relation.REQUIRES))
         for edge in candidates:
             if edge.target not in universe:
-                warnings.append(f"{artifact.node.urn} references unresolved {edge.target}; "
-                                "author or install that artifact, then repeat charter activate --cascade all.")
+                warnings.append(
+                    f"{artifact.node.urn} references unresolved {edge.target}; author or install that artifact, then repeat charter activate --cascade all."
+                )
                 continue
             edges[(edge.source, edge.target, edge.relation)] = edge.model_copy(update={"provenance": "project"})
     return list(edges.values()), tuple(sorted(set(warnings)))

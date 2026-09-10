@@ -154,10 +154,7 @@ def _resolve_config_activated_ids(
         return sorted(fallback_ids)
 
     resolved = {
-        resolve_artifact_urn(
-            kind, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots
-        ).split(":", 1)[1]
-        for stem in activated_stems
+        resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots).split(":", 1)[1] for stem in activated_stems
     }
     return sorted(resolved)
 
@@ -265,7 +262,6 @@ def _resolve_config_activated_roots(
 
         source, _, _ = resolve_activation_write_target(pack_context.repo_root)
         raise UnknownArtifactIdError(f"{exc} Activation store: {source}.") from exc
-
 
 
 def _direct_root_urns(config_roots: ConfigActivatedRoots) -> frozenset[str]:

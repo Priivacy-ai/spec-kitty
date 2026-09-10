@@ -1,4 +1,5 @@
 """Direct-written doctrine registration through the charter domain seam."""
+
 from pathlib import Path
 
 import pytest
@@ -13,8 +14,10 @@ pytestmark = pytest.mark.unit
 def author_guidance(root: Path) -> dict[str, Path]:
     paths = {}
     for token, identifier in {
-        "procedure": "incident-runbook", "agent_profile": "ops-responder",
-        "directive": "CHANGE_FREEZE", "tactic": "verify-rollback",
+        "procedure": "incident-runbook",
+        "agent_profile": "ops-responder",
+        "directive": "CHANGE_FREEZE",
+        "tactic": "verify-rollback",
         "styleguide": "incident-notes",
     }.items():
         kind = ArtifactKind(token)
@@ -23,10 +26,12 @@ def author_guidance(root: Path) -> dict[str, Path]:
         path = directory / kind.glob_pattern.replace("*", identifier)
         content = _STUB_TEMPLATES[kind].format(artifact_id=identifier).replace("TODO", "Operational")
         if token == "agent_profile":
-            content += ("collaboration:\n  operating-procedures: [incident-runbook]\n"
-                        "directive-references:\n  - code: CHANGE_FREEZE\n    name: Freeze\n    rationale: Safety\n"
-                        "tactic-references:\n  - id: verify-rollback\n    rationale: Safety\n"
-                        "styleguide-references:\n  - id: incident-notes\n    rationale: Clarity\n")
+            content += (
+                "collaboration:\n  operating-procedures: [incident-runbook]\n"
+                "directive-references:\n  - code: CHANGE_FREEZE\n    name: Freeze\n    rationale: Safety\n"
+                "tactic-references:\n  - id: verify-rollback\n    rationale: Safety\n"
+                "styleguide-references:\n  - id: incident-notes\n    rationale: Clarity\n"
+            )
         path.write_text(content)
         paths[token] = path
     return paths
@@ -34,13 +39,17 @@ def author_guidance(root: Path) -> dict[str, Path]:
 
 def test_direct_written_guidance_registers_five_artifacts_without_synthesis(tmp_path):
     from charter.activation.project_registration import plan_project_registration, commit_project_registration
+
     paths = author_guidance(tmp_path)
     before = {key: path.read_bytes() for key, path in paths.items()}
     plan = plan_project_registration(tmp_path)
     assert not (tmp_path / ".kittify/doctrine/graph.yaml").exists()
     assert sorted((a.node.kind.value, a.path) for a in plan.artifacts) == sorted(paths.items())
     assert {e.target for e in plan.graph.edges if e.source == "agent_profile:ops-responder"} == {
-        "procedure:incident-runbook", "directive:CHANGE_FREEZE", "tactic:verify-rollback", "styleguide:incident-notes",
+        "procedure:incident-runbook",
+        "directive:CHANGE_FREEZE",
+        "tactic:verify-rollback",
+        "styleguide:incident-notes",
     }
     commit_project_registration(plan)
     manifest = load_yaml(tmp_path / ".kittify/charter/synthesis-manifest.yaml")
@@ -54,6 +63,7 @@ def test_direct_written_guidance_registers_five_artifacts_without_synthesis(tmp_
 
 def test_unresolved_profile_reference_is_reported_without_phantom_node(tmp_path):
     from charter.activation.project_registration import plan_project_registration
+
     paths = author_guidance(tmp_path)
     paths["procedure"].unlink()
     plan = plan_project_registration(tmp_path)
@@ -64,6 +74,7 @@ def test_unresolved_profile_reference_is_reported_without_phantom_node(tmp_path)
 
 def test_invalid_artifact_preflight_does_not_write_registration(tmp_path):
     from charter.activation.project_registration import plan_project_registration
+
     paths = author_guidance(tmp_path)
     paths["procedure"].write_text("id: incident-runbook\n")
     with pytest.raises(ValueError, match="incident-runbook"):
@@ -76,14 +87,17 @@ def test_synthesis_reemits_all_registered_nodes_and_profile_edges(tmp_path):
     from charter.activation.synthesizer.project_drg import emit_project_layer
     from charter.offering.drg.loader import load_built_in_graph
     from charter.activation.synthesizer.reconcile import merge_project_overlay
+
     author_guidance(tmp_path)
     plan = plan_project_registration(tmp_path)
     commit_project_registration(plan)
     overlay = emit_project_layer([], "test", load_built_in_graph(), project_root=tmp_path)
     assert {node.urn for node in overlay.nodes} == {artifact.node.urn for artifact in plan.artifacts}
     assert sorted((e.target, e.relation.value) for e in overlay.edges) == [
-        ("directive:CHANGE_FREEZE", "requires"), ("procedure:incident-runbook", "requires"),
-        ("styleguide:incident-notes", "suggests"), ("tactic:verify-rollback", "requires"),
+        ("directive:CHANGE_FREEZE", "requires"),
+        ("procedure:incident-runbook", "requires"),
+        ("styleguide:incident-notes", "suggests"),
+        ("tactic:verify-rollback", "requires"),
     ]
     merged = merge_project_overlay(existing_overlay=overlay, updated_overlay=overlay)
     assert merged.edges == overlay.edges
@@ -91,6 +105,7 @@ def test_synthesis_reemits_all_registered_nodes_and_profile_edges(tmp_path):
 
 def test_editing_references_removes_previous_projected_edges(tmp_path):
     from charter.activation.project_registration import plan_project_registration, commit_project_registration
+
     paths = author_guidance(tmp_path)
     commit_project_registration(plan_project_registration(tmp_path))
     profile = paths["agent_profile"]
@@ -103,6 +118,7 @@ def test_editing_references_removes_previous_projected_edges(tmp_path):
 
 def test_duplicate_identity_fails_before_bookkeeping_mutation(tmp_path):
     from charter.activation.project_registration import plan_project_registration
+
     paths = author_guidance(tmp_path)
     duplicate = paths["procedure"].with_name("other.procedure.yaml")
     duplicate.write_bytes(paths["procedure"].read_bytes())
@@ -115,6 +131,7 @@ def test_existing_manifest_identity_and_provenance_are_preserved(tmp_path):
     from charter.activation.project_registration import plan_project_registration, commit_project_registration
     from charter.activation.synthesizer.manifest import dump_yaml, finalize_manifest
     from charter.activation.synthesizer.path_guard import PathGuard
+
     paths = author_guidance(tmp_path)
     commit_project_registration(plan_project_registration(tmp_path))
     manifest_path = tmp_path / ".kittify/charter/synthesis-manifest.yaml"
@@ -135,6 +152,7 @@ def test_existing_manifest_identity_and_provenance_are_preserved(tmp_path):
 
 def test_namespaced_profile_identity_cannot_escape_provenance_directory(tmp_path):
     from charter.activation.project_registration import plan_project_registration, commit_project_registration
+
     paths = author_guidance(tmp_path)
     profile = paths["agent_profile"]
     profile.write_text(profile.read_text().replace("profile-id: ops-responder", "profile-id: team/ops-responder"))

@@ -3,6 +3,7 @@
 Planning performs all schema, graph and provenance work before activation may
 mutate its store. Committing writes only derived state, with the manifest last.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,8 +16,13 @@ from ulid import ULID
 from charter.activation._drg_helpers import load_validated_graph
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.synthesizer.manifest import (
-    MANIFEST_PATH, ManifestArtifactEntry, SynthesisManifest, finalize_manifest,
-    hash_content_bytes, load_yaml as load_manifest, verify_manifest_hash,
+    MANIFEST_PATH,
+    ManifestArtifactEntry,
+    SynthesisManifest,
+    finalize_manifest,
+    hash_content_bytes,
+    load_yaml as load_manifest,
+    verify_manifest_hash,
 )
 from charter.activation.synthesizer.path_guard import PathGuard
 from charter.activation.synthesizer.provenance import ProvenanceEntry, provenance_path_for
@@ -53,13 +59,16 @@ def _project_graph(root: Path, artifacts: tuple[ProjectArtifact, ...], base: DRG
     # Only previously projected reference edges are replaced. Explicit lineage,
     # tension and synthesis provenance edges remain owned by their authors.
     reference_relations = {"requires", "suggests"}
-    edges = [e for e in existing.edges if not (
-        e.source in profile_urns and e.relation.value in reference_relations
-    )] if existing else []
+    edges = [e for e in existing.edges if not (e.source in profile_urns and e.relation.value in reference_relations)] if existing else []
     triples = {(e.source, e.target, e.relation): e for e in edges}
     triples.update({(e.source, e.target, e.relation): e for e in projected})
-    graph = DRGGraph(schema_version="1.0", generated_at=existing.generated_at if existing else now_utc_seconds(),
-                     generated_by="spec-kitty project registration", nodes=list(nodes.values()), edges=list(triples.values()))
+    graph = DRGGraph(
+        schema_version="1.0",
+        generated_at=existing.generated_at if existing else now_utc_seconds(),
+        generated_by="spec-kitty project registration",
+        nodes=list(nodes.values()),
+        edges=list(triples.values()),
+    )
     return graph, warnings
 
 
@@ -89,24 +98,38 @@ def _registration_records(root: Path, artifacts: tuple[ProjectArtifact, ...]) ->
         if previous and previous.content_hash == content_hash and (root / previous.provenance_path).is_file():
             continue
         record = ProvenanceEntry(
-            artifact_urn=artifact.node.urn, artifact_kind=kind, artifact_slug=slug,
-            artifact_content_hash=content_hash, inputs_hash=content_hash,
-            adapter_id="project-direct-write", adapter_version="1", synthesizer_version=package_version,
-            source_section=source_path, source_urns=[], source_input_ids=[source_path],
-            generated_at=timestamp, produced_at=timestamp, corpus_snapshot_id="(none)",
+            artifact_urn=artifact.node.urn,
+            artifact_kind=kind,
+            artifact_slug=slug,
+            artifact_content_hash=content_hash,
+            inputs_hash=content_hash,
+            adapter_id="project-direct-write",
+            adapter_version="1",
+            synthesizer_version=package_version,
+            source_section=source_path,
+            source_urns=[],
+            source_input_ids=[source_path],
+            generated_at=timestamp,
+            produced_at=timestamp,
+            corpus_snapshot_id="(none)",
             synthesis_run_id=run_id,
             adapter_notes="Registered authored project content; no generation or source rewrite performed.",
         )
         writes.append((root / sidecar, canonical_yaml(record.model_dump(mode="python")).decode()))
-        entries[key] = ManifestArtifactEntry(kind=kind, slug=slug, path=source_path,
-                                             provenance_path=sidecar, content_hash=content_hash)
+        entries[key] = ManifestArtifactEntry(kind=kind, slug=slug, path=source_path, provenance_path=sidecar, content_hash=content_hash)
     if existing:
         manifest = existing.model_copy(update={"artifacts": list(entries.values()), "built_in_only": False})
     else:
-        manifest = SynthesisManifest(created_at=timestamp, run_id=run_id,
-                                     adapter_id="project-direct-write", adapter_version="1",
-                                     synthesizer_version=package_version, manifest_hash="0" * 64,
-                                     artifacts=list(entries.values()), built_in_only=False)
+        manifest = SynthesisManifest(
+            created_at=timestamp,
+            run_id=run_id,
+            adapter_id="project-direct-write",
+            adapter_version="1",
+            synthesizer_version=package_version,
+            manifest_hash="0" * 64,
+            artifacts=list(entries.values()),
+            built_in_only=False,
+        )
     manifest = finalize_manifest(manifest)
     writes.append((manifest_path, canonical_yaml(manifest.model_dump(mode="python")).decode()))
     return writes
@@ -116,16 +139,25 @@ def plan_project_registration(repo_root: Path, *, base_graph: DRGGraph | None = 
     """Return validated project registration and its merged graph without writes."""
     root = repo_root.resolve()
     artifacts = scan_project_artifacts(root)
-    base = base_graph if base_graph is not None else load_validated_graph(
-        root, org_roots=resolve_existing_org_roots(root), org_fragments=load_org_drg(root, strict=False),
+    base = (
+        base_graph
+        if base_graph is not None
+        else load_validated_graph(
+            root,
+            org_roots=resolve_existing_org_roots(root),
+            org_fragments=load_org_drg(root, strict=False),
+        )
     )
     if not artifacts:
         return ProjectRegistrationPlan(root, base, (), (), ())
     project, warnings = _project_graph(root, artifacts, base)
     project_triples = {(e.source, e.target, e.relation) for e in project.edges}
     profile_urns = {a.node.urn for a in artifacts if a.node.kind.value == "agent_profile"}
-    retained_edges = [e for e in base.edges if (e.source, e.target, e.relation) not in project_triples
-                      and not (e.source in profile_urns and e.relation.value in {"requires", "suggests"})]
+    retained_edges = [
+        e
+        for e in base.edges
+        if (e.source, e.target, e.relation) not in project_triples and not (e.source in profile_urns and e.relation.value in {"requires", "suggests"})
+    ]
     merged = merge_layers(base.model_copy(update={"edges": retained_edges}), project)
     assert_valid(merged)
     writes = [(root / ".kittify/doctrine/graph.yaml", canonical_yaml(graph_document_to_dict(project)).decode())]

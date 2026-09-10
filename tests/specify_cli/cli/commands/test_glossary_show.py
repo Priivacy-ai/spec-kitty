@@ -103,36 +103,38 @@ class TestGlossaryShow:
         assert call_args[0] == "glossary:foo"
 
 
-@pytest.mark.parametrize('query', ['handoff', 'glossary:handoff', ' Handoff '])
+@pytest.mark.parametrize("query", ["handoff", "glossary:handoff", " Handoff "])
 def test_seed_only_term_shown_after_list(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, query: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    query: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    seeds = tmp_path / '.kittify/glossaries'
+    seeds = tmp_path / ".kittify/glossaries"
     seeds.mkdir(parents=True)
-    (seeds / 'team_domain.yaml').write_text(
-        'terms:\n  - surface: handoff\n    definition: Transfer of operational responsibility.\n'
-        '    confidence: 1.0\n    status: active\n', encoding='utf-8',
+    (seeds / "team_domain.yaml").write_text(
+        "terms:\n  - surface: handoff\n    definition: Transfer of operational responsibility.\n    confidence: 1.0\n    status: active\n",
+        encoding="utf-8",
     )
-    listed = runner.invoke(app, ['list', '--scope', 'team_domain'])
+    listed = runner.invoke(app, ["list", "--scope", "team_domain"])
     assert listed.exit_code == 0, listed.output
-    assert 'handoff' in listed.output
-    shown = runner.invoke(app, ['show', query])
+    assert "handoff" in listed.output
+    shown = runner.invoke(app, ["show", query])
     assert shown.exit_code == 0, shown.output
-    assert 'Transfer of operational responsibility.' in shown.output
-    assert 'team_domain' in shown.output
+    assert "Transfer of operational responsibility." in shown.output
+    assert "team_domain" in shown.output
 
 
 def test_seed_show_preserves_distinct_scoped_senses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    seeds = tmp_path / '.kittify/glossaries'
+    seeds = tmp_path / ".kittify/glossaries"
     seeds.mkdir(parents=True)
-    for scope in ('team_domain', 'audience_domain'):
-        (seeds / f'{scope}.yaml').write_text(
-            f'terms:\n  - surface: handoff\n    definition: Meaning in {scope}.\n'
-            '    confidence: 0.8\n    status: draft\n', encoding='utf-8',
+    for scope in ("team_domain", "audience_domain"):
+        (seeds / f"{scope}.yaml").write_text(
+            f"terms:\n  - surface: handoff\n    definition: Meaning in {scope}.\n    confidence: 0.8\n    status: draft\n",
+            encoding="utf-8",
         )
-    shown = runner.invoke(app, ['show', 'handoff'])
+    shown = runner.invoke(app, ["show", "handoff"])
     assert shown.exit_code == 0, shown.output
-    assert 'Meaning in team_domain.' in shown.output
-    assert 'Meaning in audience_domain.' in shown.output
+    assert "Meaning in team_domain." in shown.output
+    assert "Meaning in audience_domain." in shown.output

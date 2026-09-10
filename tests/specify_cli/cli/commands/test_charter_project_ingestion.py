@@ -1,4 +1,5 @@
 """Direct project authoring must reach activation without pre-seeded graphs."""
+
 from pathlib import Path
 
 import pytest
@@ -15,16 +16,17 @@ def test_activation_registers_project_sources(tmp_path: Path, monkeypatch: pytes
     monkeypatch.chdir(tmp_path)
     sources = author_guidance(tmp_path)
     before = {key: path.read_bytes() for key, path in sources.items()}
-    result = runner.invoke(app, ['activate', 'agent-profile', 'ops-responder'])
+    result = runner.invoke(app, ["activate", "agent-profile", "ops-responder"])
     assert result.exit_code == 0, result.output
-    assert (tmp_path / '.kittify/doctrine/graph.yaml').is_file()
+    assert (tmp_path / ".kittify/doctrine/graph.yaml").is_file()
     from charter.activation.synthesizer.manifest import load_yaml, verify
-    manifest = load_yaml(tmp_path / '.kittify/charter/synthesis-manifest.yaml')
+
+    manifest = load_yaml(tmp_path / ".kittify/charter/synthesis-manifest.yaml")
     verify(manifest, tmp_path)
     assert {a.kind for a in manifest.artifacts} == set(sources)
     assert {key: path.read_bytes() for key, path in sources.items()} == before
     from specify_cli.cli.commands.charter._status_collectors import _collect_manifest_status
-    summary, _ = _collect_manifest_status(tmp_path)
-    assert summary['artifact_count'] == 5
-    assert summary['live_artifact_count'] == 5
 
+    summary, _ = _collect_manifest_status(tmp_path)
+    assert summary["artifact_count"] == 5
+    assert summary["live_artifact_count"] == 5
