@@ -209,12 +209,21 @@ def ensure_runtime() -> None:
     STALE ``assessment`` above still carries a create-plan computed against
     the empty pre-race home, and its ``action``s (``mkdir``, ``open("x")``)
     are non-idempotent against the peer's already-materialized tree. Rather
-    than apply that stale plan, RE-ASSESS under the held lock: this is the
-    single authoritative seam upstream of the other two recheck nestings
-    (``apply_assets``'s own ``recheck_assets`` call, and ``merge.py``'s
-    ``_merge_prepared_assets``) -- both only ever run once this function
-    decides to apply, so converging here to a no-op protects them too
-    without duplicating the fix at each nesting.
+    than apply that stale plan, RE-ASSESS under the held lock: converging
+    here to a no-op also protects the two recheck nestings reached *through
+    this function's own apply* (``apply_assets``'s own ``recheck_assets``
+    call, and ``merge.py``'s ``_merge_prepared_assets``), so the fix is not
+    duplicated at each nesting.
+
+    Scope caveat (not a claim of totality): ``apply_assets`` is ALSO entered
+    independently by seam callers outside the ``ensure_*`` graph -- the
+    skills installer (``apply_skill_installation``) and the tool-surface
+    providers (``SlashCommandProvider`` / ``ManagedSkillsProvider``) build
+    their own assessment and call ``recheck_assets`` + ``apply_assets``
+    directly. Those callers do NOT re-assess under the lock, so a shared-home
+    race can still leave them at the ``global_asset_write_failed: File exists``
+    intermediate this function converges past. Extending the re-assess seam to
+    them is tracked as a follow-up (see the mission dossier / PR notes).
     """
     from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 
