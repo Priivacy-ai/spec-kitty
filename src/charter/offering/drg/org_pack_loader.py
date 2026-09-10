@@ -559,11 +559,60 @@ def load_org_pack(
     )
 
     try:
-        return OrgDRGFragment.model_validate(fragment_data)
+        fragment = OrgDRGFragment.model_validate(fragment_data)
     except Exception as exc:  # noqa: BLE001
         raise OrgPackSchemaError(
             f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: {exc}"
         ) from exc
+
+    # Validate authored nodes first: alias normalization and schema failures must
+    # precede inference, and authored metadata wins for the same kind/identity.
+    seen = {(node.kind, node.id) for node in fragment.nodes}
+    for node in _collect_artifact_nodes(pack_root):
+        key = (node.kind, node.id)
+        if key not in seen:
+            fragment.nodes.append(node)
+            seen.add(key)
+    return fragment
+
+
+def _collect_artifact_nodes(pack_root: Path) -> list[_OrgDRGNode]:
+    """Discover file-backed org nodes; edges and topology remain author-owned.
+
+    Discovery is best-effort, like field projection: malformed artifacts are
+    left to pack validation, never assigned an identity from their filenames.
+    """
+    nodes: list[_OrgDRGNode] = []
+    plural_by_kind = {singular: plural for plural, singular in ORG_PLURAL_TO_SINGULAR_KIND.items()}
+    for kind in ArtifactKind:
+        plural = plural_by_kind.get(kind.value)
+        if plural is None or not kind.glob_pattern:
+            continue  # Graph-only kinds and templates have no org artifact files.
+        for path in sorted((pack_root / kind.plural).rglob(kind.glob_pattern)):
+            data = _load_artifact_data(path)
+            identity = data.get("profile-id" if kind is ArtifactKind.AGENT_PROFILE else "id")
+            if not isinstance(identity, str) or not identity.strip():
+                continue
+            title = data.get("title", data.get("name"))
+            body_path = data.get("body_path")
+            nodes.append(
+                _OrgDRGNode(
+                    id=identity,
+                    kind=plural,
+                    title=title if isinstance(title, str) else None,
+                    body_path=body_path if isinstance(body_path, str) else None,
+                )
+            )
+    return nodes
+
+
+def _load_artifact_data(path: Path) -> dict[str, Any]:
+    """Read artifact YAML best-effort for node and legacy edge discovery."""
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 # ---------------------------------------------------------------------------
@@ -613,12 +662,7 @@ def _projection_edges_for_file(
     the type IS the marker that says "machine-minted", and a dict would be
     validated into the plain author-facing :class:`_OrgDRGEdge` and lose it.
     """
-    try:
-        data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
-        return []
-    if not isinstance(data, dict):
-        return []
+    data = _load_artifact_data(yaml_file)
     art_id = data.get("id")
     if not isinstance(art_id, str) or not art_id:
         return []
