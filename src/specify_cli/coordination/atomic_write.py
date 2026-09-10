@@ -194,7 +194,11 @@ def _windows_confined_write(
 
     tmp_path = resolved_path.with_name(f".spec-kitty-{_generate_ulid()}.tmp")
     try:
-        tmp_fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        # O_BINARY keeps the Windows CRT from translating b"\n" into
+        # b"\r\n" during os.write (#4181); POSIX has no O_BINARY and no
+        # translation, so the flag is a no-op there.
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+        tmp_fd = os.open(tmp_path, flags, 0o600)
         try:
             if existing_mode is not None:
                 os.chmod(tmp_path, existing_mode)

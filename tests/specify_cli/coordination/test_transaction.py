@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import subprocess
 import threading
 from pathlib import Path
@@ -38,6 +39,9 @@ from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.status.emit import build_status_event
 from specify_cli.status import store as _store
 from specify_cli.status.models import StatusEvent
+from tests.specify_cli.coordination.test_atomic_write_windows_fallback import (
+    windows_crt_textmode,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -627,6 +631,87 @@ def test_rollback_artifact_restore_refuses_parent_symlink_escape(
         and "resolves outside worktree" in record.getMessage()
         for record in caplog.records
     )
+
+
+# ---------------------------------------------------------------------------
+# Rollback byte identity through the Windows path-based fallback (#4181)
+# ---------------------------------------------------------------------------
+
+# The fixture simulates the Windows CRT text-mode conversion (injected
+# O_BINARY + newline translation for descriptors opened without it); on
+# native Windows the real CRT does the translating, so these POSIX-simulated
+# regressions mirror what the unmocked windows_ci fallback tests verify there.
+_rollback_fallback_only = pytest.mark.skipif(
+    os.name == "nt",
+    reason="CRT text-mode translation is simulated; native Windows runs the real fallback",
+)
+
+
+@_rollback_fallback_only
+def test_rollback_restores_artifact_bytes_exactly_through_windows_fallback(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    windows_crt_textmode: None,
+) -> None:
+    """#4181: a failed commit restores the original bytes verbatim.
+
+    The rollback compensator restores through the same confined write the
+    transaction used, so a fallback that opens its tempfile in CRT text mode
+    (3.2.7) does not just corrupt the write — it corrupts the *restore*,
+    the one place bytes are promised to come back exactly.
+    """
+    worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    artifact = worktree / "kitty-specs" / FEATURE_DIRNAME / "requirements.md"
+    original = b"# requirements\nline two\r\nmixed endings\n"
+
+    def fail_commit(**_kwargs: object) -> None:
+        raise RuntimeError("forced commit failure")
+
+    monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
+
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="rollback_fallback_bytes",
+    ) as txn:
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        artifact.write_bytes(original)
+        txn.write_artifact(artifact, b"replaced\r\ncontent\n")
+        txn.commit("status: should reject")
+
+    assert artifact.read_bytes() == original
+
+
+@_rollback_fallback_only
+def test_rollback_removes_newly_created_artifact_through_windows_fallback(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    windows_crt_textmode: None,
+) -> None:
+    """#4181: rollback of an artifact created inside the transaction unlinks it."""
+    worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    artifact = worktree / "kitty-specs" / FEATURE_DIRNAME / "created.json"
+
+    def fail_commit(**_kwargs: object) -> None:
+        raise RuntimeError("forced commit failure")
+
+    monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
+
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="rollback_fallback_unlink",
+    ) as txn:
+        txn.write_artifact(artifact, b"created\n")
+        txn.commit("status: should reject")
+
+    assert not artifact.exists()
 
 
 # ---------------------------------------------------------------------------
