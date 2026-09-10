@@ -38,6 +38,7 @@ import yaml
 
 from charter.offering.drg.migration.extractor import _GOVERNANCE_PROFILE_SCOPE_FIELDS
 from charter.offering.drg.migration.id_normalizer import artifact_to_urn
+from charter.offering.drg.org_pack_loader import OrgPackSchemaError
 
 __all__ = ["collect_org_governance_scope_edges"]
 
@@ -113,12 +114,21 @@ def _profile_scope_edges(
     Extracted from :func:`collect_org_governance_scope_edges` so the outer loop
     stays flat (ruff C901 <= 15). *seen* is threaded across profiles so a repeat
     of the same ``(mission_type, target)`` selection is emitted once.
+
+    A malformed ``selected_*`` value raises :class:`OrgPackSchemaError`
+    carrying the profile's own path in ``source_file`` — the same fault class
+    the org-pack loader raises for fragment faults, so a sibling-source fault
+    is attributed to the profile, never to ``drg/fragment.yaml`` (#4200
+    defect 1).
     """
     edges: list[OrgGovernanceScopeEdge] = []
     for field_name, kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS:
         selections = data.get(field_name) or []
         if not isinstance(selections, list):
-            raise ValueError(f"{profile_path}: {field_name} must be a list or null")
+            raise OrgPackSchemaError(
+                f"{profile_path}: {field_name} must be a list or null",
+                source_file=profile_path,
+            )
         for raw_id in selections:
             if not isinstance(raw_id, str) or not raw_id:
                 continue
