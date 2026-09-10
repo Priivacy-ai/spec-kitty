@@ -642,12 +642,32 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
 
     Cold lock creation is itself an assessed effect in apply. Recheck always
     runs before that creation; exclusive creation detects a racing cold owner.
+
+    #4174 landing-pass rescope: the FIRST ``check_assets`` call above is
+    UNLOCKED and can sample a concurrent peer mid-write -- ``_write_order``
+    guarantees every directory this batch will create is written before ANY
+    content file, so a loser can observe a peer's directories without any of
+    its content yet. A directory-kind observation is tolerant of drift only
+    when EVERY genuine content file in the batch already matches canonical
+    bytes on disk (``check_assets``'s ``content_confirmed`` computation),
+    which is false mid-write -- so this unlocked sample can raise even
+    though nothing is actually wrong, only unfinished. When the assessment
+    has effects and a retained ``PreparedAssets`` payload, this unlocked
+    diagnostic is therefore NEVER authoritative on its own: proceed to
+    acquire the lock regardless of what it found, and let the UNDER-LOCK
+    recheck below (or, when re-entrant, the ``_HELD_LOCKS`` short-circuit,
+    whose own diagnostics were computed while this process already held the
+    lock and so cannot be observing a live concurrent write) decide. By the
+    time the anchor flock is actually granted, a genuine concurrent peer
+    holding it while writing will have finished and the home will be fully
+    materialized -- a true SOURCE-read drift (never tolerated, FR-003/C-002)
+    still refuses once the under-lock recheck runs.
     """
     from specify_cli.runtime.bootstrap import _lock_exclusive
 
     diagnostics = check_assets(assessment)
     prepared = assessment.prepared
-    if diagnostics or not assessment.effects or not isinstance(prepared, PreparedAssets):
+    if not assessment.effects or not isinstance(prepared, PreparedAssets):
         yield diagnostics
         return
     if set(prepared.lock_paths) <= _HELD_LOCKS.get():
