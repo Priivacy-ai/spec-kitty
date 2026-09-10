@@ -117,3 +117,39 @@ def test_fragment_is_optional(tmp_path: Path) -> None:
     from specify_cli.doctrine.pack_validator import validate_pack
 
     assert validate_pack(tmp_path).ok
+
+
+@pytest.mark.parametrize("selection", ["3", "[ACME-001-FOO]"])
+def test_governance_projection_validation(tmp_path: Path, selection: str) -> None:
+    from charter.offering.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
+    from specify_cli.doctrine.pack_validator import validate_pack
+
+    fragment = tmp_path / "drg" / "fragment.yaml"
+    fragment.parent.mkdir()
+    fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
+    profile = tmp_path / "mission_types" / "example" / "governance-profile.yaml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(f"selected_directives: {selection}\n", encoding="utf-8")
+    valid = selection.startswith("[")
+    result = validate_pack(tmp_path)
+    assert result.ok is valid
+    if valid:
+        loaded = load_org_pack(pack_name="test", pack_root=tmp_path, layer_index=1)
+        assert len(loaded.edges) == 1
+        edge = loaded.edges[0]
+        assert (edge.source, edge.target, edge.relation) == ("mission_type:example", "directive:ACME_001_FOO", "scope")
+        assert edge.reason is None
+        assert getattr(edge, "generated_reason") == "declared via governance-profile.yaml selected_directives selection"
+    else:
+        assert len(result.errors) == 1
+        assert result.errors[0].category == "schema_invalid"
+        assert str(profile) in result.errors[0].message
+        assert "selected_directives" in result.errors[0].message
+        with pytest.raises(OrgPackSchemaError, match="selected_directives"):
+            load_org_pack(pack_name="test", pack_root=tmp_path, layer_index=1)
+    for command in ("pack", "org"):
+        cli = CliRunner().invoke(app, [command, "validate", str(tmp_path)])
+        assert cli.exit_code == (0 if valid else 1), cli.output
+        assert "Traceback" not in cli.output
+        if not valid:
+            assert "selected_directives" in cli.output
