@@ -1459,8 +1459,20 @@ def test_real_consumer_uses_one_selected_global_batch(tmp_path: Path, monkeypatc
         return real_assess(runtime=runtime, commands=commands, skills=skills, agent_keys=agent_keys, skill_selection=skill_selection, consent=consent)
 
     monkeypatch.setattr(asset_preparation, "assess_global_assets", observed_assess)
+    # #4174 landing-pass: apply_skill_installation now re-assesses the global
+    # half ONCE more under the held lock whenever the assess it just rechecked
+    # actually carries effects (concurrent-peer convergence, see
+    # tests/specify_cli/skills/test_installer_global_reassess_convergence.py)
+    # -- a cold/drifted install now takes 2 calls (ordinary assess + the
+    # re-assess-under-lock), never just 1; a genuinely warm/no-op install
+    # still takes exactly 1 (the re-assess is skipped when there is nothing
+    # to converge, mirroring the ensure_*() owners' own guard). The invariant
+    # this test actually guards -- ONE COHERENT selected batch, never
+    # fragmented per-skill/per-caller -- is checked below by requiring every
+    # call made to share the correct agent_keys, not a literal call count.
     manifest = install_all_skills(project, ["claude"], registry)
-    assert len(calls) == 1 and calls[0].agent_keys == ("claude",)
+    assert calls and all(call.agent_keys == ("claude",) for call in calls)
+    assert len(calls) == 2, "a cold install must take exactly one assess plus one re-assess-under-lock"
     save_manifest(manifest, project)
     assert {entry.skill_name for entry in manifest.entries} == {"caller-alpha", "caller-beta"}
     assert unknown.read_bytes() == b"untracked global user content"
@@ -1469,20 +1481,20 @@ def test_real_consumer_uses_one_selected_global_batch(tmp_path: Path, monkeypatc
     assert global_alpha.read_bytes() == alpha.skill_md.read_bytes()
     alpha.skill_md.write_bytes(b"---\nname: caller-alpha\n---\nupdated source\n")
     save_manifest(install_all_skills(project, ["claude"], registry), project)
-    assert len(calls) == 2
+    assert len(calls) == 4, "a drifted (alpha updated) install must also take one assess plus one re-assess-under-lock"
     assert global_alpha.read_bytes() == alpha.skill_md.read_bytes()
     assert (project / ".claude/skills/caller-alpha/SKILL.md").read_bytes() == alpha.skill_md.read_bytes()
     assert unknown.read_bytes() == b"untracked global user content"
     before = snapshot({"sandbox": tmp_path})
     save_manifest(install_all_skills(project, ["claude"], registry), project)
-    assert len(calls) == 3
+    assert len(calls) == 5, "a genuinely warm/no-op install must take exactly one assess, no re-assess"
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
     empty = tmp_path / "empty-source"
     empty.mkdir()
     before_empty = snapshot({"sandbox": tmp_path})
     save_manifest(install_all_skills(project, ["claude"], SkillRegistry(empty)), project)
     save_manifest(install_all_skills(project, [], registry), project)
-    assert len(calls) == 5
+    assert len(calls) == 7, "each of these two remaining installs also drifts (retiring skills), so each takes one assess plus one re-assess-under-lock"
     assert_unchanged(before_empty, snapshot({"sandbox": tmp_path}))
 
 
