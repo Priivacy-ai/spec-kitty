@@ -6,6 +6,7 @@ import shutil
 import stat
 import hashlib
 import json
+import logging
 import os
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
@@ -59,6 +60,8 @@ from specify_cli.tool_surface.operations import (
     coalesce_effects,
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
+
+logger = logging.getLogger(__name__)
 
 DELIVERY_COPY = "copy"
 DELIVERY_SYMLINK = "symlink"
@@ -1109,9 +1112,36 @@ def assess_skill_installation(
 def apply_skill_installation(
     installation: SkillInstallationAssessment,
     consent: ApplyConsent,
+    *,
+    rebuild_global_assets: Callable[[], OwnerAssessment] | None = None,
 ) -> tuple[OwnerApplyResult, OwnerApplyResult]:
-    """Direct-call boundary: recheck BOTH roots before the first global write."""
-    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
+    """Direct-call boundary: recheck BOTH roots before the first global write.
+
+    #4174 landing-pass: this is a direct-call boundary OUTSIDE the
+    ``bootstrap.ensure_runtime()`` / ``agent_commands.py`` / ``agent_skills.py``
+    ``ensure_*`` graph -- it never re-assessed under the lock, so two
+    independent concurrent installer invocations racing the same cold home
+    reproduced the residual symptom the #4017 mission notes recorded: the
+    winner materializes the global bundle for real, and the loser's own
+    STALE assessment still carries ``create`` actions for paths the winner
+    already created, non-idempotently replayed by ``apply_assets`` as a
+    ``global_asset_write_failed: File exists``.
+
+    When *rebuild_global_assets* is given, mirror
+    ``asset_preparation.apply_with_reassess`` for the GLOBAL half only:
+    re-assess under the ALREADY-HELD anchor lock (the nested
+    ``apply_with_reassess`` call below reuses the SAME lock this function's
+    own ``recheck_assets(global_assets)`` already acquired, via the
+    ``_HELD_LOCKS`` short-circuit) and converge to a no-op when a peer
+    already did the work. The PROJECT half's own ``recheck_project_skills``
+    boundary is never rebuilt: ``apply_project_skills`` requires
+    object-IDENTITY with whatever ``recheck_project_skills`` guarded, so
+    the project assessment stays exactly what the caller passed in. Both
+    locks are acquired in the SAME order as the *rebuild_global_assets is
+    None* path (global first, then project) by keeping this structure --
+    never split into two separate ``with`` statements.
+    """
+    from specify_cli.runtime.asset_preparation import apply_assets, apply_with_reassess, recheck_assets
 
     global_assets, project = installation.global_assets, installation.project_skills
     if isinstance(project.prepared, PreparedProjectSkills) and project.prepared.provisioning is not None:
@@ -1125,7 +1155,21 @@ def apply_skill_installation(
         if global_errors or project_errors:
             errors = global_errors + project_errors
             return _refuse_skill_owner(global_assets, errors), _refuse_skill_owner(project, errors)
-        global_result = apply_assets(global_assets, consent)
+        if rebuild_global_assets is not None and global_assets.effects:
+            # Only reassess when there is actually something to converge --
+            # mirroring the ensure_*() owners' own "not assessment.effects:
+            # return" guard before ever calling apply_with_reassess. Without
+            # this, an ordinary warm/no-op apply would pay for a needless
+            # extra assess on every call.
+            global_result = apply_with_reassess(
+                global_assets,
+                rebuild_global_assets,
+                consent,
+                converged_log_message="global skill/command assets already materialized by a concurrent peer; nothing applied.",
+                logger=logger,
+            )
+        else:
+            global_result = apply_assets(global_assets, consent)
         if global_result.outcome not in {"applied", "skipped"} or (global_result.skipped and global_assets.effects):
             return global_result, _refuse_skill_owner(project, global_result.diagnostics)
         return global_result, apply_project_skills(project, consent)
@@ -1146,7 +1190,11 @@ def _install_caller_skills(
     consent = ApplyConsent(automatic=True)
     inputs = AssessmentInputs(OperationRoot("project", "project", project_path.absolute()), consent=consent)
     installation = assess_skill_installation(inputs, registry, agents, retire=retire, persist_manifest=False)
-    results = apply_skill_installation(installation, consent)
+    results = apply_skill_installation(
+        installation,
+        consent,
+        rebuild_global_assets=lambda: assess_skill_installation(inputs, registry, agents, retire=retire, persist_manifest=False).global_assets,
+    )
     if any(result.outcome not in {"applied", "skipped"} for result in results):
         errors = "; ".join(item.message for result in results for item in result.diagnostics)
         raise OSError(f"Managed skill installation did not complete: {errors}")
