@@ -326,6 +326,7 @@ exclude = [
     "src/charter/activation/context_renderers/artifact_bodies.py",
     "src/charter/activation/context_renderers/authority_paths.py",
     "src/charter/activation/context_renderers/catalog_diagnosis.py",
+    "src/charter/activation/context_renderers/delivery_table.py",
     "src/charter/activation/context_renderers/profile_sections.py",
     "src/charter/activation/context_renderers/reference_pointers.py",
     "src/charter/activation/context_renderers/section_bodies.py",
