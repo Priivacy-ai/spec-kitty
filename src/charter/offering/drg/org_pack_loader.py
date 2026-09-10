@@ -454,6 +454,14 @@ class OrgDRGFragment(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _read_fragment_yaml(pack_name: str, fragment_yaml: Path) -> Any:
+    """Read authored YAML and translate parsing failures at the loader boundary."""
+    try:
+        return yaml.safe_load(fragment_yaml.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise OrgPackParseError(f"Org pack {pack_name!r}: YAML parse error in {fragment_yaml}: {exc}") from exc
+
+
 def load_org_pack(
     pack_name: str,
     pack_root: Path,
@@ -500,12 +508,16 @@ def load_org_pack(
     if not fragment_yaml.exists():
         raise OrgPackMissingError(pack_name, fragment_yaml)
 
-    try:
-        fragment_data = yaml.safe_load(fragment_yaml.read_text(encoding="utf-8")) or {}
-    except Exception as exc:  # noqa: BLE001
-        raise OrgPackParseError(
-            f"Org pack {pack_name!r}: YAML parse error in {fragment_yaml}: {exc}"
-        ) from exc
+    fragment_data = _read_fragment_yaml(pack_name, fragment_yaml)
+    if fragment_data is None:
+        fragment_data = {}
+    if not isinstance(fragment_data, dict):
+        raise OrgPackSchemaError(f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: fragment must be a mapping")
+    authored_edges = fragment_data.get("edges")
+    if authored_edges is None:
+        authored_edges = []
+    if not isinstance(authored_edges, list):
+        raise OrgPackSchemaError(f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: edges must be a list or null")
 
     # Operator-side authoritative fields override pack-side declarations.
     # This is intentional: the loader knows the canonical pack name,
@@ -551,14 +563,12 @@ def load_org_pack(
     # ``model_validate`` passes through untouched) so that downstream code can
     # tell machine provenance from an author's ``reason:`` without matching on
     # the generated text — a string the emitter above owns and could reword.
-    authored_edges: list[Any] = list(fragment_data.get("edges") or [])
-    fragment_data["edges"] = (
-        authored_edges
-        + _collect_augmentation_edges(pack_root)
-        + _collect_governance_scope_edges(pack_root)
-    )
-
     try:
+        fragment_data["edges"] = (
+            authored_edges
+            + _collect_augmentation_edges(pack_root)
+            + _collect_governance_scope_edges(pack_root)
+        )
         fragment = OrgDRGFragment.model_validate(fragment_data)
     except Exception as exc:  # noqa: BLE001
         raise OrgPackSchemaError(

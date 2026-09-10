@@ -39,12 +39,13 @@ Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``profile_skipped``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
-The public surface is intentionally small:
+The exported entry points are intentionally small:
 
-* :class:`ValidationIssue`
-* :class:`ValidationResult`
 * :func:`validate_pack`
 * :func:`render_validation_result`
+
+ValidationIssue and ValidationResult are module-local records used to build,
+return, and render findings. Their types and direct module access are unchanged.
 """
 
 from __future__ import annotations
@@ -59,8 +60,6 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 __all__ = [
-    "ValidationIssue",
-    "ValidationResult",
     "validate_pack",
     "render_validation_result",
 ]
@@ -80,7 +79,13 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.drg.org_pack_loader import augmentation_plural_kinds
+from charter.offering.drg.org_pack_loader import (
+    OrgPackMissingError,
+    OrgPackParseError,
+    OrgPackSchemaError,
+    augmentation_plural_kinds,
+    load_org_pack,
+)
 from charter.offering.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound, built_in_dir
 
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
@@ -415,6 +420,8 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
         _check_profile_skipped_diagnostics(pack_dir, already_flagged_files)
     )
 
+    errors.extend(_validate_org_fragment(pack_dir))
+
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
     if drg_dir.is_dir():
@@ -517,6 +524,27 @@ def _plural_to_urn_kind(plural: str) -> str | None:
         "mission_step_contracts": "mission_step_contract",
     }
     return mapping.get(plural)
+
+
+def _validate_org_fragment(pack_dir: Path) -> list[ValidationIssue]:
+    """Validate an optional org fragment through the runtime loading authority."""
+    fragment = pack_dir / "drg" / "fragment.yaml"
+    if not fragment.exists():
+        return []
+    try:
+        load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
+    except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError) as exc:
+        return [
+            ValidationIssue(
+                severity="error",
+                artifact_type="drg",
+                artifact_id=None,
+                file=str(fragment),
+                message=str(exc),
+                category="schema_invalid" if isinstance(exc, OrgPackSchemaError) else "parse_error",
+            )
+        ]
+    return []
 
 
 def _validate_drg(

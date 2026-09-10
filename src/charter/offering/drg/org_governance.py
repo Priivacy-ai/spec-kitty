@@ -98,7 +98,7 @@ def collect_org_governance_scope_edges(pack_root: Path) -> list[OrgGovernanceSco
             continue
         raw_type = data.get("mission_type") or data.get("id") or profile_path.parent.name
         source_urn = artifact_to_urn("mission_type", str(raw_type))
-        edges.extend(_profile_scope_edges(data, source_urn, seen))
+        edges.extend(_profile_scope_edges(data, source_urn, seen, profile_path))
     return edges
 
 
@@ -106,6 +106,7 @@ def _profile_scope_edges(
     data: dict[str, Any],
     source_urn: str,
     seen: set[tuple[str, str]],
+    profile_path: Path,
 ) -> list[OrgGovernanceScopeEdge]:
     """Yield the scope edges for one already-loaded governance profile.
 
@@ -115,7 +116,10 @@ def _profile_scope_edges(
     """
     edges: list[OrgGovernanceScopeEdge] = []
     for field_name, kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS:
-        for raw_id in data.get(field_name) or []:
+        selections = data.get(field_name) or []
+        if not isinstance(selections, list):
+            raise ValueError(f"{profile_path}: {field_name} must be a list or null")
+        for raw_id in selections:
             if not isinstance(raw_id, str) or not raw_id:
                 continue
             target_urn = artifact_to_urn(kind, raw_id)
