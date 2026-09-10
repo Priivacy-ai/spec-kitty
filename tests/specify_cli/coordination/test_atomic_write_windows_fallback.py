@@ -214,77 +214,9 @@ BYTE_PRESERVATION_PAYLOADS = [
 _PAYLOAD_IDS = ["lf", "crlf", "mixed", "empty", "binary"]
 
 
-@pytest.fixture
-def windows_crt_textmode(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Simulate the Windows CRT newline translation that caused #4181.
-
-    Strips the fd-relative capability surface (as :func:`simulated_windows`)
-    and additionally reproduces the *native* Windows behavior the capability
-    strip alone cannot: a descriptor opened by ``os.open`` without
-    ``O_BINARY`` is in CRT text mode, so every ``os.write`` to it turns
-    ``b"\\n"`` into ``b"\\r\\n"`` — LF becomes CRLF and an existing CRLF
-    becomes CRCRLF. ``os.O_BINARY`` is injected (POSIX has no such constant)
-    so the production ``getattr(os, "O_BINARY", 0)``
-    resolves to the simulated flag, and the injected bit is masked back out
-    before the real ``os.open`` sees it.
-
-    Only the fallback's own ``.spec-kitty-*.tmp`` creation opens are wrapped,
-    so every other descriptor in the process (the lock file, the event log,
-    pytest's own I/O) keeps byte-exact behavior.
-    """
-    monkeypatch.setattr(os, "supports_dir_fd", set())
-    # Windows lacks these constants outright; delete only when present so the
-    # fixture is itself Windows-safe.
-    if hasattr(os, "O_DIRECTORY"):
-        monkeypatch.delattr(os, "O_DIRECTORY")
-    if hasattr(os, "O_NOFOLLOW"):
-        monkeypatch.delattr(os, "O_NOFOLLOW")
-
-    injected = not hasattr(os, "O_BINARY")
-    binary_flag = 1 << 30 if injected else os.O_BINARY
-    if injected:
-        monkeypatch.setattr(os, "O_BINARY", binary_flag, raising=False)
-    real_open, real_write, real_close = os.open, os.write, os.close
-    textmode_fds: set[int] = set()
-
-    def translating_open(
-        path: object, flags: int, *args: object, **kwargs: object
-    ) -> int:
-        passthrough_flags = flags & ~binary_flag if injected else flags
-        fd = real_open(path, passthrough_flags, *args, **kwargs)  # type: ignore[no-any-return]
-        if (
-            flags & os.O_CREAT
-            and isinstance(path, (str, os.PathLike))
-            and Path(path).name.startswith(".spec-kitty-")
-        ):
-            if not flags & binary_flag:
-                textmode_fds.add(fd)
-        return fd
-
-    def translating_write(fd: int, data: object) -> int:
-        if fd in textmode_fds:
-            original = bytes(data)  # type: ignore[arg-type]
-            translated = original.replace(b"\n", b"\r\n")
-            view = memoryview(translated)
-            offset = 0
-            while offset < len(translated):
-                offset += real_write(fd, view[offset:])
-            # Report progress against the caller's original buffer so the
-            # production partial-write loop stays consistent.
-            return len(original)
-        return real_write(fd, data)  # type: ignore[return-value, arg-type]
-
-    def discarding_close(fd: int) -> None:
-        textmode_fds.discard(fd)
-        real_close(fd)
-
-    monkeypatch.setattr(os, "open", translating_open)
-    monkeypatch.setattr(os, "write", translating_write)
-    monkeypatch.setattr(os, "close", discarding_close)
-
-
-# The CRT translation is *simulated* here; on native Windows the real CRT does
-# it and the unmocked windows_ci tests below cover that path directly.
+# The CRT translation is *simulated* by the ``windows_crt_textmode`` fixture
+# (this directory's conftest); on native Windows the real CRT does it and the
+# unmocked windows_ci tests below cover that path directly.
 posix_only = pytest.mark.skipif(
     os.name == "nt",
     reason="CRT text-mode translation is simulated; native coverage is the windows_ci tests",
@@ -292,12 +224,8 @@ posix_only = pytest.mark.skipif(
 
 
 @posix_only
-@pytest.mark.parametrize(
-    "payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS
-)
-def test_write_fallback_preserves_bytes_in_binary_mode_on_creation(
-    windows_crt_textmode: None, worktree: Path, payload: bytes
-) -> None:
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_write_fallback_preserves_bytes_in_binary_mode_on_creation(windows_crt_textmode: None, worktree: Path, payload: bytes) -> None:
     """The fallback's tempfile must be opened with O_BINARY (#4181).
 
     3.2.7 opened it in CRT text mode, so ``b"before\\n"`` landed on disk as
@@ -313,12 +241,8 @@ def test_write_fallback_preserves_bytes_in_binary_mode_on_creation(
 
 
 @posix_only
-@pytest.mark.parametrize(
-    "payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS
-)
-def test_write_fallback_preserves_bytes_in_binary_mode_on_replacement(
-    windows_crt_textmode: None, worktree: Path, payload: bytes
-) -> None:
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_write_fallback_preserves_bytes_in_binary_mode_on_replacement(windows_crt_textmode: None, worktree: Path, payload: bytes) -> None:
     """Replacing an existing artifact must also write verbatim bytes."""
     target = worktree / "kitty-specs" / "demo" / "artifact.json"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -331,12 +255,8 @@ def test_write_fallback_preserves_bytes_in_binary_mode_on_replacement(
 
 
 @pytest.mark.windows_ci
-@pytest.mark.parametrize(
-    "payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS
-)
-def test_native_windows_write_preserves_bytes_on_creation(
-    worktree: Path, payload: bytes
-) -> None:
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_native_windows_write_preserves_bytes_on_creation(worktree: Path, payload: bytes) -> None:
     """Unmocked #4181 reproduction: artifact bytes land verbatim on win32.
 
     On native Windows the fallback engages on its own — no capability strip,
@@ -355,12 +275,8 @@ def test_native_windows_write_preserves_bytes_on_creation(
 
 
 @pytest.mark.windows_ci
-@pytest.mark.parametrize(
-    "payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS
-)
-def test_native_windows_write_preserves_bytes_on_replacement(
-    worktree: Path, payload: bytes
-) -> None:
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_native_windows_write_preserves_bytes_on_replacement(worktree: Path, payload: bytes) -> None:
     """Unmocked replacement path: existing artifacts are overwritten verbatim."""
     target = worktree / "kitty-specs" / "demo" / "artifact.bin"
     target.parent.mkdir(parents=True, exist_ok=True)

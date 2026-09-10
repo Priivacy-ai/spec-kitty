@@ -39,9 +39,6 @@ from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.status.emit import build_status_event
 from specify_cli.status import store as _store
 from specify_cli.status.models import StatusEvent
-from tests.specify_cli.coordination.test_atomic_write_windows_fallback import (
-    windows_crt_textmode,
-)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
