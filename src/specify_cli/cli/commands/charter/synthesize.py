@@ -459,6 +459,17 @@ def charter_synthesize(  # noqa: C901
             mode=SynthesizeMode.prune if prune else SynthesizeMode.preserve,
         )
 
+        # #4121 (MAJOR 2): unresolved project-profile reference warnings from
+        # the overlay emission ride on the result — surface them on the CLI
+        # and in the --json envelope instead of leaving them in logging
+        # output only. ``getattr`` keeps a mocked ``synthesize`` (tests never
+        # write a manifest, let alone emit references) on the empty default.
+        reference_warnings = list(getattr(result, "reference_warnings", ()))
+        warnings_collected.extend(reference_warnings)
+        if not json_output:
+            for warning in reference_warnings:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
+
         # FR-014 / T014: narrow refusal -- a plain (non-`--prune`) run that
         # dropped (preserve mode never deletes, so nothing was actually
         # destroyed by the write above) orphaned (backing-artifact-deleted)

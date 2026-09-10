@@ -214,6 +214,9 @@ def emit_project_layer(
     spec_kitty_version: str,
     built_in_drg: DRGGraph,
     project_root: Path | None = None,
+    *,
+    org_drg: DRGGraph | None = None,
+    warnings_out: list[str] | None = None,
 ) -> DRGGraph:
     """Build an additive project-layer ``DRGGraph`` from *targets*.
 
@@ -242,11 +245,34 @@ def emit_project_layer(
     emitted (WP06 charter-cascade exhaustiveness — an unsupported kind must
     not crash emission).
 
+    Org-aware reference resolution (#4121, MAJOR 2): profile references are
+    projected against the SAME universe activation resolves against —
+    built-in + the org chain + the overlay's own nodes — instead of a
+    built-in-only one, so a project profile referencing an org-pack artifact
+    keeps its edge through re-emission rather than having it silently
+    replaced away by :func:`charter.activation.synthesizer.reconcile.merge_project_overlay`.
+    *org_drg* is that org-chain base (the built-in + org graph returned by
+    :func:`charter.activation._drg_helpers.org_chain_graph`); ``None`` means
+    no org layer is configured and the universe is built-in + overlay only,
+    byte-identical to the pre-#4121 behaviour.
+
     Args:
         targets: Ordered sequence of ``SynthesisTarget`` objects to emit.
         spec_kitty_version: Version string embedded in ``generated_by``.
         built_in_drg: The built-in-layer ``DRGGraph`` used for additive-only
             checks.  **Not mutated.**
+        project_root: Project root for hand-authored profile/registered-
+            artifact composition (see above).
+        org_drg: The org-chain base graph (built-in + org merged, as returned
+            by :func:`charter.activation._drg_helpers.org_chain_graph`), or ``None``
+            when no org packs are configured. Used ONLY for the
+            reference-resolution universe — the additive-only checks stay
+            built-in-only, because an org node may legitimately be overridden
+            by the project layer (``merge_three_layers`` precedence) while a
+            built-in node may not. **Not mutated.**
+        warnings_out: Optional sink that receives the unresolved-reference
+            warnings (the same strings logged below) so CLI callers can
+            surface them instead of them living only in ``logging`` output.
 
     Returns:
         A new ``DRGGraph`` representing the project overlay.  The caller
@@ -359,11 +385,17 @@ def emit_project_layer(
             if artifact.node.urn not in seen_urns:
                 nodes.append(artifact.node)
                 seen_urns.add(artifact.node.urn)
-        projected, warnings = project_reference_edges(artifacts, [*built_in_drg.nodes, *nodes])
+        # Org-aware universe (#4121, MAJOR 2): org_drg already folds the
+        # built-in layer, so the ordering built-in -> org -> overlay mirrors
+        # the merge precedence and `nodes` (overlay) wins on URN collision.
+        universe = [*built_in_drg.nodes, *(org_drg.nodes if org_drg is not None else ()), *nodes]
+        projected, warnings = project_reference_edges(artifacts, universe)
         triples = {(edge.source, edge.target, edge.relation) for edge in edges}
         edges.extend(edge for edge in projected if (edge.source, edge.target, edge.relation) not in triples)
         for warning in warnings:
             logging.getLogger(__name__).warning("%s", warning)
+        if warnings_out is not None:
+            warnings_out.extend(warnings)
 
 
     return DRGGraph(

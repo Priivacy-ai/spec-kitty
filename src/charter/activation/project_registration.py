@@ -47,19 +47,70 @@ class ProjectRegistrationPlan:
     artifacts: tuple[ProjectArtifact, ...]
     warnings: tuple[str, ...]
     writes: tuple[tuple[Path, str], ...]
+    deletes: tuple[Path, ...] = ()
+    """Provenance sidecars whose registration is pruned (#4121): committed
+    direct-write registrations whose authored source no longer exists."""
 
 
-def _project_graph(root: Path, artifacts: tuple[ProjectArtifact, ...], base: DRGGraph) -> tuple[DRGGraph, tuple[str, ...]]:
+def _direct_write_registrations(root: Path) -> tuple[tuple[str, ManifestArtifactEntry], ...]:
+    """Committed direct-write registrations whose authored source no longer exists.
+
+    A registration is prunable only when it can be identified as this lane's
+    own: the manifest entry's ``path`` is gone from the live tree AND its
+    provenance sidecar still records ``adapter_id == "project-direct-write"``.
+    Synthesis-owned entries (a deleted *synthesized* artifact) are skipped —
+    their prune policy belongs to ``charter synthesize --prune`` and the
+    FR-014 orphan refusal, not to registration. A missing sidecar is skipped
+    too: without it the registration's URN cannot be recovered, so pruning
+    its graph node is not safe.
+    """
+    from .synthesizer.provenance import load_yaml as load_provenance
+
+    manifest_path = root / MANIFEST_PATH
+    if not manifest_path.exists():
+        return ()
+    stale: list[tuple[str, ManifestArtifactEntry]] = []
+    for entry in load_manifest(manifest_path).artifacts:
+        if (root / entry.path).exists():
+            continue
+        sidecar = root / entry.provenance_path
+        if not sidecar.is_file():
+            continue
+        record = load_provenance(sidecar)
+        if record.adapter_id != "project-direct-write":
+            continue
+        stale.append((record.artifact_urn, entry))
+    return tuple(stale)
+
+
+def _project_graph(
+    root: Path,
+    artifacts: tuple[ProjectArtifact, ...],
+    base: DRGGraph,
+    stale_urns: frozenset[str] = frozenset(),
+) -> tuple[DRGGraph, tuple[str, ...]]:
     directory = root / ".kittify/doctrine"
     existing = load_graph_or_dir(directory) if has_graph_files(directory) else None
     nodes = {node.urn: node for node in existing.nodes} if existing else {}
+    # Prune phantom nodes (#4121): a committed registration whose source file
+    # was deleted must not keep satisfying profile references.
+    for urn in stale_urns:
+        nodes.pop(urn, None)
     nodes.update({artifact.node.urn: artifact.node for artifact in artifacts})
-    projected, warnings = project_reference_edges(artifacts, [*base.nodes, *nodes.values()])
+    # The universe excludes pruned urns on BOTH fronts: the committed overlay
+    # above and base's copy of it below (base folds the project layer too, so
+    # an unfiltered base would keep satisfying the deleted reference).
+    universe = [node for node in base.nodes if node.urn not in stale_urns]
+    projected, warnings = project_reference_edges(artifacts, [*universe, *nodes.values()])
     profile_urns = {a.node.urn for a in artifacts if a.node.kind.value == "agent_profile"}
     # Only previously projected reference edges are replaced. Explicit lineage,
     # tension and synthesis provenance edges remain owned by their authors.
     reference_relations = {"requires", "suggests"}
     edges = [e for e in existing.edges if not (e.source in profile_urns and e.relation.value in reference_relations)] if existing else []
+    if stale_urns:
+        # Drop every edge the pruned nodes participated in on either endpoint,
+        # or the pruned graph would carry dangling edges into assert_valid.
+        edges = [e for e in edges if e.source not in stale_urns and e.target not in stale_urns]
     triples = {(e.source, e.target, e.relation): e for e in edges}
     triples.update({(e.source, e.target, e.relation): e for e in projected})
     graph = DRGGraph(
@@ -72,12 +123,20 @@ def _project_graph(root: Path, artifacts: tuple[ProjectArtifact, ...], base: DRG
     return graph, warnings
 
 
-def _registration_records(root: Path, artifacts: tuple[ProjectArtifact, ...]) -> list[tuple[Path, str]]:
+def _registration_records(
+    root: Path,
+    artifacts: tuple[ProjectArtifact, ...],
+    stale: tuple[tuple[str, ManifestArtifactEntry], ...] = (),
+) -> list[tuple[Path, str]]:
     manifest_path = root / MANIFEST_PATH
     existing = load_manifest(manifest_path) if manifest_path.exists() else None
     if existing:
         verify_manifest_hash(existing)
     entries = {(entry.kind, entry.slug): entry for entry in existing.artifacts} if existing else {}
+    # Prune dead entries (#4121): a manifest entry naming a nonexistent path
+    # makes verify() raise on every subsequent read with no in-tool recovery.
+    for _, entry in stale:
+        entries.pop((entry.kind, entry.slug), None)
     writes: list[tuple[Path, str]] = []
     timestamp = now_utc_seconds()
     run_id = str(ULID())
@@ -148,22 +207,43 @@ def plan_project_registration(repo_root: Path, *, base_graph: DRGGraph | None = 
             org_fragments=load_org_drg(root, strict=False),
         )
     )
-    if not artifacts:
+    stale = _direct_write_registrations(root)
+    stale_urns = frozenset(urn for urn, _ in stale)
+    if not artifacts and not stale:
         return ProjectRegistrationPlan(root, base, (), (), ())
-    project, warnings = _project_graph(root, artifacts, base)
+    project, warnings = _project_graph(root, artifacts, base, stale_urns)
+    stale_warnings = tuple(
+        f"Pruned project registration for {urn}: source {entry.path} no longer exists (removed its graph node and edge, manifest entry, and provenance sidecar)."
+        for urn, entry in stale
+    )
     project_triples = {(e.source, e.target, e.relation) for e in project.edges}
     profile_urns = {a.node.urn for a in artifacts if a.node.kind.value == "agent_profile"}
     retained_edges = [
         e
         for e in base.edges
-        if (e.source, e.target, e.relation) not in project_triples and not (e.source in profile_urns and e.relation.value in {"requires", "suggests"})
+        if (e.source, e.target, e.relation) not in project_triples
+        and not (e.source in profile_urns and e.relation.value in {"requires", "suggests"})
+        and e.source not in stale_urns
+        and e.target not in stale_urns
     ]
-    merged = merge_layers(base.model_copy(update={"edges": retained_edges}), project)
+    # The merged cascade graph must not resurrect a pruned registration through
+    # base's copy of the committed project layer (#4121).
+    merged = merge_layers(
+        base.model_copy(update={"nodes": [node for node in base.nodes if node.urn not in stale_urns], "edges": retained_edges}),
+        project,
+    )
     assert_valid(merged)
     writes = [(root / ".kittify/doctrine/graph.yaml", canonical_yaml(graph_document_to_dict(project)).decode())]
-    writes.extend(_registration_records(root, artifacts))
+    writes.extend(_registration_records(root, artifacts, stale))
+    # A re-created artifact with the same identity reuses its predecessor's
+    # sidecar path, so a pruned sidecar is only deleted when this same plan
+    # does not re-write it.
+    written = {path for path, _ in writes}
+    deletes = tuple(
+        root / entry.provenance_path for _, entry in stale if (root / entry.provenance_path).is_file() and (root / entry.provenance_path) not in written
+    )
     changed = tuple((path, text) for path, text in writes if not path.exists() or path.read_text() != text)
-    return ProjectRegistrationPlan(root, merged, artifacts, warnings, changed)
+    return ProjectRegistrationPlan(root, merged, artifacts, (*stale_warnings, *warnings), changed, deletes)
 
 
 def commit_project_registration(plan: ProjectRegistrationPlan) -> None:
@@ -172,3 +252,5 @@ def commit_project_registration(plan: ProjectRegistrationPlan) -> None:
     for path, text in plan.writes:
         guard.mkdir(path.parent, caller="project_registration.commit")
         guard.write_text(path, text, caller="project_registration.commit")
+    for path in plan.deletes:
+        guard.unlink(path, caller="project_registration.commit")
