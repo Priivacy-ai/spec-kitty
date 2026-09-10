@@ -3456,6 +3456,12 @@ pages:
     - {slug: "spec-kitty-auth-status", text: "spec-kitty auth status", level: 2}
     - {slug: "spec-kitty-auth-whoami", text: "spec-kitty auth whoami", level: 2}
     - {slug: "spec-kitty-charter", text: "spec-kitty charter", level: 2}
+    - {slug: "spec-kitty-charter-fetch", text: "spec-kitty charter fetch", level: 2}
+    - {slug: "spec-kitty-charter-new", text: "spec-kitty charter new", level: 2}
+    - {slug: "spec-kitty-charter-org", text: "spec-kitty charter org", level: 2}
+    - {slug: "spec-kitty-charter-org-init", text: "spec-kitty charter org init", level: 2}
+    - {slug: "spec-kitty-charter-org-validate", text: "spec-kitty charter org validate", level: 2}
+    - {slug: "spec-kitty-charter-validate", text: "spec-kitty charter validate", level: 2}
     - {slug: "spec-kitty-charter-activate", text: "spec-kitty charter activate", level: 2}
     - {slug: "spec-kitty-charter-bundle", text: "spec-kitty charter bundle", level: 2}
     - {slug: "spec-kitty-charter-bundle-validate", text: "spec-kitty charter bundle validate", level: 2}

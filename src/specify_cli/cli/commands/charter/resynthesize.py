@@ -155,6 +155,15 @@ def charter_resynthesize(  # noqa: C901
             repo_root=repo_root,
         )
 
+        # #4121 (MAJOR 2): surface the run's unresolved project-profile
+        # reference warnings on the CLI / in the --json envelope rather than
+        # leaving them in logging output only.
+        reference_warnings = list(getattr(result, "reference_warnings", ()))
+        warnings_collected.extend(reference_warnings)
+        if not json_output:
+            for warning in reference_warnings:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
+
         if result.is_noop:
             if json_output:
                 print(json.dumps({

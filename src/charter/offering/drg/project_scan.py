@@ -23,15 +23,16 @@ silently vanishes is a governance-invisible defect.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind, PROJECT_KIND_DIRS
 from charter.offering.drg.migration.id_normalizer import artifact_to_urn
-from charter.offering.drg.models import DRGNode, NodeKind, is_valid_urn
+from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation, is_valid_urn
 
 # ``MalformedProjectProfileError`` is intentionally NOT exported here: it is a
 # fail-loud exception meant to *propagate* (never caught inside src/), so adding
@@ -40,6 +41,8 @@ from charter.offering.drg.models import DRGNode, NodeKind, is_valid_urn
 # name on the module — tests import it directly by name.
 __all__ = [
     "walk_project_agent_profile_nodes",
+    "scan_project_artifacts",
+    "project_reference_edges",
 ]
 
 #: Provenance marker stamped on every walked node (data-model.md §"Project
@@ -163,3 +166,79 @@ def walk_project_agent_profile_nodes(project_root: Path) -> list[DRGNode]:
             )
         )
     return nodes
+
+
+@dataclass(frozen=True)
+class ProjectArtifact:
+    """An authored artifact and its validated identity; content remains user-owned."""
+
+    path: Path
+    node: DRGNode
+    body: dict[str, Any]
+
+
+def scan_project_artifacts(
+    project_root: Path,
+    *,
+    paths: frozenset[Path] | None = None,
+) -> tuple[ProjectArtifact, ...]:
+    """Validate the five supported direct-write kinds in their canonical directories."""
+    from charter.offering.agent_profiles.profile import AgentProfile
+    from charter.offering.directives.models import Directive
+    from charter.offering.procedures.models import Procedure
+    from charter.offering.styleguides.models import Styleguide
+    from charter.offering.tactics.models import Tactic
+
+    schemas = (Directive, Tactic, Styleguide, Procedure, AgentProfile)
+    kinds = ("directive", "tactic", "styleguide", "procedure", "agent_profile")
+    artifacts: list[ProjectArtifact] = []
+    seen: dict[str, Path] = {}
+    for kind_name, schema in zip(kinds, schemas, strict=True):
+        kind = ArtifactKind(kind_name)
+        directory = project_root / ".kittify" / "doctrine" / PROJECT_KIND_DIRS[kind]
+        for path in sorted(directory.rglob(kind.glob_pattern)):
+            if paths is not None and path not in paths:
+                continue
+            try:
+                path.resolve().relative_to((project_root / ".kittify/doctrine").resolve())
+                data = YAML(typ="safe").load(path)
+                model = schema.model_validate(data)
+                body = model.model_dump(mode="json", by_alias=True)
+                identifier = str(body["profile-id"] if kind_name == "agent_profile" else body["id"])
+                node = DRGNode(
+                    urn=artifact_to_urn(kind_name, identifier), kind=NodeKind(kind_name), label=body.get("name") or body.get("title"), provenance="project"
+                )
+            except (ValueError, OSError, YAMLError, KeyError) as exc:
+                raise ValueError(f"Invalid project {kind_name} artifact {path}: {exc}") from exc
+            if node.urn in seen:
+                raise ValueError(f"Duplicate project artifact {node.urn}: {seen[node.urn]} and {path}")
+            seen[node.urn] = path
+            artifacts.append(ProjectArtifact(path, node, body))
+    return tuple(artifacts)
+
+
+def project_reference_edges(
+    artifacts: tuple[ProjectArtifact, ...],
+    available_nodes: list[DRGNode],
+) -> tuple[list[DRGEdge], tuple[str, ...]]:
+    """Project authored profile references, reporting unresolved targets without phantom nodes."""
+    from charter.offering.drg.migration.extractor import _project_profile_reference_edges
+
+    universe = {node.urn: node for node in available_nodes}
+    edges: dict[tuple[str, str, Relation], DRGEdge] = {}
+    warnings: list[str] = []
+    for artifact in artifacts:
+        if artifact.node.kind is not NodeKind.AGENT_PROFILE:
+            continue
+        candidates: list[DRGEdge] = []
+        _project_profile_reference_edges(artifact.body, artifact.node.urn, dict(universe), candidates.append)
+        for entry in (artifact.body.get("collaboration") or {}).get("operating-procedures", []):
+            candidates.append(DRGEdge(source=artifact.node.urn, target=artifact_to_urn("procedure", entry), relation=Relation.REQUIRES))
+        for edge in candidates:
+            if edge.target not in universe:
+                warnings.append(
+                    f"{artifact.node.urn} references unresolved {edge.target}; author or install that artifact, then repeat charter activate --cascade all."
+                )
+                continue
+            edges[(edge.source, edge.target, edge.relation)] = edge.model_copy(update={"provenance": "project"})
+    return list(edges.values()), tuple(sorted(set(warnings)))

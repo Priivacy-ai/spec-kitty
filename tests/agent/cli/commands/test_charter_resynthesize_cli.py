@@ -235,6 +235,59 @@ class TestResynthesizeHappyPath:
 # Error paths
 # ---------------------------------------------------------------------------
 
+    def test_reference_warnings_surfaced_on_console(self, tmp_path: Path) -> None:
+        """#4121 (MAJOR 2): unresolved-reference warnings from the overlay
+        re-emission print on the CLI, not only into ``logging`` output."""
+        _write_interview_answers(tmp_path)
+        mock_result = _make_mock_result()
+        mock_result.reference_warnings = (
+            "agent_profile:ops-responder references unresolved procedure:gone",
+        )
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
+            return_value=mock_result,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "tactic:how-we-apply-directive-003",
+                ],
+            )
+
+        assert result.exit_code == 0, f"Expected exit 0: {result.output}"
+        plain = _plain_output(result.output)
+        assert "agent_profile:ops-responder references unresolved procedure:gone" in plain
+
+    def test_reference_warnings_in_json_envelope(self, tmp_path: Path) -> None:
+        """#4121 (MAJOR 2): the --json envelope carries them in ``warnings``."""
+        _write_interview_answers(tmp_path)
+        mock_result = _make_mock_result()
+        mock_result.reference_warnings = (
+            "agent_profile:ops-responder references unresolved procedure:gone",
+        )
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
+            return_value=mock_result,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "tactic:how-we-apply-directive-003",
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["result"] == "success"
+        assert "agent_profile:ops-responder references unresolved procedure:gone" in data["warnings"]
+
 
 class TestResynthesizeErrorPaths:
     def test_unresolved_selector_exits_2(self, tmp_path: Path) -> None:

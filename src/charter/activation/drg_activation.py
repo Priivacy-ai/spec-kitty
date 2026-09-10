@@ -295,6 +295,7 @@ def _resolve_activated_urns_for_kind(
     *,
     doctrine_root: Path,
     org_roots: list[Path],
+    layer_roots: dict[str, Path] | None = None,
 ) -> frozenset[str] | None:
     """Resolve one kind's config-stem activation set to canonical URNs.
 
@@ -330,7 +331,7 @@ def _resolve_activated_urns_for_kind(
     urns: set[str] = set()
     for stem in activated_ids:
         try:
-            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots))
+            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots))
         except UnknownArtifactIdError:
             continue  # Skip-with-report (contract): _check_unknown_references reports it.
     return frozenset(urns)
@@ -356,6 +357,7 @@ def _resolve_activated_urns_by_kind(
             getattr(pack_context, per_kind_field, None),
             doctrine_root=doctrine_root,
             org_roots=org_roots,
+            layer_roots={"project": pack_context.repo_root / ".kittify"},
         )
         for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
     }

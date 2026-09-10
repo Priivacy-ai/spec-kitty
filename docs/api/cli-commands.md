@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-06-26'
+updated: '2026-09-10'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -276,6 +276,142 @@ _Charter management commands_
 │ mission-type  Mission type commands (activated types only).                  │
 │ list          List activated doctrine artifacts by kind.                     │
 │ pack          Charter pack management commands.                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter fetch
+
+```
+ Usage: spec-kitty charter fetch [OPTIONS]
+
+ Fetch org doctrine pack(s) from their configured remote sources.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
+│                          configured packs).                                  │
+│ --dry-run                Show what would be fetched without contacting any   │
+│                          remote.                                             │
+│ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter new
+
+```
+ Usage: spec-kitty charter new [OPTIONS] KIND ID
+
+ Scaffold a stub doctrine artifact YAML (FR-016).
+
+ The scaffolder pre-fills the canonical schema's required fields with
+ ``TODO …`` placeholders so the file passes ``doctrine validate`` on
+ first emit.  Refuses to overwrite an existing file.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
+│                             asset, directive, mission_step_contract,         │
+│                             paradigm, procedure, styleguide, tactic,         │
+│                             toolguide.                                       │
+│                             [required]                                       │
+│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
+│                             SCREAMING_SNAKE for directives).                 │
+│                             [required]                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
+│                       the project layer. When omitted, the stub lands under  │
+│                       .kittify/doctrine/.                                    │
+│ --help  -h            Show this message and exit.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org
+
+_Manage org-layer doctrine pack authoring (init, validate)._
+
+```
+ Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
+
+ Manage org-layer doctrine pack authoring (init, validate).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
+│ validate  Validate an org doctrine pack using schema and DRG checks          │
+│           (FR-006).                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org init
+
+```
+ Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
+
+ Scaffold a minimal org doctrine pack skeleton (FR-006).
+
+ Creates three files under *pack-path*::
+
+     org-charter.yaml   — governance policy stub
+     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
+     README.md          — authoring quickstart
+
+ Refuses to overwrite an existing directory unless ``--force`` is passed.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the directory to initialise as an org      │
+│                           doctrine pack.                                     │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --force            Overwrite an existing pack directory.                     │
+│ --help   -h        Show this message and exit.                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org validate
+
+```
+ Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
+
+ Validate an org doctrine pack using schema and DRG checks (FR-006).
+
+ Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ loader.  Prints per-file findings with file paths.  Exits non-zero when
+ at least one error is found.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
+│                           validate.                                          │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter validate
+
+```
+ Usage: spec-kitty charter validate [OPTIONS] PATH
+
+ Validate project-layer doctrine artifacts against their schemas (FR-017).
+
+ When *path* is a single file, validates that file.  When *path* is a
+ directory, walks the tree for ``*.yaml`` files whose filename suffix
+ matches a canonical artifact kind and validates each one.
+
+ Exit code: ``0`` if every artifact validates; ``1`` if any artifact
+ fails.  A per-file error report is printed for failures.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    path      PATH  Artifact YAML file or a directory containing            │
+│                      project-layer doctrine artifacts (recurses into         │
+│                      per-kind subdirectories).                               │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
