@@ -339,7 +339,18 @@ def assess_global_agent_commands(
                 target = output / name
                 predecessor = False
                 if prepared.observe(target, role="destination_probe").kind == "file":
-                    existing_bytes = prepared.source(target)
+                    # #4174 landing-pass: read these EXISTING DESTINATION bytes
+                    # directly, never via `prepared.source()` -- that helper's
+                    # default role is "source_read", and re-observing `target`
+                    # under that role here would silently downgrade both
+                    # `target` and (via observe()'s ancestor walk) `output`
+                    # itself from "destination_probe" to "source_read",
+                    # permanently disabling Concern 2's peer-tolerance for the
+                    # whole destination tree on any WARM reassess where
+                    # existing command files are already present. The
+                    # `observe()` call just above already confirmed this is a
+                    # regular file under the owner's own managed destination.
+                    existing_bytes = target.read_bytes()
                     marker = rb"(?m)^<!-- spec-kitty-command-version: [^\r\n]+ -->\r?\n"
                     predecessor = bool(re.search(marker, existing_bytes)) and re.sub(marker, b"", existing_bytes) == re.sub(marker, b"", content)
                 prepared.asset(target, content, 0o444, canonical_predecessor=predecessor)
