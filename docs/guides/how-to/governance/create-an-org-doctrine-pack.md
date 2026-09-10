@@ -83,7 +83,7 @@ fields for its schema, and save it in the matching directory.
 
 ```yaml
 # directives/acme-001-secret-handling.directive.yaml
-id: acme-001-secret-handling
+id: ACME_001_SECRET_HANDLING
 title: Never commit credentials to the repository
 severity: high
 description: |
@@ -110,7 +110,7 @@ specialization:
   primary-focus: Feature implementation under ACME's secret-handling rules
   avoidance-boundary: Architectural decisions, release management
 directive-references:
-  - code: acme-001-secret-handling
+  - code: ACME_001_SECRET_HANDLING
     name: Never commit credentials to the repository
 ```
 
@@ -130,7 +130,7 @@ organisation-specific code:
 
 | Artifact type | File pattern | Recommended ID prefix |
 |---|---|---|
-| Directives | `*.directive.yaml` | `<org>-<seq>-<slug>` (e.g. `acme-001-secret-handling`) |
+| Directives | `*.directive.yaml` | `<ORG>_<SEQ>_<SLUG>` (e.g. `ACME_001_SECRET_HANDLING`) |
 | Tactics | `*.tactic.yaml` | `<org>-tac-<seq>` |
 | Styleguides | `*.styleguide.yaml` | `<org>-sty-<seq>` |
 | Toolguides | `*.toolguide.yaml` | `<org>-tg-<seq>` |
@@ -168,7 +168,7 @@ provenance_marker: org
 nodes: []   # nodes are inferred from the artifact files
 edges:
   - source: action:software-dev/implement
-    target: directive:acme-001-secret-handling
+    target: directive:ACME_001_SECRET_HANDLING
     relation: scope
 ```
 
@@ -234,8 +234,8 @@ interview_defaults:
   language: python
   test_framework: pytest
 required_directives:
-  - acme-001-secret-handling
-  - acme-002-code-review
+  - ACME_001_SECRET_HANDLING
+  - ACME_002_CODE_REVIEW
 governance_policies:
   - field: min_test_coverage
     value: "80"
@@ -279,7 +279,7 @@ Use the secret manager. Pre-commit hooks must scan staged content.
 **After** (`directives/acme-001-secret-handling.directive.yaml`):
 
 ```yaml
-id: acme-001-secret-handling
+id: ACME_001_SECRET_HANDLING
 title: Never commit credentials to the repository
 severity: high
 description: |
