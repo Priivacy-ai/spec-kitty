@@ -585,6 +585,35 @@ def _is_bookkeeping_write(write: AssetWrite) -> bool:
     return any(proof.kind == "managed_path" and proof.reference.rsplit(":", 1)[-1] in _BOOKKEEPING_PROOF_SUFFIXES for proof in write.effect.ownership)
 
 
+def _membership_drift_tolerated(
+    observation: AssetObservation,
+    actual_children: tuple[str, ...],
+    writes_by_path: dict[Path, AssetWrite],
+    content_paths: tuple[Path, ...],
+) -> bool:
+    """Tolerate ONLY a concurrent peer materializing this batch's OWN planned
+    additions to a ``destination_probe`` directory's membership -- mirroring
+    the content check's own peer-tolerance above. A ``source_read`` node, an
+    expected child now missing, or an extra name this batch is not itself
+    about to write (or writes different bytes for), still refuses; every
+    genuine content file in the batch must ALSO already match canonical
+    bytes, exactly as the content check requires before trusting a
+    bookkeeping stamp (FR-002/C-002).
+    """
+    if observation.role != "destination_probe" or observation.children is None:
+        return False
+    recorded = set(observation.children)
+    extra = set(actual_children) - recorded
+    missing = recorded - set(actual_children)
+    if missing or not extra:
+        return False
+    for name in extra:
+        write = writes_by_path.get(observation.path / name)
+        if write is None or not _content_equal(node_state(observation.path / name), write.effect.after):
+            return False
+    return all(_content_equal(node_state(p), writes_by_path[p].effect.after) for p in content_paths)
+
+
 def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
     """Compare the entire batch before opening any write-capable handle.
 
@@ -603,6 +632,12 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
     this batch is not itself about to write, or a ``source_read`` node
     (package/template source) -- still refuses. Role-tagging is by call
     site, never path geography (FR-003).
+
+    A ``destination_probe`` directory's MEMBERSHIP gets the same peer
+    toleration (#4174 landing-pass rescope): a concurrent peer that added
+    (or retired) exactly this batch's own planned names, with canonical
+    bytes, is a benign commands/skills upgrade race, not asset-input drift
+    -- see ``_membership_drift_tolerated``.
     """
     prepared = assessment.prepared
     if not isinstance(prepared, PreparedAssets):
@@ -629,8 +664,10 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
                     tolerated = content_confirmed
                 if not tolerated:
                     raise ValueError(f"Global asset input changed: {observation.path}")
-            if observation.children is not None and tuple(sorted(p.name for p in observation.path.iterdir())) != observation.children:
-                raise ValueError(f"Global asset inventory changed: {observation.path}")
+            if observation.children is not None:
+                actual_children = tuple(sorted(p.name for p in observation.path.iterdir()))
+                if actual_children != observation.children and not _membership_drift_tolerated(observation, actual_children, writes_by_path, content_paths):
+                    raise ValueError(f"Global asset inventory changed: {observation.path}")
     except (OSError, ValueError) as exc:
         return (Diagnostic("precondition_changed", assessment.owner_key, "error", str(exc)),)
     return ()
