@@ -39,12 +39,13 @@ Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``profile_skipped``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
-The public surface is intentionally small:
+The exported entry points are intentionally small:
 
-* :class:`ValidationIssue`
-* :class:`ValidationResult`
 * :func:`validate_pack`
 * :func:`render_validation_result`
+
+ValidationIssue and ValidationResult are module-local records used to build,
+return, and render findings. Their types and direct module access are unchanged.
 """
 
 from __future__ import annotations
@@ -59,8 +60,6 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 __all__ = [
-    "ValidationIssue",
-    "ValidationResult",
     "validate_pack",
     "render_validation_result",
 ]
