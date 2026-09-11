@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
-import time
 from pathlib import Path
 from typing import Any
 
+from kernel.clock import now_epoch
 from kernel.paths import get_runtime_state_root
 
 MAX_RECEIPTS = 100_000
@@ -58,7 +58,7 @@ class ReceiptStore:
         """
         db = self._connect()
         try:
-            return self._budget_event_ids(db, context, time.time() if now is None else now)
+            return self._budget_event_ids(db, context, now_epoch() if now is None else now)
         finally:
             db.close()
 
@@ -66,7 +66,7 @@ class ReceiptStore:
         """Issue a receipt for a selected batch without marking it delivered."""
         if not identities:
             return None
-        now = time.time() if now is None else now
+        now = now_epoch() if now is None else now
         db = self._connect()
         try:
             with db:
@@ -89,7 +89,7 @@ class ReceiptStore:
 
     def acknowledge(self, context: str, token: str, *, now: float | None = None) -> None:
         """Commit only an issued receipt belonging to this exact context."""
-        now = time.time() if now is None else now
+        now = now_epoch() if now is None else now
         db = self._connect()
         try:
             with db:
