@@ -8,6 +8,9 @@ audience: automation-agent
 # Agent moment delivery policy
 
 Issue: #4216. Governed Op: `01M2808ND3ATY3DGYTG470R04A`.
+Draft delivery: [PR #4224](https://github.com/spec-kitty/spec-kitty/pull/4224).
+The Op closed with outcome `failed`: the client slice is verified, but the
+issue's full acceptance remains incomplete pending relay #295.
 
 An agent should discover unfamiliar missions and mission-less activity in the
 single repository it requested. `team` changes admission within that scope; it
@@ -73,3 +76,7 @@ The prep inventory rejects the current owner-qualified CLI name. Its historical
 `uv sync --frozen --all-extras` warmed the checkout; pytest separately constructs
 its own cached subprocess environment. The installed Spec Kitty dispatch opened
 the Op and loaded governance; no mission or fabricated workflow state was created.
+
+The installed `profile-invocation complete --artifact` coerced the PR URL to a
+filesystem path (`https:/...`). The canonical Op log is preserved verbatim;
+its evidence document is this file, which carries the correct PR link above.

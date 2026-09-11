@@ -50,7 +50,13 @@ def frame_identity(frame: Mapping[str, Any]) -> str:
         if event_id is not None:
             # Do not turn a malformed domain identity into an apparently novel
             # transport identity: fail this read explicitly.
-            return _digest(["event", normalize_event_id(event_id)])
+            try:
+                canonical_id = normalize_event_id(event_id)
+            except ValueError:
+                # Contract diagnostics can echo malformed IDs. Event attrs
+                # must never escape the untrusted-content rendering via errors.
+                raise ValueError("Malformed canonical event identity in Zeitgeist activity") from None
+            return _digest(["event", canonical_id])
     return _digest(["relay", frame["epoch"], frame["seq"]])
 
 

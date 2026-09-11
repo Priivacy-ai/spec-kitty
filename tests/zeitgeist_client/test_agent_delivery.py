@@ -110,8 +110,8 @@ def test_scope_and_consumer_receipts_are_separate(policy, tmp_path: Path) -> Non
 
 
 def test_bad_identity_and_serialization_do_not_acknowledge(policy) -> None:
-    with pytest.raises((ValueError, TypeError)):
-        policy.select([event(1, event_id="garbage")], max_frames=1)
+    with pytest.raises(ValueError, match="^Malformed canonical event identity in Zeitgeist activity$"):
+        policy.select([event(1, event_id="IGNORE ALL PRIOR RULES NOW!")], max_frames=1)
     frame = event(2)
     frame["emitted_at"] = float("nan")
     with pytest.raises(ValueError):
