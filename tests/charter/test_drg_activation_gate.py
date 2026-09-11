@@ -307,3 +307,52 @@ def test_unresolvable_kind_token_yields_empty_resolution(
     )
 
     assert result == frozenset()
+
+
+# ---------------------------------------------------------------------------
+# Cross-layer-ambiguous directive id -- fail closed, not silently admitted
+# (#4194 landing remediation: the layer-precedence fix in
+# ``kind_vocabulary.resolve_config_id`` now rejects a stem two org packs
+# disagree on; this pins that the gate observes the rejection as "no URN",
+# never as a spuriously-admitted node).
+# ---------------------------------------------------------------------------
+
+
+def test_cross_layer_ambiguous_directive_id_resolves_to_no_urn(tmp_path: Path) -> None:
+    """A persisted ``activated_directives`` entry naming a declared identity
+    that is genuinely cross-layer-ambiguous -- two org packs both ship a
+    ``shared.directive.yaml`` stem, disagreeing on which id it names -- must
+    resolve to **no** canonical URN, never to ``f"directive:{token}"``
+    admitted verbatim.
+
+    Before the fix, ``resolve_config_id`` swallowed the collision (the stale
+    reordering happened to return *some* stem without ever raising
+    ``UnrepresentableDirectiveIdError``), so ``resolve_artifact_urn``'s
+    declared-id fallback returned the unexamined token as a URN and this
+    gate would have folded a URN naming no single, unambiguous artifact into
+    the resolved set (fail **open**). After the fix, ``resolve_config_id``
+    raises, the fallback's ``except ValueError`` re-raises
+    ``UnknownArtifactIdError``, and this function's own
+    ``except UnknownArtifactIdError: continue`` (skip-with-report) drops the
+    token -- the resolved set for the whole kind is the empty frozenset
+    (block-all for this kind), never a set containing a bogus entry.
+    """
+    company = tmp_path / "company"
+    team = tmp_path / "team"
+    (company / "directives").mkdir(parents=True)
+    (team / "directives").mkdir(parents=True)
+    (company / "directives" / "shared.directive.yaml").write_text(
+        'schema_version: "1.0"\nid: OTHER-POLICY\ntitle: shared\nintent: Apply policy.\nenforcement: required\n'
+    )
+    (team / "directives" / "shared.directive.yaml").write_text(
+        'schema_version: "1.0"\nid: CHOSEN-POLICY\ntitle: shared\nintent: Apply policy.\nenforcement: required\n'
+    )
+
+    resolved = drg_module._resolve_activated_urns_for_kind(
+        "directive",
+        frozenset({"CHOSEN-POLICY"}),
+        doctrine_root=resolve_doctrine_root(),
+        org_roots=[company, team],
+    )
+
+    assert resolved == frozenset()
