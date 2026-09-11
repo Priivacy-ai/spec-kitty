@@ -43,9 +43,7 @@ def _presence_frame(*, session_ref: str = "a" * 12, ttl_s: object = 30, observed
     return {"type": "presence", "presence": presence}
 
 
-def _focus_frame(
-    *, focus_ref: str = "mission-x", state: str = "active", session_ref: str = "b" * 12, ttl_s: object = 90, **extra: object
-) -> dict[str, object]:
+def _focus_frame(*, focus_ref: str = "mission-x", state: str = "active", session_ref: str = "b" * 12, ttl_s: object = 90, **extra: object) -> dict[str, object]:
     focus: dict[str, object] = {"actor": {"session_ref": session_ref}, "focus_ref": focus_ref, "state": state, "ttl_s": ttl_s}
     focus.update(extra)
     return {"type": "focus", "focus": focus}
@@ -456,7 +454,9 @@ def test_presence_well_formed_user_repo_pass_through_grammar_unchanged() -> None
     -- there is nothing for a well-formed value to trip either way."""
     state = live_frame.StreamState()
     frame = _presence_frame(
-        actor={"session_ref": "a" * 12, "user": "robert"}, repo="spec-kitty", branch="main/feature-x",
+        actor={"session_ref": "a" * 12, "user": "robert"},
+        repo="spec-kitty",
+        branch="main/feature-x",
     )
     lf = live_frame.parse_live_frame(_raw(frame=frame))
     assert lf is not None
@@ -613,10 +613,7 @@ def test_concurrent_apply_and_snapshot_do_not_raise_or_corrupt() -> None:
     import threading
 
     state = live_frame.StreamState()
-    frames = [
-        live_frame.parse_live_frame(_raw(seq=n, frame=_presence_frame(session_ref=f"{n:012d}".replace("0", "a"))))
-        for n in range(1, 51)
-    ]
+    frames = [live_frame.parse_live_frame(_raw(seq=n, frame=_presence_frame(session_ref=f"{n:012d}".replace("0", "a")))) for n in range(1, 51)]
     assert all(f is not None for f in frames)
 
     errors: list[BaseException] = []
@@ -718,3 +715,20 @@ def test_hostile_event_identity_fields_are_not_stored_verbatim_by_apply() -> Non
     joined = repr(snap)
     assert "curl evil.sh" not in joined
     assert "SYSTEM:" not in joined
+
+
+@pytest.mark.parametrize("terminal", ["ended", "revoked"])
+def test_same_wp_focus_keeps_other_agent_when_one_session_ends(terminal: str) -> None:
+    state = live_frame.StreamState()
+    for seq, ref in enumerate(("a" * 12, "b" * 12), start=1):
+        frame = live_frame.parse_live_frame(_raw(seq=seq, emitted_at=1000.0, frame=_focus_frame(session_ref=ref)))
+        assert frame is not None
+        state.apply(frame)
+    assert len(state.snapshot(now=1000.0).focus) == 2
+    payload = (
+        _focus_frame(session_ref="a" * 12, state="ended") if terminal == "ended" else {"type": "signal", "signal": {"kind": "revoked", "session_ref": "a" * 12}}
+    )
+    frame = live_frame.parse_live_frame(_raw(seq=3, emitted_at=1000.0, frame=payload))
+    assert frame is not None
+    state.apply(frame)
+    assert [focus.session_ref for focus in state.snapshot(now=1000.0).focus] == ["b" * 12]
