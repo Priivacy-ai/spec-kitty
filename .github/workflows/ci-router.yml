@@ -390,7 +390,10 @@ jobs:
   tests-cli:
     name: tests (cli)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # #4207: ceiling creep — this shard has run 14.3-15.2m against a 15m
+    # ceiling for four days (a coin flip that finally tripped on 2026-09-10).
+    # 25m covers the observed ceiling plus headroom.
+    timeout-minutes: 25
     needs: [changes]
     if: ${{ needs.changes.outputs.cli == 'true' }}
     steps:
@@ -457,7 +460,11 @@ jobs:
   tests-e2e:
     name: tests (e2e)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # #4207: 25m, not 35m — with the 20-iteration worktree-concurrency
+    # saturation test moved to the nightly performance lane the shard
+    # returns to ~8m; a 35m ceiling would only buy burn per push against
+    # the CI budget (controller ruling, 2026-09-11).
+    timeout-minutes: 25
     needs: [changes]
     if: ${{ needs.changes.outputs.e2e == 'true' }}
     steps:

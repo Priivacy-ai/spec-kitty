@@ -368,6 +368,23 @@ def _assert_runtime_isolated(
     assert slug_a.encode() not in joined_b
 
 
+# #4207 (controller ruling, 2026-09-11): this 20-iteration concurrency
+# saturation acceptance test is a nightly asset, not a per-push one. Landing
+# it un-skipped straight into the per-push e2e shard took that shard from 19
+# to 40 running tests (~12m of installed-CLI saturation on top of a ~7m30s
+# baseline) and over its timeout-minutes ceiling on every main push. The
+# ``performance`` marker routes it through the conftest env-gated skip
+# (tests/conftest.py): every normal run — the per-push e2e shard included —
+# skips it, while the nightly ``performance-and-e2e`` job (ci-nightly.yml,
+# the one lane that sets SPEC_KITTY_RUN_PERFORMANCE=1) runs it for real via
+# both its ``-m performance`` and ``-m e2e`` steps (this module keeps the
+# ``e2e`` marker). This is a budget ruling recorded on the issue thread, not
+# a #3665 mis-mark dodging the PR gate: the full functional acceptance
+# coverage is retained on the nightly cadence — never deleted — and the
+# cheap deterministic twin of the same #4017 fix
+# (tests/runtime/test_ensure_runtime_concurrency.py) stays on the per-PR
+# module-matrix path.
+@pytest.mark.performance
 @pytest.mark.parametrize("iteration", range(20))
 def test_installed_cli_keeps_two_owned_worktrees_isolated(
     immutable_spec_kitty: _InstalledCLI,
