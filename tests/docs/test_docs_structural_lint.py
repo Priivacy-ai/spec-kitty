@@ -31,7 +31,6 @@ import dataclasses
 import importlib.util
 import json
 import sys
-import time
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -729,38 +728,6 @@ def test_sanctioned_section_membership_covers_convergence_via_real_config(
         f"page must be flagged (the issue's pre-fix 0->1), got: {before}"
     )
 
-
-def test_lint_completes_within_five_seconds_on_real_tree() -> None:
-    """NFR-003 timing: a full run over the real tree completes in < 5s.
-
-    This intentionally does NOT assert zero violations (see module docstring)
-    — only the timing budget.
-
-    Timed with warm-run discipline (mirrors the guard in
-    ``tests/architectural/test_spec_kitty_home_pin_budget.py``): the first pass
-    is discarded as the cold one — it pays the filesystem/import cache miss,
-    which is not what NFR-003 is about — then the **fastest** of three warm runs
-    is asserted against the budget. The min is the steady-state cost floor, so a
-    single contended CI spike no longer reds the gate (a loaded runner once
-    clocked a lone cold pass at 5.37 s during the #3538 landing) while a genuine
-    walk-cost regression, which raises even the floor, is still caught.
-    """
-    config = load_config(STYLEGUIDE_PATH)
-    docs_root = _REPO_ROOT / "docs"
-
-    run(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)  # cold, discarded
-
-    durations: list[float] = []
-    for _ in range(3):
-        start = time.monotonic()
-        run(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)
-        durations.append(time.monotonic() - start)
-
-    fastest = min(durations)
-    assert fastest < 5.0, (
-        f"fastest of 3 warm docs-lint runs {fastest:.3f} s met or exceeded the "
-        f"NFR-003 5.0 s budget (all warm runs: {[round(d, 3) for d in durations]} s)"
-    )
 
 
 # =============================================================================

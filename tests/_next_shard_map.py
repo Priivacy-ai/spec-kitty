@@ -140,6 +140,12 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_e2e_runtime_integration.py",
     "tests/runtime/test_package_exports.py",
     "tests/runtime/test_resolver_unit.py",
+    # 2026-09-10 (PR #4174 landing folds): the #4017 seam-hardening residual-
+    # window tests the review squad drove red-first. shard_2 was the uniquely
+    # lightest runtime shard (17 rows vs 20/20) when these registered.
+    "tests/runtime/test_recheck_mid_write_convergence.py",
+    "tests/runtime/test_check_assets_membership_tolerance.py",
+    "tests/runtime/test_global_preparation_include_role_stickiness.py",
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     # 2026-09-09 (PR #4008 fix round): test_meta_fail_closed_pending_batch_a.py
@@ -167,6 +173,12 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     "tests/runtime/test_show_origin_unit.py",
     "tests/runtime/test_tmp_prompt_namespace.py",
     "tests/runtime/test_tool_checker.py",
+    # 2026-09-09 (mission ci-suite-stability-test-isolation-01M22MM5, WP05
+    # T014b): runtime concurrency/re-assess/generic-scope tests for the
+    # #4017 fix. shard_3 was lightest at registration time.
+    "tests/runtime/test_ensure_runtime_concurrency.py",
+    "tests/runtime/test_reassess_under_lock.py",
+    "tests/runtime/test_generic_asset_scope.py",
 )
 
 # ``relpath -> shard`` for the whole ``next`` group (all 3 roots are whole-file

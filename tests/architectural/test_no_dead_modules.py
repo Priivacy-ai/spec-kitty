@@ -355,13 +355,6 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
         # commit_guard_hook_cmd.commit_guard_hook_cli(), so it is no longer
         # genuinely dead -- it no longer belongs in this build-script-only
         # allowlist.
-        # specify_cli.dashboard._server_main: the detached dashboard server
-        # child's entry point, spawned by dashboard/server.py as
-        # `python -m specify_cli.dashboard._server_main` (#4125) -- the argv
-        # reference is a string constant (_SPAWN_MODULE), not an import, which
-        # is the point: `python -m` is how the child gets a __main__.__file__
-        # that `python -c` never provided.
-        "specify_cli.dashboard._server_main",
     }
 )
 

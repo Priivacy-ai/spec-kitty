@@ -517,16 +517,24 @@ def _classify_conflicts(
     built_in_drg: DRGGraph,
     fresh_overlay: DRGGraph,
     urn_to_path: dict[str, str],
+    org_drg: DRGGraph | None = None,
 ) -> tuple[ReconciliationConflict, ...]:
     """Detect + classify preserved-content conflicts (amendment #3).
 
     Runs the SAME structured detection ``validation_gate.validate`` will
     subsequently run (via ``validate_graph`` -> these same helpers) against
-    the identical merged-with-built-in graph, so a conflict found here is
-    exactly what validation would also see -- single source of truth, not a
-    second re-implementation.
+    the identical merged-with-below-project graph, so a conflict found here
+    is exactly what validation would also see -- single source of truth, not
+    a second re-implementation.
+
+    *org_drg* (#4121, MAJOR 2) is the org-chain base (built-in + org merged,
+    as returned by ``charter.activation._drg_helpers.org_chain_graph``); when supplied
+    it substitutes for ``built_in_drg`` as the merge's lower layer, exactly
+    as ``validation_gate.validate`` does, so an overlay edge referencing an
+    org-pack artifact is not classified as a dangling endpoint here either.
     """
-    full_graph = merge_layers(built_in_drg, merged_overlay)
+    base_layer = org_drg if org_drg is not None else built_in_drg
+    full_graph = merge_layers(base_layer, merged_overlay)
     target_urns = {n.urn for n in fresh_overlay.nodes}
 
     conflicts = [
@@ -566,6 +574,7 @@ def reconcile_synthesis(
     new_results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
     run_id: str,
     built_in_drg: DRGGraph,
+    org_drg: DRGGraph | None = None,
 ) -> ReconciliationOutcome:
     """Reconcile a freshly-emitted overlay + manifest against on-disk state.
 
@@ -580,6 +589,13 @@ def reconcile_synthesis(
     Callers persist ``outcome.merged_overlay``/``outcome.merged_manifest``
     unconditionally when they carry content -- this function performs no
     I/O writes itself, only reads.
+
+    *org_drg* (#4121, MAJOR 2) is the org-chain base (built-in + org merged,
+    as returned by ``charter.activation._drg_helpers.org_chain_graph``) the fresh
+    overlay was emitted against; pass the SAME graph
+    ``emit_project_layer`` received so conflict classification and the
+    emitter agree on the universe below the project overlay. ``None`` (the
+    default, and every pre-#4121 caller) means no org layer is configured.
 
     Raises
     ------
@@ -627,6 +643,7 @@ def reconcile_synthesis(
         built_in_drg=built_in_drg,
         fresh_overlay=fresh_overlay,
         urn_to_path=urn_to_path,
+        org_drg=org_drg,
     )
 
     delta = ReconciliationDelta(

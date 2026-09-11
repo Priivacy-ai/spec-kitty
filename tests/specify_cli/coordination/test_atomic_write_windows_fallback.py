@@ -20,11 +20,11 @@ from pathlib import Path
 import pytest
 
 from specify_cli.coordination.atomic_write import (
-    _fd_relative_writes_supported,
     _resolve_confined_artifact_path,
     _unlink_confined_artifact_path,
     _write_confined_artifact_bytes,
 )
+from specify_cli.core.no_follow import fd_relative_dir_ops_supported
 
 pytestmark = [pytest.mark.unit]
 
@@ -74,13 +74,13 @@ def _tmp_files(directory: Path) -> list[Path]:
 def test_capability_predicate_false_without_fd_relative_support(
     simulated_windows: None,
 ) -> None:
-    assert _fd_relative_writes_supported() is False
+    assert fd_relative_dir_ops_supported() is False
 
 
 def test_capability_predicate_true_on_posix() -> None:
     # The suite's reference platforms (Linux/macOS CI) support all three
     # primitives; this pins that the fallback never engages there silently.
-    assert _fd_relative_writes_supported() is True
+    assert fd_relative_dir_ops_supported() is True
 
 
 # ---------------------------------------------------------------------------
@@ -194,3 +194,95 @@ def test_unlink_fallback_rejects_symlinked_component(simulated_windows: None, wo
 
     # The real target was not reached through the symlink.
     assert stale.exists()
+
+
+# ---------------------------------------------------------------------------
+# Byte preservation (#4181): the Windows CRT text-mode conversion
+# ---------------------------------------------------------------------------
+
+# Every payload shape the fallback must write verbatim: LF must stay LF,
+# CRLF must not become CRCRLF, mixed endings survive, empty stays empty, and
+# binary bytes (NUL, the 0x1a EOF marker, a high byte) pass through untouched.
+BYTE_PRESERVATION_PAYLOADS = [
+    b"before\n",
+    b"windows\r\n",
+    b"mixed\nendings\r\nhere\n",
+    b"",
+    b"\x00\x1a\xff\n binary \x00\n",
+]
+
+_PAYLOAD_IDS = ["lf", "crlf", "mixed", "empty", "binary"]
+
+
+# The CRT translation is *simulated* by the ``windows_crt_textmode`` fixture
+# (this directory's conftest); on native Windows the real CRT does it and the
+# unmocked windows_ci tests below cover that path directly.
+posix_only = pytest.mark.skipif(
+    os.name == "nt",
+    reason="CRT text-mode translation is simulated; native coverage is the windows_ci tests",
+)
+
+
+@posix_only
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_write_fallback_preserves_bytes_in_binary_mode_on_creation(windows_crt_textmode: None, worktree: Path, payload: bytes) -> None:
+    """The fallback's tempfile must be opened with O_BINARY (#4181).
+
+    3.2.7 opened it in CRT text mode, so ``b"before\\n"`` landed on disk as
+    ``b"before\\r\\n"``. Under the simulated CRT a missing O_BINARY corrupts
+    every newline-bearing payload exactly as on native Windows.
+    """
+    target = worktree / "kitty-specs" / "demo" / "artifact.json"
+
+    _write_confined_artifact_bytes(worktree, target, payload, resolve=_real_resolve)
+
+    assert target.read_bytes() == payload
+    assert _tmp_files(target.parent) == []
+
+
+@posix_only
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_write_fallback_preserves_bytes_in_binary_mode_on_replacement(windows_crt_textmode: None, worktree: Path, payload: bytes) -> None:
+    """Replacing an existing artifact must also write verbatim bytes."""
+    target = worktree / "kitty-specs" / "demo" / "artifact.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"old\r\ncontents\n")
+
+    _write_confined_artifact_bytes(worktree, target, payload, resolve=_real_resolve)
+
+    assert target.read_bytes() == payload
+    assert _tmp_files(target.parent) == []
+
+
+@pytest.mark.windows_ci
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_native_windows_write_preserves_bytes_on_creation(worktree: Path, payload: bytes) -> None:
+    """Unmocked #4181 reproduction: artifact bytes land verbatim on win32.
+
+    On native Windows the fallback engages on its own — no capability strip,
+    no ``os`` monkeypatch — and the real CRT performs the translation when
+    ``O_BINARY`` is missing, so this is the direct acceptance reproduction.
+    No POSIX-only assumptions here: no mode-bit equality, no deletion of
+    constants Windows lacks, no capability assertion.
+    """
+    target = worktree / "kitty-specs" / "demo" / "artifact.bin"
+
+    resolved = _write_confined_artifact_bytes(worktree, target, payload, resolve=_real_resolve)
+
+    assert resolved == target.resolve()
+    assert target.read_bytes() == payload
+    assert _tmp_files(target.parent) == []
+
+
+@pytest.mark.windows_ci
+@pytest.mark.parametrize("payload", BYTE_PRESERVATION_PAYLOADS, ids=_PAYLOAD_IDS)
+def test_native_windows_write_preserves_bytes_on_replacement(worktree: Path, payload: bytes) -> None:
+    """Unmocked replacement path: existing artifacts are overwritten verbatim."""
+    target = worktree / "kitty-specs" / "demo" / "artifact.bin"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"old\r\ncontents\n")
+
+    _write_confined_artifact_bytes(worktree, target, payload, resolve=_real_resolve)
+
+    assert target.read_bytes() == payload
+    assert _tmp_files(target.parent) == []

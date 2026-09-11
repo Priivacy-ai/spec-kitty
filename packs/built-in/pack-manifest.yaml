@@ -460,7 +460,7 @@ constituents:
   kind: procedure
   path: procedures/meeting-minutes-pipeline.procedure.yaml
   provenance_path:
-- content_hash: 52e04ba8def085b2ddd3ea4267fc2fe0d2793a21c67af48314fc5b0df06b7a86
+- content_hash: 05a6216dd93bae06f6cc59d89f4e262246b3a543cb04b4ca98ec29f9657ae0fc
   id: migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   path: procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 20ddd7c31b4bac4ece5ae05d06015cedfe273070b46e9c6450761928e8e0800d
+manifest_hash: eed21181f32e88193d61953ee2946b401f7b47c51415ccfce03a680c100096c2
 schema_version: '1'
 source_type: built-in
 source_url:

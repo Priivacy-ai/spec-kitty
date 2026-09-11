@@ -278,6 +278,10 @@ edges:
 - source: procedure:migrate-project-guidance-to-spec-kitty-charter
   target: directive:DIRECTIVE_018
   relation: requires
+- source: procedure:migrate-project-guidance-to-spec-kitty-charter
+  target: procedure:glossary-maintenance-workflow
+  relation: requires
+  reason: The vocabulary-capture step is an instance of the glossary maintenance workflow applied at migration time, so the source's terms are triaged into the glossary before artifacts that depend on them are drafted.
 - source: procedure:mission-tracer-files
   target: paradigm:brownfield-onboarding
   relation: suggests

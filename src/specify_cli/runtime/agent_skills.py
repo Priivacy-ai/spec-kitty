@@ -136,7 +136,13 @@ def _prepare_skill_tree(
     state = prepared.observe(source, members=True)
     if state.kind != "directory":
         raise ValueError(f"Required skill directory unavailable: {source}")
-    if prepared.observe(destination).kind not in {"directory", "absent"}:
+    # #4017 rescope: ``destination`` is this owner's OWN managed tree, never
+    # a source read -- see the identical rationale on the top-level
+    # ``destination_root`` probe in ``assess_global_agent_skills``. Without
+    # this tag, this RECURSIVE call would re-walk and un-upgrade (role
+    # tagging only ever upgrades to "source_read", never back) the SAME
+    # ancestors that call already correctly tagged.
+    if prepared.observe(destination, role="destination_probe").kind not in {"directory", "absent"}:
         prepared.preserve(destination, "Unproven canonical skill path replacement")
         return
     # Package directory modes are not portable through every installer.
@@ -198,7 +204,7 @@ def assess_global_agent_skills(
     None uses the package catalog and all agents. An explicit selection keeps
     caller sources/agents and never stamps or retires unrelated global skills.
     """
-    from specify_cli.runtime.asset_preparation import global_asset_root, incomplete
+    from specify_cli.runtime.asset_preparation import global_asset_root, incomplete, retry_torn_read
 
     home = get_kittify_home()
     agents = (
@@ -208,7 +214,8 @@ def assess_global_agent_skills(
     )
     roots = tuple(_unique_global_roots(agents))
     root = global_asset_root("global_skills", (home, *roots))
-    try:
+
+    def _build() -> tuple[AssetPreparation, OwnerAssessment]:
         prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent)
         skills = (
             _load_registry_skills(prepared)
@@ -216,7 +223,17 @@ def assess_global_agent_skills(
             else [CanonicalSkill(name, directory, markdown) for name, directory, markdown in selection._sources]
         )
         for destination_root in roots:
-            state = prepared.observe(destination_root, members=True)
+            # #4017 rescope: this owner's OWN managed destination root, never
+            # a source read. Observing it (and its ancestors, incl. a parent
+            # like ``~/.agents`` auto-created by a LATER ``parents()`` call)
+            # without this tag defaults to "source_read" (``observe()``'s
+            # default role) -- role-tagging only ever UPGRADES to
+            # "source_read" and never downgrades back, so an untagged probe
+            # here permanently poisons this whole tree's role, making a
+            # concurrent peer's legitimate destination materialization look
+            # like unretractable source drift instead of tolerable benign
+            # drift (FR-002/C-002).
+            state = prepared.observe(destination_root, members=True, role="destination_probe")
             if state.kind not in {"directory", "absent"}:
                 prepared.preserve(destination_root, "Unproven global skill root replacement")
                 continue
@@ -243,6 +260,13 @@ def assess_global_agent_skills(
             )
             effects.append(replace(effect, logical_owners=logical or agents))
         assessment = replace(assessment, effects=tuple(effects))
+        return prepared, assessment
+
+    try:
+        # #4017 rescope: retry ONLY the local build (never `_batch.include()`,
+        # called once below on the stabilized result) so a retry can never
+        # replay stale partial mutations into a shared, cross-owner batch.
+        prepared, assessment = retry_torn_read(_build)
         if _batch is not None:
             _batch.include(prepared, assessment.effects)
         return assessment
@@ -251,17 +275,28 @@ def assess_global_agent_skills(
 
 
 def ensure_global_agent_skills() -> None:
-    """Repair actual canonical skill health and retain unchanged assets."""
-    from specify_cli.runtime.asset_preparation import apply_assets, assess_global_assets, recheck_assets
+    """Repair actual canonical skill health and retain unchanged assets.
 
-    assessment = assess_global_assets(runtime=False, commands=False)
+    Mirrors ``bootstrap.ensure_runtime()``'s re-assess-under-lock (#4017
+    WP03) via the shared ``asset_preparation.apply_with_reassess`` helper
+    (#4174 landing-pass) -- see its docstring for the full mechanism.
+    """
+    from specify_cli.runtime.asset_preparation import apply_with_reassess, assess_global_assets
+
+    def _rebuild() -> OwnerAssessment:
+        return assess_global_assets(runtime=False, commands=False)
+
+    assessment = _rebuild()
     if not assessment.complete:
         raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
     if not assessment.effects:
         return
-    with recheck_assets(assessment) as diagnostics:
-        if diagnostics:
-            raise RuntimeError("; ".join(d.message for d in diagnostics))
-        result = apply_assets(assessment, ApplyConsent(automatic=True))
-    if result.outcome != "applied":
+    result = apply_with_reassess(
+        assessment,
+        _rebuild,
+        ApplyConsent(automatic=True),
+        converged_log_message="global agent skills already materialized by a concurrent peer; nothing applied.",
+        logger=logger,
+    )
+    if result.outcome not in {"applied", "skipped"}:
         raise RuntimeError("; ".join(d.message for d in result.diagnostics))

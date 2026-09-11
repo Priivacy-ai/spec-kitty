@@ -113,6 +113,7 @@ from charter.offering.drg.org_pack_loader import (
     load_org_pack,
 )
 from charter.offering.drg.query import ResolvedContext, resolve_context
+from charter.offering.drg.project_scan import scan_project_artifacts
 
 __all__ = [
     "merge_three_layers",
@@ -145,6 +146,7 @@ __all__ = [
     "merge_layers",
     "model_to_graph_dict",
     "resolve_context",
+    "scan_project_artifacts",
     "resolve_existing_org_roots",
     "resolve_org_dirs",
     "resolve_org_roots",

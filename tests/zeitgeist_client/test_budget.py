@@ -17,6 +17,7 @@ import time
 import pytest
 
 from specify_cli.zeitgeist_client import budget
+from tests._perf_helpers import assert_timing_budget
 
 # See tests/zeitgeist_client/test_grammar.py's pytestmark comment.
 pytestmark = pytest.mark.fast
@@ -46,6 +47,23 @@ def test_run_with_deadline_returns_completed_result_when_fast():
 
 
 def test_run_with_deadline_times_out_on_a_slow_callable():
+    """Functional half of the #4015 split; the wall-clock bound now lives in
+    ``test_run_with_deadline_stops_near_the_deadline`` (nightly-only)."""
+
+    def _slow():
+        time.sleep(2.0)
+        return "too-late"
+
+    outcome = budget.run_with_deadline(_slow, deadline_s=0.1)
+    assert outcome.completed is False
+    assert outcome.result is None
+
+
+@pytest.mark.performance
+def test_run_with_deadline_stops_near_the_deadline():
+    """Split from ``test_run_with_deadline_times_out_on_a_slow_callable`` (#4015);
+    budget preserved (nightly)."""
+
     def _slow():
         time.sleep(2.0)
         return "too-late"
@@ -53,10 +71,8 @@ def test_run_with_deadline_times_out_on_a_slow_callable():
     start = time.monotonic()
     outcome = budget.run_with_deadline(_slow, deadline_s=0.1)
     elapsed = time.monotonic() - start
-    assert outcome.completed is False
-    assert outcome.result is None
     # returns at ~the deadline, not after the slow callable finishes
-    assert elapsed < 1.0
+    assert_timing_budget(elapsed, 1.0, name="run_with_deadline")
     assert 0.05 <= outcome.elapsed_s <= 0.5
 
 

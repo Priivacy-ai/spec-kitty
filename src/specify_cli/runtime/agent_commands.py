@@ -18,6 +18,8 @@ for the design rationale.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+import logging
 import os
 import re
 import sys
@@ -32,6 +34,8 @@ from specify_cli.runtime.bootstrap import _get_cli_version
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.runtime.asset_preparation import _GlobalAssetPreparation
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
+
+logger = logging.getLogger(__name__)
 
 _VERSION_FILENAME = "agent-commands.lock"
 _LOCK_FILENAME = ".agent-commands.lock"
@@ -297,12 +301,13 @@ def assess_global_agent_commands(
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
-    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete, retry_torn_read
 
     home = get_kittify_home()
     all_roots = tuple(get_global_command_dir(key) for key in AGENT_COMMAND_CONFIG)
     root = global_asset_root("slash_commands", (home, *all_roots))
-    try:
+
+    def _build() -> tuple[AssetPreparation, OwnerAssessment]:
         prepared = AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent)
         keys = tuple(sorted(set(AGENT_COMMAND_CONFIG if agent_keys is None else agent_keys)))
         selected_roots: dict[str, Path] = {}
@@ -315,7 +320,16 @@ def assess_global_agent_commands(
                 raise ValueError(f"Unknown slash-command agent: {key}")
             output = get_global_command_dir(key)
             selected_roots[key] = output
-            state = prepared.observe(output, members=True)
+            # #4017 rescope: ``output`` is this owner's OWN managed
+            # destination, never a source read -- see the identical
+            # rationale on ``assess_global_agent_skills``'s
+            # ``destination_root`` probe. Without this tag, an untagged
+            # probe here (and the untagged ``target`` probe below) defaults
+            # to "source_read", which only ever upgrades and never
+            # downgrades -- permanently poisoning this whole tree's role
+            # and turning a concurrent peer's legitimate destination
+            # materialization into unretractable "source drift".
+            state = prepared.observe(output, members=True, role="destination_probe")
             if state.kind not in {"directory", "absent"}:
                 prepared.preserve(output, "Unproven command directory replacement")
                 continue
@@ -324,8 +338,19 @@ def assess_global_agent_commands(
             for name, content in rendered:
                 target = output / name
                 predecessor = False
-                if prepared.observe(target).kind == "file":
-                    existing_bytes = prepared.source(target)
+                if prepared.observe(target, role="destination_probe").kind == "file":
+                    # #4174 landing-pass: read these EXISTING DESTINATION bytes
+                    # directly, never via `prepared.source()` -- that helper's
+                    # default role is "source_read", and re-observing `target`
+                    # under that role here would silently downgrade both
+                    # `target` and (via observe()'s ancestor walk) `output`
+                    # itself from "destination_probe" to "source_read",
+                    # permanently disabling Concern 2's peer-tolerance for the
+                    # whole destination tree on any WARM reassess where
+                    # existing command files are already present. The
+                    # `observe()` call just above already confirmed this is a
+                    # regular file under the owner's own managed destination.
+                    existing_bytes = target.read_bytes()
                     marker = rb"(?m)^<!-- spec-kitty-command-version: [^\r\n]+ -->\r?\n"
                     predecessor = bool(re.search(marker, existing_bytes)) and re.sub(marker, b"", existing_bytes) == re.sub(marker, b"", content)
                 prepared.asset(target, content, 0o444, canonical_predecessor=predecessor)
@@ -339,6 +364,13 @@ def assess_global_agent_commands(
             assessment,
             effects=tuple(replace(effect, logical_owners=_command_effect_owners(effect.destination, selected_roots)) for effect in assessment.effects),
         )
+        return prepared, assessment
+
+    try:
+        # #4017 rescope: retry ONLY the local build (never `_batch.include()`,
+        # called once below on the stabilized result) so a retry can never
+        # replay stale partial mutations into a shared, cross-owner batch.
+        prepared, assessment = retry_torn_read(_build)
         if _batch is not None:
             _batch.include(prepared, assessment.effects)
         return assessment
@@ -346,26 +378,39 @@ def assess_global_agent_commands(
         return incomplete("slash_commands", root, exc)
 
 
-def _apply_command_assessment(assessment: OwnerAssessment) -> None:
-    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
+def _apply_command_assessment(assessment: OwnerAssessment, *, rebuild: Callable[[], OwnerAssessment]) -> None:
+    """Mirror ``bootstrap.ensure_runtime()``'s re-assess-under-lock (#4017 WP03)
+    via the shared ``asset_preparation.apply_with_reassess`` helper (#4174
+    landing-pass) -- see its docstring for the full mechanism.
+    """
+    from specify_cli.runtime.asset_preparation import apply_with_reassess
 
     if not assessment.complete:
         raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
     if not assessment.effects:
         return
-    with recheck_assets(assessment) as diagnostics:
-        if diagnostics:
-            raise RuntimeError("; ".join(d.message for d in diagnostics))
-        result = apply_assets(assessment, ApplyConsent(automatic=True))
-    if result.outcome != "applied":
+    result = apply_with_reassess(
+        assessment,
+        rebuild,
+        ApplyConsent(automatic=True),
+        converged_log_message="global agent commands already materialized by a concurrent peer; nothing applied.",
+        logger=logger,
+    )
+    if result.outcome not in {"applied", "skipped"}:
         raise RuntimeError("; ".join(d.message for d in result.diagnostics))
 
 
 def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) -> None:
     """Retain the existing scoped owner entry point using prepared output."""
-    _apply_command_assessment(assess_global_agent_commands(agent_keys=[agent_key], templates_dir=templates_dir, script_type=script_type))
+    _apply_command_assessment(
+        assess_global_agent_commands(agent_keys=[agent_key], templates_dir=templates_dir, script_type=script_type),
+        rebuild=lambda: assess_global_agent_commands(agent_keys=[agent_key], templates_dir=templates_dir, script_type=script_type),
+    )
 
 
 def ensure_global_agent_commands(*, agent_keys: list[str] | None = None) -> None:
     """Ensure actual global command health, retaining unchanged bytes and mtimes."""
-    _apply_command_assessment(assess_global_agent_commands(agent_keys=agent_keys))
+    _apply_command_assessment(
+        assess_global_agent_commands(agent_keys=agent_keys),
+        rebuild=lambda: assess_global_agent_commands(agent_keys=agent_keys),
+    )

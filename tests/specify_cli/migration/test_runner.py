@@ -32,6 +32,7 @@ from specify_cli.migration.runner import (    MigrationReport,
     _GITIGNORE_ADD_ENTRIES,
     _BACKUP_DIR_NAME,
 )
+from tests._perf_helpers import assert_timing_budget
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: subprocess CLI invocation
@@ -397,6 +398,28 @@ class TestDryRun:
 
 class TestPerformance:
     @pytest.mark.slow
+    def test_migration_of_5_features_succeeds(
+        self, tmp_path: Path
+    ) -> None:
+        """5 features / 10 WPs each migrates successfully."""
+        features = [
+            {
+                "slug": f"{i:03d}-perf-feature",
+                "wps": [
+                    {"name": f"WP{j:02d}", "lane": "in_progress"}
+                    for j in range(1, 11)
+                ],
+            }
+            for i in range(1, 6)
+        ]
+        root = _make_legacy_project(tmp_path, features=features)
+
+        report = run_migration(root)
+
+        assert report.success, f"Migration failed: {report.errors}"
+
+    @pytest.mark.slow
+    @pytest.mark.performance
     def test_migration_completes_in_under_10_seconds_for_5_features(
         self, tmp_path: Path
     ) -> None:
@@ -421,11 +444,10 @@ class TestPerformance:
         root = _make_legacy_project(tmp_path, features=features)
 
         start = time.perf_counter()
-        report = run_migration(root)
+        run_migration(root)
         elapsed = time.perf_counter() - start
 
-        assert report.success, f"Migration failed: {report.errors}"
-        assert elapsed < 30.0, f"Migration took {elapsed:.1f}s (threshold 30s)"
+        assert_timing_budget(elapsed, 30.0, name="migration of 5 features")
 
 
 # ---------------------------------------------------------------------------

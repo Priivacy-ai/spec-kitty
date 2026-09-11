@@ -1,72 +1,60 @@
-"""Module entry point for the detached dashboard server child process.
+"""Module entry point for the detached dashboard background process.
 
-``dashboard.server.start_dashboard(background_process=True)`` spawns this
-module (``python -m specify_cli.dashboard._server_main <project_dir> <port>
-[<token>] [--port-fd <fd>]``) rather than piping a generated script through
-``python -c``. ``-c`` leaves ``__main__`` without a ``__file__`` attribute, and
-a Windows-platform transitive import in the server import chain reads it, so
-the child died with ``AttributeError: module '__main__' has no attribute
-'__file__'`` before ever binding — invisibly, because its output was sent to
-DEVNULL (#4125). ``-m`` gives ``__main__`` a real ``__file__``, which is the
-stdlib-blessed way to spawn package code, so no platform bootstrap can trip
-on it.
+Run as ``python -m specify_cli.dashboard._server_main``.  This replaces the
+former ``python -c "<codegen>"`` launch (#4125): a ``-c`` child has no
+``__main__.__file__`` attribute, and a transitive import touched during
+interpreter bootstrap on Windows reads it, crashing with
+``AttributeError: module '__main__' has no attribute '__file__'`` before the
+dashboard ever binds a socket.  Running as ``-m`` gives the child a real
+module ``__main__`` with a genuine ``__file__``, so that crash cannot occur.
+
+Kept intentionally tiny and import-light — the actual server implementation
+lives in :mod:`specify_cli.dashboard.server` and is imported lazily inside
+:func:`_main` so argument-parsing errors do not pay the cost (or risk the
+import side effects) of loading the full CLI package.
+
+The entry function is underscore-private: this module is a subprocess entry
+point run via ``-m`` (and referenced by :mod:`specify_cli.dashboard.server`
+through its ``__name__``), never a library whose ``main`` other code imports.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
-from .server import run_dashboard_server
 
-# The entry function is underscore-private and unexported, exactly like
-# ``specify_cli.completion._main``: it is reached only through ``python -m``
-# module execution (the ``if __name__ == "__main__"`` block below), never
-# imported by name, so a public ``main`` in ``__all__`` would be an orphan
-# under the symbol-level dead-code gate (tests/architectural/
-# test_no_dead_symbols.py, #470) with no possible static caller.
-_USAGE = "usage: python -m specify_cli.dashboard._server_main <project_dir> <port> [<token>] [--port-fd <fd>]"
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="specify_cli.dashboard._server_main")
+    parser.add_argument("--project-dir", required=True, help="Project directory the dashboard serves.")
+    parser.add_argument("--port", required=True, type=int, help="Port to bind (0 for an OS-assigned ephemeral port).")
+    parser.add_argument("--token", default=None, help="Dashboard security token, if any.")
+    parser.add_argument(
+        "--port-report-file",
+        default=None,
+        help="Sidecar file to write the actually-bound port into, right after bind (ephemeral-port hand-off).",
+    )
+    return parser
 
 
 def _main(argv: list[str] | None = None) -> int:
-    """Run the dashboard server forever for ``<project_dir>`` on ``<port>``.
+    """Parse argv and run the dashboard server forever. Returns a process exit code."""
+    args = _build_arg_parser().parse_args(sys.argv[1:] if argv is None else argv)
 
-    ``<token>`` is optional; when omitted the dashboard serves without a
-    project token. ``--port-fd <fd>``, when given, is the inherited pipe
-    write-end the actually-bound port is reported over (the ``port=0`` spawn
-    path — see ``run_dashboard_server``). Returns only on an unhandled server
-    error; the parent's readiness probe treats any early return as a spawn
-    failure. Usage and argument-parsing errors print the usage line to stderr
-    and return 2.
-    """
-    args = list(sys.argv[1:] if argv is None else argv)
+    # Imported here (not at module scope) so `-m ... --help`/argument errors
+    # never pay for importing the full dashboard router/handler graph.
+    from specify_cli.dashboard.server import run_dashboard_server
 
-    port_fd: int | None = None
-    if "--port-fd" in args:
-        flag_index = args.index("--port-fd")
-        if len(args) - flag_index != 2:
-            print(_USAGE, file=sys.stderr)
-            return 2
-        try:
-            port_fd = int(args[flag_index + 1])
-        except ValueError:
-            print(_USAGE, file=sys.stderr)
-            return 2
-        args = args[:flag_index]
-
-    if len(args) not in (2, 3):
-        print(_USAGE, file=sys.stderr)
-        return 2
-    try:
-        port = int(args[1])
-    except ValueError:
-        print(_USAGE, file=sys.stderr)
-        return 2
-    project_dir = Path(args[0])
-    token = args[2] if len(args) == 3 else None
-    run_dashboard_server(project_dir, port, token, port_fd)
+    port_report_path = Path(args.port_report_file) if args.port_report_file else None
+    run_dashboard_server(
+        Path(args.project_dir),
+        args.port,
+        args.token,
+        port_report_path=port_report_path,
+    )
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover — exercised via real spawn tests
-    raise SystemExit(_main())
+if __name__ == "__main__":
+    sys.exit(_main())

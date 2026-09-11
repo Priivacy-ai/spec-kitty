@@ -156,12 +156,13 @@ def _cleanup_orphaned_update_dirs(parent: Path) -> None:
 
 def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAssetPreparation | None = None) -> OwnerAssessment:
     """Prepare managed package assets directly, without staging or bootstrap."""
-    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete
+    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete, retry_torn_read
     from specify_cli.runtime.merge import MANAGED_DIRS, MANAGED_FILES
 
     home = get_kittify_home()
     root = global_asset_root("runtime_bootstrap", (home,))
-    try:
+
+    def _build() -> tuple[AssetPreparation, OwnerAssessment]:
         prepared = AssetPreparation("runtime_bootstrap", root, home / "cache", ".update.lock", consent)
         assets = get_package_asset_root()
         if prepared.observe(assets, members=True).kind != "directory":
@@ -183,6 +184,13 @@ def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAss
                 if candidate.name.startswith(".kittify_update_"):
                     prepared.preserve(candidate, "Unproven orphan staging directory; preserved")
         assessment = prepared.finish(home / "cache/version.lock", _get_cli_version())
+        return prepared, assessment
+
+    try:
+        # #4017 rescope: retry ONLY the local build (never `_batch.include()`,
+        # called once below on the stabilized result) so a retry can never
+        # replay stale partial mutations into a shared, cross-owner batch.
+        prepared, assessment = retry_torn_read(_build)
         if _batch is not None:
             _batch.include(prepared, assessment.effects)
         return assessment
@@ -191,19 +199,57 @@ def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAss
 
 
 def ensure_runtime() -> None:
-    """Repair actual managed health; a version stamp alone is insufficient."""
-    from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
+    """Repair actual managed health; a version stamp alone is insufficient.
+
+    #4017: on the cold/effects path, a concurrent peer sharing this same
+    ``spec-kitty-home`` may materialize the canonical assets while this
+    process waits on the anchor flock ``recheck_assets`` takes below. Once
+    the flock is held, ``check_assets`` (role-tag-aware, WP02) tolerates
+    the peer's now-identical destination bytes as benign drift -- but the
+    STALE ``assessment`` above still carries a create-plan computed against
+    the empty pre-race home, and its ``action``s (``mkdir``, ``open("x")``)
+    are non-idempotent against the peer's already-materialized tree. Rather
+    than apply that stale plan, RE-ASSESS under the held lock: converging
+    here to a no-op also protects the two recheck nestings reached *through
+    this function's own apply* (``apply_assets``'s own ``recheck_assets``
+    call, and ``merge.py``'s ``_merge_prepared_assets``), so the fix is not
+    duplicated at each nesting.
+
+    #4174 landing-pass: the mechanism itself now lives once in
+    ``asset_preparation.apply_with_reassess`` -- this function,
+    ``agent_commands.py``'s and ``agent_skills.py``'s ``ensure_*`` mirrors,
+    and the ``skills/installer.py`` / ``tool_surface/providers/
+    slash_commands.py`` external seam callers all adopt the SAME helper
+    rather than each triplicating the block.
+
+    Scope caveat (not a claim of totality): ``tool_surface/providers/
+    managed_skills.py``'s paired global+project composition apply
+    (``ManagedSkillsProvider.apply_composition`` / ``apply_installation`` /
+    ``GlobalSkillAssetsProvider``) is NOT covered by this seam -- its
+    ``_PAIRED_GLOBAL``/``_PROVISIONING_PAIR`` cross-owner coordination would
+    need a rebuild callable threaded through ``upgrade/assessment.py`` as
+    well, and that composition already carries a separate, documented,
+    scoped-out race of its own (``_recheck_command_completion``'s manifest
+    ``installed_at`` timestamp never converges across two independent
+    assessments -- see ``tests/runtime/test_generic_asset_scope.py``'s
+    ``TestRecheckCommandCompletionConcurrentPeerVerdict``). Extending the
+    re-assess seam there is tracked as a follow-up, not silently assumed.
+    """
+    from specify_cli.runtime.asset_preparation import apply_with_reassess
 
     assessment = assess_runtime()
     if not assessment.complete:
         raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
     if not assessment.effects:
         return
-    with recheck_assets(assessment) as diagnostics:
-        if diagnostics:
-            raise RuntimeError("; ".join(d.message for d in diagnostics))
-        result = apply_assets(assessment, ApplyConsent(automatic=True))
-    if result.outcome != "applied":
+    result = apply_with_reassess(
+        assessment,
+        assess_runtime,
+        ApplyConsent(automatic=True),
+        converged_log_message="runtime assets already materialized by a concurrent peer; nothing applied.",
+        logger=logger,
+    )
+    if result.outcome not in {"applied", "skipped"}:
         raise RuntimeError("; ".join(d.message for d in result.diagnostics))
 
 

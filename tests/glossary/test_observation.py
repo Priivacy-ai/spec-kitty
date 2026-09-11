@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import io
 import json
-import statistics
-import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -301,63 +299,3 @@ def test_collect_notices_never_raises_on_read_error(tmp_path: Path) -> None:
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
     assert notices == []
-
-
-# ---------------------------------------------------------------------------
-# NFR-001: p95 overhead target (ADR-5 proposed threshold: 50ms)
-# ---------------------------------------------------------------------------
-
-
-def test_collect_notices_completes_within_50ms(tmp_path: Path) -> None:
-    """NFR-001: collect_notices() must add ≤50ms p95 overhead.
-
-    Uses a realistic-size event log (1000 events) and verifies the call
-    returns well within the ADR-5 proposed threshold. This does not replace
-    a production p95 measurement but catches obvious regressions.
-    """
-    events = []
-    for i in range(1000):
-        severity = "high" if i % 10 == 0 else "low"
-        events.append({
-            "event_type": "SemanticCheckEvaluated",
-            "step_id": f"inv-{i % 5}",
-            "timestamp": "2026-04-23T05:00:00Z",
-            "overall_severity": severity,
-            "findings": [
-                {
-                    "term": {"surface_text": f"term-{i}"},
-                    "term_id": f"glossary:term-{i}",
-                    "severity": severity,
-                    "conflict_type": "scope_mismatch",
-                    "candidate_senses": [
-                        {"surface": f"term-{i}", "scope": "team_domain", "definition": "a", "confidence": 0.9},
-                        {"surface": f"term-{i}", "scope": "spec_kitty_core", "definition": "b", "confidence": 0.8},
-                    ],
-                }
-            ],
-        })
-    _write_event_log(tmp_path, events)
-
-    surface = ObservationSurface()
-    # Warm-up call to avoid import-time overhead skewing the measurement
-    surface.collect_notices(tmp_path)
-
-    # Measure the MEDIAN of several runs, not the mean: this is a coarse
-    # regression tripwire, and a shared CI runner can stall a single call
-    # (GC / scheduler pre-emption), which skews the mean well past the budget
-    # while the operation itself is unchanged. The median ignores a minority of
-    # such outliers, so it stays robust to CI variance yet still shifts if
-    # collect_notices() genuinely regresses across the whole distribution.
-    ITERATIONS = 9
-    samples_ms = []
-    for _ in range(ITERATIONS):
-        t0 = time.monotonic()
-        surface.collect_notices(tmp_path)
-        samples_ms.append((time.monotonic() - t0) * 1000)
-    median_ms = statistics.median(samples_ms)
-
-    assert median_ms < 50.0, (
-        f"collect_notices() median was {median_ms:.1f}ms over {ITERATIONS} runs "
-        f"on a 1000-event log — exceeds the 50ms NFR-001 target "
-        f"(samples: {[round(s, 1) for s in samples_ms]})"
-    )

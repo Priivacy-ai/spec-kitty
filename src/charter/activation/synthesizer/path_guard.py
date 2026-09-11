@@ -132,6 +132,23 @@ class PathGuard:
         self._assert_allowed(path, caller)
         path.mkdir(parents=parents, exist_ok=exist_ok)
 
+    def unlink(
+        self,
+        path: Path,
+        *,
+        missing_ok: bool = True,
+        caller: str = "unlink",
+    ) -> None:
+        """Remove a file, raising PathGuardViolation if path is not allowed.
+
+        The removal seam for registration pruning (#4121): a committed
+        provenance sidecar whose authored source no longer exists is deleted
+        through the same allowlist every synthesizer mutation flows through,
+        never a bare ``Path.unlink`` at a call site (R-10).
+        """
+        self._assert_allowed(path, caller)
+        path.unlink(missing_ok=missing_ok)
+
     def rmtree(
         self,
         path: Path,

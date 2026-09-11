@@ -34,7 +34,7 @@ def test_preview_matrix_is_healthy_and_write_free(tmp_path: Path, global_state: 
 
 @pytest.mark.parametrize(
     ("target", "code", "relation"),
-    [("3.2.6", 2, "lower"), ("3.2.7rc1", 0, "equal"), ("3.2.8", 0, "higher"), ("not-a-version", 2, "invalid")],
+    [("3.2.6", 2, "lower"), ("3.2.8rc1", 0, "equal"), ("3.2.8", 0, "higher"), ("not-a-version", 2, "invalid")],
 )
 def test_full_plan_target_contract(tmp_path: Path, target: str, code: int, relation: str) -> None:
     case = prepare_case(tmp_path / target.replace("/", "_"), CHECKOUT)

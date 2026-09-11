@@ -32,6 +32,7 @@ from pathlib import Path
 import os
 
 from specify_cli.core.agent_config import load_agent_config, AgentConfigError
+from specify_cli.core.no_follow import fd_relative_dir_ops_supported
 
 from specify_cli.session_presence.content import (
     SECTION_CLOSE,
@@ -54,6 +55,7 @@ from specify_cli.session_presence.writers.markdown_rules import (
     observe_presence_path,
     presence_state,
     _presence_parent,
+    _walk_confined_parent,
 )
 from specify_cli.session_presence.writers.null_writer import NullWriter
 from specify_cli.session_presence.writers.registry import get_writer
@@ -301,10 +303,27 @@ class SessionPresenceProvider:
             try:
                 if effect.after.kind == "directory":
                     relative = Path(effect.path)
-                    with _presence_parent(assessment.root.path, relative.parent, create=False) as fd:
-                        os.mkdir(relative.name, 0o755, dir_fd=fd)
-                    with _presence_parent(assessment.root.path, relative, create=False) as fd:
-                        os.fchmod(fd, 0o755)
+                    root = assessment.root.path
+                    if fd_relative_dir_ops_supported():
+                        with _presence_parent(root, relative.parent, create=False) as fd:
+                            os.mkdir(relative.name, 0o755, dir_fd=fd)
+                        with _presence_parent(root, relative, create=False) as fd:
+                            os.fchmod(fd, 0o755)
+                    else:
+                        # Windows: no dir_fd support, so fall back to the
+                        # path-based confined walk (mirrors
+                        # markdown_rules._windows_atomic_write). Every
+                        # component up to and including the parent must
+                        # already exist and be a real (non-symlink)
+                        # directory -- this call never creates it.
+                        parent = _walk_confined_parent(root, relative.parent, create=False)
+                        target_dir = parent / relative.name
+                        if target_dir.is_symlink():
+                            raise ValueError(f"Refusing unowned symlink: {target_dir}")
+                        target_dir.mkdir(mode=0o755)
+                        if target_dir.is_symlink():
+                            raise ValueError(f"Refusing unowned symlink: {target_dir}")
+                        target_dir.chmod(0o755)
                 else:
                     tool, member = members[effect.path]
                     writer = get_writer(tool)

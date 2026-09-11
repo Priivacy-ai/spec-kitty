@@ -604,7 +604,11 @@ class ManagedSkillsProvider:
         succeeded = {effect.id for effect in project.effects}
         errors: tuple[str, ...] = ()
         if not dry_run:
-            results = skill_installer.apply_skill_installation(installation, consent)
+            results = skill_installer.apply_skill_installation(
+                installation,
+                consent,
+                rebuild_global_assets=lambda: skill_installer.assess_skill_installation(inputs, registry, tool_keys).global_assets,
+            )
             succeeded = set(results[1].succeeded)
             errors = tuple(f"managed_skills: {item.message}" for result in results for item in result.diagnostics)
         repaired: list[str] = []

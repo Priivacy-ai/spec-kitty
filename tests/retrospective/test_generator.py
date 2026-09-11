@@ -46,6 +46,7 @@ from specify_cli.retrospective.schema import (
     RecordValidationError,
     validate_record,
 )
+from tests._perf_helpers import assert_timing_budget
 
 # ---------------------------------------------------------------------------
 # Fixture helpers
@@ -132,21 +133,27 @@ class TestGeneratorDeterminism:
 class TestGeneratorPerformance:
     """Wall-clock time constraint: largest fixture generates in < 2.0 seconds (NFR-005)."""
 
-    def test_large_fixture_under_2s(self) -> None:
-        """Generating the large-with-gaps fixture takes < 2.0s wall clock."""
+    def test_generates_large_fixture(self) -> None:
+        """Functional half of the #4015 split: large-with-gaps fixture is produced."""
         policy = make_policy()
-        start = time.monotonic()
         record = generate_retrospective(
             LARGE_WITH_GAPS, policy, FIXTURES_ROOT,
             invoked_at="2026-05-19T12:00:00+00:00",
         )
-        elapsed = time.monotonic() - start
-        assert elapsed < 2.0, (
-            f"Generator took {elapsed:.3f}s for large fixture (limit: 2.0s). "
-            "NFR-005: generation must be sub-second on representative missions."
-        )
         # Sanity check: record was actually produced
         assert record.mission_slug == LARGE_WITH_GAPS
+
+    @pytest.mark.performance
+    def test_large_fixture_under_2s(self) -> None:
+        """Generating the large-with-gaps fixture takes < 2.0s wall clock (#4015 split)."""
+        policy = make_policy()
+        start = time.monotonic()
+        generate_retrospective(
+            LARGE_WITH_GAPS, policy, FIXTURES_ROOT,
+            invoked_at="2026-05-19T12:00:00+00:00",
+        )
+        elapsed = time.monotonic() - start
+        assert_timing_budget(elapsed, 2.0, name="elapsed")
 
     @pytest.mark.performance
     def test_simple_fixture_under_500ms(self) -> None:

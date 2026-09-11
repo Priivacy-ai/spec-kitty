@@ -723,12 +723,15 @@ class TestSynthesizeWritesToDisk:
         from charter.activation.synthesizer.errors import ProjectDRGValidationError
         from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
-        def fail_validate(_staging_dir: Path, _shipped_drg: object, conflicts: object = ()) -> None:
+        def fail_validate(
+            _staging_dir: Path, _shipped_drg: object, conflicts: object = (), org_drg: object = None
+        ) -> None:
             # WP02: validate() now takes an optional `conflicts` kwarg
             # (orchestrator._validation_callback passes
             # outcome.delta.conflicts) -- accept and ignore it here so this
             # forced-failure stub still matches the real call signature.
-            del conflicts
+            # #4121 (MAJOR 2) added the org-chain `org_drg` kwarg the same way.
+            del conflicts, org_drg
             raise ProjectDRGValidationError(
                 errors=("synthetic validation failure",),
                 merged_graph_summary="forced by test",
@@ -749,4 +752,30 @@ class TestSynthesizeWritesToDisk:
         assert failed_dirs, "Expected validation failure to preserve a .failed staging directory"
         assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists(), (
             "Expected staged project graph to be preserved for debugging when validation fails"
+        )
+
+    def test_synthesize_surfaces_reference_warnings_on_result(
+        self,
+        full_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """#4121 (MAJOR 2): unresolved-reference warnings from the overlay
+        emission ride on ``SynthesisResult.reference_warnings`` so CLI callers
+        can surface them instead of them living only in ``logging`` output."""
+        from charter.activation.synthesizer import project_drg as project_drg_module
+
+        real_emit = project_drg_module.emit_project_layer
+
+        def _emit_with_warning(*args: object, **kwargs: object) -> object:
+            sink = kwargs.get("warnings_out")
+            if isinstance(sink, list):
+                sink.append("agent_profile:ops-responder references unresolved procedure:gone")
+            return real_emit(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(project_drg_module, "emit_project_layer", _emit_with_warning)
+        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
+        assert result.reference_warnings == (
+            "agent_profile:ops-responder references unresolved procedure:gone",
         )

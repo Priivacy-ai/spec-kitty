@@ -56,6 +56,7 @@ from typer.testing import CliRunner
 
 from specify_cli.orchestrator_api.commands import app
 from tests._factories import provision_test_charter
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -620,7 +621,7 @@ def test_record_analysis_sc005a_swallowed_exception_but_written_reports_success(
 # ---------------------------------------------------------------------------
 
 
-def test_record_analysis_sc005b_hang_returns_within_enforced_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_record_analysis_sc005b_hang_reports_write_not_confirmed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, "wp04-scenario-sc005b")
 
@@ -638,18 +639,41 @@ def test_record_analysis_sc005b_hang_returns_within_enforced_timeout(tmp_path: P
 
     monkeypatch.setattr("specify_cli.analysis_report.write_analysis_report", _hangs_forever)
 
-    started = time.monotonic()
     envelope = _record_analysis(repo, mission_slug, _CARRIER_READY, tmp_path=tmp_path)
-    elapsed = time.monotonic() - started
 
-    # A REAL enforced bound: comfortably under any sane CI-slowness margin,
-    # nowhere near "the mocked call eventually returned" (it never does).
-    assert elapsed < 5.0, f"record-analysis did not return within its enforced bound (took {elapsed}s)"
     assert envelope["success"] is False, envelope
     assert envelope["error_code"] == "RECORD_ANALYSIS_WRITE_NOT_CONFIRMED"
     # Nothing was written -- success is determined by the re-read, never by
     # whether the mocked call "returned".
     assert not (feature_dir / "analysis-report.md").exists()
+
+
+@pytest.mark.performance
+def test_record_analysis_sc005b_hang_returns_within_enforced_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp04-scenario-sc005b")
+
+    import specify_cli.orchestrator_api.commands as orch_commands
+
+    # Small bound so the test proves the mechanism quickly (the mocked write
+    # NEVER returns/sets the event -- a real, unbounded hang).
+    monkeypatch.setattr(orch_commands, "_RECORD_ANALYSIS_TIMEOUT_SECONDS", 0.3)
+
+    never_set = threading.Event()
+
+    def _hangs_forever(**_kwargs: Any) -> Any:
+        never_set.wait()  # never set -> blocks forever
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr("specify_cli.analysis_report.write_analysis_report", _hangs_forever)
+
+    started = time.monotonic()
+    _record_analysis(repo, mission_slug, _CARRIER_READY, tmp_path=tmp_path)
+    elapsed = time.monotonic() - started
+
+    # A REAL enforced bound: comfortably under any sane CI-slowness margin,
+    # nowhere near "the mocked call eventually returned" (it never does).
+    assert_timing_budget(elapsed, 5.0, name="record-analysis enforced hang bound")
 
 
 # ---------------------------------------------------------------------------

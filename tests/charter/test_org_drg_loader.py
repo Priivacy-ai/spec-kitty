@@ -11,6 +11,8 @@ shipped-invariant hard-fail; backward-compat empty-org case).
 
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
 from textwrap import dedent
 
@@ -347,6 +349,132 @@ class TestLoadOrgDrg:
         assert fragments[0].pack_name == "operator-name"
         assert fragments[0].layer_index == 1
         assert fragments[0].source_kind == "local_path"
+
+
+# ---------------------------------------------------------------------------
+# load_org_drg — unreadable-fragment per-pack degrade (#4200 defect 2)
+# ---------------------------------------------------------------------------
+
+
+class TestLoadOrgDrgUnreadableFragmentDegrade:
+    """The per-pack degrade catch names ``OSError`` (#4200 defect 2).
+
+    Before the nit-(b) narrowing of ``_read_fragment_yaml``, an unreadable
+    optional ``drg/fragment.yaml`` surfaced as ``OrgPackParseError`` and the
+    degrade caught it; after it, the raw ``OSError`` escaped the degrade and
+    aborted the whole org-fragment layer. These tests pin the restored
+    per-pack degrade from inside the charter shard's own test dirs — the
+    shard whose coverage measures ``src/charter/**`` — mirroring the
+    executor-side twins in
+    ``tests/specify_cli/mission_step_contracts/test_executor_org_fragment.py``
+    (which live in a different shard and so cannot satisfy the diff-cover
+    gate for this seam).
+    """
+
+    _HEALTHY_PACK_NAME = "healthy-pack"
+    _UNREADABLE_PACK_NAME = "unreadable-pack"
+    _LOGGER = "charter.activation.drg_activation"
+
+    def _make_unreadable_chain(self, tmp_path: Path) -> Path:
+        """A HEALTHY fragment pack #1 and a directory-fragment pack #2.
+
+        A directory where ``fragment.yaml`` is expected makes ``read_text``
+        raise ``IsADirectoryError`` (an ``OSError``) on every platform, root
+        included — the same read-fault channel as a chmod-0 file.
+        """
+        healthy = _make_pack(tmp_path, self._HEALTHY_PACK_NAME)
+        unreadable = tmp_path / self._UNREADABLE_PACK_NAME
+        (unreadable / "drg").mkdir(parents=True)
+        (unreadable / "drg" / "fragment.yaml").mkdir()
+        _make_config(
+            tmp_path,
+            dedent(
+                f"""\
+                organisation_packs:
+                  - name: {self._HEALTHY_PACK_NAME}
+                    source: local_path
+                    path: {healthy}
+                  - name: {self._UNREADABLE_PACK_NAME}
+                    source: local_path
+                    path: {unreadable}
+                """
+            ),
+        )
+        return unreadable
+
+    def _drop_warnings(self, caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+        return [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and self._UNREADABLE_PACK_NAME in r.getMessage()
+        ]
+
+    def test_unreadable_fragment_degrades_per_pack(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """``strict=False, degrade_malformed=True`` drops ONLY the unreadable
+        pack, with the operator-visible WARNING; the healthy sibling folds."""
+        self._make_unreadable_chain(tmp_path)
+        with caplog.at_level(logging.WARNING, logger=self._LOGGER):
+            fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
+        assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
+        drop_warnings = self._drop_warnings(caplog)
+        assert drop_warnings, [r.getMessage() for r in caplog.records]
+        assert "malformed or unreadable drg/fragment.yaml" in drop_warnings[0].getMessage()
+        assert "IsADirectoryError" in drop_warnings[0].getMessage()
+        # The healthy pack is NOT reported as dropped.
+        assert not any(self._HEALTHY_PACK_NAME in r.getMessage() for r in drop_warnings)
+
+    def test_strict_load_raises_unmasked_on_unreadable_fragment(self, tmp_path: Path) -> None:
+        """Fail-loud invariant (#4200 defect 2): every non-degrading path
+        surfaces the read fault as the ``OSError`` it is — never translated
+        back into ``OrgPackParseError``."""
+        self._make_unreadable_chain(tmp_path)
+        with pytest.raises(OSError):
+            load_org_drg(tmp_path)
+        with pytest.raises(OSError):
+            load_org_drg(tmp_path, strict=False)
+        # The explicit opt-in degrades per-pack: only the healthy fragment returns.
+        fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
+        assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
+
+    @pytest.mark.skipif(
+        os.name != "posix" or os.geteuid() == 0,
+        reason="chmod-based unreadability needs POSIX and a non-root user",
+    )
+    def test_permission_denied_fragment_degrades_per_pack(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """chmod-0 variant mirroring the validator-side
+        ``test_permission_denied_fragment_is_a_finding``."""
+        healthy = _make_pack(tmp_path, self._HEALTHY_PACK_NAME)
+        unreadable = _make_pack(tmp_path, self._UNREADABLE_PACK_NAME)
+        fragment = unreadable / "drg" / "fragment.yaml"
+        fragment.chmod(0)
+        _make_config(
+            tmp_path,
+            dedent(
+                f"""\
+                organisation_packs:
+                  - name: {self._HEALTHY_PACK_NAME}
+                    source: local_path
+                    path: {healthy}
+                  - name: {self._UNREADABLE_PACK_NAME}
+                    source: local_path
+                    path: {unreadable}
+                """
+            ),
+        )
+        try:
+            with caplog.at_level(logging.WARNING, logger=self._LOGGER):
+                fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
+        finally:
+            fragment.chmod(0o644)
+        assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
+        drop_warnings = self._drop_warnings(caplog)
+        assert drop_warnings, [r.getMessage() for r in caplog.records]
+        assert "malformed or unreadable drg/fragment.yaml" in drop_warnings[0].getMessage()
+        assert "PermissionError" in drop_warnings[0].getMessage()
 
 
 # ---------------------------------------------------------------------------

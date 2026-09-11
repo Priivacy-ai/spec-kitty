@@ -211,6 +211,7 @@ def _collect_evidence_result(
 
 def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None = None) -> Any:
     from charter.drg import DRGGraph
+    from charter.activation._drg_helpers import org_chain_graph
     from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
     from charter.activation.synthesizer.orchestrator import _built_in_drg_from_snapshot
     from charter.activation.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
@@ -242,6 +243,10 @@ def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None
     if not targets:
         targets = [request.target]
 
+    # Org-aware base (#4121, MAJOR 2) shared by the emit and the gate below;
+    # ``None`` for org-less repos keeps both byte-identical to before.
+    org_drg = org_chain_graph(repo_root) if repo_root is not None else None
+
     def _validation_callback(staged_dir: Any) -> None:
         project_graph = emit_project_layer(
             targets=targets,
@@ -251,9 +256,10 @@ def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None
             # agent_profile nodes are emitted here too, keeping this preview/
             # dry-run emit consistent with the real write path.
             project_root=repo_root,
+            org_drg=org_drg,
         )
         persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        validate_project_graph(staged_dir.root, built_in_drg)
+        validate_project_graph(staged_dir.root, built_in_drg, org_drg=org_drg)
 
     return _validation_callback
 
@@ -621,6 +627,7 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
     from this preview, only ``.removable``/``.retained``/``.conflicts``.
     """
     from charter.drg import DRGGraph  # noqa: PLC0415
+    from charter.activation._drg_helpers import org_chain_graph  # noqa: PLC0415
     from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections  # noqa: PLC0415
     from charter.activation.synthesizer.orchestrator import _built_in_drg_from_snapshot  # noqa: PLC0415
     from charter.activation.synthesizer.project_drg import emit_project_layer  # noqa: PLC0415
@@ -642,6 +649,11 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
     if not targets:
         targets = [request.target]
 
+    # Org-aware base (#4121, MAJOR 2) shared by the emit and the reconcile
+    # below — the same universe the real write path threads through
+    # ``orchestrator.synthesize`` — so the preview never mis-classifies an
+    # org-referencing edge the real run would keep.
+    org_drg = org_chain_graph(repo_root)
     fresh_overlay = emit_project_layer(
         targets=targets,
         spec_kitty_version=spec_kitty_version,
@@ -651,6 +663,7 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
         # real write path and never mis-classifies a persisted profile node as
         # a removable orphan.
         project_root=repo_root,
+        org_drg=org_drg,
     )
     outcome = reconcile_synthesis(
         repo_root=repo_root,
@@ -658,6 +671,7 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
         new_results=[],
         run_id=request.run_id,
         built_in_drg=built_in_drg,
+        org_drg=org_drg,
     )
     return outcome.delta
 

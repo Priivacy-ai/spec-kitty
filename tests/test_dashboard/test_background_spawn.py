@@ -79,9 +79,10 @@ def _terminate_child(pid: int) -> None:
 @pytest.mark.regression
 @pytest.mark.non_sandbox
 def test_background_dashboard_spawn_binds_and_serves(tmp_path: Path) -> None:
-    # port=0 exercises the OS-assigned-port reporting pipe (pass_fds fd
-    # inheritance) — POSIX-only machinery, so this baseline stays off the
-    # windows_ci lane.
+    # port=0 exercises the OS-assigned-port sidecar-file round trip — the
+    # child reports its actually-bound port back through a file, which is
+    # platform-independent, but this baseline stays off the windows_ci lane
+    # so the twin below can carry that lane alone.
     _spawn_and_assert_serving(tmp_path, port=0)
 
 
@@ -94,12 +95,10 @@ def test_background_dashboard_spawn_binds_and_serves_windows_critical(tmp_path: 
     ``tests/conftest.py``); the native Windows CI lane selects it via
     ``-m windows_ci``.
 
-    The twin spawns on a concrete free port, not ``port=0``: the port=0 path
-    hands the child a reporting pipe via ``subprocess.Popen(pass_fds=...)``,
-    and CPython's Windows implementation rejects any non-empty ``pass_fds``
-    outright (``assert not pass_fds``) — fd inheritance is POSIX-only. A
-    concrete port needs no pipe, so the ``python -m`` spawn — the actual
-    #4125 fix — is still exercised end-to-end on Windows, through the same
-    concrete-port path production takes there.
+    The twin spawns on a concrete free port, not ``port=0``: a concrete port
+    is the path production takes (``ensure_dashboard_running`` never passes
+    ``port=0``), needs no port-report round trip at all, and keeps the lane's
+    coverage on the exact argv shape Windows users get — the ``python -m``
+    spawn that is the actual #4125 fix, exercised end-to-end on Windows.
     """
     _spawn_and_assert_serving(tmp_path, port=server.find_free_port())

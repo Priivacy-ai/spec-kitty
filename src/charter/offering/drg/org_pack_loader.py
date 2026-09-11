@@ -320,20 +320,39 @@ class OrgPackMissingError(Exception):
         )
 
 
-class OrgPackParseError(Exception):
+class _OrgPackSourcedError(Exception):
+    """Shared ``source_file`` attribution for the two org-pack fault types.
+
+    ``source_file`` names the file a fault actually lives in. It is the
+    fragment path for fragment-authored faults and the governance-profile
+    path for sibling-source faults, so a reporter never has to scrape the
+    message to attribute a finding honestly (#4200 defect 1). ``None`` means
+    the raise site had no file to name.
+    """
+
+    def __init__(self, message: str, *, source_file: str | Path | None = None) -> None:
+        super().__init__(message)
+        self.source_file: str | None = str(source_file) if source_file is not None else None
+
+
+class OrgPackParseError(_OrgPackSourcedError):
     """Raised when a pack's ``drg/fragment.yaml`` cannot be parsed as YAML.
 
     Operator-actionable: the message includes the offending file path and
-    the underlying YAML error.
+    the underlying YAML error. Only translation faults (a YAML syntax fault
+    or an encoding fault) map here — an unreadable fragment (``OSError``)
+    propagates instead of being masked as a parse error (#4200 defect 2/b).
     """
 
 
-class OrgPackSchemaError(Exception):
-    """Raised when a pack's ``drg/fragment.yaml`` fails Pydantic validation.
+class OrgPackSchemaError(_OrgPackSourcedError):
+    """Raised when a pack's org content fails Pydantic validation.
 
     This covers unknown kinds (C-009 enforcement), extra fields, and type
-    errors.  The message includes the offending file path and the Pydantic
-    error details.
+    errors, in ``drg/fragment.yaml`` or in a sibling source the loader reads
+    (a ``mission_types/*/governance-profile.yaml`` selection). The message
+    includes the offending file path and the error details; ``source_file``
+    names that file structurally (#4200 defect 1).
     """
 
 
@@ -454,6 +473,24 @@ class OrgDRGFragment(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _read_fragment_yaml(pack_name: str, fragment_yaml: Path) -> Any:
+    """Read authored YAML and translate parsing failures at the loader boundary.
+
+    Only translation faults — a YAML syntax fault or an encoding fault —
+    become :class:`OrgPackParseError`. An ``OSError`` (unreadable or
+    permission-denied fragment, or the path being a directory) propagates so
+    callers report it as the I/O fault it is, never masked as "YAML parse
+    error" (#4200 defect 2/b).
+    """
+    try:
+        return yaml.safe_load(fragment_yaml.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError) as exc:
+        raise OrgPackParseError(
+            f"Org pack {pack_name!r}: YAML parse error in {fragment_yaml}: {exc}",
+            source_file=fragment_yaml,
+        ) from exc
+
+
 def load_org_pack(
     pack_name: str,
     pack_root: Path,
@@ -488,10 +525,19 @@ def load_org_pack(
         When ``pack_root`` does not exist, or when
         ``<pack_root>/drg/fragment.yaml`` is absent.
     OrgPackParseError:
-        When the fragment YAML cannot be parsed.
+        When the fragment YAML cannot be parsed (a YAML syntax fault or an
+        encoding fault). An unreadable fragment (``OSError`` — permissions,
+        or the path being a directory) is NOT masked as a parse error: it
+        propagates so callers can report it as the I/O fault it is (#4200).
     OrgPackSchemaError:
-        When the parsed YAML fails :class:`OrgDRGFragment` validation
-        (unknown kinds, extra fields, type errors, etc.).
+        When the parsed org content fails :class:`OrgDRGFragment` validation
+        (unknown kinds, extra fields, type errors, etc.) — in the fragment
+        or in a sibling source the loader reads (a governance-profile
+        selection). Sibling-source faults carry their own file in
+        ``source_file`` so they are never mis-attributed to the fragment
+        (#4200 defect 1).
+    OSError:
+        When ``drg/fragment.yaml`` exists but cannot be read.
     """
     if not pack_root.is_dir():
         raise OrgPackMissingError(pack_name, pack_root)
@@ -500,12 +546,22 @@ def load_org_pack(
     if not fragment_yaml.exists():
         raise OrgPackMissingError(pack_name, fragment_yaml)
 
-    try:
-        fragment_data = yaml.safe_load(fragment_yaml.read_text(encoding="utf-8")) or {}
-    except Exception as exc:  # noqa: BLE001
-        raise OrgPackParseError(
-            f"Org pack {pack_name!r}: YAML parse error in {fragment_yaml}: {exc}"
-        ) from exc
+    fragment_data = _read_fragment_yaml(pack_name, fragment_yaml)
+    if fragment_data is None:
+        fragment_data = {}
+    if not isinstance(fragment_data, dict):
+        raise OrgPackSchemaError(
+            f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: fragment must be a mapping",
+            source_file=fragment_yaml,
+        )
+    authored_edges = fragment_data.get("edges")
+    if authored_edges is None:
+        authored_edges = []
+    if not isinstance(authored_edges, list):
+        raise OrgPackSchemaError(
+            f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: edges must be a list or null",
+            source_file=fragment_yaml,
+        )
 
     # Operator-side authoritative fields override pack-side declarations.
     # This is intentional: the loader knows the canonical pack name,
@@ -551,19 +607,73 @@ def load_org_pack(
     # ``model_validate`` passes through untouched) so that downstream code can
     # tell machine provenance from an author's ``reason:`` without matching on
     # the generated text — a string the emitter above owns and could reword.
-    authored_edges: list[Any] = list(fragment_data.get("edges") or [])
-    fragment_data["edges"] = (
-        authored_edges
-        + _collect_augmentation_edges(pack_root)
-        + _collect_governance_scope_edges(pack_root)
-    )
-
     try:
-        return OrgDRGFragment.model_validate(fragment_data)
+        fragment_data["edges"] = (
+            authored_edges
+            + _collect_augmentation_edges(pack_root)
+            + _collect_governance_scope_edges(pack_root)
+        )
+        fragment = OrgDRGFragment.model_validate(fragment_data)
+    except OrgPackSchemaError:
+        # A sibling-source fault (a governance-profile selection) arrives
+        # already attributed to its own file via ``source_file``; re-wrapping
+        # it below would mis-attribute it to ``drg/fragment.yaml`` with a
+        # misleading message (#4200 defect 1).
+        raise
     except Exception as exc:  # noqa: BLE001
         raise OrgPackSchemaError(
-            f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: {exc}"
+            f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: {exc}",
+            source_file=fragment_yaml,
         ) from exc
+
+    # Validate authored nodes first: alias normalization and schema failures must
+    # precede inference, and authored metadata wins for the same kind/identity.
+    seen = {(node.kind, node.id) for node in fragment.nodes}
+    for node in _collect_artifact_nodes(pack_root):
+        key = (node.kind, node.id)
+        if key not in seen:
+            fragment.nodes.append(node)
+            seen.add(key)
+    return fragment
+
+
+def _collect_artifact_nodes(pack_root: Path) -> list[_OrgDRGNode]:
+    """Discover file-backed org nodes; edges and topology remain author-owned.
+
+    Discovery is best-effort, like field projection: malformed artifacts are
+    left to pack validation, never assigned an identity from their filenames.
+    """
+    nodes: list[_OrgDRGNode] = []
+    plural_by_kind = {singular: plural for plural, singular in ORG_PLURAL_TO_SINGULAR_KIND.items()}
+    for kind in ArtifactKind:
+        plural = plural_by_kind.get(kind.value)
+        if plural is None or not kind.glob_pattern:
+            continue  # Graph-only kinds and templates have no org artifact files.
+        for path in sorted((pack_root / kind.plural).rglob(kind.glob_pattern)):
+            data = _load_artifact_data(path)
+            identity = data.get("profile-id" if kind is ArtifactKind.AGENT_PROFILE else "id")
+            if not isinstance(identity, str) or not identity.strip():
+                continue
+            title = data.get("title", data.get("name"))
+            body_path = data.get("body_path")
+            nodes.append(
+                _OrgDRGNode(
+                    id=identity,
+                    kind=plural,
+                    title=title if isinstance(title, str) else None,
+                    body_path=body_path if isinstance(body_path, str) else None,
+                )
+            )
+    return nodes
+
+
+def _load_artifact_data(path: Path) -> dict[str, Any]:
+    """Read artifact YAML best-effort for node and legacy edge discovery."""
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 # ---------------------------------------------------------------------------
@@ -613,12 +723,7 @@ def _projection_edges_for_file(
     the type IS the marker that says "machine-minted", and a dict would be
     validated into the plain author-facing :class:`_OrgDRGEdge` and lose it.
     """
-    try:
-        data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
-        return []
-    if not isinstance(data, dict):
-        return []
+    data = _load_artifact_data(yaml_file)
     art_id = data.get("id")
     if not isinstance(art_id, str) or not art_id:
         return []
@@ -666,7 +771,10 @@ def _collect_governance_scope_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdg
     (WP03 / T014). An unresolved selection is minted as a dangling scope edge,
     which :func:`charter.offering.drg.validator.validate_dangling_references` (via
     ``assert_valid`` in :func:`charter._drg_helpers.load_validated_graph`) then
-    raises on -- no dedicated governance-scope guard is required.
+    raises on -- no dedicated governance-scope guard is required. A malformed
+    ``selected_*`` value raises :class:`OrgPackSchemaError` attributed to the
+    profile's own path (``source_file``), which this loader lets propagate
+    untouched rather than re-wrapping against ``drg/fragment.yaml`` (#4200).
 
     The reader is imported lazily so importing this loader does not pull the
     (heavier) migration extractor into every consumer; org-pack loading is not a

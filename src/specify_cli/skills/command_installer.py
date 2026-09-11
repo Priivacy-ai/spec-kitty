@@ -35,6 +35,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 from specify_cli.core.agent_config import AgentConfigError
+from specify_cli.core.no_follow import chmod_fd
 
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
@@ -330,7 +331,7 @@ def _atomic_write(path: Path, content: bytes, *, mode: int = 0o644) -> None:
             created = True
             fh.write(content)
             fh.flush()
-            os.fchmod(fh.fileno(), mode)
+            chmod_fd(fh.fileno(), tmp, mode)
             os.fsync(fh.fileno())
         os.replace(tmp, path)
     except Exception:
@@ -398,7 +399,8 @@ class CommandInput:
 
 
 _BUNDLE_PARENTS: ContextVar[tuple[OwnerAssessment, tuple[CommandInput, ...]] | None] = ContextVar(
-    "command_completed_bundle_parents", default=None,
+    "command_completed_bundle_parents",
+    default=None,
 )
 
 
@@ -864,8 +866,10 @@ def recheck_commands(assessment: OwnerAssessment, *, phase: Literal["preflight",
             if provisioned_target is not None and _resolve_observed_input(item.path) == provisioned_target and item.state.kind in {"file", "absent"}:
                 assert payload.provisioning is not None
                 expected = FileState(
-                    "file", sha256=payload.provisioning.write.desired_sha256,
-                    mode=current.mode if item.state.kind == "absent" else item.state.mode, mtime_ns=current.mtime_ns,
+                    "file",
+                    sha256=payload.provisioning.write.desired_sha256,
+                    mode=current.mode if item.state.kind == "absent" else item.state.mode,
+                    mtime_ns=current.mtime_ns,
                 )
             else:
                 expected = item.state
@@ -876,8 +880,7 @@ def recheck_commands(assessment: OwnerAssessment, *, phase: Literal["preflight",
                 if additions and item.state.kind in {"absent", "directory"}:
                     # The YAML receipt already verifies these parent identities.
                     # Creating its direct children may change directory mtime.
-                    expected = FileState("directory", mode=current.mode if item.state.kind == "absent" else item.state.mode,
-                                         mtime_ns=current.mtime_ns)
+                    expected = FileState("directory", mode=current.mode if item.state.kind == "absent" else item.state.mode, mtime_ns=current.mtime_ns)
                     if children is not None:
                         children = tuple(sorted((*children, *additions)))
             if current != expected:
