@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-09'
+updated: '2026-09-10'
 ---
 # Changelog
 
@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 3.2.8rc1
 
 _The 3.2.7rc1 candidate cycle is open. Entries land here as missions merge._
+
+- Org directive adoption preserves exact declared identities, including IDs that differ from filenames (#4185). Interview promotion reports ambiguous selections while retaining valid siblings; generation rejects ambiguous mandatory org directives. Readers accept existing declared directive IDs after filename lookup misses, superseding the earlier stem-only activation-gate restriction for directives only. Selection intake prefers exact declared directive IDs over coincident filenames, while persisted-activation readers remain filename-first. Writers still persist identity-preserving filename stems; unknown IDs and other artifact kinds retain their existing validation. Repeated directive delivery reuses the service's activation snapshot.
 
 Runtime lookup now reports `RUN_IDENTITY_MIGRATION_REQUIRED` when identity backfill leaves an older run without a recorded mission ID. It preserves the existing cursor and journal instead of silently starting over. The error identifies the run and explains how to bind its index entry after verifying ownership.
 

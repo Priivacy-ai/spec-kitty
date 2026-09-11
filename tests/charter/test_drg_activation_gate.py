@@ -124,11 +124,7 @@ def _glossary_pack_survivors(
         activated_glossary_packs=activated_glossary_packs,
     )
     graph = load_built_in_graph()
-    return {
-        n.urn
-        for n in filter_graph_by_activation(graph, ctx).nodes
-        if n.urn.startswith("glossary_pack:")
-    }
+    return {n.urn for n in filter_graph_by_activation(graph, ctx).nodes if n.urn.startswith("glossary_pack:")}
 
 
 def test_populated_glossary_pack_activation_resolves_and_survives() -> None:
@@ -138,9 +134,7 @@ def test_populated_glossary_pack_activation_resolves_and_survives() -> None:
     (post-rebase integration with upstream #1418).
     """
     # populated-correct -> the pack survives (stem resolves to canonical URN)
-    assert "glossary_pack:spec-kitty-core" in _glossary_pack_survivors(
-        frozenset({_REAL_GLOSSARY_PACK_STEM})
-    )
+    assert "glossary_pack:spec-kitty-core" in _glossary_pack_survivors(frozenset({_REAL_GLOSSARY_PACK_STEM}))
 
 
 def test_populated_glossary_pack_bogus_stem_is_excluded() -> None:
@@ -177,34 +171,13 @@ def test_stem_form_activation_survives_the_gate() -> None:
     assert _REAL_DIRECTIVE_CANONICAL_URN in surviving
 
 
-def test_canonical_form_control_isolates_the_merge_base_defect() -> None:
-    """Merge-base GREEN control (NFR-001 attribution proof), sibling of the
-    RED test above -- and the C-002 require-canonical follow-through after
-    the fix.
-
-    On merge-base, an entry that already equals the canonical id matches
-    (canonical compared directly against canonical at ``drg.py:319``),
-    isolating the RED stem-form test's failure to the stem<->canonical
-    mismatch specifically, not some other incidental populated-list defect.
-    (Verified empirically before the WP01 fix was applied: this assertion
-    was GREEN while the stem-form test above was RED.)
-
-    After the fix, the gate requires canonical **stem** input (C-002,
-    ``contracts/activation-gate-contract.md`` row 4): a raw canonical id is
-    not a supported ``activated_directives`` entry, only config stems are.
-    ``resolve_artifact_urn`` cannot resolve ``"DIRECTIVE_001"`` as a *stem*
-    (no artifact file is named that), so it is skipped-with-report (the
-    contract's unresolvable-stem row) and the node is now correctly
-    excluded. This is the intended behavioral change (research.md D1: "any
-    existing test asserting the current (buggy) output is a stale assertion
-    to update, not preserve") -- do not reintroduce a tolerate-both branch
-    to make this "survive" again.
-    """
+def test_legacy_declared_directive_activation_survives_the_gate() -> None:
+    """#4185 accepts exact declared directive IDs left by older promotion."""
     ctx = _pack_context(activated_directives=frozenset({"DIRECTIVE_001"}))
 
     surviving = _real_graph_node_urns(ctx)
 
-    assert _REAL_DIRECTIVE_CANONICAL_URN not in surviving
+    assert _REAL_DIRECTIVE_CANONICAL_URN in surviving
 
 
 def test_non_activated_directive_is_still_excluded() -> None:
@@ -286,10 +259,7 @@ def test_resolution_is_batched_once_not_per_node(monkeypatch: pytest.MonkeyPatch
     # ``tests/charter/test_activation_filtered_drg.py``).
     from charter.drg import DRGGraph, DRGNode, NodeKind
 
-    extra_nodes = [
-        DRGNode(urn=f"directive:SYNTHETIC_{i:04d}", kind=NodeKind.DIRECTIVE)
-        for i in range(500)
-    ]
+    extra_nodes = [DRGNode(urn=f"directive:SYNTHETIC_{i:04d}", kind=NodeKind.DIRECTIVE) for i in range(500)]
     large_graph = DRGGraph.model_construct(
         schema_version=small_graph.schema_version,
         generated_at=small_graph.generated_at,
@@ -327,9 +297,7 @@ def test_unresolvable_kind_token_yields_empty_resolution(
     def _raise_mission_type(_token: str) -> None:
         raise MissionTypeNotAnArtifactKind("synthetic for test")
 
-    monkeypatch.setattr(
-        drg_module.ArtifactKind, "from_operator_token", staticmethod(_raise_mission_type)
-    )
+    monkeypatch.setattr(drg_module.ArtifactKind, "from_operator_token", staticmethod(_raise_mission_type))
 
     result = drg_module._resolve_activated_urns_for_kind(
         "directive",
