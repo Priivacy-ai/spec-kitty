@@ -157,7 +157,7 @@ def test_watch_json_emits_one_json_line_per_frame(monkeypatch: pytest.MonkeyPatc
         yield from frames
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--json"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw", "--json"])
     assert result.exit_code == 0
     lines = [line for line in result.stdout.splitlines() if line.strip()]
     payloads = [json.loads(line) for line in lines]
@@ -172,7 +172,7 @@ def test_watch_not_checked_out_exits_nonzero(monkeypatch: pytest.MonkeyPatch) ->
         yield  # pragma: no cover - never reached, makes this a generator function
 
     monkeypatch.setattr(subscription, "watch", _raise)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw"])
     assert result.exit_code == 1
     assert "github.com/acme/spec-kitty" in result.stdout
 
@@ -211,7 +211,7 @@ def test_watch_human_branch_frames_event_output(monkeypatch: pytest.MonkeyPatch)
         }
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw"])
     assert result.exit_code == 0
     assert "[zeitgeist moment " in result.stdout
     assert re.search(r"\[end of zeitgeist moment [0-9a-f]{8}\]", result.stdout)
@@ -229,7 +229,7 @@ def test_watch_json_keeps_the_raw_payload_for_event_frames(monkeypatch: pytest.M
         yield {"schema_version": "1.0.0", "epoch": "e", "seq": 4, "emitted_at": 1.0, "frame_type": "event", "payload": payload}
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--json"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw", "--json"])
     assert result.exit_code == 0
     lines = [json_module.loads(line) for line in result.stdout.splitlines() if line.strip()]
     assert lines[0]["frame_type"] == "event"

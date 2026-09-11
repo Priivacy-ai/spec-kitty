@@ -67,7 +67,7 @@ async def test_server_exposes_exactly_the_status_and_watch_tools() -> None:
     async with create_connected_server_and_client_session(server) as client:
         listed = await client.list_tools()
         names = {t.name for t in listed.tools}
-    assert names == {"zeitgeist_status", "zeitgeist_watch"}
+    assert names == {"zeitgeist_status", "zeitgeist_watch", "zeitgeist_activity"}
 
 
 async def test_no_tool_input_schema_names_a_relay_url_or_credential_field() -> None:
@@ -441,9 +441,7 @@ async def test_run_stdio_when_off_is_one_stderr_line_and_a_clean_exit(
     assert rest.strip() == ""
 
 
-async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(
-    state_root: Path, managed_stream_double
-) -> None:
+async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(state_root: Path, managed_stream_double) -> None:
     """The acceptance pair from #190, on the wire: the same broadcast moment,
     two developers — the teammate's default-configured server delivers the WP
     move, the opted-out developer's server starts at all."""
@@ -456,11 +454,7 @@ async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives
         result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     structured = result.structuredContent
     assert structured is not None
-    moments_seen = [
-        frame["payload"]["kind"]
-        for frame in structured["frames"]
-        if frame["frame_type"] == "event"
-    ]
+    moments_seen = [frame["payload"]["kind"] for frame in structured["frames"] if frame["frame_type"] == "event"]
     assert moments_seen == ["WPStatusChanged"]
 
     with pytest.raises(moments.MomentsDisabled):
@@ -472,7 +466,7 @@ async def test_mine_mode_surfaces_own_missions_and_drops_foreign_ones(
 ) -> None:
     _local_checkout_missions(tmp_path, monkeypatch, "034-demo")
     _checkout(managed_stream_double.url)
-    managed_stream_double.push_frame(_status_moment(seq=1))                       # own mission
+    managed_stream_double.push_frame(_status_moment(seq=1))  # own mission
     managed_stream_double.push_frame(_status_moment(seq=2, mission="999-theirs"))  # someone else's
     managed_stream_double.close_stream()
 
@@ -485,9 +479,7 @@ async def test_mine_mode_surfaces_own_missions_and_drops_foreign_ones(
     assert slugs == ["034-demo"]  # the moment arrived with its own mission named
 
 
-async def test_repo_filter_drops_other_repos_moments_without_opening_a_connection(
-    state_root: Path, managed_stream_double
-) -> None:
+async def test_repo_filter_drops_other_repos_moments_without_opening_a_connection(state_root: Path, managed_stream_double) -> None:
     _checkout(managed_stream_double.url, repo="github.com/acme/widget")
     server = mcp_stdio.build_server(_settings(repos=("github.com/acme/widget",)))
     async with create_connected_server_and_client_session(server) as client:
@@ -517,4 +509,27 @@ async def test_rate_cap_surfaces_one_moment_and_summarises_the_rest(state_root: 
     types = [frame["frame_type"] for frame in structured["frames"]]
     assert types.count("presence") == 1
     assert types.count("event") == 1
-    assert structured["rate_note"] == "+2 more moments withheld (agent rate cap: 1/min)"
+    assert structured["rate_note"].startswith("+2 more moments withheld (agent rate cap: 1/min)")
+    assert structured["withheld"]["rate"] == 2
+
+
+async def test_acknowledged_mcp_overlap_is_novelty_filtered_before_budget(state_root: Path, managed_stream_double) -> None:
+    """Successful tool receipts survive another bounded watch in one consumer."""
+    _checkout(managed_stream_double.url)
+    frame = _status_moment(1, mission="unfamiliar-billing")
+    managed_stream_double.push_frame(frame)
+    managed_stream_double.close_stream()
+    server = mcp_stdio.build_server()
+    args = {"repo": "github.com/acme/spec-kitty", "consumer": "logical-agent-a", "timeout_s": 2.0, "max_frames": 1}
+    async with create_connected_server_and_client_session(server) as client:
+        first = await client.call_tool("zeitgeist_watch", args)
+        assert not first.isError
+        assert len(first.structuredContent["frames"]) == 1
+        receipt = first.structuredContent["receipt"]
+        managed_stream_double.push_frame(frame)
+        managed_stream_double.push_frame(_status_moment(2, mission="another-mission"))
+        managed_stream_double.close_stream()
+        second = await client.call_tool("zeitgeist_watch", {**args, "acknowledge": receipt})
+    assert not second.isError
+    assert [frame["seq"] for frame in second.structuredContent["frames"]] == [2]
+    assert second.structuredContent["withheld"]["duplicates"] == 1
