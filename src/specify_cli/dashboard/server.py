@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import socket
 import subprocess
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.request
 from pathlib import Path
 from typing import IO
 
@@ -42,6 +44,11 @@ _BACKGROUND_MODULE = _server_main.__name__
 #: giving up and reporting a (typed, log-tail-bearing) failure.
 _READY_TIMEOUT_SECONDS = 10.0
 _READY_POLL_INTERVAL_SECONDS = 0.05
+
+#: Timeout for the readiness probe's single ``GET /api/health`` identity
+#: request per poll iteration (loopback-only; see
+#: ``_port_serves_our_dashboard``).
+_READY_IDENTITY_HTTP_TIMEOUT_SECONDS = 2.0
 
 
 class PortUnavailableError(StructuredError):
@@ -256,12 +263,50 @@ def _read_log_tail(log_path: Path, max_lines: int = 40) -> str:
     return "\n".join(lines[-max_lines:])
 
 
-def _port_is_accepting_connections(port: int, timeout: float = 0.2) -> bool:
+def _port_serves_our_dashboard(port: int, project_dir: Path, project_token: str | None) -> bool:
+    """True when the listener on ``port`` is a dashboard serving ``project_dir``.
+
+    A bare "something accepts on this port" probe cannot tell our child's
+    listener from a foreign one that won the same ``find_free_port`` race
+    (#4125, squad pass 2): ``find_free_port`` probes-binds-releases, so two
+    concurrent spawns can be handed the same port, and the loser's child dies
+    with ``Address already in use`` while the winner's listener makes the port
+    look "ready". Readiness must therefore be attributable to the child the
+    caller spawned: the probe asks the listener for the identity the caller
+    already holds — the resolved ``project_path`` off ``/api/health``, plus
+    the token when one was handed to the child — the same contract
+    ``lifecycle._check_dashboard_health`` enforces downstream.
+    """
+    url = f"http://127.0.0.1:{port}/api/health"
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
-            return True
-    except OSError:
+        with urllib.request.urlopen(  # nosec B310 — loopback-only URL built from the port int above
+            url,
+            timeout=_READY_IDENTITY_HTTP_TIMEOUT_SECONDS,
+        ) as response:
+            if response.status != 200:
+                return False
+            payload = response.read()
+    except Exception:  # a probe must never crash the launch — any failure just means "not ready"
         return False
+
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(data, dict):
+        return False
+
+    remote_path = data.get("project_path")
+    if not isinstance(remote_path, str):
+        return False
+    try:
+        paths_match = Path(remote_path).resolve() == project_dir.resolve()
+    except OSError:
+        paths_match = Path(remote_path) == project_dir
+    if not paths_match:
+        return False
+
+    return project_token is None or data.get("token") == project_token
 
 
 def _read_reported_port(port_report_path: Path) -> int | None:
@@ -326,6 +371,8 @@ def _await_background_ready(
     port: int,
     port_report_path: Path | None,
     log_path: Path,
+    project_dir: Path,
+    project_token: str | None,
     timeout: float = _READY_TIMEOUT_SECONDS,
     poll_interval: float = _READY_POLL_INTERVAL_SECONDS,
 ) -> int:
@@ -339,17 +386,21 @@ def _await_background_ready(
     dashboard (closes the gap where ``DEVNULL`` + no probe let a crashed
     child be reported as a healthy start, #4125).
 
-    Liveness is checked FIRST on every iteration, before trusting a TCP
-    connect. A probe that only asks "does something answer on this port"
-    can be satisfied by a FOREIGN process squatting the exact same port
-    after our own child died on a bind conflict (most reachable on the
-    concrete-port path: a caller-supplied port, or one from
-    ``find_free_port()``, which is inherently check-then-bind racy) — that
-    would misreport a dead child as a live dashboard, with the returned URL
-    actually pointing at the squatter (#4125 follow-up). On both the
-    child-exited and the timeout failure path, an orphaned-but-still-live
-    child is terminated (see ``_terminate_orphaned_process``) before the
-    error is raised, so a slow child is never left running detached.
+    Liveness is checked FIRST on every iteration, and readiness means the
+    listener *serving this project's identity* over ``/api/health``
+    (``_port_serves_our_dashboard``) — not merely a port accepting a
+    connection. A bare accept probe can be satisfied by a FOREIGN process
+    squatting the exact same port after our own child died on a bind conflict
+    (most reachable on the concrete-port path: a caller-supplied port, or one
+    from ``find_free_port()``, which is inherently check-then-bind racy) —
+    that would misreport a dead child as a live dashboard, with the returned
+    URL actually pointing at the squatter (#4125 follow-up, squad pass 2).
+    A foreign listener fails the identity check every iteration, so the
+    loser of a free-port race surfaces as its own child's exit status and
+    log tail instead of a false success. On both the child-exited and the
+    timeout failure path, an orphaned-but-still-live child is terminated
+    (see ``_terminate_orphaned_process``) before the error is raised, so a
+    slow child is never left running detached.
     """
     deadline = time.monotonic() + timeout
     actual_port: int | None = None if port == 0 else port
@@ -364,7 +415,7 @@ def _await_background_ready(
         if actual_port is None and port_report_path is not None:
             actual_port = _read_reported_port(port_report_path)
 
-        if actual_port is not None and _port_is_accepting_connections(actual_port):
+        if actual_port is not None and _port_serves_our_dashboard(actual_port, project_dir, project_token):
             return actual_port
 
         if time.monotonic() >= deadline:
@@ -429,6 +480,8 @@ def start_dashboard(
                 port=port,
                 port_report_path=port_report_path,
                 log_path=log_path,
+                project_dir=project_dir_abs,
+                project_token=project_token,
             )
         finally:
             if port_report_path is not None:

@@ -2,6 +2,7 @@ import contextlib
 import os
 import socket
 import subprocess
+import urllib.request
 from pathlib import Path
 
 from specify_cli.dashboard import server
@@ -145,7 +146,7 @@ def test_start_dashboard_background_ephemeral_port_reads_back_actual_port(monkey
         return FakeProcess()
 
     monkeypatch.setattr(server, "_launch_background_dashboard", fake_launch)
-    monkeypatch.setattr(server, "_port_is_accepting_connections", lambda port, timeout=0.2: True)
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", lambda _port, _dir, _token: True)
 
     port, pid = server.start_dashboard(tmp_path, port=0, background_process=True, project_token="abc")
 
@@ -172,7 +173,7 @@ def test_start_dashboard_background_dead_child_is_surfaced_not_reported_success(
             return 17
 
     monkeypatch.setattr(server, "_launch_background_dashboard", lambda argv, *, log_file, platform=None: FakeProcess())
-    monkeypatch.setattr(server, "_port_is_accepting_connections", lambda port, timeout=0.2: False)
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", lambda _port, _dir, _token: False)
 
     with pytest.raises(
         server.BackgroundPortReportError,
@@ -205,7 +206,7 @@ def test_start_dashboard_background_dead_child_error_quotes_log_tail(monkeypatch
 
     monkeypatch.setattr(server, "_open_background_log", fake_open_log)
     monkeypatch.setattr(server, "_launch_background_dashboard", lambda argv, *, log_file, platform=None: FakeProcess())
-    monkeypatch.setattr(server, "_port_is_accepting_connections", lambda port, timeout=0.2: False)
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", lambda _port, _dir, _token: False)
 
     with pytest.raises(server.BackgroundPortReportError, match="BOOM"):
         server.start_dashboard(tmp_path, port=12345, background_process=True, project_token="abc")
@@ -229,7 +230,7 @@ def test_await_background_ready_raises_on_timeout_with_log_tail(monkeypatch, tmp
 
     log_path = tmp_path / "dash.log"
     log_path.write_text("still starting up\n", encoding="utf-8")
-    monkeypatch.setattr(server, "_port_is_accepting_connections", lambda port, timeout=0.2: False)
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", lambda _port, _dir, _token: False)
 
     with pytest.raises(server.BackgroundPortReportError, match="did not become ready"):
         server._await_background_ready(
@@ -237,6 +238,8 @@ def test_await_background_ready_raises_on_timeout_with_log_tail(monkeypatch, tmp
             port=12345,
             port_report_path=None,
             log_path=log_path,
+            project_dir=tmp_path,
+            project_token=None,
             timeout=0.05,
             poll_interval=0.01,
         )
@@ -278,6 +281,8 @@ def test_await_background_ready_dead_child_not_masked_by_foreign_listener(tmp_pa
                 port=occupied_port,
                 port_report_path=None,
                 log_path=log_path,
+                project_dir=tmp_path,
+                project_token=None,
                 timeout=0.5,
                 poll_interval=0.01,
             )
@@ -311,7 +316,7 @@ def test_await_background_ready_timeout_terminates_orphaned_child(monkeypatch, t
 
     log_path = tmp_path / "dash.log"
     log_path.write_text("still starting up\n", encoding="utf-8")
-    monkeypatch.setattr(server, "_port_is_accepting_connections", lambda port, timeout=0.2: False)
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", lambda _port, _dir, _token: False)
 
     with pytest.raises(server.BackgroundPortReportError, match="did not become ready"):
         server._await_background_ready(
@@ -319,11 +324,147 @@ def test_await_background_ready_timeout_terminates_orphaned_child(monkeypatch, t
             port=12345,
             port_report_path=None,
             log_path=log_path,
+            project_dir=tmp_path,
+            project_token=None,
             timeout=0.05,
             poll_interval=0.01,
         )
 
     assert calls == ["terminate", "kill"]
+
+
+def test_await_background_ready_rejects_foreign_listener_until_child_dies(monkeypatch, tmp_path):
+    """A foreign dashboard on the port is not readiness — our child's death must surface.
+
+    Squad pass-2 #4125 reproduction shape: ``find_free_port`` probes-binds-releases,
+    so two concurrent spawns can be handed the same port; a foreign listener
+    holds it (so a bare accept probe would report "ready" on its first
+    iteration) while our own child dies on bind. The probe must keep failing
+    the identity check every iteration until ``poll()`` catches the child's
+    exit and raises with the log tail.
+    """
+    log_path = tmp_path / "dash.log"
+    log_path.write_text("OSError: [Errno 98] Address already in use\n", encoding="utf-8")
+
+    polls = {"count": 0}
+
+    class FakeProc:
+        pid = 1
+
+        def poll(self):
+            polls["count"] += 1
+            # Alive for the first two iterations (the foreign listener is
+            # being probed), dead from the third — its bind failed.
+            return None if polls["count"] < 3 else 1
+
+        def wait(self, timeout):
+            return 1
+
+    identity_checks = {"count": 0}
+
+    def fake_identity_check(_port, _dir, _token):
+        identity_checks["count"] += 1
+        # The listener answers /api/health — but for a different project.
+        return False
+
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", fake_identity_check)
+
+    with pytest.raises(
+        server.BackgroundPortReportError,
+        match="child exited with status 1",
+    ) as exc_info:
+        server._await_background_ready(
+            FakeProc(),
+            port=12345,
+            port_report_path=None,
+            log_path=log_path,
+            project_dir=tmp_path,
+            project_token="token",
+            timeout=5,
+            poll_interval=0,
+        )
+    assert exc_info.value.error_code == "DASHBOARD_BACKGROUND_PORT_REPORT_FAILED"
+    assert exc_info.value.exit_code == 1
+    assert "Address already in use" in str(exc_info.value)
+    # The foreign listener was probed (and rejected) before the child's exit
+    # was discovered — a bare accept probe would have returned at the first
+    # check instead.
+    assert identity_checks["count"] >= 2
+
+
+def _start_foreground_dashboard(project_dir: Path, *, port: int, token: str) -> int:
+    (project_dir / ".kittify").mkdir(parents=True, exist_ok=True)
+    actual_port, _pid = server.start_dashboard(project_dir, port=port, background_process=False, project_token=token)
+    return actual_port
+
+
+def _stop_foreground_dashboard(port: int, token: str) -> None:
+    with contextlib.suppress(Exception):
+        urllib.request.urlopen(  # nosec B310 — loopback URL built from the port int above
+            f"http://127.0.0.1:{port}/api/shutdown?token={token}", timeout=2
+        )
+
+
+def test_port_serves_our_dashboard_matches_project_and_token(tmp_path):
+    """The readiness probe's identity check, against a real dashboard.
+
+    Same-project+same-token is ours; any other project, or the same project
+    with a different token, is a foreign listener and must never satisfy the
+    probe (#4125, squad pass 2).
+    """
+    our_project = tmp_path / "ours"
+    other_project = tmp_path / "theirs"
+    port = _start_foreground_dashboard(our_project, port=server.find_free_port(start_port=21500), token="tok-a")
+    try:
+        assert server._port_serves_our_dashboard(port, our_project, "tok-a") is True
+        # Caller holding no token still matches on project identity alone.
+        assert server._port_serves_our_dashboard(port, our_project, None) is True
+        # A different project's dashboard is foreign, whatever token it holds.
+        assert server._port_serves_our_dashboard(port, other_project, "tok-a") is False
+        # Same project but a token we never handed out: foreign.
+        assert server._port_serves_our_dashboard(port, our_project, "tok-b") is False
+    finally:
+        _stop_foreground_dashboard(port, "tok-a")
+
+
+def test_port_serves_our_dashboard_rejects_non_dashboard_listener(tmp_path):
+    """A plain TCP listener with no /api/health is not readiness (#4125)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+        assert server._port_serves_our_dashboard(port, tmp_path, None) is False
+
+
+@pytest.mark.regression
+def test_start_dashboard_background_raises_when_foreign_dashboard_holds_port(monkeypatch, tmp_path):
+    """A foreign dashboard that won the free-port race is not our success.
+
+    Squad pass-2 #4125 reproduction, made deterministic: the default
+    production path (``port=None`` resolved through ``find_free_port``) loses
+    the port race to a foreign dashboard, our child dies on bind, and the
+    identity-checked probe must surface that as ``BackgroundPortReportError``
+    with the child's exit status — never a ``started`` return pointing at the
+    other project's dashboard.
+    """
+    foreign_project = tmp_path / "foreign"
+    our_project = tmp_path / "ours"
+    our_project.mkdir()
+    held_port = _start_foreground_dashboard(foreign_project, port=server.find_free_port(start_port=22000), token="foreign-token")
+    try:
+        # The default production path: port=None resolves through
+        # find_free_port, monkeypatched here to lose the race deterministically.
+        monkeypatch.setattr(server, "find_free_port", lambda *_a, **_k: held_port)
+
+        with pytest.raises(server.BackgroundPortReportError) as exc_info:
+            server.start_dashboard(our_project, background_process=True, project_token="our-token")
+
+        assert exc_info.value.error_code == "DASHBOARD_BACKGROUND_PORT_REPORT_FAILED"
+        # The child really died on bind — its exit status is surfaced, not None.
+        assert exc_info.value.exit_code is not None
+        assert exc_info.value.exit_code != 0
+    finally:
+        _stop_foreground_dashboard(held_port, "foreign-token")
 
 
 def test_start_dashboard_background_success_cleans_up_log_file(monkeypatch, tmp_path):
@@ -346,7 +487,7 @@ def test_start_dashboard_background_success_cleans_up_log_file(monkeypatch, tmp_
             return None
 
     monkeypatch.setattr(server, "_launch_background_dashboard", lambda argv, *, log_file, platform=None: FakeProcess())
-    monkeypatch.setattr(server, "_port_is_accepting_connections", lambda port, timeout=0.2: True)
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", lambda _port, _dir, _token: True)
 
     port, pid = server.start_dashboard(tmp_path, port=15200, background_process=True, project_token="tok")
 
@@ -380,7 +521,7 @@ def test_start_dashboard_background_failure_leaves_log_file_for_diagnosis(monkey
 
     monkeypatch.setattr(server, "_open_background_log", fake_open_log)
     monkeypatch.setattr(server, "_launch_background_dashboard", lambda argv, *, log_file, platform=None: FakeProcess())
-    monkeypatch.setattr(server, "_port_is_accepting_connections", lambda port, timeout=0.2: False)
+    monkeypatch.setattr(server, "_port_serves_our_dashboard", lambda _port, _dir, _token: False)
 
     with pytest.raises(server.BackgroundPortReportError, match="BOOM"):
         server.start_dashboard(tmp_path, port=12345, background_process=True, project_token="abc")

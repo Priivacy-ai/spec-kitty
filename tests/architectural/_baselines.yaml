@@ -370,7 +370,12 @@ test_egress_consent_boundary:
   # configured public pack item's version and SHA-256. The query identifies
   # repo/path/name from the operator-configured doctrine URL and returns
   # metadata; it transmits no project data.
-  egress_allowlist_files: 15
+  # 15 -> 16 (#4125): the detached dashboard spawn's readiness probe now GETs
+  # the child's /api/health on 127.0.0.1 to verify the listener serves this
+  # project's identity (project_path + token) instead of a bare connect_ex —
+  # same E18 loopback-control class as dashboard/lifecycle.py, on the spawn
+  # side of the same boundary. Sends no payload beyond the GET itself.
+  egress_allowlist_files: 16
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
