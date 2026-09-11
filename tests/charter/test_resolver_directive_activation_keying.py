@@ -150,3 +150,49 @@ def test_populated_activation_resolves_once_per_service_and_new_service_refreshe
     refreshed = build_activation_aware_doctrine_service(tmp_path)
     assert set(refreshed.directives) == {"SECOND-POLICY"}
     assert calls > first_calls, "A new service must resolve the new repository snapshot"
+
+
+def test_cross_layer_ambiguous_directive_id_is_dropped_not_admitted(tmp_path: Path) -> None:
+    """A persisted ``activated_directives`` entry naming a declared identity
+    that is genuinely cross-layer-ambiguous -- two org packs both ship a
+    ``shared.directive.yaml`` stem that disagrees on which id it names --
+    must be excluded from the gated ``.directives`` dict, and must not raise.
+
+    Before the #4194 landing fix, ``resolve_config_id``'s stale reordering
+    swallowed this collision and returned *some* stem without raising
+    ``UnrepresentableDirectiveIdError``, so ``resolve_artifact_urn``'s
+    declared-id fallback resolved the unexamined token to a URN. After the
+    fix, ``resolve_config_id`` raises, ``resolve_artifact_urn`` re-raises
+    ``UnknownArtifactIdError``, and this property's own
+    ``except UnknownArtifactIdError`` fallback (alias-by-literal-id, else
+    ``normalize_directive_id``) is exercised -- and since neither the raw
+    token nor its normalized form names a real catalog entry here, the
+    ambiguous identity contributes nothing to ``activated_ids``.
+    """
+    company = tmp_path / "company"
+    team = tmp_path / "team"
+    (company / "directives").mkdir(parents=True)
+    (team / "directives").mkdir(parents=True)
+    (company / "directives" / "shared.directive.yaml").write_text(
+        'schema_version: "1.0"\nid: OTHER-POLICY\ntitle: shared\nintent: Apply policy.\nenforcement: required\n'
+    )
+    (team / "directives" / "shared.directive.yaml").write_text(
+        'schema_version: "1.0"\nid: CHOSEN-POLICY\ntitle: shared\nintent: Apply policy.\nenforcement: required\n'
+    )
+
+    unrelated = _directive("UNRELATED-REAL-POLICY")
+    inner = MagicMock()
+    inner.directives.list_all.return_value = [unrelated]
+
+    ctx = PackContext(
+        activated_kinds=frozenset({"directives"}),
+        activated_mission_types=frozenset(),
+        pack_roots=(tmp_path / "builtin", company, team),
+        org_pack_names=(),
+        repo_root=tmp_path,
+        activated_directives=frozenset({"CHOSEN-POLICY"}),
+    )
+
+    gated = DoctrineService(inner, pack_context=ctx).directives
+
+    assert gated == {}
