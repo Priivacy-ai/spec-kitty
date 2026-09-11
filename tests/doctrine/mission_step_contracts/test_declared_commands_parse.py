@@ -114,9 +114,13 @@ def test_declared_command_carries_no_role_flag(contract_id: str, step_id: str, c
 # NOTE: the seven documentation contracts additionally advertise `--profile`
 # (`wp.agent_profile`) and `--tool` (`env.agent_tool`) as optional `inputs` on
 # the bootstrap step, and the `charter context` parser accepts neither. That is
-# deliberately NOT fixed here. Those inputs never appear in the command string,
-# so nothing fails at run time, and `test_shipped_contracts
-# .test_all_builtin_bootstrap_inputs_are_preserved` guards them on purpose
-# (added by #1541 after they were lost once). Resolving it is a design call —
-# either the CLI grows the flags or the contracts drop them — not a hotfix.
-# Tracked separately; see #4031's thread.
+# deliberately NOT fixed here. `executor._render_declared_command` DOES append
+# those inputs to the "Declared command:" line, but only as an unsubstituted,
+# bracketed template — `[--profile {wp.agent_profile}]` — whose `{source}`
+# placeholders nothing in `src/` resolves or executes; the executor is untouched
+# by this PR, so their un-parseability is pre-existing and there is no exit-2
+# runtime path the way a raw `--role` in `command` was. Removing them would also
+# trip `test_shipped_contracts.test_all_builtin_bootstrap_inputs_are_preserved`,
+# which guards them on purpose (added by #1541 after they were lost once).
+# Resolving it is a design call — either the CLI grows the flags or the
+# contracts drop them — not a hotfix. Tracked separately; see #4031's thread.
