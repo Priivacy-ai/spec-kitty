@@ -56,7 +56,8 @@
       "last_transition_at": "2026-09-12T10:58:50.784335+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "393e43497; required hosted doctrine and actual canonical owned context; five positive/mutation tests passed, source-only installed state remains pending."
+        "393e43497; required hosted doctrine and actual canonical owned context; five positive/mutation tests passed, source-only installed state remains pending.",
+        "Independent review393e43497 passed:5 real activation/removal/owned-context tests using approved WP01 source; genuine declared baseline/head comparison no_new_failures. See independent-review-1.md. Final integrated test and installed adoption remain separate."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
