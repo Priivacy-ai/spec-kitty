@@ -38,6 +38,8 @@ from textwrap import dedent
 from typing import Any
 from unittest.mock import Mock
 
+from charter.activation.interview import default_interview, write_interview_answers
+
 import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
@@ -106,6 +108,8 @@ def _minimal_project(tmp_path: Path) -> Path:
     (kittify / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
+    init_git_repo(tmp_path)
+    write_interview_answers(tmp_path / ".kittify/charter/interview/answers.yaml", default_interview(mission="software-dev"))
     return tmp_path
 
 
@@ -199,6 +203,7 @@ def _seed_synthesized_repo(
     it); it no longer drives freshness on its own.
     """
     init_git_repo(repo)
+    write_interview_answers(repo / ".kittify/charter/interview/answers.yaml", default_interview(mission="software-dev"))
     charter_path, metadata_path = seed_charter(repo)
     write_metadata(metadata_path, charter_path)
     charter_dir = repo / ".kittify" / "charter"
@@ -496,7 +501,7 @@ def test_promote_activations_migration_path_triggers_no_synthesis(
     Structural by construction (``charter.activation.activation_engine`` never imports
     ``specify_cli`` -- C-001) -- this test locks that invariant in behavior,
     not just by inspection: the write path taken by ``spec-kitty upgrade``'s
-    ``m_unify_charter_activation`` migration and ``doctrine.org_charter``'s
+    ``m_unify_charter_activation`` migration and ``charter.offering.org_charter``'s
     ``required_*`` union both funnel through this exact function.
     """
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)

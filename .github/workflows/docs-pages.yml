@@ -37,8 +37,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  pages:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.probe-pages.outputs.available }}
+    steps:
+      - name: Probe Pages configuration
+        id: probe-pages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          response_file="$RUNNER_TEMP/pages-api-response.json"
+          status="$(curl \
+            --silent \
+            --show-error \
+            --location \
+            --request GET \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/pages")"
+          case "$status" in
+            200)
+              echo "available=true" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "::warning::GitHub Pages is not enabled; skipping docs build and deploy."
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::GitHub Pages configuration probe failed with HTTP $status." >&2
+              cat "$response_file" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Setup Pages
+        id: setup-pages
+        if: steps.probe-pages.outputs.available == 'true'
+        uses: actions/configure-pages@v6
+
   build:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
+    needs: [pages]
+    if: needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'
     # The docs scripts import first-party src-layout packages: seo_postprocess.py
     # imports `kernel.clock` (src/kernel/), and glossary_linker.py / seo_verify.py
     # import `scripts.docs.*` (seo_verify transitively pulls in seo_postprocess ->
@@ -129,8 +174,8 @@ jobs:
       # Position is load-bearing (C-B9): it runs AFTER redirect-stub generation
       # and its coverage check, so it sees the stubs and can assert they are
       # correctly excluded from indexing and from sitemap.xml; and BEFORE
-      # `Setup Pages`/`Upload artifact`, so a metadata regression fails the
-      # build instead of reaching the deployed site. Placing it earlier would
+      # `Upload artifact`, so a metadata regression fails the build instead of
+      # reaching the deployed site. Placing it earlier would
       # leave stub regressions unobserved. The verifier is strictly read-only —
       # it never mutates docs/_site.
       # Deploy-side trigger note (FR-007): this workflow — and therefore this
@@ -144,18 +189,15 @@ jobs:
       - name: Verify built-output SEO metadata (FR-005, FR-008, FR-012)
         run: python3 scripts/docs/seo_verify.py --site-dir docs/_site --strict
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: docs/_site
 
   deploy:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

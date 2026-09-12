@@ -59,12 +59,7 @@ class UpgradeOutcome:
         state repair is an optional, separately-consented step that must not
         sink an otherwise-completed upgrade.
         """
-        return (
-            self.result.success
-            and not self.worktree_failures
-            and not self.surface_drift_failed
-            and not self.activation_errors
-        )
+        return self.result.success and not self.worktree_failures and not self.surface_drift_failed and not self.activation_errors
 
     def derive_exit_code(self) -> int:
         """Compute, store, and return ``exit_code`` from ``effective_success``.

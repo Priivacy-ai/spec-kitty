@@ -899,6 +899,17 @@ def _home_partition(
     subtract one from the other; a fixed distribution asserted in this package reds on a change
     the specification mandates. ``other`` keeps its population-0 assertion and its positive
     control here, because that is a *classifier* claim and does not move with ``E``.
+
+    **Accepted residual risk (issue-5-delete-sync-transport, tracked at #119).** The
+    sync-transport deletion removed every real-tree member the keyed/innermost readings could
+    disagree about, so
+    ``tests/architectural/test_home_pin_scan_limbs.py::test_kind_distribution_over_the_real_tree_mechanises_c004``
+    can no longer red on attribution-depth drift over the real tree -- only its synthetic
+    ``test_kind_distribution_mechanises_c004_at_the_keyed_def`` sibling still forces
+    ``keyed != innermost``. Accepted because the real tree's discrimination arm is a byproduct of
+    which members happen to exist, not something this package can restore by itself; reintroduce
+    the directional assertion over the real tree if a future member again puts ``test-body`` and
+    ``helper`` in disagreement.
     """
     outer = chain[0]
     start, end = outer.lineno, outer.end_lineno or outer.lineno

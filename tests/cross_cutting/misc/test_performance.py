@@ -3,6 +3,12 @@
 Performance tests for GitignoreManager.
 
 Tests that operations complete within the <1 second requirement.
+
+#4015: the wall-clock budget assertions below were split out of the
+original mixed timing+functional tests into dedicated
+``@pytest.mark.performance`` tests (nightly-only); the functional
+assertions (``result.success``) stay unmarked on the per-PR path. Budgets
+are preserved via ``tests/_perf_helpers.py::assert_timing_budget``.
 """
 
 import sys
@@ -14,34 +20,52 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.performance]
+pytestmark = [pytest.mark.integration]
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src" / "specify_cli"))
 
 import gitignore_manager
 
+from tests._perf_helpers import assert_timing_budget
+
 GitignoreManager = gitignore_manager.GitignoreManager
 
 
 def test_performance_protect_all_agents():
-    """Test that protect_all_agents completes in under 1 second."""
+    """Verify protect_all_agents succeeds (functional half of #4015 split)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         project_path = Path(tmpdir)
         manager = GitignoreManager(project_path)
 
-        # Measure time
-        start_time = time.perf_counter()
         result = manager.protect_all_agents()
-        elapsed = time.perf_counter() - start_time
 
         assert result.success, "Operation should succeed"
-        assert elapsed < 1.0, f"Operation took {elapsed:.3f}s, should be <1s"
+
+
+@pytest.mark.performance
+def test_protect_all_agents_stays_under_one_second():
+    """Verify protect_all_agents completes in under 1 second (nightly).
+
+    Split from ``test_performance_protect_all_agents`` (#4015); budget preserved.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project_path = Path(tmpdir)
+        manager = GitignoreManager(project_path)
+
+        start_time = time.perf_counter()
+        manager.protect_all_agents()
+        elapsed = time.perf_counter() - start_time
+
+        assert_timing_budget(elapsed, 1.0, name="protect_all_agents")
 
         print(f"✓ protect_all_agents completed in {elapsed:.3f}s")
 
 
 def test_performance_with_large_gitignore():
-    """Test performance with a large existing .gitignore file."""
+    """Verify protect_all_agents succeeds against a large existing .gitignore.
+
+    Functional half of the #4015 split.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         project_path = Path(tmpdir)
         gitignore_path = project_path / ".gitignore"
@@ -52,17 +76,36 @@ def test_performance_with_large_gitignore():
 
         manager = GitignoreManager(project_path)
 
-        # Measure time
-        start_time = time.perf_counter()
         result = manager.protect_all_agents()
-        elapsed = time.perf_counter() - start_time
 
         assert result.success, "Operation should succeed"
-        assert elapsed < 1.0, f"Large file operation took {elapsed:.3f}s, should be <1s"
+
+
+@pytest.mark.performance
+def test_large_gitignore_stays_under_one_second():
+    """Verify a large existing .gitignore doesn't push protect_all_agents past 1s (nightly).
+
+    Split from ``test_performance_with_large_gitignore`` (#4015); budget preserved.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project_path = Path(tmpdir)
+        gitignore_path = project_path / ".gitignore"
+
+        large_content = "\n".join([f"pattern{i}/" for i in range(10000)])
+        gitignore_path.write_text(large_content)
+
+        manager = GitignoreManager(project_path)
+
+        start_time = time.perf_counter()
+        manager.protect_all_agents()
+        elapsed = time.perf_counter() - start_time
+
+        assert_timing_budget(elapsed, 1.0, name="large_gitignore_protect_all_agents")
 
         print(f"✓ Large file (10K lines) completed in {elapsed:.3f}s")
 
 
+@pytest.mark.performance
 def test_performance_multiple_runs():
     """Test performance of multiple consecutive runs (idempotency)."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -84,15 +127,18 @@ def test_performance_multiple_runs():
         manager.protect_all_agents()
         elapsed3 = time.perf_counter() - start3
 
-        assert elapsed1 < 1.0, f"First run took {elapsed1:.3f}s"
-        assert elapsed2 < 1.0, f"Second run took {elapsed2:.3f}s"
-        assert elapsed3 < 1.0, f"Third run took {elapsed3:.3f}s"
+        assert_timing_budget(elapsed1, 1.0, name="multiple_runs_first")
+        assert_timing_budget(elapsed2, 1.0, name="multiple_runs_second")
+        assert_timing_budget(elapsed3, 1.0, name="multiple_runs_third")
 
         print(f"✓ Multiple runs: {elapsed1:.3f}s, {elapsed2:.3f}s, {elapsed3:.3f}s")
 
 
 def test_performance_selected_agents():
-    """Test performance of protect_selected_agents."""
+    """Verify protect_selected_agents succeeds across several selections.
+
+    Functional half of the #4015 split.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         project_path = Path(tmpdir)
         manager = GitignoreManager(project_path)
@@ -105,12 +151,33 @@ def test_performance_selected_agents():
         ]
 
         for agents, desc in test_cases:
-            start_time = time.perf_counter()
             result = manager.protect_selected_agents(agents)
-            elapsed = time.perf_counter() - start_time
 
             assert result.success, f"Operation should succeed for {desc}"
-            assert elapsed < 1.0, f"Operation for {desc} took {elapsed:.3f}s"
+
+
+@pytest.mark.performance
+def test_selected_agents_stay_under_one_second():
+    """Verify protect_selected_agents completes in under 1 second per selection (nightly).
+
+    Split from ``test_performance_selected_agents`` (#4015); budget preserved.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project_path = Path(tmpdir)
+        manager = GitignoreManager(project_path)
+
+        test_cases = [
+            (["claude"], "single"),
+            (["claude", "codex", "gemini"], "three"),
+            (["claude", "codex", "gemini", "cursor", "qwen", "kiro"], "six"),
+        ]
+
+        for agents, desc in test_cases:
+            start_time = time.perf_counter()
+            manager.protect_selected_agents(agents)
+            elapsed = time.perf_counter() - start_time
+
+            assert_timing_budget(elapsed, 1.0, name=f"protect_selected_agents[{desc}]")
 
             print(f"✓ protect_selected_agents ({desc}) completed in {elapsed:.3f}s")
 
@@ -119,9 +186,12 @@ def run_performance_tests():
     """Run all performance tests."""
     tests = [
         test_performance_protect_all_agents,
+        test_protect_all_agents_stays_under_one_second,
         test_performance_with_large_gitignore,
+        test_large_gitignore_stays_under_one_second,
         test_performance_multiple_runs,
         test_performance_selected_agents,
+        test_selected_agents_stay_under_one_second,
     ]
 
     print("Running Performance Tests")

@@ -70,6 +70,7 @@ def _last_json_line(output: str) -> dict[str, Any]:
     lines = [line for line in output.strip().splitlines() if line.strip()]
     return json.loads(lines[-1])
 
+
 _FROM_VERSION = "3.2.0"
 _TARGET_VERSION = "3.2.1"
 
@@ -182,9 +183,7 @@ def test_failed_worktree_migration_does_not_advance_schema_version(tmp_path: Pat
 
         post_schema = _wt_schema_version(wt / ".kittify")
         assert post_schema == _STALE_SCHEMA_VERSION, (
-            "a failed worktree migration must not advance schema_version "
-            f"(got {post_schema!r}, expected the untouched stale value "
-            f"{_STALE_SCHEMA_VERSION!r})"
+            f"a failed worktree migration must not advance schema_version (got {post_schema!r}, expected the untouched stale value {_STALE_SCHEMA_VERSION!r})"
         )
         assert post_schema != REQUIRED_SCHEMA_VERSION
     finally:
@@ -303,9 +302,7 @@ def _init_no_migrations_project(root: Path, *, version: str = "1.0.0a1") -> None
     _git(root, "commit", "-q", "-m", "init")
 
 
-def test_no_migrations_worktree_stamp_failure_surfaces_in_json_errors(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_no_migrations_worktree_stamp_failure_surfaces_in_json_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-012 errors-channel gap: the no-migrations branch's worktree-stamp
     pass (``_build_no_migrations_outcome`` -> ``_run_no_migrations_worktree_stamp``
     -> ``MigrationRunner.upgrade_worktrees_only``) records a fatal failure
@@ -355,9 +352,7 @@ def test_no_migrations_worktree_stamp_failure_surfaces_in_json_errors(
     payload = _last_json_line(result.output)
     assert payload["status"] == "failed"
     assert payload["success"] is False
-    assert payload["errors"], (
-        "errors channel must not be empty when success is false (FR-012 consistency)"
-    )
+    assert payload["errors"], "errors channel must not be empty when success is false (FR-012 consistency)"
     assert any(failure_reason in e for e in payload["errors"]), payload["errors"]
 
 
@@ -391,8 +386,6 @@ def test_migrations_pending_worktree_failure_not_duplicated_in_json_errors(
         assert payload["success"] is False
         matches = [e for e in payload["errors"] if "lane-e" in e]
         assert matches, payload["errors"]
-        assert len(matches) == 1, (
-            f"worktree failure must appear exactly once in errors, got {matches!r}"
-        )
+        assert len(matches) == 1, f"worktree failure must appear exactly once in errors, got {matches!r}"
     finally:
         MigrationRegistry.clear()

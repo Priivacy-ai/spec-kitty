@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 import json
+import logging
 from kernel.clock import UTC, datetime
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
+    DECISIONPOINT_SCHEMA_VERSION,
     DecisionPointOpenedInterviewPayload,
     DecisionPointResolvedInterviewPayload,
 )
@@ -275,3 +277,143 @@ def test_emit_decision_resolved_deferred_payload_roundtrip(tmp_path: Path) -> No
     assert model.terminal_outcome.value == "deferred"
     assert model.final_answer is None
     assert model.rationale == "revisit later"
+
+
+# ---------------------------------------------------------------------------
+# Tests: fan-out (#324) -- ordering, exact identity, transport-failure
+# ---------------------------------------------------------------------------
+
+
+def test_emit_decision_opened_fanout_sees_the_append_already_durable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fan-out must run strictly after the local append, never racing it.
+
+    Proven by reading the events file back from *inside* the fake fan-out
+    call: if the append hadn't already completed and been flushed, the file
+    would be empty or missing at that point.
+    """
+    entry = _make_entry("01KAAAAAAAAAAAAAAAAAAAAAAA")
+    seen_lines: list[str] = []
+
+    def fake_fanout(*, envelope: dict, log_path: Path) -> None:
+        seen_lines.extend(log_path.read_text().splitlines())
+
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
+
+    emit_decision_opened(
+        tmp_path, MISSION_SLUG, decision_id="01KAAAAAAAAAAAAAAAAAAAAAAA", entry=entry, actor=ACTOR
+    )
+
+    assert len(seen_lines) == 1  # golden-count: cardinality-is-contract
+    assert json.loads(seen_lines[0])["event_type"] == DECISION_POINT_OPENED
+
+
+def test_emit_decision_opened_fanout_envelope_matches_the_local_event(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The envelope offered to fan-out carries the same identity/kind/payload
+    as the event already durably appended -- no second source of truth."""
+    entry = _make_entry("01KCCCCCCCCCCCCCCCCCCCCCCC")
+    captured: dict = {}
+
+    def fake_fanout(*, envelope: dict, log_path: Path) -> None:
+        captured["envelope"] = envelope
+        captured["log_path"] = log_path
+
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
+
+    emit_decision_opened(
+        tmp_path, MISSION_SLUG, decision_id="01KCCCCCCCCCCCCCCCCCCCCCCC", entry=entry, actor=ACTOR
+    )
+
+    local_event = _read_events(tmp_path, MISSION_SLUG)[0]
+    envelope = captured["envelope"]
+    assert envelope["event_id"] == local_event["event_id"]
+    assert envelope["event_type"] == DECISION_POINT_OPENED == local_event["event_type"]
+    assert envelope["aggregate_id"] == MISSION_SLUG
+    assert envelope["schema_version"] == DECISIONPOINT_SCHEMA_VERSION
+    assert envelope["timestamp"] == local_event["at"]
+    assert envelope["payload"] == local_event["payload"]
+    assert captured["log_path"] == tmp_path / "kitty-specs" / MISSION_SLUG / "status.events.jsonl"
+
+
+def test_emit_decision_opened_survives_a_fanout_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A relay/transport failure is logged and dropped -- it can never roll
+    back or otherwise affect the canonical local write that already
+    happened before fan-out was attempted."""
+    entry = _make_entry("01KBBBBBBBBBBBBBBBBBBBBBBB")
+
+    def exploding_fanout(*, envelope: dict, log_path: Path) -> None:
+        raise RuntimeError("relay unreachable")
+
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", exploding_fanout)
+    caplog.set_level(logging.WARNING)
+
+    lamport = emit_decision_opened(
+        tmp_path, MISSION_SLUG, decision_id="01KBBBBBBBBBBBBBBBBBBBBBBB", entry=entry, actor=ACTOR
+    )
+
+    assert lamport == 1
+    events = _read_events(tmp_path, MISSION_SLUG)
+    assert len(events) == 1
+    assert events[0]["event_type"] == DECISION_POINT_OPENED
+    assert "Zeitgeist fan-out failed" in caplog.text
+
+
+def test_emit_decision_resolved_fanout_envelope_matches_the_local_event(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = _make_entry(
+        "01KDDDDDDDDDDDDDDDDDDDDDDD",
+        status=DecisionStatus.RESOLVED,
+        final_answer="oauth2",
+        resolved_at=datetime(2026, 4, 23, 10, 6, 0, tzinfo=UTC),
+        resolved_by=ACTOR,
+    )
+    captured: dict = {}
+
+    def fake_fanout(*, envelope: dict, log_path: Path) -> None:
+        captured["envelope"] = envelope
+
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
+
+    emit_decision_resolved(
+        tmp_path, MISSION_SLUG, decision_id="01KDDDDDDDDDDDDDDDDDDDDDDD", entry=entry, actor=ACTOR
+    )
+
+    local_event = _read_events(tmp_path, MISSION_SLUG)[0]
+    envelope = captured["envelope"]
+    assert envelope["event_id"] == local_event["event_id"]
+    assert envelope["event_type"] == DECISION_POINT_RESOLVED == local_event["event_type"]
+    assert envelope["payload"] == local_event["payload"]
+
+
+def test_emit_decision_resolved_survives_a_fanout_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    entry = _make_entry(
+        "01KEEEEEEEEEEEEEEEEEEEEEEE",
+        status=DecisionStatus.RESOLVED,
+        final_answer="session",
+        resolved_at=datetime(2026, 4, 23, 10, 7, 0, tzinfo=UTC),
+        resolved_by=ACTOR,
+    )
+
+    def exploding_fanout(*, envelope: dict, log_path: Path) -> None:
+        raise RuntimeError("relay unreachable")
+
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", exploding_fanout)
+    caplog.set_level(logging.WARNING)
+
+    lamport = emit_decision_resolved(
+        tmp_path, MISSION_SLUG, decision_id="01KEEEEEEEEEEEEEEEEEEEEEEE", entry=entry, actor=ACTOR
+    )
+
+    assert lamport == 1
+    events = _read_events(tmp_path, MISSION_SLUG)
+    assert len(events) == 1
+    assert events[0]["event_type"] == DECISION_POINT_RESOLVED
+    assert "Zeitgeist fan-out failed" in caplog.text

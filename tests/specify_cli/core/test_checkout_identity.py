@@ -121,9 +121,7 @@ def test_owner_primary_primary_read_returns_target_unchanged(primary: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_foreign_lane_worktree_write_is_non_owner_and_refuses(
-    primary: Path, lane_worktree: Path
-) -> None:
+def test_foreign_lane_worktree_write_is_non_owner_and_refuses(primary: Path, lane_worktree: Path) -> None:
     identity = resolve_checkout_identity(lane_worktree, Intent.WRITE)
 
     assert identity.is_owner is False
@@ -138,9 +136,7 @@ def test_foreign_lane_worktree_write_is_non_owner_and_refuses(
     assert str(primary.resolve()) in refusal.message()
 
 
-def test_foreign_lane_worktree_primary_read_never_flips(
-    primary: Path, lane_worktree: Path
-) -> None:
+def test_foreign_lane_worktree_primary_read_never_flips(primary: Path, lane_worktree: Path) -> None:
     identity = resolve_checkout_identity(lane_worktree, Intent.PRIMARY_READ)
 
     # INV-2: PRIMARY_READ returns canonical_target (the primary) unchanged and

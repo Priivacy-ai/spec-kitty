@@ -10,7 +10,7 @@ import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from stat import S_ISDIR, S_ISREG
+from stat import S_IMODE, S_ISDIR, S_ISREG
 
 
 #: Errnos that mean **absent** (or "not the kind of thing that could ever be a
@@ -22,6 +22,7 @@ from stat import S_ISDIR, S_ISREG
 #: ``stat()`` must not also change how genuinely absent-like failures are
 #: classified — only make ``EACCES`` observable instead of silently swallowed.
 _ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+_WRITE_BITS = 0o222
 
 #: The write bit for owner/group/other. A managed tree (e.g. skills set
 #: read-only by ``skills/installer._make_tree_read_only``) strips these, which
@@ -165,32 +166,27 @@ def write_text_within_directory(path: Path, content: str, *, root: Path, encodin
     safe_path = ensure_within_directory(path, root)
     safe_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # A pre-existing target left read-only by a managed tree (skills are set
-    # read-only by ``skills/installer._make_tree_read_only``) makes the atomic
-    # ``replace`` below fail with ``PermissionError`` (``[WinError 5]``) on
-    # Windows, so the 2.1.2_fix_* skill-content migrations silently drop their
-    # rewrite. Restore the write bit first so the rename can land; the replaced
-    # file then inherits the temp file's (writable) mode, matching the existing
-    # POSIX behavior. Skip symlinks so we never chmod through a link's target.
-    # (#3771 — mirrors ``runtime/generated_writer.write_generated_file``.)
-    if safe_path.exists() and not safe_path.is_symlink():
-        existing_mode = safe_path.stat().st_mode
-        if existing_mode & _WRITE_BITS == 0:
-            # Best-effort. If we cannot chmod the target (e.g. a read-only file
-            # owned by another user), do NOT abort: fall through to the replace,
-            # which on POSIX still succeeds when the parent dir is writable.
-            # Restoring the bit only helps Windows, where such a target was
-            # already un-writable before this fix — so we never make a
-            # previously-working overwrite fail by pre-clearing.
-            with contextlib.suppress(OSError):
-                safe_path.chmod(existing_mode | _WRITE_BITS)
+    existing_mode: int | None = None
+    if safe_is_file(safe_path):
+        existing_mode = S_IMODE(safe_path.stat().st_mode)
+        # Best effort: Windows needs the target write bit cleared before an
+        # atomic replace, while POSIX can still replace it when chmod itself
+        # is denied but the parent directory is writable.
+        with contextlib.suppress(OSError):
+            safe_path.chmod(existing_mode | _WRITE_BITS)
 
     fd, temp_path = tempfile.mkstemp(dir=safe_path.parent, prefix=f".{safe_path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding=encoding, newline="") as handle:
             handle.write(content)
         Path(temp_path).replace(safe_path)
+        if existing_mode is not None:
+            with contextlib.suppress(OSError):
+                safe_path.chmod(existing_mode)
     except Exception:
+        if existing_mode is not None:
+            with contextlib.suppress(OSError):
+                safe_path.chmod(existing_mode)
         Path(temp_path).unlink(missing_ok=True)
         raise
     return safe_path

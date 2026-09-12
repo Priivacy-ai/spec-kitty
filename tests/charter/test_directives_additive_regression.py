@@ -36,9 +36,7 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("charter.activation.resolver.load_doctrine_catalog", lambda: _CATALOG)
 
 
-def test_single_local_directive_unions_onto_catalog_base(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_single_local_directive_unions_onto_catalog_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """One local declaration is appended to the catalog base, never replacing it."""
     _patch_catalog(monkeypatch)
     _write_charter_files(
@@ -56,15 +54,10 @@ directives:
     # Base (sorted catalog) then the appended local id — no base id dropped.
     assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010", "LOCAL_QA_PROBE"]
     assert result.metadata["directives_source"] == "catalog_fallback+project_local"
-    assert any(
-        "project-local directive" in line and "LOCAL_QA_PROBE" in line
-        for line in result.diagnostics
-    ), result.diagnostics
+    assert any("project-local directive" in line and "LOCAL_QA_PROBE" in line for line in result.diagnostics), result.diagnostics
 
 
-def test_multiple_local_directives_lose_no_base_ids(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_multiple_local_directives_lose_no_base_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """SC-001: three local declarations add three ids; every base id survives."""
     _patch_catalog(monkeypatch)
     _write_charter_files(

@@ -70,10 +70,11 @@ Exactly one of `--base-ref` / `--paths-from` is required.
 
 ## How it triggers in CI (the corpus-only-PR requirement)
 
-The guard is wired into
-[`.github/workflows/release-readiness.yml`](../../../.github/workflows/release-readiness.yml)
-as the `cutover-guard` job, **not** into `ci-quality.yml`. This placement is
-deliberate:
+The guard was wired into `.github/workflows/release-readiness.yml`
+as the `cutover-guard` job, **not** into `ci-quality.yml`. (Both workflow
+files were deleted per PROGRAM.md §2 / planning#57 — this repo runs no
+GitHub Actions; the placement rationale below is retained as historical
+context for a future re-wiring.) This placement was deliberate:
 
 - `ci-quality.yml`'s job graph is dominated by a `dorny/paths-filter`
   `changes` gate that decides which fast/integration-test jobs run based on

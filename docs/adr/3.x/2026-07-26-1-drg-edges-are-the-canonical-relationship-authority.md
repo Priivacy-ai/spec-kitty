@@ -234,29 +234,6 @@ Sibling: [ADR 2026-07-26-3](2026-07-26-3-impacts-edge-subsumes-in-tension-with.m
 generator**, so the authored tier holds one edge and the cache holds both directions — consistent
 with the source-plus-cache split this ADR's amendment relies on.
 
-### Amendment (2026-08-22) — `Relation.SCOPE`'s two-grain overload is deliberate accepted debt (#3633)
-
-Mission `#3604` grew `Relation.SCOPE` a second source-node grain: alongside the pre-existing
-action-sourced edges (`action --scope--> {directive,tactic}`), a mission_type node can now also
-carry a `scope` edge to its type-wide governance selections (`mission_type --scope--> {directive,
-tactic,paradigm,styleguide,toolguide,procedure,agent_profile,mission_step_contract}`). One
-`Relation` member now names two structurally different edge shapes, distinguished only by the
-source node's kind.
-
-This is recorded here as a **deliberate decision, not an oversight**. Splitting the grain into two
-relations (e.g. `scope` / `type_scope`) was considered and rejected: it would churn every
-consumer's relation vocabulary (query filters, the charter cascade's `REFERENCE_RELATIONS`,
-this very ADR's edge-model discussion, and `docs/architecture/doctrine-relationships.md`) and force
-a DRG merge/projection migration for a purely cosmetic grain distinction the graph already encodes
-structurally — a `scope` edge's source-node kind (`action` vs `mission_type`) tells a consumer
-which grain it is without a second relation name. Do not split `Relation.SCOPE` to "fix" this
-overload as a follow-up cleanup; if a genuine behavioral need for two distinct relations ever
-arises, that is a new decision to make explicitly against this ADR, not a refactor framed as
-completing it. The canonical description (`RELATION_DESCRIPTIONS[Relation.SCOPE]`,
-`src/doctrine/drg/models.py`, mirrored verbatim in
-`docs/architecture/doctrine-relationships.md`) carries the same note as the citable, parity-enforced
-record.
-
 ### Consequences
 
 #### Positive

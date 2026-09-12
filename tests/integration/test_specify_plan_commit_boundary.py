@@ -70,28 +70,13 @@ def _summary(slug: str) -> dict[str, str]:
 
 def _create_mission(repo: Path, slug: str) -> Path:
     """Run create_mission_core against ``repo`` and return the feature_dir."""
-    import os
-
-    # This fixture intentionally exercises mission creation on a synthetic
-    # "main" (get_current_branch is mocked below, independent of repo's real
-    # checkout) -- opt in through the same explicit protected-branch test
-    # override ``_run_setup_plan`` below already uses for its own commit.
-    prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
-    os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
-    try:
-        with (
-            patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-            patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-            patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-            patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-            patch("specify_cli.status.fire_dossier_sync"),
-        ):
-            result = create_mission_core(repo, slug, **_summary(slug))
-    finally:
-        if prev_allow is None:
-            os.environ.pop("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", None)
-        else:
-            os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = prev_allow
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+    ):
+        result = create_mission_core(repo, slug, **_summary(slug))
     feature_dir: Path = result.feature_dir
     return feature_dir
 
@@ -306,7 +291,6 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,
@@ -458,7 +442,6 @@ def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, 
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,

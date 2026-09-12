@@ -30,6 +30,7 @@ from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
 from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
 from charter.activation.synthesizer.topic_resolver import resolve as resolve_topic
 from specify_cli.charter_runtime.freshness import compute_freshness
+from tests._perf_helpers import assert_timing_budget
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ from specify_cli.charter_runtime.freshness import compute_freshness
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.performance]
+pytestmark = [pytest.mark.unit]
 
 @pytest.fixture
 def fixture_root() -> Path:
@@ -134,6 +135,7 @@ def repo_with_prior_synthesis(
 
 class TestNfr002FullSynthesis:
     @pytest.mark.timeout(30)
+    @pytest.mark.performance
     def test_full_synthesis_under_30_seconds(
         self,
         base_request: SynthesisRequest,
@@ -226,23 +228,33 @@ class TestNfr002FreshnessComputeUnder2Seconds:
     ``computer.py``) or an O(n²) helper (e.g. a naive concat-then-hash
     reintroduced into ``compute_bundle_content_hash``)."""
 
+    def test_compute_freshness_reports_fresh_state(self, tmp_path: Path) -> None:
+        """Functional companion to test_compute_freshness_under_2_seconds
+        (split, #4015): the seeded repo is genuinely fresh (content-identity
+        match), so this exercises the real comparison branch, not an early
+        missing/stale short-circuit. Timing budget lives in the @performance
+        sibling below."""
+        _seed_charter_freshness_repo(tmp_path)
+
+        result = compute_freshness(tmp_path)
+
+        assert result.synthesized_drg.state == "fresh"
+
     @pytest.mark.timeout(2)
+    @pytest.mark.performance
     def test_compute_freshness_under_2_seconds(self, tmp_path: Path) -> None:
+        """NFR-002 timing budget only (split, #4015): compute_freshness()
+        completes < 2s wall-clock. Functional coverage moved to
+        test_compute_freshness_reports_fresh_state, above."""
         _seed_charter_freshness_repo(tmp_path)
 
         start = time.monotonic()
-        result = compute_freshness(tmp_path)
+        compute_freshness(tmp_path)
         elapsed = time.monotonic() - start
 
         # Observed ~2-4ms locally on 2026-07-16 — the 2.0s budget carries
         # ~500x headroom (NFR-002's CLI interactive-response ceiling).
-        assert elapsed < 2.0, (
-            f"NFR-002 violated: compute_freshness took {elapsed:.3f}s (limit: 2.0s)"
-        )
-        # Sanity: the seeded repo is genuinely fresh (content-identity match)
-        # so the timing measurement exercises the real comparison branch,
-        # not an early missing/stale short-circuit.
-        assert result.synthesized_drg.state == "fresh"
+        assert_timing_budget(elapsed, 2.0, name="compute_freshness")
 
 
 # ---------------------------------------------------------------------------
@@ -251,18 +263,42 @@ class TestNfr002FreshnessComputeUnder2Seconds:
 
 
 class TestNfr003BoundedResynthesize:
+    def test_bounded_resynthesize_completes(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+    ) -> None:
+        """Functional companion to test_bounded_resynthesize_under_15_seconds
+        (split, #4015): single-target resynthesize --topic completes without
+        error (noop is also acceptable, EC-4). Timing budget lives in the
+        @performance sibling below."""
+        repo = repo_with_prior_synthesis
+
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=repo,
+        )
+
+        assert not result.is_noop or True  # noop is also acceptable (EC-4)
+
     @pytest.mark.timeout(15)
+    @pytest.mark.performance
     def test_bounded_resynthesize_under_15_seconds(
         self,
         base_request: SynthesisRequest,
         adapter: FixtureAdapter,
         repo_with_prior_synthesis: Path,
     ) -> None:
-        """NFR-003: single-target resynthesize --topic completes < 15 s."""
+        """NFR-003 timing budget only (split, #4015): single-target
+        resynthesize --topic completes < 15 s. Functional coverage moved to
+        test_bounded_resynthesize_completes, above."""
         repo = repo_with_prior_synthesis
 
         start = time.monotonic()
-        result = resynthesize_run(
+        resynthesize_run(
             request=base_request,
             adapter=adapter,
             topic="tactic:how-we-apply-directive-003",
@@ -270,10 +306,7 @@ class TestNfr003BoundedResynthesize:
         )
         elapsed = time.monotonic() - start
 
-        assert elapsed < 15.0, (
-            f"NFR-003 violated: bounded resynthesize took {elapsed:.2f}s (limit: 15s)"
-        )
-        assert not result.is_noop or True  # noop is also acceptable (EC-4)
+        assert_timing_budget(elapsed, 15.0, name="bounded_resynthesize")
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +316,7 @@ class TestNfr003BoundedResynthesize:
 
 class TestNfr004FailClosed:
     @pytest.mark.timeout(5)
+    @pytest.mark.performance
     def test_validation_failure_under_5_seconds(
         self,
         base_request: SynthesisRequest,
@@ -307,6 +341,7 @@ class TestNfr004FailClosed:
         )
 
     @pytest.mark.timeout(5)
+    @pytest.mark.performance
     def test_unresolved_topic_under_5_seconds(
         self,
         base_request: SynthesisRequest,
@@ -336,6 +371,7 @@ class TestNfr004FailClosed:
 
 
 class TestSc008UnresolvedSla:
+    @pytest.mark.performance
     def test_unresolved_selector_under_2_seconds(self) -> None:
         """SC-008: resolver returns TopicSelectorUnresolvedError < 2 s."""
         from charter.activation.synthesizer.request import SynthesisTarget
@@ -366,22 +402,3 @@ class TestSc008UnresolvedSla:
         assert elapsed < 2.0, (
             f"SC-008 violated: unresolved selector took {elapsed:.3f}s (limit: 2.0s)"
         )
-
-    def test_unresolved_selector_repeated_calls_fast(self) -> None:
-        """SC-008: multiple cold-cache calls remain fast (no warm-up required)."""
-        from charter.activation.synthesizer.request import SynthesisTarget
-
-        artifacts: list[SynthesisTarget] = []
-        drg: dict[str, Any] = {"nodes": [], "edges": []}
-        sections: list[str] = []
-
-        times: list[float] = []
-        for _ in range(5):
-            start = time.monotonic()
-            with pytest.raises((TopicSelectorUnresolvedError, ValueError)):
-                resolve_topic("bogus_selector", artifacts, drg, sections)
-            times.append(time.monotonic() - start)
-
-        # Every call should be under 2 s (including the very first)
-        for i, t in enumerate(times):
-            assert t < 2.0, f"SC-008: call {i} took {t:.3f}s (limit: 2.0s)"

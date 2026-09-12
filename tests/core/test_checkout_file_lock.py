@@ -164,9 +164,7 @@ def test_acquire_or_raise_bounded_wait_unblocks_promptly_after_release(tmp_path:
     context = multiprocessing.get_context("spawn")
     ready = context.Event()
     release = context.Event()
-    holder = context.Process(
-        target=_hold_then_release_on_signal, args=(str(lock_path), ready, release)
-    )
+    holder = context.Process(target=_hold_then_release_on_signal, args=(str(lock_path), ready, release))
     holder.start()
     try:
         assert ready.wait(10), "spawned holder never acquired the lock"

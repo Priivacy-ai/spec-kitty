@@ -11,7 +11,7 @@ outputs** against the sharded layout, matching the pre-shard reference:
 * T031 — ``agent_profiles.repository`` resolves the same ``specializes_from``
   lineage parents (empty graph → lost lineage).
 * T032 — ``charter_runtime.lint._drg`` reports a healthy ``GraphState`` (empty →
-  ``GraphState.MISSING``); ``doctrine.pack_validator`` sees the full built-in URN
+  ``GraphState.MISSING``); ``charter.offering.pack_validator`` sees the full built-in URN
   universe, so org-pack dangling-edge detection still resolves built-in targets
   (empty → false-pass / false-dangling).
 

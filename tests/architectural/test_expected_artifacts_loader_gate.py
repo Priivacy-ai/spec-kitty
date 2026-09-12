@@ -217,10 +217,7 @@ def collect_violations_by_module() -> dict[str, list[_Violation]]:
 def test_scanned_file_floor_is_met() -> None:
     scanned = iter_src_python_files()
 
-    assert len(scanned) > MIN_SCANNED_FILES, (
-        f"only {len(scanned)} files scanned under {SRC_ROOT} -- the "
-        "bare-construction gate would otherwise pass vacuously."
-    )
+    assert len(scanned) > MIN_SCANNED_FILES, f"only {len(scanned)} files scanned under {SRC_ROOT} -- the bare-construction gate would otherwise pass vacuously."
 
 
 # ---------------------------------------------------------------------------
@@ -239,11 +236,7 @@ def test_no_forbidden_construction_outside_allowlist() -> None:
         "construction is forbidden outside the canonical loader "
         f"({sorted(ALLOWLIST_MODULES)}). Route through "
         "`charter.activation.manifest_loader.load_manifest` instead. Offenders:\n"
-        + "\n".join(
-            f"  {module}:{violation.line} ({violation.kind})"
-            for module, violations in sorted(offenders.items())
-            for violation in violations
-        )
+        + "\n".join(f"  {module}:{violation.line} ({violation.kind})" for module, violations in sorted(offenders.items()) for violation in violations)
     )
 
 
@@ -264,12 +257,15 @@ def test_allowlist_is_exactly_the_expected_two_modules() -> None:
     # a bare-count assertion here would only duplicate that stronger contract
     # and is exactly the golden-count pattern `test_golden_count_ban.py` flags
     # (`ALLOWLIST_MODULES`'s identifier words carry no cardinality-only signal).
-    assert frozenset(
-        {
-            "charter/activation/manifest_loader.py",
-            "charter/offering/missions/expected_artifact_manifest.py",
-        }
-    ) == ALLOWLIST_MODULES
+    assert (
+        frozenset(
+            {
+                "charter/activation/manifest_loader.py",
+                "charter/offering/missions/expected_artifact_manifest.py",
+            }
+        )
+        == ALLOWLIST_MODULES
+    )
 
 
 def test_allowlist_helper_contains_the_two_expected_calls() -> None:
@@ -286,8 +282,7 @@ def test_allowlist_helper_contains_the_two_expected_calls() -> None:
 
     assert len(violations) == 2, f"expected exactly 2 calls in the canonical loader, found {violations}"
     assert {v.kind for v in violations} == {"model_validate"}, (
-        "the canonical loader's own calls are expected to be `model_validate(` -- "
-        f"got kinds {sorted({v.kind for v in violations})}"
+        f"the canonical loader's own calls are expected to be `model_validate(` -- got kinds {sorted({v.kind for v in violations})}"
     )
 
 
@@ -350,9 +345,7 @@ def test_aliased_import_construction_is_flagged_via_self_mutation(tmp_path: Path
     """`from ... import ExpectedArtifactManifest as EAM; EAM(...)` is caught too (alias-of-name form)."""
     module = tmp_path / "offender.py"
     module.write_text(
-        "from charter.offering.missions.expected_artifact_manifest import ExpectedArtifactManifest as EAM\n\n"
-        "def offending(**data):\n"
-        "    return EAM(**data)\n",
+        "from charter.offering.missions.expected_artifact_manifest import ExpectedArtifactManifest as EAM\n\ndef offending(**data):\n    return EAM(**data)\n",
         encoding="utf-8",
     )
 
@@ -365,9 +358,7 @@ def test_qualified_module_attribute_construction_is_flagged(tmp_path: Path) -> N
     """`module.ExpectedArtifactManifest(...)` (qualified attribute form) is caught (no import-tracking needed)."""
     module = tmp_path / "offender.py"
     module.write_text(
-        "import charter.offering.missions.expected_artifact_manifest as em\n\n"
-        "def offending(**data):\n"
-        "    return em.ExpectedArtifactManifest(**data)\n",
+        "import charter.offering.missions.expected_artifact_manifest as em\n\ndef offending(**data):\n    return em.ExpectedArtifactManifest(**data)\n",
         encoding="utf-8",
     )
 
@@ -403,8 +394,7 @@ def test_unrelated_model_validate_call_is_not_flagged(tmp_path: Path) -> None:
     """`SomeOtherModel.model_validate(...)` is not flagged -- the detector binds to the specific class name."""
     module = tmp_path / "offender.py"
     module.write_text(
-        "from pydantic import BaseModel\n\n\nclass SomeOtherModel(BaseModel):\n    pass\n\n\n"
-        "SomeOtherModel.model_validate({})\n",
+        "from pydantic import BaseModel\n\n\nclass SomeOtherModel(BaseModel):\n    pass\n\n\nSomeOtherModel.model_validate({})\n",
         encoding="utf-8",
     )
 
@@ -428,9 +418,7 @@ def test_locally_shadowed_bare_name_is_still_flagged_conservatively(tmp_path: Pa
     """
     module = tmp_path / "offender.py"
     module.write_text(
-        "def ExpectedArtifactManifest(*args, **kwargs):\n"
-        "    raise NotImplementedError\n\n\n"
-        "ExpectedArtifactManifest()\n",
+        "def ExpectedArtifactManifest(*args, **kwargs):\n    raise NotImplementedError\n\n\nExpectedArtifactManifest()\n",
         encoding="utf-8",
     )
 
@@ -452,9 +440,7 @@ def test_single_module_owns_all_model_validate_calls() -> None:
     """
     by_module = collect_violations_by_module()
 
-    assert set(by_module) == {"charter/activation/manifest_loader.py"}, (
-        f"expected exactly one module with matching calls, found: {sorted(by_module)}"
-    )
+    assert set(by_module) == {"charter/activation/manifest_loader.py"}, f"expected exactly one module with matching calls, found: {sorted(by_module)}"
 
 
 def test_from_yaml_file_is_fully_retired() -> None:

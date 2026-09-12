@@ -1,0 +1,92 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: SPEC-FRESH-001
+    lens: structural-root-cause (Debugger Debbie)
+    severity: 4
+    title: FR-006's new "must raise" contract has no catch site anywhere in the three live guard call paths this round's own guard-path map identifies
+    evidence:
+      - artifact: "spec.md § FR-006 (\"I want a failure to resolve the primary placement directory ... to raise a reportable exception ... A structured return value is explicitly NOT this contract\")"
+      - artifact: "spec.md § User Story 1, guard-path-precision note and C-003 (\"`_check_composed_action_guard` is the sole guard authority only for a mission family with no `_GUARD_TABLES` entry at all\")"
+      - code: "src/runtime/next/runtime_bridge.py:1729 — `_check_cli_guards(...)` inside `_dn_dependency_gate`'s WP-iteration branch is wrapped only in `except _cores.UnregisteredMissionFamilyError:` (line ~1738), degrading to `guard_failures = []`; no other exception type is caught."
+      - code: "src/runtime/next/runtime_bridge.py:823-855 — `_check_cli_guards` calls `_io_seam.gather_artifact_presence(...)` (line ~849) UNCONDITIONALLY, before the `evaluate_guards_strict` call that is the only place `UnregisteredMissionFamilyError` can be raised — so a primary-resolution failure inside `gather_artifact_presence` (FR-001/FR-006) surfaces as a DIFFERENT exception type, at a point in `_check_cli_guards` the WP-iteration branch's narrow catch does not cover."
+      - code: "src/runtime/next/runtime_bridge_composition.py:540-561 — `_check_composed_action_guard` calls `_io_seam.gather_artifact_presence(...)` directly with no surrounding try/except at all; only the subsequent `evaluate_guards_strict` call is wrapped in `try: ... except _cores.UnregisteredMissionFamilyError`."
+    claim: >
+      FR-006 was tightened this round from a disjunctive "raise or otherwise surface" to a
+      single mandatory-raise contract ("A structured return value is explicitly NOT this
+      contract"), removing the option of returning a value the existing call sites already
+      know how to fold into a graceful `blocked` decision. But none of the three places this
+      round's own guard-path-precision note and C-003 painstakingly enumerate as live guard
+      entry points (`_check_cli_guards` at `runtime_bridge.py:1729` inside the WP-iteration
+      branch, `_check_cli_guards` at `runtime_bridge.py:1774` in the non-WP pre-check, and
+      `_check_composed_action_guard` at `runtime_bridge_composition.py:540`) catch anything
+      other than `UnregisteredMissionFamilyError` (or, one level up, `CanonicalStatusNotFoundError`
+      around `_should_advance_wp_step`). A primary-placement resolution failure inside
+      `gather_artifact_presence` will therefore propagate as an uncaught exception straight out
+      of `decide_next_via_runtime` for EVERY mission family, registered or not — not degrade to a
+      structured `blocked` decision the way the surrounding code's own established pattern
+      (catch known-failure exception -> return a `blocked` Decision with `reason=str(exc)`)
+      already does one function up for `CanonicalStatusNotFoundError`. This is sharpest for the
+      "genuinely unregistered custom mission family" case: the spec's own new framing describes
+      `_check_composed_action_guard` as the "sole guard authority" there, implying `_check_cli_guards`
+      is inert for that family — but `_check_cli_guards` DOES call `gather_artifact_presence` for
+      such a family too (before `UnregisteredMissionFamilyError` is later raised in
+      `evaluate_guards_strict`), so FR-006's new exception type would crash the WP-iteration branch
+      for exactly the family class the spec claims is unaffected by `_check_cli_guards`. Neither the
+      Edge Cases section nor C-008's red-first discipline names this failure mode or a target
+      catch site, and NFR-002 only protects `guard_failures` byte-content, not whether `next`
+      crashes uncaught instead of returning a `blocked` decision.
+    remediation: >
+      Either (a) add an explicit FR (or extend FR-006) requiring that the new primary-resolution
+      exception be caught at each of the three enumerated call sites and converted into a
+      structured `blocked` Decision (mirroring the existing `CanonicalStatusNotFoundError` handling
+      at the WP-iteration branch's `_should_advance_wp_step` call), or (b) explicitly document as a
+      constraint that an uncaught crash of `decide_next_via_runtime` is the intended, accepted
+      behavior for this failure mode — and add a red-first scenario for it to C-008 either way, since
+      currently no red-first test target exists for it at all (see SPEC-FRESH-002).
+
+  - id: SPEC-FRESH-002
+    lens: decision-documentation (Debugger Debbie)
+    severity: 4
+    title: FR-006 claims "C-008's red-first test targets a raised exception" but C-008's own text does not contain any such test
+    evidence:
+      - artifact: "spec.md § FR-006 — \"A structured return value is explicitly NOT this contract; C-008's red-first test targets a raised exception.\""
+      - artifact: "spec.md § C-008 (full text) — \"a red-first reproduction for both User Story 1 (a direct `_check_composed_action_guard` call ... reproducing missing-primary-artifact entries in `guard_failures` before the fix, AND ... a reproduction through `decide_next_via_runtime` -> `_dn_dependency_gate` -> `_check_cli_guards` for `mission=\\\"software-dev\\\"` ...) and User Story 2 (a direct `_wp_blocks_step`/`_should_advance_wp_step` call against a never-claimed WP reproducing wrongful advancement before the fix) — per DIRECTIVE_034/DIRECTIVE_041.\""
+    claim: >
+      C-008 explicitly scopes its red-first-discipline requirement to exactly two reproductions
+      ("both User Story 1 [...] and User Story 2 [...]") — the mis-anchoring/missing-artifacts bug
+      and the never-claimed-WP bug. Neither of those two enumerated reproductions is User Story 1's
+      own Acceptance Scenario 3 (the primary-resolution-failure "must raise" contract FR-006
+      states). FR-006's assertion that "C-008's red-first test targets a raised exception" is
+      therefore not supported by C-008's actual text as written — this round substantially rewrote
+      FR-006 (tightening "raise or surface" to "must raise") and C-003/C-001/C-002 in the same pass,
+      but left C-008 untouched, so the new FR-006 sentence now makes a factual claim about a sibling
+      constraint that the sibling constraint does not back up. A plan-phase author trusting FR-006's
+      claim at face value would believe Acceptance Scenario 3's raise-on-failure behavior already has
+      a mandated red-first test lined up in C-008, when in fact it has none — a coverage gap for
+      exactly the AC this round most wanted to tighten.
+    remediation: >
+      Either add a third red-first reproduction to C-008 for User Story 1's Acceptance Scenario 3
+      (a direct `gather_artifact_presence` call against a fixture where primary-placement
+      resolution fails, asserting it raises before the fix would have silently returned an
+      empty/all-absent presence set), or soften FR-006's claim to accurately describe what C-008
+      covers today and file the raise-path red-first test as a still-open item for the plan phase.
+
+  - id: SPEC-FRESH-003
+    lens: trace-based-observability (Debugger Debbie)
+    severity: 2
+    title: FR-008's status_facts dict citation range excludes the line for its own third helper
+    evidence:
+      - artifact: "spec.md § FR-008 — \"all three wired unconditionally into `gather_artifact_presence`'s `status_facts` dict (`runtime_bridge_io.py:1090-1097`)\""
+      - code: "src/runtime/next/runtime_bridge_io.py:1090 (`status_facts: dict[str, Any] = {`), :1096 (`requirement_mapping_failures`), :1097 (`bare_prose_requirement_failures`), :1098 (`occurrence_gate_failures`)"
+    claim: >
+      FR-008 names three helpers wired into `status_facts` — `_check_requirement_mapping_ready`,
+      `_check_bare_prose_requirements_ready`, and `_occurrence_gate_failures` — and cites the dict
+      literal at `runtime_bridge_io.py:1090-1097` as where all three are wired in. The first two
+      entries land at lines 1096 and 1097, inside the cited range, but the third
+      (`occurrence_gate_failures`) is actually at line 1098, one line past the cited range's end.
+      The citation therefore does not fully cover the claim it is attached to.
+    remediation: "Extend the citation to `runtime_bridge_io.py:1090-1098` (or `:1090-1099` to include the next status_facts entry as a natural stopping point)."

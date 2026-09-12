@@ -130,6 +130,24 @@ class TestRefreshHappyPath:
         assert updated.refresh_token_expires_at == datetime(2099, 1, 1, tzinfo=UTC)
 
     @pytest.mark.asyncio
+    async def test_refresh_preserves_issuer_url(self):
+        """A refresh renews tokens with the same issuer (#176); only a
+        re-login may move the session to a new endpoint."""
+        flow = TokenRefreshFlow()
+        session = _make_session()
+        session.issuer_url = "https://old.example.com"
+        body = _refresh_body()
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(200, body)
+
+            updated = await flow.refresh(session)
+
+        assert updated.issuer_url == "https://old.example.com"
+
+    @pytest.mark.asyncio
     async def test_refresh_keeps_old_refresh_token_when_not_rotated(self):
         flow = TokenRefreshFlow()
         session = _make_session(refresh_token="refresh-v1")

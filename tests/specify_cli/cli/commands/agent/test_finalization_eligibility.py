@@ -74,9 +74,7 @@ def test_only_exact_canceled_state_is_excluded(lane: Lane) -> None:
 
 def test_missing_or_reopened_current_state_is_eligible() -> None:
     missing = project_finalization_eligibility(["WP01"], {"WP01": []}, {})
-    reopened = project_finalization_eligibility(
-        ["WP01"], {"WP01": []}, {"WP01": Lane.PLANNED}
-    )
+    reopened = project_finalization_eligibility(["WP01"], {"WP01": []}, {"WP01": Lane.PLANNED})
 
     assert missing.eligible_wp_ids == reopened.eligible_wp_ids == ("WP01",)
 
@@ -101,6 +99,4 @@ def test_projection_and_keyed_filter_are_repeatable() -> None:
     second = project_finalization_eligibility(*inputs)
 
     assert first == second
-    assert filter_by_wp_ids({"WP01": 1, "WP02": 2, "WP99": 99}, first.eligible_wp_ids) == {
-        "WP02": 2
-    }
+    assert filter_by_wp_ids({"WP01": 1, "WP02": 2, "WP99": 99}, first.eligible_wp_ids) == {"WP02": 2}

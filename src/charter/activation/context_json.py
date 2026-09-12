@@ -191,9 +191,7 @@ def _load_project_directives(
     variant threads provenance to the JSON payload builder without a second
     ``resolve_project_governance`` call.
     """
-    local_by_id, directive_ids, _ = _load_project_directives_with_source(
-        repo_root, load_directives_config
-    )
+    local_by_id, directive_ids, _ = _load_project_directives_with_source(repo_root, load_directives_config)
     return local_by_id, directive_ids
 
 
@@ -235,9 +233,7 @@ def _assemble_directive_entries(
         if service is None:
             entries.append({"id": directive_id, "source": "builtin"})
             continue
-        entries.extend(
-            _pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive")
-        )
+        entries.extend(_pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive"))
     return entries
 
 
@@ -253,9 +249,7 @@ def _project_directive_entries_with_source(
     """
     from charter.activation.sync import load_directives_config
 
-    local_by_id, directive_ids, directives_source = _load_project_directives_with_source(
-        repo_root, load_directives_config
-    )
+    local_by_id, directive_ids, directives_source = _load_project_directives_with_source(repo_root, load_directives_config)
     service = _maybe_build_doctrine_service(repo_root)
     return _assemble_directive_entries(directive_ids, local_by_id, service), directives_source
 

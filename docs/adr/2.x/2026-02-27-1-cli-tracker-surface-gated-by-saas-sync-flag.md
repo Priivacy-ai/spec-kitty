@@ -1,9 +1,17 @@
 ---
 title: CLI Tracker Surface Gated by SaaS Sync Flag
 description: Registers tracker commands only when the hosted sync flag is enabled, so a local-only install never discovers a half-working surface it has no way to complete.
-status: Accepted
+status: Superseded
 date: '2026-02-27'
+superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 ---
+
+> **Superseded (2026-09-06)** by
+> [`2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](../3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
+> The in-place CLI→SaaS sync transport this gating served was removed by the Convergence (#3881 /
+> #3824). The `SPEC_KITTY_ENABLE_SAAS_SYNC` gate **survives** — but now only as an auth/hosted-visibility
+> gate for the surviving `tracker` command group, not as a sync-transport gate. Retained as historical
+> record with that clarification.
 
 ## Context and Problem Statement
 

@@ -534,10 +534,10 @@ class TestPipelineSeedFileEdgeCases:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestPipelinePerformance:
     """Verify pipeline execution time meets the <200ms requirement."""
 
+    @pytest.mark.performance
     def test_pipeline_performance_simple(self, tmp_path):
         """Full pipeline execution should complete in <200ms for simple input."""
         (tmp_path / ".kittify").mkdir()
@@ -554,6 +554,7 @@ class TestPipelinePerformance:
 
         assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s"
 
+    @pytest.mark.performance
     def test_pipeline_performance_with_seed_file(self, tmp_path):
         """Pipeline with seed files still completes within budget."""
         _create_seed_file(
@@ -588,6 +589,7 @@ class TestPipelinePerformance:
 
         assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s"
 
+    @pytest.mark.performance
     def test_pipeline_performance_100_terms(self, tmp_path):
         """Pipeline with 100+ extracted terms still completes within budget."""
         (tmp_path / ".kittify").mkdir()

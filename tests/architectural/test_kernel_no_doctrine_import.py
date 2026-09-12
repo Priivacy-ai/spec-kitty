@@ -113,7 +113,7 @@ _FORBIDDEN_IMPORT_ROOTS = frozenset({"charter", "specify_cli"})
 #: (``src/doctrine`` -> ``src/charter/offering``) rewrote both sites in place,
 #: which shifted the dev-checkout fallback onto line 97 (three chained path
 #: segments -- ``"charter"``, ``"offering"``, ``"schemas"`` -- instead of the
-#: original two) and changed the resource string from ``"doctrine.schemas"``
+#: original two) and changed the resource string from ``"charter.offering.schemas"``
 #: to ``"charter.offering.schemas"``. Both sites are still the SAME real,
 #: disclosed, pre-existing coupling: a kernel schema-loading utility loads
 #: charter-owned schema files, and full decoupling (relocating the schemas

@@ -406,7 +406,7 @@ class TestIntentAwareCollision:
     """WP06 precedence table — `enhances` / `overrides` advisory + error logic.
 
     Tests assume the live shipped doctrine is on disk (the worktree's
-    ``src/doctrine/.../built-in`` tree). The shared fixture
+    ``src/charter/offering/.../built-in`` tree). The shared fixture
     :data:`_BUILT_IN_TACTIC_ID` points at a known built-in. When the shipped
     root cannot be resolved the intent-aware pass degrades to a no-op and the
     tests skip themselves explicitly.
@@ -1065,7 +1065,7 @@ class TestDrgRootGraphMissing:
     """FR-004: ``pack validate`` gains an additive check that fires when a
     pack's DRG content lives only under ``drg/*.graph.yaml`` fragments with
     no pack-root ``*.graph.yaml`` — the shape the runtime
-    (``src/charter/_drg_helpers.py:load_validated_graph``) never reads
+    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) never reads
     (see sibling mission #3384). Keyed off pack *content*, via the same
     exact ``*.graph.yaml`` glob ``_validate_drg`` already uses, so it is
     consistent by construction (AC-5).

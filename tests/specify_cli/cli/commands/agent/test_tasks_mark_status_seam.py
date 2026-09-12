@@ -356,46 +356,6 @@ def test_patched_resolve_inline_subtasks_intercepts_apply_updates(tmp_path: Path
     assert inline_mock.call_args.args[0] == "T001"
 
 
-def test_patched_emit_history_added_intercepts_emit_history(tmp_path: Path) -> None:
-    """``tasks.emit_history_added`` bites through ``_ms_emit_history``'s
-    ``_tasks.<attr>`` route with the WP-grouped payload."""
-    tasks_md = tmp_path / "tasks.md"
-    tasks_md.write_text(
-        "## Work Packages\n\n- [x] T001 (WP01) build the thing\n", encoding="utf-8"
-    )
-    st = _make_state()
-    st.tasks_md = tasks_md
-    st.updated_tasks = ["T001"]
-    with patch(f"{_TASKS}.emit_history_added") as emit_mock:
-        tasks_mark_status._ms_emit_history(st)
-    emit_mock.assert_called_once_with(
-        wp_id="WP01",
-        entry_type="note",
-        entry_content="Subtask(s) T001 marked as done",
-        author="user",
-    )
-
-
-def test_patched_console_intercepts_emit_history_unresolved_warning(
-    tmp_path: Path,
-) -> None:
-    """``tasks.console`` bites through ``_ms_emit_history``'s unresolved-WP
-    warning leg (human output path)."""
-    tasks_md = tmp_path / "tasks.md"
-    tasks_md.write_text("# tasks\n\nno rows here\n", encoding="utf-8")
-    st = _make_state(json_output=False)
-    st.tasks_md = tasks_md
-    st.updated_tasks = ["T001"]
-    with (
-        patch(f"{_TASKS}.emit_history_added") as emit_mock,
-        patch(f"{_TASKS}.console") as console_mock,
-    ):
-        tasks_mark_status._ms_emit_history(st)
-    emit_mock.assert_not_called()
-    assert console_mock.print.call_count == 1
-    assert "Could not resolve owning WP" in console_mock.print.call_args.args[0]
-
-
 def test_patched_output_result_intercepts_ms_output() -> None:
     """``tasks._mark_status_json_payload`` / ``tasks._output_result`` /
     ``tasks.console`` bite through ``_ms_output``'s success envelope + the
@@ -422,7 +382,7 @@ def test_patched_output_result_intercepts_ms_output() -> None:
 
 
 def test_patched_output_error_intercepts_do_mark_status_exception_arm() -> None:
-    """``tasks._output_error`` + ``tasks.emit_error_logged`` bite through
+    """``tasks._output_error`` bites through
     ``_do_mark_status``'s generic exception arm (exit-1 translation). The
     failure is injected through the routed ``tasks.locate_project_root`` D7
     seam — the orchestrator reaches its ``_ms_*`` phase siblings by bare
@@ -430,7 +390,6 @@ def test_patched_output_error_intercepts_do_mark_status_exception_arm() -> None:
     targets."""
     with (
         patch(f"{_TASKS}.locate_project_root", side_effect=RuntimeError("boom")),
-        patch(f"{_TASKS}.emit_error_logged") as logged_mock,
         patch(f"{_TASKS}._output_error") as error_mock,
         pytest.raises(typer.Exit) as exc_info,
     ):
@@ -442,8 +401,6 @@ def test_patched_output_error_intercepts_do_mark_status_exception_arm() -> None:
             json_output=True,
         )
     assert exc_info.value.exit_code == 1
-    logged_mock.assert_called_once()
-    assert logged_mock.call_args.kwargs["error_message"] == "boom"
     error_mock.assert_called_once_with(True, "boom")
 
 

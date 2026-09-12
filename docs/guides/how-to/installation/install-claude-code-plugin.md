@@ -94,7 +94,8 @@ When Claude Code executes a Spec Kitty skill, it calls
 `bin/spec-kitty-wrapper` (bash) or `bin/spec-kitty-wrapper.cmd` (Windows).
 The wrapper:
 
-1. Checks if `spec-kitty` is on PATH → delegates directly.
+1. Checks if `spec-kitty` is on PATH and `spec-kitty --version` succeeds →
+   delegates directly.
 2. Falls back to `uvx spec-kitty-cli==<version>` if `uvx` is available.
 3. Exits with an error message if neither is found.
 

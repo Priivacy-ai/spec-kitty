@@ -1,115 +1,45 @@
-"""Deterministic reducer for status event logs.
+"""CLI materialization adapter around the shared status reducer.
 
-Replays a list of StatusEvent records into a StatusSnapshot, applying
-deduplication, deterministic sorting, and rollback-aware conflict
-resolution for concurrent events from parallel worktrees.
-
-WP03 (additive): Also computes a RetrospectiveSnapshot from retrospective.*
-events in the raw event log and attaches it to the StatusSnapshot under the
-``retrospective`` field. Existing consumers see no change (default None).
+``status.events.jsonl`` is authoritative. The committed ``status.json`` file is
+a derived, human-readable snapshot for older readers; it is regenerated from
+the diary and must never be treated as the source of truth.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, cast
 
-from specify_cli.core.paths import safe_mission_slug
+from spec_kitty_events.diary import State, reduce_parsed
+from spec_kitty_events.status import reduce as reduce_shared_state
+
 from specify_cli.mission_metadata import resolve_mission_identity
 
 from .models import (
-    NON_DISPLAY_LANES,
-    ActorField,
     InnerStateChanged,
     Lane,
     RetrospectiveSnapshot,
     ReviewResult,
     StatusEvent,
     StatusSnapshot,
-    WPInnerStateDelta,
-    actor_identity_str,
 )
 from .store import StoreError, read_event_stream, read_events_raw
 
-#: Per-WP runtime slots carried forward across lane transitions (per-field
-#: independence, FR-002). A transition updates ``lane``/``actor``/… and MUST
-#: preserve these — the pre-mission reducer rebuilt the dict carrying forward
-#: only ``force_count``, which would erase runtime state on the next
-#: transition (the reducer replace-dict hazard).
-#:
-#: The resolved-binding actuals (``role``/``agent_profile``/
-#: ``agent_profile_version``/``model``/``provider``, FR-013) are runtime slots
-#: too: an implement-claim annotation's binding survives every later lane
-#: transition until a review-claim annotation replaces it (latest-wins, INV-8).
-_RUNTIME_SLOTS: tuple[str, ...] = (
-    "shell_pid",
-    "shell_pid_created_at",
-    "subtasks",
-    "notes",
-    "tracker_refs",
-    "agent",
-    "assignee",
-    "review",
-    "role",
-    "agent_profile",
-    "agent_profile_version",
-    "model",
-    "provider",
-)
-
-#: Data-driven **replace slots** for :func:`_apply_annotation_delta`: fields
-#: whose fold rule is exactly "if the delta field is present, replace the
-#: snapshot slot of the same name". Iterating this table (instead of a flat
-#: if-chain) keeps the annotation fold under the complexity ceiling as
-#: resolved-binding slots are added (D-14 tidy-first) — the five resolved
-#: actuals are pure replace slots, so they are data here, not new branches.
-#: The non-replace fields (``subtasks`` per-subtask merge, ``note`` -> ``notes``
-#: append, ``tracker_refs``/``tracker_refs_replace`` union/replace, ``review``)
-#: are handled explicitly and are NOT members of this table.
-_REPLACE_SLOTS: tuple[str, ...] = (
-    "shell_pid",
-    "shell_pid_created_at",
-    "agent",
-    "assignee",
-    "role",
-    "agent_profile",
-    "agent_profile_version",
-    "model",
-    "provider",
-)
-
-#: The "claim triple" (FR-004) released by an explicit
-#: ``WPInnerStateDelta.release_runtime_claim`` marker (partition-authority
-#: residuals follow-up to #2960). Deliberately narrower than
-#: :data:`_REPLACE_SLOTS`: ``assignee`` and the resolved-binding actuals
-#: (``role``/``agent_profile``/``agent_profile_version``/``model``/
-#: ``provider``) are NOT part of "the claim" and are left untouched by a
-#: release — only the runtime-claim identity (who/what process holds the WP)
-#: is cleared. See :func:`_apply_annotation_delta`.
-_CLAIM_RELEASE_SLOTS: tuple[str, ...] = ("agent", "shell_pid", "shell_pid_created_at")
-
-#: Prefixes of the CLI's auto-synthesized cancel reasons
-#: (``tasks_transition_core.build_transition_plan``): ``"Force move to <lane>"``
-#: and ``"move-task: <old> -> <lane>"``. A legacy canceled event — one written
-#: before the ``reason_source`` field existed — whose ``reason`` matches one of
-#: these is classified ``synthetic``; any other non-empty reason is treated as
-#: operator-authored (NFR-002 backward-compat, data-model.md entity 1).
+#: Prefixes of the CLI's auto-synthesized cancel reasons. A legacy canceled
+#: event whose reason matches one is classified ``synthetic``; any other
+#: non-empty reason is treated as operator-authored.
 _SYNTHETIC_REASON_PREFIXES: tuple[str, ...] = ("Force move to ", "move-task: ")
+
+#: Derived snapshot written beside the authoritative event diary.
+SNAPSHOT_FILENAME = "status.json"
 
 
 def _cancellation_reason_source(event: StatusEvent) -> str:
-    """Classify a canceled event's provenance as ``operator`` or ``synthetic``.
-
-    The durable :attr:`StatusEvent.reason_source` wins when present (events
-    written after FR-001). For a legacy event that predates the field
-    (``reason_source is None``), infer from ``reason``: an empty/whitespace
-    reason, or one matching a known synthetic template prefix, is ``synthetic``;
-    any other non-empty reason is ``operator`` (NFR-002).
-    """
+    """Classify a canceled event's provenance as ``operator`` or ``synthetic``."""
     if event.reason_source is not None:
         return event.reason_source
     reason = event.reason
@@ -120,499 +50,73 @@ def _cancellation_reason_source(event: StatusEvent) -> str:
     return "operator"
 
 
-SNAPSHOT_FILENAME = "status.json"
+def _state_to_snapshot(state: State) -> StatusSnapshot:
+    """Convert the shared reducer state to the CLI's snapshot facade type."""
+    return StatusSnapshot(
+        mission_slug=state.mission_slug,
+        materialized_at=state.materialized_at,
+        event_count=state.event_count,
+        last_event_id=state.last_event_id,
+        work_packages=state.work_packages,
+        summary=state.summary,
+        mission_number=state.mission_number,
+        mission_type=state.mission_type,
+    )
 
 
-def _is_rollback_event(event: StatusEvent) -> bool:
-    """Check if an event represents a reviewer rollback.
+def _project_cancellation_provenance(
+    events: Iterable[StatusEvent],
+    snapshot: StatusSnapshot,
+) -> None:
+    """Preserve the CLI's cancellation provenance compatibility slots.
 
-    Current review rejection rolls back from in_review to in_progress.
-    Legacy logs represented the same outcome as for_review to in_progress
-    with a review reference.
+    The shared reducer owns the common diary fold. Cancellation provenance was
+    added to the CLI after the shared reducer port, so this narrow projection
+    keeps that accepted CLI behavior until the shared contract carries it.
     """
-    if event.to_lane != Lane.IN_PROGRESS:
-        return False
-    if event.from_lane == Lane.IN_REVIEW:
-        return True
-    return event.from_lane == Lane.FOR_REVIEW and event.review_ref is not None
-
-
-def _wp_state_from_event(
-    event: StatusEvent,
-    previous: dict[str, Any] | None,
-) -> dict[str, Any]:
-    """Build a WP state dict from a lane transition.
-
-    Carries forward ``force_count`` **and** every untouched runtime slot from
-    ``previous`` (per-field independence, FR-002) so a later transition never
-    silently erases ``shell_pid``/``subtasks``/``notes``/``tracker_refs``/…
-    (the reducer replace-dict hazard).
-
-    The ``planned -> claimed`` transition is the only transition that writes a
-    runtime slot: it extracts ``shell_pid``/``shell_pid_created_at``/``agent``
-    from its ``policy_metadata`` sidecar into the snapshot slots (FR-004 claim
-    path). ``policy_metadata`` may be ``None`` — read defensively.
-
-    **``review_result`` (FR-001/T025-T026, WP07)** is a second, analogous
-    exception, but its trigger is WIDER than "outbound from ``in_review``"
-    alone. The FSM guard (``wp_state.InReviewState.guard_for`` ->
-    ``_check_review_result``) requires a ``ReviewResult`` only on a
-    non-forced outbound-from-``in_review`` edge — but the EMIT path applies no
-    ``from_lane`` filter of its own: ``status/emit.py``,
-    ``coordination/status_transition.py``, and
-    ``orchestrator_api/commands.py``'s external ``transition`` command all
-    thread an operator/caller-supplied ``review_result`` onto the event
-    verbatim, regardless of ``from_lane``. ``in_progress -> approved`` is a
-    legal edge (``InProgressState.allowed_targets``) gated on evidence, not on
-    ``from_lane`` — so a single-hop transition carrying both ``evidence`` and
-    a populated ``ReviewResult`` is constructible and persistable without ever
-    passing through ``in_review``. A trigger keyed SOLELY on
-    ``from_lane == IN_REVIEW`` would silently drop that verdict (and, on a
-    later unrelated transition, resurrect whatever stale value a prior
-    ``in_review`` cycle had carried-forward) — exactly the multi-authority bug
-    this mission exists to close. The rule is therefore: **any event carrying
-    a populated ``ReviewResult`` populates the slot with it, full stop**; the
-    ``from_lane == IN_REVIEW`` leg exists ADDITIONALLY to capture the
-    forced-null case the guard bypass creates (a forced exit from
-    ``in_review`` supplying no ``ReviewResult`` still must land an explicit
-    ``None``, T028 — an event with no ``review_result`` and ``from_lane !=
-    IN_REVIEW`` has no such guarantee to make, so it only carries forward).
-    Deliberately NOT a ``_RUNTIME_SLOTS`` row (plan.md IC-04's risk note;
-    widening that tuple would red ``test_2093_authority_invariant.py``'s arm
-    2). The slot being written to ``None`` (T028) is distinct from the slot
-    being entirely ABSENT for a WP that has never carried a verdict or exited
-    ``in_review`` (T027's un-migrated/never-reviewed compatibility case). See
-    :func:`review_result_from_state` / :func:`event_sourced_review_result` for
-    the reader that preserves this three-way distinction, and
-    :func:`_apply_annotation_delta`'s ``review`` slot docstring for the
-    precedence rule between the two (T026).
-    """
-    prior_force_count = 0
-    if previous is not None:
-        prior_force_count = previous.get("force_count", 0)
-
-    state: dict[str, Any] = {
-        "lane": str(event.to_lane),
-        # Project a structured (dict) resolved-binding actor to its string
-        # identity for the SNAPSHOT slot (FR-015): the reduced ``actor`` is a
-        # display identity consumed by ``str(actor).strip()`` sinks, so it stays
-        # ``str``-typed. The dict binding still rides the in-memory event to the
-        # SaaS fan-out and round-trips the event LOG uncorrupted.
-        "actor": actor_identity_str(event.actor),
-        "last_transition_at": event.at,
-        "last_event_id": event.event_id,
-        "force_count": prior_force_count + (1 if event.force else 0),
-    }
-
-    # Preserve untouched runtime slots across the transition.
-    if previous is not None:
-        for slot in _RUNTIME_SLOTS:
-            if slot in previous:
-                state[slot] = previous[slot]
-
-    # Claim exception (FR-004): the only transition that writes a runtime slot.
-    if event.from_lane == Lane.PLANNED and event.to_lane == Lane.CLAIMED:
-        meta = event.policy_metadata or {}
-        shell_pid = meta.get("shell_pid")
-        if shell_pid is not None:
-            state["shell_pid"] = shell_pid
-        shell_pid_created_at = meta.get("shell_pid_created_at")
-        if shell_pid_created_at is not None:
-            state["shell_pid_created_at"] = shell_pid_created_at
-        agent = meta.get("agent")
-        # Truthiness, not ``is not None`` (#2960 / FR-014): an empty ``agent``
-        # sidecar is a no-op, never a blank written over a real slot.
-        if agent:
-            state["agent"] = agent
-
-    # review_result exception (T025/T026, WP07): see the docstring above.
-    # Trigger is "the event carries a verdict" OR "outbound-from-in_review"
-    # (NOT from_lane == IN_REVIEW alone — emit applies no from_lane filter, so
-    # a single-hop in_progress -> approved carrying evidence + review_result
-    # is a real, reachable event shape the narrower trigger would silently
-    # drop). Either way the slot is OVERRIDDEN (not carry-forward-merged):
-    # a populated ReviewResult always lands as itself, and a forced
-    # in_review exit with no ReviewResult still lands an explicit ``None``
-    # (T028). Any other transition carries the slot forward verbatim
-    # (sticky) from ``previous`` so it is never silently erased.
-    if event.review_result is not None or event.from_lane == Lane.IN_REVIEW:
-        state["review_result"] = (
-            event.review_result.to_dict() if event.review_result is not None else None
-        )
-    elif previous is not None and "review_result" in previous:
-        state["review_result"] = previous["review_result"]
-
-    # Cancellation provenance projection (FR-001 / R2 / data-model entity 2):
-    # expose the operator reason + its provenance ONLY for a canceled snapshot,
-    # derived purely from the event log (C-002). Every non-canceled snapshot is
-    # byte-identical to before — these keys are never written otherwise (NFR-002).
-    if event.to_lane == Lane.CANCELED:
+    seen_event_ids: set[str] = set()
+    unique_events = [
+        event
+        for event in sorted(events, key=lambda item: (item.at, item.event_id))
+        if event.event_id not in seen_event_ids and not seen_event_ids.add(event.event_id)
+    ]
+    for event in unique_events:
+        if event.to_lane != Lane.CANCELED:
+            continue
+        state = snapshot.work_packages.get(event.wp_id)
+        if state is None or state.get("lane") != str(event.to_lane):
+            continue
         state["cancellation_reason"] = event.reason
         state["reason_source"] = _cancellation_reason_source(event)
-
-    return state
-
-
-def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> None:
-    """Fold a typed :class:`WPInnerStateDelta` into a per-WP snapshot dict.
-
-    **Claim release (``release_runtime_claim``, partition-authority residuals
-    follow-up to #2960/WP10) is applied FIRST, before the replace-slot loop
-    below.** #2960 taught ``WPInnerStateDelta.__post_init__`` to normalize a
-    bare ``agent=""`` (or any blank scalar) to ``None`` at the write boundary,
-    and taught the replace-slot loop's ``value != ""`` guard to no-op on a
-    stray blank that slips through anyway — both exist so a corrupted/blanking
-    delta can never clobber a real recorded value. That protection is
-    correctly indiscriminate: it cannot tell a corruption-shaped blank from a
-    *legitimate* claim release (e.g. ``move-task --to planned`` releasing a
-    stale ``agent``/``shell_pid`` on rollback), because both look identical on
-    the wire (an absent/empty scalar). ``release_runtime_claim`` is the
-    explicit, unambiguous signal that disambiguates the two: when ``True`` it
-    clears :data:`_CLAIM_RELEASE_SLOTS` (``agent``/``shell_pid``/
-    ``shell_pid_created_at``) to falsy — a REAL clear, not a no-op — while a
-    bare ``agent=""`` with ``release_runtime_claim`` absent/``False`` remains
-    the #2960 no-op. Applying the release BEFORE the replace-slot loop lets a
-    concrete value carried in the SAME delta (e.g. an explicit ``--agent``
-    replant on the same rollback move) win over the release: the loop below
-    overwrites whatever the release just cleared whenever the delta also
-    carries a present, non-empty value for that slot.
-
-    Per-field merge rules (only present delta fields are applied; absent fields
-    leave the slot untouched):
-
-    - **Replace slots** (:data:`_REPLACE_SLOTS`, data-driven): ``shell_pid`` /
-      ``shell_pid_created_at`` / ``agent`` / ``assignee`` and the resolved-
-      binding actuals ``role`` / ``agent_profile`` / ``agent_profile_version`` /
-      ``model`` / ``provider`` (FR-013). Each folds **latest-wins** — a present
-      value replaces the same-named slot; the most-recent annotation's actual
-      wins across the lifecycle (INV-8).
-    - ``subtasks``: **per-subtask replace** (merge by subtask id).
-    - ``note``: **append** to the ``notes`` list (field/slot name mismatch:
-      delta ``note`` -> snapshot ``notes``, so it is NOT a replace slot).
-    - ``tracker_refs`` (additive) **unions** into the ``tracker_refs`` slot;
-      ``tracker_refs_replace`` (present) **wholesale-replaces** the slot
-      (dedup-preserving order) and takes precedence when both are present — the
-      replace channel is what lets a ``--replace`` drop stale refs rather than
-      resurrect them.
-    - ``review``: **replace** with ``ReviewOverride.to_dict()``, UNLESS the
-      delta is the all-empty **release sentinel** (:attr:`ReviewOverride.
-      is_release_sentinel` — every field empty, the shape ``--to planned``
-      rollback emits, see ``_mt_emit_runtime_state``), in which case the slot
-      is a deliberate **clear** instead: it drops back to ``None`` rather than
-      persisting an empty dict, so a stale "superseded by approval" record
-      left by an earlier review-artifact override does not survive onto a WP
-      that has since rolled back to ``planned`` with a fresh rejection. A
-      *partially*-filled override (some but not all fields present, e.g. a
-      blank ``reason`` — #2684 WP09) is a DIFFERENT case from the release
-      sentinel: it is still persisted (so its presence remains visible), just
-      not :attr:`ReviewOverride.complete` — the merge gate still blocks on it.
-
-    **Precedence vs. ``review_result`` (T026, WP07)**: ``review`` (this slot,
-    written here) and ``review_result`` (written in :func:`_wp_state_from_event`
-    on an outbound-from-``in_review`` transition) are two DIFFERENT facts and
-    are never collapsed into one — ``review`` is the arbiter's override
-    decision, ``review_result`` is the reviewer's own verdict. Both may be
-    populated simultaneously for the same WP (an override recorded after a
-    standing rejection, for instance). **Precedence rule**: an arbiter
-    override in ``review`` (when :meth:`ReviewOverride.complete` is true)
-    clears the merge gate over a ``review_result`` of ``"changes_requested"``
-    for gate-clearing purposes ONLY — this matches the pre-existing arbiter
-    behaviour (an override already clears the gate without a fresh approval,
-    ``test_2684_review_override_recognition.py``). It does **not** overwrite
-    or erase the ``review_result`` slot's own value: a consumer asking "what
-    did the reviewer actually say" (as opposed to "is the gate clear") still
-    reads the real, un-mutated ``review_result``. Gate-clearing precedence is
-    applied by each consumer (e.g. ``post_merge/review_artifact_consistency.
-    py``'s event-sourced check), never by overwriting either slot here.
-
-    Never increments ``force_count``.
-    """
-    if delta.release_runtime_claim:
-        for name in _CLAIM_RELEASE_SLOTS:
-            state[name] = None
-    for name in _REPLACE_SLOTS:
-        value = getattr(delta, name)
-        # Empty strings are a no-op for string replace-slots (#2960 / FR-014):
-        # ``""`` must never clobber a real recorded value. ``value != ""`` keeps
-        # the non-string slots intact (e.g. ``shell_pid == 0`` still folds).
-        if value is not None and value != "":
-            state[name] = value
-    if delta.subtasks is not None:
-        current_subtasks: dict[str, str] = dict(state.get("subtasks") or {})
-        for subtask_id, status in delta.subtasks.items():
-            current_subtasks[subtask_id] = str(status)
-        state["subtasks"] = current_subtasks
-    if delta.note is not None:
-        notes: list[str] = list(state.get("notes") or [])
-        notes.append(delta.note)
-        state["notes"] = notes
-    if delta.tracker_refs_replace is not None:
-        state["tracker_refs"] = _dedup_preserve_order(delta.tracker_refs_replace)
-    elif delta.tracker_refs is not None:
-        merged: list[str] = list(state.get("tracker_refs") or [])
-        for ref in delta.tracker_refs:
-            if ref not in merged:
-                merged.append(ref)
-        state["tracker_refs"] = merged
-    if delta.review is not None:
-        state["review"] = (
-            None if delta.review.is_release_sentinel else delta.review.to_dict()
-        )
-
-
-def _dedup_preserve_order(refs: list[str]) -> list[str]:
-    """Return ``refs`` with duplicates removed, preserving first-seen order."""
-    seen: set[str] = set()
-    result: list[str] = []
-    for ref in refs:
-        if ref not in seen:
-            seen.add(ref)
-            result.append(ref)
-    return result
-
-
-def _should_apply_event(
-    current_state: dict[str, Any] | None,
-    new_event: StatusEvent,
-    all_events: list[StatusEvent],
-) -> bool:
-    """Determine whether new_event should be applied given the current state.
-
-    Implements rollback-aware precedence: if the current state was set by
-    a forward transition and a concurrent rollback event exists for the
-    same WP, the rollback wins.
-
-    If there is no current state, the event always applies.
-    If events are not concurrent (different timestamps), the later one
-    wins naturally through sort order.
-    """
-    if current_state is None:
-        return True
-
-    current_event_id = current_state.get("last_event_id")
-    current_timestamp = current_state.get("last_transition_at")
-
-    # If this event has the same timestamp as the current state's event,
-    # they are concurrent. Check rollback precedence.
-    if current_timestamp == new_event.at:
-        # If the new event is a rollback, it beats a forward transition
-        if _is_rollback_event(new_event):
-            # Check if the current state was set by a non-rollback event
-            current_setter = None
-            for ev in all_events:
-                if ev.event_id == current_event_id:
-                    current_setter = ev
-                    break
-            if current_setter is not None and not _is_rollback_event(current_setter):
-                return True  # Rollback beats forward
-
-        # If the current state was set by a rollback, don't let a
-        # concurrent forward event override it
-        if current_event_id is not None:
-            current_setter = None
-            for ev in all_events:
-                if ev.event_id == current_event_id:
-                    current_setter = ev
-                    break
-            if current_setter is not None and _is_rollback_event(current_setter) and not _is_rollback_event(new_event):
-                return False  # Forward does not beat rollback
-
-    # Default: apply the event (later in sort order wins)
-    return True
 
 
 def reduce(
     events: list[StatusEvent],
     annotations: list[InnerStateChanged] | None = None,
 ) -> StatusSnapshot:
-    """Deterministically reduce events (+ annotations) into a snapshot.
-
-    Event-kind partition fold (NOT a timestamp-interleaved single pass):
-
-    1. Deduplicate transitions by event_id (keep first occurrence)
-    2. Sort transitions by (at, event_id) ascending
-    3. Fold all transitions with rollback-aware precedence, preserving each
-       WP's untouched runtime slots (and folding the ``planned -> claimed``
-       ``policy_metadata`` sidecar into the snapshot slots)
-    4. Fold **all annotations** in a dedicated post-transition pass, applying
-       the per-field ``WPInnerStateDelta`` merge. A same-``at`` transition can
-       never clobber an annotation slot; annotations never bump ``force_count``.
-       This pass is a single O(annotations) walk keyed by ``wp_id`` — it does
-       NOT re-scan the transition list (NFR-005).
-    5. Build summary counts for the 9 active/display lanes
-       (lanes in ``NON_DISPLAY_LANES`` — currently ``GENESIS`` and
-       ``UNINITIALIZED`` — are excluded; neither ever appears as the
-       current lane of a materialised WP)
-
-    ``annotations`` defaults to ``None`` (treated as empty) so every existing
-    ``reduce(read_events(...))`` caller keeps its behaviour. An
-    annotation-only stream materialises a runtime-only WP entry.
-
-    An empty stream (no transitions and no annotations) returns a snapshot with
-    mission_slug="", all zero counts, and no work packages.
-    """
-    annotations = annotations or []
-    if not events and not annotations:
-        return StatusSnapshot(
-            mission_slug="",
-            materialized_at="",  # No events → no last-event timestamp; stable empty string
-            event_count=0,
-            last_event_id=None,
-            work_packages={},
-            summary={lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES},
-        )
-
-    # Step 1: Deduplicate by event_id (keep first occurrence)
-    seen_ids: set[str] = set()
-    unique_events: list[StatusEvent] = []
-    for event in events:
-        if event.event_id not in seen_ids:
-            seen_ids.add(event.event_id)
-            unique_events.append(event)
-
-    # Step 2: Sort by (at, event_id) ascending
-    sorted_events = sorted(unique_events, key=lambda e: (e.at, e.event_id))
-
-    # Step 3 & 4: Iterate and apply events with rollback-aware precedence
-    wp_states: dict[str, dict[str, Any]] = {}
-    # The event's mission_slug is UNTRUSTED (verbatim from a status.events.jsonl
-    # row). Sanitize it HERE — the single seam where the snapshot's slug is set —
-    # so a crafted traversal slug (e.g. "../../../../tmp/evil") is downgraded to
-    # "" at the source. Every derived-view writer already falls back to the
-    # trusted feature_dir.name when the slug is empty (`slug or feature_dir.name`),
-    # so this one chokepoint fail-closes all current and future path sinks.
-    # An annotation-only stream has no transition to source the slug from.
-    mission_slug = safe_mission_slug(sorted_events[0].mission_slug, "") if sorted_events else ""
-
-    for event in sorted_events:
-        current = wp_states.get(event.wp_id)
-        if _should_apply_event(current, event, sorted_events):
-            wp_states[event.wp_id] = _wp_state_from_event(event, current)
-
-    # Step 4: Annotation post-pass (event-kind partition — folded AFTER every
-    # transition, never interleaved by timestamp). A single O(annotations) walk
-    # keyed by wp_id; it does NOT re-scan the transition list. An annotation for
-    # a wp_id with no prior transition materialises a runtime-only WP entry.
-    #
-    # Sort by ``(at, event_id)`` — the SAME key as the transition pass (Step 2) —
-    # so two annotations touching the same field resolve by timestamp, not by
-    # merge/file order. Without this, a parallel-worktree merge that interleaves
-    # the rows non-deterministically would flip the winner (#2684 determinism).
-    sorted_annotations = sorted(annotations, key=lambda a: (a.at, a.event_id))
-    for annotation in sorted_annotations:
-        wp_state = wp_states.get(annotation.wp_id)
-        if wp_state is None:
-            wp_state = _runtime_only_wp_state(annotation.actor)
-            wp_states[annotation.wp_id] = wp_state
-        _apply_annotation_delta(wp_state, annotation.delta)
-
-    # Step 5: Build summary counts for the 9 active/display lanes.
-    # Lanes in NON_DISPLAY_LANES (GENESIS, UNINITIALIZED) are excluded —
-    # neither is ever the current lane of a materialised WP (post-finalize
-    # there are none).
-    summary: dict[str, int] = {lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES}
-    for wp_state in wp_states.values():
-        lane_val = wp_state["lane"]
-        if lane_val in summary:
-            summary[lane_val] += 1
-
-    # ``materialized_at``/``last_event_id`` derive from the last transition
-    # (deterministic). Annotations are off-axis and do not move these markers.
-    last_transition = sorted_events[-1] if sorted_events else None
-    return StatusSnapshot(
-        mission_slug=mission_slug,
-        materialized_at=last_transition.at if last_transition is not None else "",
-        event_count=len(sorted_events),
-        last_event_id=last_transition.event_id if last_transition is not None else None,
-        work_packages=wp_states,
-        summary=summary,
-    )
+    """Reduce typed CLI events through the shared diary reducer."""
+    snapshot = _state_to_snapshot(reduce_parsed(events, annotations or []))
+    _project_cancellation_provenance(events, snapshot)
+    return snapshot
 
 
 def wp_snapshot_state(feature_dir: Path, wp_id: str) -> Mapping[str, Any] | None:
-    """Return the reduced per-WP runtime state for *wp_id*, or ``None`` if absent.
-
-    The single shared spelling of the ``read_event_stream(feature_dir)`` ->
-    ``reduce(...)`` -> ``snapshot.work_packages.get(wp_id)`` idiom that was
-    reimplemented across ~6 modules (IC-08 / #2093). Behaviour-preserving:
-
-    - An empty event log (no transitions and no annotations) reduces to an empty
-      snapshot, so the lookup returns ``None`` — identical to the pre-existing
-      ``if not stream.transitions and not stream.annotations`` early-outs.
-    - A WP with no reduced entry returns ``None``.
-
-    This accessor is **ungated**: the phase-1 dual-write flag gating stays at each
-    call site (a snapshot-first reader vs. a frontmatter fallback is a call-site
-    decision, not this accessor's). Callers that want an empty-dict sentinel add
-    ``or {}``; callers that branch on absence use the ``None`` directly.
-    """
+    """Return the reduced per-WP runtime state for *wp_id*, or ``None``."""
     stream = read_event_stream(feature_dir)
     snapshot = reduce(stream.transitions, stream.annotations)
-    # cast: work_packages values are dict[str, Any], so .get() is Any|None at the
-    # follow_imports=skip boundary; narrow to the declared read-only Mapping.
     return cast("Mapping[str, Any] | None", snapshot.work_packages.get(wp_id))
 
 
 @dataclass(frozen=True)
 class ReviewResultLookup:
-    """Outcome of resolving the event-sourced ``review_result`` verdict for one WP.
-
-    Deliberately a three-way outcome (T027/T028), never collapsed to a single
-    ``ReviewResult | None``:
-
-    - ``slot_present=False`` (``result=None``): the reduced snapshot carries no
-      ``review_result`` key for this WP at all — no reduced entry exists, or
-      the WP has never undergone an outbound-from-``in_review`` transition
-      (the only transition class :func:`_wp_state_from_event` writes this slot
-      on). This is the un-migrated / never-reviewed compatibility case.
-      **Post-WP05 (verdict-seam-write-unification-01KZ9Q35, FR-002/FR-003):**
-      the frontmatter-parsing fallback this paragraph used to describe
-      (``rejected_review_artifact_for_terminal_lane`` /
-      ``latest_review_artifact_verdict``) is RETIRED — those two functions no
-      longer exist. Every caller now treats ``slot_present=False`` as "no
-      verdict recorded" directly (G2, contracts/verdict-authority-read.md):
-      a safety-gate consumer reads this as "no approval"/"no block", never a
-      frontmatter resurrection.
-    - ``slot_present=True, result=None``: the event log HAS spoken for this
-      WP's most recent outbound-from-``in_review`` transition, and its
-      authoritative answer is "no verdict was ever recorded" — typically a
-      ``--force`` transition that supplied no ``ReviewResult`` (T028), or a
-      damaged/malformed slot value (:func:`review_result_from_state`'s own
-      fail-closed catch). Both shapes collapse to this SAME tuple — see
-      ``post_merge/review_artifact_consistency.py``'s
-      ``_event_sourced_gate_verdict`` for one call-site's treatment.
-    - ``slot_present=True, result=<ReviewResult>``: the event log's own
-      recorded verdict — authoritative per FR-001, regardless of what any
-      review-cycle artifact's frontmatter says.
-    """
+    """Outcome of resolving the event-sourced ``review_result`` verdict."""
 
     slot_present: bool
     result: ReviewResult | None
 
 
 def review_result_from_state(state: Mapping[str, Any]) -> ReviewResultLookup:
-    """Resolve the event-sourced ``review_result`` verdict from an already-
-    materialized per-WP snapshot state ``Mapping``.
-
-    Mirrors ``post_merge/review_artifact_consistency.py``'s
-    ``_snapshot_review_override`` convention of taking the reduced state
-    directly rather than re-deriving it: a caller that already holds a
-    :class:`StatusSnapshot` (e.g. via :func:`materialize_snapshot`) must not
-    pay a second reduce for the same fact. Use
-    :func:`event_sourced_review_result` when no snapshot is in hand yet.
-
-    **WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004):** this function
-    is now re-exported on the ``specify_cli.status`` facade, so
-    ``post_merge/review_artifact_consistency.py``'s
-    ``_event_sourced_gate_verdict`` calls it DIRECTLY rather than re-inlining
-    an equivalent ``ReviewResult.from_dict`` decode — the former "not on the
-    facade's ``__all__``" justification for that duplication no longer holds.
-
-    Fails closed on a malformed slot value (present but not a mapping, or
-    missing required ``ReviewResult`` fields): treated as ``slot_present=True,
-    result=None`` — "no verdict", never a crash and never a fabricated
-    verdict. See :class:`ReviewResultLookup` for the full three-way contract.
-    """
+    """Resolve the event-sourced review verdict from a reduced WP state."""
     if "review_result" not in state:
         return ReviewResultLookup(slot_present=False, result=None)
     raw = state["review_result"]
@@ -622,38 +126,15 @@ def review_result_from_state(state: Mapping[str, Any]) -> ReviewResultLookup:
         return ReviewResultLookup(slot_present=True, result=None)
     try:
         return ReviewResultLookup(
-            slot_present=True, result=ReviewResult.from_dict(dict(raw))
+            slot_present=True,
+            result=ReviewResult.from_dict(dict(raw)),
         )
     except (KeyError, TypeError, ValueError):
         return ReviewResultLookup(slot_present=True, result=None)
 
 
 def event_sourced_review_result(feature_dir: Path, wp_id: str) -> ReviewResultLookup:
-    """Resolve the event-sourced ``review_result`` verdict for one WP (FR-001).
-
-    Snapshot-first: reads the reduced snapshot's ``review_result`` slot via
-    :func:`wp_snapshot_state`. Snapshot-first-WITH-FALLBACK is the CALLER's
-    job, not this function's — matching :func:`wp_snapshot_state`'s own
-    established convention ("a snapshot-first reader vs. a frontmatter
-    fallback is a call-site decision, not this accessor's"). See
-    :class:`ReviewResultLookup` for the three-way outcome this preserves.
-
-    **Failure polarity (fail-closed, stated for the WP01 reader census):** a
-    corrupted/unreadable event log raises :class:`~specify_cli.status.store.
-    StoreError` from the underlying ``read_event_stream`` call; this function
-    treats that identically to "no reduced entry" (``slot_present=False``), so
-    the caller degrades to "no verdict recorded" rather than an uncaught crash
-    or a verdict fabricated from a damaged log. The frontmatter fallback the
-    earlier phrasing named here is RETIRED (FR-003; those two functions no
-    longer exist — see :class:`ReviewResultLookup` above), so there is no
-    un-migrated-mission resurrection path left. "Absent" is then read
-    direction-dependently by the two safety consumers: the approval guard
-    treats it as "no approval" (fail-CLOSED — a WP that cannot be proven
-    approved is refused), while the merge-rejection block gate treats it as
-    "no block" (fail-open, backstopped by that same fail-closed approval guard
-    — see G2/G3, contracts/verdict-authority-read.md). This governs only the
-    SNAPSHOT read.
-    """
+    """Resolve a WP's event-sourced review verdict, failing closed."""
     try:
         state = wp_snapshot_state(feature_dir, wp_id)
     except StoreError:
@@ -663,102 +144,80 @@ def event_sourced_review_result(feature_dir: Path, wp_id: str) -> ReviewResultLo
     return review_result_from_state(state)
 
 
-def _runtime_only_wp_state(actor: ActorField) -> dict[str, Any]:
-    """Seed a per-WP snapshot entry for an annotation with no prior transition.
-
-    Such a WP never traversed the FSM, so it has no display lane — it sits in
-    the non-display ``UNINITIALIZED`` lane and is therefore excluded from the
-    board summary. The annotation delta then folds its runtime slots on top.
-
-    The ``actor`` is projected to its string identity for the snapshot slot
-    (FR-015 parity with :func:`_wp_state_from_event`), so a structured annotation
-    actor never lands as a raw dict in a display sink.
-    """
-    return {
-        "lane": str(Lane.UNINITIALIZED),
-        "actor": actor_identity_str(actor),
-        "last_transition_at": None,
-        "last_event_id": None,
-        "force_count": 0,
-    }
-
-
 def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnapshot:
-    """Compute a RetrospectiveSnapshot from raw event-log entries.
-
-    Scans the raw event list for retrospective.* events (identified by the
-    ``event_name`` key) and computes the current snapshot state.
-
-    Logic:
-    - absent: no retrospective.* events at all.
-    - pending: retrospective.requested or .started seen, but no terminal event.
-    - Terminal status (completed/skipped/failed): determined by the latest
-      terminal event, sorted by (at, event_id) descending.
-    - Proposal counts aggregated from proposal.generated/applied/rejected events.
-    - mode: from the most recent retrospective.requested payload.
-    - record_path: from the most recent terminal event payload, if present.
-    """
-    retro_events = [e for e in raw_events if "event_name" in e and str(e.get("event_name", "")).startswith("retrospective.")]
-
+    """Reduce CLI retrospective lifecycle rows from the raw event diary."""
+    retro_events = [
+        event
+        for event in raw_events
+        if str(event.get("event_name", "")).startswith("retrospective.")
+    ]
     if not retro_events:
         return RetrospectiveSnapshot(status="absent")
 
-    # Sort all retro events by (at, event_id) ascending
-    def _sort_key(e: dict[str, Any]) -> tuple[str, str]:
-        return (str(e.get("at", "")), str(e.get("event_id", "")))
+    retro_events_sorted = sorted(
+        retro_events,
+        key=lambda event: (str(event.get("at", "")), str(event.get("event_id", ""))),
+    )
 
-    retro_events_sorted = sorted(retro_events, key=_sort_key)
-
-    # Determine terminal status from latest completed/skipped/failed event
-    terminal_names = {"retrospective.completed", "retrospective.skipped", "retrospective.failed"}
-    terminal_events = [e for e in retro_events_sorted if e.get("event_name") in terminal_names]
-
-    # Determine mode from most recent requested event
-    requested_events = [e for e in retro_events_sorted if e.get("event_name") == "retrospective.requested"]
+    requested_events = [
+        event
+        for event in retro_events_sorted
+        if event.get("event_name") == "retrospective.requested"
+    ]
     mode = None
     if requested_events:
-        latest_requested = requested_events[-1]
-        payload = latest_requested.get("payload") or {}
+        payload = requested_events[-1].get("payload") or {}
         mode_data = payload.get("mode")
         if mode_data is not None:
             try:
                 from specify_cli.retrospective.schema import Mode
+
                 mode = Mode.model_validate(mode_data)
             except Exception:
                 mode = None
 
-    # Determine status
-    retro_status: Literal["completed", "skipped", "failed", "pending"]
+    terminal_names = {
+        "retrospective.completed",
+        "retrospective.skipped",
+        "retrospective.failed",
+    }
+    terminal_events = [
+        event
+        for event in retro_events_sorted
+        if event.get("event_name") in terminal_names
+    ]
     if terminal_events:
         latest_terminal = terminal_events[-1]
-        terminal_name: str = str(latest_terminal.get("event_name", ""))
+        terminal_name = str(latest_terminal.get("event_name", ""))
         if terminal_name == "retrospective.completed":
             retro_status = "completed"
         elif terminal_name == "retrospective.skipped":
             retro_status = "skipped"
         else:
             retro_status = "failed"
-
-        # Extract record_path from terminal payload
-        record_path: str | None = None
         payload = latest_terminal.get("payload") or {}
-        rp = payload.get("record_path")
-        if rp is not None:
-            record_path = str(rp)
+        record_path_value = payload.get("record_path")
+        record_path = (
+            record_path_value if isinstance(record_path_value, str) else None
+        )
     else:
-        # Non-terminal retro events present (requested/started)
         retro_status = "pending"
         record_path = None
 
-    # Proposal counts
     proposals_total = sum(
-        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.generated"
+        1
+        for event in retro_events
+        if event.get("event_name") == "retrospective.proposal.generated"
     )
     proposals_applied = sum(
-        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.applied"
+        1
+        for event in retro_events
+        if event.get("event_name") == "retrospective.proposal.applied"
     )
     proposals_rejected = sum(
-        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.rejected"
+        1
+        for event in retro_events
+        if event.get("event_name") == "retrospective.proposal.rejected"
     )
     proposals_pending = max(0, proposals_total - proposals_applied - proposals_rejected)
 
@@ -774,12 +233,7 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
 
 
 def materialize_to_json(snapshot: StatusSnapshot) -> str:
-    """Serialize a snapshot to a deterministic JSON string.
-
-    Uses ``sort_keys=True``, ``indent=2``, and ``ensure_ascii=False``
-    for human-readable, byte-identical output across platforms.
-    Returns the JSON string with a trailing newline.
-    """
+    """Serialize a snapshot to deterministic, human-readable JSON."""
     return (
         json.dumps(
             snapshot.to_dict(),
@@ -792,31 +246,18 @@ def materialize_to_json(snapshot: StatusSnapshot) -> str:
 
 
 def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
-    """Read events and reduce them to the exact snapshot materialize() writes.
-
-    This helper is intentionally read-only. It keeps production materialization
-    semantics in one place so callers such as doctor/audit can compare a
-    persisted status.json without creating temp files or replacing status.json.
-
-    Reads via ``read_event_stream`` so off-axis ``InnerStateChanged``
-    annotations are surfaced to ``reduce()`` and folded into the runtime slots.
-    """
+    """Read events and reduce them to the exact snapshot materialize writes."""
     stream = read_event_stream(feature_dir)
-    snapshot = reduce(stream.transitions, stream.annotations)
+    raw_events = read_events_raw(feature_dir)
+    snapshot = _state_to_snapshot(reduce_shared_state(raw_events))
+    _project_cancellation_provenance(stream.transitions, snapshot)
     identity = resolve_mission_identity(feature_dir)
     snapshot.mission_number = (
-        str(identity.mission_number)
-        if identity.mission_number is not None
-        else None
+        str(identity.mission_number) if identity.mission_number is not None else None
     )
     snapshot.mission_type = identity.mission_type
 
-    # Additive WP03: compute RetrospectiveSnapshot from raw events (includes
-    # retrospective.* entries that are not StatusEvent objects).
-    raw_events = read_events_raw(feature_dir)
     retro_snapshot = _reduce_retrospective(raw_events)
-    # Only attach non-absent snapshots to avoid changing serialized output for
-    # missions that have no retrospective events at all.
     if retro_snapshot.status != "absent":
         snapshot.retrospective = retro_snapshot
 
@@ -824,31 +265,16 @@ def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
 
 
 def materialize(feature_dir: Path) -> StatusSnapshot:
-    """Read events, reduce to snapshot, and write status.json atomically.
-
-    Skips the write when content is byte-identical to the existing file.
-    Writes to a temporary file first, then uses ``os.replace`` for an
-    atomic rename to avoid partial writes.
-
-    WP03 (additive): Also scans raw events for retrospective.* entries and
-    attaches a RetrospectiveSnapshot to the snapshot under ``retrospective``.
-    Default is None for missions with no retrospective events (backwards-compat).
-
-    Returns the materialized snapshot.
-    """
+    """Read events, reduce a snapshot, and atomically write ``status.json``."""
     snapshot = materialize_snapshot(feature_dir)
     json_str = materialize_to_json(snapshot)
 
     out_path = feature_dir / SNAPSHOT_FILENAME
     tmp_path = feature_dir / (SNAPSHOT_FILENAME + ".tmp")
-
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Guard only the write side effect: skip when byte-identical (FR-001, NFR-001);
-    # otherwise atomic tmp-write + os.replace. The returned snapshot is the freshly
-    # reduced one on both paths (S3516 -> single return).
     if not (out_path.exists() and out_path.read_text(encoding="utf-8") == json_str):
         tmp_path.write_text(json_str, encoding="utf-8")
-        os.replace(str(tmp_path), str(out_path))
+        os.replace(tmp_path, out_path)
 
     return snapshot

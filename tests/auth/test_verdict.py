@@ -1,8 +1,8 @@
 """Unit tests for the honest auth :class:`HealthVerdict` authority (#3723).
 
 Covers the type-level invariants (evidence-required, headline-derived) and the
-full decision ladder of both producers (``evaluate_auth_verdict`` /
-``auth_verdict_from_flags``), including the load-bearing #3723 case: an expired
+full decision ladder of ``evaluate_auth_verdict``, including the load-bearing
+#3723 case: an expired
 access token whose refresh chain is unproven offline is ``unknown``, never
 ``ok``.
 """
@@ -18,7 +18,6 @@ import pytest
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.verdict import (
     HealthVerdict,
-    auth_verdict_from_flags,
     evaluate_auth_verdict,
 )
 
@@ -88,6 +87,17 @@ def test_no_session_is_fail() -> None:
     assert v.remediation == "spec-kitty auth login"
 
 
+def test_decryption_failure_is_not_reported_as_absent_session() -> None:
+    v = evaluate_auth_verdict(
+        None,
+        now_utc(),
+        session_assessment_reason="storage_decryption_failed",
+    )
+    assert v.state == "fail"
+    assert "could not be decrypted" in v.evidence
+    assert "removed" in v.evidence
+
+
 def test_healthy_access_is_ok_and_names_both_windows() -> None:
     v = evaluate_auth_verdict(
         _session(access_delta=timedelta(minutes=15), refresh_delta=timedelta(days=30)),
@@ -144,37 +154,6 @@ def test_legacy_refresh_none_is_ok_when_access_valid() -> None:
     )
     assert v.state == "ok"
     assert "server-managed" in v.evidence
-
-
-# ---------------------------------------------------------------------------
-# auth_verdict_from_flags — I/O-free twin
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("session_present", "access_ok", "refresh_ok", "expected"),
-    [
-        (False, False, False, "fail"),
-        (True, True, True, "ok"),
-        (True, False, False, "fail"),
-        (True, False, True, "unknown"),
-    ],
-)
-def test_flags_ladder(session_present: bool, access_ok: bool, refresh_ok: bool, expected: str) -> None:
-    v = auth_verdict_from_flags(
-        session_present=session_present, access_ok=access_ok, refresh_ok=refresh_ok
-    )
-    assert v.state == expected
-
-
-def test_flags_expired_access_with_live_probe_is_ok() -> None:
-    v = auth_verdict_from_flags(
-        session_present=True,
-        access_ok=False,
-        refresh_ok=True,
-        server_probe=_Probe(active=True),
-    )
-    assert v.state == "ok"
 
 
 def test_replace_preserves_headline_derivation() -> None:

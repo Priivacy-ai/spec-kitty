@@ -19,7 +19,7 @@ runner = CliRunner()
 @pytest.fixture(autouse=True)
 def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep command-unit tests isolated from the checkout's project metadata."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.setattr("specify_cli.locate_project_root", lambda: None)
     # These unit tests do not stage a charter; patch the hook boundary so the
     # argument-validation / dispatch paths remain isolated.
@@ -34,14 +34,6 @@ def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
         "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
         lambda *_args, **_kwargs: result,
     )
-
-
-def test_derive_mission_state_imports_legacy_events_lazily(tmp_path: Path) -> None:
-    """Legacy state derivation keeps event-log imports off the package import path."""
-    from runtime.next.decision import derive_mission_state
-
-    with patch("specify_cli.mission_v1.events.read_events", return_value=[]):
-        assert derive_mission_state(tmp_path, "discovery") == "discovery"
 
 
 def _make_mock_decision(
@@ -409,7 +401,8 @@ class TestQueryCurrentStateErrorPaths:
 
     def test_resolved_missing_feature_dir_raises_mission_not_found(self, tmp_path: Path) -> None:
         """Resolved-but-absent paths also fail closed."""
-        from mission_runtime import MissionArtifactContext, MissionArtifactKind, MissionContext, MissionTopology
+        from mission_runtime import MissionArtifactKind, MissionContext, MissionTopology
+        from mission_runtime.context import MissionArtifactContext
         from runtime.next.runtime_bridge import MissionNotFoundError, query_current_state
 
         missing = tmp_path / "kitty-specs" / "069-missing"
@@ -717,8 +710,9 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.mission_state == "done"
         assert decision.is_query is True
 
-    def test_existing_run_ref_returns_none_when_state_json_missing(self, tmp_path: Path) -> None:
+    def test_existing_run_ref_raises_when_state_json_missing(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import _existing_run_ref
+        from runtime.next.runtime_bridge_io import RunStateMissing
 
         index = {
             "069-test": {
@@ -727,12 +721,16 @@ class TestQueryCurrentStateErrorPaths:
                 "mission_type": "software-dev",
             }
         }
-        # The directory exists but state.json is missing → contract returns None
-        # so the caller will fall back to bootstrapping a fresh ephemeral run.
+        # The directory exists but state.json is missing. WP05 / FR-016: this is
+        # a loud structured error -- returning None here used to let query mode
+        # preview a phantom fresh ephemeral run over the orphaned history.
         (tmp_path / "stale_run").mkdir()
 
-        with patch("runtime.next.runtime_bridge_io.load_feature_runs", return_value=index):
-            assert _existing_run_ref("069-test", tmp_path, "software-dev") is None
+        with (
+            patch("runtime.next.runtime_bridge_io.load_feature_runs", return_value=index),
+            pytest.raises(RunStateMissing),
+        ):
+            _existing_run_ref("069-test", tmp_path, "software-dev")
 
     def test_start_ephemeral_query_run_cleans_up_on_bootstrap_failure(self, tmp_path: Path) -> None:
         """If start_mission_run raises, the freshly created temp dir is removed."""

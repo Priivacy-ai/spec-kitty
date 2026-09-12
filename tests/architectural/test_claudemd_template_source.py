@@ -3,7 +3,7 @@
 Mission ``self-documenting-repo-01M0287X`` WP02 (FR-002) found CLAUDE.md's
 "Template Source Location" section, flow diagram, and "Use Canonical
 Sources" section still pointing mission-step-prompt authors at
-``src/doctrine/missions/mission-steps/`` — a path that no longer exists.
+``src/charter/offering/missions/mission-steps/`` — a path that no longer exists.
 The canonical source is ``packs/built-in/missions/mission-steps/`` (see
 ``CLAUDE.md``'s own "Template Source Location" table). This test pins the
 correction: it fails if the stale path fragment ever reappears in
@@ -26,11 +26,11 @@ pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CLAUDE_MD = _REPO_ROOT / "CLAUDE.md"
-_STALE_TEMPLATE_SOURCE_FRAGMENT = "src/doctrine/missions/"
+_STALE_TEMPLATE_SOURCE_FRAGMENT = "src/charter/offering/missions/"
 
 
 def test_claudemd_has_no_stale_mission_steps_source_path() -> None:
-    """CLAUDE.md must not reference the retired src/doctrine/missions/ template source."""
+    """CLAUDE.md must not reference the retired src/charter/offering/missions/ template source."""
     content = _CLAUDE_MD.read_text(encoding="utf-8")
     assert _STALE_TEMPLATE_SOURCE_FRAGMENT not in content, (
         f"CLAUDE.md still references the retired template source path "

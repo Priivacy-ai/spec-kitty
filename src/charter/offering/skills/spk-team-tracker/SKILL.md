@@ -18,9 +18,13 @@ binding, hosted tracker routing, or tracker diagnostics.
 
 ## Local Dev Note
 
-When testing tracker flows from the CLI on this computer, opt into hosted mode
-with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`. Prefer writing it once into
+When testing tracker-hosted flows from the CLI on this computer, hosted mode
+is already on — the launch default (#3980) is enabled unless explicitly opted
+out; `SPEC_KITTY_ENABLE_SAAS_SYNC=0` is the opt-out. The flag gates tracker
+invocation only; it does not restore the removed standalone sync transport.
+To keep hosted mode off on this machine, prefer writing
+`SPEC_KITTY_ENABLE_SAAS_SYNC=0` once into
 `.kittify/.kitty.env` (repo-scoped) or `${SPEC_KITTY_HOME}/.kitty.env`
-(machine-wide) over a per-shell `export` — a shell export arms every project
+(machine-wide) over a per-shell `export` — a shell export disarms every project
 that shell subsequently touches, not just the one you're testing. Run
 `spec-kitty doctor env-file` to confirm which tier is active.

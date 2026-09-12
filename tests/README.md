@@ -21,7 +21,6 @@ tests/
   status/           — status model, lane management, CLI, validation
   upgrade/          — migrations, upgrade path, version detection
   init/             — project initialisation, charter setup
-  sync/             — background sync, event emission, transport, offline queue
   runtime/          — bootstrap, doctor, resolver, global convergence
   research/         — research workflow, research plan deliverables
   next/             — next-command loop, prompt builder, runtime bridge
@@ -92,8 +91,7 @@ pytest -m slow
 pytest tests/merge/
 
 # Full suite
-pytest tests/ -n auto --dist loadfile --ignore=tests/sync/test_orphan_sweep.py
-pytest tests/sync/test_orphan_sweep.py -q  # serial process-safety owner
+pytest tests/ -n auto --dist loadfile
 
 # Single file
 pytest tests/lanes/test_compute.py -v

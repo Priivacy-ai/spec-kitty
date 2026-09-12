@@ -1,8 +1,8 @@
 ---
 title: 'Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap'
 description: 'Work the 3-gate sync-drain order (flag/consent, auth, teamspace) and avoid the `sync doctor` false-green trap.'
-doc_status: active
-updated: '2026-08-16'
+doc_status: deprecated
+updated: '2026-08-31'
 related:
 - docs/operations/internal-hosted-readiness.md
 - docs/operations/logged-out-teamspace.md
@@ -12,6 +12,9 @@ related:
 ---
 
 # Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap
+
+> **Removed in 3.2.6; kept as historical record.** The CLI→SaaS sync transport
+> described here is gone. This page is scheduled for deletion in 3.2.7.
 
 An event captured locally does not ship to a Teamspace until it clears three
 gates, evaluated **in this order** by the drain (see

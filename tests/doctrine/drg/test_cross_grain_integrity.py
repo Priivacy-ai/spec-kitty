@@ -76,7 +76,7 @@ from charter.offering.missions.mission_type_repository import builtin_mission_ty
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 #: The shipped missions root: ``packs/built-in/missions`` (relocated from
-#: ``src/doctrine/missions`` by mission
+#: ``src/charter/offering/missions`` by mission
 #: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
 #: Path-derived from this file (mirrors ``test_shipped_graph_valid.py``'s
 #: ``SHIPPED_GRAPH`` constant) rather than a shared fixture, per the

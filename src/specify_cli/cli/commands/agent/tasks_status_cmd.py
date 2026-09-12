@@ -799,7 +799,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # constructing ``AgentProfileRepository`` directly. The comment
             # this replaces named a "runtime -> charter -> doctrine boundary
             # ratchet" concern; R3 (research.md) confirms that ratchet only
-            # scans MODULE-LEVEL ``from doctrine.*`` imports, and both the old
+            # scans MODULE-LEVEL ``from charter.offering.*`` imports, and both the old
             # direct-construction import and this factory import are
             # function-local, so the gate does not trip either way -- the
             # concern does not reappear.
@@ -957,7 +957,7 @@ def _get_hic_marker(
             # sibling call site (``_st_render_human``), the removed comment's
             # "boundary ratchet" concern is confirmed a red herring (R3,
             # research.md): the existing gate only scans module-level
-            # ``from doctrine.*`` imports, and this import is function-local,
+            # ``from charter.offering.*`` imports, and this import is function-local,
             # same as the construction it replaces. All 8 production callers
             # in this module always pass ``repo=`` explicitly (built once per
             # render in ``_st_render_human``), so this self-resolving fallback

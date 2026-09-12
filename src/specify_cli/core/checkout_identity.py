@@ -139,9 +139,7 @@ def _read_worktree_gitdir(git_file: Path) -> Path | None:
     if not content.startswith(_GITDIR_PREFIX):
         return None
     gitdir = Path(content.split(":", 1)[1].strip())
-    if gitdir.parent.name != "worktrees" or not gitdir.parent.parent.name.endswith(
-        ".git"
-    ):
+    if gitdir.parent.name != "worktrees" or not gitdir.parent.parent.name.endswith(".git"):
         return None
     return gitdir
 

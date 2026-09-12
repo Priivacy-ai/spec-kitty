@@ -167,7 +167,7 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
 
 #: A gated kind whose repository actually consumes ``active_languages``
 #: (``paradigms``/``directives``/``mission_step_contracts``/``glossary_packs``
-#: do not — see ``src/doctrine/service.py``'s per-property construction).
+#: do not — see ``src/charter/offering/service.py``'s per-property construction).
 #: Used by the two axis tests below to observe the service-level resolution.
 _LANGUAGE_SCOPED_KIND = "tactics"
 
@@ -187,7 +187,7 @@ def test_active_languages_resolution_identical_across_entry_points(repo_root: Pa
     carries the same ``_active_languages`` value the service resolved — rather
     than reaching into the wrapper's ``._inner`` directly. Uses ``tactics``
     (not ``paradigms``) because ``paradigms`` does not consume
-    ``active_languages`` at all (``src/doctrine/service.py``).
+    ``active_languages`` at all (``src/charter/offering/service.py``).
     """
     from charter.activation.language_scope import infer_repo_languages
 

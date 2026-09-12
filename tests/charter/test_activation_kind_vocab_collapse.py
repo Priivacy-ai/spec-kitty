@@ -4,7 +4,7 @@ Red-first: on `main` the two `_activation_render` copies had drifted two kinds
 behind the authoritative 10-kind set, so `_singular_kind("glossary_packs")`
 failed open (returned the plural verbatim) and `_infer_kind` was blind to
 `glossary_packs`. After WP03 both derive from the single
-`charter.offering.artifact_kinds` authority, and no charter module re-declares a local
+`doctrine.artifact_kinds` authority, and no charter module re-declares a local
 plural↔singular kind dict (FR-004).
 """
 
@@ -76,9 +76,7 @@ def test_activations_maps_are_the_derived_authority() -> None:
 
 
 def test_kind_to_property_covers_all_activatable_plurals() -> None:
-    assert set(_activation_render._KIND_TO_PROPERTY) == set(
-        CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.values()
-    )
+    assert set(_activation_render._KIND_TO_PROPERTY) == set(CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.values())
     # property name == plural for every kind
     assert all(k == v for k, v in _activation_render._KIND_TO_PROPERTY.items())
 

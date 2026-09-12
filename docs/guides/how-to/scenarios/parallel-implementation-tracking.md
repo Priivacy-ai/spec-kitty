@@ -48,7 +48,7 @@ Use this recipe when multiple agents implement a roadmap in parallel and leaders
 - Use `/spec-kitty.merge --dry-run` to produce merge preview for executives
 
 ## Dashboard Features for Tracking
-- **Real-time updates** - No refresh needed, WebSocket keeps dashboard live
+- **Real-time updates** - Refresh is automatic via polling, no manual page reload needed
 - **Lane filtering** - Focus on specific lanes (e.g., only "for_review")
 - **Agent assignments** - See which agent is working on which task
 - **Completion metrics** - Track progress percentages per feature

@@ -1,3 +1,0 @@
-FAILED tests/sync/test_orphan_sweep.py::test_orphan_branch_removed_after_grace_period - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/sync/test_orphan_sweep.py::test_orphan_branch_removed_after_grace_period
-===================== 1 failed in 3.10s ======================

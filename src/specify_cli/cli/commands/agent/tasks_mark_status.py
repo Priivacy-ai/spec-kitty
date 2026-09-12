@@ -59,7 +59,6 @@ from __future__ import annotations
 import contextlib
 import json
 import subprocess
-import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -180,13 +179,12 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
         primary = _tasks.get_main_repo_root(repo_root)
         st.owned = resolve_owned_mission(primary, st.owned_checkout, st.mission)
         require_unstaged_index(st.owned)
-        from specify_cli.core.saas_sync_config import sync_active
-
-        if sync_active():
-            raise ActionContextError(
-                "OWNED_SYNC_UNSUPPORTED",
-                "Owned mark-status does not support active synchronization.",
-            )
+        # #3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal died with the launch
+        # flip — owned checkouts publish moments like any checkout. The
+        # fan-out handlers on the status emit seam are individually bounded
+        # and non-raising, and the Zeitgeist moment handler no-ops without a
+        # session/team, so an owned mark-status under active sync completes
+        # with at worst a skipped fan-out warning.
         st.repo_root = st.owned.root
         _tasks._emit_sparse_session_warning(
             st.repo_root, command="spec-kitty agent tasks mark-status"
@@ -380,8 +378,7 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     This is the durable completion record the review gate re-sources from
     (``tasks_shared._check_unchecked_subtasks``, T016) — it replaces the
     ``tasks.md`` checkbox byte as the canonical subtask-completion authority.
-    Grouped by owning WP (reusing the ``resolved_tasks_by_wp`` pattern
-    ``_ms_emit_history`` already uses) so a batch mark of several task ids
+    Grouped by owning WP so a batch mark of several task ids
     emits ONE delta per WP, never one event per task id (FR-003 "single or
     batch"). A resolved task id with no identifiable owning WP is a hard error:
     success without a canonical event would violate the sole-authority contract.
@@ -438,59 +435,6 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
             )
 
 
-def _ms_emit_history(st: _MarkStatusState) -> None:
-    """Emit HistoryAdded events for the updated subtasks (T014)."""
-    from specify_cli.cli.commands.agent import tasks as _tasks
-    if st.owned is not None:
-        return
-    try:
-        if st.updated_tasks:
-            resolved_tasks_by_wp: dict[str, list[str]] = {}
-            unresolved_tasks: list[str] = []
-            tasks_content = st.tasks_md.read_text(encoding="utf-8")
-            for task_id in st.updated_tasks:
-                history_wp_id = _resolve_history_wp_id(
-                    tasks_content, task_id
-                ) or owning_wp_from_authored_roster(st.feature_dir, task_id)
-                if history_wp_id is None:
-                    unresolved_tasks.append(task_id)
-                else:
-                    resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
-
-            for history_wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
-                task_list_str = ", ".join(task_ids_for_wp)
-                _tasks.emit_history_added(
-                    wp_id=history_wp_id,
-                    entry_type="note",
-                    entry_content=f"Subtask(s) {task_list_str} marked as {st.status}",
-                    author="user",
-                )
-            if unresolved_tasks and not st.json_output:
-                _tasks.console.print(
-                    "[yellow]Warning:[/yellow] Could not resolve owning WP for HistoryAdded event: "
-                    + ", ".join(unresolved_tasks)
-                )
-    except Exception as e:
-        if not st.json_output:
-            _tasks.console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
-
-
-def _ms_dossier_sync(st: _MarkStatusState) -> None:
-    """Fire-and-forget dossier sync (best-effort)."""
-    if st.owned is not None:
-        return
-    with contextlib.suppress(Exception):
-        from specify_cli.sync.dossier_pipeline import (
-            trigger_feature_dossier_sync_if_enabled,
-        )
-
-        trigger_feature_dossier_sync_if_enabled(
-            st.feature_dir,
-            st.mission_slug,
-            st.repo_root,
-        )
-
-
 def _ms_output(st: _MarkStatusState) -> None:
     """Emit the mark-status success envelope + not-found warnings."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -525,6 +469,77 @@ def _ms_output(st: _MarkStatusState) -> None:
     else:
         success_msg = f"[green]✓[/green] Marked {len(st.updated_tasks)} subtasks as {st.status}: {', '.join(st.updated_tasks)}"
     _tasks._output_result(st.json_output, result, success_msg)
+
+
+def _recovery_commit_sha(error: BaseException) -> str | None:
+    """Return the first ``commit_sha`` riding *error*'s cause/context chain.
+
+    A transactional owned-mode emit may commit a recovery commit before the
+    failure surfaces, stamping the commit sha on the exception it raises —
+    possibly one or more ``raise … from`` hops down the chain. The walk is
+    cycle-safe (an exception graph that loops back on itself terminates) and
+    ignores non-string/empty ``commit_sha`` attributes.
+    """
+    cause: BaseException | None = error
+    visited_causes: set[int] = set()
+    while cause is not None and id(cause) not in visited_causes:
+        visited_causes.add(id(cause))
+        candidate_sha = getattr(cause, "commit_sha", None)
+        if isinstance(candidate_sha, str) and candidate_sha:
+            return candidate_sha
+        cause = cause.__cause__ or cause.__context__
+    return None
+
+
+def _reconstruct_applied_events(
+    owned: OwnedMission,
+    error: BaseException,
+    events_path: Path | None,
+) -> list[dict[str, object]]:
+    """Reconstruct which status events a failed owned mark-status applied (#3865).
+
+    Diffs the ``status.events.jsonl`` blob recorded in the recovery commit named
+    by *error*'s cause chain against the same blob in that commit's parent, so
+    the error payload reports exactly the events this command landed — never a
+    concurrent writer's. Returns ``[]`` when no recovery commit sha rides the
+    chain or *events_path* is unknown; a malformed or key-incomplete log row
+    suppresses detection wholesale rather than crashing the error path.
+    """
+    recovery_commit_sha = _recovery_commit_sha(error)
+    if recovery_commit_sha is None or events_path is None:
+        return []
+    relative_events = events_path.relative_to(owned.root).as_posix()
+    committed_log = subprocess.run(
+        ["git", "show", f"{recovery_commit_sha}:{relative_events}"],
+        cwd=owned.root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    parent_log = subprocess.run(
+        ["git", "show", f"{recovery_commit_sha}^:{relative_events}"],
+        cwd=owned.root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    with contextlib.suppress(ValueError, KeyError):
+        parent_ids = {
+            str(row["event_id"])
+            for line in parent_log.stdout.splitlines()
+            if parent_log.returncode == 0 and line.strip()
+            for row in (json.loads(line),)
+        }
+        return [
+            row
+            for line in committed_log.stdout.splitlines()
+            if committed_log.returncode == 0 and line.strip()
+            for row in (json.loads(line),)
+            if str(row["event_id"]) not in parent_ids
+        ]
+    return []
 
 
 def _do_mark_status(
@@ -562,8 +577,6 @@ def _do_mark_status(
         ports = ports or _default_mark_status_ports()
         _ms_resolve_read_dir(st, ports)
         _ms_apply_updates(st, ports)
-        _ms_emit_history(st)
-        _ms_dossier_sync(st)
         _ms_output(st)
     except typer.Exit:
         raise
@@ -577,48 +590,8 @@ def _do_mark_status(
                 else None
             )
             detected: list[dict[str, object]] = []
-            recovery_commit_sha = None
-            cause: BaseException | None = e
-            visited_causes: set[int] = set()
-            while cause is not None and id(cause) not in visited_causes:
-                visited_causes.add(id(cause))
-                candidate_sha = getattr(cause, "commit_sha", None)
-                if isinstance(candidate_sha, str) and candidate_sha:
-                    recovery_commit_sha = candidate_sha
-                    break
-                cause = cause.__cause__ or cause.__context__
-            if recovery_commit_sha is not None and st.owned is not None and events_path is not None:
-                relative_events = events_path.relative_to(st.owned.root).as_posix()
-                committed_log = subprocess.run(
-                    ["git", "show", f"{recovery_commit_sha}:{relative_events}"],
-                    cwd=st.owned.root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    check=False,
-                )
-                parent_log = subprocess.run(
-                    ["git", "show", f"{recovery_commit_sha}^:{relative_events}"],
-                    cwd=st.owned.root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    check=False,
-                )
-                with contextlib.suppress(ValueError, KeyError):
-                    parent_ids = {
-                        str(row["event_id"])
-                        for line in parent_log.stdout.splitlines()
-                        if parent_log.returncode == 0 and line.strip()
-                        for row in (json.loads(line),)
-                    }
-                    detected = [
-                        row
-                        for line in committed_log.stdout.splitlines()
-                        if committed_log.returncode == 0 and line.strip()
-                        for row in (json.loads(line),)
-                        if str(row["event_id"]) not in parent_ids
-                    ]
+            if st.owned is not None and events_path is not None:
+                detected = _reconstruct_applied_events(st.owned, e, events_path)
             event_ids = list(dict.fromkeys([
                 *st.applied_event_ids,
                 *(str(row["event_id"]) for row in detected),
@@ -662,13 +635,6 @@ def _do_mark_status(
             else:
                 _tasks.console.print(f"[red]{error_code}: {e}[/red]")
             raise typer.Exit(1) from e
-        # Emit ErrorLogged event (T016).
-        with contextlib.suppress(Exception):
-            _tasks.emit_error_logged(
-                error_type="runtime",
-                error_message=str(e),
-                stack_trace=traceback.format_exc(),
-            )
         _tasks._output_error(json_output, str(e))
         raise typer.Exit(1) from None
 

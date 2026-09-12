@@ -265,9 +265,7 @@ class TestWriteSkillTextReadOnlyTarget:
     """A read-only managed SKILL.md must be rewritten, not silently skipped."""
 
     @_skip_if_root
-    def test_readonly_target_is_rewritten_not_skipped(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_readonly_target_is_rewritten_not_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         skill_dir = tmp_path / ".claude" / "skills" / "spec-kitty-glossary-context"
         skill_dir.mkdir(parents=True)
         dest = skill_dir / "SKILL.md"
@@ -286,9 +284,7 @@ class TestWriteSkillTextReadOnlyTarget:
         assert dest.read_text(encoding="utf-8") == "NEW"
 
     @_skip_if_root
-    def test_writable_target_unaffected(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_writable_target_unaffected(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The read-only clear must not disturb an already-writable target."""
         skill_dir = tmp_path / ".claude" / "skills" / "spec-kitty-glossary-context"
         skill_dir.mkdir(parents=True)
@@ -304,9 +300,7 @@ class TestWriteSkillTextReadOnlyTarget:
         assert dest.read_text(encoding="utf-8") == "NEW"
 
     @_skip_if_root
-    def test_chmod_failure_does_not_abort_write(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_chmod_failure_does_not_abort_write(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A read-only target we cannot chmod (e.g. owned by another user) must
         not abort the write (squad F1).
 
@@ -359,9 +353,7 @@ class TestGlossaryContextMigrationToleratesReadOnlyTarget:
     """Reproduces the exact #3771 failure mode through the real migration."""
 
     @_skip_if_root
-    def test_readonly_target_does_not_fail_migration(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_readonly_target_does_not_fail_migration(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_1_2_fix_glossary_context_skill import (
             FixGlossaryContextSkillMigration,
         )

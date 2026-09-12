@@ -16,6 +16,7 @@ import pytest
 
 from specify_cli.status.models import (
     DoneEvidence,
+    GuardContext,
     Lane,
     RepoEvidence,
     ReviewApproval,
@@ -693,3 +694,71 @@ class TestFsmIsSoleEdgeAuthority:
     # transitions.py owns the derived projection definition; it is the only
     # production module permitted to reference the name to build it.
     _DEFINING_MODULE = "transitions.py"
+
+
+class TestDependencyReadinessGuard:
+    """FR-012 / C-004 (fsm-write-path-integrity WP04): tri-state, fail-OPEN on ``None``.
+
+    The guard lives in ``PlannedState.guard_for`` / ``ClaimedState.guard_for`` via the
+    ``subtasks_complete`` threading shape, but with the OPPOSITE polarity: only an
+    explicit ``False`` refuses. Force is never consulted by the guard itself.
+    """
+
+    _ENTRY_EDGES = [(Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS)]
+
+    def _ctx(self, verdict, **overrides) -> TransitionContext:
+        kwargs = {"actor": "test-agent", "workspace_context": "worktree", "dependency_ready": verdict}
+        kwargs.update(overrides)
+        return TransitionContext(**kwargs)
+
+    @pytest.mark.parametrize(("source", "target"), _ENTRY_EDGES)
+    def test_false_refuses_entry_edges(self, source, target):
+        state = wp_state_for(source)
+        assert state.can_transition_to(target, self._ctx(False)) is False
+        ok, err = state.guard_for(target, self._ctx(False))
+        assert ok is False
+        assert err == f"Transition {source.value} -> {target.value} blocked: unsatisfied dependencies (force with reason to override)"
+        with pytest.raises(InvalidTransitionError, match="unsatisfied dependencies"):
+            state.transition_to(target, self._ctx(False))
+
+    @pytest.mark.parametrize(("source", "target"), _ENTRY_EDGES)
+    @pytest.mark.parametrize("verdict", [True, None])
+    def test_true_and_none_pass_entry_edges(self, source, target, verdict):
+        state = wp_state_for(source)
+        assert state.can_transition_to(target, self._ctx(verdict)) is True
+        assert state.guard_for(target, self._ctx(verdict)) == (True, None)
+
+    def test_none_is_not_treated_like_subtasks_complete(self):
+        """The fail-closed ``is not True`` polarity of the review gate must NOT leak here."""
+        planned = wp_state_for(Lane.PLANNED)
+        assert planned.guard_for(Lane.CLAIMED, TransitionContext(actor="a")) == (True, None)
+        in_progress = wp_state_for(Lane.IN_PROGRESS)
+        assert in_progress.guard_for(Lane.FOR_REVIEW, TransitionContext(actor="a", implementation_evidence_present=True))[0] is False
+
+    @pytest.mark.parametrize(
+        ("source", "target"),
+        [
+            (Lane.PLANNED, Lane.BLOCKED),
+            (Lane.PLANNED, Lane.CANCELED),
+            (Lane.CLAIMED, Lane.BLOCKED),
+            (Lane.CLAIMED, Lane.CANCELED),
+            (Lane.FOR_REVIEW, Lane.IN_REVIEW),
+        ],
+    )
+    def test_other_edges_ignore_the_field(self, source, target):
+        state = wp_state_for(source)
+        assert state.guard_for(target, self._ctx(False, reason="r")) == (True, None)
+
+    @pytest.mark.parametrize(("source", "target"), _ENTRY_EDGES)
+    def test_force_with_actor_and_reason_bypasses_at_check_transition(self, source, target):
+        state = wp_state_for(source)
+        forced = self._ctx(False, force=True, reason="operator override")
+        assert state.check_transition(target, forced) == (True, None)
+        assert state.guard_for(target, forced)[0] is False  # the guard itself never reads force
+        no_reason = self._ctx(False, force=True)
+        assert state.check_transition(target, no_reason)[0] is False
+
+    def test_guard_context_and_transition_context_both_satisfy_the_protocol_field(self):
+        assert GuardContext(dependency_ready=False).dependency_ready is False
+        assert TransitionContext(actor="a", dependency_ready=True).dependency_ready is True
+        assert GuardContext().dependency_ready is None

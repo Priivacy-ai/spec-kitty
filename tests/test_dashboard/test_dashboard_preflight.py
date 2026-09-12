@@ -303,20 +303,9 @@ class _StubRequestHandler:
         return json.loads(self._body.decode("utf-8"))
 
 
-def _invoke_handle_health(project_dir: Path, monkeypatch: pytest.MonkeyPatch) -> dict:
+def _invoke_handle_health(project_dir: Path) -> dict:
     """Invoke ``APIHandler.handle_health`` against a stub request handler."""
     from specify_cli.dashboard.handlers.api import APIHandler
-
-    # ``get_sync_daemon_status`` performs IPC; stub it out for a clean payload.
-    import specify_cli.dashboard.handlers.api as api_mod
-
-    class _StubStatus:
-        sync_running = False
-        last_sync = None
-        consecutive_failures = 0
-        websocket_status = "Offline"
-
-    monkeypatch.setattr(api_mod, "get_sync_daemon_status", lambda timeout=0.2: _StubStatus())
 
     handler = _StubRequestHandler(project_dir)
     APIHandler.handle_health(handler)  # type: ignore[arg-type]
@@ -324,23 +313,72 @@ def _invoke_handle_health(project_dir: Path, monkeypatch: pytest.MonkeyPatch) ->
     return handler.response_payload
 
 
-def test_api_health_omits_preflight_warning_when_absent(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_api_health_omits_preflight_warning_when_absent(tmp_path: Path) -> None:
     """No persisted warning ⇒ ``preflight_warning`` is not present in the payload."""
     clear_preflight_warning(tmp_path)
-    payload = _invoke_handle_health(tmp_path, monkeypatch)
+    payload = _invoke_handle_health(tmp_path)
     assert "preflight_warning" not in payload
 
 
-def test_api_health_populates_preflight_warning_when_present(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_api_health_populates_preflight_warning_when_present(tmp_path: Path) -> None:
     """Persisted warning ⇒ exposed verbatim in ``/api/health`` response."""
     reason = "uncommitted generated artifacts; commit or stash and retry"
     write_preflight_warning(tmp_path, reason)
 
-    payload = _invoke_handle_health(tmp_path, monkeypatch)
+    payload = _invoke_handle_health(tmp_path)
     assert payload["preflight_warning"] == reason
+
+
+# ---------------------------------------------------------------------------
+# #4123: never-git-init-ed projects — charter resolution failure rendering
+# ---------------------------------------------------------------------------
+
+
+def test_dashboard_command_non_git_project_exits_1_with_git_init_advice(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A charter-resolution git failure must not escape the dashboard command
+    as a traceback, and must not reach the server-start path (#4123)."""
+    import importlib
+    import io
+
+    import typer
+    from rich.console import Console
+
+    from charter.resolution import NotInsideRepositoryError
+    from specify_cli.cli import helpers as helpers_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    dashboard_mod = importlib.import_module("specify_cli.cli.commands.dashboard")
+
+    buf = io.StringIO()
+    recording_console = Console(file=buf, force_terminal=False, highlight=False)
+    monkeypatch.setattr(dashboard_mod, "console", recording_console)
+    monkeypatch.setattr(helpers_mod, "console", recording_console)
+    monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", lambda: tmp_path)
+
+    def _raise_not_inside_repository(_root: Path) -> None:
+        raise NotInsideRepositoryError(tmp_path)
+
+    monkeypatch.setattr(hook_mod, "run_preflight_for_dashboard", _raise_not_inside_repository)
+
+    def _server_must_not_start(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("dashboard server must not start on a git-resolution failure")
+
+    monkeypatch.setattr(dashboard_mod, "ensure_dashboard_running", _server_must_not_start)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        dashboard_mod.dashboard(
+            port=None,
+            kill=False,
+            open_browser=False,
+            emit_json=False,
+        )
+
+    assert excinfo.value.exit_code == 1
+    output = buf.getvalue()
+    assert "not inside a git repository" in output
+    assert "git init" in output
+    # The old misdirection from the generic handler ("re-run init") is gone.
+    assert "spec-kitty init ." not in output

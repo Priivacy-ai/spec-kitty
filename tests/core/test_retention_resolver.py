@@ -162,9 +162,7 @@ def test_c2_unset_retain_emits_warning_naming_source(tmp_path: Path) -> None:
     meta_dir = tmp_path / "c2"
     _write_meta(meta_dir, {"retain_branches": True})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert decision.delete_branch is False
     assert len(decision.warnings) == 1  # golden-count: cardinality-is-contract
@@ -176,9 +174,7 @@ def test_c6_explicit_delete_over_retain_emits_override_notice(tmp_path: Path) ->
     meta_dir = tmp_path / "c6"
     _write_meta(meta_dir, {"retain_branches": True})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=True, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=True, explicit_remove_worktree=None)
 
     assert decision.delete_branch is True
     assert decision.branch_source == "cli"
@@ -191,9 +187,7 @@ def test_c5_explicit_delete_no_policy_emits_no_notices(tmp_path: Path) -> None:
     meta_dir = tmp_path / "c5"
     _write_meta(meta_dir, {})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=True, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=True, explicit_remove_worktree=None)
 
     assert decision.delete_branch is True
     assert decision.branch_source == "cli"
@@ -207,15 +201,11 @@ def test_c5_explicit_delete_no_policy_emits_no_notices(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("malformed", ["", 0, "true", "false"])
-def test_malformed_retain_branches_value_retains_with_warning(
-    tmp_path: Path, malformed: object
-) -> None:
+def test_malformed_retain_branches_value_retains_with_warning(tmp_path: Path, malformed: object) -> None:
     meta_dir = tmp_path / "malformed"
     _write_meta(meta_dir, {"retain_branches": malformed})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert decision.delete_branch is False, f"malformed value {malformed!r} must retain, never coerce"
     assert decision.branch_source == "meta"
@@ -224,15 +214,11 @@ def test_malformed_retain_branches_value_retains_with_warning(
 
 
 @pytest.mark.parametrize("malformed", ["", 0, "true", "false"])
-def test_malformed_retain_worktrees_value_retains_with_warning(
-    tmp_path: Path, malformed: object
-) -> None:
+def test_malformed_retain_worktrees_value_retains_with_warning(tmp_path: Path, malformed: object) -> None:
     meta_dir = tmp_path / "malformed-wt"
     _write_meta(meta_dir, {"retain_worktrees": malformed})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert decision.remove_worktree is False, f"malformed value {malformed!r} must retain, never coerce"
     assert decision.worktree_source == "meta"
@@ -255,9 +241,7 @@ def test_explicit_json_null_behaves_as_absent_not_malformed(tmp_path: Path) -> N
     meta_dir = tmp_path / "explicit-null"
     _write_meta(meta_dir, {"retain_branches": None, "retain_worktrees": None})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert decision.delete_branch is True
     assert decision.branch_source == "default"
@@ -273,9 +257,7 @@ def test_malformed_value_explicit_delete_still_overrides(tmp_path: Path) -> None
     meta_dir = tmp_path / "malformed-override"
     _write_meta(meta_dir, {"retain_branches": "not-a-bool"})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=True, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=True, explicit_remove_worktree=None)
 
     assert decision.delete_branch is True
     assert decision.branch_source == "cli"
@@ -290,9 +272,7 @@ def test_isinstance_true_is_int_trap_true_is_not_treated_as_malformed(
     meta_dir = tmp_path / "bool-is-not-int"
     _write_meta(meta_dir, {"retain_branches": True})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert decision.delete_branch is False
     assert "malformed" not in decision.warnings[0].lower()
@@ -309,9 +289,7 @@ def test_resolve_merge_retention_corrupt_meta_raises(tmp_path: Path) -> None:
     _write_corrupt_meta(meta_dir)
 
     with pytest.raises(MissionMetaReadError):
-        resolve_merge_retention(
-            meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-        )
+        resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
 
 # ---------------------------------------------------------------------------
@@ -352,9 +330,7 @@ def test_retention_decision_is_frozen(tmp_path: Path) -> None:
     meta_dir = tmp_path / "frozen"
     _write_meta(meta_dir, {})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert isinstance(decision, RetentionDecision)
     with pytest.raises(AttributeError):
@@ -370,9 +346,7 @@ def test_branches_and_worktrees_resolve_independently(tmp_path: Path) -> None:
     meta_dir = tmp_path / "independent"
     _write_meta(meta_dir, {"retain_branches": True, "retain_worktrees": False})
 
-    decision = resolve_merge_retention(
-        meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
-    )
+    decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert decision.delete_branch is False
     assert decision.branch_source == "meta"

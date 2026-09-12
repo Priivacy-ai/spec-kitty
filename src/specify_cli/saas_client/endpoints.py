@@ -60,26 +60,24 @@ class AdmissionMetadata(TypedDict, total=False):
     project_slug: str
 
 
-class AdmissionStateResponse(TypedDict):
-    """Immutable success response for admit, readmit, revoke, and GET."""
+class AdmissionAnswer(TypedDict, total=False):
+    """Shape of GET /api/v1/sync/repo-admission/ (TEAM-ADMIT-M2-07/08).
 
-    source_project_uuid: str
-    state: str
-    generation: int
-    binding_audience: str
+    Two response shapes, both HTTP 200 (ADR-TEAM-REPO-ADMISSION-2026-08-24
+    §4.2):
 
+    - Admitted: ``{"admitted": true, "team": {"id", "slug", "name"},
+      "provider", "repo_slug", "checked_at"}``
+    - Not admitted: ``{"admitted": false, "reason": "no_match"}``
 
-class AdmissionErrorResponse(TypedDict, total=False):
-    """Stable non-retryable admission refusal shape."""
+    ``admitted``/``repo_slug`` are always present; the rest are
+    admitted-only (``team``, ``provider``, ``checked_at``) or
+    not-admitted-only (``reason``), hence ``total=False``.
+    """
 
-    error_category: str
-    retryable: bool
-    current_generation: int
-
-
-class ProjectWriteAdmissionProofPayload(TypedDict):
-    """Per-write proof shared by every canonical project-bearing write."""
-
-    project_uuid: str
-    admission_generation: int
-    binding_audience: str
+    admitted: bool
+    team: dict[str, str] | None
+    provider: str | None
+    repo_slug: str
+    checked_at: str | None
+    reason: str | None

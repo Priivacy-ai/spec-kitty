@@ -50,6 +50,8 @@ from specify_cli.migration.canonicalization import (
     apply_rules,
 )
 from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.status import feature_status_lock
+from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 logger = logging.getLogger(__name__)
 
@@ -536,7 +538,7 @@ def _derive_migration_timestamp(feature_dir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def rebuild_event_log(  # noqa: C901
+def rebuild_event_log(
     feature_dir: Path,
     feature_slug: str,
     wp_id_map: dict[str, str],
@@ -547,6 +549,25 @@ def rebuild_event_log(  # noqa: C901
     frontmatter ``lane`` fields.  Produces a reconciled, deduplicated,
     identity-enriched event log.
 
+    Family 9 of the writer census (mission ``fsm-write-path-integrity-01M1TZV6``
+    WP07, ``design-notes/WP01-lock-rules.md`` addendum): the whole read ->
+    reconcile -> atomic rewrite (``tmp.open("w")`` + ``os.replace``) runs
+    under ONE acquisition of the mission status lock (L1) keyed on the mission
+    directory name. A shell append that arrives while the rebuild runs waits
+    on the lock and lands after the rewrite instead of being erased by it;
+    locking only the ``os.replace`` would leave the read-to-write window open
+    (WP01 rule: the idempotency read belongs inside the acquisition).
+
+    * No ``nullcontext()`` degrade (conscious per-site choice): one-shot
+      migration, lock cost irrelevant; ``resolve_status_lock_root`` never
+      raises and the lock degrades to a deterministic per-tree file.
+    * Lock timeout: the lock's default (unbounded). The only caller is the
+      legacy-migration entry point in ``migration/mission_state.py``; neither
+      the verdict-save queue (rule a) nor the merge sentinel (rule b) reaches
+      it.
+    * Nothing inside the critical section spawns git (NFR-001): the module
+      only reads mission files and rewrites the log.
+
     Args:
         feature_dir: Path to the feature directory (e.g. ``kitty-specs/057-…``).
         feature_slug: Slug of the feature (e.g. ``"057-…"``).
@@ -556,6 +577,21 @@ def rebuild_event_log(  # noqa: C901
 
     Returns:
         :class:`RebuildResult` with counts and warnings for the feature.
+    """
+    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+        return _rebuild_event_log_locked(feature_dir, feature_slug, wp_id_map)
+
+
+def _rebuild_event_log_locked(  # noqa: C901
+    feature_dir: Path,
+    feature_slug: str,
+    wp_id_map: dict[str, str],
+) -> RebuildResult:
+    """Body of :func:`rebuild_event_log`; the caller holds the mission lock.
+
+    Pre-existing ``C901`` suppression carried over unchanged with the body
+    (the six-step reconcile is above the ceiling on the WP07 base; splitting
+    it is out of this WP's scope).
     """
     result = RebuildResult(feature_slug=feature_slug)
     # Mission 8: derive ``migration_ts`` from the latest stable timestamp

@@ -200,13 +200,19 @@ class TestHealthContract:
     """``GET /api/health`` response contract.
 
     Note: ``/api/health`` is NOT consumed by ``dashboard.js`` (as of the
-    current codebase).  We still validate the TypedDict is well-formed.
+    current codebase).  We still validate the TypedDict is well-formed.  The
+    sync/websocket keys are gone (E4 re-homing): health is local identity only.
     """
 
     def test_keys_declared(self) -> None:
         keys = _typed_dict_keys(HealthResponse)
-        for k in ("status", "project_path", "sync", "websocket_status", "token"):
+        for k in ("status", "project_path", "token"):
             assert k in keys, f"HealthResponse missing key: {k}"
+
+    def test_sync_keys_are_gone(self) -> None:
+        keys = _typed_dict_keys(HealthResponse)
+        for k in ("sync", "websocket_status"):
+            assert k not in keys, f"HealthResponse must not declare removed key: {k}"
 
 
 class TestDiagnosticsContract:

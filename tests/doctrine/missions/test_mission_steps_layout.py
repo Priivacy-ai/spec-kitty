@@ -7,7 +7,7 @@ Verifies:
 - The step.yaml ``id`` field matches the directory name.
 - No old command-templates/ directories exist under src/specify_cli/missions/.
 
-These are filesystem-level contract tests; they do not import doctrine runtime
+These are filesystem-level contract tests; they do not import charter.offering runtime
 code so they run even before the unified MissionStep Pydantic model lands.
 """
 
@@ -29,7 +29,7 @@ _TESTS_DIR = Path(__file__).parent          # tests/doctrine/missions/
 _REPO_ROOT = Path(__file__).parents[3]      # worktree root (file → missions → doctrine → tests → root)
 _SRC_DIR = _REPO_ROOT / "src"
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# relocated mission-steps/ from src/charter/offering/missions/mission-steps to
 # packs/built-in/missions/mission-steps.
 _MISSION_STEPS_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps"
 _SPECIFY_CLI_MISSIONS = _SRC_DIR / "specify_cli" / "missions"

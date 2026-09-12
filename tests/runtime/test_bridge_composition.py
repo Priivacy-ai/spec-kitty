@@ -650,6 +650,39 @@ def test_composition_dispatch_inputs_resolves_profile_even_when_action_in_charte
     assert profile == "reviewer-renata"
 
 
+def test_composition_dispatch_inputs_resolves_frozen_binding_when_no_action_default_exists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """#397 regression: a custom mission type (e.g. an org-pack ``qa`` mission)
+    can resolve a charter action sequence that includes an action with NO
+    entry in ``StepContractExecutor._ACTION_PROFILE_DEFAULTS`` (that table is
+    built-in-missions-only). The short-circuit to ``(None, None)`` must NOT
+    fire for such an action -- it must fall through to the frozen template's
+    explicit ``agent-profile`` binding, or the executor can never resolve a
+    profile hint and blocks with "profile_hint is required when no action
+    default exists"."""
+    monkeypatch.setattr(
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
+            action_sequence=["discovery", "test_strategy"]
+        ),
+    )
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="qa",
+        steps=[{"id": "discovery", "title": "Discovery", "agent_profile": "researcher-robbie"}],
+    )
+
+    profile, contract = composition._composition_dispatch_inputs(
+        repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="discovery", action="discovery"
+    )
+
+    assert profile == "researcher-robbie"
+    assert contract is not None
+    assert contract.id == "custom:qa:discovery"
+
+
 @pytest.mark.parametrize(
     ("mission", "step_id", "action"),
     [

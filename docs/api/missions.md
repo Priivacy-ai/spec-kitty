@@ -366,6 +366,8 @@ A composed step needs a profile so the runtime knows which agent persona to disp
 
 Declaring both `agent_profile` and `contract_ref` on the same step is rejected with `MISSION_STEP_AMBIGUOUS_BINDING`. Declaring neither (and having no `requires_inputs`) is rejected with `MISSION_STEP_NO_PROFILE_BINDING`. See [research §R-003](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the full rationale.
 
+Built-in missions (`software-dev`, `research`, `documentation`) do not set `agent_profile` on their shipped steps; the executor resolves each `(mission, action)` through a built-ins-only defaults table instead. When a table default (e.g. `researcher-robbie` for `software-dev/specify`) is deactivated in the project, the executor falls back to the highest-`routing-priority` available profile carrying the default's role (`researcher`, `architect`, `implementer`, or `reviewer`), and blocks with a structured composition error — not a crash — when no available profile carries that role. `charter deactivate agent-profile <id>` and `charter preflight` warn when a deactivated profile is one of these defaults. A project that wants a specific profile for a built-in step without relying on priority can deactivate the shipped default (the fallback then picks its own activated same-role profile) or define a custom mission type with explicit per-step `agent_profile` bindings.
+
 YAML examples:
 
 ```yaml

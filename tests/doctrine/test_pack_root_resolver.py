@@ -126,7 +126,7 @@ def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(tmp_p
     doctrine-consumer-surface-missions-extraction-01KZ6G6H), then re-pinned for
     mission ``resolution-activation-foundation-01KZ9FKG`` WP02:
     ``_resolve_built_in`` no longer resolves this via a distinct step 3
-    (``files("doctrine")`` or a ``Path(__file__).resolve().parent.parent`` probe
+    (``files("charter.offering")`` or a ``Path(__file__).resolve().parent.parent`` probe
     of its own) -- it delegates entirely to :func:`kernel.paths.get_built_in_pack_root`,
     whose *ancestor walk* reaches the site-packages level naturally because
     ``anchor.parent.parent`` is always one of ``anchor.parents``. ``module_file``
@@ -221,7 +221,7 @@ def test_fail_closed_when_no_packs_anywhere(tmp_path: Path, monkeypatch: pytest.
 def test_fail_closed_when_files_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No candidate anywhere in the ancestor walk -> fails closed.
 
-    The ``doctrine_dir=None`` isolation (``files("doctrine")`` raising) is
+    The ``doctrine_dir=None`` isolation (``files("charter.offering")`` raising) is
     kept for symmetry with ``_isolate``'s other callers but is not actually
     consulted here: ``_resolve_built_in`` no longer calls ``files()`` at all
     (FR-004) -- what makes this fail closed is that the ancestor walk from

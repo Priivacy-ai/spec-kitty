@@ -129,8 +129,8 @@ every standard risk surface must have an explicit action assignment.
 
 ### The template to fill
 
-The starter template lives in `src/doctrine/templates/occurrence-map-template.yaml`
-and the machine-enforced schema lives in `src/doctrine/schemas/occurrence-map.schema.yaml`.
+The starter template lives in `src/charter/offering/templates/occurrence-map-template.yaml`
+and the machine-enforced schema lives in `src/charter/offering/schemas/occurrence-map.schema.yaml`.
 Do not copy the shape from prose — load the actual file so you never drift from
 the contract that the runtime gate enforces:
 

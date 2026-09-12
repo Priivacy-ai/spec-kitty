@@ -36,25 +36,6 @@ from specify_cli.task_utils import find_repo_root
 
 
 # ---------------------------------------------------------------------------
-# Remedy vocabulary (#2739 B01)
-# ---------------------------------------------------------------------------
-#
-# A primary/planning artifact NEVER routes to coordination, so the retired
-# "materialise the coordination worktree and retry" hint can never succeed. The
-# TWO real remedies for a protected-primary refusal are named once here and
-# reused by the runtime refusal handler (the ``--help`` docstring restates them
-# literally — a docstring cannot interpolate a constant).
-_ENV_HATCH = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
-_PROTECTED_PRIMARY_REMEDIES = (
-    "Two remedies:\n"
-    "  1. Create or check out a non-protected feature branch and commit there: "
-    "'spec-kitty agent mission create --start-branch <feature-branch>'.\n"
-    f"  2. Allow the commit on the current (protected) branch by setting "
-    f"{_ENV_HATCH}=1."
-)
-
-
-# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -84,28 +65,6 @@ def _derive_mission_slug(path_arg: str | None, mission_opt: str | None) -> str |
         # Otherwise treat the final component as the slug.
         return p.name or None
     return None
-
-
-def _wrong_surface_message(
-    result: CommitRouterResult, policy: ProtectionPolicy
-) -> str:
-    """Build the actionable ``no_op_wrong_surface`` error message.
-
-    (squad #2739 B01) ``no_op_wrong_surface`` has THREE producers in
-    ``commit_router.commit_for_mission``: the protected-primary refusal (whose
-    own diagnostic already names the two real remedies inline),
-    ``_paths_uncommitted_in_primary`` (#2739 B16 — a coord-kind write that
-    landed nowhere), and ``_any_path_absent`` (the artifact is missing at the
-    resolved placement). Only the protected-primary refusal is actually about a
-    protected branch; padding the other two with the feature-branch/env-hatch
-    remedies is misleading (the operator does not have a protection problem to
-    remedy). Gate the append on the same predicate the router used to reach
-    that branch — ``policy.is_protected(result.placement_ref)``.
-    """
-    diag = result.diagnostic or "Artifact absent at resolved placement."
-    if policy.is_protected(result.placement_ref):
-        return f"{diag}\n{_PROTECTED_PRIMARY_REMEDIES}"
-    return diag
 
 
 def _payload(
@@ -279,12 +238,11 @@ def spec_commit_command(
                 console.print("[dim]Spec artifact(s) unchanged, no commit needed[/dim]")
 
         elif result.status == "no_op_wrong_surface":
-            # T008 / #2739 B01: actionable refusal. A primary/planning artifact
-            # never routes to coordination, so the retired coord-worktree retry
-            # hint is un-followable — surface the TWO real remedies instead,
-            # but ONLY when the refusal is actually about a protected branch
-            # (squad — see ``_wrong_surface_message``).
-            actionable = _wrong_surface_message(result, policy)
+            # T008: actionable refusal — the router's own diagnostic already
+            # names the concrete remedy (e.g. move the mission onto a
+            # non-protected feature branch); no coordination-worktree retry
+            # hint is added here since that transit no longer exists.
+            actionable = result.diagnostic or "Artifact absent at resolved placement."
             payload = _payload(
                 success=False,
                 error=actionable,

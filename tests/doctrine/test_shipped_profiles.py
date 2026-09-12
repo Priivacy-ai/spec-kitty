@@ -13,7 +13,6 @@ import re
 from pathlib import Path
 
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture
 from ruamel.yaml import YAML
 
 from charter.offering.agent_profiles.profile import AgentProfile, Role
@@ -32,11 +31,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BUILT_IN_DIR = resolve_pack_root("built-in") / "agent_profiles"
 MISSION_RUNTIME_DIRS = (
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
     REPO_ROOT / "packs" / "built-in" / "missions",
     REPO_ROOT / ".kittify" / "overrides" / "missions",
 )
-# The Python-package README (``src/doctrine/agent_profiles/README.md``) was NOT
+# The Python-package README (``src/charter/offering/agent_profiles/README.md``) was NOT
 # relocated; the built-in-pack README moved to the flattened pack dir.
 AGENT_PROFILES_README = REPO_ROOT / "src" / "charter" / "offering" / "agent_profiles" / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
@@ -503,33 +502,37 @@ class TestShippedProfilesContextSources:
         )
 
 
-@pytest.mark.performance
-class TestShippedProfilesPerformance:
-    """Performance gate: loading all shipped profiles must complete quickly."""
+class TestShippedProfilesLoadCount:
+    """Functional companion to TestShippedProfilesPerformance (split, #4015):
+    the load-count check must run on the per-PR path, not only nightly."""
 
-    @pytest.mark.benchmark(group="doctrine", warmup=True, min_rounds=5)
-    def test_shipped_profile_load_time(self, benchmark: BenchmarkFixture) -> None:
-        """Loading all 12 shipped profiles, measured statistically (ADR 2026-08-22-1).
+    def test_shipped_profile_load_returns_all_profiles(self) -> None:
+        """Loading all shipped profiles returns exactly EXPECTED_PROFILE_IDS."""
+        repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
+        profiles = repo.list_all()
 
-        The regression signal is the per-domain baseline compare in the
-        off-PR ``performance.yml`` pipeline, not a single-shot ceiling.
-        """
-        loaded_profiles: list[list[AgentProfile]] = []
-
-        def _load_all_profiles() -> None:
-            repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
-            loaded_profiles.append(repo.list_all())
-
-        benchmark(_load_all_profiles)
-
-        profiles = loaded_profiles[-1]
         assert len(profiles) == len(EXPECTED_PROFILE_IDS), (
             f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(profiles)}"
         )
-        # Very loose sanity ceiling — the statistical baseline compare (off the
-        # PR path) is the primary regression signal, not this assert.
-        assert benchmark.stats.stats.median < 10.0, (
-            f"Loading all shipped profiles had a median of "
-            f"{benchmark.stats.stats.median:.3f}s across benchmark rounds, "
-            "wildly beyond the generous sanity ceiling."
-        )
+
+
+@pytest.mark.performance
+class TestShippedProfilesPerformance:
+    """Performance gate: loading all shipped profiles must complete quickly.
+
+    Timing budget only (split, #4015): functional coverage moved to
+    TestShippedProfilesLoadCount, above.
+    """
+
+    def test_shipped_profile_load_time(self) -> None:
+        """Loading all shipped profiles must complete in under 2 seconds."""
+        import time
+
+        from tests._perf_helpers import assert_timing_budget
+
+        start = time.perf_counter()
+        repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
+        repo.list_all()
+        elapsed = time.perf_counter() - start
+
+        assert_timing_budget(elapsed, 2.0, name="shipped_profile_load")

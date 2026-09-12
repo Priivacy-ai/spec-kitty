@@ -36,7 +36,7 @@ TOOLGUIDE = {
     "id": "nested-toolguide",
     "tool": "bash",
     "title": "Nested Toolguide",
-    "guide_path": "src/doctrine/toolguides/built-in/POWERSHELL_SYNTAX.md",
+    "guide_path": "src/charter/offering/toolguides/built-in/POWERSHELL_SYNTAX.md",
     "summary": "A toolguide stored in a subdirectory.",
 }
 

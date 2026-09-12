@@ -14,7 +14,7 @@ import pytest
 pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SRC_ROOT = _REPO_ROOT / "src" / "specify_cli"
+_SRC_ROOT = _REPO_ROOT / "src"
 _REGISTRY_PATH = _REPO_ROOT / "docs" / "migrations" / "shim-registry.yaml"
 
 
@@ -64,6 +64,9 @@ def _load_registry_paths() -> set[str]:
 
 
 class TestShimScanner:
+    def test_scanner_root_includes_top_level_modules(self) -> None:
+        assert _SRC_ROOT == _REPO_ROOT / "src"
+
     def test_zero_unregistered_shims_in_src(self) -> None:
         deprecated_modules = _scan_deprecated_modules(_SRC_ROOT)
         registry_paths = _load_registry_paths()

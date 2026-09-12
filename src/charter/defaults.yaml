@@ -3,7 +3,7 @@
 # "Accept defaults" during interactive init.
 #
 # Format must match the CharterInterview input expected by
-# `charter.interview.apply_answer_overrides`.
+# `charter.activation.interview.apply_answer_overrides`.
 
 mission: software-dev
 profile: minimal

@@ -107,11 +107,7 @@ def _fold_wp_state(wp_state: dict[str, Any] | None) -> WpEnding:
     private helper, so ``is_acceptable_ending``/``has_operator_provenance``
     is called from exactly one place.
     """
-    lane = (
-        str(wp_state.get("lane", Lane.GENESIS))
-        if wp_state is not None
-        else str(Lane.UNINITIALIZED)
-    )
+    lane = str(wp_state.get("lane", Lane.GENESIS)) if wp_state is not None else str(Lane.UNINITIALIZED)
     reason_source_raw = wp_state.get("reason_source") if wp_state is not None else None
     reason_source = reason_source_raw if isinstance(reason_source_raw, str) else None
     acceptable = is_acceptable_ending(lane, has_provenance=has_operator_provenance(wp_state))

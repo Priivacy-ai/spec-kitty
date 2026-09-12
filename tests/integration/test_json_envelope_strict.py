@@ -25,9 +25,8 @@ stdout.  The list of covered commands is the production surface
 identified during T007.  When a new ``--json`` command is added, append
 its argv list to ``_COVERED_COMMANDS``.
 
-Helper-level coverage for :func:`specify_cli.sync.diagnose.emit_diagnostic`
-also lives in this file so the WP02 deliverable is testable as a unit
-without a CLI subprocess.
+(The former helper-level coverage for the sync transport's
+``sync.diagnose.emit_diagnostic`` died with that module, issue #5.)
 """
 
 from __future__ import annotations
@@ -42,7 +41,6 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.context import app as context_app
 from specify_cli.cli.commands.agent.mission import app as mission_app
-from specify_cli.sync.diagnose import emit_diagnostic
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -126,7 +124,7 @@ def set_saas_state(monkeypatch: pytest.MonkeyPatch) -> Any:
 
     def _apply(state: str) -> None:
         if state == "disabled":
-            monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
         elif state == "unauthorized":
             monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
             # Force the token manager to report "not authenticated" if any
@@ -257,84 +255,6 @@ def test_no_bare_diagnostic_lines_on_stdout(
 
 
 # ---------------------------------------------------------------------------
-# Helper-level coverage for emit_diagnostic (T008 unit tests)
-# ---------------------------------------------------------------------------
-
-
-def test_emit_diagnostic_json_mode_false_writes_to_stderr(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """``json_mode=False`` MUST land on stderr — never stdout."""
-    emit_diagnostic("hello-stderr", category="auth", json_mode=False)
-    captured = capsys.readouterr()
-    assert "hello-stderr" not in captured.out
-    assert "hello-stderr" in captured.err
-
-
-def test_emit_diagnostic_json_mode_true_no_envelope_writes_to_stderr(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """``json_mode=True`` without an envelope still writes to stderr."""
-    emit_diagnostic(
-        "hello-stderr-json", category="sync", json_mode=True, envelope=None
-    )
-    captured = capsys.readouterr()
-    assert "hello-stderr-json" not in captured.out
-    assert "hello-stderr-json" in captured.err
-
-
-def test_emit_diagnostic_json_mode_true_with_envelope_nests_under_diagnostics(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """With an envelope, the message is nested and NEITHER stream sees it."""
-    envelope: dict[str, Any] = {"result": "success"}
-    emit_diagnostic(
-        "nested-msg", category="tracker", json_mode=True, envelope=envelope
-    )
-    captured = capsys.readouterr()
-    assert envelope == {
-        "result": "success",
-        "diagnostics": {"tracker": ["nested-msg"]},
-    }
-    assert "nested-msg" not in captured.out
-    assert "nested-msg" not in captured.err
-
-
-def test_emit_diagnostic_envelope_appends_when_category_already_present() -> None:
-    """Multiple messages in the same category accumulate as a list."""
-    envelope: dict[str, Any] = {}
-    emit_diagnostic("first", category="auth", json_mode=True, envelope=envelope)
-    emit_diagnostic("second", category="auth", json_mode=True, envelope=envelope)
-    assert envelope["diagnostics"]["auth"] == ["first", "second"]
-
-
-def test_emit_diagnostic_envelope_diagnostics_collision_falls_back_to_stderr(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """If the envelope already used ``diagnostics`` for non-dict, fall back."""
-    envelope: dict[str, Any] = {"diagnostics": "already-a-string"}
-    emit_diagnostic("fallback-msg", category="sync", json_mode=True, envelope=envelope)
-    captured = capsys.readouterr()
-    # Envelope is left unmolested.
-    assert envelope == {"diagnostics": "already-a-string"}
-    # Message went to stderr.
-    assert "fallback-msg" not in captured.out
-    assert "fallback-msg" in captured.err
-
-
-def test_emit_diagnostic_envelope_category_collision_falls_back_to_stderr(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """If ``diagnostics[category]`` is not a list, do not mutate; stderr fallback."""
-    envelope: dict[str, Any] = {"diagnostics": {"sync": "wrong-shape"}}
-    emit_diagnostic("category-fallback", category="sync", json_mode=True, envelope=envelope)
-    captured = capsys.readouterr()
-    assert envelope == {"diagnostics": {"sync": "wrong-shape"}}
-    assert "category-fallback" not in captured.out
-    assert "category-fallback" in captured.err
-
-
-# ---------------------------------------------------------------------------
 # Sanity: forbidden string list is non-empty (guards against future regressions)
 # ---------------------------------------------------------------------------
 
@@ -349,12 +269,14 @@ def test_forbidden_string_list_is_non_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_set_saas_state_disabled_unsets_env_var(
+def test_set_saas_state_disabled_sets_explicit_opt_out(
     set_saas_state: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     set_saas_state("disabled")
-    assert "SPEC_KITTY_ENABLE_SAAS_SYNC" not in os.environ
+    # #3980: the default flipped to ON, so "disabled" must be the explicit
+    # opt-out value — unsetting the variable would leave sync enabled.
+    assert os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "0"
 
 
 def test_set_saas_state_unauthorized_sets_env_var(set_saas_state: Any) -> None:

@@ -292,13 +292,29 @@ def test_unmaterialized_coord_create_window_resolves_primary(tmp_path: Path) -> 
     routed this to the composed (non-existent) coord dir would break first-write
     on a freshly-created coord mission.
     """
+    import subprocess
+
     primary_dir = tmp_path / "kitty-specs" / SLUG_WITH_MID8
     _write_meta(
         primary_dir,
         mission_id=MISSION_ID,
         coordination_branch=f"kitty/mission-{SLUG_WITH_MID8}",
     )
-    # NB: no coord worktree root created → unmaterialised.
+    # Production-shaped R2 (#1889): the mission repo is real and the DECLARED
+    # branch exists in it while the coord worktree root is still absent — that
+    # ref is what splits CoordState.UNMATERIALIZED from the #1848 DELETED
+    # data-loss verdict. Relying on the non-repo "treat as present" escape hatch
+    # instead made this fixture host-dependent: on any machine where an ambient
+    # checkout sits above basetemp (#154) the probe consulted THAT repo, found
+    # no such branch, and raised CoordinationBranchDeleted out of a
+    # create-window read.
+    _init_repo(tmp_path)
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "branch", f"kitty/mission-{SLUG_WITH_MID8}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
     ms = MissionStatus.load(repo_root=tmp_path, mission_slug=SLUG_WITH_MID8)
 
@@ -306,6 +322,37 @@ def test_unmaterialized_coord_create_window_resolves_primary(tmp_path: Path) -> 
         "declared-but-unmaterialised coord must keep the primary checkout "
         "authoritative until the worktree exists (create→first-write window)"
     )
+
+
+def test_declared_coord_in_guest_of_ambient_repo_resolves_primary(
+    tmp_path: Path,
+) -> None:
+    """#154 regression: a mission root that merely SITS INSIDE an unrelated
+    checkout must not inherit that repo's ref space.
+
+    The aggregate-wiring fixtures build an ad-hoc ``<tmp>/repo`` without git
+    init; on any host where an ambient ancestor checkout sits above basetemp
+    the deleted-branch probe consulted the AMBIENT repo, found no such branch,
+    and raised ``CoordinationBranchDeleted`` out of a first write. The
+    declared-branch probe treats a guest of a foreign checkout as R2′
+    (branch present), so this load resolves PRIMARY exactly as it does on a
+    clean host."""
+    import subprocess
+
+    outer = tmp_path / "ambient-checkout"
+    outer.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(outer)], check=True)
+    guest_repo = outer / "repo"
+    primary_dir = guest_repo / "kitty-specs" / SLUG_WITH_MID8
+    _write_meta(
+        primary_dir,
+        mission_id=MISSION_ID,
+        coordination_branch=f"kitty/mission-{SLUG_WITH_MID8}",
+    )
+
+    ms = MissionStatus.load(repo_root=guest_repo, mission_slug=SLUG_WITH_MID8)
+
+    assert ms.read_dir.resolve() == primary_dir.resolve()
 
 
 def _init_repo(repo_root: Path) -> None:

@@ -113,7 +113,7 @@ def _get_runtime_command_templates_dir() -> Path | None:
     ``packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
     (moved from ``specify_cli/missions/<mission_type>/command-templates/``
     by the charter-doctrine-mission-type-configuration mission, and from
-    ``src/doctrine/missions/mission-steps/`` to ``packs/built-in/missions/mission-steps/``
+    ``src/charter/offering/missions/mission-steps/`` to ``packs/built-in/missions/mission-steps/``
     by mission doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
 
     Resolution order (highest priority first):

@@ -75,6 +75,27 @@ def _counting_wrapper(original: object) -> tuple[object, list[object]]:
     return _wrapped, calls
 
 
+def _write_malformed_project_drg(project: Path) -> None:
+    overlay = project / ".kittify" / "doctrine" / "bad.graph.yaml"
+    overlay.parent.mkdir(parents=True)
+    overlay.write_text(
+        """\
+        schema_version: '1.0'
+        generated_at: STATIC
+        generated_by: test
+        nodes:
+        - urn: action:software-dev/customstep
+          kind: action
+          label: customstep
+        edges:
+        - source: action:software-dev/customstep
+          target: directive:does-not-exist
+          relation: requires
+        """,
+        encoding="utf-8",
+    )
+
+
 class TestResolveActionBundleSingleLoad:
     """Precheck (NFR-001): ``_resolve_action_bundle`` loads the DRG once."""
 
@@ -95,34 +116,55 @@ class TestResolveActionBundleSingleLoad:
             )
 
         assert bundle.merged is not None, "software-dev is a resolvable type; merged must carry the DRG"
-        assert len(calls) == 1, (  # golden-count: cardinality-is-contract
-            "_resolve_action_bundle must call load_validated_graph exactly once "
-            f"per invocation; observed {len(calls)} call(s)"
-        )
+        assert len(calls) == 1, f"_resolve_action_bundle must call load_validated_graph exactly once per invocation; observed {len(calls)} call(s)"
 
 
 class TestActionGateSingleLoad:
     """NFR-001 (red-first): the JSON gate resolves the DRG exactly once."""
 
-    def test_json_non_bootstrap_action_gate_triggers_exactly_one_load(
-        self, project: Path
-    ) -> None:
+    def test_json_non_bootstrap_action_gate_triggers_exactly_one_load(self, project: Path) -> None:
         import charter.activation._drg_helpers as drg_helpers
         from charter.activation.context import build_charter_context_json
 
         wrapped, calls = _counting_wrapper(drg_helpers.load_validated_graph)
 
         with patch("charter.activation._drg_helpers.load_validated_graph", side_effect=wrapped):
-            payload = build_charter_context_json(
-                project, action="tasks", mission_type="software-dev"
-            )
+            payload = build_charter_context_json(project, action="tasks", mission_type="software-dev")
 
         assert payload.get("mode") == "bootstrap"
-        assert len(calls) == 1, (  # golden-count: cardinality-is-contract
+        assert len(calls) == 1, (
             "build_charter_context_json(action='tasks', mission_type='software-dev') "
             f"must resolve the DRG exactly once (NFR-001, no memoization); "
             f"observed {len(calls)} loads"
         )
+
+
+class TestMalformedProjectDrgDegrades:
+    def test_malformed_project_drg_degrades_plain_text_context(self, project: Path) -> None:
+        from charter.activation.context import build_charter_context
+
+        _write_malformed_project_drg(project)
+
+        result = build_charter_context(
+            project,
+            action="tasks",
+            mission_type="software-dev",
+        )
+
+        assert result.mode == "compact"
+
+    def test_malformed_project_drg_degrades_json_context(self, project: Path) -> None:
+        from charter.activation.context import build_charter_context_json
+
+        _write_malformed_project_drg(project)
+
+        payload = build_charter_context_json(
+            project,
+            action="tasks",
+            mission_type="software-dev",
+        )
+
+        assert payload["mode"] == "compact"
 
 
 class TestBootstrapActionsSingleDefinitionSite:

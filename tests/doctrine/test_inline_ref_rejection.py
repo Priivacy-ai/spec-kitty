@@ -15,7 +15,7 @@ kind -- the file the operator actually has to open. Naming the pre-#2680
 monolith sent them to a path that is not on disk (mission
 ``doctrine-silence-guards-01KYFV7Q`` WP07, FR-008); mission
 ``relocate-builtin-doctrine-packs-01KYT87F`` then moved the shipped fragments
-from ``src/doctrine/`` to ``packs/built-in/``, so the followable path is now
+from ``src/charter/offering/`` to ``packs/built-in/``, so the followable path is now
 under the pack root.
 
 The hint uses the actual ``DRGEdge`` schema (``source``/``target``/``relation``)

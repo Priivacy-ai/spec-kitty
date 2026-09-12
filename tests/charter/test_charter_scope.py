@@ -1,6 +1,6 @@
 """Slice F WP09 — CharterScope unit suite.
 
-Targets `src/charter/scope.py`. Exercises:
+Targets `src/charter/activation/scope.py`. Exercises:
   - CharterScope.default(repo_root) constructor (FR-009, FR-011)
   - CharterScope.resolve(repo_root, feature_dir) — happy + edge paths (FR-010)
   - CharterScopeConfig Pydantic round-trip (FR-140 bridge — turns the

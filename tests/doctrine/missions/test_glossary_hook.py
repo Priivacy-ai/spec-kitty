@@ -4,20 +4,46 @@ Targets mutation-prone areas:
 - _read_glossary_check_metadata: key name, None guard, disabled/enabled string
   comparisons, bool handling, unknown-value default
 - execute_with_glossary: metadata extraction, no-runner fallback, result forwarding
+- the self-bootstrap contract (mission ``dead-port-disposition-01M1TZVN``, FR-009):
+  ``execute_with_glossary`` is the only production provider of the kernel
+  glossary-runner registry, and degrades only when ``glossary.attachment`` is
+  unimportable
+- the design story (SC-004 / FR-010): the four documentation sites describe that
+  contract, not a registration-by-``specify_cli``/``glossary`` fiction
 
 Patterns: Boundary Pair (disabled/enabled strings, bool False vs None),
 Non-Identity Inputs (distinct metadata keys), Bi-Directional Logic
 (True vs. False return from enablement check).
 """
 
+import re
+import sys
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import charter.offering.missions.glossary_hook as glossary_hook_module
+import kernel
+import kernel.glossary_runner as glossary_runner_module
 from charter.offering.missions.glossary_hook import _read_glossary_check_metadata, execute_with_glossary
 from charter.offering.missions.primitives import PrimitiveExecutionContext
+from kernel.glossary_runner import clear_registry, get_runner
 import pytest
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
+
+@pytest.fixture(autouse=True)
+def _clean_registry() -> Iterator[None]:
+    """Reset the process-global kernel registry before and after every test.
+
+    The self-bootstrap pins below register the real ``GlossaryAwarePrimitiveRunner``;
+    without this teardown a later test in the same worker that registers a
+    different class would hit the registry's double-registration ``RuntimeError``.
+    """
+    clear_registry()
+    yield
+    clear_registry()
 
 
 # ── _read_glossary_check_metadata ──────────────────────────────────────────────
@@ -157,3 +183,93 @@ class TestPrimitiveForwarding:
             primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp")
         )
         assert result is expected
+
+
+# ── Self-bootstrap contract (FR-009) ──────────────────────────────────────────
+
+
+class TestSelfBootstrapContract:
+    """Pin the registration contract documented in ``kernel.glossary_runner``.
+
+    Nobody registers at import or startup: the consumer lazily self-bootstraps
+    the registry on first use, and runs the primitive without glossary checks
+    only when ``glossary.attachment`` itself cannot be imported.
+    """
+
+    def test_execute_with_glossary_self_bootstraps_registry(self, tmp_path: Path) -> None:
+        """Invariant G-2: a cleared registry is populated by the first enabled call."""
+        (tmp_path / ".kittify").mkdir()
+        assert get_runner() is None
+        primitive_fn = Mock(return_value="bootstrapped")
+        ctx = _make_ctx({})  # glossary_check absent -> enabled (FR-020 default)
+
+        result = execute_with_glossary(primitive_fn=primitive_fn, context=ctx, repo_root=tmp_path)
+
+        assert result == "bootstrapped"
+        primitive_fn.assert_called_once()
+        runner = get_runner()
+        assert runner is not None
+        assert type(runner) is type  # a class is registered, never an instance
+        assert runner.__name__ == "GlossaryAwarePrimitiveRunner"
+        assert runner.__module__ == "glossary.attachment"
+
+    def test_execute_with_glossary_degrades_only_when_attachment_unimportable(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Degradation rule: direct execution only when the bootstrap fails (here: ``import_module`` raises ``ImportError``)."""
+        (tmp_path / ".kittify").mkdir()
+        assert get_runner() is None
+        # A ``None`` entry in ``sys.modules`` makes ``import_module`` raise ImportError
+        # (pure-doctrine environment without the glossary package).
+        monkeypatch.setitem(sys.modules, "glossary.attachment", None)
+        expected = object()
+        primitive_fn = Mock(return_value=expected)
+        ctx = _make_ctx({})
+
+        result = execute_with_glossary(primitive_fn=primitive_fn, context=ctx, repo_root=tmp_path)
+
+        assert result is expected
+        primitive_fn.assert_called_once_with(ctx)
+        assert get_runner() is None
+
+
+# ── Design story (SC-004 / FR-010) ────────────────────────────────────────────
+
+
+# Invariant G-1 (data-model §4): the same pattern the SC-004 grep uses.
+_REGISTRATION_FICTION = re.compile(r"at import time|at startup|registers the concrete|specify_cli.*register")
+
+
+def _design_story_sites() -> dict[str, str]:
+    """The four sites that must describe the self-bootstrap contract."""
+    kernel_dir = Path(kernel.__file__).resolve().parent
+    return {
+        "kernel/glossary_runner.py": Path(glossary_runner_module.__file__).read_text(encoding="utf-8"),
+        "kernel/__init__.py": Path(kernel.__file__).read_text(encoding="utf-8"),
+        "kernel/README.md": (kernel_dir / "README.md").read_text(encoding="utf-8"),
+        "charter/offering/missions/glossary_hook.py": Path(glossary_hook_module.__file__).read_text(encoding="utf-8"),
+    }
+
+
+class TestDesignStory:
+    """The four sites tell the truth about who registers (SC-004) and about FR-020 (SC-005)."""
+
+    @pytest.mark.parametrize("site", sorted(_design_story_sites()))
+    def test_site_carries_no_registration_fiction(self, site: str) -> None:
+        text = _design_story_sites()[site]
+        offending = [line for line in text.splitlines() if _REGISTRATION_FICTION.search(line)]
+        assert offending == [], f"{site} still describes registration at import/startup: {offending}"
+
+    @pytest.mark.parametrize("site", sorted(_design_story_sites()))
+    def test_site_names_the_self_bootstrap(self, site: str) -> None:
+        text = _design_story_sites()[site]
+        assert "self-bootstrap" in text, f"{site} does not describe the self-bootstrap contract"
+
+    def test_hook_documents_its_own_bootstrap_helper(self) -> None:
+        assert "_ensure_runner_registered" in (glossary_hook_module.__doc__ or "")
+        assert callable(getattr(glossary_hook_module, "_ensure_runner_registered", None))
+
+    def test_hook_carries_the_fr020_enforcement_honesty_note(self) -> None:
+        # Whitespace-normalized: the docstring is free to wrap these phrases.
+        doc = " ".join((glossary_hook_module.__doc__ or "").split())
+        assert "Enforcement honesty (FR-020)" in doc
+        assert "zero production call sites" in doc
+        assert "separate feature decision" in doc

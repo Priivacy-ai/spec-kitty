@@ -488,7 +488,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
         context = io_seam._build_discovery_context(repo_root)
 
     assert len(caught) == 1  # golden-count: cardinality-is-contract
-    assert "Invalid org-pack config; ignoring org layer:" in str(caught[0].message)
+    assert "Invalid org-pack config" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds.
     assert context.org_roots == []
 
@@ -807,7 +807,10 @@ def test_existing_run_ref_returns_none_when_slug_absent(tmp_path: Path, monkeypa
     assert io_seam._existing_run_ref("missing-mission", tmp_path, "software-dev") is None
 
 
-def test_existing_run_ref_returns_none_when_state_file_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_existing_run_ref_raises_when_state_file_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP05 / FR-016: a live index entry whose ``state.json`` is gone is a loud
+    ``RunStateMissing``, never ``None`` (which used to let the caller start a
+    fresh run over the orphaned history)."""
     from runtime.next import runtime_bridge as rb
 
     run_dir = tmp_path / "runs" / "r1"
@@ -817,7 +820,10 @@ def test_existing_run_ref_returns_none_when_state_file_absent(tmp_path: Path, mo
         "_load_feature_runs",
         lambda repo_root: {"042-mission": {"run_id": "r1", "run_dir": str(run_dir)}},
     )
-    assert io_seam._existing_run_ref("042-mission", tmp_path, "software-dev") is None
+    with pytest.raises(io_seam.RunStateMissing) as excinfo:
+        io_seam._existing_run_ref("042-mission", tmp_path, "software-dev")
+    assert excinfo.value.run_id == "r1"
+    assert excinfo.value.error_code == "RUN_STATE_MISSING"
 
 
 def test_existing_run_ref_builds_ref_when_state_file_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

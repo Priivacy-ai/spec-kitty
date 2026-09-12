@@ -71,5 +71,5 @@ spec-kitty dashboard
 - Use dashboard search/filter to focus on a single feature when managing multiple
 - Dashboard runs in background - access from any browser on the network
 - `/spec-kitty.dashboard` command from any agent reopens the dashboard URL
-- Refresh is automatic via WebSocket - no manual page reload needed
+- Refresh is automatic via polling - no manual page reload needed
 - Pair dashboard with `docs/kanban-dashboard-guide.md` for advanced features

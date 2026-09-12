@@ -115,9 +115,7 @@ def _seed_lane(feature_dir: Path, mission_slug: str, wp_id: str, lane: str) -> N
     )
 
 
-def _cancel_via_move_task(
-    tmp_path: Path, mission_slug: str, wp_id: str, *, note: str | None
-) -> None:
+def _cancel_via_move_task(tmp_path: Path, mission_slug: str, wp_id: str, *, note: str | None) -> None:
     """Cancel ``wp_id`` through the canonical ``move-task`` command surface."""
     args = ["move-task", wp_id, "--to", "canceled", "--mission", mission_slug, "--no-auto-commit"]
     if note is None:
@@ -130,9 +128,7 @@ def _cancel_via_move_task(
 
 
 def _collect(tmp_path: Path, mission_slug: str) -> Any:
-    with patch("specify_cli.acceptance.run_git") as mock_git, patch(
-        "specify_cli.acceptance.git_status_lines", return_value=[]
-    ):
+    with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
         mock_git.return_value.stdout = f"{_TARGET_BRANCH}\n"
         return collect_feature_summary(tmp_path, mission_slug, strict_metadata=False)
 

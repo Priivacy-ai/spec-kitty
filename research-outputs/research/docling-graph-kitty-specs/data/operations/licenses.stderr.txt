@@ -1,5 +1,0 @@
-WARN Skipping file for prettytable: prettytable-0.1-py2.6.egg
-WARN Skipping file for prettytable: prettytable-0.2-py2.6.egg
-WARN Skipping file for prettytable: prettytable-0.2.1-py2.6.egg
-WARN Skipping file for prettytable: prettytable-0.3-py2.6.egg
-Installed 3 packages in 7ms

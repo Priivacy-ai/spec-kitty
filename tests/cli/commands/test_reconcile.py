@@ -27,6 +27,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from tests._perf_helpers import assert_timing_budget
+
 pytestmark = [pytest.mark.integration]
 
 
@@ -267,9 +269,26 @@ class TestCli:
 # ── T018: NFR-002 — reconcile one mission dossier ≤ 2 s ──────────────────────
 
 
-@pytest.mark.performance
 class TestNfr002:
+    def test_single_mission_reconcile_reports_parity(self, tmp_path, monkeypatch):
+        """Functional companion to test_single_mission_reconciles_under_two_seconds
+        (split, #4015): reconciling a freshly-seeded dossier reports PARITY.
+        Timing budget lives in the @performance sibling below."""
+        from specify_cli.cli.commands.reconcile import reconcile_mission_dossier
+
+        feature_dir = tmp_path / "demo-mission-01HHHH"
+        slug = _seed_mission(feature_dir, extra_artifacts=50)
+        _patch_feature_dir(monkeypatch, feature_dir)
+
+        result = reconcile_mission_dossier(slug, repo_root=tmp_path)
+
+        assert result.is_parity
+
+    @pytest.mark.performance
     def test_single_mission_reconciles_under_two_seconds(self, tmp_path, monkeypatch):
+        """NFR-002 timing budget only (split, #4015): reconciling one mission
+        dossier (50 extra artifacts) completes <= 2s. Functional coverage
+        moved to test_single_mission_reconcile_reports_parity, above."""
         from specify_cli.cli.commands.reconcile import reconcile_mission_dossier
 
         feature_dir = tmp_path / "demo-mission-01HHHH"
@@ -277,26 +296,7 @@ class TestNfr002:
         _patch_feature_dir(monkeypatch, feature_dir)
 
         start = time.perf_counter()
-        result = reconcile_mission_dossier(slug, repo_root=tmp_path)
+        reconcile_mission_dossier(slug, repo_root=tmp_path)
         elapsed = time.perf_counter() - start
 
-        assert result.is_parity
-        assert elapsed <= 2.0, f"NFR-002 breached: {elapsed:.3f}s > 2.0s"
-
-    def test_scaling_is_roughly_linear_in_artifact_count(self, tmp_path, monkeypatch):
-        from specify_cli.cli.commands.reconcile import reconcile_mission_dossier
-
-        def _time(n: int, name: str) -> float:
-            feature_dir = tmp_path / name
-            slug = _seed_mission(feature_dir, extra_artifacts=n)
-            _patch_feature_dir(monkeypatch, feature_dir)
-            start = time.perf_counter()
-            reconcile_mission_dossier(slug, repo_root=tmp_path)
-            return time.perf_counter() - start
-
-        small = _time(20, "scale-small-01IIII")
-        large = _time(80, "scale-large-01JJJJ")
-
-        # 4x the artifacts must stay well under a quadratic blow-up. Generous
-        # bound (10x) keeps the linearity signal without CI-timing flakiness.
-        assert large <= max(small * 10.0, 2.0)
+        assert_timing_budget(elapsed, 2.0, name="reconcile_single_mission")

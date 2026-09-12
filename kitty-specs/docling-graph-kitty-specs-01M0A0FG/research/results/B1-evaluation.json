@@ -1,9 +1,0 @@
-{
-  "schema_version": 1,
-  "candidate": "B1",
-  "evidence_status": "NOT_EVIDENCE_researcher_selected_annotation_replay",
-  "pass": null,
-  "expected_count": 20,
-  "actual_count": 13,
-  "limitation": "The 13-row set was hand selected and copied from sealed gold; no current reader was executed."
-}

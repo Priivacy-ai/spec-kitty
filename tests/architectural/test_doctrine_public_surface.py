@@ -57,7 +57,7 @@ def _load_api_module() -> object:
 def _api_import_origins() -> dict[str, str]:
     """Map each re-exported name in ``doctrine/api.py`` to its origin module.
 
-    Parsed statically from the ``from doctrine.… import …`` statements so the
+    Parsed statically from the ``from charter.offering.… import …`` statements so the
     disposition-coupling gate checks the DECLARED origin, not a runtime alias.
     """
     tree = ast.parse(_DOCTRINE_API.read_text(encoding="utf-8"), filename=str(_DOCTRINE_API))
@@ -102,7 +102,7 @@ def _facade_all_names() -> set[str]:
 def _module_public_defs(module_path: str) -> set[str]:
     """Module-scope public ``def``/``class`` names for a doctrine module path.
 
-    ``charter.offering.drg.override_policy`` -> ``src/doctrine/drg/override_policy.py``.
+    ``charter.offering.drg.override_policy`` -> ``src/charter/offering/drg/override_policy.py``.
     Only ``FunctionDef`` / ``AsyncFunctionDef`` / ``ClassDef`` at module scope
     whose name does not start with ``_`` are returned (the callable/type surface
     that a leak would expose).

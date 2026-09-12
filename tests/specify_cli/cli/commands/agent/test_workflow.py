@@ -651,3 +651,40 @@ class TestPrintCommitSummary:
         assert len(payload["commits"]) == 1
         assert payload["commits"][0]["destination_ref"] == "kitty/mission-bar-01XYZ"
         workflow._reset_workflow_receipts()
+
+
+def test_find_mission_slug_ambiguous_handle_exits_cleanly(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#450: workflow.py's ``_find_mission_slug`` short-circuit call
+
+    (``_resolve_workflow_read_dir`` -> ``_workflow_placement_seam(...).read_dir``)
+    runs BEFORE ``resolve_mission_handle`` and previously had no
+    try/except around it, so an ambiguous handle propagated
+    ``MissionSelectorAmbiguous`` uncaught as a bare traceback instead of a
+    clean ``typer.Exit(1)`` (the shape #241 already established for the
+    sibling short-circuits in ``tasks_shared.py`` and ``status.py``).
+    """
+    from specify_cli.cli.commands.agent import workflow
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+    exc = MissionSelectorAmbiguous(
+        handle="charter", candidates=["020-charter", "030-charter"]
+    )
+    seam_mock = MagicMock()
+    seam_mock.read_dir.side_effect = exc
+    with (
+        patch(
+            "specify_cli.cli.commands.agent.workflow.get_main_repo_root",
+            return_value=tmp_path,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent.workflow._workflow_placement_seam",
+            return_value=seam_mock,
+        ),
+        pytest.raises(workflow.typer.Exit) as exc_info,
+    ):
+        workflow._find_mission_slug("charter", repo_root=tmp_path)
+
+    assert exc_info.value.exit_code == 1
+    assert "Mission handle 'charter' matches multiple missions" in capsys.readouterr().out

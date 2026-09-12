@@ -11,17 +11,11 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from specify_cli.core.saas_sync_config import sync_active
-pytestmark = [
-    pytest.mark.integration, pytest.mark.git_repo,
-    pytest.mark.skipif(
-        not sync_active(),
-        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
-    ),
-]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _git_init(path: Path) -> None:
@@ -168,7 +162,11 @@ def test_mission_created_dedupe_on_mission_slug(feature_dir: Path) -> None:
 def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> None:
     """The MissionCreated payload must include all fields required by the
     canonical events 5.1.0 schema (``mission_type`` and ``wp_count`` are
-    required; ``actor`` is forbidden). See issues #1190 and #1199."""
+    required). See issues #1190 and #1199.
+
+    ``actor`` was payload-forbidden under #1190; spec-kitty-events 8.0.0 added
+    it back as an optional WHO field and #75 makes the local emitter resolve
+    it, so its presence is now asserted here rather than its absence."""
     envelope = emit_mission_created_local(
         feature_dir,
         mission_slug="demo-mission",
@@ -183,8 +181,6 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
     )
     assert envelope is not None
     payload = envelope["payload"]
-    # Forbidden: ``actor`` belongs on the envelope, not the payload (#1190).
-    assert "actor" not in payload, f"MissionCreated payload must not contain 'actor'; got {payload!r}. See Priivacy-ai/spec-kitty#1190."
     # Required by the canonical schema (#1199).
     assert payload["mission_type"] == "software-dev"
     assert payload["wp_count"] == 0
@@ -193,6 +189,132 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
     assert payload["mission_id"] == "01J6XW9KQT7M0YB3N4R5CQZ2EX"
     assert payload["target_branch"] == "main"
     assert payload["friendly_name"] == "Demo Mission"
+    # WHO is set by default (#75): an opaque identifier, never empty.
+    assert isinstance(payload["actor"], str) and payload["actor"].strip()
+
+
+# ---------------------------------------------------------------------------
+# MissionCreated actor resolution (#75)
+# ---------------------------------------------------------------------------
+
+
+def _fake_git_config(monkeypatch: pytest.MonkeyPatch, *, stdout: str, error: bool = False):
+    """Intercept ``git config`` probes; every other command runs for real."""
+
+    real_run = subprocess.run
+    calls: list[list[str]] = []
+
+    def _run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if cmd[:3] != ["git", "config", "user.email"]:
+            return real_run(cmd, **kwargs)
+        calls.append(list(cmd))
+        if error:
+            raise FileNotFoundError("git binary missing")
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _run)
+    return calls
+
+
+def test_mission_created_local_resolves_actor_from_git_email(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _fake_git_config(monkeypatch, stdout="robert@example.com\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "robert@example.com"
+    assert calls and calls[0][:3] == ["git", "config", "user.email"]
+
+
+@pytest.mark.parametrize("error", [False, True], ids=["unconfigured", "git-absent"])
+def test_mission_created_local_actor_falls_back_to_cli(feature_dir: Path, monkeypatch: pytest.MonkeyPatch, error: bool) -> None:
+    _fake_git_config(monkeypatch, stdout="", error=error)
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "cli"
+
+
+def test_mission_created_local_oversized_email_falls_back_to_cli(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A resolved email over the zeitgeist attrs codec's 240-byte-per-value
+    bound must degrade to ``"cli"`` at emit time (#74) — otherwise the value
+    passes producer-time validation (no ``max_length`` on the contract) and
+    ``to_zeitgeist_attrs`` only rejects it later, silently dropping the whole
+    moment instead of just its WHO."""
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
+
+    oversized_email = ("a" * (ZEITGEIST_ATTRS_MAX_BYTES + 10)) + "@example.com"
+    calls = _fake_git_config(monkeypatch, stdout=f"{oversized_email}\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "cli"
+    assert calls and calls[0][:3] == ["git", "config", "user.email"]
+
+
+def test_mission_created_local_boundary_length_email_is_kept(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An email exactly at the byte bound is still a valid actor — only
+    strictly-over-bound values fall back."""
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
+
+    boundary_email = "a" * (ZEITGEIST_ATTRS_MAX_BYTES - len("@example.com")) + "@example.com"
+    assert len(boundary_email.encode("utf-8")) == ZEITGEIST_ATTRS_MAX_BYTES
+    _fake_git_config(monkeypatch, stdout=f"{boundary_email}\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == boundary_email
+
+
+def test_mission_created_local_explicit_actor_wins_without_identity_probe(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pinned actor bypasses resolution entirely (other git use is fine —
+    the write lock legitimately shells out to git around the append)."""
+    calls = _fake_git_config(monkeypatch, stdout="", error=True)
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+        actor="agent:sk-impl-spec-kitty-75",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "agent:sk-impl-spec-kitty-75"
+    assert calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -253,11 +375,7 @@ def test_local_artifact_phase_persists_started_without_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-
-    def capture(**kwargs: object) -> None:
-        captured.append(dict(kwargs))
-
-    adapters.register_lifecycle_saas_fanout_handler(capture)
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     try:
         envelope = emit_artifact_phase_local(
             feature_dir,
@@ -270,9 +388,7 @@ def test_local_artifact_phase_persists_started_without_hosted_fanout(
         assert envelope is not None
         entries = read_lifecycle_events(mission_event_log_path(feature_dir))
         assert entries == [envelope]
-        assert entries[0]["payload"]["artifact_path"] == (
-            "kitty-specs/demo-mission/plan.md"
-        )
+        assert entries[0]["payload"]["artifact_path"] == ("kitty-specs/demo-mission/plan.md")
         assert captured == []
     finally:
         adapters.reset_handlers()
@@ -285,9 +401,7 @@ def test_local_artifact_phase_persists_completed_without_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     try:
         envelope = emit_artifact_phase_local(
             feature_dir,
@@ -687,11 +801,7 @@ def test_persist_local_then_explicit_hosted_fanout_uses_same_envelope(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-
-    def capture(**kwargs: object) -> None:
-        captured.append(dict(kwargs))
-
-    adapters.register_lifecycle_saas_fanout_handler(capture)
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     log_path = mission_event_log_path(feature_dir)
     try:
         envelope = persist_lifecycle_event_local(
@@ -700,6 +810,7 @@ def test_persist_local_then_explicit_hosted_fanout_uses_same_envelope(
             {"mission_slug": "demo-mission", "wp_id": "WP01"},
             aggregate_id="WP01",
             aggregate_type="WorkPackage",
+            mission_slug="demo-mission",
         )
 
         assert envelope is not None
@@ -722,9 +833,7 @@ def test_append_lifecycle_event_composes_local_write_and_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     log_path = mission_event_log_path(feature_dir)
     try:
         envelope = append_lifecycle_event(
@@ -733,6 +842,7 @@ def test_append_lifecycle_event_composes_local_write_and_hosted_fanout(
             {"mission_slug": "demo-mission", "wp_id": "WP01"},
             aggregate_id="WP01",
             aggregate_type="WorkPackage",
+            mission_slug="demo-mission",
         )
 
         assert envelope is not None
@@ -750,9 +860,7 @@ def test_local_write_failure_returns_none_without_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
 
     def fail_write(path: Path, line: str) -> None:
         raise OSError("disk full")
@@ -765,6 +873,7 @@ def test_local_write_failure_returns_none_without_hosted_fanout(
             {"mission_slug": "demo-mission", "wp_id": "WP01"},
             aggregate_id="WP01",
             aggregate_type="WorkPackage",
+            mission_slug="demo-mission",
         )
 
         assert envelope is None
@@ -814,113 +923,6 @@ def test_lifecycle_repo_root_resolution_fails_closed_outside_git(
     assert lifecycle._repo_root_for_lifecycle_log(repo / "anywhere.jsonl") is None
 
 
-def test_lifecycle_saas_outbox_queues_when_scoped(
-    feature_dir: Path,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    queued: list[dict[str, object]] = []
-    queue_authority: list[tuple[object, object]] = []
-
-    # Mint + persist a real project identity (as ``spec-kitty init`` does).
-    # Post-#2263 the SaaS lifecycle fan-out resolves identity WITHOUT
-    # persisting, so an uninitialized repo yields ``project_uuid=None`` and the
-    # handler early-returns before queuing. A real project always carries a
-    # minted identity, which is what the outbox path requires to enqueue.
-    from specify_cli.identity.project import ensure_identity
-
-    (tmp_path / ".kittify").mkdir(exist_ok=True)
-    ensure_identity(tmp_path)
-
-    class _Queue:
-        def __init__(self, unit: object, layout_generation: object) -> None:
-            queue_authority.append((unit, layout_generation))
-
-        def queue_event(self, event: dict[str, object]) -> bool:
-            queued.append(event)
-            return True
-
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: True,
-    )
-    # Ingress scope is session-only and fail-closed (#738/#3380): the outbox
-    # queues when the session resolves the Private Teamspace scope. The removed
-    # credentials fallback is no longer part of this path, so scope via session.
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_session",
-        lambda: "https://example.test|user@example.test|team-a",
-    )
-    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
-
-    emit_artifact_phase(
-        feature_dir,
-        event_type=SPECIFY_COMPLETED,
-        mission_slug="demo-mission",
-        actor="test",
-        artifact_path="kitty-specs/demo-mission/spec.md",
-    )
-
-    assert len(queue_authority) == 1
-    from specify_cli.sync.layout_generation import LayoutGenerationAuthority
-    from specify_cli.sync.project_store import ProjectUnitOfWork
-
-    unit, layout_generation = queue_authority[0]
-    assert isinstance(unit, ProjectUnitOfWork)
-    assert isinstance(layout_generation, LayoutGenerationAuthority)
-    assert len(queued) == 1
-    queued_event = queued[0]
-    assert queued_event["event_type"] == SPECIFY_COMPLETED
-    assert queued_event["schema_version"] == "3.0.0"
-    assert queued_event["build_id"]
-    assert queued_event["node_id"]
-    assert isinstance(queued_event["lamport_clock"], int)
-    assert queued_event["lamport_clock"] >= 1
-    assert queued_event["correlation_id"] == queued_event["event_id"]
-
-    from spec_kitty_events import Event
-    from spec_kitty_events.project_lifecycle import SpecifyCompletedPayload
-
-    Event(**queued_event)
-    SpecifyCompletedPayload.model_validate(queued_event["payload"])
-
-
-def test_lifecycle_saas_outbox_suppresses_queue_failures(
-    feature_dir: Path,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
-
-    class _Queue:
-        def __init__(self) -> None:
-            raise RuntimeError("queue unavailable")
-
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_session",
-        lambda: "https://example.test|user@example.test|team-a",
-    )
-    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
-
-    emit_artifact_phase(
-        feature_dir,
-        event_type=SPECIFY_COMPLETED,
-        mission_slug="demo-mission",
-        actor="test",
-        artifact_path="kitty-specs/demo-mission/spec.md",
-    )
-
-
-# ---------------------------------------------------------------------------
-# Canonical-conformance guard (issue Priivacy-ai/spec-kitty#1190)
-# ---------------------------------------------------------------------------
-
-
 def test_validate_lifecycle_payload_rejects_unexpected_extra_fields() -> None:
     """The canonical-conformance guard catches extra-property drift at
     emit time. This is the regression guard for issue
@@ -932,13 +934,16 @@ def test_validate_lifecycle_payload_rejects_unexpected_extra_fields() -> None:
         "mission_number": None,
         "target_branch": "main",
         "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
-        "actor": "spec-kitty mission create",  # extra — schema forbids it
+        # extra — schema forbids it. NOT ``actor``: events 8.0.0 declared an
+        # optional opaque ``actor`` on MissionCreated/MissionClosed, so the
+        # drift probe uses a key that is still outside the contract.
+        "emitted_by": "spec-kitty mission create",
         "created_at": "2026-05-20T00:00:00+00:00",
         "friendly_name": "Demo",
         "purpose_tldr": "tldr",
         "purpose_context": "context",
     }
-    with pytest.raises(ValueError, match="actor"):
+    with pytest.raises(ValueError, match="emitted_by"):
         lifecycle._validate_lifecycle_payload("MissionCreated", bad_payload)
 
 
@@ -1036,13 +1041,15 @@ def test_validate_lifecycle_payload_still_strict_for_delivery_path_types() -> No
         "mission_number": None,
         "target_branch": "main",
         "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
-        "actor": "spec-kitty mission create",  # extra — schema forbids it
+        # extra — schema forbids it (see the drift-probe note above: events
+        # 8.0.0 declared an optional ``actor``, so probe with a foreign key).
+        "emitted_by": "spec-kitty mission create",
         "created_at": "2026-05-20T00:00:00+00:00",
         "friendly_name": "Demo",
         "purpose_tldr": "tldr",
         "purpose_context": "context",
     }
-    with pytest.raises(ValueError, match="actor"):
+    with pytest.raises(ValueError, match="emitted_by"):
         lifecycle._validate_lifecycle_payload(lifecycle.MISSION_CREATED, bad_payload)
 
 

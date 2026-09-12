@@ -2,7 +2,7 @@
 
 DOCTRINE_SOURCE_ROOT is the canonical path to the in-repo doctrine source tree
 (``src/charter/offering/`` since mission ``charter-code-topology-01M152G1``
-relocated the former top-level ``src/doctrine/`` package there).
+relocated the former top-level ``src/charter/offering/`` package there).
 Compliance-guard and consistency tests import this constant instead of
 hardcoding ``REPO_ROOT / "src" / "charter" / "offering"`` independently.  The
 path is intentionally *not* routed through ``MissionTemplateRepository`` —
@@ -12,7 +12,7 @@ structure changes.
 BUILT_IN_MISSIONS_ROOT is the analogous canonical constant for the missions
 DATA subdirectories, relocated by mission
 ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005) from
-``src/doctrine/missions`` (nested under ``DOCTRINE_SOURCE_ROOT``) to
+``src/charter/offering/missions`` (nested under ``DOCTRINE_SOURCE_ROOT``) to
 ``packs/built-in/missions`` (a sibling of ``DOCTRINE_SOURCE_ROOT``, not nested
 under it). Compliance-guard/layout-canary tests that need the shipped mission
 data on disk should import this constant rather than composing
@@ -47,9 +47,9 @@ BUILT_IN_MISSIONS_ROOT: Path = REPO_ROOT / "packs" / "built-in" / "missions"
 # Built-in DRG graph seam fixtures (WP03/T012 seam, WP04/T018, FR-009, NFR-007)
 # ---------------------------------------------------------------------------
 #
-# The shipped DRG lives under ``src/doctrine/`` as a ``graph.yaml`` monolith
+# The shipped DRG lives under ``src/charter/offering/`` as a ``graph.yaml`` monolith
 # today and, after mission #2680 WP05, as ``*.graph.yaml`` fragments. Tests
-# MUST NOT reconstruct ``.../src/doctrine/graph.yaml`` themselves: that path
+# MUST NOT reconstruct ``.../src/charter/offering/graph.yaml`` themselves: that path
 # breaks the instant WP05 deletes the monolith. Instead they route through the
 # canonical WP03 seam — ``built_in_graph_source()`` (the *directory*) and
 # ``load_built_in_graph()`` (``load_graph_or_dir`` over that directory) — which

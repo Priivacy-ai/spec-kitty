@@ -1,3 +1,0 @@
-FAILED tests/doctrine/test_profile_repository.py::test_resolve_profile_missing_raises - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/doctrine/test_profile_repository.py::test_resolve_profile_missing_raises
-===================== 1 failed in 3.10s ======================

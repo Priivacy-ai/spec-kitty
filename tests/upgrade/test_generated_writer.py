@@ -135,9 +135,7 @@ def test_default_encoding_is_utf8(tmp_path: Path) -> None:
 # enumeration" for the classification rule and confirmed in-scope list).
 # ---------------------------------------------------------------------------
 
-_MIGRATIONS_DIR = (
-    Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "upgrade" / "migrations"
-)
+_MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "upgrade" / "migrations"
 
 # Every migration confirmed in-scope by research.md's FR-002 enumeration: its
 # write target is a generated command/skill file the generation layer later
@@ -182,13 +180,9 @@ def test_in_scope_migration_has_no_bare_write_text(filename: str) -> None:
     assert module_path.is_file(), f"expected migration file at {module_path}"
 
     source = module_path.read_text(encoding="utf-8")
-    assert ".write_text(" not in source, (
-        f"{filename} contains a bare '.write_text(' call — route it through "
-        "write_generated_file() instead (see FR-002 / #3651)"
-    )
+    assert ".write_text(" not in source, f"{filename} contains a bare '.write_text(' call — route it through write_generated_file() instead (see FR-002 / #3651)"
     assert "write_generated_file" in source, (
-        f"{filename} is in-scope for the canonical writer but does not import/use "
-        "write_generated_file — has its write site been converted?"
+        f"{filename} is in-scope for the canonical writer but does not import/use write_generated_file — has its write site been converted?"
     )
 
 
@@ -261,9 +255,7 @@ def test_no_unrouted_bare_write_text_on_agent_surface_paths() -> None:
         module_path.name
         for module_path in sorted(_MIGRATIONS_DIR.glob("*.py"))
         for source in [module_path.read_text(encoding="utf-8")]
-        if ".write_text(" in source
-        and "write_generated_file" not in source
-        and _references_agent_dir_or_skill_paths(source)
+        if ".write_text(" in source and "write_generated_file" not in source and _references_agent_dir_or_skill_paths(source)
     }
 
     exempted = set(_EXEMPT_AGENT_DIR_REFERENCING_WRITERS)

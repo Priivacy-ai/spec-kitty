@@ -37,9 +37,7 @@ _SLUG = "rollback-signal-demo"
 def _seed_feature(tmp_path: Path, roster: list[str]) -> Path:
     feature_dir = tmp_path / "kitty-specs" / _SLUG
     (feature_dir / "tasks").mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(
-        f'{{"mission_slug":"{_SLUG}","topology":"single_branch"}}\n', encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(f'{{"mission_slug":"{_SLUG}","topology":"single_branch"}}\n', encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# Tasks\n\nNo checkbox rows.\n", encoding="utf-8")
     lines = ["---", "work_package_id: WP01", "dependencies: []"]
     if roster:
@@ -53,9 +51,7 @@ def _seed_feature(tmp_path: Path, roster: list[str]) -> Path:
 
 
 def _ports(feature_dir: Path) -> SimpleNamespace:
-    return SimpleNamespace(
-        fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir)
-    )
+    return SimpleNamespace(fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir))
 
 
 def _st(tmp_path: Path) -> SimpleNamespace:
@@ -67,8 +63,9 @@ def _st(tmp_path: Path) -> SimpleNamespace:
 # --------------------------------------------------------------------------- #
 
 
-def test_rollback_summary_splits_completed_from_never_started(tmp_path: Path) -> None:
+def test_rollback_summary_splits_completed_from_never_started(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A subtask DONE in an earlier cycle is distinguishable from a never-started one."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     feature_dir = _seed_feature(tmp_path, ["T001", "T002", "T003"])
     # T001 was completed in an earlier cycle; T002 was in progress; T003 never
     # started — the pre-reset snapshot carries that work-state.
@@ -78,6 +75,7 @@ def test_rollback_summary_splits_completed_from_never_started(tmp_path: Path) ->
         WPInnerStateDelta(subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS}),
         actor="test",
         mission_slug=_SLUG,
+        repo_root=tmp_path,
     )
     reset = _mt_rollback_subtasks_reset(_st(tmp_path), _ports(feature_dir))
 

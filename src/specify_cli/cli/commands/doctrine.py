@@ -64,7 +64,10 @@ _JSON_OPTION_HELP = "Emit machine-readable JSON instead of rich text."
 _DEPRECATION_NOTICE = (
     "`spec-kitty doctrine` is deprecated; use `spec-kitty charter` instead "
     "(mission charter-code-topology-01M152G1, CR-02). This command still "
-    "works and delegates to the same implementation."
+    "works and delegates to the same implementation. "
+    "The following commands remain under `spec-kitty doctrine`: "
+    "regenerate-graph, pack validate, pack assemble, asset, and mission-type list "
+    "(all visible types; charter mission-type list shows activated types)."
 )
 
 
@@ -214,7 +217,7 @@ def _doctrine_root() -> Path:
 
     Post-flatten (relocate-builtin-doctrine-packs, WP03) the built-in artifact
     content and the sharded ``*.graph.yaml`` fragments live in
-    ``packs/built-in/`` — no longer under ``src/doctrine/<kind>/built-in``. This
+    ``packs/built-in/`` — no longer under ``src/charter/offering/<kind>/built-in``. This
     root is both the extractor's artifact input *and* the fragment write-target /
     freshness read source; the extractor resolves ``missions/`` (which did NOT
     move) internally.
@@ -260,7 +263,7 @@ def regenerate_graph(
 
     Composes the DRG extractor + calibrator into per-populated-node-kind
     ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
-    relocated from ``src/doctrine/`` by the pack flatten),
+    relocated from ``src/charter/offering/`` by the pack flatten),
     retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
     on unchanged inputs yields byte-identical fragments. With ``--check`` the
     command never writes: it regenerates into a temp directory and compares the
@@ -476,7 +479,7 @@ def pack_assemble(
 #: Per-kind stub bodies (T016).  Each value is a ``str.format``-ready YAML
 #: template whose ``{artifact_id}`` placeholder the scaffolder substitutes; the
 #: rendered stub is the *minimum* payload that passes the corresponding Pydantic
-#: schema in ``src/doctrine/*/models.py`` (or ``AssetManifest``).  The scaffolder
+#: schema in ``src/charter/offering/*/models.py`` (or ``AssetManifest``).  The scaffolder
 #: validates the rendered stub against the schema before writing — a future
 #: schema tightening surfaces at the next ``doctrine new`` rather than silently
 #: scaffolding an invalid file.
@@ -518,13 +521,13 @@ _STUB_TEMPLATES: dict[ArtifactKind, str] = {
         "  - TODO first principle\n"
         "applies_to_languages: []\n"
     ),
-    # Toolguide: guide_path must match ^src/doctrine/.+\.md$.
+    # Toolguide: guide_path must match ^src/charter/offering/.+\.md$.
     ArtifactKind.TOOLGUIDE: (
         'schema_version: "1.0"\n'
         "id: {artifact_id}\n"
         "tool: TODO tool name\n"
         "title: TODO short title\n"
-        "guide_path: src/doctrine/toolguides/{artifact_id}.md\n"
+        "guide_path: src/charter/offering/toolguides/{artifact_id}.md\n"
         "summary: TODO one-line summary\n"
     ),
     ArtifactKind.PARADIGM: (
@@ -997,6 +1000,9 @@ def org_validate(
     Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
     loader.  Prints per-file findings with file paths.  Exits non-zero when
     at least one error is found.
+
+    Org fragments use id and plural kind (for example, directives) for nodes.
+    Validation uses the runtime loader, which supplies pack provenance fields.
     """
     from specify_cli.doctrine.pack_validator import (
         render_validation_result,
@@ -1010,46 +1016,6 @@ def org_validate(
     # protected by a carve-out in the first place (operator ruling #2,
     # reviews/plan.ruling.md).
     result = validate_pack(pack_path, check_drg_root=True)
-
-    # Additionally validate drg/fragment.yaml against OrgDRGFragment schema
-    # (pack_validator covers DRG edge/node cross-refs; this catches
-    # kind-constraint violations that pack_validator defers to advisory).
-    fragment_path = pack_path / "drg" / "fragment.yaml"
-    if fragment_path.exists():
-        from ruamel.yaml import YAML
-        from ruamel.yaml.error import YAMLError
-
-        try:
-            raw = fragment_path.read_text(encoding="utf-8")
-            # Strip pydantic_model / expect frontmatter comment lines.
-            payload_lines = [
-                line for line in raw.splitlines()
-                if not line.strip().startswith("#")
-            ]
-            frag_data = YAML(typ="safe").load("\n".join(payload_lines))
-            if frag_data is not None and isinstance(frag_data, dict):
-                from charter.drg import OrgDRGFragment
-                from pydantic import ValidationError as PydanticValidationError
-
-                try:
-                    OrgDRGFragment.model_validate(frag_data)
-                except PydanticValidationError as exc:
-                    from specify_cli.doctrine.pack_validator import ValidationIssue, ValidationResult
-
-                    extra_error = ValidationIssue(
-                        severity="error",
-                        artifact_type="drg",
-                        artifact_id=frag_data.get("pack_name"),
-                        file=str(fragment_path),
-                        message=f"OrgDRGFragment schema validation failed: {exc.errors()[0].get('msg', exc)}",
-                    )
-                    result = ValidationResult(
-                        ok=False,
-                        errors=[*result.errors, extra_error],
-                        advisories=result.advisories,
-                    )
-        except (YAMLError, OSError):
-            pass  # pack_validator already reported YAML parse errors
 
     render_validation_result(result, json_output=False)
     raise typer.Exit(0 if result.ok else 1)

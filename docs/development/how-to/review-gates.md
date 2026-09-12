@@ -2,7 +2,7 @@
 title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate'
 description: The review-cycle-artifact and merge-gate mechanics, the --skip-review-artifact-check override, and the issue-matrix discovery surface, so review and merge focus on substance.
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -97,36 +97,6 @@ Resolve a skew warning the same way as any other lock drift:
 ```bash
 uv sync --frozen --all-extras
 ```
-
-## Running the CI residual selection locally
-
-CI runs an always-on `unit-contract-residual` job
-(`.github/workflows/ci-quality.yml`) that selects tests marked `unit` or
-`contract` which carry no other routed runnable marker -- the authoring-
-taxonomy residual (mission `ci-suite-map-bind`, closes #2034). Previously
-there was no way to run this exact selection locally before pushing, so a
-marker-orphan failure only ever surfaced in CI.
-
-Run it locally with:
-
-```bash
-spec-kitty review --check-residual
-```
-
-This skips the mission-scoped review gates and instead runs the CI
-residual `-m` selection over `tests/` locally, exiting with pytest's return
-code (`--mission` is not required for this flag). The `-m` expression is
-**read live** from the `unit-contract-residual` job in
-`.github/workflows/ci-quality.yml` at run time -- it is never hand-copied
-into the CLI, so a future change to the CI selector is picked up
-automatically on the next run with no risk of drift (NFR-002). The
-`_test_env_check` marker parser is pinned to `_gate_coverage`'s parser by
-`test_env_check_marker_parser_agrees_with_gate_coverage_live`, so the two
-readers of that `-m` expression cannot silently diverge.
-
-> **Note:** `--check-residual` runs the selection **serially** (plain
-> `pytest -m ...`), not with CI's parallel `-n auto --dist loadfile`. It
-> selects exactly the same tests as CI but takes longer to finish locally.
 
 ## Pre-review regression gate (`move-task --to for_review`)
 
@@ -325,8 +295,9 @@ aggregator's exemption is draft-*flag*-only -- not title-based -- so a
 **non-draft** PR that still carries a WIP prefix is a contradiction the gate
 rejects by design: requesting review while WIP-titled must not pass. To land,
 either drop the `WIP` / `[WIP]` prefix from the title, or keep the PR in draft
-until it is ready. (See the `DRAFT_GATED_JOBS` note in
-[`.github/workflows/ci-quality.yml`](../../../.github/workflows/ci-quality.yml).)
+until it is ready. (See the `DRAFT_GATED_JOBS` note that used to live in
+`.github/workflows/ci-quality.yml`, deleted per PROGRAM.md §2 / planning#57 —
+this repo runs no GitHub Actions.)
 
 ## PR body style: consumer-focused BLUF
 
@@ -352,7 +323,7 @@ under the relevant `[Unreleased]` category in
 
 ## Shippable doctrine: built-in doctrine must work in a consumer repo
 
-**Built-in doctrine (anything under `src/doctrine/**/built-in/`) MUST be valid
+**Built-in doctrine (anything under `packs/built-in/`) MUST be valid
 and actionable in a consumer repository that has activated the pack but has NO
 access to the spec-kitty source tree, CI, or tooling.** A doctrine pack is
 installed/activated as a *pack* in an arbitrary customer repo — it does not ship
@@ -381,15 +352,15 @@ toolguide, or glossary pack, reject any of these:
 
 ```bash
 # repo-local tooling paths
-grep -rEn 'scripts/|\.github/|src/specify_cli|tests/' src/doctrine/*/built-in/
+grep -rEn 'scripts/|\.github/|src/specify_cli|tests/' packs/built-in/
 # source-tree PREFIXES -- the content ships, the `src/` prefix does not
 grep -rEn 'src/doctrine/|src/mission_runtime|src/charter/|src/runtime/|src/glossary/' \
-  src/doctrine/*/built-in/
+  packs/built-in/
 ```
 
 Neither should return anything a consumer is expected to *resolve or run*. The
 second pattern matters as much as the first and is easy to forget: an installed
-consumer has `doctrine/` in site-packages, never `src/doctrine/`, so a
+consumer has the pack in site-packages, never a `src/` tree prefix, so a
 `guide_path:` or `references:` entry carrying the source-tree prefix is a
 dangling reference downstream even though the artefact itself ships.
 

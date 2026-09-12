@@ -95,16 +95,9 @@ command so the local and hosted outcomes cannot be conflated:
 | `spec-kitty agent mission create` | Completes eligible local artifact work | Never starts one | Local mission-creation result and exit code |
 | `spec-kitty agent mission setup-plan` | Completes eligible local verification | Never starts one | Local verification payload and exit code |
 
-For `setup-plan`, hosted delivery is skipped and reported as a nonfatal warning.
-Automation must not start an interactive login on the operator's behalf.
-
-A confirmed absent or unusable session is reported as
-`SAAS_SYNC_UNAUTHENTICATED`; the remedy is for the operator to log in before a
-later hosted action. If encrypted session storage cannot be read or evaluated,
-`setup-plan` reports `SAAS_SYNC_AUTH_UNKNOWN` instead. That diagnostic means
-assessment failed, not that the operator is logged out. Inspect or repair the
-local authentication storage before retrying hosted sync; diagnostics never
-include session contents or credentials.
+After the sync transport was retired, `setup-plan` never attempts hosted
+delivery: local verification is the authoritative result. Automation must not
+start an interactive login on the operator's behalf.
 
 The interactive recovery surface is intentionally limited to hosted-only
 `sync` commands. Other commands (notably `spec-kitty auth doctor` and

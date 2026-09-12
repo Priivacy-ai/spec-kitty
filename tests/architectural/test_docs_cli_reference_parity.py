@@ -20,7 +20,7 @@ references to non-existent profile subcommands (FR-017).
 The :func:`test_doctrine_source_snippets_are_registered` guard (FR-011/FR-012)
 scans all ``spec-kitty …`` command snippets inside bash fences in the doctrine
 SOURCE (``src/charter/offering/skills/**/*.md``,
-``packs/built-in/missions/mission-steps/**/*.md``) and asserts every extracted
+``src/charter/offering/missions/mission-steps/**/*.md``) and asserts every extracted
 command path is a registered Typer surface.  Catches ``HARD`` drift (nonexistent
 command/group) introduced by skills and mission-step prompts; does NOT catch
 behavioral drift (e.g. a missing required flag whose absence triggers a resolver
@@ -71,19 +71,19 @@ AGENT_REFERENCE_PATH = _REPO_ROOT / "docs" / "api" / "agent-subcommands.md"
 
 def _build_live_app() -> typer.Typer:
     """Mirror the discovery pattern used by ``test_safety_registry_completeness``."""
-    from specify_cli import app
-    from specify_cli.cli.commands import register_commands
+    import specify_cli
 
-    saved = sys.argv[:]
-    sys.argv = ["spec-kitty", "--help"]
-    try:
-        register_commands(app)
-    finally:
-        sys.argv = saved
-    # ``specify_cli.app`` is declared as a bare ``object`` at module level to
-    # avoid a circular import on the public surface.  It is always a Typer
-    # instance at runtime; the cast is safe and removes a long-standing mypy
-    # complaint (pre-existing before this WP).
+    # This reference covers every command, including feature-gated tracker
+    # commands. Build a fresh tree so an earlier sync-off import cannot narrow
+    # the documented surface. Construction performs no live sync operation.
+    with pytest.MonkeyPatch.context() as env:
+        env.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+        saved = sys.argv[:]
+        sys.argv = ["spec-kitty", "--help"]
+        try:
+            app = specify_cli._build_app()
+        finally:
+            sys.argv = saved
     assert isinstance(app, typer.Typer), "specify_cli.app must be a Typer instance"
     return app
 
@@ -150,11 +150,14 @@ def test_reference_paths_are_present_and_generated() -> None:
     )
 
 
+@pytest.mark.parametrize("sync_flag", ["0", "1"])
 def test_visible_paths_match_reference(
-    reference_text: str, agent_reference_text: str
+    reference_text: str, agent_reference_text: str, sync_flag: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Every visible (non-hidden) command path must appear in one of the references."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", sync_flag)
     app = _build_live_app()
+    assert os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] == sync_flag
     entries = walk(app)
     live_visible = {e.path for e in entries if not e.hidden}
 
@@ -197,6 +200,17 @@ def test_deprecated_paths_classified(reference_text: str, agent_reference_text: 
         "Deprecated paths missing Deprecated banner in the reference:\n"
         + "\n".join(f"  - spec-kitty {' '.join(p)}" for p in sorted(unclassified))
     )
+
+
+def test_retired_check_residual_option_is_absent(reference_text: str) -> None:
+    """The unreachable residual flag must not survive in help or docs."""
+    from typer.testing import CliRunner
+
+    result = CliRunner().invoke(_build_live_app(), ["review", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--check-residual" not in result.output
+    assert "--check-residual" not in reference_text
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +290,7 @@ def test_skill_docs_profile_subcommands_are_registered() -> None:
 #: maintained.
 _DOCTRINE_SOURCE_GLOBS: tuple[str, ...] = (
     "src/charter/offering/skills/**/*.md",
-    "packs/built-in/missions/mission-steps/**/*.md",
+    "src/charter/offering/missions/mission-steps/**/*.md",
 )
 
 #: Ratchet allow-list.  Start empty after WP07 lands all 15 SOURCE fixes.

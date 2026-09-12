@@ -68,14 +68,10 @@ from specify_cli.core.worktree import (
 # body's direct dependencies. ``finalize_tasks`` now lives in
 # ``mission_finalize`` and imports them straight from their canonical modules,
 # but they remain deliberate ``mission.<name>`` re-exports so historical patch
-# targets (``mission.run_command`` / ``mission.get_emitter`` /
-# ``mission.is_saas_sync_enabled`` / ``mission.emit_wp_created``) and
-# ``from ...mission import <name>`` test/edge imports keep resolving. The ``as``
-# form marks them intentional (WP09 finalizes the comprehensive shim sweep).
+# targets (``mission.run_command``) and ``from ...mission import <name>``
+# test/edge imports keep resolving. The ``as`` form marks them intentional
+# (WP09 finalizes the comprehensive shim sweep).
 from specify_cli.core.git_ops import run_command as run_command
-from specify_cli.sync.events import emit_wp_created as emit_wp_created
-from specify_cli.sync.events import get_emitter as get_emitter
-from specify_cli.sync.feature_flags import is_saas_sync_enabled as is_saas_sync_enabled
 from specify_cli.frontmatter import write_frontmatter as write_frontmatter
 from specify_cli.status import WPMetadata as WPMetadata
 from specify_cli.status import read_wp_frontmatter as read_wp_frontmatter
@@ -280,8 +276,8 @@ from specify_cli.cli.commands.agent.mission_accept_merge import (
 # ``_collect_finalize_artifacts`` / ``_branch_tree_relative_path`` keep resolving;
 # the command is registered on ``app`` below (WP09 finalizes the shim sweep). The
 # finalize seam resolves the cross-cutting patched symbols (``locate_project_root``
-# / ``is_saas_sync_enabled`` / ``_find_feature_directory`` / ``run_command`` /
-# ``get_emitter``) THROUGH this module at call time, so those patch seams keep
+# / ``_find_feature_directory`` / ``run_command``) THROUGH this module at call
+# time, so those patch seams keep
 # working without an import cycle.
 from specify_cli.cli.commands.agent.mission_finalize import (
     finalize_tasks as finalize_tasks,

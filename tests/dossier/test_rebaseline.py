@@ -756,15 +756,22 @@ class TestRebaselineOrgAwareness:
         # Legacy/unrecognized layout: feature_dir is NOT under a `kitty-specs`
         # parent (mirrors this file's own pre-existing `tmp_path / slug`
         # fixture convention used throughout the rest of this test module).
-        feature_dir = tmp_path / "042-example-mission"
+        # Nested one level under `tmp_path` (rather than placing feature_dir
+        # directly in `tmp_path`) so "two hops up" below lands on `tmp_path`
+        # itself — this test's own isolated directory — never on the
+        # pytest-xdist worker basetemp that is a *parent* of every sibling
+        # test's `tmp_path` (that leak caused four `agent_context_resolve-*`
+        # nodes in an unrelated module to fail when their own Tier-3
+        # `.kittify` walk-up hit this stray config; see #160).
+        feature_dir = tmp_path / "nested" / "042-example-mission"
         _write_source_mission(feature_dir)
         snapshot_path = _record_old_form_snapshot(feature_dir, "042-example-mission")
 
         # An org pack IS configured two hops up from feature_dir — the naive
         # derivation's landing spot — but must never be reached.
-        org_root = tmp_path.parent / "org-pack"
+        org_root = tmp_path / "org-pack"
         _write_org_manifest(org_root, "software-dev", _org_manifest_data("wrong-project-org"))
-        _write_org_pack_config(tmp_path.parent, packs=[("acme", org_root)])
+        _write_org_pack_config(tmp_path, packs=[("acme", org_root)])
 
         captured_repo_roots: list[Path | None] = []
 

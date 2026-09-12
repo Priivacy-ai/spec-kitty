@@ -416,6 +416,21 @@ function loadOverview() {
     progressBar.appendChild(progressFill);
     completedCard.appendChild(progressBar);
 
+    const nextAction = feature.next_action;
+    const nextActionEl = nextAction ? (() => {
+        const el = document.createElement('div');
+        el.className = 'next-action-callout';
+        const icon = document.createElement('span');
+        icon.className = 'next-action-icon';
+        icon.textContent = '▶';
+        const label = document.createElement('strong');
+        label.textContent = 'Next step:';
+        const command = document.createElement('code');
+        command.textContent = nextAction;
+        el.append(icon, document.createTextNode(' '), label, document.createTextNode(' '), command);
+        return el;
+    })() : null;
+
     const artifactsHeading = document.createElement('h3');
     artifactsHeading.style.marginTop = '30px';
     artifactsHeading.style.marginBottom = '15px';
@@ -436,7 +451,10 @@ function loadOverview() {
         artifactsGrid.appendChild(item);
     });
 
-    overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);
+    const overviewChildren = [header, statusSummary];
+    if (nextActionEl) overviewChildren.push(nextActionEl);
+    overviewChildren.push(artifactsHeading, artifactsGrid);
+    overviewContent.replaceChildren(...overviewChildren);
 }
 
 function loadKanban() {
@@ -803,7 +821,7 @@ function loadContractFile(filePath, fileName) {
             const container = document.getElementById('contracts-content');
             container.innerHTML = `
                 <div style="margin-bottom: 20px;">
-                    <button onclick="loadContracts()"
+                    <button type="button" data-dashboard-action="back-to-contracts"
                             style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
                         ← Back to Contracts List
                     </button>
@@ -903,7 +921,7 @@ function loadChecklistFile(filePath, fileName) {
             const container = document.getElementById('checklists-content');
             container.innerHTML = `
                 <div style="margin-bottom: 20px;">
-                    <button onclick="loadChecklists()"
+                    <button type="button" data-dashboard-action="back-to-checklists"
                             style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
                         ← Back to Checklists List
                     </button>
@@ -1018,7 +1036,7 @@ function loadResearchFile(filePath, fileName) {
             const container = document.getElementById('research-content');
             container.innerHTML = `
                 <div style="margin-bottom: 20px;">
-                    <button onclick="loadResearch()"
+                    <button type="button" data-dashboard-action="back-to-research"
                             style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
                         ← Back to Research
                     </button>
@@ -1354,11 +1372,16 @@ function updateFeatureListSilent(features) {
     }
     updateSidebarState();
 
-    // Detect artifact changes and reload overview if artifacts changed
+    // Refresh every value rendered by the overview. Lifecycle markers can
+    // change without changing artifacts (for example merge or acceptance).
     if (currentPage === 'overview' && oldFeature && feature) {
-        const oldArtifacts = JSON.stringify(oldFeature.artifacts);
-        const newArtifacts = JSON.stringify(feature.artifacts);
-        if (oldArtifacts !== newArtifacts) {
+        const overviewState = item => JSON.stringify({
+            artifacts: item.artifacts,
+            next_action: item.next_action,
+            mission_status: item.mission_status,
+            kanban_stats: item.kanban_stats,
+        });
+        if (overviewState(oldFeature) !== overviewState(feature)) {
             loadOverview();
         }
     }
@@ -1615,6 +1638,109 @@ function displayDiagnostics(data) {
 function refreshDiagnostics() {
     loadDiagnostics();
 }
+
+// ---------------------------------------------------------------------------
+// Static-control wiring
+//
+// The dashboard ships `Content-Security-Policy: script-src 'self'`
+// (specify_cli/dashboard/csp.py), which blocks inline event handlers
+// (`onclick="..."` attributes) exactly like inline <script> blocks. Every
+// behavior therefore lives here, attached to the static markup after load;
+// dynamically generated controls opt in via `data-dashboard-action` and are
+// dispatched by the single delegated listener below.
+// ---------------------------------------------------------------------------
+
+document.querySelectorAll('.sidebar-item[data-page]').forEach(item => {
+    item.addEventListener('click', () => switchPage(item.dataset.page));
+});
+
+const sidebarToggleButton = document.getElementById('sidebar-toggle');
+if (sidebarToggleButton) {
+    sidebarToggleButton.addEventListener('click', toggleSidebar);
+}
+
+const featureSelect = document.getElementById('feature-select');
+if (featureSelect) {
+    featureSelect.addEventListener('change', () => switchFeature(featureSelect.value));
+}
+
+const DASHBOARD_ACTIONS = {
+    'back-to-contracts': loadContracts,
+    'back-to-checklists': loadChecklists,
+    'back-to-research': loadResearch,
+    'refresh-diagnostics': refreshDiagnostics,
+};
+
+document.addEventListener('click', (event) => {
+    const control = event.target.closest('[data-dashboard-action]');
+    if (!control) return;
+    const action = DASHBOARD_ACTIONS[control.dataset.dashboardAction];
+    if (action) action();
+});
+
+// Overview-page tiles (glossary health + charter lint). Moved verbatim out of
+// index.html, whose inline scripts the dashboard CSP blocks.
+(function loadGlossaryTile() {
+    fetch('/api/glossary-health')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var body = document.getElementById('glossary-tile-body');
+            if (!body) return;
+            body.innerHTML =
+                '<div class="status-card total">' +
+                    '<div class="status-label">Total</div>' +
+                    '<div class="status-value">' + (d.total_terms || 0) + '</div>' +
+                '</div>' +
+                '<div class="status-card progress">' +
+                    '<div class="status-label">Active</div>' +
+                    '<div class="status-value">' + (d.active_count || 0) + '</div>' +
+                '</div>' +
+                '<div class="status-card review">' +
+                    '<div class="status-label">Draft</div>' +
+                    '<div class="status-value">' + (d.draft_count || 0) + '</div>' +
+                '</div>' +
+                '<div class="status-card approved">' +
+                    '<div class="status-label">Deprecated</div>' +
+                    '<div class="status-value">' + (d.deprecated_count || 0) + '</div>' +
+                '</div>' +
+                '<div class="status-card completed">' +
+                    '<div class="status-label">Drift</div>' +
+                    '<div class="status-value">' + (d.high_severity_drift_count || 0) + '</div>' +
+                    '<div class="status-detail">high severity</div>' +
+                '</div>';
+        })
+        .catch(function() {
+            var body = document.getElementById('glossary-tile-body');
+            if (body) body.textContent = 'unavailable';
+        });
+})();
+
+(function loadLintTile() {
+    fetch('/api/charter-lint')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var body = document.getElementById('lint-tile-body');
+            if (!body) return;
+            if (!d.has_data) {
+                body.textContent = 'No lint data — run `spec-kitty charter lint`';
+                return;
+            }
+            body.innerHTML =
+                '<div>' +
+                    (d.orphan_count || 0) + ' orphans · ' +
+                    (d.contradiction_count || 0) + ' contradictions · ' +
+                    (d.staleness_count || 0) + ' stale · ' +
+                    (d.reference_integrity_count || 0) + ' broken refs' +
+                '</div>' +
+                '<div style="color:var(--text-dim);font-size:0.8em">' +
+                    (d.total_count || 0) + ' total findings' +
+                '</div>';
+        })
+        .catch(function() {
+            var body = document.getElementById('lint-tile-body');
+            if (body) body.textContent = 'unavailable';
+        });
+})();
 
 updateTreeInfo();
 fetchData(true);  // Pass true for initial load

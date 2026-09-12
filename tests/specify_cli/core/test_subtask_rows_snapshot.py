@@ -284,7 +284,7 @@ def test_dashboard_progress_reads_snapshot_not_checkboxes(tmp_path: Path) -> Non
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+# relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
 _EDITED_TASKS_TEMPLATES = (
     "packs/built-in/missions/software-dev/templates/tasks-template.md",
     "packs/built-in/missions/documentation/templates/tasks-template.md",

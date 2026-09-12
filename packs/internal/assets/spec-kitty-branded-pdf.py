@@ -28,6 +28,7 @@ Usage
 Colour + type values are reconciled with the Spec Kitty design system
 (``spec-kitty-design/packages/tokens/dist/tokens.css``).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -145,15 +146,15 @@ def build(args: argparse.Namespace) -> int:
 
     body = subprocess.run(
         ["pandoc", "-f", "gfm", "-t", "html5", str(Path(args.input).resolve())],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout
 
     css = _css(fonts).replace("__FOOTER__", _html.escape(args.footer_center))
-    meta = "".join(
-        f"<span>{_html.escape(k)} <b>{_html.escape(v)}</b></span>"
-        for k, v in (args.meta or [])
-    )
-    cover = f"""
+    meta = "".join(f"<span>{_html.escape(k)} <b>{_html.escape(v)}</b></span>" for k, v in (args.meta or []))
+    cover = (
+        f"""
 <section class="cover">
   <div class="rule-top"></div>
   <img class="logo" src="file://{logo}" alt="Spec Kitty">
@@ -162,13 +163,16 @@ def build(args: argparse.Namespace) -> int:
   <div class="subtitle">{_html.escape(args.subtitle)}</div>
   <p class="lede">{_html.escape(args.lede)}</p>
   <div class="meta">{meta}</div>
-</section>""" if args.title else ""
+</section>"""
+        if args.title
+        else ""
+    )
 
     doc = (
-        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
         f"<title>{_html.escape(args.title or Path(args.input).stem)}</title>"
         f"<style>{css}</style></head><body>{cover}"
-        f"<section class=\"content\">{body}</section></body></html>"
+        f'<section class="content">{body}</section></body></html>'
     )
 
     out = Path(args.output).resolve()
@@ -179,13 +183,12 @@ def build(args: argparse.Namespace) -> int:
         # be absent entirely (we fall back to the CLI below). A bare ignore covers
         # both import-untyped and import-not-found without pinning an env-specific code.
         import weasyprint  # type: ignore
+
         weasyprint.HTML(filename=str(tmp_html)).write_pdf(str(out))
     except ImportError:
         wp = shutil.which("weasyprint")
         if not wp:
-            print("error: weasyprint not importable and not on PATH; install it "
-                  "(pip install weasyprint) or run this with a Python that has it",
-                  file=sys.stderr)
+            print("error: weasyprint not importable and not on PATH; install it (pip install weasyprint) or run this with a Python that has it", file=sys.stderr)
             return 1
         subprocess.run([wp, str(tmp_html), str(out)], check=True)
     tmp_html.unlink(missing_ok=True)
@@ -207,10 +210,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--lede", default="")
     p.add_argument("--eyebrow", default="Spec Kitty · Release Report")
     p.add_argument("--footer-center", default="SPEC KITTY", help="centered running-footer label")
-    p.add_argument("--meta", type=_meta_pair, action="append",
-                   help="cover meta chip 'LABEL=value' (repeatable)")
-    p.add_argument("--design-repo", default=str(_default_design_repo()),
-                   help="path to the spec-kitty-design repo (fonts + logo)")
+    p.add_argument("--meta", type=_meta_pair, action="append", help="cover meta chip 'LABEL=value' (repeatable)")
+    p.add_argument("--design-repo", default=str(_default_design_repo()), help="path to the spec-kitty-design repo (fonts + logo)")
     return build(p.parse_args(argv))
 
 

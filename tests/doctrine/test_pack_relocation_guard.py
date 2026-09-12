@@ -1,23 +1,23 @@
 """T020 — Three-part relocation guard + per-kind loud-failure (FR-009).
 
 The relocation moved the shipped built-in doctrine content out of
-``src/doctrine/<kind>/built-in/`` into the flat pack root
+``src/charter/offering/<kind>/built-in/`` into the flat pack root
 ``packs/built-in/<kind>/``. Three independent surfaces must all agree that the
 move actually happened, and a fourth (parametrized) surface fails LOUDLY if any
 single kind's repository was left pointing at an emptied tree:
 
 1. *filesystem* — every path the WP01 content manifest recorded as moved is now
-   ABSENT under ``src/doctrine/`` (exact set vs ``content-manifest.json``).
+   ABSENT under ``src/charter/offering/`` (exact set vs ``content-manifest.json``).
 2. *resolved-path* — every built-in repository resolves its ``built_in_dir``
    inside ``packs/built-in/`` (``is_relative_to``), never back into
-   ``src/doctrine/``.
+   ``src/charter/offering/``.
 3. *anchor* — no ``files("doctrine.<kind>")`` importlib content anchor survives
    for any of the 9 moved kinds (a hyphenated ``packs/built-in`` is not a legal
    package, so any surviving per-kind package anchor is a missed repoint).
 
 Loud-failure (4): parametrized over the 9 kinds, each repository's resolved
 ``built_in_dir`` must EXIST and be NON-EMPTY. A missed repoint returns an empty
-directory (or a stale ``src/doctrine/<kind>/built-in`` that no longer holds
+directory (or a stale ``src/charter/offering/<kind>/built-in`` that no longer holds
 content) and every consuming repo silently degrades to ``[]`` while the build
 stays green — this parametrized loop is what turns that silent ``[]`` into a
 red.
@@ -67,19 +67,19 @@ def _resolved_built_in_dir(kind: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Part 1 — filesystem: the moved trees are absent under src/doctrine/
+# Part 1 — filesystem: the moved trees are absent under src/charter/offering/
 # ---------------------------------------------------------------------------
 
 
 def test_moved_content_is_absent_under_src_doctrine() -> None:
-    """Every manifest-recorded path is gone from ``src/doctrine/`` (exact set)."""
+    """Every manifest-recorded path is gone from ``src/charter/offering/`` (exact set)."""
     with CONTENT_MANIFEST.open(encoding="utf-8") as fh:
         moved_paths: list[str] = json.load(fh)
 
     assert moved_paths, "content manifest must be non-empty"
     still_present = sorted(p for p in moved_paths if (REPO_ROOT / p).exists())
     assert still_present == [], (
-        f"{len(still_present)} moved path(s) still present under src/doctrine/: "
+        f"{len(still_present)} moved path(s) still present under src/charter/offering/: "
         f"{still_present[:10]}"
     )
 

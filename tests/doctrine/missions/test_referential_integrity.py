@@ -63,7 +63,7 @@ _TESTS_DIR = Path(__file__).parent
 _REPO_ROOT = Path(__file__).parents[3]
 _SRC_DIR = _REPO_ROOT / "src"
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated the missions data subdirectories from src/doctrine/missions to
+# relocated the missions data subdirectories from src/charter/offering/missions to
 # packs/built-in/missions.
 _BUILT_IN_MISSIONS_DIR = _REPO_ROOT / "packs" / "built-in" / "missions"
 _MISSION_STEPS_ROOT = _BUILT_IN_MISSIONS_DIR / "mission-steps"

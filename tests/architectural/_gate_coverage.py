@@ -14,9 +14,8 @@ This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the workflow files that run the
-   suite, including the native review-verdict durability matrix, and expands
-   the ``integration-tests-core-misc`` shard matrix.
+1. Parses every ``pytest`` invocation across the restored suite-running
+   workflow (``ci-windows``), expanding shard matrices when present.
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -29,8 +28,9 @@ The companion end-to-end oracle
 (``test_ci_collection_completeness.py``) requires zero primary-push orphans.
 It runs in the PR operator path through ``arch-adversarial`` → ``quality-gate``
 and has an independent ``fast-tests-core-misc`` owner for route-affecting
-changes. GitHub branch protection currently requires only ``drift-detector``;
-this module does not misrepresent the operator gate as a required context.
+changes. GitHub branch protection wires no required context in this
+experimental programme (see repo ``CLAUDE.md``); this module does not
+misrepresent any workflow as a required check.
 
 Run directly to refresh/verify the topology census or the separate retained E3
 job-selection baselines::
@@ -79,42 +79,25 @@ JobKey = tuple[str, str]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
-# The workflows that actually run the pytest suite (the others lint, build,
-# or sync and select no tests). ``ui-e2e.yml`` is the scoped Playwright
-# dashboard e2e gate (issue #1008): a standalone, drift-detector-shaped
-# workflow (own trigger, single job, no dorny filter, no quality-gate
-# aggregator) whose ``pytest tests/ui/`` invocation must be MODELED here so
-# ``discover_pytest_workflows`` (FR-008 fail-closed) stays equal to this
-# allowlist and the ``tests/ui/`` e2e carrier is a covered — not orphan —
-# surface (so the ``e2e`` marker keeps its ROUTED-BY-PATH home).
-# ``performance.yml`` (ADR 2026-08-22-1) is the same shape as ``ui-e2e.yml``:
-# a standalone, non-gating, off-PR (schedule + workflow_dispatch only)
-# per-domain ``pytest-benchmark`` pipeline with no dorny filter and no
-# ``quality-gate`` membership — it is the sole real CI home of the
-# ``performance`` marker (the retired on-PR ``timing-nfr-serial`` gate is not
-# replaced by a gating equivalent; see ci-quality.yml's `unit-contract-residual`
-# job comment for the companion residual-negation update).
-# ``review-verdict-durability.yml`` is the bounded, blocking P0 reproduction
-# matrix for issue #3235. It runs the same three production-path SC-004 nodes
-# natively on Linux, macOS, and Windows, so it is an independent suite runner
-# and must remain in this fail-closed model.
-# ``module-kernel.yml`` (mission #3447) is a reusable ``on: workflow_call``
-# workflow that ci-quality invokes for the ``kernel-tests`` job. It is NOT an
-# independent suite runner: :func:`_splice_local_uses` inlines its steps into
-# ci-quality's ``kernel-tests`` caller, so its ``pytest tests/kernel/`` gate and
-# ``--cov=src/kernel`` emitter are modeled AS PART OF ci-quality (decision D1(a):
-# same run). It is therefore deliberately absent from this allowlist and
-# excluded from ``discover_pytest_workflows`` (reusable-only workflows), which
-# keeps that fail-closed probe equal to this list without double-counting.
+# The interim convergence topology restores ``ci-windows.yml`` and the tag-time
+# ``release.yml`` as direct pytest suite runners. ``ci-quality.yml`` is
+# reduced to lint/build/install/lock jobs plus the non-blocking ``sonarcloud``
+# reporter (spec-kitty#3993), which reaches pytest only through
+# ``make test-fast`` — no directly-anchored pytest command, so it is not (and
+# cannot be) collected as a gate here; its reasoned non-blocking declaration
+# lives in ``test_suite_jobs_gate_blocking.py``'s NON_BLOCKING_ALLOWLIST. The
+# factory ``ci.yml`` delegates suite execution to the planning CI scripts
+# rather than embedding a pytest command; and the other restored producers do
+# not run tests.
 WORKFLOW_FILES: tuple[str, ...] = (
-    "ci-quality.yml",
     "ci-windows.yml",
-    "doctrine-charter-tests.yml",
-    "drift-detector.yml",
-    "performance.yml",
     "release.yml",
-    "review-verdict-durability.yml",
-    "ui-e2e.yml",
+    # Net-new pytest-running workflows reinstated by the ci-pipeline-reinstatement
+    # mission (kept in lockstep with the on-disk set — enforced by
+    # test_workflow_coherence::test_pytest_workflow_set_equals_model_allowlist_live).
+    "ci-modules.yml",
+    "ci-nightly.yml",
+    "module-tests.yml",
 )
 
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
@@ -361,7 +344,7 @@ def parse_workflow(path: Path) -> list[Gate]:
 
 
 def load_gates() -> list[Gate]:
-    """Parse all suite-running workflows (:data:`WORKFLOW_FILES`) into the full gate list."""
+    """Parse every restored suite-running workflow into the full gate list."""
     gates: list[Gate] = []
     for name in WORKFLOW_FILES:
         gates.extend(parse_workflow(WORKFLOWS_DIR / name))
@@ -843,13 +826,24 @@ class CompiledGate:
         # builds its test list dynamically via ``git grep``) falls back to the
         # whole tree. That fallback is coverage-SAFE only when a marker expression
         # narrows it: ci-windows runs ``-m windows_ci``, so it claims coverage of
-        # exactly the windows-only tests, not the whole suite. A whole-tree gate
-        # with NO marker would over-claim — guarded by
-        # ``test_windows_gate_models_windows_ci_marker``.
+        # exactly the windows-only tests, not the whole suite.
+        #
+        # #2967 (zero-producer / inert-slot bare-name false-pass): a gate with
+        # NEITHER parsed positional paths NOR a marker is a *bare name that
+        # resolves to no real producer*. Letting it fall back to the whole tree
+        # (with no marker to narrow it) makes it silently claim coverage of EVERY
+        # test — an inert slot that "covers" the whole suite. Such a gate must
+        # instead select NOTHING (fail closed): a producer that produces no real
+        # selection covers no test.
+        self._zero_producer = not gate.paths and gate.marker_expr is None
         self.paths = gate.paths or [_TESTS_ROOT]
         self.expr = Expression.compile(gate.marker_expr) if gate.marker_expr else None
 
     def selects(self, relpath: str, nodeid: str, markers: set[str]) -> bool:
+        if self._zero_producer:
+            # A zero-producer / inert-slot gate resolves to no real producer and
+            # therefore covers nothing (#2967) — never the whole-tree fallback.
+            return False
         if not any(path_matches(relpath, nodeid, p) for p in self.paths):
             return False
         if any(path_matches(relpath, nodeid, ig) for ig in self.gate.ignores):
@@ -1099,9 +1093,9 @@ def job_runs_under(
 def workflow_runs_on_push(model: WorkflowModel, branch: str = PRIMARY_BRANCH) -> bool:
     """Whether a push to ``branch`` starts this workflow at all (``on.push.branches``).
 
-    ``release.yml`` is the live negative: it triggers on ``v*.*.*`` TAGS only, so
-    the tests it uniquely runs are not collected by a push to ``main`` — a real
-    hole this predicate surfaces rather than hides.
+    A workflow that triggers only on tags is a live negative: its tests are not
+    collected by a push to ``main`` — a real hole this predicate surfaces
+    rather than hides.
     """
     return branch in model.push_branches
 
@@ -1250,7 +1244,7 @@ def collect_job_nodeids(gate: Gate, repo_root: Path | None = None) -> list[str]:
     """Real, scoped ``pytest --collect-only -q`` node-ids for one job's exact CLI.
 
     Restricted to ``gate.paths``/``gate.ignores``/``gate.marker_expr`` — the
-    exact CLI ``ci-quality.yml`` runs for this job. Parses pytest's OWN
+    exact CLI the suite-running workflow uses for this job. Parses pytest's OWN
     ``-q --collect-only`` stdout (one selected node-id per line) rather than the
     marker-dumping :data:`_COLLECT_PLUGIN`: that plugin clears the item list in
     ``pytest_collection_modifyitems`` and so records items BEFORE pytest's own
@@ -1492,7 +1486,7 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
 
 
 def load_workflow_models() -> dict[str, WorkflowModel]:
-    """Parse all suite-running workflows (:data:`WORKFLOW_FILES`) into ``name -> WorkflowModel``."""
+    """Parse every restored suite-running workflow into ``name -> WorkflowModel``."""
     return {
         name: load_workflow_model(WORKFLOWS_DIR / name) for name in WORKFLOW_FILES
     }
@@ -2023,11 +2017,9 @@ class BaselineTarget:
     job: str
 
 
-# Only the still-owned slow-tests authoring baseline remains. The two deleted
-# selection baselines had no reader and were removed by sanitation WP07.
-BASELINE_TARGETS: tuple[BaselineTarget, ...] = (
-    BaselineTarget("slow-tests", "ci-quality.yml", "slow-tests"),
-)
+# The former slow-tests authoring baseline was retired with the reduced interim
+# CI producer; no restored workflow currently owns an E3 selection baseline.
+BASELINE_TARGETS: tuple[BaselineTarget, ...] = ()
 
 
 def gates_for_target(gates: Sequence[Gate], target: BaselineTarget) -> list[Gate]:

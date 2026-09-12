@@ -238,26 +238,27 @@ def _load_action_doctrine_bundle(
     entry. Callers that only ever supplied *org_root* (no chain resolved)
     keep the pre-fix single-root behaviour byte-identical.
     """
-    from charter.activation._drg_helpers import load_validated_graph
+    from charter.activation._drg_helpers import DRGProjectValidationError, load_validated_graph
     from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
     from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
-    from charter.activation.drg_activation import (
-        filter_graph_by_activation,
-        load_org_drg,
-    )
+    from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
     from charter.activation.mission_type_profiles import resolve_mission_type_key
     from charter.offering.drg.loader import DRGLoadError
     from charter.offering.drg.query import resolve_context
 
+    service = _build_doctrine_service(
+        repo_root,
+        org_roots=org_roots if org_roots else ([org_root] if org_root else None),
+    )
     resolved_type = resolve_mission_type_key(
         mission_type=mission_type, feature_dir=feature_dir
     )
 
     # The DRG load honours the built-in + org + project three-layer overlay
     # (WP07 T034; charter-internal callers pass org_root=None for two layers).
-    # A project authoring a doctrine artifact without a sibling ``*.graph.yaml``
-    # raises ``DRGLoadError``; that is orthogonal to charter-level selection
-    # rendering, so we collapse it to an empty bundle and log a WARNING (WP04).
+    # An unloadable overlay or a validation error introduced by the project
+    # overlay is orthogonal to charter-level selection rendering, so we collapse
+    # it to an empty bundle and log a WARNING (WP04).
     ids_by_slot: Mapping[str, tuple[str, ...]] = {}
     merged_graph: DRGGraph | None = None
     roots: tuple[str, ...] = ()
@@ -273,6 +274,7 @@ def _load_action_doctrine_bundle(
                 org_root=org_root,
                 org_roots=org_roots,
                 org_fragments=load_org_drg(repo_root, strict=False),
+                project_degrade=True,
             )
             # FR-032, FR-035 (WP08): apply activation filter before resolving context.
             if pack_context is not None:
@@ -347,6 +349,17 @@ def _load_action_doctrine_bundle(
             selected_tactics |= set(org_required["tactics"])
             selected_paradigms |= set(org_required["paradigms"])
 
+
+            # Explicitly activated project directives govern the project even
+            # without an action edge. The filtered graph is the activation
+            # authority; repository provenance distinguishes local roots from
+            # built-ins, which retain their action-scoped delivery.
+            local_directives = {
+                node.urn.split(":", 1)[1]
+                for node in merged.nodes
+                if node.kind.value == "directive"
+                and service.directives.get_provenance(node.urn.split(":", 1)[1]) == "project"
+            } if pack_context is not None and pack_context.activated_directives is not None else set()
             action_urn = f"action:{resolved_type}/{action}"
             resolved = resolve_context(merged, action_urn, depth=effective_depth)
             ids_by_slot = _classify_artifact_urns(
@@ -356,6 +369,7 @@ def _load_action_doctrine_bundle(
                 selected_tactics,
                 selected_paradigms,
                 action_urn=action_urn,
+                additional_directives=local_directives,
             )
             # WP15: carry the graph + traversal roots for progressive disclosure.
             # Roots mirror ``_classify_artifact_urns``: the action node plus the
@@ -363,7 +377,7 @@ def _load_action_doctrine_bundle(
             merged_graph = merged
             roots = (
                 action_urn,
-                *(f"directive:{d}" for d in project_directives),
+                *(f"directive:{d}" for d in project_directives | local_directives),
                 *(f"tactic:{t}" for t in selected_tactics),
                 *(f"paradigm:{p}" for p in selected_paradigms),
             )
@@ -384,7 +398,7 @@ def _load_action_doctrine_bundle(
             # ``resolved`` already computed.
             tension_arbiters = resolved.tension_arbiters
             unarbitrated_tensions = resolved.unarbitrated_tensions
-        except DRGLoadError as exc:
+        except (DRGLoadError, DRGProjectValidationError) as exc:
             _LOGGER.warning(
                 "DRG action resolution skipped for %s/%s: %s. "
                 "Charter-level selections still render.",
@@ -402,10 +416,7 @@ def _load_action_doctrine_bundle(
         procedure_ids=list(ids_by_slot.get("procedures", ())),
         asset_ids=list(ids_by_slot.get("assets", ())),
         glossary_pack_ids=list(ids_by_slot.get("glossary_packs", ())),
-        service=_build_doctrine_service(
-            repo_root,
-            org_roots=org_roots if org_roots else ([org_root] if org_root else None),
-        ),
+        service=service,
         merged=merged_graph,
         roots=roots,
         bridge_urns=bridge_urns,

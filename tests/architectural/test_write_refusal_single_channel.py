@@ -25,13 +25,7 @@ import pytest
 
 pytestmark = pytest.mark.architectural
 
-_SEAM_MODULE = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "specify_cli"
-    / "core"
-    / "checkout_identity.py"
-)
+_SEAM_MODULE = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "core" / "checkout_identity.py"
 
 #: The single sanctioned refusal value object.
 _REFUSAL_CLASS = "FailClosedRefusal"
@@ -42,24 +36,14 @@ def _seam_source() -> str:
 
 
 def test_seam_module_exists() -> None:
-    assert _SEAM_MODULE.is_file(), (
-        f"The single write-refusal seam is missing: {_SEAM_MODULE}. "
-        "Every in-scope write-refusal must route through it (NFR-003)."
-    )
+    assert _SEAM_MODULE.is_file(), f"The single write-refusal seam is missing: {_SEAM_MODULE}. Every in-scope write-refusal must route through it (NFR-003)."
 
 
 def test_seam_defines_exactly_one_refusal_value_object() -> None:
     """The seam module declares exactly one ``FailClosedRefusal`` class."""
     tree = ast.parse(_seam_source())
-    refusal_classes = [
-        node.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ClassDef) and node.name == _REFUSAL_CLASS
-    ]
-    assert refusal_classes == [_REFUSAL_CLASS], (
-        "Exactly one FailClosedRefusal class must exist in the seam module; "
-        f"found: {refusal_classes}"
-    )
+    refusal_classes = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and node.name == _REFUSAL_CLASS]
+    assert refusal_classes == [_REFUSAL_CLASS], f"Exactly one FailClosedRefusal class must exist in the seam module; found: {refusal_classes}"
 
 
 def test_refusal_is_the_single_constructor_and_embeds_path() -> None:

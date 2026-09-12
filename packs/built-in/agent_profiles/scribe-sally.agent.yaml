@@ -61,11 +61,11 @@ collaboration:
 mode-defaults:
 - mode: analysis-mode
   description: Source capture and structural mapping
-  use-case: Reading the source interaction, identifying what was said and the 
+  use-case: Reading the source interaction, identifying what was said and the
     artifacts to link
 - mode: precision-pass
   description: Neutral summary authoring with version tagging
-  use-case: Writing the timestamped, linkable summary and confirming version 
+  use-case: Writing the timestamped, linkable summary and confirming version
     tags on referenced documents
 
 directive-references:
@@ -74,9 +74,9 @@ directive-references:
   rationale: Tailor summaries to a documented persona; cite personas in outputs
 - code: "003"
   name: Decision Documentation Requirement
-  rationale: Apply appropriate detail levels when creating meeting notes and 
+  rationale: Apply appropriate detail levels when creating meeting notes and
     reports
 - code: "048"
   name: Version Governance
-  rationale: Confirm version tags in summaries when document versions are 
+  rationale: Confirm version tags in summaries when document versions are
     referenced

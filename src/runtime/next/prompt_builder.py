@@ -190,6 +190,7 @@ def _build_wp_prompt(
     lines.append("")
     lines.extend(_mission_type_governance_lines(repo_root, feature_dir))
     lines.append(_governance_context(repo_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
+    lines.append("Authority references: project glossary `docs/context/`; architecture ADRs `docs/adr/`.")
     lines.append("")
 
     # WP isolation rules

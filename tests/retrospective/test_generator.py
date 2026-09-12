@@ -46,6 +46,7 @@ from specify_cli.retrospective.schema import (
     RecordValidationError,
     validate_record,
 )
+from tests._perf_helpers import assert_timing_budget
 
 # ---------------------------------------------------------------------------
 # Fixture helpers
@@ -129,26 +130,32 @@ class TestGeneratorDeterminism:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestGeneratorPerformance:
     """Wall-clock time constraint: largest fixture generates in < 2.0 seconds (NFR-005)."""
 
-    def test_large_fixture_under_2s(self) -> None:
-        """Generating the large-with-gaps fixture takes < 2.0s wall clock."""
+    def test_generates_large_fixture(self) -> None:
+        """Functional half of the #4015 split: large-with-gaps fixture is produced."""
         policy = make_policy()
-        start = time.monotonic()
         record = generate_retrospective(
             LARGE_WITH_GAPS, policy, FIXTURES_ROOT,
             invoked_at="2026-05-19T12:00:00+00:00",
         )
-        elapsed = time.monotonic() - start
-        assert elapsed < 2.0, (
-            f"Generator took {elapsed:.3f}s for large fixture (limit: 2.0s). "
-            "NFR-005: generation must be sub-second on representative missions."
-        )
         # Sanity check: record was actually produced
         assert record.mission_slug == LARGE_WITH_GAPS
 
+    @pytest.mark.performance
+    def test_large_fixture_under_2s(self) -> None:
+        """Generating the large-with-gaps fixture takes < 2.0s wall clock (#4015 split)."""
+        policy = make_policy()
+        start = time.monotonic()
+        generate_retrospective(
+            LARGE_WITH_GAPS, policy, FIXTURES_ROOT,
+            invoked_at="2026-05-19T12:00:00+00:00",
+        )
+        elapsed = time.monotonic() - start
+        assert_timing_budget(elapsed, 2.0, name="elapsed")
+
+    @pytest.mark.performance
     def test_simple_fixture_under_500ms(self) -> None:
         """Generating the simple-clean fixture takes < 500ms (should be very fast)."""
         policy = make_policy()
@@ -385,6 +392,233 @@ class TestFindingsClassification:
         # Should complete without exception
         record = generate_retrospective(MID_WITH_REJECTIONS, policy, FIXTURES_ROOT)
         assert record is not None
+
+
+# ---------------------------------------------------------------------------
+# TestRejectionAfterApproval (#3687)
+# ---------------------------------------------------------------------------
+
+
+def _ev(
+    n: int,
+    wp_id: str,
+    from_lane: str,
+    to_lane: str,
+    *,
+    actor: str = "claude",
+    force: bool = False,
+    reason: str | None = None,
+    review_ref: str | None = None,
+) -> dict:
+    """Build a minimal status event for retrospective generator tests."""
+    return {
+        "actor": actor,
+        "at": f"2026-01-01T00:{n:02d}:00+00:00",
+        "event_id": f"01TESTRR00000000000000000{n:02d}",
+        "evidence": None,
+        "force": force,
+        "from_lane": from_lane,
+        "reason": reason,
+        "review_ref": review_ref,
+        "to_lane": to_lane,
+        "wp_id": wp_id,
+    }
+
+
+def _write_mission(root: Path, slug: str, mission_number: int, events: list[dict]) -> None:
+    """Write a minimal kitty-specs/<slug>/ mission with the given status events."""
+    feature_dir = root / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    meta = {
+        "mission_id": f"01RRRRRRRRRRRRRRRRRRRRRRR{mission_number:02d}",
+        "mission_slug": slug,
+        "friendly_name": slug.replace("-", " ").title(),
+        "mission_type": "software-dev",
+        "target_branch": "main",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Spec\n\n### FR-001\nReq.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    (feature_dir / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8"
+    )
+
+
+_CLEAN_RUN = [
+    ("planned", "in_progress"),
+    ("in_progress", "for_review"),
+    ("for_review", "in_review"),
+    ("in_review", "approved"),
+    ("approved", "done"),
+]
+
+
+class TestRejectionAfterApproval:
+    """Rewinds out of approved/done are rework — never a helped/not_helpful contradiction.
+
+    Regression tests for #3687: a WP sent back from ``approved`` counts as a
+    rejection cycle when the event carries review feedback and as lane friction
+    otherwise, and a WP with >1 implementation cycle never appears in
+    ``helped`` even when the lane-history detectors call it clean.
+    """
+
+    def test_approved_rewind_with_feedback_is_rejection(self) -> None:
+        """approved→planned with review feedback is a rejection; without it, friction."""
+        from specify_cli.retrospective.generator import (
+            _detect_lane_friction,
+            _detect_rejection_cycles,
+        )
+
+        events = [
+            # Rejection after approval, documented feedback (#3687 repro shape:
+            # move-task WP02 --to planned --force --review-feedback-file <path>)
+            {
+                "wp_id": "WP02",
+                "from_lane": "approved",
+                "to_lane": "planned",
+                "actor": "orchestrator",
+                "force": True,
+                "reason": "live verification failed",
+                "review_ref": "review-cycle://mission/WP02/review-cycle-2.md",
+                "event_id": "e1",
+            },
+            # Feedback-free force rewind out of approved → lane friction
+            {
+                "wp_id": "WP03",
+                "from_lane": "approved",
+                "to_lane": "planned",
+                "actor": "user",
+                "force": True,
+                "reason": "rewind without documented feedback",
+                "event_id": "e2",
+            },
+            # Force rewind out of terminal done → lane friction
+            {
+                "wp_id": "WP04",
+                "from_lane": "done",
+                "to_lane": "planned",
+                "actor": "user",
+                "force": True,
+                "reason": "post-merge rework",
+                "event_id": "e3",
+            },
+        ]
+
+        assert _detect_rejection_cycles(events) == {"WP02": 1}
+        assert _detect_lane_friction(events) == {"WP03": 1, "WP04": 1}
+
+    def test_rejection_after_approval_never_lands_in_helped(self, tmp_path: Path) -> None:
+        """#3687 repro: a WP rejected from approved must not get a helped finding."""
+        # WP02: implement → review → approve, then rejected after approval
+        # (move-task --to planned --force --review-feedback-file), re-implemented,
+        # re-reviewed, re-approved, done. WP01 runs the same mission cleanly.
+        wp02_moves = [
+            ("planned", "in_progress", {}),
+            ("in_progress", "for_review", {}),
+            ("for_review", "in_review", {}),
+            ("in_review", "approved", {}),
+            (
+                "approved",
+                "planned",
+                {
+                    "actor": "orchestrator",
+                    "force": True,
+                    "reason": "approved fix failed live verification",
+                    "review_ref": "review-cycle://mission/rje/WP02/review-cycle-2.md",
+                },
+            ),
+            ("planned", "in_progress", {}),
+            ("in_progress", "for_review", {}),
+            ("for_review", "in_review", {}),
+            ("in_review", "approved", {}),
+            ("approved", "done", {}),
+        ]
+        events: list[dict] = []
+        n = 0
+        for from_lane, to_lane, extra in wp02_moves:
+            n += 1
+            events.append(_ev(n, "WP02", from_lane, to_lane, **extra))
+        for from_lane, to_lane in _CLEAN_RUN:
+            n += 1
+            events.append(_ev(n, "WP01", from_lane, to_lane))
+        _write_mission(tmp_path, "rejection-after-approval", 1, events)
+
+        policy = make_policy()
+        record = generate_retrospective("rejection-after-approval", policy, tmp_path)
+
+        helped_wps = {h.summary.split()[0] for h in record.helped}
+        not_helpful_wps = {f.summary.split()[0] for f in record.not_helpful}
+        # WP02 had a real rejection cycle — it must not be called clean.
+        assert "WP01" in helped_wps, "WP01 clean completion expected in helped"
+        assert "WP02" not in helped_wps, (
+            f"#3687 contradiction: WP02 appears in helped ({record.helped}) "
+            "while also being flagged in not_helpful"
+        )
+        assert helped_wps & not_helpful_wps == set(), (
+            f"helped/not_helpful contradiction for {helped_wps & not_helpful_wps}"
+        )
+        not_helpful_summaries = {f.summary for f in record.not_helpful}
+        assert "WP02 required 1 rejection cycle(s) before approval" in not_helpful_summaries
+        assert "WP02 needed 2 implementation cycles" in not_helpful_summaries
+
+    def test_multi_impl_cycle_wp_excluded_from_helped(self, tmp_path: Path) -> None:
+        """Belt-and-suspenders: >1 impl cycle excludes a WP from helped (#3687).
+
+        WP01 re-enters in_progress via blocked→planned (not in the backward-move
+        set), so the lane-history detectors call it clean while the cycle
+        detector flags it — helped must lose that disagreement.
+        """
+        events: list[dict] = []
+        n = 0
+        wp01_moves = [
+            ("planned", "in_progress", {}),
+            ("in_progress", "blocked", {"reason": "waiting on upstream"}),
+            ("blocked", "planned", {"actor": "user", "force": True, "reason": "unblocked"}),
+            ("planned", "in_progress", {}),
+            ("in_progress", "for_review", {}),
+            ("for_review", "in_review", {}),
+            ("in_review", "approved", {}),
+            ("approved", "done", {}),
+        ]
+        for from_lane, to_lane, extra in wp01_moves:
+            n += 1
+            events.append(_ev(n, "WP01", from_lane, to_lane, **extra))
+        for from_lane, to_lane in _CLEAN_RUN:
+            n += 1
+            events.append(_ev(n, "WP02", from_lane, to_lane))
+        # WP03 rejection keeps the helped gate open (rejection_counts non-empty).
+        for from_lane, to_lane, extra in [
+            ("planned", "in_progress", {}),
+            ("in_progress", "for_review", {}),
+            ("for_review", "in_review", {}),
+            (
+                "in_review",
+                "planned",
+                {"review_ref": "review-cycle://mission/ico/WP03/review-cycle-1.md"},
+            ),
+            ("planned", "in_progress", {}),
+            ("in_progress", "for_review", {}),
+            ("for_review", "in_review", {}),
+            ("in_review", "approved", {}),
+            ("approved", "done", {}),
+        ]:
+            n += 1
+            events.append(_ev(n, "WP03", from_lane, to_lane, **extra))
+        _write_mission(tmp_path, "impl-cycle-only", 2, events)
+
+        policy = make_policy()
+        record = generate_retrospective("impl-cycle-only", policy, tmp_path)
+
+        helped_wps = {h.summary.split()[0] for h in record.helped}
+        not_helpful_wps = {f.summary.split()[0] for f in record.not_helpful}
+        assert "WP02" in helped_wps, "WP02 clean completion expected in helped"
+        assert "WP01" not in helped_wps, (
+            f"#3687 contradiction: WP01 needed 2 implementation cycles yet appears "
+            f"in helped ({record.helped})"
+        )
+        assert helped_wps & not_helpful_wps == set()
+        assert "WP01 needed 2 implementation cycles" in {f.summary for f in record.not_helpful}
 
 
 # ---------------------------------------------------------------------------

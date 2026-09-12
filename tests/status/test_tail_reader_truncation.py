@@ -68,9 +68,7 @@ def test_clean_boundary_truncation_detected_via_size_check_even_when_parseable(
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
     consumed = poll_once(log_path, cursor)
-    assert [event["event"] for event in consumed.events] == [
-        event["event"] for event in all_events
-    ]
+    assert [event["event"] for event in consumed.events] == [event["event"] for event in all_events]
     offset_o = consumed.cursor.offset
     assert offset_o == log_path.stat().st_size
 
@@ -79,9 +77,7 @@ def test_clean_boundary_truncation_detected_via_size_check_even_when_parseable(
     # stays shrunk. `boundary` is guaranteed to land on a `\n` because it is the
     # byte length of a prefix of complete JSONL lines.
     original_bytes = log_path.read_bytes()
-    first_two_serialized = "".join(
-        json.dumps(event) + "\n" for event in all_events[:2]
-    ).encode("utf-8")
+    first_two_serialized = "".join(json.dumps(event) + "\n" for event in all_events[:2]).encode("utf-8")
     boundary = len(first_two_serialized)
     assert original_bytes[:boundary] == first_two_serialized
     log_path.write_bytes(original_bytes[:boundary])
@@ -116,9 +112,7 @@ def test_clean_boundary_truncation_detected_via_size_check_even_when_parseable(
     # (re-)emitted -- nothing fabricated, nothing from the gone-forever tail
     # replayed.
     recovered = poll_once(log_path, result.cursor)
-    assert [event["event"] for event in recovered.events] == [
-        event["event"] for event in all_events[:2]
-    ]
+    assert [event["event"] for event in recovered.events] == [event["event"] for event in all_events[:2]]
     assert recovered.cursor.offset == boundary
 
 
@@ -147,9 +141,7 @@ def test_truncate_then_regrow_within_one_poll_detected_via_hash_check(
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
     consumed = poll_once(log_path, cursor)
-    assert [event["event"] for event in consumed.events] == [
-        event["event"] for event in original_events
-    ]
+    assert [event["event"] for event in consumed.events] == [event["event"] for event in original_events]
     offset_o = consumed.cursor.offset
 
     # Simulate a rollback truncate (below O) immediately followed by a regrowth
@@ -172,12 +164,9 @@ def test_truncate_then_regrow_within_one_poll_detected_via_hash_check(
     regrown_events = flipped_events + extra_events
     _write_jsonl(log_path, regrown_events)
 
-    flipped_prefix = "".join(json.dumps(event) + "\n" for event in flipped_events).encode(
-        "utf-8"
-    )
+    flipped_prefix = "".join(json.dumps(event) + "\n" for event in flipped_events).encode("utf-8")
     assert len(flipped_prefix) == offset_o, (
-        "fixture precondition: the flipped prefix must be byte-length-identical "
-        "to the original 3 lines so offset_o stays a clean line boundary"
+        "fixture precondition: the flipped prefix must be byte-length-identical to the original 3 lines so offset_o stays a clean line boundary"
     )
 
     # The test's own precondition, asserted immediately before the call under
@@ -206,14 +195,10 @@ def test_truncate_then_regrow_within_one_poll_detected_via_hash_check(
     # (re-)emitted -- none of the pre-truncation (now-gone) events fabricated or
     # replayed.
     recovered = poll_once(log_path, result.cursor)
-    assert [event["event"] for event in recovered.events] == [
-        event["event"] for event in regrown_events
-    ]
+    assert [event["event"] for event in recovered.events] == [event["event"] for event in regrown_events]
 
 
-def test_poll_once_fd_sharing_invariant_for_hash_check(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_poll_once_fd_sharing_invariant_for_hash_check(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """T013: `poll_once()`'s hash-check read shares the one fd opened at the top of
     the call -- `Path.stat()` is NEVER called (unconditional raise, not just
     "after initial open"), and `Path.open()` is called exactly ONE time total --
@@ -264,9 +249,7 @@ def test_poll_once_fd_sharing_invariant_for_hash_check(
     assert len(open_calls) == 1
 
 
-def test_validate_resume_cursor_fd_sharing_invariant(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_validate_resume_cursor_fd_sharing_invariant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """T014: `validate_resume_cursor()` shares ONE fd across the structural
     (in-range) check, the backward scan, AND the hash-check read -- `Path.stat()`
     is NEVER called (unconditional raise on ANY invocation, no "after initial
@@ -286,9 +269,7 @@ def test_validate_resume_cursor_fd_sharing_invariant(
     invariant_at_o = consumed.cursor.content_invariant
 
     def _stat_raises(self: Path, *args: Any, **kwargs: Any) -> Any:
-        raise AssertionError(
-            "unexpected Path.stat() call inside validate_resume_cursor()"
-        )
+        raise AssertionError("unexpected Path.stat() call inside validate_resume_cursor()")
 
     monkeypatch.setattr(Path, "stat", _stat_raises)
 
@@ -410,9 +391,7 @@ def test_validate_resume_cursor_accepts_structurally_valid_offset_and_resumes_co
     invariant_at_o = consumed.cursor.content_invariant
 
     resumed_cursor = validate_resume_cursor(log_path, offset_o, invariant_at_o)
-    assert resumed_cursor == TailCursor(
-        offset=offset_o, content_invariant=invariant_at_o
-    )
+    assert resumed_cursor == TailCursor(offset=offset_o, content_invariant=invariant_at_o)
 
     new_events = [{"event": f"appended-{i}"} for i in range(2)]
     with log_path.open("a", encoding="utf-8") as fh:
@@ -420,9 +399,7 @@ def test_validate_resume_cursor_accepts_structurally_valid_offset_and_resumes_co
             fh.write(json.dumps(event) + "\n")
 
     result = poll_once(log_path, resumed_cursor)
-    assert [event["event"] for event in result.events] == [
-        event["event"] for event in new_events
-    ]
+    assert [event["event"] for event in result.events] == [event["event"] for event in new_events]
 
 
 def test_validate_resume_cursor_accepts_offset_zero_on_an_existing_file(

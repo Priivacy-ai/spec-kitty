@@ -1,3 +1,0 @@
-FAILED tests/glossary/test_gate_terms.py::test_alias_conflict_detected - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/glossary/test_gate_terms.py::test_alias_conflict_detected
-===================== 1 failed in 3.10s ======================

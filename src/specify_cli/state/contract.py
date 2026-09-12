@@ -190,10 +190,15 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="sync/local_commit",
-        creation_trigger="spec-kitty implement or merge local commit relay",
+        owner_module="legacy",
+        creation_trigger="historical",
         atomic_write=True,
-        notes="Machine-local SaaS sync relay queue; never commit.",
+        notes=(
+            "Historical residue: previously owned by sync/local_commit "
+            "(machine-local SaaS sync relay queue), deleted with the sync "
+            "transport (#114); not referenced by current 2.x source. Never "
+            "commit if still present on disk."
+        ),
     ),
     StateSurface(
         name="encoding_provenance_global_log",
@@ -309,13 +314,30 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="dossier_snapshot",
-        path_pattern=".kittify/dossiers/<feature>/snapshot-latest.json",
-        root=StateRoot.PROJECT,
+        path_pattern="kitty-specs/<feature>/.kittify/dossiers/<feature>/snapshot-latest.json",
+        root=StateRoot.FEATURE,
         format=StateFormat.JSON,
         authority=AuthorityClass.DERIVED,
         git_class=GitClass.IGNORED,
         owner_module="dossier snapshot save",
         creation_trigger="dossier snapshot",
+        notes=(
+            "FIX-M2-05: root corrected PROJECT->FEATURE. save_snapshot() "
+            "(dossier/snapshot.py) writes under feature_dir/.kittify/dossiers/<slug>/, "
+            "i.e. NESTED INSIDE kitty-specs/<feature>/ -- not the project-root "
+            ".kittify/ (that is dossier_parity_baseline's genuinely PROJECT-rooted "
+            "sibling: drift_detector.py (deleted, #274) wrote "
+            "repo_root/.kittify/dossiers/<slug>/parity-baseline.json, a "
+            "different physical location despite the shared "
+            "'dossiers' naming). The prior PROJECT-rooted declaration made "
+            "get_runtime_gitignore_entries() emit a root-anchored .kittify/dossiers/ "
+            "pattern that never matched the real mission-nested write location, so a "
+            "fresh spec-kitty init's .gitignore never protected it: ordinary "
+            "commit-routing staged and committed the file like any other mission "
+            "artifact, and the resulting per-worktree drift then blocked "
+            "git/ref_advance.py's merge-time dirty-worktree resync (#1826) on the "
+            "coordination worktree."
+        ),
     ),
     StateSurface(
         name="mission_pycache",
@@ -335,8 +357,15 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="dossier drift detector",
+        owner_module="dossier drift detector (deleted, #274)",
         creation_trigger="dossier parity baseline accept",
+        notes=(
+            "#274 deleted dossier/drift_detector.py, this surface's sole "
+            "writer -- nothing currently creates this path. Kept IGNORED "
+            "defensively (harmless over-inclusion in .gitignore) in case a "
+            "future feature reuses .kittify/dossiers/<feature>/"
+            "parity-baseline.json; see #277."
+        ),
     ),
     StateSurface(
         name="op_invocation_record",
@@ -616,7 +645,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="move-task --review-feedback-file",
     ),
     # -----------------------------------------------------------------------
-    # Section E -- User-Home Sync (~/.spec-kitty/)
+    # Section E -- User-Home Sync (~/.spec-kitty/) -- partly historical, see below
     # -----------------------------------------------------------------------
     StateSurface(
         name="sync_config",
@@ -625,8 +654,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.TOML,
         authority=AuthorityClass.AUTHORITATIVE,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/config",
-        creation_trigger="spec-kitty sync configure",
+        owner_module="auth/server_target",
+        creation_trigger="operator-authored; no command writes this file",
     ),
     StateSurface(
         name="sync_credentials",
@@ -635,68 +664,89 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.TOML,
         authority=AuthorityClass.SECRET,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/auth + tracker/credentials",
-        creation_trigger="spec-kitty sync login",
+        owner_module="tracker/credentials",
+        creation_trigger="spec-kitty tracker bind",
     ),
-    StateSurface(
-        name="credential_lock",
-        path_pattern="~/.spec-kitty/credentials.lock",
-        root=StateRoot.GLOBAL_SYNC,
-        format=StateFormat.LOCKFILE,
-        authority=AuthorityClass.LOCAL_RUNTIME,
-        git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/auth",
-        creation_trigger="credential write serialization",
-    ),
+    # -----------------------------------------------------------------------
+    # The lamport_clock through scoped_queue and project_sync_store through
+    # project_sync_migration_reports runs below describe on-disk surfaces of
+    # the hosted CLI<->SaaS sync transport deleted in #114 (clock, offline
+    # queue, sync daemon, ProjectSyncStore, machine layout generation,
+    # project-store migration). They are frozen/historical and fully
+    # tombstoned: no current module creates or reads any of these paths, and
+    # tracker_cache above remains a live AUTHORITATIVE surface.
+    # -----------------------------------------------------------------------
     StateSurface(
         name="lamport_clock",
         path_pattern="~/.spec-kitty/clock.json",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.JSON,
-        authority=AuthorityClass.AUTHORITATIVE,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/clock",
-        creation_trigger="first sync event",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes="Historical residue: previously owned by sync/clock, deleted with the sync transport (#114); not referenced by current 2.x source.",
     ),
     StateSurface(
         name="active_queue_scope",
         path_pattern="~/.spec-kitty/active_queue_scope",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.TEXT,
-        authority=AuthorityClass.LOCAL_RUNTIME,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/queue",
-        creation_trigger="queue scope activation",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes="Historical residue: previously owned by sync/queue, deleted with the sync transport (#114); not referenced by current 2.x source.",
     ),
     StateSurface(
         name="sync_daemon_control",
         path_pattern="~/.spec-kitty/sync-daemon",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.TEXT,
-        authority=AuthorityClass.LOCAL_RUNTIME,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/daemon",
-        creation_trigger="machine-global sync daemon bootstrap",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/daemon (trigger "
+            "was machine-global sync daemon bootstrap), deleted with the "
+            "sync transport (#114); not referenced by current 2.x source."
+        ),
     ),
     StateSurface(
         name="legacy_queue",
         path_pattern="~/.spec-kitty/queue.db",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.SQLITE,
-        authority=AuthorityClass.AUTHORITATIVE,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/queue",
-        creation_trigger="first offline event (unauthenticated)",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/queue "
+            "(unauthenticated offline queue), deleted with the sync "
+            "transport (#114); not referenced by current 2.x source."
+        ),
     ),
     StateSurface(
         name="scoped_queue",
         path_pattern="~/.spec-kitty/queues/queue-<hash>.db",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.SQLITE,
-        authority=AuthorityClass.AUTHORITATIVE,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/queue",
-        creation_trigger="first offline event (authenticated scope)",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/queue "
+            "(authenticated-scope offline queue), deleted with the sync "
+            "transport (#114); not referenced by current 2.x source."
+        ),
     ),
     StateSurface(
         name="tracker_cache",
@@ -713,64 +763,100 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         path_pattern="~/.spec-kitty/projects/<canonical-uuid>/sync/sync.db",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.SQLITE,
-        authority=AuthorityClass.AUTHORITATIVE,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/project_store",
-        creation_trigger="first ProjectSyncStore unit of work",
-        notes="One transactionally coherent hosted-sync aggregate per canonical UUID.",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/project_store "
+            "(one transactionally coherent hosted-sync aggregate per "
+            "canonical UUID), deleted with the sync transport (#114); not "
+            "referenced by current 2.x source."
+        ),
     ),
     StateSurface(
         name="project_sync_egress_lock",
         path_pattern="~/.spec-kitty/projects/<canonical-uuid>/sync/egress.lock",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.LOCKFILE,
-        authority=AuthorityClass.LOCAL_RUNTIME,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/project_store",
-        creation_trigger="project transport/result barrier acquisition",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/project_store "
+            "(transport/result barrier acquisition), deleted with the "
+            "sync transport (#114); not referenced by current 2.x source."
+        ),
     ),
     StateSurface(
         name="project_sync_layout_generation",
         path_pattern="~/.spec-kitty/projects/.layout-generation.json",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.JSON,
-        authority=AuthorityClass.AUTHORITATIVE,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/layout_generation",
-        creation_trigger="first machine layout authority read",
-        notes="Machine-wide current-writer generation and cutover mode.",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/layout_generation "
+            "(machine-wide current-writer generation and cutover mode), "
+            "deleted with the sync transport (#114); not referenced by "
+            "current 2.x source."
+        ),
     ),
     StateSurface(
         name="project_sync_layout_generation_lock",
         path_pattern="~/.spec-kitty/projects/.layout-generation.lock",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.LOCKFILE,
-        authority=AuthorityClass.LOCAL_RUNTIME,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/layout_generation",
-        creation_trigger="machine layout authority acquisition",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/layout_generation "
+            "(machine layout authority acquisition), deleted with the sync "
+            "transport (#114); not referenced by current 2.x source."
+        ),
     ),
     StateSurface(
         name="project_sync_layout_generation_marker",
         path_pattern="~/.spec-kitty/projects/.layout-generation.initialized",
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.TEXT,
-        authority=AuthorityClass.AUTHORITATIVE,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/layout_generation",
-        creation_trigger="first verified machine layout authority initialization",
-        notes="Fail-closed evidence that a missing layout record is data loss.",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by sync/layout_generation "
+            "(fail-closed evidence that a missing layout record is data "
+            "loss), deleted with the sync transport (#114); not referenced "
+            "by current 2.x source."
+        ),
     ),
     StateSurface(
         name="project_sync_migration_reports",
         path_pattern=("~/.spec-kitty/projects/<canonical-uuid>/sync/migration/reports/"),
         root=StateRoot.GLOBAL_SYNC,
         format=StateFormat.DIRECTORY,
-        authority=AuthorityClass.LOCAL_RUNTIME,
+        authority=AuthorityClass.DEPRECATED,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/project_store_migration",
-        creation_trigger="project-store migration preview or verification",
-        notes="Non-sensitive counts, IDs, hashes, phases, and reason codes only.",
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes=(
+            "Historical residue: previously owned by "
+            "sync/project_store_migration (non-sensitive counts, IDs, "
+            "hashes, phases, and reason codes only), deleted with the sync "
+            "transport (#114); not referenced by current 2.x source."
+        ),
     ),
     # -----------------------------------------------------------------------
     # Section F -- Global Runtime (~/.kittify/)
@@ -905,6 +991,50 @@ def _fully_ignored_top_dirs() -> set[str]:
     return {d + "/" for d, classes in top_dir_git_classes.items() if all(gc == GitClass.IGNORED for gc in classes)}
 
 
+_KITTY_SPECS_SEGMENT = "kitty-specs"
+# Every StateRoot.FEATURE surface's path_pattern is anchored at exactly this
+# two-segment prefix ("kitty-specs/<feature>/…", Section C above).
+_FEATURE_PREFIX_SEGMENTS = 2
+
+
+def _feature_relative_pattern(pattern: str) -> str | None:
+    """Strip the ``kitty-specs/<feature>/`` prefix from a FEATURE-rooted pattern.
+
+    Returns the feature-relative remainder (e.g. ``.kittify/dossiers/<feature>/
+    snapshot-latest.json``), or ``None`` when *pattern* is not anchored under
+    ``kitty-specs/<feature>/`` -- defensive; every current
+    :class:`StateRoot.FEATURE` surface is.
+    """
+    parts = pattern.split("/")
+    if len(parts) <= _FEATURE_PREFIX_SEGMENTS or parts[0] != _KITTY_SPECS_SEGMENT:
+        return None
+    return "/".join(parts[_FEATURE_PREFIX_SEGMENTS:])
+
+
+def _fully_ignored_feature_subdirs() -> set[str]:
+    """Feature-relative analogue of :func:`_fully_ignored_top_dirs`.
+
+    Returns FEATURE-relative directory patterns (e.g. ``.kittify/dossiers/``)
+    where every :class:`StateRoot.FEATURE` surface nested under it is IGNORED
+    -- so a mission-nested ignored directory (e.g. the dossier-sync snapshot's
+    ``kitty-specs/<feature>/.kittify/dossiers/``) collapses to one directory
+    entry instead of a per-placeholder pattern that could over- or
+    under-match. Mirrors :func:`_fully_ignored_top_dirs` one level deeper,
+    below the mandatory ``kitty-specs/<feature>/`` anchor.
+    """
+    feature_surfaces = [s for s in STATE_SURFACES if s.root == StateRoot.FEATURE]
+    top_dir_git_classes: dict[str, list[GitClass]] = {}
+    for s in feature_surfaces:
+        rel = _feature_relative_pattern(s.path_pattern)
+        if rel is None:
+            continue
+        parts = rel.split("/")
+        if len(parts) >= 3:  # noqa: PLR2004
+            top_dir = "/".join(parts[:2])
+            top_dir_git_classes.setdefault(top_dir, []).append(s.git_class)
+    return {d + "/" for d, classes in top_dir_git_classes.items() if all(gc == GitClass.IGNORED for gc in classes)}
+
+
 def _collapse_placeholder_pattern(pattern: str) -> str | None:
     """Collapse a path pattern with placeholders to its clean parent directory.
 
@@ -925,22 +1055,48 @@ def _remove_subsumed(entries: set[str]) -> set[str]:
 
 
 def get_runtime_gitignore_entries() -> list[str]:
-    """Return deduplicated gitignore patterns for project-root runtime surfaces.
+    """Return deduplicated gitignore patterns for runtime-ignored surfaces.
 
-    Includes all PROJECT-rooted surfaces with git_class=IGNORED.
+    Includes every PROJECT-rooted surface with git_class=IGNORED (root-anchored
+    patterns), plus every FEATURE-rooted surface with git_class=IGNORED
+    (mission-nested patterns under ``kitty-specs/*/…`` -- FIX-M2-05: a FEATURE
+    surface's real write location is nested inside each mission's own
+    ``kitty-specs/<feature>/`` tree, not the project root, so it needs its own
+    ``<feature>``-glob leg; folding it into the PROJECT leg would silently
+    mismatch the physical path, as the pre-fix ``dossier_snapshot`` entry did).
     Patterns containing placeholder tokens (``<...>``) or wildcards are
     collapsed to their parent directory (with trailing ``/``), then
     deduplicated so the result is directly consumable by ``.gitignore``.
 
     When ALL project surfaces under a top-level subdirectory (e.g.
     ``.kittify/runtime/``) are IGNORED, the entire subdirectory is emitted
-    as a single entry rather than listing individual files/subdirs.
+    as a single entry rather than listing individual files/subdirs; the same
+    collapse applies one level deeper for FEATURE surfaces sharing a
+    mission-nested subdirectory (e.g. ``kitty-specs/*/.kittify/dossiers/``).
     """
     fully_ignored = _fully_ignored_top_dirs()
+    fully_ignored_feature = _fully_ignored_feature_subdirs()
     raw: set[str] = set()
 
     for s in STATE_SURFACES:
-        if s.root != StateRoot.PROJECT or s.git_class != GitClass.IGNORED:
+        if s.git_class != GitClass.IGNORED:
+            continue
+
+        if s.root == StateRoot.FEATURE:
+            rel = _feature_relative_pattern(s.path_pattern)
+            if rel is None:
+                continue
+            parts = rel.split("/")
+            if len(parts) >= 3:  # noqa: PLR2004
+                top_dir_rel = "/".join(parts[:2]) + "/"
+                if top_dir_rel in fully_ignored_feature:
+                    raw.add(f"{_KITTY_SPECS_SEGMENT}/*/{top_dir_rel}")
+            # No current FEATURE-rooted IGNORED surface falls outside a
+            # fully-ignored mission-nested subdirectory; add a finer-grained
+            # (placeholder-substitution) fallback here if one ever does.
+            continue
+
+        if s.root != StateRoot.PROJECT:
             continue
         pattern = s.path_pattern
 

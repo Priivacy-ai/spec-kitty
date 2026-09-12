@@ -304,7 +304,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
         f"Apply messages: {messages!r}\n"
         "Fix lives in Mission B WP04 — extend the schema in "
         "src/specify_cli/doctrine/org_charter.py:OrgCharterPolicy, "
-        "extend CharterInterview in src/charter/interview.py, and extend "
+        "extend CharterInterview in src/charter/activation/interview.py, and extend "
         "apply_org_charter_to_interview to union the new field."
     )
 

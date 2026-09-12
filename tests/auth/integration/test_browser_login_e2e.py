@@ -283,19 +283,38 @@ class TestBrowserLoginE2E:
         # Raw tokens must not leak.
         assert "at_preexisting" not in result.stdout
 
-    def test_login_errors_when_saas_url_missing(
+    def test_login_proceeds_to_packaged_default_when_saas_url_missing(
         self,
+        tmp_path: Any,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """No SaaS URL in the environment must abort with a clear error.
+        """#3980 (D-5 revised): no SaaS URL in the environment is no longer an
+        error — ``auth login`` proceeds against the packaged default target
+        (the acceptance criterion for the launch defaults flip)."""
 
-        Covers D-5 / C-012 (no hardcoded SaaS URL anywhere in the CLI).
-        """
+        async def _fake_browser_flow(tm: Any, saas_url: str) -> None:
+            recorded["saas_url"] = saas_url
+
+        recorded: dict[str, str] = {}
+        home = tmp_path / "empty-home"
+        home.mkdir()
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
 
-        result = runner.invoke(app, ["login"])
-        assert result.exit_code == 1
-        assert "SPEC_KITTY_SAAS_URL" in result.stdout
+        with (
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                side_effect=_fake_browser_flow,
+            ),
+            patch(
+                "specify_cli.cli.commands._auth_login.get_token_manager"
+            ) as tm_cls,
+        ):
+            tm_cls.return_value.is_authenticated = False
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert recorded["saas_url"] == "https://team.spec-kitty.ai"
 
     def test_login_force_resets_session(
         self,

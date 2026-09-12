@@ -83,9 +83,7 @@ class _MissionStub:
         ("documentation", "workspace", "handbook/"),
     ],
 )
-def test_override_supersedes_doctrine_default_for_every_type(
-    tmp_path: Path, mission_type: str, key: str, override_value: str
-) -> None:
+def test_override_supersedes_doctrine_default_for_every_type(tmp_path: Path, mission_type: str, key: str, override_value: str) -> None:
     """FR-004: for research/plan/documentation, the override supersedes that type's doctrine default at the
     shared validator seam. Asserts the RESOLVED ``required_paths[key]`` equals the override (a discriminating
     assertion — a type whose declared dirs happened to exist would pass green *without* honoring the
@@ -102,9 +100,7 @@ def test_override_supersedes_doctrine_default_for_every_type(
     assert result.required_paths[key] != doctrine_default
 
 
-def test_evaluate_seam_forwards_config_override_to_validator(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_evaluate_seam_forwards_config_override_to_validator(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-004 wiring: ``evaluate_path_conventions`` is the seam that reads ``project.path_conventions`` from
     ``.kittify/config.yaml`` and forwards it to ``validate_mission_paths`` as ``path_overrides``. Spy on the
     validator (the same patch point the acceptance-core tests use) to prove the override the operator wrote in
@@ -129,9 +125,7 @@ def test_evaluate_seam_forwards_config_override_to_validator(
 
     monkeypatch.setattr("specify_cli.acceptance.summary_core.validate_mission_paths", _spy)
 
-    evaluate_path_conventions(
-        mission, repo_root, feature_dir, feature_dir, strict_metadata=True
-    )
+    evaluate_path_conventions(mission, repo_root, feature_dir, feature_dir, strict_metadata=True)
 
     assert captured["path_overrides"] == {"workspace": "experiments/"}
 
@@ -223,9 +217,7 @@ def test_deliverables_override_does_not_flip_artifact_routing(tmp_path: Path) ->
     mission = _real_mission("software-dev")
 
     with pytest.warns(UserWarning, match="artifact-routed"):
-        path_violations, warning, dedup_tokens = evaluate_path_conventions(
-            mission, repo_root, feature_dir, feature_dir, strict_metadata=True
-        )
+        path_violations, warning, dedup_tokens = evaluate_path_conventions(mission, repo_root, feature_dir, feature_dir, strict_metadata=True)
 
     # Routing intact: contracts/ was found on the mission surface, so nothing blocks.
     assert path_violations == []

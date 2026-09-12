@@ -99,7 +99,7 @@ def _build_doctrine_service(
 
     The project-root candidate list (in priority order):
     1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T025).
-    2. ``src/doctrine/``       — code-local built-in-layer path.
+    2. ``src/charter/offering/``       — code-local built-in-layer path.
     3. ``doctrine/``           — flat fallback.
 
     Discovery is conditional on directory presence so legacy (pre-synthesis)
@@ -224,7 +224,7 @@ def _build_activation_aware_doctrine_service(
     )
     # Forward ``agent_profile_overlay_dir`` only when set: the common ``None``
     # case must reach ``_build_doctrine_service`` with the byte-identical
-    # ``(repo_root, org_roots=...)`` call the ``charter.activation.context`` monkeypatch
+    # ``(repo_root, org_roots=...)`` call the ``charter.context`` monkeypatch
     # stubs (``lambda repo_root, *, org_roots=None: ...``) expect — passing the
     # extra kwarg unconditionally raises ``TypeError`` against those stubs
     # (NFR-002). The overlay is still threaded through whenever a caller

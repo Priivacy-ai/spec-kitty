@@ -67,7 +67,7 @@ capability, not a message convention.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import WORKTREES_DIR
 import contextlib
 import logging
 import subprocess
@@ -80,7 +80,6 @@ from typing import Any
 from mission_runtime import CommitTarget
 from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
-from kernel.clock import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from kernel.git_topology import (
     GitTopologyError,
@@ -277,12 +276,22 @@ class ProtectedBranchRefused(SafeCommitError):
         commit_message: str,
     ) -> None:
         message = (
+            # planning#261 (squad MINOR on #258): safe_commit takes no
+            # mission_slug and is called from mission-agnostic sites
+            # (core/mission_creation.py, git/bookkeeping_commit.py,
+            # invocation/executor.py, cli/commands/next_cmd.py,
+            # events/decision_log.py, cli/commands/safe_commit_cmd.py) as well
+            # as from mission-aware ones, so this message states only what
+            # safe_commit itself knows -- destination_ref is protected --
+            # instead of asserting a mission cause or a mission-lifecycle
+            # remedy. The mission-aware caller that has mission_slug in scope
+            # (coordination/commit_router.py) builds its own diagnostic with
+            # the finalize-tasks/mission-create remedy.
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"Start a non-protected feature branch and commit there "
-            f"('spec-kitty agent mission create --start-branch <feature-branch>', or "
-            f"check out an existing feature branch). Planning artifacts must land "
-            f"on a feature branch, or land via the mission lane worktree."
+            f"Retry against a non-protected feature branch, or set "
+            f"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 if you own this "
+            f"branch."
         )
         super().__init__(
             message,
@@ -887,37 +896,111 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str |
     return sha, commit_result.stdout, commit_result.stderr
 
 
-def _derive_mission_id(paths: list[str]) -> str:
-    """Extract the mission slug from the first path under ``kitty-specs/``.
 
-    For example, ``kitty-specs/my-mission-01KT119Y/file.jsonl`` → ``my-mission-01KT119Y``.
-    Returns ``""`` if extraction fails.
+
+def preflight_commit(
+    *,
+    repo_root: Path,
+    worktree_root: Path,
+    target: CommitTarget,
+    message: str,
+    paths: tuple[Path, ...],
+    capability: GuardCapability = GuardCapability.STANDARD,
+) -> list[str]:
+    """Validate a commit destination and paths without mutating git or files.
+
+    Creation can use the same policy before writing its scaffold. The actual
+    commit repeats this validation so a preflight never grants stale authority.
+    Return the paths normalized for staging in the selected worktree.
     """
-    for p in paths:
-        parts = Path(p).parts
-        for i, part in enumerate(parts):
-            if part == KITTY_SPECS_DIR and i + 1 < len(parts):
-                return parts[i + 1]
-    return ""
+    destination_ref = target.ref
+    # 1. Shape: short branch name only.
+    if destination_ref.startswith("refs/heads/"):
+        raise SafeCommitDestinationRefShape(destination_ref=destination_ref)
 
+    # 2. Non-empty paths.
+    if not paths:
+        raise SafeCommitEmptyChangeset(destination_ref=destination_ref)
 
-def _get_current_build_id(repo_root: Path) -> str:
-    """Return the session-level build_id if available; fall back to ``generate_build_id()``.
+    # 3. worktree_root is a worktree of repo_root.
+    if not _is_worktree_of(repo_root, worktree_root):
+        raise SafeCommitNotAWorktree(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
 
-    Reads the project identity from ``.kittify/config.yaml`` (stored by
-    ``spec-kitty init``).  Falls back to a fresh UUID4 if none is found so each
-    commit gets a unique build_id that groups correctly at the SaaS level.
-    """
-    try:
-        from specify_cli.identity.project import generate_build_id, load_identity  # noqa: PLC0415
+    # 4. HEAD assertion.
+    observed_head = _read_worktree_head(worktree_root)
+    if observed_head is None or observed_head != destination_ref:
+        raise SafeCommitHeadMismatch(
+            destination_ref=destination_ref,
+            observed_head=observed_head if observed_head is not None else "<detached>",
+            worktree_root=worktree_root,
+        )
 
-        config_path = repo_root / ".kittify" / "config.yaml"
-        identity = load_identity(config_path)
-        if identity.build_id:
-            return str(identity.build_id)
-        return str(generate_build_id())
-    except Exception:  # noqa: BLE001
-        return str(uuid.uuid4())
+    # 5. destination_ref exists.
+    if not _destination_ref_exists(worktree_root, destination_ref):
+        raise SafeCommitDestinationNotFound(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+
+    resolved_worktree_root = worktree_root.resolve()
+    normalized_files: list[str] = []
+    for path in paths:
+        candidate: Path = path
+        if candidate.is_absolute():
+            # If the path is not under worktree_root, pass as-is.
+            with contextlib.suppress(ValueError):
+                candidate = candidate.resolve().relative_to(resolved_worktree_root)
+        normalized_files.append(str(candidate))
+
+    # 6a. Path policy: reject any path under .worktrees/ before staging.
+    # FR-005 / Issue #1887: .worktrees/ paths must never be staged from the
+    # primary repo root. Fires before any index mutation so the index is clean.
+    for _norm_path in normalized_files:
+        if Path(_norm_path).parts and Path(_norm_path).parts[0] == WORKTREES_DIR:
+            raise SafeCommitPathPolicyError(
+                offending_path=_norm_path,
+                worktree_root=worktree_root,
+            )
+
+    # 6. Protected-branch check. The protection DECISION is made SOLELY by the
+    #    SK policy module (``commit_guard.evaluate``) — the ONE decision
+    #    (C-GUARD-1). The legacy privilege channels (the message-prefix list,
+    #    the two ``allow_*`` bools, the op-record file-content exception, the
+    #    ``SPEC_KITTY_TEST_MODE`` env hatch) are deleted (WP03 / FR-008; the
+    #    last surviving test-mode pre-check reads went with the PR #1850
+    #    guard-bypass fix): the asserted-at-the-surface ``capability`` is now
+    #    the only authorization, never derived from message text, file
+    #    content, or environment.
+    #
+    #    The ONE retained operator escape hatch
+    #    (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` — solo-fork operators
+    #    who own ``main``) is now folded into ``ProtectionPolicy.is_protected``
+    #    (WP01 / T002): the policy is resolved at this boundary (FR-007) and the
+    #    hatch + set membership are decided together.  ``evaluate`` itself never
+    #    reads the environment — agent privilege stays capability-asserted (FR-008).
+    #
+    #    Both repo_root and worktree_root are checked (the worktree may be on a
+    #    different branch when run from inside a lane worktree).  Each resolves
+    #    its own ProtectionPolicy so the correct config is read for each root.
+    _policy_repo = ProtectionPolicy.resolve(repo_root)
+    _policy_wt = ProtectionPolicy.resolve(worktree_root)
+    is_protected = _policy_repo.is_protected(destination_ref) or _policy_wt.is_protected(destination_ref)
+    guard_verdict: GuardVerdict = evaluate_commit_guard(
+        target,
+        ProtectionState(is_protected=is_protected),
+        capability,
+    )
+    if not guard_verdict.allowed:
+        raise ProtectedBranchRefused(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            commit_message=message,
+        )
+
+    return normalized_files
 
 
 def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms readability
@@ -1007,6 +1090,8 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             safe_commit could not capture recovery state before mutating.
         RuntimeError: a low-level ``git add`` or ``git commit`` failed.
     """
+    # Compatibility-only routing hint after retirement of the ambient sync emitter.
+    del effective_root
     # 0. Compat shim: accept either ``target`` (preferred) or the legacy
     #    ``destination_ref`` string. The CommitTarget's ``ref`` is the single
     #    destination authority; ``destination_ref`` mirrors it below so callers
@@ -1020,91 +1105,14 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         target = CommitTarget(ref=destination_ref)
     destination_ref = target.ref
 
-    # 1. Shape: short branch name only.
-    if destination_ref.startswith("refs/heads/"):
-        raise SafeCommitDestinationRefShape(destination_ref=destination_ref)
-
-    # 2. Non-empty paths.
-    if not paths:
-        raise SafeCommitEmptyChangeset(destination_ref=destination_ref)
-
-    # 3. worktree_root is a worktree of repo_root.
-    if not _is_worktree_of(repo_root, worktree_root):
-        raise SafeCommitNotAWorktree(
-            destination_ref=destination_ref,
-            worktree_root=worktree_root,
-        )
-
-    # 4. HEAD assertion.
-    observed_head = _read_worktree_head(worktree_root)
-    if observed_head is None or observed_head != destination_ref:
-        raise SafeCommitHeadMismatch(
-            destination_ref=destination_ref,
-            observed_head=observed_head if observed_head is not None else "<detached>",
-            worktree_root=worktree_root,
-        )
-
-    # 5. destination_ref exists.
-    if not _destination_ref_exists(worktree_root, destination_ref):
-        raise SafeCommitDestinationNotFound(
-            destination_ref=destination_ref,
-            worktree_root=worktree_root,
-        )
-
-    resolved_worktree_root = worktree_root.resolve()
-    normalized_files: list[str] = []
-    for path in paths:
-        candidate: Path = path
-        if candidate.is_absolute():
-            # If the path is not under worktree_root, pass as-is.
-            with contextlib.suppress(ValueError):
-                candidate = candidate.resolve().relative_to(resolved_worktree_root)
-        normalized_files.append(str(candidate))
-
-    # 6a. Path policy: reject any path under .worktrees/ before staging.
-    # FR-005 / Issue #1887: .worktrees/ paths must never be staged from the
-    # primary repo root. Fires before any index mutation so the index is clean.
-    for _norm_path in normalized_files:
-        if Path(_norm_path).parts and Path(_norm_path).parts[0] == WORKTREES_DIR:
-            raise SafeCommitPathPolicyError(
-                offending_path=_norm_path,
-                worktree_root=worktree_root,
-            )
-
-    # 6. Protected-branch check. The protection DECISION is made SOLELY by the
-    #    SK policy module (``commit_guard.evaluate``) — the ONE decision
-    #    (C-GUARD-1). The legacy privilege channels (the message-prefix list,
-    #    the two ``allow_*`` bools, the op-record file-content exception, the
-    #    ``SPEC_KITTY_TEST_MODE`` env hatch) are deleted (WP03 / FR-008; the
-    #    last surviving test-mode pre-check reads went with the PR #1850
-    #    guard-bypass fix): the asserted-at-the-surface ``capability`` is now
-    #    the only authorization, never derived from message text, file
-    #    content, or environment.
-    #
-    #    The ONE retained operator escape hatch
-    #    (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` — solo-fork operators
-    #    who own ``main``) is now folded into ``ProtectionPolicy.is_protected``
-    #    (WP01 / T002): the policy is resolved at this boundary (FR-007) and the
-    #    hatch + set membership are decided together.  ``evaluate`` itself never
-    #    reads the environment — agent privilege stays capability-asserted (FR-008).
-    #
-    #    Both repo_root and worktree_root are checked (the worktree may be on a
-    #    different branch when run from inside a lane worktree).  Each resolves
-    #    its own ProtectionPolicy so the correct config is read for each root.
-    _policy_repo = ProtectionPolicy.resolve(repo_root)
-    _policy_wt = ProtectionPolicy.resolve(worktree_root)
-    is_protected = _policy_repo.is_protected(destination_ref) or _policy_wt.is_protected(destination_ref)
-    guard_verdict: GuardVerdict = evaluate_commit_guard(
-        target,
-        ProtectionState(is_protected=is_protected),
-        capability,
+    normalized_files = preflight_commit(
+        repo_root=repo_root,
+        worktree_root=worktree_root,
+        target=target,
+        message=message,
+        paths=paths,
+        capability=capability,
     )
-    if not guard_verdict.allowed:
-        raise ProtectedBranchRefused(
-            destination_ref=destination_ref,
-            worktree_root=worktree_root,
-            commit_message=message,
-        )
 
     # 7-9. Stage + backstop + commit, with prior-staging preservation.
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
@@ -1239,25 +1247,6 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         raise backstop_error
 
     assert new_sha is not None  # type narrow: commit_created => new_sha set
-
-    # Emit a LocalCommit frame for any paths under kitty-specs/ (FR-010–FR-017).
-    # This is fire-and-forget: failures are logged and swallowed so a notification
-    # failure never aborts a successful commit.
-    mission_specs_files = [str(Path(p).relative_to(worktree_root)) if Path(p).is_absolute() else str(p) for p in paths if KITTY_SPECS_DIR in Path(p).parts]
-    if mission_specs_files:
-        try:
-            from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
-
-            emit_local_commit(
-                repo_root=effective_root or repo_root,
-                git_hash=new_sha,
-                mission_id=_derive_mission_id(mission_specs_files),
-                build_id=_get_current_build_id(effective_root or repo_root),
-                changed_files=mission_specs_files,
-                committed_at=now_utc_iso(),
-            )
-        except Exception:  # noqa: BLE001
-            logger.warning("emit_local_commit failed after safe_commit; commit succeeded", exc_info=True)
 
     return CommitResult(
         sha=new_sha,

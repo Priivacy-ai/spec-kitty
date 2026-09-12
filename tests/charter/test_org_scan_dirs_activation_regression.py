@@ -3,7 +3,7 @@ flat org-pack layout so that ``charter activate`` on an org pack's own
 artifact actually survives ``filter_graph_by_activation`` (issue #3385).
 
 The defect (spec.md, verified at checkout HEAD ``ab0a0b9b5``):
-``charter.activation.kind_vocabulary._org_scan_dirs`` (``src/charter/kind_vocabulary.py:200-209``)
+``charter.activation.kind_vocabulary._org_scan_dirs`` (``src/charter/activation/kind_vocabulary.py:200-209``)
 scans only ``<org_root>/<plural>/built-in/`` -- a layout no real org pack
 uses. A flat-layout org pack (``<org_root>/<plural>/``, no ``built-in/``
 segment -- the documented, live-loader-matching layout) therefore

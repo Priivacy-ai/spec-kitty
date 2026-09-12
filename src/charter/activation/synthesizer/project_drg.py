@@ -1,7 +1,7 @@
 """Project-level DRG overlay writer.
 
-Thin composer over ``src/doctrine/drg`` primitives (KD-1 rule: no reusable
-graph logic here — push any generic graph logic to ``src/doctrine/drg/``
+Thin composer over ``src/charter/offering/drg`` primitives (KD-1 rule: no reusable
+graph logic here — push any generic graph logic to ``src/charter/offering/drg/``
 instead).
 
 Public API:
@@ -22,6 +22,7 @@ See data-model.md §E-5 for the overlay discipline.
 from __future__ import annotations
 
 import io
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -30,7 +31,7 @@ from ruamel.yaml import YAML
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
+from charter.offering.drg.project_scan import (walk_project_agent_profile_nodes, scan_project_artifacts, project_reference_edges, ProjectArtifact)
 
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 from kernel.clock import now_utc_seconds
@@ -105,7 +106,7 @@ def _node_to_dict(node: DRGNode) -> dict[str, object]:
     that — and any field a later mission adds is emitted without editing here.
     Registered as a ``MappingWriter`` in ``specify_cli.drg_writers.registry``.
     """
-    return model_to_graph_dict(node)
+    return dict(model_to_graph_dict(node))
 
 
 def _edge_to_dict(edge: DRGEdge) -> dict[str, object]:
@@ -113,7 +114,7 @@ def _edge_to_dict(edge: DRGEdge) -> dict[str, object]:
 
     T005 counterpart to :func:`_node_to_dict`.
     """
-    return model_to_graph_dict(edge)
+    return dict(model_to_graph_dict(edge))
 
 
 def _document_dict(graph: DRGGraph) -> dict[str, object]:
@@ -127,7 +128,7 @@ def _document_dict(graph: DRGGraph) -> dict[str, object]:
     from here (they remain registered ``MappingWriter`` members used
     elsewhere).
     """
-    return graph_document_to_dict(graph)
+    return dict(graph_document_to_dict(graph))
 
 
 def _serialize_graph(graph: DRGGraph) -> str:
@@ -190,11 +191,32 @@ def _append_project_profile_nodes(
         nodes.append(node)
 
 
+
+def _registered_project_artifacts(project_root: Path) -> tuple[ProjectArtifact, ...]:
+    """Re-emit direct-write registrations; synthesis-owned artifacts follow targets."""
+    from .manifest import MANIFEST_PATH, load_yaml as load_manifest
+    from .provenance import load_yaml as load_provenance
+
+    manifest_path = project_root / MANIFEST_PATH
+    if not manifest_path.exists():
+        return ()
+    manifest = load_manifest(manifest_path)
+    paths = frozenset(
+        project_root / entry.path for entry in manifest.artifacts
+        if (project_root / entry.provenance_path).exists()
+        and load_provenance(project_root / entry.provenance_path).adapter_id == "project-direct-write"
+    )
+    return scan_project_artifacts(project_root, paths=paths)
+
+
 def emit_project_layer(
     targets: Sequence[SynthesisTarget],
     spec_kitty_version: str,
     built_in_drg: DRGGraph,
     project_root: Path | None = None,
+    *,
+    org_drg: DRGGraph | None = None,
+    warnings_out: list[str] | None = None,
 ) -> DRGGraph:
     """Build an additive project-layer ``DRGGraph`` from *targets*.
 
@@ -223,11 +245,34 @@ def emit_project_layer(
     emitted (WP06 charter-cascade exhaustiveness — an unsupported kind must
     not crash emission).
 
+    Org-aware reference resolution (#4121, MAJOR 2): profile references are
+    projected against the SAME universe activation resolves against —
+    built-in + the org chain + the overlay's own nodes — instead of a
+    built-in-only one, so a project profile referencing an org-pack artifact
+    keeps its edge through re-emission rather than having it silently
+    replaced away by :func:`charter.activation.synthesizer.reconcile.merge_project_overlay`.
+    *org_drg* is that org-chain base (the built-in + org graph returned by
+    :func:`charter.activation._drg_helpers.org_chain_graph`); ``None`` means
+    no org layer is configured and the universe is built-in + overlay only,
+    byte-identical to the pre-#4121 behaviour.
+
     Args:
         targets: Ordered sequence of ``SynthesisTarget`` objects to emit.
         spec_kitty_version: Version string embedded in ``generated_by``.
         built_in_drg: The built-in-layer ``DRGGraph`` used for additive-only
             checks.  **Not mutated.**
+        project_root: Project root for hand-authored profile/registered-
+            artifact composition (see above).
+        org_drg: The org-chain base graph (built-in + org merged, as returned
+            by :func:`charter.activation._drg_helpers.org_chain_graph`), or ``None``
+            when no org packs are configured. Used ONLY for the
+            reference-resolution universe — the additive-only checks stay
+            built-in-only, because an org node may legitimately be overridden
+            by the project layer (``merge_three_layers`` precedence) while a
+            built-in node may not. **Not mutated.**
+        warnings_out: Optional sink that receives the unresolved-reference
+            warnings (the same strings logged below) so CLI callers can
+            surface them instead of them living only in ``logging`` output.
 
     Returns:
         A new ``DRGGraph`` representing the project overlay.  The caller
@@ -335,6 +380,23 @@ def emit_project_layer(
             built_in_node_urns=built_in_node_urns,
             built_in_node_count=len(built_in_drg.nodes),
         )
+        artifacts = _registered_project_artifacts(project_root)
+        for artifact in artifacts:
+            if artifact.node.urn not in seen_urns:
+                nodes.append(artifact.node)
+                seen_urns.add(artifact.node.urn)
+        # Org-aware universe (#4121, MAJOR 2): org_drg already folds the
+        # built-in layer, so the ordering built-in -> org -> overlay mirrors
+        # the merge precedence and `nodes` (overlay) wins on URN collision.
+        universe = [*built_in_drg.nodes, *(org_drg.nodes if org_drg is not None else ()), *nodes]
+        projected, warnings = project_reference_edges(artifacts, universe)
+        triples = {(edge.source, edge.target, edge.relation) for edge in edges}
+        edges.extend(edge for edge in projected if (edge.source, edge.target, edge.relation) not in triples)
+        for warning in warnings:
+            logging.getLogger(__name__).warning("%s", warning)
+        if warnings_out is not None:
+            warnings_out.extend(warnings)
+
 
     return DRGGraph(
         schema_version="1.0",

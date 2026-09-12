@@ -95,6 +95,50 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
     )
 
 
+def _seed_claim_then_progress(feature_dir: Path, wp_id: str, *, claim_actor: str) -> None:
+    """Seed ``planned -> claimed`` (carrying the claim-triple ``policy_metadata``
+    sidecar) then ``claimed -> in_progress`` -- the SAME two-hop shape
+    ``work_package_lifecycle.start_implementation_status`` emits for a real
+    ``spec-kitty implement`` claim (FR-004 claim exception, reducer.py). Unlike
+    :func:`_seed_wp_event` above (a single ``planned -> in_progress`` hop with
+    no ``policy_metadata``), this is the only seed shape that actually
+    populates the reduced snapshot's ``agent`` runtime slot -- required to
+    reproduce FIX-M2-03's ``move-task`` ownership-guard bug at the
+    orchestrator level (a WP seeded via ``_seed_wp_event`` alone always reads
+    back ``current_agent=None``, which trivially bypasses the guard and would
+    prove nothing).
+    """
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"test-{wp_id}-claimed",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+            at="2026-01-01T00:00:00+00:00",
+            actor=claim_actor,
+            force=True,
+            execution_mode="worktree",
+            policy_metadata={"agent": claim_actor},
+        ),
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"test-{wp_id}-in-progress",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-01-01T00:00:01+00:00",
+            actor=claim_actor,
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+
+
 def _fake_ports(feature_dir: Path) -> tuple[TasksPorts, FakeCoordCommitRouter]:
     """A WP02 Fake bundle whose coord router resolves the REAL coord husk dir.
 
@@ -381,3 +425,115 @@ def test_wp06_t028_rollback_to_planned_is_fully_reimplementable(tmp_path: Path) 
     # The tasks.md checkboxes are intentionally still [x] (byte-stable) — the
     # reset lives in the snapshot, not the file.
     assert "- [x] T001" in tasks_md.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# FIX-M2-03 — orchestrator-level agent-ownership regression pin.
+#
+# Reproduces the reported defect at the SAME layer ``move_task``'s Typer
+# command actually runs at (``_do_move_task``, real event log via
+# ``append_event``/``_seed_claim_then_progress``), not just the pure decision
+# core (``tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py``
+# covers that layer). See ``_guard_agent_ownership``'s docstring in
+# ``tasks_transition_core.py`` for the root-cause narrative.
+# ---------------------------------------------------------------------------
+
+
+def test_agent_ownership_generic_placeholder_claim_allows_real_agent_no_force(tmp_path: Path) -> None:
+    """``spec-kitty implement WP01`` (invoked without ``--actor`` -- a
+    documented, supported call shape per that command's own docstring)
+    claims WP01 under the generic ``implement-command`` placeholder. The
+    canonical next step, ``agent tasks move-task WP01 --to for_review --agent
+    claude``, must succeed WITHOUT ``--force``. Before the fix this always
+    raised the agent-ownership-mismatch guard (``RefuseExit1`` ->
+    ``typer.Exit(1)``) for EVERY real ``--agent``, because
+    ``'implement-command' != 'claude'`` under raw equality -- even though no
+    real agent had ever claimed the WP.
+    """
+    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    _seed_claim_then_progress(feature_dir, "WP01", claim_actor="implement-command")
+    ports, coord = _fake_ports(feature_dir)
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=_MISSION,
+        target_branch="wip-lane",
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        # Must NOT raise typer.Exit(1) — the pre-fix ownership-mismatch refusal.
+        _do_move_task(
+            _MoveTaskArgs(
+                task_id="WP01",
+                to="for_review",
+                mission=_MISSION,
+                agent="claude",
+                assignee=None,
+                shell_pid=None,
+                note=None,
+                review_feedback_file=None,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=False,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=False,
+                json_output=True,
+            ),
+            ports=ports,
+        )
+
+    # The transition actually proceeded (not silently swallowed elsewhere).
+    assert len(coord.status_calls) == 1
+
+
+def test_agent_ownership_real_owner_mismatch_still_refuses_at_orchestrator_level(tmp_path: Path) -> None:
+    """Control case for the fix above: a genuine two-real-agent mismatch must
+    still refuse (``typer.Exit(1)``) without ``--force`` — proving the
+    generic-placeholder allowance does not widen to real agent identities.
+    """
+    import typer
+
+    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    _seed_claim_then_progress(feature_dir, "WP01", claim_actor="codex")
+    ports, _coord = _fake_ports(feature_dir)
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=_MISSION,
+        target_branch="wip-lane",
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ), pytest.raises(typer.Exit):
+        _do_move_task(
+            _MoveTaskArgs(
+                task_id="WP01",
+                to="for_review",
+                mission=_MISSION,
+                agent="claude",
+                assignee=None,
+                shell_pid=None,
+                note=None,
+                review_feedback_file=None,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=False,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=False,
+                json_output=True,
+            ),
+            ports=ports,
+        )

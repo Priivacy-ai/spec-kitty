@@ -18,9 +18,8 @@ clock
     (``now_utc_iso``, ``now_utc_stamp``, ``now_utc_compact_stamp``,
     ``now_utc_seconds``, ``now_utc``, ``now_epoch``), parse/format helpers
     (``parse_iso``, ``parse_stamp``, ``format_stamp``, ``from_epoch``), and
-    minimal datetime type re-exports. Distinct from the Lamport logical
-    clock in ``specify_cli.sync.clock``. See
-    ``kitty-specs/kernel-clock-single-door``.
+    minimal datetime type re-exports. Distinct from any Lamport logical
+    clock. See ``kitty-specs/kernel-clock-single-door``.
 glossary_types
     Glossary primitive value types: ``Strictness``, ``ExtractedTerm``,
     ``SemanticConflict``, ``ScopeRef``, ``GlossaryScope``, and related
@@ -39,9 +38,13 @@ paths
 glossary_runner
     Plugin registry for the glossary runner. Defines
     ``GlossaryRunnerProtocol``, ``register()``, ``get_runner()``, and
-    ``clear_registry()`` (test-only). ``glossary`` registers
-    the concrete ``GlossaryAwarePrimitiveRunner`` at import time; doctrine
-    calls ``get_runner()`` without importing ``specify_cli``.
+    ``clear_registry()`` (test-only). Nobody registers eagerly: the consumer
+    ``charter.offering.missions.glossary_hook`` lazily self-bootstraps the
+    registry on first use (``get_runner()`` → ``None`` →
+    ``import_module("glossary.attachment")`` →
+    ``register(GlossaryAwarePrimitiveRunner)`` → retry) and degrades only when
+    ``glossary.attachment`` is unimportable; doctrine calls ``get_runner()``
+    without importing ``specify_cli``.
 """
 
 from kernel.paths import (

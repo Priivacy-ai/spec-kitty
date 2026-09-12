@@ -105,6 +105,9 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
 
 def _run_upgrade(**kwargs: object) -> None:
     """Drive the real `upgrade()` entry point (mirrors the sibling harness)."""
+    kwargs.setdefault("plan_json", False)
+    kwargs.setdefault("yes", False)
+    kwargs.setdefault("no_nag", False)
     kwargs.setdefault("agent_check", False)
     kwargs.setdefault("agent_choice", None)
     kwargs.setdefault("agent_latest", None)
@@ -170,9 +173,7 @@ def test_default_migrations_pending_commit_behavior_characterization(
 
     monkeypatch.setattr(autocommit, "safe_commit", _spy_safe_commit)
 
-    original_commit_touched_checkout: Callable[
-        [Path, set[str] | None, str, str], tuple[bool, list[str], str | None]
-    ] = autocommit.commit_touched_checkout
+    original_commit_touched_checkout: Callable[[Path, set[str] | None, str, str], tuple[bool, list[str], str | None]] = autocommit.commit_touched_checkout
     commit_touched_checkout_from_versions: list[str] = []
     commit_touched_checkout_to_versions: list[str] = []
 
@@ -184,13 +185,9 @@ def test_default_migrations_pending_commit_behavior_characterization(
     ) -> tuple[bool, list[str], str | None]:
         commit_touched_checkout_from_versions.append(from_version)
         commit_touched_checkout_to_versions.append(to_version)
-        return original_commit_touched_checkout(
-            checkout, baseline_paths, from_version, to_version
-        )
+        return original_commit_touched_checkout(checkout, baseline_paths, from_version, to_version)
 
-    monkeypatch.setattr(
-        autocommit, "commit_touched_checkout", _spy_commit_touched_checkout
-    )
+    monkeypatch.setattr(autocommit, "commit_touched_checkout", _spy_commit_touched_checkout)
 
     # --- a single successful, no-manual-review migration (the default path).
     fake_migration = MagicMock(
@@ -209,9 +206,7 @@ def test_default_migrations_pending_commit_behavior_characterization(
             from_version="1.0.0a1",
             to_version="3.2.0a4",
             migrations_applied=["3.2.0a4_safe_globalize_commands"],
-            migration_results={
-                "3.2.0a4_safe_globalize_commands": MigrationResult(success=True)
-            },
+            migration_results={"3.2.0a4_safe_globalize_commands": MigrationResult(success=True)},
         ),
     )
 

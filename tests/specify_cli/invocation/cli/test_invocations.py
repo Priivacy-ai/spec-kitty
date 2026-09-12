@@ -21,6 +21,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from tests._perf_helpers import assert_timing_budget
+
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.invocations_cmd import (
     EVENTS_DIR,
@@ -361,6 +363,22 @@ class TestInvocationsListJSON:
 
 
 @pytest.mark.slow
+def test_list_returns_100_records_from_10k_files(tmp_path: Path) -> None:
+    """invocations list returns exactly 100 records from a 10 000-file audit log.
+
+    Uses the index-based path (write_index=True) which is the production path
+    when InvocationWriter.write_started() is used.
+    """
+    events_dir = tmp_path / EVENTS_DIR
+    # write_index=True (default) — mimics production InvocationWriter behaviour.
+    create_fixture_invocations(events_dir, 10_000, write_index=True)
+
+    records = list(_iter_records(events_dir, None, 100, repo_root=tmp_path))
+
+    assert len(records) == 100, f"Expected 100 records, got {len(records)}"
+
+
+@pytest.mark.slow
 @pytest.mark.performance
 def test_list_performance_10k(tmp_path: Path) -> None:
     """invocations list for 100 records from 10 000 files must complete in < 200 ms.
@@ -376,11 +394,10 @@ def test_list_performance_10k(tmp_path: Path) -> None:
     create_fixture_invocations(events_dir, 10_000, write_index=True)
 
     start = time.monotonic()
-    records = list(_iter_records(events_dir, None, 100, repo_root=tmp_path))
+    list(_iter_records(events_dir, None, 100, repo_root=tmp_path))
     elapsed = time.monotonic() - start
 
-    assert len(records) == 100, f"Expected 100 records, got {len(records)}"
-    assert elapsed < 0.200, f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). The index-based path should meet this threshold — check index I/O."
+    assert_timing_budget(elapsed, 0.200, name="invocations list (10k files, index path)")
 
 
 # ---------------------------------------------------------------------------

@@ -25,7 +25,7 @@ def skill_text() -> str:
 
 
 def test_dispatch_is_documented_as_canonical_command(skill_text: str) -> None:
-    assert "spec-kitty dispatch" in skill_text, "Regression: 'spec-kitty dispatch' was removed from src/doctrine/skills/spec-kitty/SKILL.md."
+    assert "spec-kitty dispatch" in skill_text, "Regression: 'spec-kitty dispatch' was removed from src/charter/offering/skills/spec-kitty/SKILL.md."
 
 
 def test_frontmatter_names_spec_kitty(skill_text: str) -> None:

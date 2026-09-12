@@ -95,16 +95,12 @@ def _tension_graph() -> DRGGraph:
 
 def test_reconciled_pair_maps_to_its_arbiter() -> None:
     ctx = resolve_context(_tension_graph(), _ACTION, depth=2)
-    assert ctx.tension_arbiters == (
-        (_RECONCILER, (_DIRECTIVE_024, _DIRECTIVE_025)),
-    )
+    assert ctx.tension_arbiters == ((_RECONCILER, (_DIRECTIVE_024, _DIRECTIVE_025)),)
 
 
 def test_unreconciled_pair_surfaces_in_unarbitrated_tensions() -> None:
     ctx = resolve_context(_tension_graph(), _ACTION, depth=2)
-    assert ctx.unarbitrated_tensions == (
-        (_UNARBITRATED_A, _UNARBITRATED_B),
-    )
+    assert ctx.unarbitrated_tensions == ((_UNARBITRATED_A, _UNARBITRATED_B),)
 
 
 def test_reconciled_pair_absent_from_unarbitrated_tensions() -> None:
@@ -176,9 +172,7 @@ def test_in_tension_with_queried_regardless_of_edge_direction() -> None:
         ],
     )
     ctx = resolve_context(reversed_direction, _ACTION, depth=2)
-    assert ctx.tension_arbiters == (
-        (_RECONCILER, (_DIRECTIVE_024, _DIRECTIVE_025)),
-    )
+    assert ctx.tension_arbiters == ((_RECONCILER, (_DIRECTIVE_024, _DIRECTIVE_025)),)
 
 
 def test_half_reconciled_pair_stays_unarbitrated() -> None:

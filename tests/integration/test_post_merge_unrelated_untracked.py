@@ -171,10 +171,7 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
             patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
-            patch("specify_cli.merge.executor._emit_merge_diff_summary"),
-            # WP10 (#2057): branch preflight + target asserts moved to the
+                        # WP10 (#2057): branch preflight + target asserts moved to the
             # preflight / done_bookkeeping / baseline seams; appended last to
             # keep positional mock indices stable.
             patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
@@ -259,10 +256,7 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
             patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
-            patch("specify_cli.merge.executor._emit_merge_diff_summary"),
-            # WP10 (#2057): branch preflight + target asserts moved to the
+                        # WP10 (#2057): branch preflight + target asserts moved to the
             # preflight / done_bookkeeping / baseline seams; appended last to
             # keep positional mock indices stable.
             patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),

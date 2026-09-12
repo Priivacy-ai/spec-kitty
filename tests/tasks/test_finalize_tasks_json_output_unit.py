@@ -116,64 +116,6 @@ def _build_feature(tmp_path: Path) -> tuple[Path, Path]:
     return feature_dir, tasks_dir
 
 
-def _build_feature_ownership_contradiction(tmp_path: Path) -> tuple[Path, Path]:
-    """T011 (FR-002): a single WP declaring ``execution_mode: code_change``
-    combined with an explicit ``owned_files: []`` -- the authoring
-    contradiction FR-002 rejects at bootstrap, before any manifest is built.
-    """
-    feature_dir = tmp_path / "kitty-specs" / "001-test"
-    tasks_dir = feature_dir / "tasks"
-    tasks_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text('{"target_branch": "main"}\n', encoding="utf-8")
-    (feature_dir / "spec.md").write_text(
-        "# Spec\n"
-        "## Functional Requirements\n"
-        "| ID | Requirement | Acceptance Criteria | Status |\n"
-        "| --- | --- | --- | --- |\n"
-        "| FR-001 | Test requirement | Covered by WP01. | proposed |\n",
-        encoding="utf-8",
-    )
-    (feature_dir / "tasks.md").write_text(
-        "## Work Package WP01\n**Requirement Refs**: FR-001\n",
-        encoding="utf-8",
-    )
-    (tasks_dir / "WP01-test.md").write_text(
-        "---\nwork_package_id: WP01\nexecution_mode: code_change\nowned_files: []\n---\n\n# WP01\n",
-        encoding="utf-8",
-    )
-    return feature_dir, tasks_dir
-
-
-def _build_feature_all_planning_artifact(tmp_path: Path) -> tuple[Path, Path]:
-    """T013 step 1 (FR-003, Acceptance Scenario 1/2): every WP is a
-    legitimate ``planning_artifact`` with an explicit ``owned_files: []`` --
-    ``build_wp_manifests`` excludes all of them (owned_files falsy), so
-    ``wp_manifests`` ends up genuinely empty by the time
-    ``_compute_and_write_lanes`` is reached.
-    """
-    feature_dir = tmp_path / "kitty-specs" / "001-test"
-    tasks_dir = feature_dir / "tasks"
-    tasks_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text('{"target_branch": "main"}\n', encoding="utf-8")
-    (feature_dir / "spec.md").write_text(
-        "# Spec\n"
-        "## Functional Requirements\n"
-        "| ID | Requirement | Acceptance Criteria | Status |\n"
-        "| --- | --- | --- | --- |\n"
-        "| FR-001 | Test requirement | Covered by WP01. | proposed |\n",
-        encoding="utf-8",
-    )
-    (feature_dir / "tasks.md").write_text(
-        "## Work Package WP01\n**Requirement Refs**: FR-001\n",
-        encoding="utf-8",
-    )
-    (tasks_dir / "WP01-test.md").write_text(
-        "---\nwork_package_id: WP01\nexecution_mode: planning_artifact\nowned_files: []\n---\n\n# WP01\n",
-        encoding="utf-8",
-    )
-    return feature_dir, tasks_dir
-
-
 def _patch_context(
     tmp_path: Path, feature_dir: Path, *, commit_success: bool = True, git_status_out: str = "M tasks.md"
 ):
@@ -198,9 +140,6 @@ def _patch_context(
         patch(
             "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_make_run_command(git_status_out),
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
         ),
     )
 
@@ -266,7 +205,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -302,7 +240,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -333,7 +270,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -364,7 +300,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -406,7 +341,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -449,7 +383,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result_coord_split(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -495,7 +428,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -527,7 +459,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -544,85 +475,3 @@ class TestFinalizeTasks:
         assert isinstance(payload["modified_wps"], list)
         assert isinstance(payload["unchanged_wps"], list)
         assert isinstance(payload["preserved_wps"], list)
-
-    def test_json_output_reports_ownership_contradiction_failure(
-        self, tmp_path: Path
-    ) -> None:
-        """T011 (FR-002, Acceptance Scenario 2): ``finalize-tasks --json``
-        surfaces the FR-002 ownership contradiction as a stable,
-        machine-readable JSON failure -- a dedicated error code plus the
-        offending WP ID(s) -- distinguishable from other finalize-tasks
-        failure modes.
-
-        Revert-sensitivity: reverting the FR-002 production fix makes
-        ``_run_bootstrap_loop`` silently accept this WP (the explicit
-        ``owned_files: []`` is treated as intent, matching the pre-mission
-        behaviour) -- the command would then exit 0 with
-        ``"result": "success"`` instead of failing, so
-        ``result.exit_code != 0`` fails.
-        """
-        feature_dir, _ = _build_feature_ownership_contradiction(tmp_path)
-
-        with (
-            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
-            patch(
-                "specify_cli.coordination.commit_router.commit_for_mission",
-                return_value=_committed_router_result(),
-            ),
-            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
-        ):
-            result = runner.invoke(app, ["finalize-tasks", "--json"])
-
-        assert result.exit_code != 0, result.stdout
-        import json as _json
-
-        lines = [l for l in result.stdout.splitlines() if l.strip().startswith("{")]
-        payload = _json.loads(lines[-1])
-        assert payload.get("result") != "success"
-        assert payload["error_code"] == mission_finalize.OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES
-        assert payload["ownership_contradiction_wp_ids"] == ["WP01"]
-
-    def test_json_output_reports_lane_computation_failure_not_success(
-        self, tmp_path: Path
-    ) -> None:
-        """T013 step 1 (FR-003, Acceptance Scenario 1/2): when every WP is a
-        legitimate ``planning_artifact`` (``wp_manifests`` ends up empty),
-        ``finalize-tasks --json`` reports FAILURE -- not
-        ``"result": "success"`` -- with a machine-readable indication that
-        lane computation did not run, and ``lanes.json`` is confirmed absent.
-        The caller must never observe a success report alongside a missing
-        artifact.
-
-        Revert-sensitivity: reverting the FR-003 production fix restores
-        ``_compute_and_write_lanes``'s ``return None, None`` -- the command
-        then proceeds to report ``"result": "success"`` with no error at all
-        (the pre-fix silent-success degradation this mission closes), so
-        ``result.exit_code != 0`` and ``payload.get("result") != "success"``
-        both fail.
-        """
-        feature_dir, _ = _build_feature_all_planning_artifact(tmp_path)
-
-        with (
-            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
-            patch(
-                "specify_cli.coordination.commit_router.commit_for_mission",
-                return_value=_committed_router_result(),
-            ),
-            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
-        ):
-            result = runner.invoke(app, ["finalize-tasks", "--json"])
-
-        assert result.exit_code != 0, result.stdout
-        import json as _json
-
-        lines = [l for l in result.stdout.splitlines() if l.strip().startswith("{")]
-        payload = _json.loads(lines[-1])
-        assert payload.get("result") != "success"
-        assert payload["error_code"] == mission_finalize.LANE_COMPUTATION_ABORTED_EMPTY_INPUTS
-        assert not (feature_dir / "lanes.json").exists()

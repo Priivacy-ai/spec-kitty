@@ -67,9 +67,7 @@ def _worktree_cwd(tmp_path: Path, *, kitty_specs_child: str) -> Path:
     return worktree
 
 
-def test_note_probe_skips_and_warns_for_unsafe_mission_slug(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_note_probe_skips_and_warns_for_unsafe_mission_slug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """A traversal-shaped slug must not reach the ``.exists()`` join at all."""
     cwd = _worktree_cwd(tmp_path, kitty_specs_child="evil")
     monkeypatch.chdir(cwd)
@@ -86,9 +84,7 @@ def test_note_probe_skips_and_warns_for_unsafe_mission_slug(
     assert "unsafe mission_slug" in caplog.text
 
 
-def test_note_probe_still_prints_for_safe_mission_slug(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_note_probe_still_prints_for_safe_mission_slug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Sanity check: the guard does not regress the legitimate note."""
     cwd = _worktree_cwd(tmp_path, kitty_specs_child="001-m")
     monkeypatch.chdir(cwd)

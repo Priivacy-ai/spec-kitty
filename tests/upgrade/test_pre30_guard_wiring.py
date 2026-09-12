@@ -206,9 +206,7 @@ class TestAddHistoryGuard:
         fd = _post30_feature(tmp_path)
         with _base_patches(tmp_path, fd), patch(
             "specify_cli.cli.commands.agent.tasks.locate_work_package"
-        ) as mock_lwp, patch(
-            "specify_cli.cli.commands.agent.tasks.emit_history_added"
-        ):
+        ) as mock_lwp:
             mock_lwp.return_value = MagicMock(
                 frontmatter={"work_package_id": "WP01"},
                 body="## Activity Log\n",

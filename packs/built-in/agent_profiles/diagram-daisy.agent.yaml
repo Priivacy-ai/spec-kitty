@@ -71,10 +71,10 @@ mode-defaults:
 
 toolguide-references:
 - id: mermaid-diagramming
-  rationale: Mermaid syntax conventions and diagram-type fit are owned by this 
+  rationale: Mermaid syntax conventions and diagram-type fit are owned by this
     toolguide, not restated in the profile
 - id: plantuml-diagramming
-  rationale: PlantUML / C4-PlantUML syntax conventions and diagram-type fit are 
+  rationale: PlantUML / C4-PlantUML syntax conventions and diagram-type fit are
     owned by this toolguide, not restated in the profile
 
 directive-references:

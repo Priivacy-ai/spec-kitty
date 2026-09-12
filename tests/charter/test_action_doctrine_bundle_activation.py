@@ -130,9 +130,7 @@ def _pack_context(
     activated_directives: frozenset[str] | None = None,
     activated_tactics: frozenset[str] | None = None,
     activated_paradigms: frozenset[str] | None = None,
-    activated_kinds: frozenset[str] = frozenset(
-        {"directives", "tactics", "paradigms", "styleguides", "toolguides", "procedures"}
-    ),
+    activated_kinds: frozenset[str] = frozenset({"directives", "tactics", "paradigms", "styleguides", "toolguides", "procedures"}),
     repo_root: Path,
 ) -> PackContext:
     return PackContext(
@@ -178,9 +176,7 @@ def _register_org_pack(repo_root: Path, org_root: Path, *, name: str = "test-org
     kit = repo_root / ".kittify"
     kit.mkdir(parents=True, exist_ok=True)
     (kit / "config.yaml").write_text(
-        yaml.safe_dump(
-            {"doctrine": {"org": {"packs": [{"name": name, "local_path": str(org_root)}]}}}
-        ),
+        yaml.safe_dump({"doctrine": {"org": {"packs": [{"name": name, "local_path": str(org_root)}]}}}),
         encoding="utf-8",
     )
 
@@ -216,9 +212,7 @@ def test_activated_directive_not_in_stale_selected_is_still_delivered(
     guard, not assumed).
     """
     graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
-    pack_context = _pack_context(
-        activated_directives=frozenset({_DIRECTIVE_038_STEM}), repo_root=tmp_path
-    )
+    pack_context = _pack_context(activated_directives=frozenset({_DIRECTIVE_038_STEM}), repo_root=tmp_path)
     stale_selection = DoctrineSelectionConfig(selected_directives=[_DIRECTIVE_010_CANONICAL])
 
     with (
@@ -359,13 +353,9 @@ def test_activated_tactics_and_paradigms_absent_widen_to_full_catalog(
     root_tactic_ids = {r.split(":", 1)[1] for r in bundle.roots if r.startswith("tactic:")}
     root_paradigm_ids = {r.split(":", 1)[1] for r in bundle.roots if r.startswith("paradigm:")}
 
-    assert root_tactic_ids == set(catalog.tactics), (
-        f"expected every catalog tactic id as a root URN "
-        f"({len(catalog.tactics)} expected, got {len(root_tactic_ids)})"
-    )
+    assert root_tactic_ids == set(catalog.tactics), f"expected every catalog tactic id as a root URN ({len(catalog.tactics)} expected, got {len(root_tactic_ids)})"
     assert root_paradigm_ids == set(catalog.paradigms), (
-        f"expected every catalog paradigm id as a root URN "
-        f"({len(catalog.paradigms)} expected, got {len(root_paradigm_ids)})"
+        f"expected every catalog paradigm id as a root URN ({len(catalog.paradigms)} expected, got {len(root_paradigm_ids)})"
     )
 
 
@@ -449,9 +439,7 @@ def test_direct_activated_directives_stem_form_is_normalized(tmp_path: Path) -> 
     is the assertion that actually discriminates.
     """
     graph = _scoped_action_graph(f"directive:{_DIRECTIVE_024_CANONICAL}")
-    pack_context = _pack_context(
-        activated_directives=frozenset({_DIRECTIVE_024_STEM}), repo_root=tmp_path
-    )
+    pack_context = _pack_context(activated_directives=frozenset({_DIRECTIVE_024_STEM}), repo_root=tmp_path)
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
         bundle = _load_action_doctrine_bundle(
@@ -505,9 +493,7 @@ def test_activated_directive_scoped_to_another_action_is_not_delivered(
     # DIRECTIVE_010 is scoped onto a DIFFERENT action (review), never onto
     # implement -- the resolving action in this test.
     graph.nodes.append(DRGNode(urn=action_review_urn, kind=NodeKind.ACTION))
-    graph.nodes.append(
-        DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE)
-    )
+    graph.nodes.append(DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE))
     graph.edges.append(
         DRGEdge(
             source=action_review_urn,
@@ -516,9 +502,7 @@ def test_activated_directive_scoped_to_another_action_is_not_delivered(
         )
     )
     pack_context = _pack_context(
-        activated_directives=frozenset(
-            {_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}
-        ),
+        activated_directives=frozenset({_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}),
         repo_root=tmp_path,
     )
 
@@ -531,9 +515,7 @@ def test_activated_directive_scoped_to_another_action_is_not_delivered(
             pack_context=pack_context,
         )
 
-    assert _DIRECTIVE_038_CANONICAL in bundle.directive_ids, (
-        "the directly-scoped, activated directive must still be delivered"
-    )
+    assert _DIRECTIVE_038_CANONICAL in bundle.directive_ids, "the directly-scoped, activated directive must still be delivered"
     assert _DIRECTIVE_010_CANONICAL not in bundle.directive_ids, (
         "an activated directive scoped onto a DIFFERENT action (review) must "
         f"not leak into implement's delivered set via the closure seed alone; "
@@ -555,13 +537,9 @@ def test_activated_directive_scoped_to_no_action_still_widens(tmp_path: Path) ->
     """
     graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
     # DIRECTIVE_010 is a bare node -- scoped onto NO action anywhere.
-    graph.nodes.append(
-        DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE)
-    )
+    graph.nodes.append(DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE))
     pack_context = _pack_context(
-        activated_directives=frozenset(
-            {_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}
-        ),
+        activated_directives=frozenset({_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}),
         repo_root=tmp_path,
     )
 
@@ -609,9 +587,7 @@ def test_type_wide_scoped_directive_reached_by_closure_still_widens(
     # DIRECTIVE_010 is scoped onto the MISSION TYPE itself (type-wide
     # governance), never onto any action.
     graph.nodes.append(DRGNode(urn=mission_type_urn, kind=NodeKind.MISSION_TYPE))
-    graph.nodes.append(
-        DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE)
-    )
+    graph.nodes.append(DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE))
     graph.edges.append(
         DRGEdge(
             source=mission_type_urn,
@@ -620,9 +596,7 @@ def test_type_wide_scoped_directive_reached_by_closure_still_widens(
         )
     )
     pack_context = _pack_context(
-        activated_directives=frozenset(
-            {_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}
-        ),
+        activated_directives=frozenset({_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}),
         repo_root=tmp_path,
     )
 
@@ -742,9 +716,7 @@ def test_graph_reachable_but_unactivated_directive_is_not_delivered(
     """
     graph = _scoped_action_graph(f"directive:{_UNACTIVATED_FICTIONAL_DIRECTIVE_ID}")
     pack_context = _pack_context(
-        activated_kinds=frozenset(
-            {"tactics", "paradigms", "styleguides", "toolguides", "procedures"}
-        ),
+        activated_kinds=frozenset({"tactics", "paradigms", "styleguides", "toolguides", "procedures"}),
         repo_root=tmp_path,
     )  # "directives" kind is NOT activated; activated_directives stays None.
 

@@ -5,13 +5,15 @@ under 500 lines. Behaviour is unchanged — these helpers materialise the
 minimal ``.kittify/doctrine/`` artifact set the runtime needs when no
 LLM-authored YAMLs are present (see issue #839 / WP06 T031-T033).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 # T031 (#839 minimal artifact set): the runtime consumes ``.kittify/doctrine/``
 # via ``DoctrineService(project_root=...)``. The candidate-list resolver in
-# ``src/charter/_doctrine_paths.py::resolve_project_root`` treats project-root
+# ``src/charter/activation/_doctrine_paths.py::resolve_project_root`` treats project-root
 # discovery as **directory-presence only** — an empty ``.kittify/doctrine/`` is
 # a valid candidate, and the built-in layer (``packs/built-in/``) supplies content
 # until the project layer is populated. The minimal artifact set
@@ -45,9 +47,9 @@ project-local artifacts under `.kittify/charter/generated/` and you re-run
 
 References
 ----------
-- GitHub issue: https://github.com/Priivacy-ai/spec-kitty/issues/839
+- GitHub issue: https://github.com/spec-kitty/spec-kitty/issues/839
 - Spec assumption A2: public CLI synthesize works on a fresh project.
-- Project-root resolution: `src/charter/_doctrine_paths.py`.
+- Project-root resolution: `src/charter/activation/_doctrine_paths.py`.
 """
 
 
@@ -80,9 +82,7 @@ def _fresh_seed_manifest_text() -> str:
         "artifacts": [],
         "built_in_only": True,
     }
-    manifest = SynthesisManifest.model_validate(
-        {**without_hash, "manifest_hash": "0" * 64}
-    )
+    manifest = SynthesisManifest.model_validate({**without_hash, "manifest_hash": "0" * 64})
     manifest = finalize_manifest(manifest)
     # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
     # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
@@ -158,3 +158,74 @@ def _planned_fresh_doctrine_deletes(repo_root: Path) -> list[str]:
     if not graph_path.exists():
         return []
     return [str(graph_path.relative_to(repo_root))]
+
+
+def _synthesize_project_doctrine(repo_root: Path, *, dry_run: bool) -> dict[str, Any] | None:
+    """Preserve a direct-written corpus before considering the empty seed path.
+
+    Absence of generated inputs says nothing about the project doctrine tree.
+    Registration owns its graph, provenance and manifest; synthesis only stamps
+    the current bundle hash and records that this corpus was preserved.
+    """
+    from dataclasses import replace
+    from importlib.metadata import version
+
+    from charter.activation.project_registration import commit_project_registration, plan_project_registration
+    from charter.activation.synthesizer.manifest import (
+        MANIFEST_PATH,
+        SynthesisManifest,
+        finalize_manifest,
+        load_yaml,
+    )
+    from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+    from charter.bundle import compute_bundle_content_hash
+    from charter.drg import scan_project_artifacts
+    from ruamel.yaml import YAML
+
+    if not scan_project_artifacts(repo_root):
+        return None
+    plan = plan_project_registration(repo_root)
+    manifest_path = plan.repo_root / MANIFEST_PATH
+    prepared = dict(plan.writes)
+    manifest = SynthesisManifest.model_validate(YAML(typ="safe").load(prepared[manifest_path])) if manifest_path in prepared else load_yaml(manifest_path)
+    manifest = finalize_manifest(
+        manifest.model_copy(
+            update={
+                "schema_version": "3",
+                "built_in_only": False,
+                "bundle_content_hash": compute_bundle_content_hash(repo_root),
+            }
+        )
+    )
+    provenance_path = plan.repo_root / ".kittify/doctrine/PROVENANCE.md"
+    prepared[provenance_path] = (
+        "# Project Doctrine Provenance\n\n"
+        "This project contains authored doctrine registered by `spec-kitty charter synthesize`.\n"
+        "Source YAML remains unchanged. Per-artifact source paths and content hashes are recorded\n"
+        "in `.kittify/charter/provenance/` and `.kittify/charter/synthesis-manifest.yaml`.\n"
+    )
+    # Keep the manifest as the final commit marker, including when registration
+    # already prepared an earlier version of that same path.
+    prepared.pop(manifest_path, None)
+    prepared[manifest_path] = canonical_yaml(manifest.model_dump(mode="python")).decode("utf-8")
+    writes = tuple((path, text) for path, text in prepared.items() if not path.exists() or path.read_text(encoding="utf-8") != text)
+    if not dry_run:
+        commit_project_registration(replace(plan, writes=writes))
+    return {
+        "result": "dry_run" if dry_run else "success",
+        "success": True,
+        "mode": "project_direct_write_dry_run" if dry_run else "project_direct_write",
+        "adapter": {"id": "project-direct-write", "version": version("spec-kitty-cli")},
+        "written_artifacts": [
+            {
+                "path": artifact.path.relative_to(plan.repo_root).as_posix(),
+                "kind": artifact.node.kind.value,
+                "slug": artifact.node.urn.split(":", 1)[1],
+                "artifact_id": artifact.node.urn.split(":", 1)[1],
+            }
+            for artifact in plan.artifacts
+        ],
+        "warnings": list(plan.warnings),
+        "files_planned" if dry_run else "files_written": [path.relative_to(plan.repo_root).as_posix() for path, _ in writes],
+        "planned_deletes": [],
+    }

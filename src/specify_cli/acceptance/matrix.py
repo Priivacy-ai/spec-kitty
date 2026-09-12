@@ -811,8 +811,12 @@ def populate_criteria_from_review_evidence(
     if not pending_targets:
         return criteria
 
-    from specify_cli.status import StoreError, read_event_stream, reduce
-    from specify_cli.status.reducer import event_sourced_review_result
+    from specify_cli.status import (
+        StoreError,
+        event_sourced_review_result,
+        read_event_stream,
+        reduce,
+    )
 
     try:
         stream = read_event_stream(status_feature_dir)

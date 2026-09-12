@@ -1,2 +1,0 @@
-error: mypy-strict-gate reported 3 issue(s); step exited non-zero
-src/foo.py:12: error: bad type

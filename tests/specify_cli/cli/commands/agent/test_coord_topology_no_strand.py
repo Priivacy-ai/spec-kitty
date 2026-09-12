@@ -64,13 +64,7 @@ def _init_repo_unprotected(repo: Path) -> None:
     (repo / ".kittify").mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
     (repo / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n"
-        "  - software-dev\n"
-        "  - documentation\n"
-        "  - research\n"
-        "  - plan\n"
-        "protection:\n"
-        "  protected_branches: []\n",
+        "mission_type_activations:\n  - software-dev\n  - documentation\n  - research\n  - plan\nprotection:\n  protected_branches: []\n",
         encoding="utf-8",
     )
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True)
@@ -86,10 +80,7 @@ def _mission_summary_args(title: str) -> list[str]:
         "--purpose-tldr",
         f"Deliver {title} cleanly for the team.",
         "--purpose-context",
-        (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     ]
 
 

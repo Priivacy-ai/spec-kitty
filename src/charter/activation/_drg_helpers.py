@@ -2,7 +2,7 @@
 
 Introduced in WP03 of the
 ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission so that
-``src/charter/resolver.py`` and ``src/charter/compiler.py`` no longer
+``src/charter/activation/resolver.py`` and ``src/charter/activation/compiler.py`` no longer
 duplicate the built-in+project merge/validate sequence.
 
 Updated in WP03 of ``layered-doctrine-org-layer-01KRNPEE`` to add
@@ -36,9 +36,13 @@ from charter.offering.drg.loader import (
 from charter.offering.drg.merge import merge_three_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph
 from charter.offering.drg.org_pack_loader import OrgDRGFragment
-from charter.offering.drg.validator import assert_valid
+from charter.offering.drg.validator import DRGValidationError, assert_valid, validate_graph
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class DRGProjectValidationError(DRGValidationError):
+    """A merged-graph validation error introduced by the project overlay."""
 
 
 def _resolve_org_root(_repo_root: Path) -> Path | None:
@@ -63,6 +67,8 @@ def load_validated_graph(
     *,
     org_roots: list[Path] | None = None,
     org_fragments: list[OrgDRGFragment] | None = None,
+    project_degrade: bool = False,
+    include_project: bool = True,
 ) -> DRGGraph:
     """Load the built-in + org-chain + project DRG overlay and validate the result.
 
@@ -106,19 +112,20 @@ def load_validated_graph(
             explicitly means "no org layer", distinct from omitting the
             argument (which falls back to *org_root*).
         org_fragments: The org ``drg/fragment.yaml`` layer, resolved by the
-            ``specify_cli`` runtime caller via
-            :func:`charter.activation.drg_activation.load_org_drg` (``strict=False``) and supplied
-            here — the charter layer never imports ``specify_cli`` to fetch it
-            (C-005). When non-empty, the org ``requires``/``suggests`` edges it
-            carries are folded into the graph via the existing
-            :func:`charter.offering.drg.merge.merge_three_layers` (endpoint resolution
-            and cross-fragment dedup owned there — C-002), so cascade walks
-            org-authored dependency edges (FR-001/FR-002, DRG read-path bridge,
-            mission ``drg-read-path-bridge-01M0CHVZ``). When omitted / ``None``
-            / ``[]``, this function is byte-behaviourally identical to the
-            pre-bridge path (built-in + root-graph roots + project via
-            :func:`merge_layers`) so build-time and no-fragment callers are
-            unaffected (FR-003).
+            runtime caller. When supplied, fragment edges are folded through
+            :func:`charter.offering.drg.merge.merge_three_layers`; when omitted,
+            the legacy two-layer merge is byte-behaviourally unchanged.
+        project_degrade: When ``True``, validation errors introduced only by
+            the project overlay raise ``DRGProjectValidationError`` so degrading
+            callers can distinguish them from built-in/org errors.
+        include_project: When ``False``, the project overlay at
+            ``<repo_root>/.kittify/doctrine`` is NOT loaded and the returned
+            graph is the validated built-in + org chain only (#4121). This is
+            the reference-resolution base the registration/re-emission lanes
+            share — callers that need "everything below the project overlay"
+            without the committed overlay's own nodes (which those lanes
+            re-derive themselves). The default ``True`` is byte-behaviourally
+            unchanged for every existing caller.
 
     Returns:
         A validated :class:`DRGGraph`.
@@ -151,19 +158,12 @@ def load_validated_graph(
         # durable per-root-degrade sliver of the superseded #3401, retargeted
         # to the #3387 org model.
         #
-        # SCOPE (post DRG read-path bridge, mission
-        # `drg-read-path-bridge-01M0CHVZ`). Charter cascade now reads TWO org
-        # shapes: root-level `*.graph.yaml` (folded by this loop) AND
-        # `drg/fragment.yaml` `requires`/`suggests` edges (folded below via
-        # `merge_three_layers` when `org_fragments` is supplied by the runtime
-        # caller). So a pack shipping ONLY a `drg/fragment.yaml` is NOT
-        # graphless — its edges cascade — and warning it would be a lie
-        # (FR-004). The WARNING therefore fires only for a root that ships
-        # NEITHER a root-level `*.graph.yaml` NOR a `drg/fragment.yaml`: a pack
-        # with no dependency graph in any read shape. The still-unread shape is
-        # `drg/*.graph.yaml`, which the `drg_root_graph_missing` validator flags
-        # (kept in lockstep with this predicate — see
-        # `pack_validator._check_drg_root_graph_missing`).
+        # SCOPE (post DRG read-path bridge). Charter runtime callers can read
+        # two org shapes: root-level `*.graph.yaml` here, and
+        # `drg/fragment.yaml` edges through `org_fragments` below. A pack
+        # shipping only a fragment is not graphless for a caller that supplies
+        # that fragment layer; for a caller that omits it, the fragment remains
+        # invisible and must still be disclosed.
         #
         # D-005 ("degrade, but never silent"), matching the per-root warning
         # `mission_step_contracts.executor._load_graph_degrading_malformed_org_pack`
@@ -171,26 +171,77 @@ def load_validated_graph(
         # or never reach this branch, so this does not double-warn them; the
         # `activate` / `deactivate` / `gate_bindings` callers — which do not
         # pre-probe — get their only signal here.
-        if root and root.exists() and not (root / "drg" / "fragment.yaml").exists():
+        fragment_exists = bool(root) and root.exists() and (root / "drg" / "fragment.yaml").exists()
+        if root and root.exists() and (not fragment_exists or org_fragments is None):
+            missing_shape = (
+                "and no drg/fragment.yaml"
+                if not fragment_exists
+                else "but this call supplied no org_fragments layer"
+            )
             _LOGGER.warning(
                 "Org pack at %s ships no root-level DRG graph "
-                "(graph.yaml / *.graph.yaml) and no drg/fragment.yaml; it "
-                "contributes no dependency graph to cascade and was skipped. "
-                "Author a root-level *.graph.yaml or a drg/fragment.yaml to "
-                "contribute requires/suggests edges.",
+                "(graph.yaml / *.graph.yaml) %s; it contributes no dependency "
+                "graph to cascade and was skipped. Author a root-level "
+                "*.graph.yaml, or supply its drg/fragment.yaml through "
+                "org_fragments, to contribute requires/suggests edges.",
                 root,
+                missing_shape,
             )
 
-    project_dir = repo_root / ".kittify" / "doctrine"
-    project = (
-        load_graph_or_dir(project_dir)
-        if has_graph_files(project_dir)
-        else None
-    )
+    project = None
+    if include_project:
+        project_dir = repo_root / ".kittify" / "doctrine"
+        project = (
+            load_graph_or_dir(project_dir)
+            if has_graph_files(project_dir)
+            else None
+        )
 
     merged = _fold_final_layers(root_merged, org_fragments, project)
-    assert_valid(merged)
+    try:
+        assert_valid(merged)
+    except DRGValidationError as exc:
+        if project_degrade and project is not None:
+            base_errors = validate_graph(
+                _fold_final_layers(root_merged, org_fragments, None)
+            )
+            if not any(error in base_errors for error in exc.errors):
+                raise DRGProjectValidationError(exc.errors) from exc
+        raise
     return merged
+
+
+def org_chain_graph(repo_root: Path) -> DRGGraph | None:
+    """Return the validated built-in + org-chain graph (no project layer), or ``None``.
+
+    The one shared org-aware base for the project-registration/re-emission
+    lanes (#4121, MAJOR 2): ``plan_project_registration`` has always resolved
+    profile references against this universe, while ``emit_project_layer``,
+    ``reconcile._classify_conflicts`` and ``validation_gate.validate`` used a
+    built-in-only one — so a project profile referencing an org-pack artifact
+    activated cleanly, then the next synthesis re-emission silently dropped
+    the edge (or hard-failed validation) as an unresolvable/dangling
+    reference. Every one of those seams now reads its base from here, so the
+    re-emission path sees exactly the universe activation validated against.
+
+    Returns ``None`` when the project has no configured org packs (no roots,
+    no fragments): the built-in-only base the callers already hold is the
+    whole universe then, and no extra ~300ms graph load is spent (#4121
+    measured ``load_built_in_graph`` + ``assert_valid`` at that order).
+    """
+    from charter.activation.drg_activation import load_org_drg  # noqa: PLC0415 -- function-local: keeps drg_activation (a sibling that imports other activation modules) out of this module's import-time graph
+    from charter.offering.drg.org_pack_config import resolve_existing_org_roots
+
+    roots = resolve_existing_org_roots(repo_root)
+    fragments = load_org_drg(repo_root, strict=False)
+    if not roots and not fragments:
+        return None
+    return load_validated_graph(
+        repo_root,
+        org_roots=roots,
+        org_fragments=fragments,
+        include_project=False,
+    )
 
 
 def _fold_final_layers(
@@ -262,5 +313,7 @@ def _collapse_duplicate_edge_triples(graph: DRGGraph) -> DRGGraph:
 
 
 __all__ = [
+    "DRGProjectValidationError",
     "load_validated_graph",
+    "org_chain_graph",
 ]

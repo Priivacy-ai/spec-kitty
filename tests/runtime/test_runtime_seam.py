@@ -312,7 +312,8 @@ class TestGoldenParityUnaffectedByPackContextThreading:
         with (
             patch.object(MissionStepRepository, "resolve_all_for_mission_type", _spy),
             patch(
-                "charter.activation.pack_context.PackContext.from_config", return_value=pack_context
+                "charter.activation.pack_context.PackContext.from_config",
+                return_value=pack_context,
             ),
         ):
             _resolve_via_seam(tmp_path, "software-dev")

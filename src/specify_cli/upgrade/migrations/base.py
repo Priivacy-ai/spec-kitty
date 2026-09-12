@@ -7,6 +7,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+class ClaudeignorePathError(Exception):
+    """Raised when ``.claudeignore`` is a symlink instead of a regular file.
+
+    ``Path.read_text()`` / ``Path.write_text()`` both follow symlinks, so a
+    ``.claudeignore`` replaced with a symlink would let a migration read or
+    clobber whatever path it points to (issue #627, sibling of
+    ``GitignorePathError``'s fix for the same class of bug in ``.gitignore``,
+    #582/#618). Defined here rather than in the migration module itself so
+    its identity survives ``auto_discover_migrations()``'s
+    ``importlib.reload()`` of ``m_*.py`` modules -- ``base.py`` is the one
+    migration-package module that reload deliberately skips (see the
+    docstring in ``auto_discover_migrations()``), which is exactly why
+    :class:`MigrationResult` and :class:`PartialWrite` live here too.
+    """
+
+
 @dataclass(frozen=True)
 class PartialWrite:
     """A single file a migration persisted before a non-atomic abort (FR-005).

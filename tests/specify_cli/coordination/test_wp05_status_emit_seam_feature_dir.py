@@ -124,7 +124,6 @@ def test_caller_supplies_seam_feature_dir_even_with_backstop_neutralized(
             actor="wp05-fr009-test",
             repo_root=coord_repo,
         ),
-        sync_dossier=False,
         ensure_sync_daemon=False,
     )
 

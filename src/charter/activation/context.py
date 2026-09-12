@@ -136,7 +136,8 @@ def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:
     type was unresolved (typeless), which must always yield ``False``
     (``compact``, FR-003).  ``bundle.mission`` mirrors the type used to
     resolve the bundle (``resolved_type or ""`` -- see
-    ``_load_action_doctrine_bundle`` in ``charter.activation.action_doctrine_bundle``),
+    ``_load_action_doctrine_bundle`` in
+    ``charter.activation.action_doctrine_bundle``),
     so reusing it here keeps the membership test on the exact node the
     bundle was resolved against.
 

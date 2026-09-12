@@ -14,7 +14,7 @@ left orphaned -- every earlier WP already re-points its readers onto
 ``load_directives_config``, ``charter.activation.pack_context.PackContext.from_config``,
 ``charter.activation.consistency_check``).
 
-Body pattern: ``src/doctrine/versioning.py:299 migrate_v1_to_v2``
+Body pattern: ``src/charter/offering/versioning.py:299 migrate_v1_to_v2``
 (yaml -> yaml write-and-stamp), NOT the rc35 refresh-only shape. Registered
 via ``@MigrationRegistry.register``; ``runs_on_worktrees = False`` (a
 project-identity/config-level fold, not a worktree concern). ``charter.*``
@@ -130,7 +130,7 @@ def __getattr__(name: str) -> object:
     """PEP 562 lazy module attribute: resolve ``ACTIVATION_KEYS`` on access.
 
     Mirrors the codebase's established lazy-module-attribute idiom (e.g.
-    ``specify_cli.sync.__getattr__``) so ``from ...m_unify_charter_activation_finalize
+    a PEP 562 lazy module attribute) so ``from ...m_unify_charter_activation_finalize
     import ACTIVATION_KEYS`` and ``module.ACTIVATION_KEYS`` both keep working
     for existing callers/tests without a module-level import that would
     reintroduce the heavy-import cost :func:`_activation_keys` avoids.

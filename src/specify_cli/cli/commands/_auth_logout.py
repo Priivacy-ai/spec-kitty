@@ -30,8 +30,7 @@ import logging
 import typer
 from specify_cli.cli.console import console
 
-from specify_cli.auth import ConfigurationError, get_token_manager
-from specify_cli.auth.config import get_saas_base_url
+from specify_cli.auth import get_token_manager
 from specify_cli.auth.flows.revoke import RevokeFlow, RevokeOutcome
 
 log = logging.getLogger(__name__)
@@ -63,16 +62,11 @@ async def logout_impl(*, force: bool) -> None:
     else:
         # Try to revoke the refresh token server-side. Any failure is
         # reported to the user but does NOT block local cleanup below.
-        try:
-            get_saas_base_url()
-        except ConfigurationError as exc:
-            console.print(
-                f"[yellow]! Cannot reach SaaS (config error): {exc}. "
-                f"Proceeding with local logout only.[/yellow]"
-            )
-        else:
-            outcome = await RevokeFlow().revoke(session)
-            _print_revoke_outcome(outcome)
+        # #3980: the target always resolves now (env override or the packaged
+        # default), so the former "no URL configured → local logout only"
+        # branch is gone; a transport failure is reported by the outcome.
+        outcome = await RevokeFlow().revoke(session)
+        _print_revoke_outcome(outcome)
 
     # FR-004: local cleanup is unconditional. This runs regardless of the
     # server-call outcome — 200, 4xx/5xx, network error, config error, or

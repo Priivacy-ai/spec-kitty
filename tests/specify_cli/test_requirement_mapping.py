@@ -8,7 +8,6 @@ from specify_cli.requirement_mapping import (
     classify_stale_refs,
     compute_coverage,
     find_bare_prose_requirement_ids,
-    find_discarded_sc_refs,
     find_undeclared_requirement_citations,
     normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
@@ -390,94 +389,6 @@ class TestFindBareProseRequirementIds:
             "| FR-001 | First requirement. |\n"
         )
         assert find_bare_prose_requirement_ids(content) == []
-
-
-class TestFindDiscardedScRefs:
-    """#2991 (epics #3410/#3549): ``SC-###`` (Success-Criteria) tokens live
-    OUTSIDE the ``(?:FR|NFR|C)-\\d+`` ref graph by construction, so a WP whose
-    ``requirement_refs`` cites ``SC-008`` has that token silently dropped by
-    the normalizer (``\\bC-`` never matches ``SC-`` because ``S`` is a word
-    char). Operator decision (c): SC is NOT admitted as a first-class ref --
-    but the discard must be SIGNALLED, not silent (FR-008/SC-005). This
-    detector surfaces the discarded SC tokens through the existing
-    advisory-warning channel; the graph is left unchanged.
-    """
-
-    def test_discarded_sc_ref_is_named_in_a_warning_while_fr_survives(self, tmp_path: Path):
-        """A WP mixing a real FR-001 with an SC-008 yields a warning naming
-        the discarded SC-008, while the graphed (normalized) refs keep FR-001
-        and never contain SC-008."""
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - SC-008\n---\n\n# WP01\n",
-            encoding="utf-8",
-        )
-
-        warnings = find_discarded_sc_refs(tasks_dir)
-        assert len(warnings) == 1
-        assert "SC-008" in warnings[0]
-        assert "WP01" in warnings[0]
-
-        # The ref graph is unchanged: FR-001 survives, SC-008 is dropped.
-        graphed = read_all_wp_requirement_refs(tasks_dir)
-        assert graphed["WP01"] == ["FR-001"]
-
-    def test_single_digit_sc_form_is_matched(self, tmp_path: Path):
-        """The ``SC-1`` single-digit tail form (mirroring FR/C ``-\\d+``) is
-        detected, case-insensitively."""
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            'requirement_refs: "FR-002, sc-1"\n---\n\n# WP01\n',
-            encoding="utf-8",
-        )
-
-        warnings = find_discarded_sc_refs(tasks_dir)
-        assert len(warnings) == 1
-        assert "SC-1" in warnings[0]
-
-    def test_control_wp_with_only_graph_refs_yields_no_warning(self, tmp_path: Path):
-        """A WP citing only FR/NFR/C refs produces no SC-discard warning."""
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - NFR-002\n  - C-003\n---\n\n# WP01\n",
-            encoding="utf-8",
-        )
-
-        assert find_discarded_sc_refs(tasks_dir) == []
-
-    def test_multiple_wps_each_report_their_own_discarded_sc(self, tmp_path: Path):
-        """Two WPs each citing an SC token yield two warnings, each naming its
-        own WP and SC token; a clean control WP contributes nothing."""
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - SC-008\n---\n\n# WP01\n",
-            encoding="utf-8",
-        )
-        (tasks_dir / "WP02-test.md").write_text(
-            '---\nwork_package_id: "WP02"\ntitle: "WP02"\n'
-            "requirement_refs:\n  - SC-012\n---\n\n# WP02\n",
-            encoding="utf-8",
-        )
-        (tasks_dir / "WP03-test.md").write_text(
-            '---\nwork_package_id: "WP03"\ntitle: "WP03"\n'
-            "requirement_refs:\n  - FR-004\n---\n\n# WP03\n",
-            encoding="utf-8",
-        )
-
-        warnings = find_discarded_sc_refs(tasks_dir)
-        joined = "\n".join(warnings)
-        assert len(warnings) == 2
-        assert "SC-008" in joined
-        assert "SC-012" in joined
-        assert "WP03" not in joined
 
 
 class TestNormalizeRequirementRefsValue:

@@ -42,7 +42,7 @@ def _kernel_consumer() -> str:
 
 def _doctrine_consumer() -> str:
     """doctrine -- no production door consumer exists yet (WP06 remediates
-    ``src/doctrine/``); sanctioned fallback per WP02 scope note."""
+    ``src/charter/offering/``); sanctioned fallback per WP02 scope note."""
     return now_utc_iso()
 
 

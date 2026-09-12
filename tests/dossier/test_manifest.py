@@ -249,23 +249,11 @@ class TestManifestRegistry:
         assert any(s.artifact_key == "input.spec.main" for s in specs)
 
     def test_get_required_artifacts_plan_step(self):
-        """Get required artifacts for software-dev plan step.
-
-        Reconciled (WP02/FR-006): the `plan` step requires only plan.md;
-        tasks.md moved to the separate `tasks_outline` step, matching
-        `_evaluate_software_dev_guards`' `plan` branch, which only checks
-        the plan artifact.
-        """
+        """Get required artifacts for software-dev plan step."""
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
         specs = ManifestRegistry.get_required_artifacts(manifest, "plan")
-        # Pins the whole collection -- exactly plan.md, nothing else (in
-        # particular NOT tasks.md, which a stray extra entry would catch).
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in specs
-        ] == [
-            ("output.plan.main", ArtifactClassEnum.OUTPUT, "plan.md", True),
-        ]
+        assert [s.artifact_key for s in specs] == ["output.plan.main"]
 
     def test_get_required_artifacts_unknown_step(self):
         """Get required artifacts for unknown step returns gracefully."""
@@ -403,6 +391,17 @@ class TestManifestIntegration:
         assert spec_md[0].blocking is True
         assert spec_md[0].path_pattern == "spec.md"
 
+    def test_software_dev_manifest_plan_step_has_plan_only(self):
+        """software-dev manifest requires only plan.md at plan step."""
+        manifest = ManifestRegistry.load_manifest("software-dev")
+        assert manifest is not None
+        specs = ManifestRegistry.get_required_artifacts(manifest, "plan")
+        plan_md = [s for s in specs if s.artifact_key == "output.plan.main"]
+        tasks_md = [s for s in specs if s.artifact_key == "output.tasks.list"]
+        assert len(plan_md) > 0
+        assert tasks_md == []
+        assert all(s.blocking for s in plan_md)
+
     def test_software_dev_has_optional_research_evidence(self):
         """software-dev manifest includes optional research.md."""
         manifest = ManifestRegistry.load_manifest("software-dev")
@@ -412,10 +411,15 @@ class TestManifestIntegration:
         assert len(research) > 0
         assert research[0].path_pattern == "research.md"
 
-    # test_software_dev_implement_requires_analysis_report removed (WP02/FR-008):
-    # the `implement` step no longer requires analysis-report.md, matching
-    # `_evaluate_wp_iteration_guard`, which never checks it on disk. Replaced by
-    # TestManifestReconciliation.test_software_dev_manifest_implement_has_no_filesystem_requirement.
+    def test_software_dev_tasks_outline_requires_tasks_artifact(self):
+        """software-dev manifest requires tasks.md at the tasks-outline step."""
+        manifest = ManifestRegistry.load_manifest("software-dev")
+        assert manifest is not None
+        specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_outline")
+        tasks = [s for s in specs if s.artifact_key == "output.tasks.list"]
+        assert len(tasks) > 0
+        assert tasks[0].blocking is True
+        assert tasks[0].path_pattern == "tasks.md"
 
     def test_research_manifest_scoping_step_requires_spec(self):
         """research manifest requires spec.md at scoping step."""
@@ -1278,9 +1282,9 @@ class TestOverrideMirrorDeprecation:
     content to keep it "in sync" is the literal shape of parity-with-a-dead-quirk,
     charter DIRECTIVE_044's named anti-pattern). Verified first-hand:
     `MissionTemplateRepository._expected_artifacts_path()`
-    (`src/doctrine/missions/repository.py`) composes only
+    (`src/charter/offering/missions/repository.py`) composes only
     `default_missions_root()` -> `charter.offering.pack_paths.built_in_missions_root()`
-    (the `packs/built-in/missions` tree); `src/doctrine/resolver.py` -- the
+    (the `packs/built-in/missions` tree); `src/charter/offering/resolver.py` -- the
     module that DOES implement the `.kittify/overrides/missions/{mission}/...`
     tier -- only wires that tier for `templates/`, `command-templates/`, and
     `mission.yaml`, never for `expected-artifacts.yaml`. So no reader anywhere

@@ -104,7 +104,7 @@ def test_synthetic_mission_type_is_picked_up_by_both_rosters(tmp_path: Path) -> 
     # lane worktree's own ``src/`` — ``uv run`` re-resolves the project rooted
     # at ``cwd`` so the subprocess sees the worktree's own accessor (T012-T014).
     result = subprocess.run(  # noqa: S603, S607 — fixed args, no shell, test-only; `uv` resolved via PATH like every other `uv run` invocation in this suite
-        ["uv", "run", "python", str(driver_script), str(tmp_path)],
+        ["uv", "run", "--frozen", "python", str(driver_script), str(tmp_path)],
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,

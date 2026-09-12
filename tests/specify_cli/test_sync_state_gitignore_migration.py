@@ -1,10 +1,12 @@
 """Tests for the .kittify runtime git hygiene migration."""
 
+import os
 import subprocess
 from pathlib import Path
 
 import pytest
 
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade.migrations.m_3_2_0rc35_sync_state_gitignore import (
     KittifyRuntimeGitHygieneMigration,
 )
@@ -44,6 +46,19 @@ def test_apply_is_idempotent(tmp_path: Path) -> None:
     assert (
         tmp_path / ".gitignore"
     ).read_text(encoding="utf-8").count(".kittify/sync-state.json") == 1
+
+
+def test_detect_rejects_symlinked_gitignore(tmp_path: Path) -> None:
+    """detect() must not follow a .gitignore that is a symlink (issue #626)."""
+    outside_target = tmp_path.parent / f"outside-target-{os.getpid()}.txt"
+    outside_target.write_text("do-not-touch\n")
+    (tmp_path / ".gitignore").symlink_to(outside_target)
+
+    try:
+        with pytest.raises(GitignorePathError):
+            KittifyRuntimeGitHygieneMigration().detect(tmp_path)
+    finally:
+        outside_target.unlink(missing_ok=True)
 
 
 def test_apply_untracks_known_local_runtime_files(tmp_path: Path) -> None:

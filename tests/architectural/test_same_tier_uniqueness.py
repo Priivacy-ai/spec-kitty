@@ -21,6 +21,18 @@ A fault-injection test additionally proves the relation BITES on a synthetic
 double-run, independent of the live suite size.
 
 Consumes only the additive WP01 relation; it does not re-derive the model.
+
+Retired (planning#57): the three LIVE checks above (``test_no_test_selected_by_multiple_fast_shards``,
+``test_no_test_selected_by_multiple_integration_shards``, ``test_split_preserves_zero_orphans``)
+asserted the relation against ``_gate_coverage.load_gates()``, which parses the
+real ``.github/workflows/*.yml`` — the leftover pre-programme GitHub Actions
+YAML deleted per PROGRAM.md §2. With no workflow YAML left to parse, that half
+(and the now-unused ``gates``/``universe`` fixtures backing it) has no
+remaining subject matter and was removed with the files. The fault-injection
+tests below never read a real workflow — each builds its OWN synthetic
+``gc.Gate``/``gc.TestRecord`` objects — and stay as non-fakeable evidence that
+``gc.same_tier_shard_counts`` itself still catches a planted same-tier
+double-run.
 """
 
 from __future__ import annotations
@@ -32,7 +44,6 @@ from tests.architectural import _gate_coverage as gc
 pytestmark = [pytest.mark.architectural]
 
 _MAX_SHARDS_PER_TIER = 1
-_SAMPLE_LIMIT = 8
 
 # fast-tests-corpus (#3008) re-runs @pytest.mark.corpus readers under a
 # data-path trigger disjoint from the home shards' code-path triggers, so its
@@ -40,69 +51,6 @@ _SAMPLE_LIMIT = 8
 # double-run; excluded from the uniqueness PEER set. Durable NFR-003
 # reconciliation tracked in #3315.
 _TRIGGER_DISJOINT_FAST_JOBS = frozenset({"fast-tests-corpus"})
-
-
-@pytest.fixture(scope="module")
-def gates() -> list[gc.Gate]:
-    """All parsed CI selection gates across the suite-running workflows."""
-    return gc.load_gates()
-
-
-@pytest.fixture(scope="module")
-def universe() -> list[gc.TestRecord]:
-    """Every collected test with its marker set (one ``--collect-only`` pass)."""
-    return gc.collect_universe()
-
-
-def test_no_test_selected_by_multiple_fast_shards(
-    gates: list[gc.Gate],
-    universe: list[gc.TestRecord],
-) -> None:
-    """Each test is selected by at most one fast-tier shard, excluding the
-    trigger-disjoint overlay gates in ``_TRIGGER_DISJOINT_FAST_JOBS`` (e.g.
-    ``fast-tests-corpus``, #3008) — their overlap with a home shard is
-    intentional (data-path trigger vs. code-path trigger), not a same-tier
-    double-run. See #3315 for the durable model reconciliation.
-    """
-    peer_gates = [g for g in gates if g.job not in _TRIGGER_DISJOINT_FAST_JOBS]
-    counts = gc.same_tier_shard_counts(peer_gates, universe)
-    offenders = sorted(
-        nid
-        for nid, count in counts.items()
-        if count["count_fast_shards"] > _MAX_SHARDS_PER_TIER
-    )
-    assert not offenders, (
-        f"tests selected by >1 fast shard ({len(offenders)}); "
-        f"sample: {offenders[:_SAMPLE_LIMIT]}"
-    )
-
-
-def test_no_test_selected_by_multiple_integration_shards(
-    gates: list[gc.Gate],
-    universe: list[gc.TestRecord],
-) -> None:
-    """RED today: each test is selected by at most one integration-tier shard."""
-    counts = gc.same_tier_shard_counts(gates, universe)
-    offenders = sorted(
-        nid
-        for nid, count in counts.items()
-        if count["count_integration_shards"] > _MAX_SHARDS_PER_TIER
-    )
-    assert not offenders, (
-        f"tests selected by >1 integration shard (pre-WP03 RED, {len(offenders)}); "
-        f"sample: {offenders[:_SAMPLE_LIMIT]}"
-    )
-
-
-def test_split_preserves_zero_orphans(
-    gates: list[gc.Gate],
-    universe: list[gc.TestRecord],
-) -> None:
-    """SC-004 no-drop floor (GREEN): the selection covers every test (0 orphans)."""
-    report = gc.analyze(gates, universe)
-    assert report.orphan_count == 0, (
-        f"orphaned tests (selected by 0 gates): {report.orphan_nodeids[:_SAMPLE_LIMIT]}"
-    )
 
 
 def test_same_tier_relation_bites_on_synthetic_double_run() -> None:

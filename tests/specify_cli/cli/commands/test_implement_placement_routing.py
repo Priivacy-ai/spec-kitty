@@ -105,6 +105,27 @@ class TestResolveClaimCommitTargetFailClosed:
         clause_body = source[raise_idx:warning_idx]
         assert any(line.strip() == "raise" for line in clause_body.splitlines())
 
+    def test_head_mismatch_is_not_swallowed_as_soft_warning(self) -> None:
+        """#610: the same broad ``except Exception`` downgrade also swallowed
+        ``SafeCommitHeadMismatch`` -- a genuine branch-name mismatch on the
+        WP-status claim commit -- leaving the worktree dirty (the status/lane
+        files were already written to disk before the commit was attempted)
+        for ``merge``'s dirty-worktree gate to trip on later. Mirrors
+        ``test_structured_error_is_not_swallowed_as_soft_warning`` above:
+        needs its own explicit ``except SafeCommitHeadMismatch: raise``
+        clause, ordered before the generic downgrade-to-warning handler.
+        """
+        import inspect
+
+        from specify_cli.cli.commands.implement import implement
+
+        source = inspect.getsource(implement)
+        raise_idx = source.index("except SafeCommitHeadMismatch:")
+        warning_idx = source.index('console.print(f"[yellow]Warning:[/yellow] Could not update WP status')
+        assert raise_idx < warning_idx
+        clause_body = source[raise_idx:warning_idx]
+        assert any(line.strip() == "raise" for line in clause_body.splitlines())
+
 
 # ---------------------------------------------------------------------------
 # T011 -- _ensure_planning_artifacts_committed_git routes via placement_ref

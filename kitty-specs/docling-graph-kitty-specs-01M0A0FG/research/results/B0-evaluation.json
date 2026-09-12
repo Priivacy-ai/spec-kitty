@@ -1,9 +1,0 @@
-{
-  "schema_version": 1,
-  "candidate": "B0",
-  "evidence_status": "NOT_EVIDENCE_annotation_replay",
-  "pass": null,
-  "expected_count": 20,
-  "actual_count": 20,
-  "limitation": "Rows were copied from sealed gold; no baseline workflow or reader was executed."
-}

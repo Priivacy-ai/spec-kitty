@@ -107,9 +107,7 @@ def test_protect_main_rejects_issue_references_outside_subject_suffix(tmp_path: 
         "feat: a rebase-merged commit keeps its original subject\n\nNo PR suffix here.",
     ],
 )
-def test_protect_main_accepts_rebase_merge_when_commit_belongs_to_merged_pr(
-    tmp_path: Path, message: str
-) -> None:
+def test_protect_main_accepts_rebase_merge_when_commit_belongs_to_merged_pr(tmp_path: Path, message: str) -> None:
     # Rebase-and-merge replays the PR's commits verbatim (no "(#PR)" suffix,
     # author is the committer). The workflow accepts them via the commit's PR
     # association, injected here as MERGED_PR_FOR_HEAD.

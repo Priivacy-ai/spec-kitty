@@ -365,7 +365,7 @@ class CharterYaml(BaseModel):
     ⚠ Activation is FLAT AT THE ROOT (paula BLOCKER-1) — the ten
     ``activated_*`` / ``mission_type_activations`` fields below are NOT
     nested under an ``activation:`` key, matching
-    ``src/charter/packs/default.yaml:5-38``, so
+    ``src/charter/activation/packs/default.yaml:5-38``, so
     ``pack_context._read_activated_*`` / ``_read_list_key`` and
     ``activation_engine.commit_plan`` read/write them unchanged.
     ``model_config`` forbids extra fields, which doubles as the structural

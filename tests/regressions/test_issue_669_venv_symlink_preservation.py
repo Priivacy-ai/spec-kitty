@@ -54,7 +54,9 @@ def test_install_preserves_venv_symlink_in_exec_line(
     )
 
     hook_body = (repo / ".git" / "hooks" / "pre-commit").read_text()
-    exec_line = next(line for line in hook_body.splitlines() if line.startswith("exec "))
+    exec_line = next(
+        line for line in hook_body.splitlines() if line.strip().startswith("exec ")
+    )
     assert str(symlink) in exec_line, (
         f"exec line should quote symlink path, got: {exec_line}"
     )

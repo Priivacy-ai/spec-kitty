@@ -119,6 +119,11 @@ from specify_cli.merge.git_probes import (
 # WP06 (#2057): the merge --dry-run forecast (preview + payload build) lives in
 # the merge seam's ``forecast`` module; the command body delegates to it.
 from specify_cli.merge.forecast import run_dry_run_forecast
+from specify_cli.merge.retention import (
+    MISSION_RETENTION_CLEANUP_CONFLICT,
+    load_mission_retention,
+    retention_cleanup_conflicts,
+)
 # WP08 (#2057): done/approved transition emission, the done asserts, resume
 # reconcile, and the per-WP recording loop live in the merge seam's
 # ``done_bookkeeping`` module. _mark_wp_merged_done + the asserts are re-exported
@@ -133,13 +138,11 @@ from specify_cli.merge.done_bookkeeping import (
     _resolve_merge_actor,
 )
 # WP10 (#2057): the lane-based merge executor (the global-lock wrapper + the
-# decomposed CC-102 locked driver + the diff-summary helper) lives in the merge
-# seam's ``executor`` module. Re-imported here (and re-exported via __all__) so
-# the command body + the test/integration-imported _run_lane_based_merge[_locked]
-# / _emit_merge_diff_summary keep importing from the shim (FR-006). One-way
-# import: ``executor`` never imports this shim.
+# decomposed CC-102 locked driver) lives in the merge seam's ``executor``
+# module. Re-imported here (and re-exported via __all__) so the command body +
+# the test/integration-imported _run_lane_based_merge[_locked] keep importing
+# from the shim (FR-006). One-way import: ``executor`` never imports this shim.
 from specify_cli.merge.executor import (
-    _emit_merge_diff_summary,
     _run_lane_based_merge,
     _run_lane_based_merge_locked,
 )
@@ -395,6 +398,67 @@ def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
     return existing_state.mission_slug if not mission_slug_raw else mission
 
 
+def _enforce_retention_cleanup(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
+    json_output: bool,
+) -> None:
+    """Require explicit cleanup choices when a mission retains its artifacts."""
+
+    retention = load_mission_retention(get_main_repo_root(repo_root), mission_slug)
+    conflicts = retention_cleanup_conflicts(
+        retention,
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
+    )
+    if not conflicts:
+        return
+
+    remediation = [
+        "--keep-branch and/or --keep-worktree to retain those artifacts",
+        "--delete-branch and/or --remove-worktree to separately direct cleanup",
+    ]
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "mission_slug": mission_slug,
+                    "blocked": True,
+                    "blockers": [
+                        {
+                            "diagnostic_code": MISSION_RETENTION_CLEANUP_CONFLICT,
+                            "retained": list(conflicts),
+                            "constraint_id": retention.constraint_id
+                            if retention
+                            else None,
+                            "remediation": remediation,
+                        }
+                    ],
+                    "diagnostic_code": MISSION_RETENTION_CLEANUP_CONFLICT,
+                }
+            )
+        )
+    else:
+        console.print(
+            "[red]Error:[/red] Mission retention constraint "
+            f"{retention.constraint_id if retention else '<unknown>'} requires an "
+            "explicit cleanup decision."
+        )
+        console.print(
+            "Omitted cleanup flags default to deletion; retained fields: "
+            + ", ".join(conflicts)
+            + "."
+        )
+        console.print(f"  diagnostic_code: {MISSION_RETENTION_CLEANUP_CONFLICT}")
+        for action in remediation:
+            console.print(f"  - {action}")
+    raise typer.Exit(1)
+
+
 def _run_real_merge(
     repo_root: Path,
     *,
@@ -600,6 +664,15 @@ def merge(
         )
         raise typer.Exit(1)
 
+    if resolved_mission:
+        _enforce_retention_cleanup(
+            repo_root,
+            resolved_mission,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
+            json_output=json_output,
+        )
+
     if dry_run:
         # WP06 (#2057): the dry-run preview + payload build lives in the
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
@@ -665,7 +738,6 @@ __all__ = [
     "_clear_merge_state_for_mission",
     "_run_lane_based_merge",
     "_run_lane_based_merge_locked",
-    "_emit_merge_diff_summary",
     "_classify_porcelain_lines",
     "_lane_already_integrated",
     "_raw_porcelain_status",

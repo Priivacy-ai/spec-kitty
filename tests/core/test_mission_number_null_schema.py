@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -28,6 +27,7 @@ from tests._factories import provision_test_charter
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _write_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
     """Write a meta.json for test fixtures."""
@@ -180,7 +180,8 @@ def test_float_type_raises_type_error(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_create_mission_core_writes_null_mission_number(tmp_path: Path) -> None:
+@pytest.mark.git_repo
+def test_create_mission_core_writes_null_mission_number(temp_repo: Path) -> None:
     """Creating a new mission writes mission_number: null (JSON null)."""
     from specify_cli.core.mission_creation import create_mission_core
 
@@ -188,27 +189,16 @@ def test_create_mission_core_writes_null_mission_number(tmp_path: Path) -> None:
     # Seed the default mission_type_activations via the production
     # provisioner (same shared helper used across the mission-creation
     # test harness).
-    provision_test_charter(tmp_path)
+    provision_test_charter(temp_repo)
 
-    # create_mission_core needs a real git repo. Stub the git and filesystem
-    # operations that are not part of what we're testing.
-    with (
-        patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
-        patch("specify_cli.core.mission_creation.locate_project_root", return_value=None),
-        patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
-        patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
-        patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
-        patch("specify_cli.status.fire_dossier_sync"),
-    ):
-        # Provide a real tmp_path as repo_root so file creation works
-        # but without a real git repo
-        result = create_mission_core(
-            tmp_path,
-            "foo-bar",
-            friendly_name="Foo Bar",
-            purpose_tldr="Deliver foo bar cleanly for the team.",
-            purpose_context="This mission delivers foo bar so product and engineering can move forward with a clear outcome and shared understanding.",
-        )
+    result = create_mission_core(
+        temp_repo,
+        "foo-bar",
+        allow_worktree_context=True,
+        friendly_name="Foo Bar",
+        purpose_tldr="Deliver foo bar cleanly for the team.",
+        purpose_context="This mission delivers foo bar so product and engineering can move forward with a clear outcome and shared understanding.",
+    )
 
     meta_path = result.feature_dir / "meta.json"
     assert meta_path.exists()
@@ -221,60 +211,46 @@ def test_create_mission_core_writes_null_mission_number(tmp_path: Path) -> None:
     assert not isinstance(meta.get("mission_number"), str)
 
 
-def test_create_mission_core_mission_number_field_is_none_in_result(tmp_path: Path) -> None:
+@pytest.mark.git_repo
+def test_create_mission_core_mission_number_field_is_none_in_result(temp_repo: Path) -> None:
     """MissionCreationResult.mission_number is None for new missions."""
     from specify_cli.core.mission_creation import create_mission_core
 
     # WP04 fail-closed: create_mission_core requires a provisioned charter.
-    provision_test_charter(tmp_path)
+    provision_test_charter(temp_repo)
 
-    with (
-        patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
-        patch("specify_cli.core.mission_creation.locate_project_root", return_value=None),
-        patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
-        patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
-        patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
-        patch("specify_cli.status.fire_dossier_sync"),
-    ):
-        result = create_mission_core(
-            tmp_path,
-            "bar-baz",
-            friendly_name="Bar Baz",
-            purpose_tldr="Deliver bar baz cleanly for the team.",
-            purpose_context="This mission delivers bar baz so product and engineering can move forward with a clear outcome and shared understanding.",
-        )
+    result = create_mission_core(
+        temp_repo,
+        "bar-baz",
+        allow_worktree_context=True,
+        friendly_name="Bar Baz",
+        purpose_tldr="Deliver bar baz cleanly for the team.",
+        purpose_context="This mission delivers bar baz so product and engineering can move forward with a clear outcome and shared understanding.",
+    )
 
     assert result.mission_number is None
 
 
-def test_new_mission_feature_dir_uses_human_slug_mid8(tmp_path: Path) -> None:
+@pytest.mark.git_repo
+def test_new_mission_feature_dir_uses_human_slug_mid8(temp_repo: Path) -> None:
     """The feature directory name uses <human-slug>-<mid8> format."""
     from specify_cli.core.mission_creation import create_mission_core
 
     # WP04 fail-closed: create_mission_core requires a provisioned charter.
-    provision_test_charter(tmp_path)
+    provision_test_charter(temp_repo)
 
-    with (
-        patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
-        patch("specify_cli.core.mission_creation.locate_project_root", return_value=None),
-        patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
-        patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
-        patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
-        patch("specify_cli.status.fire_dossier_sync"),
-    ):
-        result = create_mission_core(
-            tmp_path,
-            "my-feature",
-            friendly_name="My Feature",
-            purpose_tldr="Deliver my feature cleanly for the team.",
-            purpose_context="This mission delivers my feature so product and engineering can move forward with a clear outcome and shared understanding.",
-        )
+    result = create_mission_core(
+        temp_repo,
+        "my-feature",
+        allow_worktree_context=True,
+        friendly_name="My Feature",
+        purpose_tldr="Deliver my feature cleanly for the team.",
+        purpose_context="This mission delivers my feature so product and engineering can move forward with a clear outcome and shared understanding.",
+    )
 
     # Directory name must NOT start with a 3-digit prefix
     dir_name = result.feature_dir.name
-    assert not (len(dir_name) > 3 and dir_name[:3].isdigit() and dir_name[3] == "-"), (
-        f"Directory name '{dir_name}' still uses the old NNN-slug format"
-    )
+    assert not (len(dir_name) > 3 and dir_name[:3].isdigit() and dir_name[3] == "-"), f"Directory name '{dir_name}' still uses the old NNN-slug format"
     # Must end with a mid8 (8 alphanumeric chars) separated by a hyphen
     parts = dir_name.rsplit("-", 1)
     assert len(parts) == 2, (  # golden-count: cardinality-is-contract

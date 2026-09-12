@@ -1,3 +1,0 @@
-FAILED tests/lanes/test_persistence.py::test_missing_manifest_raises_missing_lanes_error - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/lanes/test_persistence.py::test_missing_manifest_raises_missing_lanes_error
-===================== 1 failed in 3.10s ======================

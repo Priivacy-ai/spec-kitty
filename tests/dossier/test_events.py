@@ -66,30 +66,17 @@ def namespace() -> LocalNamespaceTuple:
 def captured_emissions(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     captured: list[dict[str, Any]] = []
 
-    def _fake(
-        event_type: str,
-        aggregate_id: str,
-        aggregate_type: str,
-        payload: dict[str, Any],
-        project_context: Any | None = None,
-        project_unit: Any | None = None,
-        project_layout: Any | None = None,
-    ) -> dict[str, Any]:
+    def _fake(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         captured.append(
-            # canonical-event-exempt(comparison): test double records the exact args the producer passed to fire_dossier_event so the test asserts on output
+            # canonical-event-exempt(comparison): test double records the exact args the producer passed to the no-transport drop seam
             {
                 "event_type": event_type,
-                "aggregate_id": aggregate_id,
-                "aggregate_type": aggregate_type,
                 "payload": payload,
-                "project_context": project_context,
-                "project_unit": project_unit,
-                "project_layout": project_layout,
             }
         )
         return {"ok": True, "event_id": f"fake-{len(captured)}"}
 
-    monkeypatch.setattr("specify_cli.dossier.events.fire_dossier_event", _fake)
+    monkeypatch.setattr("specify_cli.dossier.events._undelivered", _fake)
     return captured
 
 
@@ -188,8 +175,6 @@ class TestEmitArtifactIndexed:
         assert len(captured_emissions) == 1  # golden-count: cardinality-is-contract (call-count; content pinned below)
         evt = captured_emissions[0]
         assert evt["event_type"] == "MissionDossierArtifactIndexed"
-        assert evt["aggregate_type"] == "MissionDossier"
-        assert evt["aggregate_id"] == "042-feature:spec.md"
 
         payload = evt["payload"]
         assert set(payload.keys()).issubset({"namespace", "artifact_id", "content_ref", "indexed_at", "provenance", "step_id", "context_diagnostics", "supersedes"})
@@ -549,3 +534,17 @@ class TestPayloadJsonRoundTrip:
         )
         payload = captured_emissions[0]["payload"]
         json.dumps(payload)
+
+
+class TestNoTransportDrop:
+    def test_unpatched_emitter_returns_none(self, namespace: LocalNamespaceTuple) -> None:
+        result = emit_artifact_indexed(
+            mission_slug="042-feature",
+            artifact_key="input.spec.main",
+            artifact_class="input",
+            relative_path="spec.md",
+            content_hash_sha256="a" * 64,
+            size_bytes=1024,
+            namespace=namespace,
+        )
+        assert result is None

@@ -12,7 +12,7 @@ follow-up: it authored ``RELATION_DESCRIPTIONS`` entries and matching
 ``_SCOPED_RELATIONS`` to cover all 15 ``Relation`` members. There is no
 remaining excluded subset.
 
-``RELATION_DESCRIPTIONS`` in ``src/doctrine/drg/models.py`` (WP01/WP04) is the
+``RELATION_DESCRIPTIONS`` in ``src/charter/offering/drg/models.py`` (WP01/WP04) is the
 single canonical authority for relation description text. This module is
 READ-ONLY with respect to that registry: it consumes the text, it never
 edits it. The mirrored copy for human readers lives in

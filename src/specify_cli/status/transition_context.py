@@ -27,3 +27,5 @@ class TransitionContext:
     force: bool = False  # Bypass terminal guard?
     implementation_evidence_present: bool = False  # For -> for_review guard
     current_actor: str | None = None  # Who currently holds the WP (conflict detection)
+    # Tri-state dependency verdict (FR-012); None = no verdict => guard passes (C-004)
+    dependency_ready: bool | None = None

@@ -5,11 +5,9 @@ Every decision below is anchored to file:line evidence.
 
 ## D1 — Home for the relocated authority: `charter/activation/manifest_loader.py`
 
-- **Decision**: Put the cached loader *function* in `charter/activation/`, and
-  DEFINE `ManifestSchemaError` beside it in `charter/activation/manifest_loader.py`
-  (as shipped — NOT `repository.py`, which would force an `offering→activation`
-  import). The sibling `MalformedManifestError` stays charter-resident in
-  `charter/offering/missions/repository.py:38`; both are re-exported via the shim.
+- **Decision**: Put the cached loader *function* in `charter/activation/`. Move
+  `ManifestSchemaError` into `charter/offering/missions/repository.py` beside the
+  already-charter-resident `MalformedManifestError` (`repository.py:38`).
 - **Rationale**: The loader needs `resolve_org_expected_artifacts`
   (`charter/activation/org_expected_artifacts.py:54`), `resolve_existing_org_roots`
   (`charter/offering/drg/org_pack_config.py:571`), `MissionTemplateRepository`

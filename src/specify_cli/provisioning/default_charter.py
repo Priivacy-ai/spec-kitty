@@ -1,6 +1,6 @@
 """Fresh-init ``mission_type_activations`` provisioning (FR-009/010/011).
 
-The provisioned surface is ``src/charter/packs/default.yaml`` — the same
+The provisioned surface is ``src/charter/activation/packs/default.yaml`` — the same
 shipped file the ``3.2.0rc35_default_charter_pack`` upgrade migration reads
 (``specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack``).  This
 module is the *fresh-init* counterpart: it seeds a brand-new project's
@@ -79,7 +79,7 @@ class DefaultCharterPackMissingError(RuntimeError):
 
     Fresh-init provisioning (FR-011) fails closed rather than writing an
     implicit or empty ``mission_type_activations`` set when
-    ``src/charter/packs/default.yaml`` is missing or does not declare the
+    ``src/charter/activation/packs/default.yaml`` is missing or does not declare the
     key — a broken spec-kitty install, never a legitimate project state.
     """
 
@@ -129,7 +129,7 @@ def provision_default_mission_type_activations(project_path: Path) -> bool:
     """Seed ``.kittify/config.yaml``'s ``mission_type_activations`` for a fresh project.
 
     Copies the authored ``mission_type_activations`` list from the shipped
-    ``src/charter/packs/default.yaml`` into ``project_path/.kittify/config.yaml``
+    ``src/charter/activation/packs/default.yaml`` into ``project_path/.kittify/config.yaml``
     (C-A3), but only when the key is entirely absent — an authored empty list
     (``mission_type_activations: []``, C-008/C-A2) or any already-present
     list (custom entries included, C-A5/I-8) is left untouched. Re-running

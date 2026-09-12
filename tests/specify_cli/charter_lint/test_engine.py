@@ -346,7 +346,6 @@ class TestNoLLMCalls:
             )
 
 
-@pytest.mark.performance
 class TestPerformance:
     """T036-S8: 500-node fixture completes in < 5 seconds."""
 

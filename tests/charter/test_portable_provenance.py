@@ -84,7 +84,7 @@ class TestExcludedCallersByteUnchanged:
 
         assert template_refs, "expected a template_set reference in compiled catalog"
         source_path = template_refs[0].source_path
-        # Post-relocation, the mission.yaml source has no "src/doctrine/"
+        # Post-relocation, the mission.yaml source has no "src/charter/offering/"
         # marker for _trim_source_path to trim on, so it is returned
         # UNCHANGED -- i.e. still the full absolute path, never a token.
         assert Path(source_path).is_absolute()

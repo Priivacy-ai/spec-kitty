@@ -381,7 +381,7 @@ def test_saas_sync_off_exits_3(
 ) -> None:
     workspace = _stage_clean(tmp_path)
     monkeypatch.setattr(orchestrator, "_SAAS_SYNC_PRESET", False)
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     rc = orchestrator.main(
         [
@@ -406,7 +406,7 @@ def test_saas_sync_off_writes_report(
 ) -> None:
     workspace = _stage_clean(tmp_path)
     monkeypatch.setattr(orchestrator, "_SAAS_SYNC_PRESET", False)
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     report_path = workspace / "report.json"
     rc = orchestrator.main(

@@ -19,8 +19,8 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
 from charter.offering.drg.models import DRGGraph, NodeKind, Relation
 from charter.offering.drg.reachability import agent_profile_seed_urns, profile_channel_reachable

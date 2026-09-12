@@ -87,8 +87,10 @@ def _write_directive(directory: Path, stem: str, artifact_id: str) -> None:
         textwrap.dedent(
             f"""\
             id: {artifact_id}
-            type: directive
+            schema_version: "1.0"
             title: {artifact_id}
+            intent: Enforce project operational guidance.
+            enforcement: required
             """
         ),
         encoding="utf-8",

@@ -88,15 +88,16 @@ def _declared_action_labels(repo_root: Path) -> frozenset[str]:
     caught alongside ``DRGLoadError`` -- the shipped-graph-missing case
     (e.g. a broken install) surfaces as a raw ``OSError``, not a translated
     ``DRGLoadError``, matching the established idiom at
-    ``charter.activation.reference_resolver``'s own ``load_validated_graph`` call site.
+    ``charter.reference_resolver``'s own ``load_validated_graph`` call site.
     """
     from charter.offering.drg.loader import DRGLoadError  # noqa: PLC0415 -- leaf import, no cycle risk
+    from charter.offering.drg.validator import DRGValidationError  # noqa: PLC0415 -- leaf import, no cycle risk
 
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415 -- see cycle note below
 
     try:
         merged = load_validated_graph(repo_root)
-    except (DRGLoadError, OSError):
+    except (DRGLoadError, DRGValidationError, OSError):
         return frozenset()
     return frozenset(
         urn.split("/", 1)[1]
@@ -125,13 +126,12 @@ def validate_local_support_declarations(
     valid: list[LocalSupportDeclaration] = []
     errors: list[str] = []
 
-    # Cycle note: `charter.activation.context` sits ABOVE `charter.activation.interview` in the
-    # existing import graph (`charter.activation.context` -> `charter.activation.language_scope` ->
-    # `charter.activation.interview`, both at module scope), so a module-level
-    # `from charter.activation.context import BOOTSTRAP_ACTIONS` here would import a
-    # partially-initialized `charter.activation.interview` back through that chain.
+    # Cycle note: `charter.activation.context` sits above this module in the
+    # existing import graph, so a module-level import of
+    # ``BOOTSTRAP_ACTIONS`` could import a partially initialized module back
+    # through that chain.
     # Function-local import breaks the cycle (established pattern -- see
-    # `charter.activation.resolver`'s lazy `CharterInterview` import).
+    # `charter.resolver`'s lazy `CharterInterview` import).
     from charter.activation.context import BOOTSTRAP_ACTIONS  # noqa: PLC0415
 
     declared_labels = _declared_action_labels(repo_root) if repo_root is not None else frozenset()

@@ -115,21 +115,34 @@ def is_excluded(login: str, deny_pattern: re.Pattern[str]) -> bool:
 
 
 def load_contributors_api(repo: str, deny_pattern: re.Pattern[str]) -> set[str]:
-    rows = run_text(
-        [
-            "gh",
-            "api",
-            "--paginate",
-            f"repos/{repo}/contributors?per_page=100",
-            "--jq",
-            '.[] | select(.type != "Bot") | .login',
-        ]
-    )
+    # Manual page loop instead of bare `gh api --paginate`: on the exe.dev
+    # `github.int.exe.xyz` proxy, `--paginate` silently stops after page 1
+    # because the proxy's Link header omits `rel="last"`, which confuses
+    # gh's built-in paginator. A manual `&page=N` loop is proxy-agnostic.
+    # Pagination is decided from the raw page size, not the bot-filtered
+    # count, so a page that happens to be all bots doesn't look short.
     result: set[str] = set()
-    for raw in rows.splitlines():
-        login = raw.strip()
-        if login and not is_excluded(login, deny_pattern):
-            result.add(login)
+    page = 1
+    while True:
+        raw_page = run_json(
+            [
+                "gh",
+                "api",
+                f"repos/{repo}/contributors?per_page=100&page={page}",
+            ]
+        )
+        assert isinstance(raw_page, list)
+        if not raw_page:
+            break
+        for entry in raw_page:
+            login = str(entry.get("login", "")).strip()
+            if entry.get("type") == "Bot" or not login:
+                continue
+            if not is_excluded(login, deny_pattern):
+                result.add(login)
+        if len(raw_page) < 100:
+            break
+        page += 1
     return result
 
 

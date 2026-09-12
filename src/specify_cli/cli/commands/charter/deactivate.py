@@ -53,8 +53,25 @@ from specify_cli.cli.commands.charter._layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
 )
+from specify_cli.mission_step_contracts.profile_defaults import (
+    mission_default_profile_warning,
+)
 
 __all__ = ["deactivate_cmd"]
+
+
+def _warn_mission_default_binding(profile_id: str) -> None:
+    """#4115: warn when a deactivated agent profile is a built-in mission-step default.
+
+    ``charter deactivate agent-profile researcher-robbie`` used to succeed
+    silently while leaving every built-in mission step bound to that profile
+    one dispatch away from a blocked composition. The warning is advisory
+    (deactivation is legitimate); the executor's role-based fallback is the
+    behavioral half of the fix.
+    """
+    warning = mission_default_profile_warning(profile_id)
+    if warning is not None:
+        console.print(f"[yellow]Warning[/yellow]: {warning}")
 
 
 
@@ -187,6 +204,10 @@ def _render_cascade_deactivation(
             )
             continue
         console.print(f"[cyan]Cascade-deactivated[/cyan]: {kind_token}/{config_id}")
+        # #4115: a cascade can remove agent profiles bound by built-in
+        # mission steps exactly like a direct deactivation can.
+        if kind_token == ArtifactKind.AGENT_PROFILE.operator_token:
+            _warn_mission_default_binding(config_id)
 
     for skip in plan.skipped_shared:
         console.print(
@@ -286,7 +307,15 @@ def deactivate_cmd(
     for warn in result.warnings:
         console.print(f"[yellow]Warning[/yellow]: {warn}")
 
-    # FR-015/016: shared-reference-safe cascade deactivation via the WP11 engine.
+    # #4115: warn when the artifact just removed is a built-in mission-step
+    # default profile (direct-deactivation half; the cascade path warns per
+    # artifact inside ``_render_cascade_deactivation``).
+    if result.deactivated and kind == ArtifactKind.AGENT_PROFILE.operator_token:
+        _warn_mission_default_binding(
+            artifact_id.removeprefix(f"{ArtifactKind.AGENT_PROFILE.value}:")
+        )
+
+    # FR-015/FR-016: shared-reference-safe cascade deactivation via the WP11 engine.
     # Only runs when a scope was supplied and the direct deactivation actually
     # removed the target (so we never cascade off a no-op removal).
     if scope is not None and result.deactivated:

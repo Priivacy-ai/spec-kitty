@@ -1,6 +1,6 @@
 """Tests for `spec-kitty charter pack {list,path,apply}` (#3064 follow-up).
 
-`src/doctrine/assets/built-in/charter_scaffold_minimal.yml` (+ sidecar) was a
+`src/charter/offering/assets/built-in/charter_scaffold_minimal.yml` (+ sidecar) was a
 doctrine *asset* despite being structurally a charter pack — the same shape
 as `src/charter/activation/packs/default.yaml` (`activated_kinds` /
 `mission_type_activations` / `activated_directives` / `activated_tactics`).

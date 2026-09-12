@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
+from specify_cli.gitignore_manager import GitignorePathError
+
 if TYPE_CHECKING:
     from .migrations.base import BaseMigration
+
+logger = logging.getLogger(__name__)
 
 
 class MigrationRegistry:
@@ -90,7 +95,23 @@ class MigrationRegistry:
                 applicable.append(migration)
             # ALSO include migrations at current version if detect() returns True
             elif target == from_v and project_path is not None:  # noqa: SIM102
-                if migration.detect(Path(project_path) if isinstance(project_path, str) else project_path):
+                detect_path = Path(project_path) if isinstance(project_path, str) else project_path
+                try:
+                    migration_needed = migration.detect(detect_path)
+                except GitignorePathError as exc:
+                    # A symlinked `.gitignore`/`.claudeignore` makes detect()
+                    # fail closed rather than follow it (gitignore_manager.py)
+                    # -- select the migration so the runner can record a
+                    # fail-closed failure instead of silently skipping it and
+                    # advancing metadata past a migration it could not
+                    # safely evaluate.
+                    logger.warning(
+                        "Selecting migration %s after detect() failed closed: %s",
+                        migration.migration_id,
+                        exc,
+                    )
+                    migration_needed = True
+                if migration_needed:
                     applicable.append(migration)
 
         return applicable

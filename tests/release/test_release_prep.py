@@ -27,6 +27,7 @@ from specify_cli.release.changelog import (
 )
 from specify_cli.release.payload import ReleasePrepPayload, build_release_prep_payload
 from specify_cli.release.version import propose_version
+from tests._perf_helpers import assert_timing_budget
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -461,9 +462,23 @@ def test_close_comment_scope_cut_documented(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_build_release_prep_payload_for_16_wps(tmp_path: Path) -> None:
+    """Functional half of the #4015 split: payload is correct for 16 WPs."""
+    _write_pyproject(tmp_path, "3.1.0a7")
+
+    # Create a synthetic mission with 16 WPs
+    wp_statuses = {f"WP{i:02d}": "done" for i in range(1, 17)}
+    _write_mission(tmp_path, "068-big-mission", "Big Mission", wp_statuses)
+
+    payload = build_release_prep_payload("alpha", tmp_path)
+
+    assert payload.proposed_version == "3.1.0a8"
+    assert "068-big-mission" in payload.mission_slug_list
+
+
 @pytest.mark.performance
 def test_runs_within_5s_for_16_wps(tmp_path: Path) -> None:
-    """NFR-004: build_release_prep_payload returns within 5 seconds on 16 WPs."""
+    """NFR-004 (#4015 split): build_release_prep_payload returns within 5 seconds on 16 WPs."""
     _write_pyproject(tmp_path, "3.1.0a7")
 
     # Create a synthetic mission with 16 WPs
@@ -471,11 +486,7 @@ def test_runs_within_5s_for_16_wps(tmp_path: Path) -> None:
     _write_mission(tmp_path, "068-big-mission", "Big Mission", wp_statuses)
 
     start = time.monotonic()
-    payload = build_release_prep_payload("alpha", tmp_path)
+    build_release_prep_payload("alpha", tmp_path)
     elapsed = time.monotonic() - start
 
-    assert elapsed < 5.0, (
-        f"build_release_prep_payload took {elapsed:.2f}s — must be < 5s (NFR-004)"
-    )
-    assert payload.proposed_version == "3.1.0a8"
-    assert "068-big-mission" in payload.mission_slug_list
+    assert_timing_budget(elapsed, 5.0, name="elapsed")

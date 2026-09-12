@@ -144,9 +144,7 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
         activation_source = config_data
     else:
         if not pointer_path.exists():
-            raise _SpddActivationConfigError(
-                f".kittify/config.yaml 'charter:' pointer names {pointer_path}, which does not exist."
-            )
+            raise _SpddActivationConfigError(f".kittify/config.yaml 'charter:' pointer names {pointer_path}, which does not exist.")
         activation_source = _load_mapping(pointer_path)
 
     activated_paradigms = _read_activated_key(activation_source, _ACTIVATED_PARADIGMS_KEY)
@@ -164,12 +162,8 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
     # explicit `[]` ("nothing selected") -- the exact truthiness-collapse
     # bug class this mission exists to close.
     paradigm_active = activated_paradigms is None or PARADIGM_ID in activated_paradigms
-    tactic_active = activated_tactics is None or bool(
-        {TACTIC_FILL_ID, TACTIC_REVIEW_ID} & activated_tactics
-    )
-    directive_active = activated_directives is None or any(
-        _is_directive_038(entry) for entry in activated_directives
-    )
+    tactic_active = activated_tactics is None or bool({TACTIC_FILL_ID, TACTIC_REVIEW_ID} & activated_tactics)
+    directive_active = activated_directives is None or any(_is_directive_038(entry) for entry in activated_directives)
 
     return paradigm_active or tactic_active or directive_active
 

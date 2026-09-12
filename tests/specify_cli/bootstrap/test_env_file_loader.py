@@ -211,8 +211,9 @@ class TestFailPolicy:
         docstring on ``_read_tier`` for why: an absent ``.kitty.env`` is the
         default state for nearly every project, so a ``UserWarning`` on every
         CLI invocation would be noise, and concretely breaks the
-        clean-stderr-on-import contract other suites already pin (a bare
-        ``import specify_cli`` must not print anything).
+        clean-stderr-on-import contract pinned by the sibling subprocess
+        tests ``test_bare_import_emits_no_stderr`` and
+        ``test_bare_import_without_operator_env_file_is_silent`` below.
         """
         caplog.set_level(logging.DEBUG, logger="specify_cli.bootstrap.env_file")
         home = tmp_path / "state-home"
@@ -315,6 +316,56 @@ class TestLocatorRecursion:
 
 
 # --------------------------------------------------------------------------- #
+# #289: repo-tier .kitty.env is a checkout-controlled trust surface for the
+# SaaS identity vars -- pinned as documented behaviour, not a bug in this
+# loader (see docs/api/environment-variables.md, "The .kitty.env file", and
+# specify_cli/saas_client/auth.py's module docstring).
+# --------------------------------------------------------------------------- #
+
+
+class TestRepoTierSaasVarsAreSeeded:
+    """Unlike ``SPEC_KITTY_HOME`` (denied at every tier, C-LDR-4), this loader
+    does not -- and per its charter should not -- special-case
+    ``SPEC_KITTY_SAAS_URL``/``SPEC_KITTY_SAAS_TOKEN``/``SPEC_KITTY_TEAM_SLUG``.
+    A committed ``.kittify/.kitty.env`` seeds them like any other governed
+    var for anyone who clones the repo and runs ``spec-kitty`` inside it.
+    This test pins that fact so a future change here is a deliberate,
+    reviewed decision (#289's candidate resolution 2/3) rather than a silent
+    behaviour change.
+    """
+
+    def test_repo_tier_seeds_saas_url_token_and_team_slug(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
+    ) -> None:
+        _write_repo_env(
+            repo_dir,
+            "SPEC_KITTY_SAAS_URL=https://attacker.example\n"
+            "SPEC_KITTY_SAAS_TOKEN=attacker-token\n"
+            "SPEC_KITTY_TEAM_SLUG=attacker-team\n",
+        )
+
+        environ: dict[str, str] = {}
+        load_operator_env_file(start=repo_dir, environ=environ)
+
+        assert environ["SPEC_KITTY_SAAS_URL"] == "https://attacker.example"
+        assert environ["SPEC_KITTY_SAAS_TOKEN"] == "attacker-token"
+        assert environ["SPEC_KITTY_TEAM_SLUG"] == "attacker-team"
+
+    def test_real_env_saas_url_still_wins_over_repo_tier(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
+    ) -> None:
+        """Precedence (C-LDR-1) applies here too: an operator who already
+        exported ``SPEC_KITTY_SAAS_URL`` in their own shell is not overridden
+        by a cloned repo's ``.kitty.env``."""
+        _write_repo_env(repo_dir, "SPEC_KITTY_SAAS_URL=https://attacker.example\n")
+
+        environ: dict[str, str] = {"SPEC_KITTY_SAAS_URL": "https://operator.example"}
+        load_operator_env_file(start=repo_dir, environ=environ)
+
+        assert environ["SPEC_KITTY_SAAS_URL"] == "https://operator.example"
+
+
+# --------------------------------------------------------------------------- #
 # C-LDR-5: single config.yaml env_file pointer, resolved once
 # --------------------------------------------------------------------------- #
 
@@ -379,8 +430,8 @@ class TestConfigEnvFilePointer:
         """The env_file pointer must not break ``charter.offering.drg.org_pack_config.PackRegistry``.
 
         That model's ``model_config = ConfigDict(extra="forbid")``
-        (src/doctrine/drg/org_pack_config.py:307) validates ONLY the
-        ``doctrine.org`` subsection of config.yaml -- a sibling top-level
+        (src/charter/offering/drg/org_pack_config.py:307) validates ONLY the
+        ``charter.offering.org`` subsection of config.yaml -- a sibling top-level
         ``env_file:`` key must be invisible to it (C-LDR-5).
         """
         from charter.offering.drg.org_pack_config import load_pack_registry
@@ -471,20 +522,24 @@ def _subprocess_env(tmp_path: Path) -> dict[str, str]:
     return env
 
 
-_SAAS_HANDLER_COUNT_SCRIPT = (
-    "import specify_cli.sync  # noqa: F401 -- triggers the module-level gate at :455\n"
-    "from specify_cli.status import adapters\n"
-    "print(len(adapters._saas_handlers))\n"
+_SEEDED_ENV_PROBE_SCRIPT = (
+    "import os\n"
+    "import specify_cli  # noqa: F401 -- the seed must be in os.environ BEFORE this runs\n"
+    "print(os.environ.get('SPEC_KITTY_SYNC_MINIMAL_IMPORT', ''))\n"
 )
 
 
 @pytest.mark.integration
-def test_sync_minimal_import_set_only_in_kitty_env_gates_import_time_registration(
+def test_sync_minimal_import_set_only_in_kitty_env_reaches_os_environ_before_import(
     tmp_path: Path,
 ) -> None:
-    """C-LDR-2: SPEC_KITTY_SYNC_MINIMAL_IMPORT set ONLY in .kitty.env reaches
-    ``sync/__init__.py:455``'s import-time conditional -- proving the loader's
-    seed lands in ``os.environ`` BEFORE ``import specify_cli`` (:36) runs.
+    """C-LDR-2: SPEC_KITTY_SYNC_MINIMAL_IMPORT set ONLY in .kitty.env is visible in
+    ``os.environ`` as soon as ``import specify_cli`` has run -- proving the loader's
+    seed lands BEFORE any import-time consumer could read it.
+
+    The consumer this used to observe was ``sync/__init__.py``'s import-time
+    registration gate, which retired with the sync transport (issue #5). What is
+    left to pin — and what the loader actually owns — is the ordering itself.
     """
     repo = tmp_path / "repo"
     (repo / ".kittify").mkdir(parents=True)
@@ -495,7 +550,7 @@ def test_sync_minimal_import_set_only_in_kitty_env_gates_import_time_registratio
     assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" not in env, "must come from the file, not the real env"
 
     result = subprocess.run(
-        [sys.executable, "-c", _SAAS_HANDLER_COUNT_SCRIPT],
+        [sys.executable, "-c", _SEEDED_ENV_PROBE_SCRIPT],
         cwd=repo,
         env=env,
         text=True,
@@ -504,22 +559,22 @@ def test_sync_minimal_import_set_only_in_kitty_env_gates_import_time_registratio
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "0", (
-        f"expected register_default_handlers() to be SKIPPED (0 handlers) "
-        f"when SPEC_KITTY_SYNC_MINIMAL_IMPORT=1 comes from .kitty.env; "
+    assert result.stdout.strip() == "1", (
+        f"expected SPEC_KITTY_SYNC_MINIMAL_IMPORT from .kitty.env to be seeded into "
+        f"os.environ before `import specify_cli`; "
         f"got stdout={result.stdout!r} stderr={result.stderr}"
     )
 
 
 @pytest.mark.integration
-def test_control_without_kitty_env_registers_handlers_at_import_time(tmp_path: Path, sync_enabled) -> None:
-    """Control for the test above: absent the file, the default handlers DO register."""
+def test_control_without_kitty_env_seeds_nothing(tmp_path: Path) -> None:
+    """Control for the test above: absent the file, nothing is seeded."""
     repo = tmp_path / "repo"
     (repo / ".kittify").mkdir(parents=True)
     env = _subprocess_env(tmp_path)
 
     result = subprocess.run(
-        [sys.executable, "-c", _SAAS_HANDLER_COUNT_SCRIPT],
+        [sys.executable, "-c", _SEEDED_ENV_PROBE_SCRIPT],
         cwd=repo,
         env=env,
         text=True,
@@ -528,10 +583,56 @@ def test_control_without_kitty_env_registers_handlers_at_import_time(tmp_path: P
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() != "0", (
-        "control run (no .kitty.env) must register at least one default handler; "
+    assert result.stdout.strip() == "", (
+        "control run (no .kitty.env) must not seed SPEC_KITTY_SYNC_MINIMAL_IMPORT; "
         f"stdout={result.stdout!r} stderr={result.stderr}"
     )
+
+
+@pytest.mark.integration
+def test_bare_import_emits_no_stderr(tmp_path: Path) -> None:
+    """A bare ``import specify_cli`` at a real process boundary is silent."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    env = _subprocess_env(tmp_path)
+    env.pop("SPEC_KITTY_TEST_MODE", None)
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import specify_cli"],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    assert result.stderr == "", (
+        "a bare import must not print to stdout or stderr; "
+        f"stdout={result.stdout!r} stderr={result.stderr}"
+    )
+
+
+@pytest.mark.integration
+def test_bare_import_without_operator_env_file_is_silent(tmp_path: Path) -> None:
+    """A bare ``import specify_cli`` must print nothing when no file exists."""
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    env = _subprocess_env(tmp_path)
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import specify_cli"],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    assert result.stderr == ""
 
 
 # --------------------------------------------------------------------------- #

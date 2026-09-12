@@ -1,7 +1,7 @@
 """Shared loader for the shipped default charter pack's activation ID lists.
 
 Two ``specify_cli`` consumers both need the real built-in ``activated_<kind>``
-id sets from ``src/charter/packs/default.yaml``, as the ``default_ids``
+id sets from ``src/charter/activation/packs/default.yaml``, as the ``default_ids``
 argument to :func:`charter.activation.activation_engine.promote_activations` (the WP06
 absent-key LAND-BLOCKER safety: promoting into a previously-absent
 ``activated_<kind>`` config key must materialize every built-in id first,
@@ -91,7 +91,7 @@ def load_default_pack_activation_ids(
     """Load the shipped default-pack's ``activated_<kind>`` id lists.
 
     Reads ``<charter_pkg_root>/packs/default.yaml`` (defaults to
-    ``src/charter/packs/default.yaml``, the pack shipped with spec-kitty) and
+    ``src/charter/activation/packs/default.yaml``, the pack shipped with spec-kitty) and
     returns every top-level list-valued key verbatim — already in
     ``activated_<kind>`` form (``config.yaml``'s own key naming), so callers
     select only the keys they need via ``dict.get``.
@@ -137,7 +137,7 @@ def load_default_mission_type_activations(pack_path: Path | None = None) -> list
             (primarily for callers that already resolved/validated a path —
             e.g. ``specify_cli``'s ``resolve_builtin_pack_path`` seam — and
             for tests exercising a synthetic pack file). Defaults to the
-            shipped ``src/charter/packs/default.yaml``.
+            shipped ``src/charter/activation/packs/default.yaml``.
 
     Raises:
         CharterPackConfigError: the resolved pack file does not declare a

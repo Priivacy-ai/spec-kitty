@@ -265,7 +265,7 @@ register(
 # named properties, which is what made `--check` report this schema stale: the
 # committed schema instead pins the *specific* structural contract the
 # common-docs styleguide's block must satisfy
-# (`src/doctrine/styleguides/built-in/common-docs.styleguide.yaml`), because the
+# (`src/charter/offering/styleguides/built-in/common-docs.styleguide.yaml`), because the
 # `docs_structural_lint.py` asset that reads it (`_require_markers`,
 # `assets/built-in/docs_structural_lint.py`) parses `point_in_time_markers` as a
 # list of `{frontmatter_field, frontmatter_value}` objects and raises
@@ -382,27 +382,15 @@ register(
 
 
 # --- Mission ---
-def _mission_fixups(schema: dict) -> dict:
-    """Convert anyOf → oneOf for state items (string | object union)."""
-    defs = schema.get("definitions", {})
-    orch = defs.get("mission_orchestration", {})
-    orch_props = orch.get("properties", {})
-    if "states" in orch_props:
-        states = orch_props["states"]
-        items = states.get("items", {})
-        # Pydantic generates anyOf for str | MissionStateObject; schema uses oneOf
-        if "anyOf" in items:
-            items["oneOf"] = items.pop("anyOf")
-    return schema
-
-
+# No fixup: the former `_mission_fixups` (anyOf -> oneOf on the orchestration
+# `states` union) went with the MissionOrchestration family
+# (dead-port-disposition-01M1TZVN, T014b).
 register(
     "mission",
     "charter.offering.missions.models",
     "Mission",
     "Mission",
     "Minimal schema for doctrine mission definitions.",
-    extra=_mission_fixups,
     by_alias=True,
 )
 

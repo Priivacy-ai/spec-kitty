@@ -79,15 +79,6 @@ def test_provisioned_activation_set_passes_the_create_gate(tmp_path: Path) -> No
     create-boundary gate and creates the mission."""
     _init_git_repo(tmp_path)
     _write_activations(tmp_path, "mission_type_activations:\n  - software-dev\n")
-    # This is the only call site in this file that expects create_mission_core
-    # to SUCCEED (the other two assert CharterPackConfigError before the
-    # commit stage is reached), so it is the only one that needs a
-    # non-protected branch for safe_commit to land on.
-    subprocess.run(
-        ["git", "checkout", "-q", "-b", "feature/provisioned-mission"],
-        cwd=tmp_path,
-        check=True,
-    )
 
     result = create_mission_core(
         tmp_path,

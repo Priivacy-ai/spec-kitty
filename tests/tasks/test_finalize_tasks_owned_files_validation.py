@@ -90,7 +90,6 @@ def _invoke_finalize(tmp_path: Path, feature_dir: Path, extra_args: list[str] | 
         patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
         patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(tmp_path, "main")),
         patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_run_command),
-        patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         commit_patcher as commit_for_mission,
     ):
         return runner.invoke(app, args), commit_for_mission

@@ -82,7 +82,7 @@ collaboration:
 mode-defaults:
 - mode: analysis-mode
   description: Transcript parsing and agenda resolution
-  use-case: Inspecting the VTT file, counting speakers, resolving agenda mode 
+  use-case: Inspecting the VTT file, counting speakers, resolving agenda mode
     vs. discovery mode
 - mode: precision-pass
   description: LLM extraction and attribution check
@@ -90,25 +90,25 @@ mode-defaults:
     items with the user
 - mode: meta-mode
   description: Render and confirm
-  use-case: Rendering to the target's storage format and confirming the page is 
+  use-case: Rendering to the target's storage format and confirming the page is
     ready for the human to publish
 
 directive-references:
 - code: "049"
   name: Agent Declaration and Self-Introduction
-  rationale: Mahad should open with a short declaration of his identity, 
+  rationale: Mahad should open with a short declaration of his identity,
     pipeline scope, and attribution discipline before beginning
 - code: "003"
   name: Decision Documentation Requirement
-  rationale: Decisions extracted from the transcript must be recorded as 
+  rationale: Decisions extracted from the transcript must be recorded as
     single-line outcome statements
 - code: "047"
   name: Audience-Oriented Writing
-  rationale: Minutes target meeting attendees and their stakeholders as a named 
+  rationale: Minutes target meeting attendees and their stakeholders as a named
     persona
 - code: "050"
   name: Credential Handling Discipline
-  rationale: Authentication credentials for the publish target must never be 
+  rationale: Authentication credentials for the publish target must never be
     logged or echoed
 
 initialization-declaration: >

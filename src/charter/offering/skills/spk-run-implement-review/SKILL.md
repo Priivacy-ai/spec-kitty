@@ -31,11 +31,10 @@ take from seconds to a few minutes depending on scope size.
   control returns immediately, and do not kill or retry the command while it
   is still running.
 - To skip the gate for a single invocation, pass `--skip-pre-review-gate`.
-  To disable it process-wide, set `SPEC_KITTY_SYNC_DISABLE` or
-  `SPEC_KITTY_SYNC_MINIMAL_IMPORT` (the gate reuses the sync layer's
-  existing disable toggles rather than adding a third env var). Either
-  opt-out skips the gate before it resolves a workspace or spawns the
-  subprocess.
+  To disable it process-wide, set `SPEC_KITTY_SKIP_PRE_REVIEW_GATE` — the
+  gate's own opt-out name; it no longer reads the sync-disable vocabulary
+  (#3980). Either opt-out skips the gate before it resolves a workspace or
+  spawns the subprocess.
 - Absent an opt-out, the gate always enforces by default. An orchestrator
   observing a sub-agent that appears to hang on a `for_review` transition
   should first check whether the gate's scoped test subprocess is still

@@ -16,14 +16,17 @@ This module pins that contract two ways:
 
 * directly over ``progressive_disclosure.build_disclosure_payload`` with a
   synthetic DRG carrying a ``glossary_pack:<id>`` node — the glossary id must
-  appear in ``references[]`` (deterministic, no live doctrine required);
+  appear in ``references[]`` (deterministic, no live charter required);
 * over the live ``build_charter_context_json`` payload — a delivered glossary
   pack must NOT introduce a typed ``glossary``/``glossary_packs``/``assets``
-  array, and ``context_schema_version`` must stay pinned at ``1.1.0``.
+  array, and ``context_schema_version`` must stay pinned to the tracked
+  contract version (``1.3.0`` after the procedures and directives-source
+  additions).
 
 Red-first: on the base (glossary absent from ``extra_delivered``) the first
 assertion — the glossary id in ``references[]`` — fails.
 """
+
 from __future__ import annotations
 
 import textwrap
@@ -86,9 +89,7 @@ def test_delivered_glossary_pack_appears_in_references() -> None:
         body_of=None,
     )
     reference_ids = {ref["id"] for ref in payload["references"]}  # type: ignore[union-attr]
-    assert _GLOSSARY_ID in reference_ids, (
-        "delivered glossary pack must be named in the JSON references[] link set"
-    )
+    assert _GLOSSARY_ID in reference_ids, "delivered glossary pack must be named in the JSON references[] link set"
 
 
 def test_glossary_pack_is_reference_only_no_typed_array() -> None:
@@ -112,9 +113,7 @@ def _write_charter_fixture(tmp_path: Path) -> None:
     """A minimal activation-provisioned charter repo (mirrors test_procedures_json_array)."""
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (tmp_path / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     (charter_dir / "charter.md").write_text(
         textwrap.dedent(
             """\
@@ -134,7 +133,7 @@ def _write_charter_fixture(tmp_path: Path) -> None:
     (charter_dir / "governance.yaml").write_text(
         textwrap.dedent(
             """\
-            doctrine:
+            charter:
               template_set: software-dev-default
               selected_paradigms: []
               selected_directives: []
@@ -143,9 +142,7 @@ def _write_charter_fixture(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    (charter_dir / "references.yaml").write_text(
-        'schema_version: "1.0.0"\nreferences: []\n', encoding="utf-8"
-    )
+    (charter_dir / "references.yaml").write_text('schema_version: "1.0.0"\nreferences: []\n', encoding="utf-8")
 
 
 def test_live_payload_has_no_typed_glossary_array_and_pinned_version(
@@ -153,9 +150,7 @@ def test_live_payload_has_no_typed_glossary_array_and_pinned_version(
 ) -> None:
     """The live bootstrap payload keeps glossary reference-only; version unchanged."""
     _write_charter_fixture(tmp_path)
-    payload = build_charter_context_json(
-        tmp_path, action="implement", mission_type="software-dev"
-    )
+    payload = build_charter_context_json(tmp_path, action="implement", mission_type="software-dev")
 
     # No typed glossary/asset array is ever promoted (reference-only contract).
     assert "glossary" not in payload
@@ -164,11 +159,12 @@ def test_live_payload_has_no_typed_glossary_array_and_pinned_version(
     assert "glossary" not in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
     assert "glossary_packs" not in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
 
-    # ``references`` is already a declared top-level key — no schema bump needed.
+    # ``references`` is already a declared top-level key; the version tracks the
+    # combined procedures + directives-source contract.
     assert "references" in payload
     assert "references" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
-    assert CONTEXT_SCHEMA_VERSION == "1.2.0"
-    assert payload["context_schema_version"] == "1.2.0"
+    assert CONTEXT_SCHEMA_VERSION == "1.3.0"
+    assert payload["context_schema_version"] == "1.3.0"
 
     # No undeclared top-level key escaped the ledger after the glossary fold.
     assert set(payload) <= CONTEXT_CONTRACT_TOP_LEVEL_KEYS

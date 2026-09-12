@@ -129,7 +129,7 @@ username = "user@example.com"
 team_slug = "my-team"
 
 [server]
-url = "https://spec-kitty-dev.fly.dev"
+url = "https://team.spec-kitty.ai"
 ```
 
 A file lock (`~/.spec-kitty/credentials.lock`) prevents concurrent access.
@@ -138,7 +138,7 @@ A file lock (`~/.spec-kitty/credentials.lock`) prevents concurrent access.
 
 ## 2. Event Envelope Field Reference
 
-Every event sent to the batch endpoint has these envelope fields. The Pydantic `Event` model in `src/specify_cli/spec_kitty_events/models.py` enforces the core fields. The `EventEmitter` in `src/specify_cli/sync/emitter.py` adds extended fields for routing and observability.
+This historical batch-endpoint contract describes the retired sync transport. The external `spec-kitty-events` package's Pydantic `Event` model remains the schema reference; `src/specify_cli/sync/emitter.py` was deleted with that transport and is not a live CLI source.
 
 ### 2.1 Core Fields (Pydantic `Event` model)
 
@@ -255,9 +255,10 @@ surfaces and are not converted into event-journal rows by that mission.
 > additive, NFR-006/C-006).** The **wire** protocol in this section is unchanged:
 > the request body, the per-event `status` vocabulary (`success` / `duplicate` /
 > `rejected`), and every fixture below stay exactly as specified. What changes is
-> only the **local CLI behavior** for *event payload* rows once a `DeliveryReceiver`
-> drives delivery (the canonical source of this mapping is
-> `src/specify_cli/delivery/receivers.py`):
+> only the **local CLI behavior** for *event payload* rows while the (since-retired) local
+> receiver drove delivery (the canonical source of this mapping was
+> `src/specify_cli/delivery/receivers.py`, removed with the delivery subsystem on this line —
+> spec-kitty#5 / PR #114; the table is retained as historical wire-contract documentation):
 >
 > | Per-event / batch outcome | Local event-row effect after this mission |
 > |---|---|
@@ -340,7 +341,7 @@ Any non-200/400/401 status code is treated as a server error. All events are mar
 
 ## 4. Event Types and Payload Schemas
 
-The CLI emits 8 event types. Each has a defined payload schema enforced by `_PAYLOAD_RULES` in `src/specify_cli/sync/emitter.py`.
+The retired CLI transport emitted 8 event types. Its `_PAYLOAD_RULES` implementation was deleted with `src/specify_cli/sync/emitter.py`; this section is retained as wire-contract history.
 
 ### 4.1 WPStatusChanged
 
@@ -519,13 +520,13 @@ The CLI resolves the user-facing alias `doing` to `in_progress` at input boundar
 
 ## 6. Error Categorization
 
-The CLI categorizes batch errors using keyword matching (from `src/specify_cli/sync/batch.py`). The SaaS team should be aware of what triggers each category so error messages can be actionable.
+The retired CLI transport categorized batch errors using keyword matching. Its `src/specify_cli/sync/batch.py` implementation was deleted; these categories remain historical wire-contract documentation.
 
 ### 6.1 Categories
 
 | Category | Keywords | CLI Action Suggestion |
 |----------|----------|-----------------------|
-| `schema_mismatch` | `invalid`, `schema`, `field`, `missing`, `type` | `Run 'spec-kitty sync diagnose' to inspect invalid events` |
+| `schema_mismatch` | `invalid`, `schema`, `field`, `missing`, `type` | `Inspect the invalid event with --report <file.json>` |
 | `auth_expired` | `token`, `expired`, `unauthorized`, `401` | `Run 'spec-kitty auth login' to refresh credentials` |
 | `server_error` | `internal`, `500`, `timeout`, `unavailable` | `Retry later or check server status` |
 | `unknown` | (no keywords match) | `Inspect the failure report for details: --report <file.json>` |
@@ -938,7 +939,7 @@ See [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource
 4. If project_uuid is missing: queue locally only (no batch send)
 5. If authenticated + WebSocket connected: send via WebSocket
 6. Otherwise: queue to SQLite offline queue (~/.spec-kitty/queue.db)
-7. On next `spec-kitty sync` or background flush:
+7. On the retired background flush:
    a. drain_queue(limit=1000) retrieves events FIFO
    b. Gzip compress and POST to /api/v1/events/batch/
    c. Parse per-event results
@@ -948,15 +949,9 @@ See [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource
 
 ## Appendix B: Source File Reference
 
-| Component | File (relative to repo root) |
-|-----------|------------------------------|
-| Pydantic Event model | `src/specify_cli/spec_kitty_events/models.py` |
-| EventEmitter + payload rules | `src/specify_cli/sync/emitter.py` |
-| Batch sync + error categorization | `src/specify_cli/sync/batch.py` |
-| Authentication (JWT flow) | `src/specify_cli/sync/auth.py` |
-| Offline queue (SQLite) | `src/specify_cli/sync/queue.py` |
-| Sync config (server URL) | `src/specify_cli/sync/config.py` |
-| Project identity (UUID, slug) | `src/specify_cli/sync/project_identity.py` |
-| Git metadata (branch, SHA) | `src/specify_cli/sync/git_metadata.py` |
+| Component | File / source |
+|-----------|---------------|
+| Pydantic Event model | External `spec-kitty-events` dependency, pinned at `c93dbfbf5243330349452a31d05bca2ece26ceea` (`pyproject.toml`) |
+| Retired sync transport | Deleted with issue #5; this appendix is historical only |
 | SaaS fan-out (canonical 7-lane) | `src/specify_cli/status/emit.py` (`_saas_fan_out`) |
-| Public event API | `src/specify_cli/sync/events.py` |
+| Retired public event API | Deleted with issue #5 |

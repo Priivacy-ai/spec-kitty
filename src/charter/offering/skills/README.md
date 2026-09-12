@@ -92,7 +92,7 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-admin-dashboard` | Status and dashboard |
 | `spk-admin-git-workflow` | Git and worktree workflows |
 | `spk-team-auth` | Auth and accounts |
-| `spk-team-sync` | Hosted/team sync |
+| `spk-team-sync` | Tracker sync (local pull/push/run, hosted binding) |
 | `spk-team-tracker` | Tracker workflows |
 | `spk-team-connectors` | Connector integrations |
 | `spk-doctrine-charter` | Charter workflows |
@@ -126,7 +126,7 @@ the public user-facing hierarchy moves to `spk-*`.
 
 ## Source Location
 
-These files in `src/doctrine/skills/` are the **source of truth**. Agent
+These files in `src/charter/offering/skills/` are the **source of truth**. Agent
 copies (`.claude/skills/`, `.agents/skills/`, etc.) are generated during
 `spec-kitty upgrade` and should not be edited directly.
 
@@ -135,4 +135,4 @@ copies (`.claude/skills/`, `.agents/skills/`, etc.) are generated during
 - Issue #327: Doctrine mission compiler proposal
 - PR #305 / #348: Doctrine artifact domain, agent profiles, charter bootstrap
 - `packs/built-in/missions/`: Mission type definitions with action indices
-- `src/doctrine/agent_profiles/`: Agent profile repository and shipped profiles
+- `src/charter/offering/agent_profiles/`: Agent profile repository and shipped profiles

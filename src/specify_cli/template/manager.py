@@ -34,7 +34,7 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
     # by mission charter-code-topology-01M152G1).
     # Mission content templates live under packs/built-in/missions/<mission>/templates
     # (mission doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005,
-    # relocated the missions data subdirectories out of src/doctrine/missions).
+    # relocated the missions data subdirectories out of src/charter/offering/missions).
     templates_src = repo_root / "src" / "charter" / "offering" / "templates"
     if templates_src.exists():
         templates_dest = specify_root / "templates"
@@ -46,7 +46,7 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
             shutil.copy2(agents_template, specify_root / "AGENTS.md")
 
     # HIGH SEVERITY finding (R-12): before FR-005, this used
-    # `repo_root / "src" / "doctrine" / "missions"` — a directory that still
+    # `repo_root / "src" / "charter" / "offering" / "missions"` — a directory that still
     # exists post-relocation (only the .py logic modules remain there) and
     # would silently `.exists() == True` with zero mission data inside,
     # producing a broken `.kittify/missions/` scaffold with no error signal.
@@ -108,12 +108,12 @@ def copy_specify_base_from_package(project_path: Path) -> Path:
     # HIGH SEVERITY finding (R-13) — the single default `spec-kitty init` code
     # path (no `--local` flag). Before FR-005, the first candidate was
     # `doctrine_data_root.joinpath("missions")` — a resource-package-relative
-    # join that resolved to `src/doctrine/missions`. Mission
+    # join that resolved to `src/charter/offering/missions`. Mission
     # doctrine-consumer-surface-missions-extraction-01KZ6G6H relocated the
     # missions data to `packs/built-in/missions`, which ships as a
     # site-packages-level *sibling* of the `doctrine` package (hatch
     # force-include), not a resource nested inside it -- so no
-    # `files("doctrine").joinpath(...)`-shaped join can reach it at all.
+    # `files("charter.offering").joinpath(...)`-shaped join can reach it at all.
     # `MissionTemplateRepository.default_missions_root()` (FR-004) is the one
     # promoted authority that resolves it correctly in both an editable
     # checkout and an installed wheel; the returned `pathlib.Path` satisfies
@@ -157,7 +157,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
     def _is_template_root(path: Path) -> bool:
         # The second conjunct checks packs/built-in/missions (mission
         # doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005,
-        # relocated the missions data out of src/doctrine/missions -- that
+        # relocated the missions data out of src/charter/offering/missions -- that
         # directory still exists post-relocation, .py-only, so checking it
         # here would silently accept a checkout whose missions data has
         # actually moved elsewhere, with no error signal).

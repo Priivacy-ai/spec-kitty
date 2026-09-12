@@ -131,21 +131,14 @@ def migrate_answers_file(path: Path) -> int:
             _restore_bytes(path, preimage)
         except OSError as restore_exc:
             raise AnswersMigrationError(
-                f"Failed to migrate {path}, and restoring its pre-image also "
-                f"failed ({restore_exc!r}); the file may be left in a "
-                "partially-migrated state."
+                f"Failed to migrate {path}, and restoring its pre-image also failed ({restore_exc!r}); the file may be left in a partially-migrated state."
             ) from exc
-        raise AnswersMigrationError(
-            f"Failed to migrate {path}; pre-image restored byte-for-byte."
-        ) from exc
+        raise AnswersMigrationError(f"Failed to migrate {path}; pre-image restored byte-for-byte.") from exc
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description=(
-            "Migrate a charter interview answers.yaml file's governance "
-            "selection key to the canonical vocabulary (CR-01 companion, FR-005)."
-        )
+        description=("Migrate a charter interview answers.yaml file's governance selection key to the canonical vocabulary (CR-01 companion, FR-005).")
     )
     parser.add_argument(
         "answers_path",
@@ -171,15 +164,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if renamed:
-        sys.stdout.write(
-            f"migrate_charter_interview_answers: renamed {renamed} governance "
-            f"selection key(s) in {answers_path}.\n"
-        )
+        sys.stdout.write(f"migrate_charter_interview_answers: renamed {renamed} governance selection key(s) in {answers_path}.\n")
     else:
-        sys.stdout.write(
-            f"migrate_charter_interview_answers: {answers_path} already on the "
-            "canonical key; no changes made.\n"
-        )
+        sys.stdout.write(f"migrate_charter_interview_answers: {answers_path} already on the canonical key; no changes made.\n")
     return 0
 
 

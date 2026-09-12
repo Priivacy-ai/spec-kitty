@@ -163,7 +163,7 @@ def _disable_saas_sync(monkeypatch: pytest.MonkeyPatch) -> None:
     machine-local daemon-owner record short-circuit finalize before these
     assertions run.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 def test_execution_begun_preserves_recorded_sha_against_differing_tip(

@@ -249,12 +249,7 @@ def _read_cache_entry(repo_root: Path) -> FreshnessCacheEntry | None:
         key = data["key"]
         verdict_data = data["verdict"]
         written_at = data["written_at"]
-        if (
-            not isinstance(schema_version, int)
-            or not isinstance(key, str)
-            or not isinstance(written_at, str)
-            or not isinstance(verdict_data, dict)
-        ):
+        if not isinstance(schema_version, int) or not isinstance(key, str) or not isinstance(written_at, str) or not isinstance(verdict_data, dict):
             return None
         verdict = _verdict_from_dict(verdict_data)
     except (KeyError, TypeError, ValueError):

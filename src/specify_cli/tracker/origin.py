@@ -311,27 +311,9 @@ def bind_mission_origin(
     # 5. Write to meta.json (local-second)
     updated_meta = set_origin_ticket(feature_dir, origin_ticket)
 
-    # 6. Emit MissionOriginBound event (fire-and-forget, lazy import)
-    event_emitted = False
-    try:
-        from specify_cli.sync.events import get_emitter
-
-        emitter = get_emitter()
-        emitter.emit_mission_origin_bound(
-            mission_slug=mission_slug,
-            provider=provider,
-            external_issue_id=candidate.external_issue_id,
-            external_issue_key=candidate.external_issue_key,
-            external_issue_url=candidate.url,
-            title=candidate.title,
-            mission_id=meta.get("mission_id"),
-        )
-        event_emitted = True
-    except Exception:
-        logger.debug("MissionOriginBound event emission failed", exc_info=True)
-
-    # 7. Return updated meta dict and event status
-    return updated_meta, event_emitted
+    # 6. Return the updated meta dict (the MissionOriginBound SaaS emission
+    # was removed with the sync transport, issue #5).
+    return updated_meta, False
 
 
 # ---------------------------------------------------------------------------
@@ -404,7 +386,7 @@ def start_mission_from_ticket(
 
     # 3. Bind origin (SaaS-first, local-second)
     try:
-        updated_meta, event_emitted = bind_mission_origin(
+        updated_meta, _ = bind_mission_origin(
             creation_result.feature_dir,
             candidate,
             provider,
@@ -422,7 +404,6 @@ def start_mission_from_ticket(
         feature_dir=creation_result.feature_dir,
         mission_slug=creation_result.mission_slug,
         origin_ticket=origin_ticket,
-        event_emitted=event_emitted,
     )
 
 

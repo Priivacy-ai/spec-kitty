@@ -128,10 +128,7 @@ class ManifestSchemaError(Exception):
     def __str__(self) -> str:
         underlying = self.__cause__
         detail = str(underlying) if underlying is not None else "unknown validation failure"
-        return (
-            f"expected-artifacts.yaml schema-invalid for mission type "
-            f"{self.mission_type!r} ({self.origin}): {detail}"
-        )
+        return f"expected-artifacts.yaml schema-invalid for mission type {self.mission_type!r} ({self.origin}): {detail}"
 
 
 #: Cache key is ``(mission_type, org_roots_fingerprint)``, NOT bare
@@ -193,9 +190,7 @@ def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     return cast("list[Path]", resolve_existing_org_roots(repo_root))
 
 
-def load_manifest(
-    mission_type: str, repo_root: Path | None = None
-) -> ExpectedArtifactManifest | None:
+def load_manifest(mission_type: str, repo_root: Path | None = None) -> ExpectedArtifactManifest | None:
     """Load manifest for mission type from the canonical doctrine tree.
 
     Reads ``<type>/expected-artifacts.yaml`` from the doctrine mission tree

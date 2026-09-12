@@ -18,13 +18,14 @@ import json
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
 from specify_cli.migration.backfill_identity import backfill_repo
+from tests._perf_helpers import assert_timing_budget
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +296,6 @@ class TestDryRun:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestNFR001Timing:
     """T022 — NFR-001: 200-mission synthetic fixture completes in < 5 seconds.
 
@@ -305,7 +305,8 @@ class TestNFR001Timing:
     path: 200 meta.json reads, ULID minting for missing ones, and 200 writes.
     """
 
-    def test_200_missions_under_5s(self, tmp_path: Path) -> None:
+    def test_backfill_200_missions_functional(self, tmp_path: Path) -> None:
+        """Functional half of the #4015 split: all 200 missions are backfilled."""
         specs = tmp_path / "kitty-specs"
         specs.mkdir()
         (tmp_path / ".kittify").mkdir()
@@ -320,15 +321,32 @@ class TestNFR001Timing:
                 meta["mission_id"] = _ULID_EXISTING
             _write_meta(d, meta)
 
-        import specify_cli.migration.backfill_identity as _bi_mod
-
-        start = time.monotonic()
-        with patch.object(_bi_mod, "trigger_feature_dossier_sync_if_enabled", return_value=None):
-            results = backfill_repo(tmp_path)
-        elapsed = time.monotonic() - start
+        results = backfill_repo(tmp_path)
 
         assert len(results) == 200
-        assert elapsed < 5.0, f"NFR-001 violated: {elapsed:.2f}s >= 5.0s for 200 missions"
+
+    @pytest.mark.performance
+    def test_200_missions_under_5s(self, tmp_path: Path) -> None:
+        """NFR-001 (#4015 split): 200-mission backfill stays within the 5s budget."""
+        specs = tmp_path / "kitty-specs"
+        specs.mkdir()
+        (tmp_path / ".kittify").mkdir()
+
+        # Create 200 missions, half with existing mission_id, half without
+        for i in range(200):
+            slug = f"{i:03d}-mission-{i}"
+            d = specs / slug
+            meta = _base_meta(slug)
+            meta["mission_number"] = i
+            if i % 2 == 0:
+                meta["mission_id"] = _ULID_EXISTING
+            _write_meta(d, meta)
+
+        start = time.monotonic()
+        backfill_repo(tmp_path)
+        elapsed = time.monotonic() - start
+
+        assert_timing_budget(elapsed, 5.0, name="elapsed")
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +470,7 @@ class TestCLISurface:
             assert "mission_id" in item
             assert "number_coerced" in item
             assert "reason" in item
-            assert "dossier_warning" in item
+            assert set(item.keys()) == {"slug", "action", "mission_id", "number_coerced", "reason"}
 
     def test_summary_counts_coercions(self, tmp_path: Path) -> None:
         specs = tmp_path / "kitty-specs"
@@ -479,59 +497,3 @@ class TestCLISurface:
 # T021: dossier rehash — fire-and-forget, failures don't abort
 # ---------------------------------------------------------------------------
 
-
-class TestDossierRehash:
-    """T021 — Dossier rehash warnings don't fail the run."""
-
-    def test_dossier_failure_captured_as_warning(self, specs_root: Path) -> None:
-        slug = "014-sigma"
-        d = specs_root / "kitty-specs" / slug
-        _write_meta(d, _base_meta(slug))
-
-        import specify_cli.migration.backfill_identity as _bi_mod
-
-        with patch.object(
-            _bi_mod,
-            "trigger_feature_dossier_sync_if_enabled",
-            side_effect=RuntimeError("dossier exploded"),
-        ):
-            results = backfill_repo(specs_root)
-
-        assert len(results) == 1
-        r = results[0]
-        assert r.action == "wrote"
-        assert r.dossier_warning is not None
-        assert "dossier rehash failed" in r.dossier_warning
-
-    def test_dossier_not_called_for_skipped(self, specs_root: Path) -> None:
-        slug = "015-tau"
-        d = specs_root / "kitty-specs" / slug
-        meta = _base_meta(slug)
-        meta["mission_id"] = _ULID_EXISTING
-        meta["mission_number"] = 15
-        _write_meta(d, meta)
-
-        import specify_cli.migration.backfill_identity as _bi_mod
-
-        mock_fn = MagicMock()
-        with patch.object(_bi_mod, "trigger_feature_dossier_sync_if_enabled", mock_fn):
-            results = backfill_repo(specs_root)
-
-        assert len(results) == 1
-        assert results[0].action == "skip"
-        mock_fn.assert_not_called()
-
-    def test_dossier_called_for_wrote(self, specs_root: Path) -> None:
-        slug = "016-upsilon"
-        d = specs_root / "kitty-specs" / slug
-        _write_meta(d, _base_meta(slug))
-
-        import specify_cli.migration.backfill_identity as _bi_mod
-
-        mock_fn = MagicMock(return_value=None)
-        with patch.object(_bi_mod, "trigger_feature_dossier_sync_if_enabled", mock_fn):
-            results = backfill_repo(specs_root)
-
-        assert len(results) == 1
-        assert results[0].action == "wrote"
-        mock_fn.assert_called_once()

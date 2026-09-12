@@ -85,6 +85,13 @@ INTEGRATION_PREFIXES = [
     # why SC-025 asserts the line's presence from outside this file
     # (tests/specify_cli/test_egress_consolidation_3110.py).
     "specify_cli.egress",
+    # The default egress-consent resolver's home (#3110 C-003): it lazily imports
+    # specify_cli.sync.routing/.consent, so a CORE module reaching it directly
+    # would be an INTEGRATION import through a side door around the
+    # invocation/adapters registry. Classified for the same reason as
+    # specify_cli.egress above — a plain module is structurally outside the
+    # unclaimed-src-dir detector, so leaving it out makes the gate permissive.
+    "specify_cli.egress_consent",
     "specify_cli.tracker",
     "specify_cli.saas",
     "specify_cli.saas_client",

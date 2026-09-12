@@ -61,9 +61,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_meta(feature_dir: Path, mission_type: str) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_type": mission_type}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": mission_type}), encoding="utf-8")
 
 
 def _seed_wp(feature_dir: Path, wp_id: str, lane: str) -> None:
@@ -71,8 +69,7 @@ def _seed_wp(feature_dir: Path, wp_id: str, lane: str) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
     (tasks_dir / f"{wp_id}.md").write_text(
-        f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n"
-        f"# {wp_id}\nDo something.\n",
+        f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n# {wp_id}\nDo something.\n",
         encoding="utf-8",
     )
     event = StatusEvent(
@@ -173,9 +170,7 @@ class TestFamilyKeyIdentity:
         assert set(_GUARD_TABLES) == set(BUILT_IN_MISSION_TYPES)
 
     @pytest.mark.parametrize("mission_type", BUILT_IN_MISSION_TYPES)
-    def test_get_mission_type_round_trips_to_the_guard_table_key(
-        self, tmp_path: Path, mission_type: str
-    ) -> None:
+    def test_get_mission_type_round_trips_to_the_guard_table_key(self, tmp_path: Path, mission_type: str) -> None:
         feature_dir = tmp_path / "kitty-specs" / "042-identity-feature"
         _write_meta(feature_dir, mission_type)
 
@@ -234,9 +229,7 @@ class TestIssue3627WpIterationUnregisteredFamilyDegrades:
 
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_ref = rb.MissionRunRef(
-            run_id="run-042", run_dir=str(run_dir), mission_key="042-custom-mission"
-        )
+        run_ref = rb.MissionRunRef(run_id="run-042", run_dir=str(run_dir), mission_key="042-custom-mission")
 
         return rb.DecideNextContext(
             agent="agent-x",
@@ -269,9 +262,7 @@ class TestIssue3627WpIterationUnregisteredFamilyDegrades:
 
         assert decision is None
 
-    def test_wp_iteration_guard_only_swallows_the_unregistered_family_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_wp_iteration_guard_only_swallows_the_unregistered_family_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Companion negative case: the fix's ``except`` clause is scoped to
         ``UnregisteredMissionFamilyError`` alone -- any other exception
         raised by ``_check_cli_guards`` (a genuinely unexpected failure, not
@@ -356,9 +347,7 @@ class TestAC1AC2ComposedActionGuardOrgTierConvergence:
     def test_absent_artifact_blocks_via_org_tier(self, tmp_path: Path) -> None:
         project_root, feature_dir = self._make_project(tmp_path)
 
-        failures = _check_composed_action_guard(
-            "accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root
-        )
+        failures = _check_composed_action_guard("accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root)
 
         assert failures != []
         assert any("qa-coverage.json" in failure for failure in failures)
@@ -391,15 +380,11 @@ class TestAC1AC2ComposedActionGuardOrgTierConvergence:
     def test_present_artifact_passes_via_genuine_evaluation(self, tmp_path: Path) -> None:
         project_root, feature_dir = self._make_project(tmp_path)
 
-        failures_absent = _check_composed_action_guard(
-            "accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root
-        )
+        failures_absent = _check_composed_action_guard("accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root)
         assert failures_absent != []
 
         (feature_dir / "qa-coverage.json").write_text("{}", encoding="utf-8")
-        failures_present = _check_composed_action_guard(
-            "accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root
-        )
+        failures_present = _check_composed_action_guard("accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root)
 
         assert failures_present == []
 
@@ -445,9 +430,7 @@ optional_always: []
 
 
 class TestAC8RepoRootThreadedThroughDnDependencyGate:
-    def test_wp_iteration_pre_check_threads_real_repo_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_wp_iteration_pre_check_threads_real_repo_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """TASKS-VERIFY-001: the WP-iteration pre-check call site
         (~line 1608) is the ONLY one a custom, guard-table-unregistered
         family can structurally reach."""
@@ -463,9 +446,7 @@ class TestAC8RepoRootThreadedThroughDnDependencyGate:
 
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_ref = MissionRunRef(
-            run_id="run-custom", run_dir=str(run_dir), mission_key="042-custom-mission"
-        )
+        run_ref = MissionRunRef(run_id="run-custom", run_dir=str(run_dir), mission_key="042-custom-mission")
         ctx = rb.DecideNextContext(
             agent="agent-x",
             mission_slug="042-custom-mission",
@@ -503,9 +484,7 @@ class TestAC8RepoRootThreadedThroughDnDependencyGate:
         assert spy.call_args_list[0].args[0] == project_root
         assert project_root is not None
 
-    def test_cli_pre_check_threads_real_repo_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cli_pre_check_threads_real_repo_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """TASKS-VERIFY-001 fix: the ``software-dev``-scoped CLI pre-check
         call site (~line 1643) is the one a custom family can NEVER reach
         (gated by ``get_mission_type(feature_dir) ==
@@ -527,9 +506,7 @@ class TestAC8RepoRootThreadedThroughDnDependencyGate:
 
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_ref = MissionRunRef(
-            run_id="run-sd", run_dir=str(run_dir), mission_key="042-sd-feature"
-        )
+        run_ref = MissionRunRef(run_id="run-sd", run_dir=str(run_dir), mission_key="042-sd-feature")
         ctx = rb.DecideNextContext(
             agent="agent-x",
             mission_slug="042-sd-feature",

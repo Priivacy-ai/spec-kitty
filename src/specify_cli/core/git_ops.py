@@ -9,6 +9,9 @@ from pathlib import Path
 from collections.abc import Sequence
 
 from rich.console import Console
+from rich.markup import escape
+
+from specify_cli.cli.console import sanitize_terminal_text
 
 ConsoleType = Console | None
 
@@ -74,12 +77,12 @@ def run_command(
     except subprocess.CalledProcessError as exc:
         if check_return:
             resolved_console = _resolve_console(console)
-            resolved_console.print(
-                f"[red]Error running command:[/red] {cmd if isinstance(cmd, str) else ' '.join(cmd)}"
-            )
+            command = escape(sanitize_terminal_text(cmd if isinstance(cmd, str) else " ".join(cmd)))
+            resolved_console.print(f"[red]Error running command:[/red] {command}")
             resolved_console.print(f"[red]Exit code:[/red] {exc.returncode}")
             if exc.stderr:
-                resolved_console.print(f"[red]Error output:[/red] {exc.stderr.strip()}")
+                error_output = escape(sanitize_terminal_text(exc.stderr.strip()))
+                resolved_console.print(f"[red]Error output:[/red] {error_output}")
         raise
 
 
@@ -98,6 +101,41 @@ def is_git_repo(path: Path | None = None) -> bool:
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
+
+
+def has_unborn_head(path: Path | None = None) -> bool:
+    """Return True when the repository has no commits yet (an unborn HEAD).
+
+    A freshly ``git init``-ed repository has a HEAD that points at a branch
+    ref which does not exist yet.  Git cannot create a branch in that state,
+    so anything that mints a ref off the current branch — the coordination
+    branch, most importantly — silently cannot work until the first commit
+    lands (#4033).
+
+    Returns ``False`` for a non-repository or when git is unavailable: callers
+    guard on :func:`is_git_repo` separately, and this predicate must never be
+    the thing that reports "no commits" for a directory that is not a repo at
+    all.
+    """
+    target = (path or Path.cwd()).resolve()
+    if not target.is_dir():
+        return False
+    # ``git rev-parse --verify HEAD`` fails both for an unborn HEAD and for a
+    # directory that is not a repository at all. Only the former is "no commits
+    # yet", so establish repo-ness first — otherwise this predicate would tell a
+    # non-repo caller to run ``git commit``.
+    if not is_git_repo(target):
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            capture_output=True,
+            check=False,
+            cwd=target,
+        )
+    except FileNotFoundError:
+        return False
+    return result.returncode != 0
 
 
 def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType = None) -> bool:
@@ -127,7 +165,8 @@ def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType 
         return True
     except subprocess.CalledProcessError as exc:
         if not quiet:
-            resolved_console.print(f"[red]Error initializing git repository:[/red] {exc}")
+            error = escape(sanitize_terminal_text(str(exc)))
+            resolved_console.print(f"[red]Error initializing git repository:[/red] {error}")
         return False
     finally:
         os.chdir(original_cwd)
@@ -184,6 +223,15 @@ def get_current_branch(path: Path | None = None) -> str | None:
 
 def has_remote(repo_path: Path, remote_name: str = "origin") -> bool:
     """Check if repository has a configured remote.
+
+    Deliberately uses ``git remote get-url`` (the transport view, which
+    applies any global ``url.<base>.insteadOf`` rewrite) rather than
+    ``git config --get``: only the exit code is consulted, never the URL
+    value, and every caller uses this to gate a push/fetch (e.g.
+    ``merge/executor.py``'s ``if push and has_remote(...)``) — "does a
+    push have somewhere to go" is exactly the transport question. Not an
+    identity/slug site, so #111's raw-config criterion does not apply here
+    (triaged in spec-kitty#113).
 
     Args:
         repo_path: Repository root path
@@ -498,6 +546,7 @@ __all__ = [
     "exclude_from_git_index",
     "get_current_branch",
     "has_remote",
+    "has_unborn_head",
     "has_tracking_branch",
     "init_git_repo",
     "is_git_repo",

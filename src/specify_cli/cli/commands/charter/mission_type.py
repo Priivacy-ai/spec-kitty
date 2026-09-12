@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import typer
 from specify_cli.cli.console import console
@@ -84,7 +84,14 @@ def resolve_layered_roster(repo_root: Path) -> dict[str, MissionType]:
     from charter.missions import resolve_layered_mission_types  # noqa: PLC0415
 
     mission_types_dirs, pack_context = _layered_lookup_inputs(repo_root)
-    return resolve_layered_mission_types(mission_types_dirs, pack_context)
+    # See the matching comment on ``activate.py``'s own ``_source_urn``: the
+    # ``charter.*`` mypy import-skip override (``follow_imports = "skip"``,
+    # pyproject.toml) erases ``resolve_layered_mission_types``'s real return
+    # type at this call site; the cast restates the real signature.
+    return cast(
+        "dict[str, MissionType]",
+        resolve_layered_mission_types(mission_types_dirs, pack_context),
+    )
 
 
 def resolve_mission_type_source_layer(mission_type_id: str, repo_root: Path) -> str:
@@ -99,8 +106,11 @@ def resolve_mission_type_source_layer(mission_type_id: str, repo_root: Path) -> 
     from charter.activation.mission_type_profiles import resolve_action_sequence_layer  # noqa: PLC0415
 
     mission_types_dirs, pack_context = _layered_lookup_inputs(repo_root)
-    return resolve_action_sequence_layer(
-        mission_type_id, mission_types_dirs=mission_types_dirs, pack_context=pack_context
+    return cast(
+        str,
+        resolve_action_sequence_layer(
+            mission_type_id, mission_types_dirs=mission_types_dirs, pack_context=pack_context
+        ),
     )
 
 

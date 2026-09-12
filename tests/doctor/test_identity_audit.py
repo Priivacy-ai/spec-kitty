@@ -28,6 +28,7 @@ from specify_cli.status.identity_audit import (
     find_duplicate_prefixes,
     summarize,
 )
+from tests._perf_helpers import assert_timing_budget
 
 
 # ---------------------------------------------------------------------------
@@ -639,20 +640,17 @@ def _build_200_mission_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.mark.performance
-def test_nfr_002_timing_200_missions() -> None:
-    """audit_repo + find_duplicate_prefixes + find_ambiguous_selectors must complete
-    in < 3 seconds for a synthetic 200-mission repo (NFR-002)."""
+def test_audit_200_missions_functional() -> None:
+    """audit_repo + find_duplicate_prefixes + find_ambiguous_selectors is correct
+    for a synthetic 200-mission repo (functional, #4015 split)."""
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_root = _build_200_mission_repo(Path(tmpdir))
 
-        start = time.monotonic()
         states = audit_repo(repo_root)
         dupes = find_duplicate_prefixes(repo_root)
         ambiguous = find_ambiguous_selectors(states)
-        elapsed = time.monotonic() - start
 
         # Sanity checks: the data is correct
         assert len(states) == 200  # golden-count: cardinality-is-contract
@@ -660,8 +658,21 @@ def test_nfr_002_timing_200_missions() -> None:
         assert dupes == {}  # all distinct prefixes
         assert ambiguous == {}  # all distinct human slugs
 
+
+@pytest.mark.performance
+def test_nfr_002_timing_200_missions() -> None:
+    """audit_repo + find_duplicate_prefixes + find_ambiguous_selectors must complete
+    in < 3 seconds for a synthetic 200-mission repo (NFR-002, #4015 split)."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = _build_200_mission_repo(Path(tmpdir))
+
+        start = time.monotonic()
+        states = audit_repo(repo_root)
+        find_duplicate_prefixes(repo_root)
+        find_ambiguous_selectors(states)
+        elapsed = time.monotonic() - start
+
         # NFR-002: must be under 3 seconds
-        assert elapsed < 3.0, (
-            f"NFR-002 timing violation: {elapsed:.2f}s for 200 missions "
-            f"(limit: 3.0s). Check for I/O hotspots."
-        )
+        assert_timing_budget(elapsed, 3.0, name="elapsed")

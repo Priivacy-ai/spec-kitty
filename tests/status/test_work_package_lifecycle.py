@@ -18,6 +18,7 @@ from specify_cli.status.store import (
     read_events,
 )
 from specify_cli.status.work_package_lifecycle import (
+    GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
     _actor_key,
@@ -36,7 +37,6 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 
 
 def _feature_dir(tmp_path: Path) -> Path:
@@ -67,9 +67,7 @@ def _event(
     )
 
 
-def _seed_reviewer_role_annotation(
-    feature_dir: Path, *, actor: str, event_id: str, wp_id: str = "WP01"
-) -> None:
+def _seed_reviewer_role_annotation(feature_dir: Path, *, actor: str, event_id: str, wp_id: str = "WP01") -> None:
     """Fold ``role="reviewer"`` onto ``wp_id`` (the resolved-binding review claim).
 
     The role-aware collision predicate keys off the reduced ``role`` slot, which
@@ -117,9 +115,7 @@ def test_genesis_unseeded_wp_is_rejected_with_actionable_message(tmp_path: Path)
     assert "finalize-tasks" in str(exc_info.value)
 
 
-def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     """Genesis rejection fires even when other WPs in the same mission have events."""
     feature_dir = _feature_dir(tmp_path)
     # WP02 is seeded, but WP01 is not.
@@ -137,9 +133,7 @@ def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(
         )
 
 
-def test_seeded_wp_happy_path_unaffected_by_genesis_check(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_seeded_wp_happy_path_unaffected_by_genesis_check(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     """After finalize-tasks seeds genesis→planned, the WP proceeds normally."""
     feature_dir = _feature_dir(tmp_path)
     seed_to_planned(feature_dir, "WP01", slug=_SLUG)
@@ -164,9 +158,7 @@ def test_seeded_wp_happy_path_unaffected_by_genesis_check(
 # ---------------------------------------------------------------------------
 
 
-def test_start_implementation_batches_planned_to_in_progress(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_start_implementation_batches_planned_to_in_progress(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     feature_dir = _feature_dir(tmp_path)
     seed_to_planned(feature_dir, "WP01", slug=_SLUG)
 
@@ -195,9 +187,7 @@ def test_start_implementation_batches_planned_to_in_progress(
     assert snapshot.work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
 
 
-def test_backgrounded_implementation_start_does_not_strand_claimed(
-    tmp_path: Path, seed_to_planned: Callable[..., None]
-) -> None:
+def test_backgrounded_implementation_start_does_not_strand_claimed(tmp_path: Path, seed_to_planned: Callable[..., None]) -> None:
     """A normal start writes claim and progress evidence as one durable batch."""
     feature_dir = _feature_dir(tmp_path)
     seed_to_planned(feature_dir, "WP01", slug=_SLUG)
@@ -661,5 +651,78 @@ def test_lifecycle_helpers_normalize_lock_roots_and_actors(tmp_path: Path) -> No
     assert _actors_compatible(None, "claude") is True
 
 
+def test_generic_implementation_actors_exported_on_status_facade() -> None:
+    """FIX-M2-03: the constant must be importable from ``specify_cli.status``
+    (not just this module) so sibling ownership checks (e.g.
+    ``tasks_transition_core._guard_agent_ownership``) share the ONE definition
+    instead of hand-rolling their own copy that could drift out of sync.
+    """
+    import specify_cli.status as status_facade
+
+    assert status_facade.GENERIC_IMPLEMENTATION_ACTORS is GENERIC_IMPLEMENTATION_ACTORS
+    assert frozenset({"implement-command", "unknown"}) == GENERIC_IMPLEMENTATION_ACTORS
+
+
+@pytest.mark.parametrize("generic_current", sorted(GENERIC_IMPLEMENTATION_ACTORS))
+def test_actors_compatible_treats_generic_placeholder_as_unclaimed(generic_current: str) -> None:
+    """A WP whose CURRENT assignee is a generic placeholder (the internal
+    ``implement`` compat surface's default when invoked without ``--actor``,
+    or the plain ``unknown`` fallback) is not a real owner -- any real
+    requested actor is compatible without needing ``allow_generic_existing``
+    to be a real-vs-real match.
+    """
+    assert _actors_compatible(generic_current, "claude", allow_generic_existing=True) is True
+    # Without the allowance, a generic placeholder still fails raw equality --
+    # proving the True result above comes from the allowance, not a no-op.
+    assert _actors_compatible(generic_current, "claude", allow_generic_existing=False) is False
+
+
 def test_claimed_lane_surfaces_as_doing_in_dashboard() -> None:
     assert _KANBAN_COLUMN_FOR_LANE[Lane.CLAIMED] == "doing"
+
+
+def test_start_implementation_resume_is_not_regated_when_dependency_regresses(tmp_path: Path) -> None:
+    """fsm-write-path-integrity WP04 pin: an ``in_progress`` WP re-invoked is a no-op
+    resume. The dependency guard only fires on ``planned -> claimed`` and
+    ``claimed -> in_progress``; a resume emits neither, so a dependency that
+    regressed AFTER WP02 was legitimately claimed cannot block the resume."""
+    feature_dir = _feature_dir(tmp_path)
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\nsubtasks: []\n---\n# WP01\n", encoding="utf-8")
+    (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\nsubtasks: []\n---\n# WP02\n", encoding="utf-8")
+    # WP01 reached approved; WP02 was then legitimately claimed and started.
+    for event_id, (src, dst) in zip(
+        ("01AAAA000000000000000001A", "01AAAA000000000000000002B", "01AAAA000000000000000003C", "01AAAA000000000000000004D", "01AAAA000000000000000005E"),
+        (
+            (Lane.PLANNED, Lane.CLAIMED),
+            (Lane.CLAIMED, Lane.IN_PROGRESS),
+            (Lane.IN_PROGRESS, Lane.FOR_REVIEW),
+            (Lane.FOR_REVIEW, Lane.IN_REVIEW),
+            (Lane.IN_REVIEW, Lane.APPROVED),
+        ),
+        strict=True,
+    ):
+        # ``at=now_utc_iso()`` keeps this setup on the same clock as the
+        # ``start_implementation_status`` call below -- avoids mixing an absolute
+        # hard-coded event timestamp with a live-clock production call
+        # (tests/architectural/test_no_absolute_event_timestamp_mixture.py).
+        append_event(feature_dir, _event(event_id, from_lane=src, to_lane=dst, wp_id="WP01", at=now_utc_iso()))
+    append_event(feature_dir, _event("01BBBB000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, wp_id="WP02", at=now_utc_iso()))
+    append_event(feature_dir, _event("01BBBB000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, wp_id="WP02", at=now_utc_iso()))
+    # The dependency regresses to in_progress afterwards (rework).
+    append_event(feature_dir, _event("01CCCC000000000000000001A", from_lane=Lane.APPROVED, to_lane=Lane.IN_PROGRESS, wp_id="WP01", at=now_utc_iso()))
+
+    result = start_implementation_status(
+        feature_dir=feature_dir,
+        mission_slug=_SLUG,
+        wp_id="WP02",
+        actor="claude",
+        workspace_context="worktree:/nonexistent/wp02",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+    assert result.no_op is True
+    assert result.events == ()
+    assert reduce(read_events(feature_dir)).work_packages["WP02"]["lane"] == Lane.IN_PROGRESS

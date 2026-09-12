@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-09T08:47:39.255881Z",
+      "decision_id": "01M22NKW7Q21F1E2TVY90PQFCK",
+      "final_answer": "Generic \u2014 all owners. Land the re-assess-under-lock + observe() role-tag in the generic check_assets/ensure_runtime path so runtime + agent_commands + agent_skills + managed_skills owners are all covered; runtime-only would leave the two-owned-worktree model crashing when a peer materializes agent-command/skill destinations.",
+      "input_key": "check_assets_scope",
+      "mission_id": "01M22MM54V1RN1EQ014DM6WPJG",
+      "mission_slug": "ci-suite-stability-test-isolation-01M22MM5",
+      "opened_by": "cli",
+      "options": [
+        "Generic (all owners)",
+        "Runtime-scoped only",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should the #4017 re-assess-under-lock + role-tag fix land in the GENERIC check_assets surface (covering runtime + agent_commands + agent_skills + managed_skills owners) or be RUNTIME-scoped only? The architect found all owners race identically on the shared home, so runtime-only would leave the two-owned-worktree model crashing when a peer materializes agent-command/skill destinations.",
+      "rationale": null,
+      "resolved_at": "2026-09-09T08:53:45.232118Z",
+      "resolved_by": null,
+      "slot_key": "plan.4017.check-assets-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M22MM54V1RN1EQ014DM6WPJG",
+  "version": 1
+}

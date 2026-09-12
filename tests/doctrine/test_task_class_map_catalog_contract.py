@@ -66,6 +66,6 @@ def test_task_class_map_task_types_are_subset_of_shipped_catalog() -> None:
         "task_class_map emits task_type(s) with no shipped catalog "
         f"task_fit coverage: {sorted(missing)}. Add task_fit entries for "
         "these task_types to "
-        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml, "
+        "src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml, "
         "or remove the verb mapping from task_class_map.py."
     )

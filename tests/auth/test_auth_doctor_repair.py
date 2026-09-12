@@ -1,8 +1,8 @@
-"""Tests for ``spec-kitty auth doctor`` opt-in repair flags (WP06 / T028).
+"""Tests for the ``spec-kitty auth doctor`` opt-in repair flag (WP06 / T028).
 
-Covers ``--reset`` (sweep orphans via WP05) and ``--unstick-lock``
-(force-release the refresh lock via WP01). Both flags are independent
-(C-008); there is intentionally no ``--auto-fix``.
+Covers ``--unstick-lock`` (force-release the refresh lock via WP01). The
+``--reset`` orphan-sweep flag was removed together with the sync transport
+(issue #5); ``--unstick-lock`` is now the only repair surface.
 
 The age-guard inside :func:`force_release` (``only_if_age_s``) is the
 WP01-enforced safety belt — :func:`doctor_impl` must pass the
@@ -20,17 +20,7 @@ import pytest
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import doctor_impl
-from specify_cli.core.file_lock import LockRecord, read_lock_record
-from specify_cli.sync.classification import (
-    CleanupClass,
-    DaemonIdentityRecord,
-    IdentitySource,
-)
-from specify_cli.sync.daemon import SyncDaemonStatus
-from specify_cli.sync.orphan_sweep import (
-    ResetResult,
-    SweptEntry,
-)
+from specify_cli.core.file_lock import read_lock_record
 
 
 pytestmark = [pytest.mark.integration]
@@ -76,45 +66,15 @@ class _FakeTokenManager:
         return self._session
 
 
-def _make_identity_record(port: int, *, pid: int | None = 12345) -> DaemonIdentityRecord:
-    """Return a minimal safe_auto DaemonIdentityRecord for a given port."""
-    return DaemonIdentityRecord(
-        daemon_family="sync",
-        pid=pid,
-        port=port,
-        protocol_version=1,
-        package_version="3.2.0a4",
-        singleton_scope_id=None,
-        daemon_root=None,
-        queue_db_path=None,
-        auth_scope=None,
-        server_url=None,
-        owner_present=False,
-        identity_source=IdentitySource.health_self_report,
-        executable_summary=None,
-        spawn_shape_ok=True,
-        self_report_matches_listener=True,
-        is_recorded_singleton=False,
-        cleanup_class=CleanupClass.SAFE_AUTO,
-        skip_reason=None,
-    )
-
-
 def _patch_state(
     monkeypatch: pytest.MonkeyPatch,
     *,
     session: StoredSession | None,
     lock_path: Path,
-    lock_record: LockRecord | None = None,
-    daemon_state_exists: bool = False,
-    daemon_status: SyncDaemonStatus | None = None,
-    # WP05 repoint: _auth_doctor now calls enumerate_identity_records (not
-    # enumerate_orphans); callers pass DaemonIdentityRecord lists here.
-    orphans: list[DaemonIdentityRecord] | None = None,
 ) -> None:
     """Wire ``_auth_doctor``'s upstream calls to deterministic fakes.
 
-    Important: ``read_lock_record`` is NOT patched — the test wants
+    Important: ``read_lock_record`` is NOT patched — the tests want
     ``--unstick-lock`` to read the *real* file at ``lock_path`` so the
     ``force_release`` age guard is exercised end-to-end.
     """
@@ -124,32 +84,6 @@ def _patch_state(
         lambda: _FakeTokenManager(session),
     )
     monkeypatch.setattr(_auth_doctor, "_refresh_lock_path", lambda: lock_path)
-
-    class _FakeStateFile:
-        def __init__(self, exists: bool) -> None:
-            self._exists = exists
-
-        def exists(self) -> bool:
-            return self._exists
-
-    monkeypatch.setattr(
-        _auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile(daemon_state_exists)
-    )
-    if daemon_status is None:
-        daemon_status = SyncDaemonStatus(healthy=False)
-    monkeypatch.setattr(
-        _auth_doctor, "get_sync_daemon_status", lambda: daemon_status
-    )
-    # WP05 repoint: enumerate_orphans removed from _auth_doctor; mock the new
-    # enumerate_identity_records symbol that assemble_report() now calls.
-    monkeypatch.setattr(
-        _auth_doctor, "enumerate_identity_records", lambda: list(orphans or [])
-    )
-    import sys
-
-    fake_rollout = type(sys)("specify_cli.saas.rollout")
-    fake_rollout.is_saas_sync_enabled = lambda: False  # type: ignore[attr-defined]  # stub attr on a dynamically-built ModuleType; mypy cannot see it
-    monkeypatch.setitem(sys.modules, "specify_cli.saas.rollout", fake_rollout)
 
 
 def _write_lock_record(path: Path, *, age_s: float) -> None:
@@ -164,120 +98,6 @@ def _write_lock_record(path: Path, *, age_s: float) -> None:
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
-
-
-# ---------------------------------------------------------------------------
-# --reset
-# ---------------------------------------------------------------------------
-
-
-def test_reset_sweeps_orphans(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Orphan present; ``--reset`` invokes ``reset_orphans``."""
-    session = _make_session()
-    # WP05 repoint: _auth_doctor now passes DaemonIdentityRecord lists to
-    # reset_orphans (not OrphanDaemon lists to sweep_orphans). The mock must
-    # match the new signature and return a ResetResult.
-    orphan_record = _make_identity_record(9401, pid=12345)
-
-    reset_calls: list[list[DaemonIdentityRecord]] = []
-
-    def fake_reset(
-        records: list[DaemonIdentityRecord], *, include_operator_required: bool = False
-    ) -> ResetResult:
-        reset_calls.append(list(records))
-        swept = [
-            SweptEntry(
-                pid=r.pid,
-                port=r.port,
-                package_version=r.package_version,
-                protocol_version=r.protocol_version,
-                cleanup_path="http_shutdown",
-                reason="safe_auto",
-            )
-            for r in records
-        ]
-        return ResetResult(swept=swept, skipped=[], failed=[])
-
-    monkeypatch.setattr(_auth_doctor, "reset_orphans", fake_reset)
-
-    # Non-existent lock path keeps F-003 from firing.
-    _patch_state(
-        monkeypatch,
-        session=session,
-        lock_path=tmp_path / "auth" / "refresh.lock",
-        orphans=[orphan_record],
-    )
-
-    exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0
-    )
-
-    assert reset_calls == [[orphan_record]]
-    # Warn-severity F-002 shouldn't drive exit-code 1.
-    assert exit_code == 0
-
-
-def test_reset_noop_when_no_orphans(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """No orphans ⇒ ``--reset`` does NOT call ``reset_orphans``."""
-    session = _make_session()
-
-    # WP05 repoint: reset_orphans replaces sweep_orphans; verify it is not
-    # called when the orphan list is empty (no F-002 finding active).
-    reset_called: list[list[DaemonIdentityRecord]] = []
-
-    def fake_reset(
-        records: list[DaemonIdentityRecord], *, include_operator_required: bool = False
-    ) -> ResetResult:
-        reset_called.append(list(records))
-        return ResetResult(swept=[], skipped=[], failed=[])
-
-    monkeypatch.setattr(_auth_doctor, "reset_orphans", fake_reset)
-    _patch_state(
-        monkeypatch,
-        session=session,
-        lock_path=tmp_path / "auth" / "refresh.lock",
-        orphans=[],
-    )
-
-    exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0
-    )
-
-    assert reset_called == []
-    assert exit_code == 0
-
-
-def test_reset_repairs_recorded_unhealthy_daemon(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Recorded-but-unhealthy singleton daemon is repaired by ``--reset``."""
-    session = _make_session()
-    stop_calls: list[None] = []
-
-    def fake_stop_sync_daemon() -> tuple[bool, str]:
-        stop_calls.append(None)
-        return True, "Unhealthy sync daemon process stopped. Metadata has been cleared."
-
-    monkeypatch.setattr(_auth_doctor, "stop_sync_daemon", fake_stop_sync_daemon)
-    _patch_state(
-        monkeypatch,
-        session=session,
-        lock_path=tmp_path / "auth" / "refresh.lock",
-        daemon_state_exists=True,
-        daemon_status=SyncDaemonStatus(healthy=False, port=9402, pid=12835),
-        orphans=[],
-    )
-
-    exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0
-    )
-
-    assert stop_calls == [None]
-    assert exit_code == 0
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +121,7 @@ def test_unstick_drops_old_lock(
     )
 
     exit_code = doctor_impl(
-        json_output=True, reset=False, unstick_lock=True, stuck_threshold=60.0
+        json_output=True, unstick_lock=True, stuck_threshold=60.0
     )
 
     assert read_lock_record(lock_path) is None
@@ -326,7 +146,7 @@ def test_unstick_preserves_fresh_lock(
     )
 
     exit_code = doctor_impl(
-        json_output=True, reset=False, unstick_lock=True, stuck_threshold=60.0
+        json_output=True, unstick_lock=True, stuck_threshold=60.0
     )
 
     assert lock_path.exists(), "Fresh lock must not be removed"
@@ -334,49 +154,54 @@ def test_unstick_preserves_fresh_lock(
     assert exit_code == 0
 
 
-def test_combined_flags_run_both(
+def test_unstick_noop_without_stuck_lock(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """``--reset --unstick-lock`` runs both repairs."""
+    """``--unstick-lock`` without a stuck lock ⇒ no-op message, lock absent."""
     session = _make_session()
-    # WP05 repoint: _auth_doctor passes DaemonIdentityRecord to reset_orphans.
-    orphan_record = _make_identity_record(9402, pid=22222)
     lock_path = tmp_path / "auth" / "refresh.lock"
-    _write_lock_record(lock_path, age_s=120.0)
+    _patch_state(monkeypatch, session=session, lock_path=lock_path)
 
-    reset_calls: list[list[DaemonIdentityRecord]] = []
+    def _fail_force_release(*args: object, **kwargs: object) -> bool:
+        raise AssertionError("force_release must not run when F-003 is absent")
 
-    def fake_reset(
-        records: list[DaemonIdentityRecord], *, include_operator_required: bool = False
-    ) -> ResetResult:
-        reset_calls.append(list(records))
-        swept = [
-            SweptEntry(
-                pid=r.pid,
-                port=r.port,
-                package_version=r.package_version,
-                protocol_version=r.protocol_version,
-                cleanup_path="http_shutdown",
-                reason="safe_auto",
-            )
-            for r in records
-        ]
-        return ResetResult(swept=swept, skipped=[], failed=[])
-
-    monkeypatch.setattr(_auth_doctor, "reset_orphans", fake_reset)
-
-    _patch_state(
-        monkeypatch,
-        session=session,
-        lock_path=lock_path,
-        orphans=[orphan_record],
-    )
+    monkeypatch.setattr(_auth_doctor, "force_release", _fail_force_release)
 
     exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=True, stuck_threshold=60.0
+        json_output=False, unstick_lock=True, stuck_threshold=60.0
     )
 
-    assert reset_calls == [[orphan_record]]
-    assert read_lock_record(lock_path) is None
-    # After both repairs nothing critical remains.
+    # No critical findings before or after the no-op repair.
     assert exit_code == 0
+
+
+def test_unstick_passes_stuck_threshold_to_force_release(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """``doctor_impl`` forwards ``stuck_threshold`` unchanged to ``force_release``.
+
+    A 400 s lock with a raised threshold (300 s) is still stuck, so the
+    repair fires — and must receive the operator-supplied threshold, not a
+    hardcoded default.
+    """
+    session = _make_session()
+    lock_path = tmp_path / "auth" / "refresh.lock"
+    _write_lock_record(lock_path, age_s=400.0)
+
+    seen_thresholds: list[float] = []
+
+    def fake_force_release(path: object, *, only_if_age_s: float) -> bool:
+        seen_thresholds.append(only_if_age_s)
+        return False
+
+    monkeypatch.setattr(_auth_doctor, "force_release", fake_force_release)
+    _patch_state(monkeypatch, session=session, lock_path=lock_path)
+
+    exit_code = doctor_impl(
+        json_output=True, unstick_lock=True, stuck_threshold=300.0
+    )
+
+    assert seen_thresholds == [300.0]
+    # The fake declined to release, so the refreshed report still carries
+    # the critical F-003 finding.
+    assert exit_code == 1

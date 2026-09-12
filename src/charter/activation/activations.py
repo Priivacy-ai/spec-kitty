@@ -181,7 +181,7 @@ _ALLOWED_KINDS: frozenset[str] = frozenset(
 #: typos while remaining ergonomic for operators.
 #:
 #: Derived (not restated) from the single charter-activatable kind authority
-#: :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`
+#: :data:`doctrine.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`
 #: (FR-004) — the 10 activatable kinds including ``anti_pattern`` (C-003/FR-005).
 #: The prior hand-copied literal was value-identical to the derived map, so this
 #: collapse is behaviour-preserving here while making drift structurally

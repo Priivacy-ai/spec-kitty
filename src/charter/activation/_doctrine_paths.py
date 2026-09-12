@@ -1,7 +1,7 @@
 """Shared DoctrineService project-root candidate resolution.
 
-Both ``src/charter/compiler.py::_default_doctrine_service`` and
-``src/charter/context.py::_build_doctrine_service`` use the same candidate-list
+Both ``src/charter/activation/compiler.py::_default_doctrine_service`` and
+``src/charter/activation/context.py::_build_doctrine_service`` use the same candidate-list
 ordering.  This module is the **single source of truth** for that ordering so
 the two call-sites cannot drift apart.
 
@@ -9,7 +9,7 @@ Candidate ordering (FR-009 / T024 / T025):
 
 1. ``.kittify/doctrine/``   — Phase 3 synthesis target; present only after a
                               successful ``spec-kitty charter synthesize`` run.
-2. ``src/doctrine/``        — code-local built-in-layer path (legacy 3.x default).
+2. ``src/charter/offering/``        — code-local built-in-layer path (legacy 3.x default).
 3. ``doctrine/``            — flat built-in-layer fallback.
 
 Discovery is **conditional on directory presence**: if ``.kittify/doctrine/``
@@ -28,7 +28,7 @@ from pathlib import Path
 
 _PROJECT_ROOT_CANDIDATES: tuple[str, ...] = (
     ".kittify/doctrine",   # NEW — Phase 3 synthesis target (FR-009)
-    "src/doctrine",        # existing — code-local built-in-layer path
+    "src/charter/offering",  # relocated code-local built-in-layer path
     "doctrine",            # existing — flat built-in-layer fallback
 )
 

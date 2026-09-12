@@ -267,18 +267,18 @@ collaboration:
 
 mode-defaults:
 - mode: audit
-  description: Source agent audit, documentation gathering, and 
+  description: Source agent audit, documentation gathering, and
     existing-artifact overlap review
-  use-case: Interviewing the owner in plain language, gathering Markdown and 
-    wiki documentation, confirming purpose, and checking the pack for overlap 
+  use-case: Interviewing the owner in plain language, gathering Markdown and
+    wiki documentation, confirming purpose, and checking the pack for overlap
     before authoring
 - mode: classification
   description: Separating embedded knowledge into artifact kinds
-  use-case: Deciding whether each rule is a directive, tactic, procedure, 
+  use-case: Deciding whether each rule is a directive, tactic, procedure,
     paradigm, styleguide, toolguide, or template
 - mode: authoring
   description: Schema-valid artifact and DRG authoring with consistency auditing
-  use-case: Writing each YAML artifact and DRG edge, auditing cross-artifact 
+  use-case: Writing each YAML artifact and DRG edge, auditing cross-artifact
     references and external references, and running the validation gates
 
 initialization-declaration: >
@@ -329,23 +329,23 @@ specialization-context:
 directive-references:
 - code: "003"
   name: Decision Documentation Requirement
-  rationale: Every classification, overlap-versus-augment call, and the 
+  rationale: Every classification, overlap-versus-augment call, and the
     profile-or-no-profile decision must be recorded with rationale
 - code: "018"
   name: Doctrine Versioning Requirement
-  rationale: Onboarded artifacts change doctrine layers and must be versioned 
+  rationale: Onboarded artifacts change doctrine layers and must be versioned
     with documented change rationale
 - code: "032"
   name: Conceptual Alignment
-  rationale: Confirm shared understanding of artifact-kind terminology with the 
+  rationale: Confirm shared understanding of artifact-kind terminology with the
     owner before decomposing
 - code: "043"
   name: Close Defect Classes by Construction
-  rationale: When onboarding a source agent whose rules rely on discipline 
-    rather than structure, classify each recurrent-defect constraint as a gate 
+  rationale: When onboarding a source agent whose rules rely on discipline
+    rather than structure, classify each recurrent-defect constraint as a gate
     candidate and record the structural gap before authoring the artifact
 - code: "044"
   name: Canonical Sources and Unification
-  rationale: Doctrine artifacts must reference the canonical template chain; 
-    prior-mission artifacts in kitty-specs/ are historical snapshots and must 
+  rationale: Doctrine artifacts must reference the canonical template chain;
+    prior-mission artifacts in kitty-specs/ are historical snapshots and must
     never be used as copy sources for new artifact authoring

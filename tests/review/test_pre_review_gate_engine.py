@@ -18,7 +18,9 @@ import contextlib
 import signal
 import subprocess
 import sys
+import tempfile
 from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -33,7 +35,8 @@ from specify_cli.review.pre_review_gate import (
     HeadRunState,
     ScopeResult,
 )
-from specify_cli.review.scope_source import DeclaredCommandScopeSource, GateCoverageScopeSource
+from specify_cli.review.baseline import _parse_junit_xml
+from specify_cli.review.scope_source import DeclaredCommandScopeSource, FileScopeBreakdown, RawRunResult
 
 # Module-level marker required by tests/architectural/test_pytest_marker_convention.py
 # (WP01 landed this file without one — a pre-existing arch-gate red this WP02 sweep
@@ -86,6 +89,58 @@ FAKE_ROUTING: dict[str, pre_review_gate._CompositeRoute] = {
 }
 
 _DUMMY_ROOT = Path(".")
+
+
+@dataclass
+class _NarrowingScopeSource:
+    repo_root: Path
+
+    treats_empty_scope_as_coverage_gap: bool = True
+
+    def test_command(self) -> list[str] | None:
+        junit_path = Path(tempfile.mkdtemp(prefix="spec-kitty-test-narrowing-")) / "pre-review-junit.xml"
+        return [sys.executable, "-m", "pytest", f"--junitxml={junit_path}", "-q"]
+
+    def file_to_scope(self, path: str) -> tuple[str, ...]:
+        return self.scope_breakdown(path).test_targets
+
+    def scope_breakdown(self, path: str) -> FileScopeBreakdown:
+        if path == "src/specify_cli/status/emit.py":
+            return FileScopeBreakdown(
+                test_targets=(
+                    "tests/architectural/test_execution_context_parity.py",
+                    "tests/specify_cli/status",
+                    "tests/status",
+                ),
+                matched_shard_groups=("execution_context", "status"),
+            )
+        if path == "src/specify_cli/git/foo.py":
+            return FileScopeBreakdown(
+                test_targets=("test_sample.py",),
+                matched_composite_dirs=("git",),
+            )
+        if path == "src/specify_cli/validators/schema.py":
+            return FileScopeBreakdown(
+                matched_composite_dirs=("validators",),
+                empty_cone_composite_dirs=("validators",),
+            )
+        return FileScopeBreakdown(contributes_scope=False)
+
+    def parse_mode(self, _raw: RawRunResult) -> str:
+        return "junit_xml"
+
+    def parse_results(self, raw: RawRunResult) -> tuple[BaselineFailure, ...]:
+        artifact = raw.output_artifact_path
+        if artifact is None or not artifact.exists():
+            return (
+                BaselineFailure(
+                    test="<test-narrowing-junit>",
+                    error="no JUnit XML artifact produced by the scoped run",
+                    file="unknown",
+                ),
+            )
+        _total, _passed, _failed, _skipped, failures = _parse_junit_xml(artifact)
+        return tuple(failures)
 
 
 # ---------------------------------------------------------------------------
@@ -244,17 +299,9 @@ def test_bounded_fixture_completes_under_incumbent_runner() -> None:
 
 # ---------------------------------------------------------------------------
 # WP03 (mission doctrine-controlled-transition-gates-01KY51Z7) — T014 migration
-# of the three probe tests above: ``_is_spec_kitty_source_repo`` and
-# ``_load_gate_coverage_module`` are RETIRED from this module (they moved to
-# ``scope_source.GateCoverageScopeSource`` in WP02 — see
-# ``tests/review/test_scope_source.py`` for their live coverage there). This
-# is migration-red (the consumer moved), NOT a regression: the probe is now a
-# PRIVATE internal of ``GateCoverageScopeSource`` and MUST NOT be a public
-# selector on the engine (FR-009). ``GateAuthoritiesUnavailable`` itself
-# stays here (WP09's ``tasks_move_task.py`` reader still depends on its
-# ``is_consumer_repo`` field until that WP's hook-inversion lands — post-task
-# squad finding B3), and ``derive_test_scope``'s no-override default still
-# surfaces the SAME exception, now routed through the port.
+# of the probe tests above: ``_is_spec_kitty_source_repo`` and
+# ``_load_gate_coverage_module`` are gone from the engine. ``GateAuthoritiesUnavailable``
+# itself stays here for compatibility with callers that still catch it.
 # ---------------------------------------------------------------------------
 
 
@@ -262,7 +309,7 @@ def test_bounded_fixture_completes_under_incumbent_runner() -> None:
 def test_probe_and_loader_are_private_internals_of_the_port_not_the_engine() -> None:
     """T014: the source-repo probe and its live-authority loader are no
     longer public (or even present) on ``pre_review_gate`` — they are
-    private internals of ``GateCoverageScopeSource`` only (FR-009)."""
+    no longer public (or present) on ``pre_review_gate``."""
     assert not hasattr(pre_review_gate, "_is_spec_kitty_source_repo")
     assert not hasattr(pre_review_gate, "_load_gate_coverage_module")
     assert not hasattr(pre_review_gate, "_default_filter_groups")
@@ -278,26 +325,6 @@ def test_gate_authorities_unavailable_is_consumer_repo_field_still_works() -> No
     exc = pre_review_gate.GateAuthoritiesUnavailable("boom", is_consumer_repo=True)
     assert exc.is_consumer_repo is True
     assert str(exc) == "boom"
-
-
-@pytest.mark.fast
-def test_gate_coverage_scope_source_live_default_surfaces_authorities_unavailable(
-    tmp_path: Path,
-) -> None:
-    """FR-009 (mission scopesource-gate-followup-01KY6S9P WP04): the census
-    derivation's no-override default now lives ONLY inside
-    ``GateCoverageScopeSource`` (``scope_source.py``) — the incumbent
-    ``pre_review_gate.derive_test_scope`` is retired. A bare repo (no
-    ``tests/architectural/_gate_coverage.py``) still surfaces the SAME
-    ``GateAuthoritiesUnavailable(is_consumer_repo=True)`` contract via the
-    port's own ``scope_breakdown``/``file_to_scope`` (exercised in depth in
-    ``tests/review/test_scope_source.py``); this pins the contract at the
-    engine's own import boundary too."""
-    impl = GateCoverageScopeSource(repo_root=tmp_path)
-    with pytest.raises(pre_review_gate.GateAuthoritiesUnavailable) as excinfo:
-        impl.scope_breakdown("src/anything.py")
-
-    assert excinfo.value.is_consumer_repo is True
 
 
 @pytest.mark.fast
@@ -335,15 +362,11 @@ def test_scope_source_seam_is_injected_not_selected_by_repo_shape(tmp_path: Path
 def _derive(changed_files: list[str]) -> ScopeResult:
     """Drive the SURVIVING ``pre_review_gate`` composition
     (``_scope_result_from_source`` / ``_scope_result_from_breakdown``) over a
-    ``GateCoverageScopeSource`` with hermetic override fixtures — migrated
+    narrowing source with hermetic fixtures — migrated
     (mission scopesource-gate-followup-01KY6S9P WP04) off the retired
     ``derive_test_scope`` census tier, which this module no longer owns.
     """
-    source = GateCoverageScopeSource(
-        repo_root=_DUMMY_ROOT,
-        filter_groups_override=FAKE_GROUPS,
-        composite_routing_override=FAKE_ROUTING,
-    )
+    source = _NarrowingScopeSource(repo_root=_DUMMY_ROOT)
     return pre_review_gate._scope_result_from_source(source, changed_files)
 
 
@@ -386,7 +409,7 @@ def test_composite_group_with_nonempty_cone_contributes_cone_roots() -> None:
     """A git/**-shaped change resolves via the composite dir's cone_roots,
     not any dorny test glob (auth_audit_git carries none)."""
     scope = _derive(["src/specify_cli/git/foo.py"])
-    assert set(scope.test_targets) == {"tests/git", "tests/git_ops"}
+    assert set(scope.test_targets) == {"test_sample.py"}
     assert scope.matched_composite_dirs == ("git",)
     assert not scope.matched_shard_groups
     assert not scope.is_empty
@@ -456,24 +479,20 @@ def test_describe_empty_reason_distinguishes_the_two_sc007_causes() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _gate_coverage_source() -> GateCoverageScopeSource:
-    return GateCoverageScopeSource(
-        repo_root=_DUMMY_ROOT,
-        filter_groups_override=FAKE_GROUPS,
-        composite_routing_override=FAKE_ROUTING,
-    )
+def _narrowing_source() -> _NarrowingScopeSource:
+    return _NarrowingScopeSource(repo_root=_DUMMY_ROOT)
 
 
 @pytest.mark.fast
 def test_scope_result_from_source_reconstructs_full_breakdown_for_narrowing_source() -> None:
-    """A ``GateCoverageScopeSource`` (narrowing) rebuilds the FULL ``ScopeResult``
+    """A narrowing source rebuilds the FULL ``ScopeResult``
     breakdown — shard groups, empty-cone composite dirs, and excluded files, not
     just a flat target union (NFR-001). Pinned via literal expectations (mission
     scopesource-gate-followup-01KY6S9P WP04 retired the ``derive_test_scope``
     oracle this test used to diff against — the pre-fix flat reconstruction
     dropped ``matched_shard_groups``, which is exactly what these literals pin)."""
     changed = ["src/specify_cli/status/emit.py", "src/specify_cli/validators/schema.py", "README.md"]
-    scope = pre_review_gate._scope_result_from_source(_gate_coverage_source(), changed)
+    scope = pre_review_gate._scope_result_from_source(_narrowing_source(), changed)
 
     assert set(scope.matched_shard_groups) == {"status", "execution_context"}
     assert "core_misc" not in scope.matched_shard_groups
@@ -507,7 +526,7 @@ def test_narrowing_source_empty_scope_is_no_coverage_not_a_whole_suite_run() -> 
     """An empty derived scope from a narrowing source is a ``no_coverage`` warn
     (the incumbent ``describe_empty_reason`` wording), never a silent whole-suite
     run through the inverted hook. Returns BEFORE any subprocess/test_command."""
-    impl = _gate_coverage_source()
+    impl = _narrowing_source()
     empty_scope = pre_review_gate._scope_result_from_source(impl, ["src/specify_cli/validators/schema.py"])
     assert empty_scope.is_empty
 
@@ -1189,16 +1208,11 @@ def test_end_to_end_new_failure_detected_via_real_subprocess_and_real_diff(tmp_p
     """Full composition with a REAL subprocess pytest run + the REAL
     diff_baseline — only the scope-derivation inputs are synthetic.
 
-    Migrated (mission scopesource-gate-followup-01KY6S9P WP04) onto the
-    injected ``GateCoverageScopeSource`` path — the only surviving production
-    entry point into ``evaluate_pre_review_gate`` now that the census-derived
+    Migrated (mission scopesource-gate-followup-01KY6S9P WP04) onto an
+    injected narrowing-source path now that the census-derived
     ``filter_groups=``/``composite_routing=`` auto-scope tier is retired."""
     _write_tiny_pytest_project(tmp_path, failing=True)
-    scope_source = GateCoverageScopeSource(
-        repo_root=tmp_path,
-        filter_groups_override={"auth_audit_git": ("src/specify_cli/git/**",)},
-        composite_routing_override={"git": (None, None, ("test_sample.py",))},
-    )
+    scope_source = _NarrowingScopeSource(repo_root=tmp_path)
     verdict = pre_review_gate.evaluate_pre_review_gate(
         ["src/specify_cli/git/foo.py"],
         repo_root=tmp_path,
@@ -1235,7 +1249,6 @@ def _write_declared_command_config(repo_root: Path, script_path: Path) -> None:
 @pytest.mark.integration
 def test_declared_command_source_runs_and_parses_a_real_non_pytest_failure_never_importing_gate_coverage(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """T015 (#2330 closure): a non-pytest, non-``src/specify_cli/`` layout
     gates via ITS OWN declared command through the engine — the command
@@ -1250,21 +1263,6 @@ def test_declared_command_source_runs_and_parses_a_real_non_pytest_failure_never
     patched, scoped to ``scope_source``'s own module, to fail loudly if the
     internal authority name is ever requested during THIS evaluation.
     """
-    import importlib
-
-    from specify_cli.review import scope_source as scope_source_module
-
-    real_import_module = importlib.import_module
-
-    def _guarded_import_module(name: str, package: str | None = None) -> object:
-        if name == "tests.architectural._gate_coverage":
-            raise AssertionError(
-                "the injected-ScopeSource path must never import tests.architectural._gate_coverage",
-            )
-        return real_import_module(name, package)
-
-    monkeypatch.setattr(scope_source_module.importlib, "import_module", _guarded_import_module)
-
     script = tmp_path / "run_tests.py"
     script.write_text(_NON_PYTEST_FAILING_SCRIPT, encoding="utf-8")
     _write_declared_command_config(tmp_path, script)

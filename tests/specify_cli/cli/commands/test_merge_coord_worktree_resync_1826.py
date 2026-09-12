@@ -306,11 +306,6 @@ def _merge_external_mocks():
             "specify_cli.merge.executor._assert_merged_wps_done_on_target"
         ),
         "safe_commit": patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        "dossier": patch(
-            "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"
-        ),
-        "mission_closed": patch("specify_cli.merge.executor.emit_mission_closed"),
-        "diff_summary": patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         "refresh_primary": patch(
             "specify_cli.merge.executor._refresh_primary_checkout_after_merge"
         ),
@@ -681,6 +676,104 @@ def test_advance_branch_ref_obstructing_untracked_file_refuses_before_reset(
     )
     assert any("advanced.txt" in entry for entry in excinfo.value.dirty_entries)
     assert "would be overwritten" in str(excinfo.value)
+
+
+def _setup_branch_with_dossier_snapshot_drift(
+    repo: Path,
+) -> tuple[str, Path, str, Path]:
+    """Branch ``topic`` checked out in a worktree carrying dossier-snapshot drift.
+
+    Reproduces the FIX-M2-05 ``spec-kitty merge`` failure shape: the
+    coordination worktree's checked-out branch already has a committed
+    ``.kittify/dossiers/<mission>/snapshot-latest.json`` (the state a
+    pre-fix ``finalize-tasks`` -- see ``mission_finalize.py`` --
+    ``_collect_finalize_artifacts`` produced by treating the dossier snapshot
+    as a commit candidate, violating ``contracts/dossier-snapshot-ownership.md``
+    D1), and a later fire-and-forget dossier-sync write
+    (``save_snapshot()``, never staged/committed by design) leaves that
+    worktree's copy locally modified when the merge pipeline tries to
+    fast-forward the branch underneath it.
+    """
+    branch = "topic"
+    _git(repo, "branch", branch)
+    wt = repo / ".worktrees" / "topic-wt"
+    wt.parent.mkdir(parents=True, exist_ok=True)
+    _git(repo, "worktree", "add", str(wt), branch)
+
+    snapshot_rel = Path(
+        "kitty-specs/some-mission/.kittify/dossiers/some-mission/snapshot-latest.json"
+    )
+    (wt / snapshot_rel).parent.mkdir(parents=True, exist_ok=True)
+    (wt / snapshot_rel).write_text('{"v": 1}\n', encoding="utf-8")
+    _git(wt, "add", str(snapshot_rel))
+    _git(wt, "commit", "-m", "chore: seed dossier snapshot (pre-fix committed state)")
+
+    detached = repo / ".worktrees" / "detached-tmp"
+    _git(repo, "worktree", "add", "--detach", str(detached), branch)
+    (detached / "advanced.txt").write_text("advanced\n", encoding="utf-8")
+    _git(detached, "add", "advanced.txt")
+    _git(detached, "commit", "-m", "advance")
+    new_sha = _rev_parse(detached, "HEAD")
+    _git(repo, "worktree", "remove", str(detached), "--force")
+
+    # A subsequent dossier-sync re-write (mark-status/move-task/merge all
+    # trigger it) leaves the checked-out worktree's copy locally modified —
+    # save_snapshot() never stages or commits its own write (D1/D2).
+    (wt / snapshot_rel).write_text('{"v": 2}\n', encoding="utf-8")
+    return branch, wt, new_sha, snapshot_rel
+
+
+def test_advance_branch_ref_dossier_snapshot_drift_blocks_without_residue_exemption(
+    tmp_path: Path,
+) -> None:
+    """RED baseline: without an injected ``is_residue``, dossier-snapshot drift
+    in the checked-out worktree blocks the advance like any other tracked
+    modification -- documents WHY the exemption is needed, not a claim that
+    production callers omit it (they all inject
+    ``is_toolchain_generated_churn`` -- see the GREEN test below)."""
+    _init_git_repo(tmp_path)
+    branch, wt, new_sha, snapshot_rel = _setup_branch_with_dossier_snapshot_drift(
+        tmp_path
+    )
+
+    with pytest.raises(RefAdvanceDirtyWorktreeError) as excinfo:
+        advance_branch_ref(tmp_path, branch, new_sha)
+
+    assert any(
+        snapshot_rel.name in entry for entry in excinfo.value.dirty_entries
+    )
+
+
+def test_advance_branch_ref_dossier_snapshot_drift_does_not_block_with_residue_exemption(
+    tmp_path: Path,
+) -> None:
+    """FIX-M2-05 / GREEN: with the real production ``is_residue`` injection
+    (``is_toolchain_generated_churn``, exactly as every ``advance_branch_ref``
+    call site in the merge pipeline passes it -- ``lanes/merge.py``,
+    ``merge/ordering.py``, ``coordination/commit_router.py``), dossier-snapshot
+    drift in the checked-out worktree does NOT block the advance. Closes the
+    reported ``spec-kitty merge`` failure: 'Refusing to advance branch ...
+    the worktree at .../-coord has it checked out and holds uncommitted local
+    changes ... snapshot-latest.json' (#1826 / FIX-M2-05)."""
+    from specify_cli.coordination.coherence import is_toolchain_generated_churn
+
+    _init_git_repo(tmp_path)
+    branch, wt, new_sha, snapshot_rel = _setup_branch_with_dossier_snapshot_drift(
+        tmp_path
+    )
+
+    advance_branch_ref(tmp_path, branch, new_sha, is_residue=is_toolchain_generated_churn)
+
+    assert _rev_parse(tmp_path, branch) == new_sha
+    assert _rev_parse(wt, "HEAD") == new_sha
+    assert _porcelain(wt) == "", "worktree must be CONSISTENT (clean) after resync"
+    # Residue exemption means "don't REFUSE the advance over it" -- the tracked
+    # entry is still a REAL git object, so `reset --hard` still resyncs it to
+    # the new tip's committed byte content (same discard semantics the
+    # meta.json VCS-lock exemption already documents: "the resync discards it
+    # and the next claim rewrites it"). Toolchain-generated churn is, by
+    # definition, regenerable -- the next dossier-sync write recomputes it.
+    assert (wt / snapshot_rel).read_text(encoding="utf-8") == '{"v": 1}\n'
 
 
 def test_backstop_message_names_diverged_worktree_and_ref(tmp_path: Path) -> None:

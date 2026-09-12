@@ -28,7 +28,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 def test_curated_doctrine_artifacts_exist_with_expected_kinds() -> None:
     # Pack content relocated to the flattened ``packs/built-in`` root; templates
-    # stay under ``src/doctrine/templates`` (relocate-builtin-doctrine-packs).
+    # stay under ``src/charter/offering/templates`` (relocate-builtin-doctrine-packs).
     expected_paths = [
         PACKS_BUILT_IN / "procedures/disciplined-defect-diagnosis.procedure.yaml",
         PACKS_BUILT_IN / "paradigms/deep-module-design.paradigm.yaml",

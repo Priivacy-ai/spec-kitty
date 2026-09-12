@@ -46,15 +46,7 @@ MISSION_ID = "01KGATE00000000000000000000"
 MISSION_DIRNAME = f"{MISSION_SLUG}-{MID8}"
 COORD_BRANCH = f"kitty/mission-{MISSION_DIRNAME}"
 
-_WP_FILE = (
-    "---\n"
-    "work_package_id: WP01\n"
-    "title: Test WP01\n"
-    "dependencies: []\n"
-    "subtasks: []\n"
-    "---\n\n"
-    "# WP01\n"
-)
+_WP_FILE = "---\nwork_package_id: WP01\ntitle: Test WP01\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n"
 
 
 @pytest.fixture(autouse=True)
@@ -63,7 +55,6 @@ def _no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *a, **k: None)
 
 
 def _valid_policy_json() -> str:
@@ -81,9 +72,7 @@ def _valid_policy_json() -> str:
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True
-    )
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
 
 def _manifest() -> LanesManifest:
@@ -130,9 +119,7 @@ def _seed_planned_on_coord(repo: Path) -> None:
     worktree = repo / ".worktrees" / "seed-coord"
     _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
     append_event_log(
-        EventLogWriteContract.coordination_transaction_append(
-            worktree / "kitty-specs" / MISSION_DIRNAME
-        ),
+        EventLogWriteContract.coordination_transaction_append(worktree / "kitty-specs" / MISSION_DIRNAME),
         seed,
     )
     _git(worktree, "add", "-A")
@@ -165,8 +152,7 @@ def _build_mission(repo: Path) -> Path:
     )
     (feature_dir / "tasks" / "WP01.md").write_text(_WP_FILE, encoding="utf-8")
     (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01 Test WP01\n\n"
-        "- [x] T001 subtask for WP01\n- [x] T002 subtask for WP01\n",
+        "# Tasks\n\n## WP01 Test WP01\n\n- [x] T001 subtask for WP01\n- [x] T002 subtask for WP01\n",
         encoding="utf-8",
     )
     write_lanes_json(feature_dir, _manifest())
@@ -241,9 +227,7 @@ def _resolve_gate_root(topology: str, repo: Path, lane_worktree: Path) -> Path:
 
 @pytest.mark.parametrize("topology", ["primary", "worktree", "clone"])
 @pytest.mark.parametrize("satisfied", [True, False])
-def test_for_review_gate_parity_both_directions(
-    tmp_path: Path, topology: str, satisfied: bool
-) -> None:
+def test_for_review_gate_parity_both_directions(tmp_path: Path, topology: str, satisfied: bool) -> None:
     """One gate, one verdict: leaf and orchestrator agree per topology & direction."""
     repo = _build_mission(tmp_path / topology)
     lane_worktree = _start_implementation(repo)

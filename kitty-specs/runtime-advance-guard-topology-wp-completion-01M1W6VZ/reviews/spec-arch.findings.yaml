@@ -1,0 +1,142 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: SPEC-ARCH-001
+    lens: Mixed-kind fidelity
+    severity: 4
+    title: "FR-002 mischaracterizes the tasks_dir/WP-file-glob read as COORD-partition when the canonical classifier says it is PRIMARY"
+    evidence:
+      - artifact: "spec.md § FR-002"
+      - artifact: "spec.md § C-001"
+      - code: "src/runtime/next/runtime_bridge_io.py:1045-1049 (tasks_dir = feature_dir / \"tasks\"; wp_files = sorted(tasks_dir.glob(\"WP*.md\")); present.add(\"tasks_wp_files\"))"
+      - code: "src/runtime/next/runtime_bridge_io.py:1086 (_rb._has_raw_dependencies_field(wp_file) reads the same feature_dir/tasks WP file content)"
+      - code: "src/mission_runtime/artifacts.py:147-172 (_PRIMARY_ARTIFACT_KINDS frozenset; line 155 includes MissionArtifactKind.WORK_PACKAGE_TASK)"
+      - code: "src/mission_runtime/artifacts.py:261 (_COORD_RESIDUE_DIRS[\"tasks\"] = MissionArtifactKind.WORK_PACKAGE_TASK)"
+      - code: "src/mission_runtime/artifacts.py:296-300 (artifact_home_for: `if kind in _PRIMARY_ARTIFACT_KINDS: return MissionArtifactHome(kind=kind, read_surface=TopologySurface.PRIMARY, write_surface=TopologySurface.PRIMARY, ...)`)"
+    claim: >
+      FR-002 groups "tasks_dir = feature_dir / \"tasks\"" together with
+      get_wp_lane/status.events.jsonl as reads that "must stay on the
+      existing topology-aware feature_dir" because they are "COORD-partition
+      (STATUS_STATE-kind)". That is only true of get_wp_lane. The
+      tasks_dir-derived WP-file glob (wp_files, feeding both the
+      "tasks_wp_files" present_artifacts flag and
+      _has_raw_dependencies_field's per-file reads) resolves the artifact
+      kind WORK_PACKAGE_TASK, which artifacts.py's own
+      _COORD_RESIDUE_DIRS["tasks"] mapping assigns, and WORK_PACKAGE_TASK is
+      explicitly a member of _PRIMARY_ARTIFACT_KINDS (artifacts.py:155) with
+      read_surface=TopologySurface.PRIMARY for every topology
+      (artifacts.py:296-300). That is the SAME partition membership as
+      spec.md/plan.md/tasks.md, the exact artifacts FR-001 is fixing. FR-002
+      therefore bundles a PRIMARY-kind read together with a genuinely
+      COORD-kind read under one "leave alone" bucket, contradicting the very
+      classifier the spec cites as authority (Key Entities section,
+      C-005). Concretely: "tasks_wp_files" participates in the same
+      present_artifacts set FR-001 re-anchors (consumed by
+      runtime_bridge_cores.py:515/565 guard logic), so a coord-topology
+      mission whose tasks/WP*.md content is not materialized identically on
+      the raw feature_dir can still see this presence flag disagree between
+      primary-anchored query mode and un-anchored advance mode after this
+      mission ships — the same query/advance disagreement class (#3883,
+      FR-007) the mission claims to close, left open under a mistaken COORD
+      label.
+    remediation: >
+      Split FR-002 into two explicit FRs: one for the genuinely COORD-kind
+      get_wp_lane/status.events.jsonl reads (unchanged), and a separate one
+      that either (a) explicitly folds the tasks_dir WP-file-glob
+      (wp_files/tasks_wp_files/_has_raw_dependencies_field) into FR-001's
+      primary-anchoring scope since it is canonically WORK_PACKAGE_TASK
+      (PRIMARY), or (b) if deliberately deferred, names it as an explicit,
+      acknowledged out-of-scope gap alongside C-004 rather than asserting it
+      is "correctly COORD and must not be touched." Update C-001's
+      constraint text to stop citing tasks_dir as an example of a
+      COORD-partition read.
+
+  - id: SPEC-ARCH-002
+    lens: Mixed-kind fidelity
+    severity: 4
+    title: "FR-001/FR-002's two-bucket split omits a third class of PRIMARY-partition status_facts reads that silently pass when feature_dir lacks primary files"
+    evidence:
+      - artifact: "spec.md § FR-001"
+      - artifact: "spec.md § FR-002"
+      - artifact: "spec.md § FR-006 / NFR-002 (silent-success prohibition)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1075-1085 (status_facts dict wires requirement_mapping_failures, bare_prose_requirement_failures, occurrence_gate_failures — none keyed off status.events.jsonl)"
+      - code: "src/runtime/next/runtime_bridge.py:923,943-944 (_check_requirement_mapping_ready: `spec_md = feature_dir / SPEC_ARTIFACT`; `if not spec_md.exists(): return []`)"
+      - code: "src/runtime/next/runtime_bridge.py:989,1012-1013 (_check_bare_prose_requirements_ready: same feature_dir/spec.md existence check, same `return []` on absence)"
+      - code: "src/specify_cli/bulk_edit/gate.py:75-86 (ensure_occurrence_classification_ready: `meta = load_meta(feature_dir); if meta is None: return GateResult(passed=True, change_mode=None)` — silently passes the bulk-edit occurrence gate when meta.json is absent from feature_dir)"
+      - code: "src/runtime/next/runtime_bridge.py:1530 (existing comment confirms meta.json is excluded from the coordination worktree's sparse policy)"
+    claim: >
+      FR-001 covers only "the named-artifact (_presence_filenames_for)
+      loop"; FR-002 covers only get_wp_lane and "every other read keyed off
+      status.events.jsonl". Neither FR covers
+      _check_requirement_mapping_ready, _check_bare_prose_requirements_ready,
+      or _occurrence_gate_failures, all invoked unconditionally inside
+      gather_artifact_presence to populate status_facts
+      (runtime_bridge_io.py:1075-1085). All three read PRIMARY-partition
+      artifacts (spec.md → SPEC kind; meta.json → PRIMARY_METADATA kind) off
+      the raw feature_dir, and all three FAIL SILENTLY-CLEAN when that file
+      is absent: _check_requirement_mapping_ready and
+      _check_bare_prose_requirements_ready both return `[]` (no failures)
+      when spec.md does not exist at feature_dir, and
+      ensure_occurrence_classification_ready returns `passed=True` when
+      meta.json is absent. For a coord-topology mission where feature_dir is
+      the coord worktree (which the spec's own User Story 1 fixture and
+      runtime_bridge.py:1530's existing comment confirm excludes spec.md and
+      meta.json), this is not merely a missed re-anchoring — it is the
+      silent-success failure mode the spec explicitly singles out (US1 AC3,
+      FR-006, NFR-002) as "this repo's dominant failure mode" and demands
+      fail-loud handling for, occurring in three call sites the spec never
+      names or scopes. A bulk-edit mission's occurrence-classification
+      safety gate, and the requirement-mapping/bare-prose gates, can all be
+      silently bypassed for a coord-topology mission today, and this spec's
+      FR-001/FR-002 split does not tell the plan phase whether that is being
+      fixed, left, or knowingly deferred.
+    remediation: >
+      Add an FR (or extend FR-006) that explicitly enumerates
+      _check_requirement_mapping_ready, _check_bare_prose_requirements_ready,
+      and _occurrence_gate_failures as PRIMARY-partition-reading helpers
+      invoked inside gather_artifact_presence, and states one of: (a) they
+      are re-anchored onto the same primary placement seam as FR-001 (most
+      consistent with C-001's own reasoning), or (b) they are explicitly
+      out of scope for this mission (extend C-004's exclusion list to name
+      them by name, with a tracked follow-up), so the plan phase does not
+      have to reverse-engineer their partition membership itself and does
+      not silently inherit the same defect class this mission is meant to
+      close.
+
+  - id: SPEC-ARCH-003
+    lens: Reflexivity
+    severity: 3
+    title: "Spec does not address the mid-flight state-transition impact of previously-blocked coord-topology missions becoming unblocked once this ships"
+    evidence:
+      - artifact: "spec.md § Edge Cases"
+      - artifact: "spec.md § User Story 1 (Why this priority)"
+    claim: >
+      The spec's own framing states #3883 is "actively-reproducing" — i.e.
+      real coord-topology missions exist today that are incorrectly blocked
+      at `implement`/`review` because gather_artifact_presence reports
+      spec.md/plan.md/tasks.md as missing. Once this fix ships, the very
+      next `spec-kitty next`/advance call against such a mission will flip
+      it from blocked to unblocked (and, combined with #3884's fix, WPs that
+      were never actually claimed will now correctly re-block on
+      `implement` too) — a real behavior discontinuity for missions that
+      have been sitting in a stale blocked state, possibly for a long time,
+      without any operator having re-confirmed their actual readiness in the
+      interim. The Edge Cases section covers three narrow technical
+      scenarios (primary-resolution failure, flattened-topology no-op,
+      partial-vs-zero WP events) but never addresses this operational
+      transition: a mission operator could see missions silently jump
+      forward (or newly block) on the first post-fix `next` call with no
+      warning that the jump is a consequence of this mission's deploy,
+      rather than of anything that changed in their own mission.
+    remediation: >
+      Add an edge case (or a short "Deployment/Rollout impact" subsection)
+      stating explicitly that this fix is expected to change the
+      blocked/unblocked verdict for real in-flight coord-topology missions
+      on their next advance call, and recommend (even if only as an
+      operational note for the plan/implement phase, not a new
+      requirement) that any currently-blocked coord-topology mission be
+      spot-checked once this ships, since its unblocking is a side effect
+      of this fix rather than of new work having been done on that mission.

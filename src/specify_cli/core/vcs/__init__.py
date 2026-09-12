@@ -25,7 +25,6 @@ from __future__ import annotations
 # Enums
 from .types import (
     ConflictType,
-    SyncStatus,
     VCSBackend,
 )
 
@@ -36,7 +35,6 @@ from .types import (
     FeatureVCSConfig,
     OperationInfo,
     ProjectVCSConfig,
-    SyncResult,
     VCSCapabilities,
     WorkspaceCreateResult,
     WorkspaceInfo,
@@ -58,7 +56,6 @@ from .exceptions import (
     VCSError,
     VCSLockError,
     VCSNotFoundError,
-    VCSSyncError,
 )
 
 # Detection and factory functions
@@ -72,13 +69,11 @@ from .detection import (
 __all__ = [
     # Enums
     "VCSBackend",
-    "SyncStatus",
     "ConflictType",
     # Dataclasses
     "VCSCapabilities",
     "ChangeInfo",
     "ConflictInfo",
-    "SyncResult",
     "WorkspaceInfo",
     "OperationInfo",
     "WorkspaceCreateResult",
@@ -95,7 +90,6 @@ __all__ = [
     "VCSBackendMismatchError",
     "VCSLockError",
     "VCSConflictError",
-    "VCSSyncError",
     # Detection and factory
     "get_vcs",
     "is_git_available",

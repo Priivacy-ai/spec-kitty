@@ -10,7 +10,9 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.compat._detect.install_method import InstallMethod
+from specify_cli.compat.provider import NoNetworkProvider
 from specify_cli.compat.upgrade_hint import UpgradeHint, build_upgrade_hint
+from specify_cli.distribution.profile import DegradedDistributionProfile
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +78,26 @@ class TestCommandHints:
         assert hint.command is not None
         assert "\x1b" not in hint.command
         assert "\033" not in hint.command
+
+
+def test_degraded_profile_suppresses_remediation_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = DegradedDistributionProfile(
+        package_name="",
+        upgrade_provider=NoNetworkProvider(),
+        disable_public_pypi_notifier=True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.resolve_distribution_profile",
+        lambda: profile,
+    )
+
+    hint = build_upgrade_hint(InstallMethod.UV_TOOL)
+
+    assert hint.command is None
+    assert hint.note is not None
+    assert "distribution profile" in hint.note
 
 
 # ---------------------------------------------------------------------------

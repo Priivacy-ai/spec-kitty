@@ -166,6 +166,9 @@ class TokenRefreshFlow:
             last_used_at=now,
             auth_method=session.auth_method,
             generation=tokens.get("generation"),  # None if server doesn't send it
+            # A refresh renews tokens with the same issuer; the session stays
+            # "minted against" wherever login happened until a re-login.
+            issuer_url=session.issuer_url,
         )
 
     @staticmethod

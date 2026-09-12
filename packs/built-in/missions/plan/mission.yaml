@@ -6,57 +6,6 @@ mission:
 
 initial: goals
 
-states:
-  - name: goals
-    display_name: "Define Goals"
-    on_enter: [on_enter_state]
-  - name: research
-    display_name: "Research & Analysis"
-    on_enter: [on_enter_state]
-  - name: structure
-    display_name: "Structure & Outline"
-    on_enter: [on_enter_state]
-  - name: draft
-    display_name: "Draft Plan"
-    on_enter: [on_enter_state]
-  - name: review
-    display_name: "Review & Approval"
-    on_enter: [on_enter_state]
-  - name: done
-    display_name: "Complete"
-    on_enter: [on_enter_state]
-
-transitions:
-  - trigger: advance
-    source: goals
-    dest: research
-    conditions:
-      - 'artifact_exists("goals.md")'
-  - trigger: advance
-    source: research
-    dest: structure
-    conditions:
-      - 'artifact_exists("research.md")'
-  - trigger: advance
-    source: structure
-    dest: draft
-  - trigger: advance
-    source: draft
-    dest: review
-    conditions:
-      - 'artifact_exists("plan.md")'
-  - trigger: advance
-    source: review
-    dest: done
-    conditions:
-      - 'gate_passed("plan_approved")'
-  - trigger: revise
-    source: draft
-    dest: structure
-  - trigger: revise
-    source: review
-    dest: draft
-
 guards:
   has_goals:
     description: "Goals must be specified"

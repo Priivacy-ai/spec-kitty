@@ -6,7 +6,7 @@ Covers the operator-facing regeneration surface:
 2. regenerate-twice produces byte-identical output (determinism),
 3. ``--check`` against a deliberately corrupted graph reports stale (exit 1).
 
-The committed ``src/doctrine/graph.yaml`` is never mutated: write-mode tests
+The committed ``src/charter/offering/graph.yaml`` is never mutated: write-mode tests
 target a temporary doctrine root assembled from the shipped one.
 """
 
@@ -106,7 +106,7 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #:
 #: 2026-07-31 (mission charter-delivery-finish-context-degod, #3064, post-merge
 #: follow-up): WP03's ``asset:common-charter-scaffold-minimal`` doctrine asset was
-#: relocated to first-class charter-pack status (``src/charter/packs/minimal.yaml``,
+#: relocated to first-class charter-pack status (``src/charter/activation/packs/minimal.yaml``,
 #: applied via ``spec-kitty charter pack apply minimal``) — it is structurally a
 #: charter pack, not a generic doctrine asset. The asset node is gone from the DRG,
 #: reverting the ceiling **22 -> 21**. Full narrative in ``drg-orphan-residual.md``.

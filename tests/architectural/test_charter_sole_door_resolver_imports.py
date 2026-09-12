@@ -1,5 +1,5 @@
 """Gate 3 (FR-003/FR-007, WP09): no module outside ``src/charter/**`` or
-``src/doctrine/**`` imports ``charter.offering.resolver`` directly.
+``src/charter/offering/**`` imports ``charter.offering.resolver`` directly.
 
 Mission ``charter-sole-door-bypass-closure-01KZ3WAA``, WP09 / T039. Third of the
 three mission-wide durability gates this work package ships.
@@ -24,7 +24,7 @@ tier and the mission-config resolution "remains reachable ONLY via a method on
 [``charter.activation.resolver.DoctrineService``] from outside ``src/charter/**``".
 ``doctrine/resolver.py``'s functions are the implementation those methods
 delegate to. A direct import from a consumer re-opens exactly the second,
-ungated resolution path FR-003 exists to prevent — ``charter/activation/resolver.py``'s own
+ungated resolution path FR-003 exists to prevent — ``charter/resolver.py``'s own
 comment marks its import as "the ONLY import of ``charter.offering.resolver``'s tier
 functions".
 
@@ -66,10 +66,10 @@ directs not re-asserting what an adjacent gate already proves:
 A5 fix: ``from package import module`` also binds the guarded module
 ------------------------------------------------------------------------
 Adversarial-review injection probes measured this gate at a 4/9 real catch
-rate. The dominant miss: ``from doctrine import resolver`` — in all three
+rate. The dominant miss: ``from charter.offering import resolver`` — in all three
 spellings (plain, aliased, function-local) — fully evaded the ban. For an
 ``ast.ImportFrom`` the detector tested only ``node.module`` (``"doctrine"``);
-it never tried ``node.module + "." + alias.name``. But ``from doctrine import
+it never tried ``node.module + "." + alias.name``. But ``from charter.offering import
 resolver`` binds the IDENTICAL module object as ``import charter.offering.resolver``,
 and ``resolver.resolve_template(...)`` then re-opens the exact ungated second
 resolution path this gate exists to forbid. :func:`scan_file_resolver_imports`
@@ -102,7 +102,7 @@ GUARDED_MODULE = "charter.offering.resolver"
 #: The two layers entitled to import it: the charter layer (which owns the sole
 #: door and its facades) and the doctrine layer (which owns the module).
 #: Directory-prefix keyed, never per-file and never per-line.
-OWNING_LAYER_PREFIXES = ("src/charter/", "src/doctrine/")
+OWNING_LAYER_PREFIXES = ("src/charter/", "src/charter/offering/")
 
 #: The sanctioned route for a consumer that needs the resolution *types*.
 FACADE_MODULE = "charter.resolution"
@@ -171,7 +171,7 @@ def scan_file_resolver_imports(path: Path, rel_path: str) -> list[ResolverImport
         if isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:
                 dotted_names.append(node.module)
-                # A5 fix: ``from doctrine import resolver`` binds the
+                # A5 fix: ``from charter.offering import resolver`` binds the
                 # identical module object as ``import charter.offering.resolver`` —
                 # node.module alone ("doctrine") never matches the guarded
                 # "charter.offering.resolver" target, so the imported NAME must also
@@ -218,7 +218,7 @@ def check_resolver_import_gate(sites: tuple[ResolverImportSite, ...]) -> list[st
     """Violations — zero-tolerance, no allow-list of any kind (C-002)."""
     return [
         f"{site.describe()} imports {GUARDED_MODULE} directly from outside "
-        f"src/charter/** and src/doctrine/** — reach the 5 resolver tiers "
+        f"src/charter/** and src/charter/offering/** — reach the 5 resolver tiers "
         f"through a charter.activation.resolver.DoctrineService method, or import the "
         f"resolution types from the {FACADE_MODULE} facade"
         for site in sites

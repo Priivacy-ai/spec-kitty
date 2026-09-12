@@ -73,11 +73,13 @@ from specify_cli.status import (
     Lane,
     ReviewResult,
     StatusEvent,
-    append_events_atomic_verified,
     emission_event_verdict,
     event_sourced_review_result,
+    feature_status_lock,
     is_changes_requested,
 )
+from specify_cli.status._unsafe import append_events_atomic_verified
+from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 #: Actor identity stamped on every backfilled event, matching the
 #: ``migration:<module>`` convention set by ``backfill_runtime_state.py``'s
@@ -400,6 +402,28 @@ def backfill_verdict_provenance(feature_dir: Path) -> BackfillOutcome:
     WP now has ``slot_present=True`` and is skipped.
     """
     mission_id = _resolve_mission_id(feature_dir)
+    # fsm-write-path-integrity WP01 (FR-002, writer family 6): the whole
+    # discover -> ``slot_present`` read -> append sequence runs under ONE
+    # acquisition of the mission status lock (keyed on ``feature_dir.name``).
+    # ``event_sourced_review_result`` reads the event log, so leaving it
+    # outside the lock is a TOCTOU against a concurrent verdict writer; the
+    # backfill is a one-shot migration, so holding the lock across the review
+    # artifact reads too is cheap. No ``nullcontext()`` degrade at this site
+    # (conscious choice): the lock root resolver never fails. No git subprocess
+    # runs inside the section (NFR-001).
+    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+        events, appended_wp_ids = _collect_backfill_events(feature_dir, mission_id)
+        if events:
+            append_events_atomic_verified(feature_dir, events)
+    return BackfillOutcome(feature_dir=feature_dir, appended_wp_ids=tuple(appended_wp_ids))
+
+
+def _collect_backfill_events(feature_dir: Path, mission_id: str | None) -> tuple[list[StatusEvent], list[str]]:
+    """Return the stranded-verdict events to append plus their WP ids.
+
+    Caller must hold the mission status lock: the ``slot_present`` probe is an
+    event-log read whose answer the append relies on.
+    """
     events: list[StatusEvent] = []
     appended_wp_ids: list[str] = []
     for wp_id in discover_wp_ids_with_review_cycles(feature_dir):
@@ -415,9 +439,7 @@ def backfill_verdict_provenance(feature_dir: Path) -> BackfillOutcome:
             _backfill_event_for_wp(feature_dir, wp_id, artifact, path, legacy_verdict, mission_id)
         )
         appended_wp_ids.append(wp_id)
-    if events:
-        append_events_atomic_verified(feature_dir, events)
-    return BackfillOutcome(feature_dir=feature_dir, appended_wp_ids=tuple(appended_wp_ids))
+    return events, appended_wp_ids
 
 
 # Public surface (re-declared post-wiring, verdict-seam-write-unification-

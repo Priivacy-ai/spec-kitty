@@ -1,6 +1,6 @@
 """Actor boundary-normalize (WP02 / FR-005/FR-006, #2861).
 
-Pins the three seams the emit-side actor identity fix touches:
+Pins the two surviving seams of the emit-side actor identity fix:
 
 * :func:`~specify_cli.status.emit.parse_agent_boundary_string` — a THIN,
   non-synthesizing boundary parser for the compact ``--agent
@@ -14,10 +14,11 @@ Pins the three seams the emit-side actor identity fix touches:
   ``self_profile``/``self_model`` kwargs: a genuine dispatch-resolved
   ``binding`` value always wins; the self-asserted value only fills a gap
   the binding leaves open; absent-on-both-sides stays ``None``.
-* :func:`~specify_cli.sync.emitter._is_actor_field` — the FR-006
-  ``Union[str, Dict]`` acceptance gate for ``WPStatusChanged``/``WPCreated``
-  so a resolved-actor dict payload is not rejected by the SaaS-fanout
-  payload-rule validators (``_PAYLOAD_RULES``) as a non-string value.
+
+(The third pinned seam — the sync emitter's ``_is_actor_field``
+``Union[str, Dict]`` acceptance gate for fan-out payload validators — died
+with the sync transport, issue #5. The resolved-actor dict still rides the
+transition verbatim via :func:`~specify_cli.status.emit._saas_fan_out`.)
 """
 
 from __future__ import annotations
@@ -30,7 +31,6 @@ from specify_cli.status.emit import (
     parse_agent_boundary_string,
 )
 from specify_cli.status.resolved_binding import ResolvedBinding
-from specify_cli.sync.emitter import _PAYLOAD_RULES, _is_actor_field, _is_actor_payload
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -195,68 +195,3 @@ def test_build_self_asserting_actor_binding_wins_over_parsed_agent() -> None:
     assert actor["tool"] == "claude"
     assert actor["profile"] == "python-pedro"  # binding wins
     assert actor["model"] == "claude-opus-4-8"  # binding wins
-
-
-# ---------------------------------------------------------------------------
-# sync/emitter._is_actor_field — FR-006 Union[str, Dict] acceptance gate
-# ---------------------------------------------------------------------------
-
-#: A realistic, production-shaped resolved-actor dict (the shape
-#: build_resolved_actor emits for a compact --agent value).
-_RESOLVED_ACTOR_DICT = {
-    "role": "reviewer",
-    "profile": "reviewer-renata",
-    "tool": "claude",
-    "model": "opus",
-}
-
-
-def test_is_actor_field_accepts_nonempty_string() -> None:
-    assert _is_actor_field("claude") is True
-
-
-def test_is_actor_field_accepts_resolved_actor_dict() -> None:
-    """The FR-006 fix: a resolved-actor dict must not be rejected as
-    non-string by the WPStatusChanged/WPCreated payload validators."""
-    assert _is_actor_field(_RESOLVED_ACTOR_DICT) is True
-
-
-def test_is_actor_field_rejects_empty_string() -> None:
-    assert _is_actor_field("") is False
-
-
-def test_is_actor_field_rejects_empty_dict() -> None:
-    assert _is_actor_field({}) is False
-
-
-@pytest.mark.parametrize("value", [None, 42, [], ["claude"]])
-def test_is_actor_field_rejects_other_types(value: object) -> None:
-    assert _is_actor_field(value) is False
-
-
-def test_is_actor_field_does_not_require_proof_actor_shape() -> None:
-    """Distinct from _is_actor_payload (the {actor_id, actor_type} proof
-    schema for mission-run/next-step/decision events): a resolved-actor dict
-    lacking actor_id/actor_type must still be accepted here, even though it
-    fails the stricter proof-actor predicate."""
-    assert _is_actor_payload(_RESOLVED_ACTOR_DICT) is False
-    assert _is_actor_field(_RESOLVED_ACTOR_DICT) is True
-
-
-def test_wp_status_changed_actor_rule_accepts_dict_payload() -> None:
-    """Live wiring check: the WPStatusChanged payload-rule validators (as
-    consulted by sync.emitter._validate_payload) accept the resolved-actor
-    dict via the real _PAYLOAD_RULES table, not a re-implemented copy."""
-    validator = _PAYLOAD_RULES["WPStatusChanged"]["validators"]["actor"]
-    assert validator(_RESOLVED_ACTOR_DICT) is True
-    assert validator("claude") is True
-    assert validator("") is False
-    assert validator({}) is False
-
-
-def test_wp_created_actor_rule_accepts_dict_payload() -> None:
-    validator = _PAYLOAD_RULES["WPCreated"]["validators"]["actor"]
-    assert validator(_RESOLVED_ACTOR_DICT) is True
-    assert validator("claude") is True
-    assert validator("") is False
-    assert validator({}) is False

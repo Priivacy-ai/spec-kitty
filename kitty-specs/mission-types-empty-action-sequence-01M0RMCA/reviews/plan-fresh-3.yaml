@@ -1,7 +1,0 @@
-# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
-schema: review-findings/v1
-complete: true
-phase: plan
-lens_group: fresh-3
-mission: mission-types-empty-action-sequence-01M0RMCA
-findings: []

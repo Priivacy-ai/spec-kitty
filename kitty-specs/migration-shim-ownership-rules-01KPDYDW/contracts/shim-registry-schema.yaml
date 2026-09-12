@@ -11,7 +11,7 @@
 $schema: "http://json-schema.org/draft-07/schema#"
 title: Shim Registry
 description: |
-  Machine-readable enumeration of every compatibility shim under src/specify_cli/
+  Machine-readable enumeration of every compatibility shim under src/
   that re-exports from a canonical package. One entry per shim; the FR-010 scanner
   test asserts every on-disk shim appears here.
 

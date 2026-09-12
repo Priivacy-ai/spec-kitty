@@ -10,7 +10,7 @@ must still fail — it is a module-level AST scan, not a same-line grep).
 
 Three checks:
 
-1. **Positive (genuine routing).** Each of the four status surfaces must import
+1. **Positive (genuine routing).** Each surviving status surface must import
    from ``specify_cli.auth.verdict`` AND reference one of its verdict symbols
    (call or type annotation). A surface that merely stops spelling ``Authenticated``
    without adopting the authority fails this — same anti-evasion shape as the
@@ -21,8 +21,8 @@ Three checks:
    impossibility (rule 3), so the negative check only has to prove no surface
    hand-rolls the banner literal.
 3. **Negative (no hand-rolled claim).** No surface module may author an
-   authenticated-claim string literal (``Authenticated`` / ``No problems
-   detected`` / ``all events synced``) outside the one allowlisted, verdict-gated
+authenticated-claim string literal (``Authenticated`` / ``No problems
+detected``) outside the one allowlisted, verdict-gated
    render site. Docstrings are skipped (comments/docstrings mentioning the words
    must not trip it — the vocab guard's cycle-1 lesson).
 """
@@ -40,26 +40,20 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 #: verdict vocabulary, not a consumer of it).
 _VERDICT_RELPATH = "src/specify_cli/auth/verdict.py"
 
-#: The four status surfaces #3723 migrated. Each must genuinely route through the
+#: The surviving status surfaces from #3723. Each must genuinely route through the
 #: verdict authority (positive check) and must not hand-roll a banner (negative).
 _SURFACES: tuple[str, ...] = (
     "src/specify_cli/cli/commands/_auth_status.py",
     "src/specify_cli/cli/commands/_auth_doctor.py",
-    "src/specify_cli/sync/sync_status_core.py",
-    "src/specify_cli/sync/sync_doctor_core.py",
 )
 
 #: The verdict authority's public symbols that count as "routing through it".
-_VERDICT_SYMBOLS: frozenset[str] = frozenset(
-    {"HealthVerdict", "evaluate_auth_verdict", "auth_verdict_from_flags"}
-)
+_VERDICT_SYMBOLS: frozenset[str] = frozenset({"HealthVerdict", "evaluate_auth_verdict", "auth_verdict_from_flags"})
 
 #: Authenticated-claim tokens a surface must never author as a bare literal —
 #: they must come from ``HealthVerdict.headline`` (or, for the all-clear, be
 #: gated on a verdict's ``ok`` state at an allowlisted render site).
-_CLAIM_TOKENS: frozenset[str] = frozenset(
-    {"Authenticated", "No problems detected", "all events synced"}
-)
+_CLAIM_TOKENS: frozenset[str] = frozenset({"Authenticated", "No problems detected"})
 
 #: The ONE legitimate, verdict-gated all-clear render site: ``auth doctor`` prints
 #: "No problems detected." only when ``report.auth_verdict.state == 'ok'`` and no
@@ -92,12 +86,7 @@ def _docstring_node_ids(tree: ast.AST) -> set[int]:
     for node in ast.walk(tree):
         if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             body = getattr(node, "body", [])
-            if (
-                body
-                and isinstance(body[0], ast.Expr)
-                and isinstance(body[0].value, ast.Constant)
-                and isinstance(body[0].value.value, str)
-            ):
+            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) and isinstance(body[0].value.value, str):
                 ids.add(id(body[0].value))
     return ids
 
@@ -105,13 +94,7 @@ def _docstring_node_ids(tree: ast.AST) -> set[int]:
 def _code_string_constants(tree: ast.Module) -> list[str]:
     """Every code-level string constant, EXCLUDING docstrings."""
     skip = _docstring_node_ids(tree)
-    return [
-        node.value
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Constant)
-        and isinstance(node.value, str)
-        and id(node) not in skip
-    ]
+    return [node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in skip]
 
 
 def _bound_verdict_names(tree: ast.Module) -> set[str]:
@@ -193,16 +176,10 @@ def test_health_literal_is_exactly_three_members() -> None:
     tree = _parse(_repo_root(), _VERDICT_RELPATH)
     literals: set[str] | None = None
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Assign)
-            and any(isinstance(t, ast.Name) and t.id == "Health" for t in node.targets)
-            and isinstance(node.value, ast.Subscript)
-        ):
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "Health" for t in node.targets) and isinstance(node.value, ast.Subscript):
             elts = node.value.slice
             values = elts.elts if isinstance(elts, ast.Tuple) else [elts]
-            literals = {
-                v.value for v in values if isinstance(v, ast.Constant) and isinstance(v.value, str)
-            }
+            literals = {v.value for v in values if isinstance(v, ast.Constant) and isinstance(v.value, str)}
     assert literals == {"ok", "unknown", "fail"}, literals
 
 
@@ -213,11 +190,7 @@ def test_headline_is_a_property_not_a_settable_field() -> None:
     cls = _healthverdict_classdef(tree)
 
     # No dataclass field named ``headline`` (would be an AnnAssign in the body).
-    field_names = {
-        node.target.id
-        for node in cls.body
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
-    }
+    field_names = {node.target.id for node in cls.body if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)}
     assert "headline" not in field_names, "headline must not be a settable field"
     # ``state`` is the tri-state field, annotated with the Health alias.
     assert "state" in field_names
@@ -226,9 +199,7 @@ def test_headline_is_a_property_not_a_settable_field() -> None:
     headline_props = [
         node
         for node in cls.body
-        if isinstance(node, ast.FunctionDef)
-        and node.name == "headline"
-        and any(isinstance(d, ast.Name) and d.id == "property" for d in node.decorator_list)
+        if isinstance(node, ast.FunctionDef) and node.name == "headline" and any(isinstance(d, ast.Name) and d.id == "property" for d in node.decorator_list)
     ]
     assert headline_props, "headline must be a @property, not a settable field"
 

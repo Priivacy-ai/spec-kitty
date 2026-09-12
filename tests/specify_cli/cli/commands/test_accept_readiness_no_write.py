@@ -1,25 +1,18 @@
 """Regression for #1916 (WP08): accept readiness must be side-effect-free.
 
-Root cause (documented in ``acceptance/__init__.py`` and ``sync/events.py``): readiness
-paths can initialize ``sync.events.get_emitter()`` while running in no-write modes. If
-that initialization eagerly calls ``identity.project.ensure_identity(repo_root)`` on a
-project with incomplete identity, it writes ``.kittify/config.yaml`` and a second
-readiness run trips on a file the gate itself wrote. PR #1908 papered over it with
-``_filter_accept_owned_project_config``; this WP removes the *write* from the explicit
-readiness path while preserving default sync identity persistence.
+Root cause: readiness paths could persist project identity while running in
+no-write modes — an incomplete identity got minted and written to
+``.kittify/config.yaml``, and a second readiness run tripped on a file the gate
+itself wrote. The write was removed from the readiness path; these tests pin
+that it stays off it.
 
-Two RED preconditions (squad note — without BOTH the test is green-from-start):
+RED precondition (squad note — without it the test is green-from-start): the
+project's ``.kittify/config.yaml`` MUST carry **provably-incomplete** identity
+(``build_id`` missing). ``ensure_identity`` returns early WITHOUT writing once
+identity is complete, so a complete fixture never reproduces the bug.
 
-1. The project's ``.kittify/config.yaml`` MUST carry **provably-incomplete** identity
-   (we assert ``build_id`` is missing). ``ensure_identity`` returns early WITHOUT
-   writing once identity is complete, so a complete fixture never reproduces the bug.
-2. The emitter is a process-global double-checked singleton that ensures identity only
-   on FIRST init — we call ``reset_emitter()`` before exercising it so the eager-init
-   path is actually hit.
-
-The headline regression (``test_get_emitter_does_not_persist_identity``) targets the
-documented seam directly and is deterministic. The CLI-level test asserts the
-end-to-end ``accept --no-commit`` path converges with the stopgap retired.
+(The sync emitter whose eager init was the original write path retired with the
+sync transport, issue #5; the two emitter-level regression tests went with it.)
 """
 
 from __future__ import annotations
@@ -28,7 +21,6 @@ import json
 import subprocess
 from kernel.clock import now_utc_iso
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
@@ -38,7 +30,6 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
-from specify_cli.sync.events import get_emitter, reset_emitter
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -91,92 +82,6 @@ def test_incomplete_identity_precondition(tmp_path: Path) -> None:
     identity = load_identity(config_path)
     assert identity.build_id is None, "fixture identity must be incomplete (build_id missing)"
     assert not identity.is_complete, "fixture identity must be incomplete to reproduce #1916"
-
-
-def test_get_emitter_read_only_identity_does_not_persist_identity(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Headline #1916 regression on the explicit readiness seam.
-
-    Initializing the emitter in readiness mode on a project with incomplete identity
-    must NOT write ``.kittify/config.yaml``. Normal sync emission remains a writing
-    boundary; readiness callers opt into read-only identity explicitly.
-    """
-    repo_root = (tmp_path / "repo").resolve()
-    repo_root.mkdir()
-    _git(repo_root, "init")
-    config_path = _write_incomplete_config(repo_root)
-    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
-    monkeypatch.chdir(repo_root)
-    # Run under the DEFAULT autouse fixture (SPEC_KITTY_ENABLE_SAAS_SYNC=1). Cycle 1
-    # closed the third readiness writer: the SaaS-sync *routing* path
-    # (``sync/routing.py::is_sync_enabled_for_checkout``) now resolves identity
-    # through the read-only twin (``resolve_checkout_sync_routing_readonly``) instead
-    # of the writing ``resolve_checkout_sync_routing`` → ``ensure_identity``. With all
-    # three readiness writers closed, emitter init must be side-effect-free even with
-    # SaaS sync enabled — so this regression no longer opts out of the fixture.
-
-    bytes_before = config_path.read_bytes()
-    mtime_before = config_path.stat().st_mtime_ns
-
-    reset_emitter()  # RED precondition 2: exercise the eager-init identity path.
-    emitter = get_emitter(read_only_identity=True)
-    assert emitter is not None, "emitter must still be available (event emission not regressed)"
-
-    bytes_after = config_path.read_bytes()
-    assert bytes_after == bytes_before, (
-        "get_emitter() mutated .kittify/config.yaml — identity persistence on the "
-        "readiness/emitter-init path is the #1916 bug"
-    )
-    assert config_path.stat().st_mtime_ns == mtime_before, (
-        "get_emitter() rewrote .kittify/config.yaml (mtime changed)"
-    )
-    # Identity must remain in-memory-available even though it was not persisted.
-    on_disk = load_identity(config_path)
-    assert not on_disk.is_complete, "readiness must not complete identity on disk"
-
-
-def test_get_emitter_default_is_side_effect_free_with_stable_identity(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Default sync emitter init is side-effect-free yet carries a complete identity.
-
-    Updated for #2263 (worktree-clean sync invariant): status-event emission is a
-    read/emit path, so even the DEFAULT ``get_emitter()`` (no ``read_only_identity``
-    arg, env unset) must NOT persist identity to ``.kittify/config.yaml`` (FR-001 /
-    FR-003 / AS-2). It must still resolve a *complete, stable* in-memory identity so
-    event provenance (project_uuid / build_id) stays usable and drift-free. WP01's
-    deterministic ``build_id`` derivation guarantees stability across calls.
-    """
-    repo_root = (tmp_path / "repo").resolve()
-    repo_root.mkdir()
-    _git(repo_root, "init")
-    config_path = _write_incomplete_config(repo_root)
-    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
-    monkeypatch.delenv("SPEC_KITTY_SYNC_READONLY_IDENTITY", raising=False)
-    monkeypatch.chdir(repo_root)
-
-    bytes_before = config_path.read_bytes()
-
-    reset_emitter()
-    with patch("specify_cli.sync.runtime.get_runtime", return_value=MagicMock()):
-        emitter = get_emitter()
-
-    # No write: config.yaml is byte-identical and on-disk identity stays incomplete.
-    assert config_path.read_bytes() == bytes_before, (
-        "default get_emitter() mutated .kittify/config.yaml — emit path must not "
-        "persist identity (#2263, FR-001/FR-003)"
-    )
-    on_disk = load_identity(config_path)
-    assert not on_disk.is_complete, "default emit path must not complete identity on disk"
-
-    # Identity is still complete *in memory* so emitted events carry full provenance.
-    in_memory = emitter._get_identity()
-    assert in_memory.is_complete, "emitter must carry a complete in-memory identity"
-    assert in_memory.project_uuid is not None
-    assert in_memory.build_id is not None
 
 
 def test_write_authorized_ensure_identity_still_persists(tmp_path: Path) -> None:
@@ -332,10 +237,6 @@ def _run_readiness(repo_root: Path) -> int | None:
     """Drive the real ``accept(no_commit=True)`` command path; return exit code."""
     from specify_cli.cli.commands.accept import accept
 
-    reset_emitter()
-    # Force the emitter to initialize on the readiness path, mirroring real usage
-    # where prior events / an active sync session have already created it.
-    get_emitter(read_only_identity=True)
     exit_code: int | None = 0
     try:
         accept(

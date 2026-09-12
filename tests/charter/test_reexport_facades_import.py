@@ -7,7 +7,7 @@ yet, so their only importer was the architectural facade-identity gate
 (``tests/architectural/test_charter_facades_reexport_doctrine.py``). That gate runs
 in the ``arch-adversarial`` shard, which measures ``--cov=specify_cli`` /
 ``--cov=mission_runtime`` but **not** ``--cov=charter`` — so the facades' only
-lines (their ``from doctrine.… import …`` block and ``__all__``) had zero recorded
+lines (their ``from charter.offering.… import …`` block and ``__all__``) had zero recorded
 coverage in every report the critical-path ``diff-coverage`` gate aggregates, and
 the gate failed at 0%.
 

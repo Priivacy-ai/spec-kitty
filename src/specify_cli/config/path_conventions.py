@@ -85,18 +85,12 @@ def load_project_path_conventions(repo_root: Path) -> dict[str, str]:
     if section is None:
         return {}
     if not isinstance(section, dict):
-        raise PathConventionsConfigError(
-            f"{_SECTION} must be a mapping of path-convention key to directory, got "
-            f"{type(section).__name__}."
-        )
+        raise PathConventionsConfigError(f"{_SECTION} must be a mapping of path-convention key to directory, got {type(section).__name__}.")
 
     override: dict[str, str] = {}
     for key, value in section.items():
         if key not in VALID_PATH_KEYS:
-            raise PathConventionsConfigError(
-                f"Unknown path-convention key {key!r} in {_SECTION}. "
-                f"Known keys: {sorted(VALID_PATH_KEYS)}."
-            )
+            raise PathConventionsConfigError(f"Unknown path-convention key {key!r} in {_SECTION}. Known keys: {sorted(VALID_PATH_KEYS)}.")
         if key in ARTIFACT_ROUTED_KEYS:
             warnings.warn(
                 f"{_SECTION}.{key} is ignored: {key!r} is artifact-routed and cannot be "
@@ -106,18 +100,15 @@ def load_project_path_conventions(repo_root: Path) -> dict[str, str]:
             )
             continue
         if not isinstance(value, str):
-            raise PathConventionsConfigError(
-                f"{_SECTION}.{key} must be a string directory, got {type(value).__name__}."
-            )
+            raise PathConventionsConfigError(f"{_SECTION}.{key} must be a string directory, got {type(value).__name__}.")
         if not value.strip():
             # An empty/blank value collapses `Path("")` to the repo root under
             # `validate_mission_paths`, which always exists — silently defeating strict
             # enforcement (SC-006/SC-007) instead of naming the missing directory.
             raise PathConventionsConfigError(f"{_SECTION}.{key} must not be empty or blank.")
-        candidate = Path(value)
+        normalized_value = value.strip()
+        candidate = Path(normalized_value)
         if candidate.is_absolute() or ".." in candidate.parts:
-            raise PathConventionsConfigError(
-                f"{_SECTION}.{key} must be a repo-relative path with no '..' traversal, got {value!r}."
-            )
-        override[key] = value
+            raise PathConventionsConfigError(f"{_SECTION}.{key} must be a repo-relative path with no '..' traversal, got {value!r}.")
+        override[key] = normalized_value
     return override

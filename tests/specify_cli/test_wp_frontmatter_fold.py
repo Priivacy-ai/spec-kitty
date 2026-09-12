@@ -1,11 +1,12 @@
 """rc3 M5 WP04 — #2901 WP-frontmatter tolerant-reader fold (verify + anti-divergence pin).
 
 Verify-first finding: the fold is already landed. ``status/wp_metadata.py`` is the
-single tolerant reader; the import scan (``sync/history_import/scan.py``), the
-mission_v1 lane guard (``mission_v1/guards.py``), bootstrap, and the dossier
-indexer all route through it. The #2884 B3 defect ("incomplete import reported as
-success") is closed — a malformed WP file is skipped BUT surfaced in the scan's
-``skipped`` tuple, never silently counted as success.
+single tolerant reader; status bootstrap and the dossier indexer route through
+it. The mission_v1 lane guard (``mission_v1/guards.py``) used to be the third
+routed consumer; it was retired with the mission-DSL v1 runtime in mission
+``dead-port-disposition-01M1TZVN``, so the pin below now names the two live
+consumers. The retired sync import scanner is intentionally not part of this
+convergence surface.
 
 ``audit/classifiers/wp_files.py`` legitimately does NOT route through the typed
 tolerant reader: it is a CLASSIFIER that needs the raw frontmatter dict to detect
@@ -53,31 +54,14 @@ def _make_mission(tmp_path: Path, files: dict[str, str]) -> Path:
     return tmp_path
 
 
-class TestImportScanB3DefectClosed:
-    """#2884 B3: a malformed WP is skipped AND surfaced — never silent success."""
-
-    def test_malformed_wp_is_surfaced_in_skipped(self, tmp_path: Path) -> None:
-        from specify_cli.sync.history_import.scan import _wps_from_task_files
-
-        mission = _make_mission(
-            tmp_path,
-            {"WP01-good.md": _GOOD_WP, "WP02-bad.md": _MALFORMED_WP},
-        )
-        wps, skipped = _wps_from_task_files(mission)
-
-        wp_ids = {wp.wp_id for wp in wps}
-        assert "WP01" in wp_ids, "the valid WP must still import"
-        assert "WP02-bad.md" in skipped, "the malformed WP must be surfaced, not silently dropped"
-
-
 class TestSingleTolerantReaderAuthority:
     """The routable consumers reference the shared reader, not a private one."""
 
     @pytest.mark.parametrize(
         ("module", "shared_reader_call"),
         [
-            ("specify_cli.sync.history_import.scan", "read_authored_wp_frontmatter_lenient"),
-            ("specify_cli.mission_v1.guards", "read_wp_frontmatter"),
+            ("specify_cli.status.bootstrap", "read_wp_frontmatter"),
+            ("specify_cli.dossier.indexer", "read_wp_frontmatter"),
         ],
     )
     def test_consumer_actually_calls_shared_reader(self, module: str, shared_reader_call: str) -> None:
@@ -89,14 +73,8 @@ class TestSingleTolerantReaderAuthority:
         import inspect
 
         tree = ast.parse(inspect.getsource(importlib.import_module(module)))
-        called = {
-            node.func.id
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-        }
-        assert shared_reader_call in called, (
-            f"{module} must CALL {shared_reader_call} (the shared tolerant reader), not just reference it"
-        )
+        called = {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+        assert shared_reader_call in called, f"{module} must CALL {shared_reader_call} (the shared tolerant reader), not just reference it"
 
 
 class TestAuditClassifierKeepsRawDict:

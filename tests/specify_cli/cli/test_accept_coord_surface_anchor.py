@@ -32,7 +32,8 @@ from typing import Any
 import pytest
 
 import mission_runtime
-from mission_runtime import ResolvedSurface, TopologySurface
+from mission_runtime import TopologySurface
+from mission_runtime.resolution import ResolvedSurface
 from specify_cli.cli.commands import accept as accept_mod
 
 

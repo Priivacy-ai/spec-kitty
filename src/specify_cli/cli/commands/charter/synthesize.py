@@ -141,7 +141,7 @@ def charter_synthesize(  # noqa: C901
     **minimal artifact set** the runtime requires:
 
     1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
-       project-root resolver (``src/charter/_doctrine_paths.py``) is a
+       project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
        presence-only check; an empty directory is a valid project layer.
     2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
        fresh-project seed path, citing #839.
@@ -228,6 +228,19 @@ def charter_synthesize(  # noqa: C901
         )
 
         if is_fresh_project_synthesize:
+            from specify_cli.cli.commands.charter._fresh_doctrine import _synthesize_project_doctrine
+
+            project_result = _synthesize_project_doctrine(repo_root, dry_run=dry_run)
+            if project_result is not None:
+                if json_output:
+                    print(json.dumps(project_result, indent=2, sort_keys=True))
+                else:
+                    operation = "would preserve" if dry_run else "preserved"
+                    console.print(f"[green]Charter synthesis[/green]: {operation} project doctrine and provenance.")
+                    for warning in project_result["warnings"]:
+                        console.print(f"[yellow]Warning[/yellow]: {warning}")
+                mark_invocation_succeeded()
+                return
             # FR-002 / FR-003 / FR-005: fresh-project seed mode emits the
             # strict four-field envelope. ``written_artifacts`` is built from
             # the already-known minimal seed file list (PROVENANCE.md). No
@@ -445,6 +458,17 @@ def charter_synthesize(  # noqa: C901
             repo_root=repo_root,
             mode=SynthesizeMode.prune if prune else SynthesizeMode.preserve,
         )
+
+        # #4121 (MAJOR 2): unresolved project-profile reference warnings from
+        # the overlay emission ride on the result — surface them on the CLI
+        # and in the --json envelope instead of leaving them in logging
+        # output only. ``getattr`` keeps a mocked ``synthesize`` (tests never
+        # write a manifest, let alone emit references) on the empty default.
+        reference_warnings = list(getattr(result, "reference_warnings", ()))
+        warnings_collected.extend(reference_warnings)
+        if not json_output:
+            for warning in reference_warnings:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
 
         # FR-014 / T014: narrow refusal -- a plain (non-`--prune`) run that
         # dropped (preserve mode never deletes, so nothing was actually

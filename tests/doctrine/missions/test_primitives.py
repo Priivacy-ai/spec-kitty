@@ -9,7 +9,7 @@ These tests verify the execution context correctly handles:
 The PrimitiveExecutionContext is the data carrier for mission primitives.
 It flows through the glossary middleware pipeline, accumulating state
 (extracted_terms, conflicts) at each stage. See:
-- src/doctrine/missions/primitives.py for data model
+- src/charter/offering/missions/primitives.py for data model
 - src/specify_cli/glossary/attachment.py for pipeline integration
 """
 

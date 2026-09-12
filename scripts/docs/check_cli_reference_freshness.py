@@ -11,7 +11,8 @@ Seven rule IDs:
   the user-facing reference without an internal classification banner.
 * ``REF-SAAS-SYNC-OFF`` — env flag was not set; tracker / issue-search
   paths could not be evaluated.
-* ``HELP-DRIFT`` — recorded summary differs from live (warning unless --strict-mode).
+* ``HELP-DRIFT`` — recorded summary or full help body differs from live
+  (warning unless --strict-mode).
 * ``REF-HIDDEN-LEAK`` — a hidden path appears in the main reference body.
 """
 
@@ -83,6 +84,15 @@ _DEPRECATED_BANNER_RE: Final[re.Pattern[str]] = re.compile(
 _INTERNAL_BANNER_RE: Final[re.Pattern[str]] = re.compile(
     r"(?im)^>\s*\*\*internal\*\*"
 )
+_FENCED_BLOCK_RE: Final[re.Pattern[str]] = re.compile(
+    r"```[^\n]*\n(.*?)^```\s*$", re.MULTILINE | re.DOTALL
+)
+_HELP_PANEL_PREFIXES: Final[tuple[str, ...]] = (
+    "╭",
+    "Arguments:",
+    "Commands:",
+    "Options:",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +133,50 @@ def _normalize_path(text: str) -> tuple[str, ...] | None:
     return tuple(parts) if parts else None
 
 
+def _normalize_help_body(text: str) -> str:
+    """Remove Click presentation labels and collapse terminal wrapping."""
+    normalized = " ".join(text.split())
+    return re.sub(r"^\(deprecated\)\s+", "", normalized, flags=re.IGNORECASE)
+
+
+def _extract_help_body(section: str) -> str:
+    """Extract prose between ``Usage`` and the first Rich help panel.
+
+    The reference generator records the complete terminal ``--help`` output in
+    a fenced block. Terminal-width wrapping is presentation detail, so the
+    returned body is whitespace-normalized before comparison with Typer's
+    callback help/docstring.
+    """
+    match = _FENCED_BLOCK_RE.search(section)
+    if not match:
+        return ""
+
+    lines = match.group(1).splitlines()
+    usage_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if line.lstrip().startswith("Usage:")
+        ),
+        None,
+    )
+    if usage_index is None:
+        return ""
+
+    body_lines: list[str] = []
+    seen_separator = False
+    for line in lines[usage_index + 1 :]:
+        stripped = line.strip()
+        if not seen_separator:
+            if not stripped:
+                seen_separator = True
+            continue
+        if stripped.startswith(_HELP_PANEL_PREFIXES):
+            break
+        body_lines.append(stripped)
+    return _normalize_help_body("\n".join(body_lines))
+
+
 def extract_referenced_paths(
     text: str,
 ) -> dict[tuple[str, ...], dict[str, object]]:
@@ -133,6 +187,8 @@ def extract_referenced_paths(
             contains a Deprecated banner.
         ``classified_internal``: True if it contains an Internal banner.
         ``summary``: trimmed summary line immediately after the heading.
+        ``help_body``: whitespace-normalized prose from the generated
+            ``--help`` block.
     """
     referenced: dict[tuple[str, ...], dict[str, object]] = {}
 
@@ -171,6 +227,9 @@ def extract_referenced_paths(
             break
         if "summary" not in attrs or not attrs["summary"]:
             attrs["summary"] = summary
+        help_body = _extract_help_body(section)
+        if "help_body" not in attrs or not attrs["help_body"]:
+            attrs["help_body"] = help_body
 
     # Also pick up inline `spec-kitty foo` references without classification.
     for m in _INLINE_CODE_RE.finditer(text):
@@ -183,6 +242,7 @@ def extract_referenced_paths(
                 "classified_deprecated": False,
                 "classified_internal": False,
                 "summary": "",
+                "help_body": "",
             },
         )
     return referenced
@@ -332,28 +392,44 @@ def _rule_ref_hidden_leak(
 def _rule_help_drift(
     *,
     live_visible: dict[tuple[str, ...], CommandPathEntry],
-    referenced_all: _RefMap,
+    main_paths: _RefMap,
+    agent_paths: _RefMap,
     strict_mode: bool,
 ) -> list[Finding]:
     out: list[Finding] = []
     drift_severity: Severity = "error" if strict_mode else "warning"
     for path, entry in live_visible.items():
-        attrs = referenced_all.get(path)
+        relevant = agent_paths if path[:1] == ("agent",) else main_paths
+        attrs = relevant.get(path)
         if not attrs:
             continue
         recorded = str(attrs.get("summary") or "").strip()
         live_summary = entry.help_summary.strip()
-        if not recorded or not live_summary:
-            continue
-        if recorded != live_summary:
+        recorded_body = _normalize_help_body(str(attrs.get("help_body") or ""))
+        live_body = _normalize_help_body(entry.help_body)
+        summary_drift = bool(recorded and live_summary and recorded != live_summary)
+        body_drift = bool(live_body and recorded_body != live_body)
+        if summary_drift or body_drift:
+            differences: list[str] = []
+            if summary_drift:
+                differences.append(
+                    f"recorded summary ({recorded!r}) differs from live summary "
+                    f"({live_summary!r})"
+                )
+            if body_drift:
+                differences.append(
+                    f"recorded help body ({recorded_body!r}) differs from live "
+                    f"help body ({live_body!r})"
+                )
             out.append(
                 Finding(
                     rule_id="HELP-DRIFT",
                     severity=drift_severity,
                     path=path,
                     detail=(
-                        f"`spec-kitty {' '.join(path)}` recorded summary "
-                        f"({recorded!r}) differs from live help ({live_summary!r})."
+                        f"`spec-kitty {' '.join(path)}` "
+                        + "; ".join(differences)
+                        + "."
                     ),
                 )
             )
@@ -430,7 +506,8 @@ def evaluate_reference(
     findings.extend(
         _rule_help_drift(
             live_visible=live_visible,
-            referenced_all=referenced_all,
+            main_paths=main_paths,
+            agent_paths=agent_paths,
             strict_mode=strict_mode,
         )
     )

@@ -1,4 +1,4 @@
-"""Tests for src/charter/synthesizer/validation_gate.py (T022).
+"""Tests for src/charter/activation/synthesizer/validation_gate.py (T022).
 
 Covers:
 - Accept valid overlay (merged graph passes validate_graph).
@@ -258,10 +258,10 @@ class TestRejectCycleInRequires:
 # 6. NFR-004: fail-closed within 5 seconds
 # ---------------------------------------------------------------------------
 
-@pytest.mark.performance
 class TestFailClosedTiming:
     """NFR-004: validation failure detected and raised within 5 seconds."""
 
+    @pytest.mark.performance
     def test_dangling_ref_fails_within_5s(self, tmp_path: Path) -> None:
         shipped = _make_shipped_graph()
         overlay = _make_overlay(
@@ -279,6 +279,7 @@ class TestFailClosedTiming:
             f"validation_gate.validate took {elapsed:.2f}s — must be < 5s (NFR-004)"
         )
 
+    @pytest.mark.performance
     def test_valid_overlay_passes_within_5s(self, tmp_path: Path) -> None:
         shipped = _make_shipped_graph()
         overlay = _make_overlay()  # empty — trivially valid
@@ -348,3 +349,53 @@ class TestStructuredErrorForCliPanel:
 
         # Summary mentions project URNs for operator diagnosis
         assert "PROJECT_001" in err.merged_graph_summary or "project_nodes" in err.merged_graph_summary
+
+
+# ---------------------------------------------------------------------------
+# 9. Org-aware base layer (#4121, squad MAJOR 2)
+# ---------------------------------------------------------------------------
+
+class TestOrgAwareBaseLayer:
+    """``org_drg`` widens the universe below the project overlay.
+
+    Pre-fix, an overlay edge referencing an org-pack artifact was dangling
+    here (the gate merged against a built-in-only base) even though
+    activation-time projection had resolved and committed that same edge
+    against the org chain.
+    """
+
+    def test_org_referencing_edge_passes_with_org_drg(self, tmp_path: Path) -> None:
+        overlay = _make_overlay(
+            nodes=[("agent_profile:ops-responder", NodeKind.AGENT_PROFILE)],
+            edges=[("agent_profile:ops-responder", "procedure:org-runbook", Relation.REQUIRES)],
+        )
+        _write_overlay(tmp_path, overlay)
+        shipped = _make_shipped_graph()
+        org = _make_shipped_graph(nodes=[("procedure:org-runbook", NodeKind.PROCEDURE)])
+        # Should not raise: the org chain supplies the referenced node.
+        validate(tmp_path, shipped, org_drg=org)
+
+    def test_org_referencing_edge_without_org_drg_is_dangling(self, tmp_path: Path) -> None:
+        """Regression contrast: the org-blind gate this fix replaces."""
+        overlay = _make_overlay(
+            nodes=[("agent_profile:ops-responder", NodeKind.AGENT_PROFILE)],
+            edges=[("agent_profile:ops-responder", "procedure:org-runbook", Relation.REQUIRES)],
+        )
+        _write_overlay(tmp_path, overlay)
+        shipped = _make_shipped_graph()
+        with pytest.raises(ProjectDRGValidationError, match="org-runbook"):
+            validate(tmp_path, shipped)
+
+    def test_org_drg_is_used_as_lower_layer_not_unioned_with_built_in(self, tmp_path: Path) -> None:
+        """org_drg substitutes for built_in_drg (it already folds the built-in
+        layer) — a node present ONLY in the shipped graph does not leak into
+        the merge when an org base is supplied."""
+        overlay = _make_overlay(
+            nodes=[("agent_profile:ops-responder", NodeKind.AGENT_PROFILE)],
+            edges=[("agent_profile:ops-responder", "procedure:shipped-only", Relation.REQUIRES)],
+        )
+        _write_overlay(tmp_path, overlay)
+        shipped = _make_shipped_graph(nodes=[("procedure:shipped-only", NodeKind.PROCEDURE)])
+        org = _make_shipped_graph(nodes=[("procedure:org-runbook", NodeKind.PROCEDURE)])
+        with pytest.raises(ProjectDRGValidationError, match="shipped-only"):
+            validate(tmp_path, shipped, org_drg=org)

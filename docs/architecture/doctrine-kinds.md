@@ -2,7 +2,7 @@
 title: Doctrine artifact kinds
 description: What each doctrine artifact kind is for, with a real built-in example of each — sourced directly from the charter kind-vocabulary code.
 doc_status: active
-updated: '2026-08-12'
+updated: '2026-09-08'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 related:
@@ -10,7 +10,6 @@ related:
 - docs/context/charter.md
 - docs/architecture/org-doctrine-layer.md
 - docs/guides/how-to/governance/setup-governance.md
-- docs/architecture/doctrine-projection-and-delivery.md
 ---
 # Doctrine artifact kinds
 
@@ -24,7 +23,7 @@ built-in doctrine.
 
 The kind list on this page is not invented for the docs — it is read directly from
 [`src/charter/activation/kind_vocabulary.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/charter/activation/kind_vocabulary.py)
-and [`src/doctrine/artifact_kinds.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/artifact_kinds.py),
+and [`src/charter/offering/artifact_kinds.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/artifact_kinds.py),
 and cross-checked against the running CLI. You can reproduce the same list yourself:
 
 ```bash
@@ -47,7 +46,7 @@ this page.
 ## Schema at a glance
 
 The **`ArtifactKind` vocabulary** below is generated from the frozen enum
-(`src/doctrine/artifact_kinds.py`) via `list(ArtifactKind)` and kept honest by the drift guard
+(`src/charter/offering/artifact_kinds.py`) via `list(ArtifactKind)` and kept honest by the drift guard
 (`tests/docs/diagram_drift/`, FR-004) — the twelve members are introspected, never hand-typed, so
 this list cannot silently fall out of step with the code (as the stale "eight" prose once did).
 
@@ -119,7 +118,7 @@ The three unexpanded nested value objects (`collaboration`,
 a deliberate diagram-author choice, like drawing a foreign key instead of copying the whole table.
 
 > **A note on `template`, `asset`, and `anti_pattern` (the three non-activatable kinds).** If you
-> read `src/doctrine/artifact_kinds.py` directly, you will see three members of the `ArtifactKind`
+> read `src/charter/offering/artifact_kinds.py` directly, you will see three members of the `ArtifactKind`
 > enum beyond the nine activatable kinds: `template`, `asset`, and `anti_pattern` — the exact set in
 > `_NON_AUGMENTATION_ELIGIBLE_KINDS`. All three are real and handled by the doctrine system — but
 > none is one of the nine activatable kinds above, and the CLI error message above is the proof:
@@ -190,11 +189,6 @@ reachable artifact points at it through a `requires`/`suggests` edge. That is ho
 `common-docs-structural-lint` reaches a mission without anyone activating it. (`template` shares
 the `ALL` gate but has no bundle slot — its selection is mission-scoped file resolution, a stated
 exclusion rather than asset's untreated twin.)
-
-This table describes **mission-action bundle** delivery. A *loaded agent profile* is a separate
-delivery vector with its own contract (inline body vs. pointer-only per channel, plus a build-time
-resolution check for `operating-procedures` entries) — see
-[Profile-channel projection and delivery](doctrine-projection-and-delivery.md).
 
 ## The doctrine artifact kinds
 
@@ -359,7 +353,7 @@ A paradigm such as `domain-driven-design`, for example, authors `rejects` edges 
 `anemic-domain-model` anti-pattern node.
 
 **Not to be confused with `styleguides` `AntiPattern`.** The styleguide models define an inline
-`AntiPattern` example type (`src/doctrine/styleguides/models.py`) — a small structured example
+`AntiPattern` example type (`src/charter/offering/styleguides/models.py`) — a small structured example
 *embedded in a styleguide body*. That is a different concept from the DRG `anti_pattern` kind: the
 styleguide `AntiPattern` is a backed Pydantic example type inside another artifact; the DRG
 `anti_pattern` is a bare node kind (a string, no class) that exists only as a graph target. The

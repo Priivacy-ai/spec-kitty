@@ -138,14 +138,18 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--push",
             "--dry-run",
             "--keep-branch",
+            "--delete-branch",
             "--keep-worktree",
+            "--remove-worktree",
             "--auto-retry",
             "--no-auto-retry",
         }
     ),
-    "finalize-tasks": frozenset(
-        {"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout"}
-    ),
+    # 2026-09-09 (#4141): re-pinned to add --refresh-planning-commit (the
+    # planning_commit_sha re-point affordance once execution has begun).
+    # `missing: []` on the prior pin proves nothing was removed, only added —
+    # same in-place amendment precedent as the 2026-08-04 fold below.
+    "finalize-tasks": frozenset({"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout", "--refresh-planning-commit"}),
     "repair": frozenset({"--mission"}),
     # 2026-08-04 landing fold (PR #3175, fold-golden-flag-surface): re-pinned
     # to add the six negative-invariant-mode flags (--negative-invariant,
@@ -415,7 +419,7 @@ def test_setup_plan_unresolved_error_envelope_keys(runner: CliRunner, tmp_path: 
     _git(tmp_path, "commit", "-m", "two missions")
     # The SaaS-auth FR-011 guard fires first when sync is opt-in; the mission
     # detection (PLAN_CONTEXT_UNRESOLVED) is the surface under test here.
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(mission_app, ["setup-plan", "--json"], catch_exceptions=False)
@@ -444,7 +448,7 @@ def test_setup_plan_no_missions_error_envelope_keys(runner: CliRunner, tmp_path:
     ``error_code``, ``error``, ``spec_kitty_version``, ``remediation``.
     """
     _init_repo(tmp_path)
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(mission_app, ["setup-plan", "--json"], catch_exceptions=False)

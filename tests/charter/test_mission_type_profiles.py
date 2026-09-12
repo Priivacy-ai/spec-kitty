@@ -20,14 +20,12 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-import charter.activation.mission_type_profiles as mission_type_profiles
 from charter.activation.action_grain import scan_builtin_cross_grain_duplicates
 from charter.activation.mission_type_profiles import (
     MissionTypeEmptyActionSequenceError,
     MissionTypeProfile,
     UnknownMissionTypeError,
     _load_mission_type_profile,
-    existing_mission_types,
     resolve_mission_type_context,
 )
 from charter.activation.pack_context import PackContext
@@ -214,14 +212,15 @@ class TestResolveMissionTypeGovernanceValidation:
             encoding="utf-8",
         )
 
-        # Mock: limited activation set. No per-type governance-profile.yaml
-        # exists for "totally-custom-type" at any layer (project/org/
-        # built-in), so the layered probe (WP03, #3598) hard-fails without
-        # needing to mock a project-wide override signal.
+        # Mock: no project overrides, limited activation set
         with (
             patch(
                 "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
+            ),
+            patch(
+                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
+                return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
         ):
@@ -241,14 +240,15 @@ class TestResolveMissionTypeGovernanceValidation:
             encoding="utf-8",
         )
 
-        # No per-type governance-profile.yaml exists for "compliance-audit"
-        # at any layer, so the layered probe (WP03, #3598) hard-fails
-        # without needing to mock a project-wide override signal.
         activated = ["documentation", "plan", "research", "software-dev"]
         with (
             patch(
                 "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=activated,
+            ),
+            patch(
+                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
+                return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
         ):
@@ -260,27 +260,8 @@ class TestResolveMissionTypeGovernanceValidation:
     def test_project_with_overrides_does_not_hard_fail_for_unknown_type(
         self, tmp_path: Path
     ) -> None:
-        """An unregistered type with a real per-type ``governance-profile.yaml``
-        (matching ``id``) resolves without a hard fail — the governance
-        grain's *tolerant* policy, now witnessed per-type (WP03, #3598, AC-6
-        reversal per ``docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md``).
-
-        REVERSED (WP03): this test used to patch
-        ``_project_has_doctrine_overrides`` -> True — a project-WIDE signal
-        this WP deletes as the tolerance authority. The replacement seeds a
-        real per-type profile so the layered predicate (project-or-org
-        ``MissionTypeProfileRepository`` lookup) is what tolerates the
-        unregistered type, not an unrelated project-wide flag. Do NOT
-        restore the project-wide tolerance.
-
-        Rework (operator ruling, docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md
-        — "layered tolerance (AC-5) does NOT override mission-type
-        activation gating"): the tolerance witness is scoped to the
-        **project or org** layer only, never the built-in layer, so this
-        project-seeded profile stays the correct fixture shape; see
-        ``tests/charter/test_layered_governance_probe.py``'s
-        ``TestBuiltInLayerAloneDoesNotOverrideActivationGate`` for the
-        companion negative pin.
+        """When project has doctrine overrides, unknown type skips the profile
+        (no hard fail) — the governance grain's *tolerant* policy.
         """
         _git_init_minimal(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / "custom-mission-001"
@@ -291,18 +272,18 @@ class TestResolveMissionTypeGovernanceValidation:
             ),
             encoding="utf-8",
         )
-        override_dir = tmp_path / ".kittify" / "doctrine" / "mission_types" / "custom-type"
-        override_dir.mkdir(parents=True, exist_ok=True)
-        yaml = YAML()
-        yaml.default_flow_style = False
-        with (override_dir / "governance-profile.yaml").open("w") as fh:
-            yaml.dump({"id": "custom-type", "mission_type": "custom-type"}, fh)
 
-        with patch(
-            "charter.activation.mission_type_profiles.existing_mission_types",
-            return_value=["documentation", "plan", "research", "software-dev"],
+        with (
+            patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=["documentation", "plan", "research", "software-dev"],
+            ),
+            patch(
+                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
+                return_value=True,
+            ),
         ):
-            # Should NOT raise — the per-type profile tolerates the unknown-type check.
+            # Should NOT raise — project overrides bypass the unknown-type check.
             bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
         assert bundle.mission_type == "custom-type"
@@ -454,17 +435,12 @@ def _write_layered_mission_type_yaml(
     mission_type_id: str,
     *,
     action_sequence: list[str] | None = None,
-    extends: str | None = None,
 ) -> None:
     """Write a minimal mission-type YAML for the layered lookup (WP03 shape).
 
     Mirrors ``tests/doctrine/missions/test_mission_type_repository.py``'s
     own ``_mission_type_yaml`` helper. ``action_sequence=None`` omits the
     field entirely (the CL-003 empty-action-sequence edge case).
-    ``extends=None`` (default) preserves every existing call site's
-    behavior unchanged (WP01/T003: a non-breaking widening); when given, it
-    writes the ``extends:`` key naming the parent mission-type id for the
-    single-level extends-fallback edge case (AC4/FR-005).
     """
     directory.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -472,8 +448,6 @@ def _write_layered_mission_type_yaml(
         f"id: {mission_type_id}",
         f"display_name: {mission_type_id.title()}",
     ]
-    if extends is not None:
-        lines.append(f"extends: {extends}")
     if action_sequence is not None:
         lines.append("action_sequence:")
         lines.extend(f"  - {step}" for step in action_sequence)
@@ -844,6 +818,11 @@ class TestMissionCreatePropagatesEmptyActionSequenceError:
                     "Confirms create_mission_core propagates FR-004's exception "
                     "type end to end, not a re-wrapped generic error."
                 ),
+                # This test asserts exception-type propagation, not worktree
+                # policy — allow_worktree_context=True keeps it from tripping
+                # the unrelated is_worktree_context guard when the ambient cwd
+                # happens to be a linked worktree (e.g. the CI runner's tree).
+                allow_worktree_context=True,
             )
 
         err = exc_info.value
@@ -1287,237 +1266,3 @@ class TestActionGrainBuiltinOnlyPathUnaffected:
         scanned = scan_builtin_cross_grain_duplicates()
 
         assert "software-dev" in scanned
-
-
-# ---------------------------------------------------------------------------
-# WP01 (mission charter-activate-empty-action-sequence-01M0STSX) — T002/T003:
-# validate_activatable_mission_type() activation-time gate (FR-001/NFR-001).
-#
-# SK-81 methodological trap (binding, copied verbatim from plan.md /
-# tasks/WP01-activation-empty-action-sequence-gate.md -- do not paraphrase):
-#
-#   Two prior observations of this defect recorded `charter activate
-#   mission-type <T>` as already failing, by pre-seeding `<T>` into
-#   `mission_type_activations` before calling activation -- under that
-#   precondition `is_registered` is already `True`, so the existing
-#   read-path guard fires and the command never demonstrates the actual
-#   defect. The regression test for this mission MUST use the natural
-#   operator path instead: declare the org pack
-#   (`_write_layered_mission_type_yaml(org_root / "mission_types", "<T>.yaml",
-#   "<T>", action_sequence=None)`), and leave `<T>` OUT of
-#   `mission_type_activations` in `.kittify/config.yaml` (via
-#   `_write_org_pack_config`, called with `<T>`'s org pack declared but
-#   `activated_mission_types` omitting `<T>` -- every existing call site in
-#   this file populates both lists together; do NOT follow that convention
-#   here). Assert `<T>` is absent from `mission_type_activations`
-#   immediately before invoking the command under test. A test that
-#   pre-seeds the activation set before calling activation would pass even
-#   with zero code changed (spec.md SC-004) and MUST NOT be accepted as
-#   coverage for FR-001/SC-001.
-# ---------------------------------------------------------------------------
-
-
-class TestValidateActivatableMissionType:
-    """Unit-level coverage for the new activation-time gate
-    ``validate_activatable_mission_type()``. Exercised directly (not
-    through ``resolve_mission_type_context``/``is_registered``) with the
-    candidate deliberately left unregistered -- the natural
-    activation-time precondition -- per the SK-81 trap above.
-    """
-
-    def test_empty_action_sequence_raises_named_error(self, tmp_path: Path) -> None:
-        """The natural-operator-path fixture: an org-pack YAML with no
-        ``action_sequence``, declared via ``.kittify/config.yaml``'s
-        ``doctrine.org.packs`` in a *separate* call from the activation-set
-        write, with the candidate absent from ``mission_type_activations``.
-        Proves the gate fires even though ``is_registered`` is False for
-        this candidate -- the exact precondition under which the read
-        path's ``_resolve_action_slot`` short-circuits to ``[]`` and would
-        mask the defect (this is what the SK-81 trap warns against).
-        """
-        _git_init_minimal(tmp_path)
-        org_root = tmp_path / "org-pack"
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "qa.yaml",
-            "qa",
-            action_sequence=None,
-        )
-        _write_org_pack_config(
-            tmp_path,
-            packs=[("acme", org_root)],
-            activated_mission_types=[],
-        )
-
-        # SK-81 trap guard: confirm the natural-operator precondition
-        # immediately before invoking -- "qa" must NOT already be
-        # registered.
-        assert "qa" not in existing_mission_types(tmp_path)
-
-        with pytest.raises(MissionTypeEmptyActionSequenceError) as exc_info:
-            mission_type_profiles.validate_activatable_mission_type(
-                "qa", repo_root=tmp_path
-            )
-
-        err = exc_info.value
-        assert err.mission_type_id == "qa"
-        assert err.layer == "org"
-
-    def test_non_empty_action_sequence_does_not_raise(self, tmp_path: Path) -> None:
-        """FR-007 regression shape: a candidate with a real action sequence
-        is not refused."""
-        _git_init_minimal(tmp_path)
-        org_root = tmp_path / "org-pack"
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "qa.yaml",
-            "qa",
-            action_sequence=["specify"],
-        )
-        _write_org_pack_config(
-            tmp_path,
-            packs=[("acme", org_root)],
-            activated_mission_types=[],
-        )
-
-        assert "qa" not in existing_mission_types(tmp_path)
-
-        mission_type_profiles.validate_activatable_mission_type("qa", repo_root=tmp_path)
-
-    def test_message_parity_with_resolve_action_slot(self, tmp_path: Path) -> None:
-        """SC-002: the new function's raised message matches
-        ``_resolve_action_slot``'s message for the same ``(id, layer)``
-        pair -- proven by comparing the two exceptions' ``str()`` directly
-        (both delegate to the same ``MissionTypeEmptyActionSequenceError``
-        constructor), not by re-deriving the message shape.
-        """
-        _git_init_minimal(tmp_path)
-        org_root = tmp_path / "org-pack"
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "qa.yaml",
-            "qa",
-            action_sequence=None,
-        )
-        _write_org_pack_config(
-            tmp_path,
-            packs=[("acme", org_root)],
-            activated_mission_types=[],
-        )
-
-        pack_context = PackContext.from_config(tmp_path)
-
-        with pytest.raises(MissionTypeEmptyActionSequenceError) as read_path_exc:
-            mission_type_profiles._resolve_action_slot(
-                "qa", registered=["qa"], is_registered=True, pack_context=pack_context
-            )
-
-        with pytest.raises(MissionTypeEmptyActionSequenceError) as activation_path_exc:
-            mission_type_profiles.validate_activatable_mission_type(
-                "qa", repo_root=tmp_path
-            )
-
-        assert str(activation_path_exc.value) == str(read_path_exc.value)
-
-
-class TestValidateActivatableMissionTypeExtendsFallback:
-    """AC4/FR-005 (T003): a candidate whose own ``action_sequence`` is
-    empty but whose single-level ``extends`` parent resolves non-empty is
-    not refused. Zero ``extends`` precedent existed in this file before
-    this mission; this is the first exercise of the widened
-    ``_write_layered_mission_type_yaml`` helper's ``extends`` parameter.
-    """
-
-    def test_extends_fallback_to_non_empty_parent_does_not_raise(
-        self, tmp_path: Path
-    ) -> None:
-        _git_init_minimal(tmp_path)
-        org_root = tmp_path / "org-pack"
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "parent.yaml",
-            "parent",
-            action_sequence=["specify", "plan"],
-        )
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "qa.yaml",
-            "qa",
-            action_sequence=None,
-            extends="parent",
-        )
-        _write_org_pack_config(
-            tmp_path,
-            packs=[("acme", org_root)],
-            activated_mission_types=[],
-        )
-
-        assert "qa" not in existing_mission_types(tmp_path)
-
-        mission_type_profiles.validate_activatable_mission_type("qa", repo_root=tmp_path)
-
-    def test_extends_fallback_to_also_empty_parent_still_raises(
-        self, tmp_path: Path
-    ) -> None:
-        """PR-CONTRACT-001: the extends-fallback parent is itself empty, so
-        ``_resolve_with_extends_fallback`` returns an empty sequence and
-        ``validate_activatable_mission_type`` must still fail closed with
-        ``MissionTypeEmptyActionSequenceError`` -- this is the exact
-        silent-empty degradation shape #3702 exists to close, and the
-        success-only sibling test above does not pin it.
-        """
-        _git_init_minimal(tmp_path)
-        org_root = tmp_path / "org-pack"
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "parent.yaml",
-            "parent",
-            action_sequence=None,
-        )
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "qa.yaml",
-            "qa",
-            action_sequence=None,
-            extends="parent",
-        )
-        _write_org_pack_config(
-            tmp_path,
-            packs=[("acme", org_root)],
-            activated_mission_types=[],
-        )
-
-        assert "qa" not in existing_mission_types(tmp_path)
-
-        with pytest.raises(MissionTypeEmptyActionSequenceError):
-            mission_type_profiles.validate_activatable_mission_type("qa", repo_root=tmp_path)
-
-    def test_extends_fallback_to_nonexistent_parent_still_raises(
-        self, tmp_path: Path
-    ) -> None:
-        """PR-CONTRACT-001: ``extends`` names a parent id that does not
-        resolve at all (no cross-check anywhere in the model or DRG stops
-        this from loading -- see ``src/doctrine/missions/models.py``'s
-        unvalidated ``extends`` field). The fallback must still find
-        nothing and ``validate_activatable_mission_type`` must still fail
-        closed with ``MissionTypeEmptyActionSequenceError``.
-        """
-        _git_init_minimal(tmp_path)
-        org_root = tmp_path / "org-pack"
-        _write_layered_mission_type_yaml(
-            org_root / "mission_types",
-            "qa.yaml",
-            "qa",
-            action_sequence=None,
-            extends="nonexistent-parent",
-        )
-        _write_org_pack_config(
-            tmp_path,
-            packs=[("acme", org_root)],
-            activated_mission_types=[],
-        )
-
-        assert "qa" not in existing_mission_types(tmp_path)
-
-        with pytest.raises(MissionTypeEmptyActionSequenceError):
-            mission_type_profiles.validate_activatable_mission_type("qa", repo_root=tmp_path)

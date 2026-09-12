@@ -1,0 +1,83 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M1WYR4VN5R69A84EPBJ5WB3X",
+  "materialized_at": "2026-09-07T03:31:49.749138+00:00",
+  "mission_number": "",
+  "mission_slug": "runtime-advance-guard-topology-wp-completion-01M1W6VZ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "implement-command",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M1WXQTXM6RYE52MEEWNX67VB",
+      "last_transition_at": "2026-09-07T03:14:10.996944+00:00",
+      "review_result": {
+        "reference": "No findings at any severity. Every claim reproduced independently. Red-then-green confirmed by extracting both versions of _wp_blocks_step: pre-fix False, post-fix True. Joint-fix proof reproduced BOTH single-reverts: reverting the Lane.UNINITIALIZED disjunct alone makes the coord assertion fail; reverting the anchoring alone makes the anchored assertion fail while the primary-dir one still passes. Neither fix redundant. No-tasks-dir legitimate case preserved, verified unanchored and anchored against a real plan-type fixture. FR-010 single-site reasoning verified by independent call-graph trace: the other two call sites are plain 2-arg calls that structurally cannot raise. Blast-radius commit verified as widening not weakening; AST walk re-run independently giving 25. Gates all match: 618, 672+1, 765+1, 1686+1/325, ruff and mypy clean. Two pre-existing mypy errors correctly classified baseline-red, outside the touched lines. Scope clean: runtime_bridge_io.py and runtime_bridge_composition.py untouched.",
+        "reviewer": "reviewer-renata-subagent",
+        "verdict": "approved"
+      },
+      "shell_pid": 2476392,
+      "shell_pid_created_at": "1788747896.87",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "implement-command",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M1WTWY0KB4JHJ7QHQJBJASH7",
+      "last_transition_at": "2026-09-07T02:24:32.275082+00:00",
+      "review_result": {
+        "reference": "No findings at any severity. All three isolation outputs independently reproduced against unmodified production code. Fixture proven genuinely real: zero mock/patch hits; coord_feature_dir and CoordinationWorkspace.worktree_path verified as pure path composition so the composed dir is identical to a real coordination worktree. Reproduction proven able to go GREEN under the anchored read (resolves byte-identical to primary_dir/tasks). mission_slug round-trip verified both directions. Isolation confirmed: uses an in_progress WP, not uninitialized, so FR-009 is not conflated with FR-004. Both baselines verified: bare -m fast-or-unit 1675/1/325, make test-fast FAST_TIER_MARKERS 1621/380. Scope clean: exactly 2 files.",
+        "reviewer": "reviewer-renata-subagent",
+        "verdict": "approved"
+      },
+      "shell_pid": 2055740,
+      "shell_pid_created_at": "1788745052.26",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "implement-command",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M1WYR4VN5R69A84EPBJ5WB3X",
+      "last_transition_at": "2026-09-07T03:31:49.749138+00:00",
+      "review_result": {
+        "reference": "Documentation-only WP (planning_artifact mode, three tracer files). Reviewed by the orchestrator directly and folded into the pre-merge squad scope rather than given a separate reviewer subagent — a stated proportionality deviation, since its output is documentation the squad reads over the union diff anyway. Independently confirmed the lane-not-consolidated finding, produced a branch-labelled gate reconciliation where every delta is explained by the new tests (WP02 +9, WP01 +11), and drafted a PR body carrying Closes #3884 only, with an operator note that COORD missions may newly block after merge.",
+        "reviewer": "orchestrator",
+        "verdict": "approved"
+      },
+      "shell_pid": 2846774,
+      "shell_pid_created_at": "1788750894.12"
+    }
+  }
+}

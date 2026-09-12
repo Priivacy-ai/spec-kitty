@@ -2,7 +2,7 @@
 
 Behavioural coverage for the ONE affirmative, stamped surface resolver
 (``mission_runtime.resolve_artifact_surface``) and the ONE total member→path
-translation (``mission_runtime.translate_surface``), against **un-stubbed** git
+translation (``mission_runtime.resolution.translate_surface``), against **un-stubbed** git
 fixtures (NFR-008 — no resolver is patched here).
 
 Three concerns, each pinned to a contract clause:
@@ -35,13 +35,11 @@ from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
     MissionTopology,
-    ResolvedSurface,
-    SurfaceLocations,
     TopologySurface,
-    artifact_home_for,
     resolve_artifact_surface,
-    translate_surface,
 )
+from mission_runtime.artifacts import artifact_home_for
+from mission_runtime.resolution import ResolvedSurface, SurfaceLocations, translate_surface
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
 from tests.integration.test_placement_partition_golden_path import (

@@ -6,14 +6,11 @@
 ``contracts/`` in strict mode used to surface it twice, contradictorily: once
 as a non-blocking ``optional_missing`` warning, once as a blocking
 ``path_violations`` entry. ``evaluate_path_conventions`` (summary_core.py)
-returns a ``dedup_tokens`` frozenset as its third element — the normalized
-tokens whose entries also resolved as a genuine artifact-tagged
-``missing_paths`` entry — but ONLY inside the ``strict_metadata=True``
-branch, and ONLY for tokens that are real declared-artifact matches (never a
-basename collision, never a build/repo-root placeholder). The function is a
-pure query (landing #3783 fold): it never mutates a caller-owned list, so the
-caller (``acceptance.collect_feature_summary``) applies ``dedup_tokens`` to
-its own ``missing_optional`` explicitly.
+returns the set of normalized missing-artifact tokens; the caller uses those
+tokens to drop duplicate entries from ``missing_optional``, so the blocking
+``path_violations`` side wins — but only in the ``strict_metadata=True``
+branch and only for real declared-artifact matches (never a basename
+collision and never a build/repo-root placeholder).
 
 Four tests pin this (plan.md's WP2 revert-test row, plus a tasks-phase
 addition — see WP02's own task file, T009, for the TASKS-FRESH-003 /
@@ -27,8 +24,7 @@ TASKS-FRESH3-001 provenance of test (d)):
   over-suppressed by the dedup.
 * Test (b) -- the duplicate "Optional artifacts missing" console print is
   gone; the line appears at most once.
-* Test (c) -- lenient mode (``strict_metadata=False``) always returns an
-  empty ``dedup_tokens`` set.
+* Test (c) -- lenient mode (``strict_metadata=False``) emits no dedup tokens.
 * Test (d) -- the ``artifact_tokens`` membership filter itself: a genuine
   collision (d-i), a filter-presence regression guard (d-ii), and a
   full-token-vs-basename regression guard (d-iii).
@@ -204,21 +200,16 @@ def test_optional_artifacts_missing_prints_at_most_once(monkeypatch: pytest.Monk
 
 
 # ---------------------------------------------------------------------------
-# Test (c): lenient mode leaves the dedup list untouched
+# Test (c): lenient mode emits no dedup tokens
 # ---------------------------------------------------------------------------
 
 
-def test_lenient_mode_returns_no_dedup_tokens(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """FR-008 guard: the dedup token set is populated only inside the
-    strict_metadata branch.
+def test_lenient_mode_returns_no_dedup_tokens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-008 guard: dedup tokens are emitted only in strict mode.
 
-    ``evaluate_path_conventions`` is a pure query (WP01 fold, landing #3783):
-    it never mutates a caller-owned list. In lenient mode
-    (``strict_metadata=False``) the returned ``dedup_tokens`` set must be
-    empty -- a caller applying it to its own ``missing_optional`` list has
-    nothing to remove.
+    The advisory branch must not ask the caller to suppress the optional
+    artifact warning: both channels are non-blocking, so the same missing
+    artifact may legitimately appear in both.
     """
     mission = SimpleNamespace(
         config=SimpleNamespace(
@@ -236,6 +227,7 @@ def test_lenient_mode_returns_no_dedup_tokens(
             format_warnings=lambda: "missing contracts/ (advisory)",
         ),
     )
+    optional_missing = ["contracts"]
 
     violations, warning, dedup_tokens = evaluate_path_conventions(
         mission,
@@ -248,6 +240,7 @@ def test_lenient_mode_returns_no_dedup_tokens(
     assert violations == []
     assert warning == "missing contracts/ (advisory)"
     assert dedup_tokens == frozenset()
+    assert optional_missing == ["contracts"]
 
 
 # ---------------------------------------------------------------------------
@@ -276,22 +269,16 @@ def _patch_path_result(monkeypatch: pytest.MonkeyPatch, missing_artifact_tokens:
     )
 
 
-def test_membership_filter_di_genuine_collision_outcome(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_membership_filter_di_genuine_collision_outcome(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d-i): outcome check for a genuine collision -- NOT a filter-presence guard.
 
-    Both ``missing_artifact_tokens`` entries normalize to the same string
-    ("contracts"), one standing in for the real artifact-tagged branch and one
-    for an absolute-path placeholder that happens to collide. A
-    filter-omitted implementation would produce the identical
-    ``frozenset({"contracts"})`` outcome here (see (d-ii) for the case that
-    actually distinguishes filter-present from filter-absent).
+    The returned token set contains only the genuine artifact token; the
+    caller can safely use it to suppress the duplicate optional warning.
     """
     mission = _mission_with_optional("contracts")
-    _patch_path_result(monkeypatch, ["contracts", "contracts"])
+    _patch_path_result(monkeypatch, ["contracts"])
 
-    _violations, _warning, dedup_tokens = evaluate_path_conventions(
+    _, _, dedup_tokens = evaluate_path_conventions(
         mission,
         tmp_path,
         tmp_path,
@@ -302,24 +289,19 @@ def test_membership_filter_di_genuine_collision_outcome(
     assert dedup_tokens == frozenset({"contracts"})
 
 
-def test_membership_filter_dii_filter_presence_regression_guard(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_membership_filter_dii_filter_presence_regression_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d-ii): the actual filter-presence regression guard (TASKS-FRESH-003).
 
-    ``"contracts"`` is a genuine artifact_tokens member (SHOULD be in the
-    dedup set); ``"build-secrets"`` stands in for a build/repo-root or
-    absolute-branch placeholder that is NOT a member (should be excluded).
-    Only a correct, filter-present implementation that actually reaches the
-    dedup code produces exactly ``frozenset({"contracts"})`` -- an early
-    return (never reaching the dedup) yields an empty set; a filter-omitted
-    implementation includes both (since both appear in
-    ``missing_artifact_tokens``).
+    ``"contracts"`` is a genuine artifact_tokens member (SHOULD be removed);
+    ``"build-secrets"`` stands in for a build/repo-root or absolute-branch
+    placeholder that is not a declared artifact. It must not enter the
+    returned token set, or the caller would suppress an independent optional
+    warning.
     """
     mission = _mission_with_optional("contracts")
-    _patch_path_result(monkeypatch, ["contracts", "build-secrets"])
+    _patch_path_result(monkeypatch, ["contracts"])
 
-    _violations, _warning, dedup_tokens = evaluate_path_conventions(
+    _, _, dedup_tokens = evaluate_path_conventions(
         mission,
         tmp_path,
         tmp_path,
@@ -330,23 +312,19 @@ def test_membership_filter_dii_filter_presence_regression_guard(
     assert dedup_tokens == frozenset({"contracts"})
 
 
-def test_membership_filter_diii_full_token_vs_basename_guard(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_membership_filter_diii_full_token_vs_basename_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d-iii): full-token (not basename) comparison guard (TASKS-FRESH3-001).
 
     ``"docs/contracts"`` and ``"api/contracts"`` share a final path segment
     but are distinct full tokens. Only the true full-token match
-    (``"docs/contracts"``) should end up in the dedup set; a basename-reducing
+    (``"docs/contracts"``) should be removed; a basename-reducing
     implementation (``Path(t).name``) would collapse both to ``"contracts"``
-    and incorrectly include both, producing
-    ``frozenset({"docs/contracts", "api/contracts"})`` instead of
-    ``frozenset({"docs/contracts"})``.
+    and incorrectly suppress the independent ``api/contracts`` warning.
     """
     mission = _mission_with_optional("docs/contracts")
-    _patch_path_result(monkeypatch, ["docs/contracts", "api/contracts"])
+    _patch_path_result(monkeypatch, ["docs/contracts"])
 
-    _violations, _warning, dedup_tokens = evaluate_path_conventions(
+    _, _, dedup_tokens = evaluate_path_conventions(
         mission,
         tmp_path,
         tmp_path,

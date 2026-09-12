@@ -2048,7 +2048,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # --instantiates--> template edges"), which mints MISSION-QUALIFIED template
     # nodes/edges from a MissionStep.template-shaped field. The three C4 templates
     # are shared/general-purpose nodes (`template:c4-*-mermaid-template`, NOT
-    # mission-qualified) backed by src/doctrine/templates/architecture/ — they are
+    # mission-qualified) backed by src/charter/offering/templates/architecture/ — they are
     # not one mission's step-output template, so that extractor mechanism does not
     # derive them, and action.graph.yaml is itself extractor-regenerated (a manual
     # edit there would be dropped on `spec-kitty doctrine regenerate-graph`). Per

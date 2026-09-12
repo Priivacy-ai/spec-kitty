@@ -119,9 +119,7 @@ class TestWpEnding:
         assert ending.reason_source == "operator"
         assert ending.acceptable is True
 
-    def test_canceled_with_none_reason_is_synthetic_and_unacceptable(
-        self, tmp_path: Path
-    ) -> None:
+    def test_canceled_with_none_reason_is_synthetic_and_unacceptable(self, tmp_path: Path) -> None:
         """A synthetic cancellation (``reason: None``) stays fail-closed (#3780)."""
         from runtime.next.committed_authority import wp_ending
 
@@ -141,9 +139,7 @@ class TestWpEnding:
         assert ending.acceptable is False
 
     @pytest.mark.parametrize("prefix", ["Force move to canceled", "move-task: planned -> canceled"])
-    def test_canceled_with_synthetic_reason_prefix_is_unacceptable(
-        self, tmp_path: Path, prefix: str
-    ) -> None:
+    def test_canceled_with_synthetic_reason_prefix_is_unacceptable(self, tmp_path: Path, prefix: str) -> None:
         """A CLI-synthesized reason template (no explicit ``reason_source``) is synthetic."""
         from runtime.next.committed_authority import wp_ending
 
@@ -161,9 +157,7 @@ class TestWpEnding:
         assert ending.reason_source == "synthetic"
         assert ending.acceptable is False
 
-    @pytest.mark.parametrize(
-        "lane", [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.BLOCKED]
-    )
+    @pytest.mark.parametrize("lane", [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.BLOCKED])
     def test_other_lanes_are_unacceptable(self, tmp_path: Path, lane: Lane) -> None:
         from runtime.next.committed_authority import wp_ending
 
@@ -195,9 +189,7 @@ class TestWpEnding:
 
         _seed(tmp_path, "WP01", from_lane=Lane.APPROVED, to_lane=Lane.DONE)
 
-        with patch.object(
-            committed_authority_module, "reduce", wraps=committed_authority_module.reduce
-        ) as reduce_spy:
+        with patch.object(committed_authority_module, "reduce", wraps=committed_authority_module.reduce) as reduce_spy:
             committed_authority_module.wp_ending(tmp_path, "WP01")
 
         reduce_spy.assert_called_once()
@@ -239,9 +231,7 @@ class TestMissionTerminalVerdict:
 
         assert verdict == "terminal"
 
-    def test_mission_number_present_some_unacceptable_is_blocked_conflict(
-        self, tmp_path: Path
-    ) -> None:
+    def test_mission_number_present_some_unacceptable_is_blocked_conflict(self, tmp_path: Path) -> None:
         """FR-009: a merged mission with an unacceptable-ending WP is a conflict,
         never a silent terminal."""
         from runtime.next.committed_authority import mission_terminal_verdict

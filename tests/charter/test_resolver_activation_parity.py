@@ -140,9 +140,7 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_fr012_directive_base_is_activated_not_charter_override(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fr012_directive_base_is_activated_not_charter_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A non-empty, DISJOINT ``governance.charter.selected_directives`` must
     NOT silently override an also-non-empty ``activated_directives`` — the
     resolved directive set must include the activated-only member.
@@ -159,14 +157,8 @@ def test_fr012_directive_base_is_activated_not_charter_override(
 
     result = resolve_project_governance(tmp_path)
 
-    assert "DIRECTIVE_038" in result.directives, (
-        "activated_directives must contribute to the base even when charter "
-        "selected_directives is non-empty and disjoint"
-    )
-    assert "DIRECTIVE_010" in result.directives, (
-        "charter selected_directives must still union onto the activated base "
-        "(never dropped)"
-    )
+    assert "DIRECTIVE_038" in result.directives, "activated_directives must contribute to the base even when charter selected_directives is non-empty and disjoint"
+    assert "DIRECTIVE_010" in result.directives, "charter selected_directives must still union onto the activated base (never dropped)"
 
 
 # ---------------------------------------------------------------------------
@@ -177,9 +169,7 @@ def test_fr012_directive_base_is_activated_not_charter_override(
 # ---------------------------------------------------------------------------
 
 
-def test_fr013_paradigm_base_is_activated_not_charter_passthrough(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fr013_paradigm_base_is_activated_not_charter_passthrough(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A non-empty, DISJOINT ``governance.charter.selected_paradigms`` must
     NOT be returned as an unconditional passthrough — the resolved paradigm
     list must include the activated-only member.
@@ -196,14 +186,8 @@ def test_fr013_paradigm_base_is_activated_not_charter_passthrough(
 
     result = resolve_project_governance(tmp_path)
 
-    assert "paradigm-a" in result.paradigms, (
-        "activated_paradigms must contribute to the base even when charter "
-        "selected_paradigms is non-empty and disjoint"
-    )
-    assert "paradigm-b" in result.paradigms, (
-        "charter selected_paradigms must still union onto the activated base "
-        "(never dropped)"
-    )
+    assert "paradigm-a" in result.paradigms, "activated_paradigms must contribute to the base even when charter selected_paradigms is non-empty and disjoint"
+    assert "paradigm-b" in result.paradigms, "charter selected_paradigms must still union onto the activated base (never dropped)"
 
 
 # ---------------------------------------------------------------------------
@@ -214,9 +198,7 @@ def test_fr013_paradigm_base_is_activated_not_charter_passthrough(
 # ---------------------------------------------------------------------------
 
 
-def test_agreement_case_directives_and_paradigms_unchanged_from_main(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_agreement_case_directives_and_paradigms_unchanged_from_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """When ``selected_*`` and ``activated_*`` select the identical set, the
     resolved value is exactly that set for both directives and paradigms —
     this mission does not flip a project whose two sources already agree.
@@ -255,9 +237,7 @@ def test_agreement_case_directives_and_paradigms_unchanged_from_main(
 # ---------------------------------------------------------------------------
 
 
-def test_stem_form_activated_directive_normalized_before_promotion(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_stem_form_activated_directive_normalized_before_promotion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A stem-form ``activated_directives`` entry (e.g.
     ``001-architectural-integrity-standard``, the same id
     ``TestOrgRequiredIdFormNormalizedBeforePromotion`` proves is a legitimate
@@ -269,17 +249,9 @@ def test_stem_form_activated_directive_normalized_before_promotion(
     """
     _patch_catalog(monkeypatch)
     _write_charter_files(tmp_path)  # selected_directives / selected_paradigms both empty
-    _write_activation_config(
-        tmp_path, activated_directives=["001-architectural-integrity-standard"]
-    )
+    _write_activation_config(tmp_path, activated_directives=["001-architectural-integrity-standard"])
 
     result = resolve_project_governance(tmp_path)
 
-    assert "DIRECTIVE_001" in result.directives, (
-        "a stem-form activated_directives entry must be normalized to its "
-        "canonical form before entering the resolved base"
-    )
-    assert "001-architectural-integrity-standard" not in result.directives, (
-        "the raw, un-normalized stem string must never leak into the "
-        "resolved directives list"
-    )
+    assert "DIRECTIVE_001" in result.directives, "a stem-form activated_directives entry must be normalized to its canonical form before entering the resolved base"
+    assert "001-architectural-integrity-standard" not in result.directives, "the raw, un-normalized stem string must never leak into the resolved directives list"

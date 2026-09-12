@@ -1,7 +1,7 @@
 """Fixture: a lazy ``doctrine`` import inside a nested function body.
 
 The lazy-import ratchet MUST flag this file. A function-body (or deeper) direct
-``from doctrine…`` import is exactly the reach-through the sibling ratchet
+``from charter.offering…`` import is exactly the reach-through the sibling ratchet
 exists to catch: invisible to the module-level ratchet, yet a real runtime
 dependency the moment the enclosing function runs. This file is parsed via
 ``ast.parse``; it is never imported, so the lazy import never resolves.

@@ -196,19 +196,19 @@ class TestFeatureStatusLock:
     def test_lock_falls_back_to_dot_git_when_git_topology_probe_fails(
         self, tmp_path: Path
     ) -> None:
-        """A failed git-common-dir probe should fall back to repo/.git.
+        """A failed git-common-dir probe on a checkout falls back to repo/.git.
 
         #3773 item 4 converged this resolver onto the canonical
         ``kernel.git_topology.git_common_dir`` probe (the same one
         ``specify_cli.review.verdict_commit_queue`` uses), retiring the
         hand-rolled ``subprocess.run(["git", "rev-parse", ...])`` call this
         test used to patch directly. The observable contract this test pins
-        is unchanged: when the probe cannot resolve a common dir (empty
-        output, a non-repo path, git missing, ...), the lock path still falls
-        back to ``repo/.git`` instead of raising.
+        is unchanged for a checkout: when the probe fails transiently (git
+        missing, empty output, ...) on a tree that HAS a ``.git`` directory,
+        the lock path still falls back to ``repo/.git`` instead of raising.
         """
         repo = tmp_path / "test-repo"
-        repo.mkdir()
+        (repo / ".git").mkdir(parents=True)
 
         with patch(
             "specify_cli.status.locking.git_common_dir",
@@ -217,6 +217,23 @@ class TestFeatureStatusLock:
             lock_path = feature_status_lock_path(repo, "017-test-feature")
 
         assert lock_path == repo / ".git" / "spec-kitty-locks" / "017-test-feature.status.lock"
+
+    def test_lock_on_non_git_tree_never_mints_a_dot_git_directory(
+        self, tmp_path: Path
+    ) -> None:
+        """A genuinely non-git tree locks under ``.kittify`` (fsm-write-path-integrity WP01).
+
+        Minting ``repo/.git/`` in a non-git tree turned it into a bogus repo
+        root for every later ``resolve_canonical_root`` walk; the lock now
+        degrades to ``repo/.kittify/spec-kitty-locks`` there.
+        """
+        repo = tmp_path / "test-repo"
+        repo.mkdir()
+        lock_path = feature_status_lock_path(repo, "017-test-feature")
+        assert lock_path == repo / ".kittify" / "spec-kitty-locks" / "017-test-feature.status.lock"
+        with feature_status_lock(repo, "017-test-feature", timeout=2):
+            pass
+        assert not (repo / ".git").exists()
 
     def test_lock_is_reentrant_within_one_thread(self, tmp_path: Path) -> None:
         """Nested acquisitions in one thread should reuse the same lock file."""
@@ -240,7 +257,10 @@ class TestFeatureStatusLock:
             "specify_cli.status.locking.FileLock.acquire",
             side_effect=Timeout("test.lock"),
         ):
-            with pytest.raises(FeatureStatusLockTimeoutError, match="Timed out acquiring feature status lock"):
+            # M2 canonical integration: F2-T1 unified the lock family and reworded the
+            # message to "Timed out acquiring status lock: <path>"; the intent here is
+            # only that filelock Timeout surfaces as FeatureStatusLockTimeoutError.
+            with pytest.raises(FeatureStatusLockTimeoutError, match=r"Timed out acquiring (feature )?status lock"):
                 with feature_status_lock(repo, "017-test-feature", timeout=0):
                     pass
 

@@ -37,7 +37,7 @@ from .base import BaseMigration, MigrationResult
 #: config-absent default, which is why an earlier revision claimed the two
 #: "can never drift." WP04 RETIRED that implicit backfill -- an absent key now
 #: resolves to ``frozenset()`` (fail-closed), and the authored
-#: ``src/charter/packs/default.yaml`` list is the single authority that
+#: ``src/charter/activation/packs/default.yaml`` list is the single authority that
 #: fresh-init / generation / upgrade provisioning seed from. This migration
 #: still seeds from the disk-scan roster, so if a fifth built-in mission type
 #: is ever added under ``mission_types/`` WITHOUT also adding it to

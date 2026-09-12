@@ -43,6 +43,46 @@ _OLD_BLOCK = (
     f"{SECTION_CLOSE}\n"
 )
 
+# Literal current managed body with a stale version, not a renderer-derived oracle.
+# The older single-line body above has no current ownership proof.
+_MANAGED_OLD_BLOCK = _OLD_BLOCK.replace(
+    '  → run `spec-kitty dispatch "<request verbatim>"`\n',
+    '  → **ALWAYS run `spec-kitty dispatch "<request verbatim>"` — do NOT answer directly.**\n'
+    "  If you know the right profile, pass it to skip routing:\n"
+    '  `spec-kitty dispatch "<request verbatim>" --profile <profile-id>`\n'
+    "  Reason: `spec-kitty dispatch` loads governance context, routes the request,\n"
+    "  and opens the Op. Skipping it produces ungoverned, untracked responses.\n"
+    "  After finishing the work, close the Op with the command printed in the capsule\n"
+    "  (`spec-kitty profile-invocation complete --invocation-id <id> --outcome <done|failed|abandoned>`).\n",
+)
+_CUSTOM_BEFORE = "# Local instructions\nKeep the bespoke workflow.\n\n"
+_CUSTOM_AFTER = "\n## Local policy\nRetain the human review step.\n"
+
+
+def _assert_refreshed(text: str) -> None:
+    assert text.count(SECTION_OPEN) == text.count(SECTION_CLOSE) == 1
+    before, section = text.split(SECTION_OPEN)
+    block, after = section.split(SECTION_CLOSE)
+    assert before == _CUSTOM_BEFORE
+    assert after == "\n" + _CUSTOM_AFTER
+    assert "**Spec Kitty v3.2.0rc39**" in block
+    assert "v3.2.0rc38" not in block
+    assert "**Full mission**" in block and "`/spec-kitty.specify`" in block
+    assert "**Lightweight dispatch**" in block and "no mission created" in block
+    assert 'spec-kitty dispatch "<request verbatim>"' in block
+    assert "do NOT answer directly" in block
+    assert "--profile <profile-id>" in block
+    assert "loads governance context" in block and "opens the Op" in block
+    assert "close the Op" in block
+    assert "profile-invocation complete --invocation-id <id>" in block
+    assert "--outcome <done|failed|abandoned>" in block
+    assert '  → run `spec-kitty dispatch "<request verbatim>"`\n' not in block
+
+
+def _seed_managed_block(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_CUSTOM_BEFORE + _MANAGED_OLD_BLOCK + _CUSTOM_AFTER, encoding="utf-8")
+
 
 # ---------------------------------------------------------------------------
 # Project factory helpers
@@ -109,14 +149,16 @@ class TestDetect:
         project = _make_project(tmp_path, agents=["codex"])
         migration = RefreshOrientationBlockMigration()
         # First write fresh content via apply
+        _seed_managed_block(project / "AGENTS.md")
         _apply_with_mocks(migration, project)
+        _assert_refreshed((project / "AGENTS.md").read_text(encoding="utf-8"))
         # Now detect() must see no staleness
         assert _detect_with_mocks(migration, project) is False
 
     def test_true_when_agents_md_block_is_stale(self, tmp_path: Path) -> None:
         """detect() is True when AGENTS.md contains an old orientation block."""
         project = _make_project(tmp_path, agents=["codex"])
-        (project / "AGENTS.md").write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(project / "AGENTS.md")
         migration = RefreshOrientationBlockMigration()
         assert _detect_with_mocks(migration, project) is True
 
@@ -125,7 +167,7 @@ class TestDetect:
         project = _make_project(tmp_path, agents=["cursor"], agent_dirs=[".cursor"])
         rules_file = project / ".cursor" / "rules" / "spec-kitty.mdc"
         rules_file.parent.mkdir(parents=True, exist_ok=True)
-        rules_file.write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(rules_file)
         migration = RefreshOrientationBlockMigration()
         assert _detect_with_mocks(migration, project) is True
 
@@ -139,42 +181,43 @@ class TestApply:
     def test_apply_refreshes_stale_agents_md_block(self, tmp_path: Path) -> None:
         """Stale AGENTS.md block is replaced with current content."""
         project = _make_project(tmp_path, agents=["codex"])
-        (project / "AGENTS.md").write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(project / "AGENTS.md")
         migration = RefreshOrientationBlockMigration()
         result = _apply_with_mocks(migration, project)
 
         assert result.success  # type: ignore[union-attr]
         text = (project / "AGENTS.md").read_text(encoding="utf-8")
-        assert SECTION_OPEN in text
-        # New wording must be present; stale single-line dispatch must be gone
-        assert "ALWAYS run" in text
-        assert "do NOT answer directly" in text
-        assert '  → run `spec-kitty dispatch "<request verbatim>"`\n' not in text
+        _assert_refreshed(text)
 
     def test_apply_refreshes_stale_non_agents_writer_block(self, tmp_path: Path) -> None:
         """Stale cursor block is replaced with current content."""
         project = _make_project(tmp_path, agents=["cursor"], agent_dirs=[".cursor"])
         rules_file = project / ".cursor" / "rules" / "spec-kitty.mdc"
         rules_file.parent.mkdir(parents=True, exist_ok=True)
-        rules_file.write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(rules_file)
         migration = RefreshOrientationBlockMigration()
         result = _apply_with_mocks(migration, project)
 
         assert result.success  # type: ignore[union-attr]
         text = rules_file.read_text(encoding="utf-8")
-        assert "ALWAYS run" in text
-        assert "do NOT answer directly" in text
+        _assert_refreshed(text)
 
     def test_apply_skips_current_block(self, tmp_path: Path) -> None:
         """apply() is a no-op when the block is already current."""
         project = _make_project(tmp_path, agents=["codex"])
         migration = RefreshOrientationBlockMigration()
         # Write current block
+        _seed_managed_block(project / "AGENTS.md")
         _apply_with_mocks(migration, project)
+        current = (project / "AGENTS.md").read_bytes()
+        _assert_refreshed(current.decode("utf-8"))
+        before = (project / "AGENTS.md").stat()
         # Second call — nothing stale
         result = _apply_with_mocks(migration, project)
         assert result.success  # type: ignore[union-attr]
         assert result.changes_made == []  # type: ignore[union-attr]
+        assert (project / "AGENTS.md").read_bytes() == current
+        assert (project / "AGENTS.md").stat().st_mtime_ns == before.st_mtime_ns
 
     def test_apply_skips_missing_presence(self, tmp_path: Path) -> None:
         """apply() does not write anything when no block is installed."""
@@ -188,17 +231,18 @@ class TestApply:
     def test_apply_dry_run_no_filesystem_changes(self, tmp_path: Path) -> None:
         """dry_run=True reports pending refreshes but writes nothing."""
         project = _make_project(tmp_path, agents=["codex"])
-        (project / "AGENTS.md").write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(project / "AGENTS.md")
+        before = (project / "AGENTS.md").read_bytes()
         migration = RefreshOrientationBlockMigration()
         result = _apply_with_mocks(migration, project, dry_run=True)
         assert result.success  # type: ignore[union-attr]
         assert len(result.changes_made) >= 1  # type: ignore[union-attr]
         # File must be unchanged
-        assert (project / "AGENTS.md").read_text(encoding="utf-8") == _OLD_BLOCK
+        assert (project / "AGENTS.md").read_bytes() == before
 
     def test_apply_dry_run_change_describes_harness(self, tmp_path: Path) -> None:
         project = _make_project(tmp_path, agents=["codex"])
-        (project / "AGENTS.md").write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(project / "AGENTS.md")
         migration = RefreshOrientationBlockMigration()
         result = _apply_with_mocks(migration, project, dry_run=True)
         assert any("codex" in change for change in result.changes_made)  # type: ignore[union-attr]
@@ -206,21 +250,88 @@ class TestApply:
     def test_apply_idempotent(self, tmp_path: Path) -> None:
         """Applying twice on a stale block leaves exactly one orientation section."""
         project = _make_project(tmp_path, agents=["codex"])
-        (project / "AGENTS.md").write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(project / "AGENTS.md")
         migration = RefreshOrientationBlockMigration()
         _apply_with_mocks(migration, project)
+        first = (project / "AGENTS.md").read_text(encoding="utf-8")
+        _assert_refreshed(first)
         _apply_with_mocks(migration, project)
         text = (project / "AGENTS.md").read_text(encoding="utf-8")
-        assert text.count(SECTION_OPEN) == 1
+        assert text == first
+        _assert_refreshed(text)
 
     def test_apply_returns_change_entry_per_stale_key(self, tmp_path: Path) -> None:
         """apply() reports one change entry per refreshed harness key."""
         project = _make_project(tmp_path, agents=["codex"])
-        (project / "AGENTS.md").write_text(_OLD_BLOCK, encoding="utf-8")
+        _seed_managed_block(project / "AGENTS.md")
         migration = RefreshOrientationBlockMigration()
         result = _apply_with_mocks(migration, project)
         assert len(result.changes_made) == 1  # type: ignore[union-attr]
         assert "codex" in result.changes_made[0]  # type: ignore[union-attr]
+        _assert_refreshed((project / "AGENTS.md").read_text(encoding="utf-8"))
+
+    @pytest.mark.parametrize(
+        "agent,relative_path",
+        [
+            ("codex", "AGENTS.md"),
+            ("cursor", ".cursor/rules/spec-kitty.mdc"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "block",
+        [
+            pytest.param(_OLD_BLOCK, id="unproven-historical-body"),
+            pytest.param(_MANAGED_OLD_BLOCK.replace("Two usage patterns:", "My usage policy:"), id="edited-body"),
+            pytest.param(_MANAGED_OLD_BLOCK.replace(SECTION_CLOSE, ""), id="missing-close"),
+        ],
+    )
+    def test_apply_preserves_unproven_block(
+        self,
+        tmp_path: Path,
+        agent: str,
+        relative_path: str,
+        block: str,
+    ) -> None:
+        project = _make_project(tmp_path, agents=[agent])
+        path = project / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        original = _CUSTOM_BEFORE + block + _CUSTOM_AFTER
+        path.write_text(original, encoding="utf-8")
+        before = path.stat()
+        if SECTION_CLOSE not in block:
+            with pytest.raises(ValueError, match="Duplicate or unbalanced orientation markers"):
+                _apply_with_mocks(RefreshOrientationBlockMigration(), project)
+        else:
+            _apply_with_mocks(RefreshOrientationBlockMigration(), project)
+        # Do not approve the migration's change reporting for preserved content.
+        assert path.read_text(encoding="utf-8") == original
+        assert path.stat().st_mtime_ns == before.st_mtime_ns
+
+    def test_refresh_assertions_reject_output_regressions(self, tmp_path: Path) -> None:
+        project = _make_project(tmp_path, agents=["codex"])
+        path = project / "AGENTS.md"
+        _seed_managed_block(path)
+        _apply_with_mocks(RefreshOrientationBlockMigration(), project)
+        text = path.read_text(encoding="utf-8")
+        _assert_refreshed(text)
+        mutations = [
+            text.replace("v3.2.0rc39", "v3.2.0rc38"),
+            text.replace(SECTION_CLOSE, ""),
+            text.replace(SECTION_OPEN, SECTION_OPEN + SECTION_OPEN),
+            text.replace(_CUSTOM_BEFORE, ""),
+            text.replace(_CUSTOM_AFTER, ""),
+            text.replace("/spec-kitty.specify", "/other"),
+            text.replace('spec-kitty dispatch "<request verbatim>"', "answer directly"),
+            text.replace("do NOT answer directly", "answer directly"),
+            text.replace("--profile <profile-id>", ""),
+            text.replace("loads governance context", ""),
+            text.replace("opens the Op", ""),
+            text.replace("profile-invocation complete --invocation-id <id>", ""),
+        ]
+        for mutated in mutations:
+            assert mutated != text
+            with pytest.raises(AssertionError):
+                _assert_refreshed(mutated)
 
 
 # ---------------------------------------------------------------------------

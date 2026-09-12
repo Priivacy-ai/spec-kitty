@@ -256,7 +256,6 @@ def _run_setup_plan(repo: Path, mission_handle: str, *, target_branch: str = "ma
             patch.object(mission_module, "_show_branch_context", side_effect=_fake_show_branch_context),
             patch.object(mission_module, "get_current_branch", return_value=target_branch),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value=target_branch),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,
@@ -309,7 +308,7 @@ def _run_decision_verify(repo: Path, mission_handle: str, monkeypatch: pytest.Mo
 
 
 def _build_golden_mission(
-    repo: Path, slug: str, topology: MissionTopology, *, branch: str = "mission-work"
+    repo: Path, slug: str, topology: MissionTopology, *, branch: str = "main"
 ) -> MissionCreationResult:
     """Create a mission, commit a substantive spec + plan, seed WP01 + lanes.json.
 
@@ -317,15 +316,8 @@ def _build_golden_mission(
     ``result.feature_dir`` / ``result.mission_slug`` / ``result.target_branch``.
     For COORD topology the coordination worktree is also materialized (T039's
     mutation assertion needs it present the way real bookkeeping produces it).
-    ``branch`` defaults to a non-protected name for every topology: mission
-    creation's own meta-commit always lands on the checked-out planning
-    branch (COORD's coordination branch is minted *from* it, not instead of
-    it), so a protected default here would refuse creation itself before any
-    topology-specific behaviour is ever exercised (FR-001 removed the
-    swallowed-exception fallback that used to hide this). Pass an explicit
-    protected name only for a test that deliberately exercises protected-
-    primary refusal (see ``test_protected_primary_event_only_mark_status_succeeds_without_commit``,
-    which uses the dedicated ``protected_target_repo`` fixture instead).
+    ``branch`` defaults to the (protected) ``main``; pass a non-protected name
+    for callers exercising unprotected-branch mutation flows.
     """
     _init_git_repo(repo, branch=branch)
     result = _create_mission(repo, slug, topology)
@@ -424,14 +416,12 @@ def test_lifecycle_mutation_bookkeeping_lands_on_correct_surface(
     # A SINGLE_BRANCH mission (meta.json present, no coordination_branch) is
     # classified "legacy" by BookkeepingTransaction, which resolves its write
     # target from Path.cwd() (see the chdir below) AND still applies the
-    # protected-branch guard against that target. Build BOTH topologies on a
-    # non-protected branch (``_build_golden_mission``'s default) so THIS test
-    # proves mutation-surface ROUTING (coord vs primary), not the protected-
-    # branch refusal — that is T041's dedicated edge-state scenario. COORD's
-    # own coord-worktree write lands on its minted coordination branch
-    # regardless of the primary's branch name, so this choice does not
-    # entangle the two topologies' assertions below.
-    result = _build_golden_mission(tmp_path, slug, topology)
+    # protected-branch guard against that target. Build the flat mission on a
+    # non-protected branch so THIS test proves mutation-surface ROUTING
+    # (coord vs primary), not the protected-branch refusal — that is T041's
+    # dedicated edge-state scenario.
+    branch = "main" if topology is MissionTopology.COORD else "mission-work"
+    result = _build_golden_mission(tmp_path, slug, topology, branch=branch)
 
     primary_events = result.feature_dir / "status.events.jsonl"
     coord_events: Path | None = None
@@ -655,7 +645,6 @@ def test_deleted_coord_branch_raises_actionable_error_not_stale_read(tmp_path: P
 
 def test_protected_primary_event_only_mark_status_succeeds_without_commit(
     protected_target_repo: ProtectedTargetRepo,  # noqa: F811
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """T041d: a protected-primary, non-coord mission's status mutation is
     REFUSED with an explicit diagnostic (naming the protected branch and the
@@ -665,17 +654,7 @@ def test_protected_primary_event_only_mark_status_succeeds_without_commit(
     protected_target_repo.assert_target_is_protected()
     repo = protected_target_repo.repo_root
 
-    # This fixture's whole point is a mission that ALREADY lives on the
-    # protected primary (the mark-status refusal below is what's under
-    # test) -- unlike the golden-path builder above, checking out a
-    # non-protected branch here would defeat the scenario. Scope the
-    # operator escape hatch (the same one ``_run_setup_plan`` uses) around
-    # just this scaffolding create-call, matching the "spec-kitty agent
-    # mission create --start-branch" alternative the refusal message itself
-    # names for an operator who legitimately owns the protected branch.
-    with monkeypatch.context() as scaffold_env:
-        scaffold_env.setenv(_ALLOW_PROTECTED_ENV, "1")
-        result = _create_mission(repo, "protected-primary-edge", MissionTopology.SINGLE_BRANCH)
+    result = _create_mission(repo, "protected-primary-edge", MissionTopology.SINGLE_BRANCH)
     (result.feature_dir / "tasks").mkdir(exist_ok=True)
     (result.feature_dir / "tasks" / "WP01.md").write_text(
         "---\nwork_package_id: WP01\ntitle: Protected fixture\nsubtasks: [T001]\n---\n",

@@ -8,13 +8,15 @@ audience: launch coordinators
 ---
 # Launch-Readiness Behavior (Coming Soon)
 
-> **Status: pre-launch.** This page describes the behavior the Spec
-> Kitty CLI will adopt at the public Teamspace launch milestone.
-> **None of this is in effect today.** For today's local-first
-> experience, see the [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md). For the internal
-> hosted-readiness preview that lets contributors dogfood the hidden
-> mode now, see
-> [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md).
+> **Status: the default flip has landed (issue #3980, Team Kitty launch
+> defaults).** The opt-out-only `SPEC_KITTY_ENABLE_SAAS_SYNC` and the
+> packaged default `https://team.spec-kitty.ai` described below as "at
+> launch" are now the behavior on `main`. This page is kept as the launch
+> playbook and design record; see
+> [environment variables](../api/environment-variables.md) for the current
+> reference, and
+> [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md)
+> for the pre-launch opt-in era this replaced.
 
 ## Why this doc exists
 

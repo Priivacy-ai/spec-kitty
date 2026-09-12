@@ -24,7 +24,7 @@ The four contract obligations (C5 / resolution-and-enforcement.md):
 
 The denylist is the software-dev *implement*-action doctrine — TDD/git-flow
 governance that is meaningless for a documentation, research, or plan mission.
-It is homed **only** in ``src/doctrine/missions/software-dev/actions/implement/index.yaml``;
+It is homed **only** in ``src/charter/offering/missions/software-dev/actions/implement/index.yaml``;
 this test pins that it never leaks into the other three domains.
 
 WP03 wired the live action-grain union into ``bundle.governance`` itself (lazily,
@@ -87,7 +87,7 @@ def _provision_all_builtin_mission_types(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 #: On-disk root of the shipped mission doctrine (``packs/built-in/missions``,
-#: relocated from ``src/doctrine/missions`` by mission
+#: relocated from ``src/charter/offering/missions`` by mission
 #: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005). The
 #: retired ``Path(charter.offering.missions.__file__).resolve().parent`` construction
 #: would resolve to the now data-less ``.py``-only package directory instead.
@@ -127,7 +127,7 @@ _SHARED_PROBE_ACTIONS: tuple[str, ...] = (
 
 #: The software-dev-only governance denylist, expressed as canonical URNs. Every
 #: entry is authored **only** in
-#: ``src/doctrine/missions/software-dev/actions/implement/index.yaml`` and is
+#: ``src/charter/offering/missions/software-dev/actions/implement/index.yaml`` and is
 #: nonsensical for a docs/research/plan mission (TDD, git-flow branching,
 #: refactoring/bug-fix procedures).
 SOFTWARE_DEV_ONLY_DENYLIST: frozenset[str] = frozenset(

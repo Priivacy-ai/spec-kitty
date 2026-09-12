@@ -85,6 +85,16 @@ def _resolve_partition_read_dir(feature_dir: Path, kind: MissionArtifactKind) ->
     except WorkspaceRootNotFound:
         return feature_dir
     resolved: Path = resolve_artifact_surface(repo_root, feature_dir.name, kind).path
+    if not resolved.exists() and feature_dir.exists():
+        # #154: the canonical-root walk found a repository that is not this
+        # mission's own (an ambient ancestor checkout above an ad-hoc mission
+        # dir), so the seam recomposed the partition against a foreign anchor
+        # and handed back a phantom path. Reducing a nonexistent log reads an
+        # empty snapshot -- every WP stateless, gate passes by default, the
+        # exact silent-wrong-answer shape #2885 closed. The handed directory
+        # provably holds this mission (it exists and resolution could not find
+        # its partition anywhere real), so it is its own sole partition here.
+        return feature_dir
     return resolved
 
 

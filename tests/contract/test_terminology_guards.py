@@ -58,7 +58,7 @@ INSCOPE_FEATURE_FREE_FILES: tuple[str, ...] = (
 )
 
 CLI_COMMAND_GLOBS = ("src/specify_cli/cli/commands/**/*.py",)
-DOCTRINE_SKILL_GLOBS = ("src/doctrine/skills/**/*.md",)
+DOCTRINE_SKILL_GLOBS = ("src/charter/offering/skills/**/*.md",)
 AGENT_DOC_GLOBS = ("docs/**/*.md",)
 TOP_LEVEL_DOCS = ("README.md", "CONTRIBUTING.md")
 # Exemption policy and rationale for each exempt surface:

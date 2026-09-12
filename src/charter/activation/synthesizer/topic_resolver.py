@@ -38,8 +38,8 @@ _SYNTHESIZABLE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleg
 # DRG node kinds, derived from the canonical ``NodeKind`` enum so a new kind is
 # addressable at the membership gate the moment it is declared — no hand copy to
 # drift behind the enum (#3608). ``NodeKind`` value == URN prefix is guaranteed
-# by ``DRGNode._validate_urn`` (doctrine/drg/models.py). Mirrors the twin
-# derivation ``_NODE_KIND_PREFIXES`` in ``doctrine/drg/merge.py``.
+# by ``DRGNode._validate_urn`` (charter/offering/drg/models.py). Mirrors the
+# twin derivation ``_NODE_KIND_PREFIXES`` in ``charter/offering/drg/merge.py``.
 _DRG_NODE_KINDS: frozenset[str] = frozenset(k.value for k in NodeKind)
 
 

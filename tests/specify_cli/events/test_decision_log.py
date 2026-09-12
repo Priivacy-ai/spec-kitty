@@ -6,7 +6,6 @@ Covers:
   - Orphaned request: file written, no commit triggered
   - safe_commit() failure does not abort mission execution
   - No PII fields written to decisions.events.jsonl
-  - DecisionInputRequested/Answered excluded from OfflineQueue
   - Delegation of all other emit methods to inner emitter
 """
 
@@ -298,52 +297,6 @@ class TestSafeCommitFailureSwallowed:
 
 
 # ---------------------------------------------------------------------------
-# T011-F: Queue exclusion — DecisionInput events don't reach OfflineQueue
-# ---------------------------------------------------------------------------
-
-class TestQueueExclusion:
-    def test_decision_input_requested_excluded_from_queue(self) -> None:
-        from specify_cli.sync.queue import OfflineQueue
-
-        q = OfflineQueue.__new__(OfflineQueue)
-        result = q.queue_event(
-            # canonical-producer-exempt: #1198 -- queue exclusion guard needs a minimal raw event envelope.
-            {
-                "event_id": "e001",
-                "event_type": "DecisionInputRequested",
-                "payload": {},
-            }
-        )
-        # Should return True (skipped) without inserting into SQLite
-        assert result is True
-
-    def test_decision_input_answered_excluded_from_queue(self) -> None:
-        from specify_cli.sync.queue import OfflineQueue
-
-        q = OfflineQueue.__new__(OfflineQueue)
-        result = q.queue_event(
-            # canonical-producer-exempt: #1198 -- queue exclusion guard needs a minimal raw event envelope.
-            {
-                "event_id": "e002",
-                "event_type": "DecisionInputAnswered",
-                "payload": {},
-            }
-        )
-        assert result is True
-
-    def test_other_event_types_not_excluded(self, tmp_path: Path) -> None:
-        """Non-decision events should NOT be short-circuited."""
-        from specify_cli.sync.queue import OfflineQueue
-
-        # We only test that the guard does NOT fire; we don't run the SQLite
-        # insert (which requires a real DB).  We verify by patching _try_coalesce
-        # and _ensure_row_count to avoid touching the DB.
-        q = OfflineQueue.__new__(OfflineQueue)
-        assert hasattr(q, "_QUEUE_EXCLUDED_EVENT_TYPES")
-        assert "NextStepIssued" not in q._QUEUE_EXCLUDED_EVENT_TYPES
-
-
-# ---------------------------------------------------------------------------
 # T011-G: Delegation — other events reach inner emitter
 # ---------------------------------------------------------------------------
 
@@ -409,6 +362,24 @@ class TestDelegation:
         payload = MagicMock(spec=TimeoutExpiredPayload)
         log.emit_decision_timeout_expired(payload)
         inner.emit_decision_timeout_expired.assert_called_once_with(payload)
+
+    def test_seed_from_snapshot_delegates_to_inner(self, tmp_path: Path) -> None:
+        """F6 (dead-port-disposition-01M1VRA2): the composition advancement
+        helper seeds whichever emitter it is handed; the wrap forwards that
+        seed to an inner seam that supports it."""
+        inner = MagicMock(spec=NullEmitter)
+        inner.seed_from_snapshot = MagicMock()
+        log = _make_log(tmp_path, inner=inner)
+        snapshot = object()
+        log.seed_from_snapshot(snapshot)
+        inner.seed_from_snapshot.assert_called_once_with(snapshot)
+
+    def test_seed_from_snapshot_tolerates_inner_without_seed(self, tmp_path: Path) -> None:
+        """F6: an inner sink without ``seed_from_snapshot`` is a no-op, never an error."""
+        inner = MagicMock(spec=["emit_decision_input_requested"])
+        log = _make_log(tmp_path, inner=inner)
+        log.seed_from_snapshot(object())
+        assert not hasattr(inner, "seed_from_snapshot")
 
 
 # ---------------------------------------------------------------------------

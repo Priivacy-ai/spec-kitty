@@ -103,7 +103,6 @@ def test_json_shape_identical_dry_run_and_live(tmp_path: Path) -> None:
         "mission_type",
         "legacy_value",
         "reason",
-        "dossier_warning",
     }
 
 

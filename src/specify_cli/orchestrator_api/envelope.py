@@ -30,7 +30,11 @@ from kernel.clock import now_utc_iso
 # (``open-decision``, ``resolve-decision``, ``defer-decision``,
 # ``cancel-decision``, ``answer-decision``); plus the read-only ``design-status``
 # query verb. Purely additive.
-CONTRACT_VERSION = "1.4.0"
+# 1.5.0: the ``tasks`` verb's pass-through data gained the ``planning_commit``
+# object (action / previous_sha / branch_tip / resolved sha) from the delegate
+# finalize-tasks ``--json`` payload (#4141 -- the --refresh-planning-commit
+# re-point affordance). Purely additive.
+CONTRACT_VERSION = "1.5.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

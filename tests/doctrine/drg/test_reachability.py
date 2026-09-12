@@ -898,7 +898,7 @@ class TestSixEdgesReachabilityWiring:
     """T003 (WP01, mission drg-reachability-metric-wiring-01KZS5VR, #3009 point 3).
 
     Behavioral, red-first reach assertions for the six curated edges
-    (``_CURATED_ARTIFACT_EDGES``, ``src/doctrine/drg/migration/extractor.py``) —
+    (``_CURATED_ARTIFACT_EDGES``, ``src/charter/offering/drg/migration/extractor.py``) —
     each proves a reachability TRANSITION via the canonical helpers, not a
     frozenset-literal edit (the real ATDD artifact per the contract's
     anti-requirements: set-equality alone does not force these edges to exist).

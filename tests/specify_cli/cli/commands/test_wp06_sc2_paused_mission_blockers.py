@@ -460,16 +460,6 @@ def _run_real_finalize(repo: Path, mission_slug: str) -> Result:
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return CliRunner().invoke(
             app,
@@ -496,16 +486,12 @@ class TestFinalizeLeavesNoPrimaryResidue:
     @pytest.fixture(autouse=True)
     def _disable_saas_fanout(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.status.emit as emit_module
-        import specify_cli.sync.feature_flags as feature_flags_module
 
         monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
-        # Disable SaaS sync at the source module: late `from .feature_flags
-        # import is_saas_sync_enabled` imports inside the dossier pipeline must
-        # also see it disabled, or environment-dependent dossier writes leak
-        # into the porcelain assertions.
-        monkeypatch.setattr(
-            feature_flags_module, "is_saas_sync_enabled", lambda *a, **k: False
-        )
+        # Disable hosted sync at its canonical source module: late
+        # `from specify_cli.core.saas_sync_config import is_saas_sync_enabled`
+        # imports (readiness coordinator, mission_type) must also see it disabled,
+        # or environment-dependent writes leak into the porcelain assertions.
 
     def test_finalize_leaves_porcelain_free_of_stager_residue(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

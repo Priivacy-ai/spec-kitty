@@ -106,10 +106,13 @@ tool for a hermetic, parallel-safe test.
 
 ## CI
 
-[`.github/workflows/ui-e2e.yml`](../../../.github/workflows/ui-e2e.yml) runs
-this suite headless in its own scoped job: install (frozen), cache +
-install the Chromium binary, then
-`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q`. It is deliberately its own
-workflow file rather than a job inside `ci-quality.yml` so it stays bounded —
-one test, one browser install, not a dependency every unrelated CI shard has
-to wait on (NFR-001).
+`.github/workflows/ui-e2e.yml` used to run this suite headless in its own
+scoped job: install (frozen), cache + install the Chromium binary, then
+`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q`. That workflow (and
+every other pre-programme GitHub Actions workflow) was deleted per
+PROGRAM.md §2 / planning#57 — this repo runs no GitHub Actions. Run the
+`PWHEADLESS=1` command above locally instead; the deliberate
+one-test-one-browser-install boundedness rationale (NFR-001) — a dedicated
+workflow file rather than a job inside `ci-quality.yml`, so this suite is not
+a dependency every unrelated CI shard has to wait on — is retained here as
+historical context for a future re-wiring.

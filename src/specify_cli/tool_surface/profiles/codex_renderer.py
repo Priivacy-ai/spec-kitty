@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.profiles import AgentProfile
+from ._render_helpers import ProfilePathIdentity
 
 # Native format identifier (stable string recorded in the manifest).
 FORMAT_CODEX_AGENT = "codex-agent"
@@ -58,7 +59,7 @@ class CodexProfileRenderer:
         return tool_key in {"codex", "codex-cli", FORMAT_CODEX_AGENT}
 
     def output_path(
-        self, tool_key: str, profile: AgentProfile, project_root: Path
+        self, tool_key: str, profile: ProfilePathIdentity, project_root: Path
     ) -> Path:
         """Return ``.codex/agents/<profile_id>.toml`` under *project_root*."""
         _ = tool_key  # path is identical across the renderer's accepted tool keys

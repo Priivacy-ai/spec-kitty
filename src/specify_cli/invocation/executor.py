@@ -399,6 +399,23 @@ class ProfileInvocationExecutor:
         self._propagator = propagator
         self._chokepoint: GlossaryChokepoint | None = None  # lazy-loaded on first invoke
 
+    def list_available_profiles(self) -> list[AgentProfile]:
+        """Return the invocation catalog: profiles ``invoke`` can resolve.
+
+        Read-only accessor over the same ``ProfileRegistry`` this executor's
+        ``invoke()`` resolves ``profile_hint`` against, so a caller that
+        picks a fallback profile from this list has a guarantee
+        ``invoke(profile_hint=<that id>)`` cannot then fail with
+        ``ProfileNotFoundError`` (#4115: the mission-step executor's
+        role-based default-profile fallback consumes exactly this guarantee).
+        """
+        # Typed local: ``ProfileRegistry`` resolves to Any under a narrow
+        # ``--strict`` check (the ``specify_cli.*`` follow-imports skip), and
+        # this accessor's return type is the guarantee #4115 consumes, so it
+        # must not silently widen to ``Any``.
+        profiles: list[AgentProfile] = self._registry.list_all()
+        return profiles
+
     def invoke(
         self,
         request_text: str,

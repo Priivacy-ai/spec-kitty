@@ -33,33 +33,22 @@ defined here and is **imported, never re-implemented** — a private copy of the
 byte extractor is the single easiest way to make this mission's load-bearing
 assertion assert nothing.
 
-**The fabricated-consent trap is closed on this path by construction — measured,
-not assumed:**
+**The fabricated-consent trap is gone with its consent gate.** At the time of
+writing the closure rested on a conjunction:
 
 .. code-block:: text
 
-    src/specify_cli/saas_client/client.py:137-142   from_env: return cls(..., project_root=root,)  <- KEYWORD ALWAYS PASSED
-    tests/specify_cli/saas_client/conftest.py:74    if "project_root" not in kwargs:               <- therefore UNREACHABLE
-    tests/sync/tracker/conftest.py:166              (mirror image, same shape)
+    src/specify_cli/saas_client/client.py   from_env: return cls(..., project_root=root,)  <- KEYWORD ALWAYS PASSED
+    tests/specify_cli/saas_client/conftest.py  autouse guard injecting only when the kwarg is ABSENT
+    tests/sync/tracker/conftest.py             (mirror image, same shape)
 
-``from_env`` passes ``project_root=`` **as a keyword even when the value is
-``None``**; the autouse guard injects **only when the kwarg is absent**; and
-``cmd_widen`` reaches the client exclusively through ``from_env``
-(``cli/commands/decision.py``).
-
-**THE REOPENING CONDITION IS A CONJUNCTION OVER TWO FILES AND BOTH SIDES MATTER.**
-The **producer** side reopens it if ``from_env`` stops passing the kwarg on the
-``None`` branch. The **consumer** side reopens it just as surely if *either*
-autouse guard changes to ``if kwargs.get("project_root") is None`` — a
-natural-looking "improvement", and the conftest's own comment already shows its
-author reasoning about the ``project_root=None`` case. **Such a reopening would be
-invisible to every other test this mission adds**, because the ownership gate
-keys on the acting root (``SPECIFY_REPO_ROOT``), not on ``project_root``: SC-001's
-refusal still fires and the positive control still passes either way. *Green
-whether or not the trap is armed — that is the trap's signature.* Two things
-compensate: :func:`test_fabricated_consent_falsifier_watches_both_files` (which
-watches both sides) and the runtime assertion ``client._project_root == A_ROOT``
-in the positive control.
+Issue #5 deleted the per-project consent gate the guards fed, so both conftest
+guards retired with it. The producer half still binds and is still pinned:
+``from_env`` passes ``project_root=`` as a keyword even when the value is
+``None``, and ``cmd_widen`` reaches the client exclusively through ``from_env``
+(``cli/commands/decision.py``) — see
+:func:`test_from_env_still_threads_its_repo_root`. The ownership gate keys on
+the acting root (``SPECIFY_REPO_ROOT``), which is unaffected.
 
 Route coverage — TWO routes, not four
 -------------------------------------
@@ -89,14 +78,72 @@ from typer.testing import CliRunner
 
 from specify_cli.saas_client import client as _client_mod
 
-from tests.specify_cli.saas_client.test_client_consent_gate_3030 import (
-    RecordingHttp,
-    transmitted_text,
-    write_project_config,
-)
-
-
 pytestmark = pytest.mark.fast
+
+
+# ---------------------------------------------------------------------------
+# Recording transport + fixtures (formerly imported from
+# ``test_client_consent_gate_3030``, which retired with the per-project consent
+# gate in issue #5 — these helpers outlive it because they observe the transport,
+# not the gate)
+# ---------------------------------------------------------------------------
+
+
+class _RecordingResponse:
+    status_code = 200
+    is_success = True
+    text = "{}"
+
+    def json(self) -> dict[str, Any]:
+        return {}
+
+
+class RecordingHttp:
+    """An ``httpx.Client`` stand-in that records instead of sending."""
+
+    def __init__(self, sink: list[dict[str, Any]]) -> None:
+        self._sink = sink
+
+    def get(self, url: str, *, timeout: float | None = None) -> _RecordingResponse:
+        del timeout
+        self._sink.append({"method": "GET", "url": url, "json": None})
+        return _RecordingResponse()
+
+    def post(self, url: str, *, json: Any = None, headers: dict[str, str] | None = None, timeout: float | None = None) -> _RecordingResponse:
+        del headers, timeout
+        self._sink.append({"method": "POST", "url": url, "json": json})
+        return _RecordingResponse()
+
+
+def transmitted_text(sink: list[dict[str, Any]]) -> str:
+    """Every byte the transport was asked to send — URLs included.
+
+    Defined exactly once and imported by nothing else any more, but still the ONE
+    byte extractor every assertion below uses.
+    """
+    return json.dumps(sink, default=str, sort_keys=True)
+
+
+def write_project_config(repo_root: Path, *, sync_enabled: bool | None = None) -> None:
+    """Write a ``.kittify/config.yaml`` describing the checkout under test.
+
+    ``sync.enabled`` is recorded verbatim when given. It no longer gates anything
+    on this path — the hosted-sync consent chain retired with the sync transport —
+    but the file stays part of the arrangement because ``from_env`` reads auth
+    context relative to a real project root.
+    """
+    del sync_enabled
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "project:",
+        "  uuid: 2b7f6a10-3c4d-4e5f-8a9b-2b7f6a103c4d",
+        f"  slug: {repo_root.name}",
+        "  node_id: node12345678",
+        f"  repo_slug: acme-holdings/{repo_root.name}",
+        "  build_id: 8a4a7da6-a97c-4bb4-893a-b31664abfee4",
+    ]
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 #: Well-formed 26-character Crockford-base32 ULIDs. Both clauses of SC-001 are
@@ -568,49 +615,24 @@ def _from_env_always_passes_project_root(source: str) -> bool:
     return all(any(kw.arg == "project_root" for kw in call.keywords) for call in constructions)
 
 
-def _guard_tests_key_absence(source: str) -> bool:
-    """True when the autouse guard keys on the kwarg being ABSENT.
+def test_from_env_still_threads_its_repo_root(harness: Harness) -> None:
+    """The surviving half of the old fabricated-consent falsifier.
 
-    ``if "project_root" not in kwargs`` is unreachable from ``from_env``. The
-    natural-looking "improvement" ``if kwargs.get("project_root") is None`` is
-    reachable, and re-arms the trap.
-    """
-    return '"project_root" not in kwargs' in source
-
-
-def test_fabricated_consent_falsifier_watches_both_files(harness: Harness) -> None:
-    """THE REOPENING CONDITION IS A CONJUNCTION AND BOTH SIDES ARE WATCHED HERE.
-
-    Changing *either* side re-arms fabricated consent, and such a reopening is
-    **invisible to every other test this mission adds**: the ownership gate keys
-    on ``SPECIFY_REPO_ROOT``, not on ``project_root``, so SC-001's refusal still
-    fires and the positive control still passes either way. Green whether or not
-    the trap is armed — that is the trap's signature.
-
-    This is a *source-shape* falsifier and it is paired with the *runtime*
-    assertion ``client._project_root == A_ROOT`` in the positive control; neither
-    substitutes for the other.
+    The consumer side of that falsifier watched two conftest autouse guards that
+    injected a consenting project when ``project_root=`` was absent — machinery
+    that retired with the per-project consent gate (issue #5), along with
+    ``tests/sync/tracker/conftest.py``. What survives here is the producer side:
+    ``from_env`` passes its root as ``project_root=`` unconditionally, so no
+    construction site can silently build an unattributed client.
     """
     client_py = _REPO_ROOT / "src" / "specify_cli" / "saas_client" / "client.py"
-    saas_conftest = _REPO_ROOT / "tests" / "specify_cli" / "saas_client" / "conftest.py"
-    tracker_conftest = _REPO_ROOT / "tests" / "sync" / "tracker" / "conftest.py"
-    for path in (client_py, saas_conftest, tracker_conftest):
-        assert path.is_file(), f"falsifier target missing: {path}"
+    assert client_py.is_file(), f"falsifier target missing: {client_py}"
 
-    # PRODUCER side.
     assert _from_env_always_passes_project_root(client_py.read_text(encoding="utf-8")), (
-        f"{client_py}: from_env stopped passing project_root= unconditionally. The "
-        f"autouse guards in the two conftests below become reachable from the real "
-        f"invocation, fabricated consent returns, and this module must move."
+        f"{client_py}: from_env stopped passing project_root= unconditionally, so a "
+        f"caller that omits its repo_root now builds an unattributed client instead "
+        f"of a refusing one."
     )
-
-    # CONSUMER side — both conftests, because either one alone re-arms it.
-    for conftest in (saas_conftest, tracker_conftest):
-        assert _guard_tests_key_absence(conftest.read_text(encoding="utf-8")), (
-            f"{conftest}: the autouse guard no longer keys on the kwarg being "
-            f'ABSENT. If it now reads `kwargs.get("project_root") is None` the '
-            f"injection fires on the real path and consent is fabricated again."
-        )
 
 
 #: Synthetic ``from_env`` bodies, each a KNOWN ANSWER for the producer-side

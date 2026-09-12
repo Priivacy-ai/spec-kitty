@@ -4,7 +4,7 @@ Background: #3096 reported that the ``spec-kitty.analyze`` skill directed
 agents/operators to run a bare top-level ``spec-kitty analyze`` CLI command
 that does not exist — only ``spec-kitty agent mission record-analysis`` does.
 Investigation for this WP (charter-pack-usage-journey-01KYWWTF WP06) found the
-canonical doctrine source (``src/doctrine/missions/mission-steps/software-dev/
+canonical doctrine source (``src/charter/offering/missions/mission-steps/software-dev/
 analyze/prompt.md``, which ``command_renderer.py`` renders into every agent's
 ``SKILL.md``/command file) and the current doc corpus already redirect
 exclusively to ``agent mission record-analysis`` — no textual fix was needed.

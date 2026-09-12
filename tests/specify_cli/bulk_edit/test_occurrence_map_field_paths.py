@@ -149,7 +149,7 @@ class TestFieldPathExceptionSchema:
         data = _map_data(
             [
                 {
-                    "path": "src/doctrine/agent_profiles/built-in/*.agent.yaml",
+                    "path": "src/charter/offering/agent_profiles/built-in/*.agent.yaml",
                     "field_path": "directive-references",
                     "action": "do_not_change",
                     "reason": "Governance seed field, never migrated",

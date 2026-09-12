@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M1YDVW0CYZP03NWTWDXM4TXE",
+  "completed_at": "2026-09-07T17:16:50.325106+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "ruff: 1583 formatted; cutover guard: 0 un-cut-over"
+}

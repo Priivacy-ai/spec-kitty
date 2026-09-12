@@ -650,6 +650,8 @@ def implement_check_dependency_gate(
     # the gate so a canceled-with-operator-provenance dependency counts as
     # resolved (FR-009). Collapsing to the lane-only map here would make the
     # provenance-aware authority inert at the CLI claim path (pedro HIGH).
+    # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+    # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
     readiness = dependency_readiness_for_wp(
         normalized_wp_id,
         wp_meta.dependencies,
@@ -889,30 +891,6 @@ def _implement_write_claim_and_commit(
     )
 
 
-def _implement_trigger_dossier_sync(repo_root: Path, mission_slug: str) -> None:
-    """Fire-and-forget dossier sync after a claim commit."""
-    w = _wf()
-    try:
-        from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-
-        # IC-04/T017: dossier-sync READ. The indexer walks the whole
-        # mission tree (spec.md/plan.md/tasks.md/tasks/*.md) — the
-        # same whole-planning-surface READ the dashboard scanner uses
-        # TASKS_INDEX for (mirrors the "tasks" action this call used
-        # to resolve via the kind-blind husk) — routed via the
-        # kind-aware seam (NFR-001 / Directive-041).
-        impl_feature_dir = w._resolve_workflow_read_dir(
-            repo_root=repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.TASKS_INDEX
-        )
-        trigger_feature_dossier_sync_if_enabled(impl_feature_dir, mission_slug, repo_root)
-    except Exception as dossier_sync_exc:  # noqa: BLE001 — best-effort fire-and-forget
-        logger.debug(
-            "Dossier sync trigger failed for %s (non-fatal, fire-and-forget): %s",
-            mission_slug,
-            dossier_sync_exc,
-        )
-
-
 def _implement_emit_resume_refresh(
     *,
     feature_dir: Path,
@@ -1069,8 +1047,6 @@ def implement_claim_transition(
         )
 
         print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
-
-        _implement_trigger_dossier_sync(repo_root, mission_slug)
 
         # Reload to get updated content
         wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
@@ -1241,8 +1217,8 @@ def implement_capture_baseline(
         # inject the shared factory so implement-time capture activates
         # ``_capture_baseline_via_scope_source`` -- the SAME
         # test_command()/parse_results() authority the pre-review head run
-        # uses, honoring whichever ScopeSource the repo resolves to
-        # (DeclaredCommandScopeSource / GateCoverageScopeSource). Resolved
+        # uses. The factory resolves only ``DeclaredCommandScopeSource`` after
+        # the workflow-derived source was retired. Resolved
         # against the SAME ``main_repo_root`` the baseline artifact placement
         # below already uses -- not a freshly reconstructed root.
         baseline = capture_baseline(
@@ -1696,7 +1672,7 @@ def review_claim_transition(
         binding=resolved_binding,
     )
 
-    with w.feature_status_lock(main_repo_root, mission_slug):
+    with w.feature_status_lock(main_repo_root, feature_dir.name):
         # WP06 T027: capture pre-emit event-log size for
         # surgical rollback on commit failure.
         events_path_pre_rev = feature_dir / w._STATUS_EVENTS_FILENAME

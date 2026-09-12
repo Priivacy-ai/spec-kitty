@@ -227,7 +227,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     #
     # The compiler resolves the *built-in DRG graph* through a SECOND,
     # deliberately-separate seam: ``charter.offering.drg.loader.load_built_in_graph``
-    # (via ``built_in_graph_source`` -> ``files("doctrine")``). That seam does
+    # (via ``built_in_graph_source`` -> ``files("charter.offering")``). That seam does
     # NOT consult ``resolve_doctrine_root`` -- doctrine sits below charter in
     # the dependency graph (C-004) and must not import upward. Without patching
     # it, the compiler's transitive walk loads the *installed* package graph,

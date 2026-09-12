@@ -207,14 +207,8 @@ def scan_path(path: Path, *, is_worktree: bool) -> SparseCheckoutState:
     """
     config_enabled = _read_sparse_config_flag(path)
     pattern_file_path = _resolve_sparse_pattern_file(path, is_worktree=is_worktree)
-    pattern_file_present = (
-        pattern_file_path is not None and pattern_file_path.exists()
-    )
-    pattern_line_count = (
-        _count_nonempty_noncomment_lines(pattern_file_path)
-        if pattern_file_present and pattern_file_path is not None
-        else 0
-    )
+    pattern_file_present = pattern_file_path is not None and pattern_file_path.exists()
+    pattern_line_count = _count_nonempty_noncomment_lines(pattern_file_path) if pattern_file_present and pattern_file_path is not None else 0
     return SparseCheckoutState(
         path=path,
         config_enabled=config_enabled,
@@ -247,11 +241,7 @@ def _read_patterns(path: Path) -> frozenset[str] | None:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
-    return frozenset(
-        line.strip()
-        for line in text.splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    )
+    return frozenset(line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#"))
 
 
 def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ...]:
@@ -289,9 +279,7 @@ def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ..
             _ManagedLanePolicy(
                 mission_slug=mission_slug,
                 coordination_branch=coord_branch,
-                expected_patterns=frozenset(
-                    lane_sparse_checkout_patterns(mission_slug, mid8)
-                ),
+                expected_patterns=frozenset(lane_sparse_checkout_patterns(mission_slug, mid8)),
             )
         )
     return tuple(policies)
@@ -417,8 +405,7 @@ def warn_if_sparse_once(repo_root: Path, *, command: str) -> None:
         return
     affected = ", ".join(str(p) for p in report.affected_paths)
     logger.warning(
-        "spec_kitty.sparse_checkout.detected command=%s repo=%s affected=%s "
-        "fix='spec-kitty doctor sparse-checkout --fix'",
+        "spec_kitty.sparse_checkout.detected command=%s repo=%s affected=%s fix='spec-kitty doctor sparse-checkout --fix'",
         command,
         repo_root,
         affected,
@@ -450,7 +437,7 @@ class SparseCheckoutPreflightError(RuntimeError):
             "\nThis repository has core.sparseCheckout=true configured, which\n"
             "v3.x spec-kitty does not handle correctly and which has caused\n"
             "silent data loss in prior mission merges (see\n"
-            "Priivacy-ai/spec-kitty#588).\n"
+            "spec-kitty/spec-kitty#588).\n"
             "\nFix:\n"
             "  spec-kitty doctor sparse-checkout --fix\n"
             "\nIf you have an intentional sparse configuration and understand\n"
@@ -483,8 +470,7 @@ def require_no_sparse_checkout(
         return
     if override_flag:
         logger.warning(
-            "spec_kitty.override.sparse_checkout command=%s "
-            "mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
+            "spec_kitty.override.sparse_checkout command=%s mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
             command,
             mission_slug or "<none>",
             mission_id or "<none>",

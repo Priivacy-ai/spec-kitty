@@ -47,6 +47,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     decide_transition,
     override_persist_signal,
 )
+from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -306,6 +307,43 @@ def test_agent_match_proceeds() -> None:
         _base_request(agent="testbot", current_agent="testbot")
     )
     assert isinstance(outcome, Emit)
+
+
+@pytest.mark.parametrize("generic_current_agent", sorted(GENERIC_IMPLEMENTATION_ACTORS))
+def test_agent_mismatch_generic_placeholder_proceeds_without_force(generic_current_agent: str) -> None:
+    """FIX-M2-03 regression pin.
+
+    ``spec-kitty implement WP01`` (the internal compat surface, invoked
+    without ``--actor`` -- a documented, supported call shape per its own
+    docstring) records the WP's assignee as the generic
+    ``implement-command`` placeholder, not a real agent identity. Before this
+    fix, `agent tasks move-task WP01 --to for_review --agent claude`
+    (the canonical next step of the golden path) then refused with
+    "Agent mismatch: WP01 is assigned to 'implement-command', not 'claude'"
+    for EVERY real ``--agent``, even though no real agent had ever claimed
+    the WP -- forcing every caller through ``--force`` for a conflict that
+    was never real. A generic-placeholder ``current_agent`` must not refuse
+    the move, matching the SAME allowance
+    ``work_package_lifecycle._actors_compatible(..., allow_generic_existing=
+    True)`` already grants the claim/in_progress start path for this exact
+    placeholder set.
+    """
+    outcome = decide_transition(
+        _base_request(agent="claude", current_agent=generic_current_agent, force=False)
+    )
+    assert isinstance(outcome, Emit)
+
+
+def test_agent_mismatch_real_owner_still_refuses_without_force() -> None:
+    """The generic-placeholder allowance above must not widen to real agent
+    identities: a genuine two-real-agent mismatch still refuses (unchanged
+    from ``test_agent_mismatch_refuses_with_console_warning``)."""
+    outcome = decide_transition(
+        _base_request(agent="claude", current_agent="codex", force=False)
+    )
+    assert isinstance(outcome, RefuseExit1)
+    assert "Agent mismatch" in outcome.error
+    assert "codex" in outcome.error and "claude" in outcome.error
 
 
 # ---------------------------------------------------------------------------

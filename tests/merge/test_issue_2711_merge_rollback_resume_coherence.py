@@ -303,11 +303,6 @@ def _merge_external_mocks() -> Iterator[dict[str, MagicMock]]:
             "specify_cli.merge.executor._assert_merged_wps_done_on_target"
         ),
         "safe_commit": patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        "dossier": patch(
-            "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"
-        ),
-        "mission_closed": patch("specify_cli.merge.executor.emit_mission_closed"),
-        "diff_summary": patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         "refresh_primary": patch(
             "specify_cli.merge.executor._refresh_primary_checkout_after_merge"
         ),

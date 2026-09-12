@@ -383,18 +383,24 @@ def test_sanitizer_is_called_in_append_raw_event(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify sanitize_event_for_log is actually called in decisions _append_raw_event."""
-    import specify_cli.decisions.emit as emit_module
+    """Verify sanitize_event_for_log runs exactly once for a decisions _append_raw_event row.
+
+    Since fsm-write-path-integrity WP07 the decision row lands through the
+    store's ``append_raw_rows_atomic`` (under the mission lock), which is where
+    the sanitizer call lives now -- ``decisions/emit.py`` no longer calls it
+    itself, so the tracker patches the store module.
+    """
+    import specify_cli.status.store as store_module
     from specify_cli.decisions.emit import _append_raw_event
 
     call_count = {"n": 0}
-    real_sanitizer = emit_module.sanitize_event_for_log
+    real_sanitizer = store_module.sanitize_event_for_log
 
     def tracking_sanitizer(d: dict) -> dict:
         call_count["n"] += 1
         return real_sanitizer(d)
 
-    monkeypatch.setattr(emit_module, "sanitize_event_for_log", tracking_sanitizer)
+    monkeypatch.setattr(store_module, "sanitize_event_for_log", tracking_sanitizer)
 
     events_path = tmp_path / "status.events.jsonl"
     _append_raw_event(events_path, {"event_id": "A", "event_type": "X"})

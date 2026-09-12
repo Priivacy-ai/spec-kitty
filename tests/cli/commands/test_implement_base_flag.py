@@ -19,7 +19,7 @@ from specify_cli.cli.commands.implement import _validate_base_ref
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 @pytest.fixture(autouse=True)
@@ -35,10 +35,6 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
     result = CharterPreflightResult(passed=True, checks=[])
-    monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-        lambda *_args, **_kwargs: result,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -249,8 +245,6 @@ class TestImplementBaseFlagIntegration:
             patch("specify_cli.cli.commands.implement._get_wp_lane_from_event_log",
                   return_value="in_progress"),
             patch("specify_cli.status.emit._saas_fan_out"),
-            patch("specify_cli.status.emit.fire_dossier_sync"),
-            patch("specify_cli.sync.events.emit_wp_status_changed"),
             patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
             patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),
         ):

@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: Commit 018afe7f4 rewords T021 Step 6 to say "classify the discrepancy per this subtask's own Step 4 baseline-red gotcha classification," which now unambiguously points at T021's own Step 4 (the CLAUDE.md baseline-red gotcha classification) rather than the WP02 T007 step 4 baseline entry named earlier in the same sentence.

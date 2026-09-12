@@ -106,9 +106,7 @@ def _lane_feature_dir(lane_worktree: Path) -> Path:
 
 
 @pytest.mark.regression
-def test_foreign_lane_write_guard_refuses_false_green(
-    primary: Path, lane_worktree: Path
-) -> None:
+def test_foreign_lane_write_guard_refuses_false_green(primary: Path, lane_worktree: Path) -> None:
     """#3049: the foreign-lane cutover WRITE guard must fail closed on the redirect.
 
     RED on ``upstream/main``: the unfixed guard returns ``ok=True`` here because
@@ -136,9 +134,7 @@ def test_foreign_lane_write_guard_refuses_false_green(
 
 
 @pytest.mark.regression
-def test_foreign_lane_cutover_flow_no_longer_false_flips(
-    primary: Path, lane_worktree: Path
-) -> None:
+def test_foreign_lane_cutover_flow_no_longer_false_flips(primary: Path, lane_worktree: Path) -> None:
     """End-to-end: the real cutover flow (``cutover_mission``) refuses the lane.
 
     RED on ``upstream/main``: invoked with a lane-rooted ``feature_dir`` the
@@ -166,9 +162,7 @@ def test_owner_primary_write_guard_still_verifies(primary: Path) -> None:
     assert result.mismatches == ()
 
 
-def test_read_only_lane_verify_is_not_refused(
-    primary: Path, lane_worktree: Path
-) -> None:
+def test_read_only_lane_verify_is_not_refused(primary: Path, lane_worktree: Path) -> None:
     """A bare read-only verify (``PRIMARY_READ``, the default) is never refused.
 
     The ``is_cut_over`` doctor reads the deliberate primary anchor from wherever
@@ -181,9 +175,7 @@ def test_read_only_lane_verify_is_not_refused(
     assert result.mismatches == ()
 
 
-def test_write_target_is_unchanged_by_the_guard(
-    primary: Path, lane_worktree: Path
-) -> None:
+def test_write_target_is_unchanged_by_the_guard(primary: Path, lane_worktree: Path) -> None:
     """Risk mitigation: the guard change never redirects the write target.
 
     The canonical target for a lane read stays the primary/coord mission dir
@@ -202,6 +194,4 @@ def test_write_target_is_unchanged_by_the_guard(
     # The guard is read-only: the (refused) WRITE-guarding verify writes nothing
     # — the primary event log it would have blessed is untouched.
     verify_backfill(lane_feature_dir, intent=Intent.WRITE)
-    assert (primary_feature_dir / "status.events.jsonl").read_text(
-        encoding="utf-8"
-    ) == ""
+    assert (primary_feature_dir / "status.events.jsonl").read_text(encoding="utf-8") == ""

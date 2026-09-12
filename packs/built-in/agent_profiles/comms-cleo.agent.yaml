@@ -83,14 +83,14 @@ collaboration:
 mode-defaults:
 - mode: analysis-mode
   description: Audience and tone diagnostic before writing
-  use-case: Identifying target persona, auditing existing content for 
+  use-case: Identifying target persona, auditing existing content for
     style-guide violations
 - mode: creative-mode
   description: Drafting and voice shaping
   use-case: Authoring new communications, refining tone and cadence
 - mode: meta-mode
   description: Style-guide checklist and alignment review
-  use-case: Pre-publish review pass, persona validation, retrospectives on 
+  use-case: Pre-publish review pass, persona validation, retrospectives on
     communication effectiveness
 
 specialization-context:
@@ -106,11 +106,11 @@ specialization-context:
 directive-references:
 - code: "047"
   name: Audience-Oriented Writing
-  rationale: Persona identification and audience-fit validation are mandatory 
+  rationale: Persona identification and audience-fit validation are mandatory
     before drafting any artifact
 - code: "003"
   name: Decision Documentation Requirement
-  rationale: Edits and drafting decisions that change factual framing must be 
+  rationale: Edits and drafting decisions that change factual framing must be
     traceable with rationale
 
 tactic-references:

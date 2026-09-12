@@ -244,8 +244,8 @@ def test_should_not_advance_implement_one_blocked(feature_dir: Path) -> None:
     assert _should_advance_wp_step("implement", feature_dir) is False
 
 
-def test_should_advance_implement_one_canceled(feature_dir: Path) -> None:
-    """implement step advances when a WP is canceled (not blocking)."""
+def test_should_advance_implement_one_synthetic_canceled(feature_dir: Path) -> None:
+    """implement advances for canceled WPs; provenance gates review only."""
     tasks = feature_dir / "tasks"
     _write_wp_file(tasks, "WP01")
     _write_wp_file(tasks, "WP02")

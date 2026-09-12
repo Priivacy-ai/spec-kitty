@@ -28,7 +28,6 @@ from .git_preflight import GitPreflightError
 from .vcs import get_vcs
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
-from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import WPMetadata
 
 logger = logging.getLogger(__name__)
@@ -606,12 +605,9 @@ spec-kitty agent tasks move-task WP01 --to doing
             if template.exists():
                 shutil.copy2(template, spec_file)
                 break
-        # FR-012 (#3597): no ``else: spec_file.touch()`` branch here anymore --
-        # an unread, empty spec.md vacuously satisfied downstream existence
-        # gates (a bugfix, distinct from the two policy reversals; see
-        # docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md). When
-        # no template is found, spec.md is simply not created; the
-        # per-type presence gate (FR-011) then correctly reports it absent.
+        # No template found: leave spec.md absent rather than creating a
+        # zero-byte stray file that would vacuously satisfy the per-type
+        # artifact presence gate (#228; #223 residue).
 
 
 # Structural directories that anchor a mission's layout regardless of the
@@ -648,13 +644,8 @@ def _feature_writer_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
     still a canonical source, not a second hardcoded copy. Directory artifacts
     are distinguished from file artifacts by a trailing ``/`` in the metadata.
     """
-    # ``MISSION_TYPE_SOFTWARE_DEV`` is sourced from its canonical definition
-    # module (``specify_cli.core.constants``) rather than via ``specify_cli.mission``'s
-    # re-export: ``mission.py`` has no ``__all__``, so under ``mypy --strict``
-    # (``no_implicit_reexport``) importing it through that module is not a
-    # recognized public re-export.
-    from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
     from specify_cli.mission import (
+        MISSION_TYPE_SOFTWARE_DEV,
         MissionError,
         get_mission_by_name,
         get_mission_for_feature,
@@ -759,19 +750,15 @@ def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> 
             "AVAILABLE_DOCS": available_docs,
         }
 
-    # Check required files exist. FR-011 (#3597): the required filename is
-    # sourced from the per-type expected-artifacts.yaml `path_pattern`
-    # authority (WP04's seam, #3599) instead of a hardcoded literal --
-    # byte-compatible with "spec.md" for software-dev (NFR-003).
-    spec_filename = resolve_configured_artifact_name("input.spec.main")
-    spec_file = feature_dir / spec_filename
+    # Check required files exist
+    spec_file = feature_dir / "spec.md"
     if not spec_file.exists():
-        errors.append(f"Missing required file: {spec_filename}")
+        errors.append("Missing required file: spec.md")
     else:
         spec_file_str = str(spec_file)
         paths["spec_file"] = spec_file_str
         artifact_files["spec_file"] = spec_file_str
-        available_docs.append(spec_filename)
+        available_docs.append("spec.md")
 
     plan_file = feature_dir / "plan.md"
     if plan_file.exists():

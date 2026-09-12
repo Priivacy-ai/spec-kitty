@@ -1,0 +1,17 @@
+{
+  "change_mode": "bulk_edit",
+  "coordination_branch": "kitty/mission-team-kitty-launch-defaults-01M1XJ4Y",
+  "created_at": "2026-09-07T09:10:52.438305+00:00",
+  "flattened": false,
+  "friendly_name": "Team Kitty launch defaults for the CLI",
+  "mission_id": "01M1XJ4YRNN273MNMVD4QN8KTP",
+  "mission_number": null,
+  "mission_slug": "team-kitty-launch-defaults-01M1XJ4Y",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Implements the CLI half of the Team Kitty launch gate (#1621, child of epic #1091) using the per-variable plan in #3980: flip the hosted-sync and server-URL defaults, keep owned-checkout lane moves working under active sync, split the pre-review gate and moment-handler opt-outs off the retired SYNC_* names, and reconcile the overlapping logged-out, CI-auth, and nomenclature issues rather than duplicating them.",
+  "purpose_tldr": "Ship the CLI with hosted Team Kitty sync on and https://team.spec-kitty.ai as the packaged default, with the environment variables demoted to overrides.",
+  "slug": "team-kitty-launch-defaults-01M1XJ4Y",
+  "target_branch": "feat/team-kitty-launch-defaults",
+  "topology": "coord"
+}

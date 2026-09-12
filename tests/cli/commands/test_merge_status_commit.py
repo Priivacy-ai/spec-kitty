@@ -27,7 +27,7 @@ from specify_cli.cli.commands.merge import (
 )
 from specify_cli.merge.config import MergeStrategy
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
@@ -267,9 +267,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.merge.executor.has_remote", return_value=False),
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []
@@ -305,75 +303,6 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         file_names = [f.name for f in files]
         assert "status.events.jsonl" in file_names
         assert "status.json" in file_names
-
-    def test_merge_batches_dossier_sync_once(self, tmp_path: Path) -> None:
-        mission_slug = "068-test-dossier"
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        feature_dir.mkdir(parents=True)
-        _write_meta(feature_dir, mission_slug, mission_id=None)
-        _seed_mission_branch(tmp_path, mission_slug)
-
-        manifest = MagicMock()
-        manifest.target_branch = "main"
-        manifest.mission_branch = f"kitty/mission-{mission_slug}"
-
-        lane_a = MagicMock()
-        lane_a.lane_id = "lane-a"
-        lane_a.wp_ids = ["WP01", "WP02"]
-        manifest.lanes = [lane_a]
-
-        lane_result = MagicMock(success=True, errors=[])
-        mission_result = MagicMock(success=True, commit="abc1234", errors=[])
-
-        # WP10 (#2057): ExitStack (not a parenthesized ``with``) — the executor
-        # decomposition added two seam patches, pushing the parenthesized form
-        # past CPython's statically-nested-block limit.
-        with ExitStack() as stack:
-            stack.enter_context(patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest))
-            stack.enter_context(patch("specify_cli.merge.resolve.load_state", return_value=None))
-            stack.enter_context(patch("specify_cli.merge.done_bookkeeping.save_state"))
-            stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
-            stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
-            stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
-            stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
-            stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
-            stack.enter_context(patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"))
-            stack.enter_context(patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"))
-            stack.enter_context(patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"))
-            stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
-            mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
-            mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
-            mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
-            stack.enter_context(patch("specify_cli.merge.executor.run_command", return_value=(0, "abc123", "")))
-            stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
-            stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
-            stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
-            stack.enter_context(patch("specify_cli.merge.executor.emit_mission_closed"))
-            stack.enter_context(patch("specify_cli.merge.state.MergeState"))
-            mock_dossier = stack.enter_context(patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"))
-            stale_report = MagicMock()
-            stale_report.findings = []
-            mock_run_check.return_value = stale_report
-
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mock_gates.return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mock_policy.return_value = policy
-
-            _run_lane_based_merge(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-                strategy=MergeStrategy.SQUASH,
-            )
-
-        mock_dossier.assert_called_once_with(feature_dir, mission_slug, tmp_path)
 
     def test_merge_commits_baseline_merge_commit_metadata(self, tmp_path: Path) -> None:
         mission_slug = "068-test-baseline"
@@ -430,9 +359,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
             stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
             stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
-            stack.enter_context(patch("specify_cli.merge.executor.emit_mission_closed"))
             stack.enter_context(patch("specify_cli.merge.state.MergeState"))
-            stack.enter_context(patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"))
 
             stale_report = MagicMock()
             stale_report.findings = []
@@ -488,7 +415,6 @@ class TestMergeDoneTransitions:
         mock_emit.assert_called_once()
         kwargs = mock_emit.call_args.kwargs
         assert kwargs["ensure_sync_daemon"] is False
-        assert kwargs["sync_dossier"] is False
 
     def test_safe_commit_called_before_worktree_removal(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -554,9 +480,7 @@ class TestMergeDoneTransitions:
             patch("specify_cli.merge.executor.has_remote", return_value=False),
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []
@@ -671,10 +595,8 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.merge.executor.has_remote", return_value=False),
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
             patch("specify_cli.status.emit._saas_fan_out"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []
@@ -802,9 +724,7 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.merge.executor.has_remote", return_value=False),
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
             patch("specify_cli.status.emit._saas_fan_out"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []
@@ -838,101 +758,3 @@ class TestDoneEventsCommittedToGit:
         events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
         done_wps = {event["wp_id"] for event in events if event.get("to_lane") == "done"}
         assert done_wps == set(wps)
-
-    def test_merge_emits_mission_closed_with_canonical_id(self, tmp_path: Path) -> None:
-        mission_slug = "068-mission-closed-test"
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        feature_dir.mkdir(parents=True)
-        _seed_mission_branch(tmp_path, mission_slug)
-        (feature_dir / "meta.json").write_text(
-            json.dumps(
-                {
-                    "mission_id": "01KTESTMISSIONID00000000001",
-                    "mission_slug": mission_slug,
-                }
-            ),
-            encoding="utf-8",
-        )
-
-        manifest = MagicMock()
-        manifest.target_branch = "main"
-        manifest.mission_branch = f"kitty/mission-{mission_slug}"
-
-        lane_a = MagicMock()
-        lane_a.lane_id = "lane-a"
-        lane_a.wp_ids = ["WP01", "WP02"]
-        manifest.lanes = [lane_a]
-
-        lane_result = MagicMock(success=True, errors=[])
-        mission_result = MagicMock(success=True, commit="abc1234", errors=[])
-
-        with ExitStack() as stack:
-            stack.enter_context(patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest))
-            stack.enter_context(patch("specify_cli.merge.resolve.load_state", return_value=None))
-            stack.enter_context(patch("specify_cli.merge.done_bookkeeping.save_state"))
-            stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
-            stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
-            stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
-            stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
-            stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
-            stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
-            stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
-            mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
-            mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
-            mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
-            stack.enter_context(
-                patch(
-                    "specify_cli.merge.executor.run_command",
-                    side_effect=_baseline_run_command_side_effect(feature_dir, "abc123"),
-                )
-            )
-            stack.enter_context(
-                patch(
-                    "specify_cli.merge.baseline.run_command",
-                    side_effect=_baseline_run_command_side_effect(feature_dir, "abc123"),
-                )
-            )
-            # WP10 (#2057): the done-on-target assert reads run_command from the
-            # done_bookkeeping seam (git show <target>:status.events.jsonl).
-            stack.enter_context(
-                patch(
-                    "specify_cli.merge.done_bookkeeping.run_command",
-                    side_effect=_baseline_run_command_side_effect(feature_dir, "abc123"),
-                )
-            )
-            stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
-            stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
-            stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
-            mock_emit_mission_closed = stack.enter_context(
-                patch("specify_cli.merge.executor.emit_mission_closed")
-            )
-            stack.enter_context(patch("specify_cli.merge.state.MergeState"))
-            stack.enter_context(patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"))
-
-            stale_report = MagicMock()
-            stale_report.findings = []
-            mock_run_check.return_value = stale_report
-
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mock_gates.return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mock_policy.return_value = policy
-
-            _run_lane_based_merge(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-                strategy=MergeStrategy.SQUASH,
-            )
-
-        mock_emit_mission_closed.assert_called_once_with(
-            mission_slug=mission_slug,
-            total_wps=2,
-            mission_id="01KTESTMISSIONID00000000001",
-        )

@@ -65,6 +65,7 @@ def build_mission_created_payload(
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
     created_at: str | None = None,
+    actor: str | None = None,
 ) -> dict[str, Any]:
     """Build the canonical ``MissionCreated`` wire payload from source facts.
 
@@ -74,6 +75,11 @@ def build_mission_created_payload(
     returns the canonical wire dict. Raises ``pydantic.ValidationError`` on
     invalid input; callers that need the historical "invalid -> skip emission"
     contract catch it at their boundary.
+
+    ``actor`` (events 8.0.0) is the opaque WHO of the creation moment; left
+    ``None`` it stays absent from the wire payload (the field's optional
+    back-compat shape), so resolution is the emit site's concern, not this
+    builder's.
     """
     display_name = (friendly_name or "").strip() or default_mission_display_name(mission_slug)
     tldr = (purpose_tldr or "").strip() or display_name
@@ -90,6 +96,7 @@ def build_mission_created_payload(
         purpose_tldr=tldr,
         purpose_context=context,
         created_at=created_at or now_utc_iso(),
+        actor=actor,
     )
 
     return apply_keep_none_fields(model, keep_none_fields=_KEEP_NONE_FIELDS)

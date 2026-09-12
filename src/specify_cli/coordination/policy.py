@@ -57,36 +57,16 @@ def _local_branch_exists(repo_root: Path, branch: str) -> bool:
     return result.returncode == 0
 
 
-# The ONE documented operator escape hatch (owned by
-# :mod:`specify_cli.git.protection_policy`): setting this env var truthy declares
-# the target branch unprotected for this repo. Named here so the #3536 no-coord
-# remedy points at a real, followable action rather than an impossible one.
-_PROTECTED_BRANCH_HATCH_ENV = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
+_PROTECTED_BRANCH_ESCAPE_HATCH = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
 
 
 def _protected_branch_refusal(
-    operation: str, ref: str, *, coord_available: bool | None,
+    operation: str,
+    ref: str,
+    *,
+    coord_available: bool | None,
 ) -> Refused:
-    """Build the ``PROTECTED_BRANCH_REFUSED`` verdict, branching the remedy on
-    coord-availability (#3536 / FR-005).
-
-    ``coord_available`` is a topology fact threaded in by the caller from the
-    authoritative commit-router predicate
-    (:func:`specify_cli.coordination.commit_router.mission_has_coordination_branch`
-    — itself ``routes_through_coordination(resolve_topology(...))``). It is NEVER
-    a local coord-branch-presence check restated here (INV-3536-3); epic
-    **#2739**'s protected-primary sub-issues consume the SAME predicate so the two
-    fixes converge. Only ``coord_available is False`` (a ``lanes`` /
-    ``single_branch`` topology, where no coord branch is ever minted) switches to
-    the no-coord remedy; ``None`` (unknown) conservatively keeps the coord remedy.
-
-    * coord-available (or unknown) → the existing "re-run through the coordination
-      transaction" remedy (INV-3536-2 regression guard — the coord worktree really
-      is auto-resolved).
-    * no-coord → the coord branch does NOT exist, so that remedy is un-followable;
-      emit a real one: commit to a non-protected branch, or declare the target
-      unprotected for this repo via the operator escape hatch (INV-3536-1).
-    """
+    """Build the protected-branch refusal, selecting a followable remedy."""
     base_message = (
         f"Refusing to record {operation!r}: "
         f"destination ref {ref!r} is on this project's "
@@ -97,7 +77,7 @@ def _protected_branch_refusal(
             error_code=PROTECTED_BRANCH_REFUSED,
             message=(
                 base_message
-                + "This mission uses a lanes / single-branch topology, which "
+                + "This mission uses a lanes or single-branch topology, which "
                 "mints no coordination worktree, so bookkeeping cannot be "
                 "redirected to one."
             ),
@@ -105,14 +85,14 @@ def _protected_branch_refusal(
             next_step=(
                 f"Commit bookkeeping to a non-protected branch, or declare "
                 f"{ref!r} unprotected for this repo by setting "
-                f"{_PROTECTED_BRANCH_HATCH_ENV} to a truthy value "
-                "(solo-fork operators who own the branch)."
+                f"{_PROTECTED_BRANCH_ESCAPE_HATCH} to a truthy value."
             ),
         )
     return Refused(
         error_code=PROTECTED_BRANCH_REFUSED,
         message=(
-            base_message + "Bookkeeping commits must target the coordination branch."
+            base_message
+            + "Bookkeeping commits must target the coordination branch."
         ),
         destination_ref=ref,
         next_step=(
@@ -170,18 +150,6 @@ class WorkflowMutationPolicy:
         Returns :class:`Allowed` if the would-be commit is permitted;
         :class:`Refused` with a stable ``error_code`` otherwise.
 
-        ``coord_available`` is the mission's topology fact — whether a
-        coordination branch exists — threaded in by the caller from the
-        authoritative commit-router predicate
-        (:func:`specify_cli.coordination.commit_router.mission_has_coordination_branch`).
-        It ONLY shapes the ``PROTECTED_BRANCH_REFUSED`` remedy (#3536 / FR-005):
-        ``False`` (a ``lanes`` / ``single_branch`` topology that mints no coord
-        branch) emits a followable no-coord remedy; ``True`` / ``None`` (default)
-        keep the coord-transaction remedy unchanged. The policy NEVER re-derives
-        the topology locally (INV-3536-3) — it stays a pure function of its
-        inputs and consumes the threaded fact. ``evaluate`` remains ref-only
-        (C-GUARD-3a); the fact lives OUTSIDE the ref-only guard.
-
         Validation order (every step short-circuits the rest):
 
         1. ``destination_ref`` must be non-empty and short-form
@@ -196,6 +164,11 @@ class WorkflowMutationPolicy:
         This function is pure aside from a few read-only ``git
         rev-parse`` probes. It never writes files, never touches the
         feature status lock, never mutates the index.
+
+        ``coord_available`` is supplied by the caller from the shared commit-router
+        topology predicate. It only selects the protected-branch remedy: ``False``
+        yields the no-coordination escape hatch, while ``True`` and ``None``
+        preserve the existing coordination-transaction remedy.
         """
         ref = change_set.destination_ref
         repo_root = change_set.repo_root
@@ -302,12 +275,10 @@ class WorkflowMutationPolicy:
             change_set.capability,
         )
         if not guard_verdict.allowed:
-            # #3536 / FR-005: the remedy branches on coord-availability (threaded
-            # in via ``coord_available`` from the authoritative commit-router
-            # predicate — never a local topology check here, INV-3536-3). See
-            # ``_protected_branch_refusal``.
             return _protected_branch_refusal(
-                change_set.operation, ref, coord_available=coord_available,
+                change_set.operation,
+                ref,
+                coord_available=coord_available,
             )
 
         return Allowed()

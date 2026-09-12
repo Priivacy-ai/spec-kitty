@@ -1,8 +1,8 @@
 ---
 title: 'tests/sync/ process-global and thread-seam inventory (#3115)'
 description: 'FR-006: a narrowed inventory of process-global mutable state and thread-spawning seams in the tests/sync/ cone, with reset-seam and dependence classification.'
-doc_status: active
-updated: '2026-07-31'
+doc_status: deprecated
+updated: '2026-09-08'
 audience: docs/context/audience/internal/system-architect.md
 type: reference
 related:
@@ -11,6 +11,11 @@ related:
 ---
 
 # The `tests/sync/` process-global and thread-seam inventory
+
+> **Deprecated record.** The `tests/sync/` cone this page inventories was deleted with
+> the local sync transport (Convergence #3881, 2026-09-05); every `src/specify_cli/sync/`
+> path below is the pre-Convergence tree. The page is retained as the historical record
+> of the #3115 inventory, not as a live map.
 
 This is the map, not the answer. It carries no attribution for `#3115`'s sync-half
 leak hunt and needs none: FR-005's leak guard (`tests/sync/conftest.py`, WP05) is

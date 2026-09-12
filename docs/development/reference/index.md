@@ -2,7 +2,7 @@
 title: Reference (contributor policy & ledgers)
 description: Reference material for maintainers — friction inventories, coverage-signal reconciliation, seam ledgers, standing orders, red-main policy, and terminology exemptions.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-08-31'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/index.md
@@ -22,6 +22,17 @@ kept honest.
 - [Read-side placement-seam classification ledger](read-side-seam-classification.md) — per-site verdicts for every production call site that bypasses `PlacementSeam.read_dir(kind)`.
 - [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
 - [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
+
+## Docs site publication source
+
+> `docs.spec-kitty.ai` is intentionally deployed from the promotion-only
+> upstream repository (`Priivacy-ai/spec-kitty`) by
+> `.github/workflows/docs-pages.yml`. This EXPERIMENTAL repository is the
+> source of the promoted tree, but it does not claim the custom domain: its
+> Pages workflow skips when Pages is unavailable and its deployment guard
+> accepts only upstream `main`. Documentation merged here reaches the public
+> site through the controller's promotion loop, as ratified for the public
+> 3.2.6 release and recorded in the programme's fork-reconciliation policy.
 
 ## See also
 

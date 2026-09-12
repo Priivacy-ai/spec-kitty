@@ -24,14 +24,12 @@ pytestmark = [pytest.mark.fast]
 
 from mission_runtime import (
     ActionContextError,
-    BranchRefFragment,
     CommitTarget,
-    IdentityFragment,
     MissionExecutionContext,
     MissionTopology,
-    StatusSurfaceFragment,
     routes_through_coordination,
 )
+from mission_runtime.context import BranchRefFragment, IdentityFragment, StatusSurfaceFragment
 from mission_runtime.resolution import resolve_context_for_mission
 
 # Production-shaped 26-char ULID (NFR-002): never a fabricated short id.

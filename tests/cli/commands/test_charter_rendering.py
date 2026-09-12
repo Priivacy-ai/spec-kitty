@@ -4,7 +4,7 @@ These tests assert on stable message substrings in CLI output.  They use
 CliRunner to capture Rich-rendered text and check for substrings that are
 stable across Rich versions and terminal widths.  No full-snapshot assertions.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
+Tactic: function-over-form-testing (src/charter/offering/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -468,3 +468,58 @@ def test_context_requires_action_without_include(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "--action is required unless --include is provided" in result.output
+
+
+# ---------------------------------------------------------------------------
+# #4123: never-git-init-ed projects — actionable git-init advice
+# ---------------------------------------------------------------------------
+
+def test_context_renders_git_init_advice_on_non_git_project(tmp_path: Path) -> None:
+    """Arrange: build_charter_context raises NotInsideRepositoryError;
+    Act: context --action plan;
+    Assert: exit 1 with the actionable git-init advice, not the generic
+    'Unexpected error' envelope (#4123)."""
+    from charter.resolution import NotInsideRepositoryError
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch(
+            "charter.activation.context.build_charter_context",
+            side_effect=NotInsideRepositoryError(project),
+        ),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+    ):
+        result = runner.invoke(app, ["context", "--action", "plan"])
+
+    assert result.exit_code == 1
+    assert "not inside a git repository" in result.output
+    assert "git init" in result.output
+    assert "Unexpected error" not in result.output
+
+
+def test_context_json_error_envelope_names_git_init_on_non_git_project(tmp_path: Path) -> None:
+    """Arrange: build_charter_context raises NotInsideRepositoryError;
+    Act: context --action plan --json;
+    Assert: one parseable error envelope whose message carries the
+    git-init advice (#4123)."""
+    from charter.resolution import NotInsideRepositoryError
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch(
+            "charter.activation.context.build_charter_context",
+            side_effect=NotInsideRepositoryError(project),
+        ),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+    ):
+        result = runner.invoke(app, ["context", "--action", "plan", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["result"] == "error"
+    assert payload["success"] is False
+    assert "git init" in payload["error"]

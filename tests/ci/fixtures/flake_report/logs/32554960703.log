@@ -1,3 +1,0 @@
-FAILED tests/git_ops/test_git_preflight.py::test_dirty_worktree_blocks_merge - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/git_ops/test_git_preflight.py::test_dirty_worktree_blocks_merge
-===================== 1 failed in 3.10s ======================

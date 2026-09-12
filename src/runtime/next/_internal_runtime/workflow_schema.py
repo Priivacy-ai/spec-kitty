@@ -1,7 +1,7 @@
 """Workflow sequence schema (FR-012).
 
 Pydantic v2 models for the workflow YAML artifact.  Every ``.workflow.yaml``
-file under ``src/doctrine/workflows/`` MUST validate against ``WorkflowSequence``.
+file under ``src/charter/offering/workflows/`` MUST validate against ``WorkflowSequence``.
 
 Layer rule (C-001 / NFR-003): this module lives inside the runtime package
 (``runtime.next._internal_runtime``).  It MUST NOT import from ``charter``

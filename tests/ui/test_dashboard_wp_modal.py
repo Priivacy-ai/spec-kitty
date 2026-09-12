@@ -43,8 +43,7 @@ import pytest
 # collects and runs unchanged there.
 pytest.importorskip(
     "playwright",
-    reason="pytest-playwright optional dep; run `uv sync --extra test` / "
-    "`playwright install chromium` to exercise tests/ui/",
+    reason="pytest-playwright optional dep; run `uv sync --extra test` / `playwright install chromium` to exercise tests/ui/",
 )
 from playwright.sync_api import Page, Route, expect  # noqa: E402  (after importorskip)
 
@@ -56,9 +55,7 @@ PROMPT_CONTENT_SELECTOR = f"{MODAL_SELECTOR} #modal-prompt-content"
 _DISABLED_CLASS_RE = re.compile(r"(?:^|\s)disabled(?:\s|$)")
 
 
-def test_kanban_card_click_opens_modal_with_agent_identity(
-    page: Page, dashboard: dict[str, str]
-) -> None:
+def test_kanban_card_click_opens_modal_with_agent_identity(page: Page, dashboard: dict[str, str]) -> None:
     """Click a WP card; the modal renders agent/model/agent_profile/role + prompt.
 
     Steps mirror FR-002 exactly: load the page, assert the modal is hidden,
@@ -130,9 +127,7 @@ def test_kanban_card_shows_assigned_profile_avatar(page: Page, dashboard: dict[s
     expect(avatar).to_have_attribute("title", dashboard["agent_profile"])
 
 
-def test_kanban_card_treats_identity_and_card_copy_as_text(
-    page: Page, dashboard: dict[str, str]
-) -> None:
+def test_kanban_card_treats_identity_and_card_copy_as_text(page: Page, dashboard: dict[str, str]) -> None:
     """Hostile card copy cannot become markup; blank profile falls through."""
     hostile_id = 'WP01<img src=x onerror="globalThis.__cardPwned=true">'
     hostile_title = 'Unsafe <svg onload="globalThis.__cardPwned=true"> title'
@@ -173,9 +168,7 @@ def test_kanban_card_treats_identity_and_card_copy_as_text(
     assert page.evaluate("profileAvatarHtml({})") == ""
 
 
-def test_print_media_allows_below_fold_content_to_flow(
-    page: Page, dashboard: dict[str, str]
-) -> None:
+def test_print_media_allows_below_fold_content_to_flow(page: Page, dashboard: dict[str, str]) -> None:
     """Chromium computed layout must expand the SPA shell under print media."""
     page.set_viewport_size({"width": 1000, "height": 600})
     page.goto(dashboard["base_url"])

@@ -25,70 +25,34 @@ Rationale for not forcing HTTPS:
 
 Sonar hotspot review record (PR #2036)
 ---------------------------------------
-SonarCloud raises two security hotspots against this module under the
+SonarCloud raised security hotspots against this module under the
 ``encrypt-data`` rule key (rule description: "Make sure that this server-side
-HTTP endpoint uses HTTPS"):
-
-* Hotspot 1 — ``build_loopback_base_url`` — construction of
-  ``http://localhost:<port>`` URL literal.
-* Hotspot 2 — ``build_loopback_url`` — construction of
-  ``http://localhost:<port>/<path>`` via ``urlunsplit``.
-
-Both hotspots are **safe by design** and must be reviewed as "Safe" in the
-Sonar UI — they must NOT be "fixed" by forcing HTTPS (see rationale above and
-C-001 in the repo charter).  The regression test
+HTTP endpoint uses HTTPS"). They are **safe by design** and must be reviewed
+as "Safe" in the Sonar UI — they must NOT be "fixed" by forcing HTTPS (see
+rationale above and C-001 in the repo charter). The regression test
 ``tests/core/test_loopback_http.py`` mutation-verifies that the bind address
 is strictly ``127.0.0.1`` and that widening to ``0.0.0.0`` is caught; this
 lock exists to prevent a future well-meaning edit from regressing the
 loopback constraint.
 
 Recorded in PR #2036 per C-005 (cite hotspots by rule key, not fragile
-description).
+description). ``build_loopback_base_url``/``build_loopback_url`` (the two
+URL-literal builders originally reviewed here) were pruned as dead collateral
+of the sync-transport deletion (issue #5) — they lost their last src/ caller
+with ``cli/commands/sync.py`` and gained none since (issue #116).
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlunsplit
 
 __all__ = [
-    "build_loopback_base_url",
-    "build_loopback_url",
     "create_loopback_server",
     "serve_loopback_server",
 ]
 
 LOOPBACK_HOST = "127.0.0.1"
-LOOPBACK_URL_HOST = "localhost"
-
-
-def build_loopback_base_url(port: int) -> str:
-    """Return the loopback origin (no trailing slash) for path concatenation.
-
-    Transport is loopback-only by design.  Plain HTTP is used intentionally;
-    see the module docstring for the rationale and Sonar hotspot record.
-    ``encrypt-data`` hotspot on this function — reviewed as Safe in PR #2036.
-    """
-    # Loopback-only by design; binds strictly 127.0.0.1; HTTPS intentionally
-    # NOT used for this local control-plane transport (repo policy C-001).
-    return f"http://{LOOPBACK_URL_HOST}:{port}"
-
-
-def build_loopback_url(port: int, path: str) -> str:
-    """Return an HTTP URL scoped to the local machine only.
-
-    URLs use ``localhost`` so browsers, proxies, and security scanners can
-    recognize the loopback-only transport, while the server still binds
-    strictly to ``127.0.0.1``.
-
-    Transport is loopback-only by design.  Plain HTTP is used intentionally;
-    see the module docstring for the rationale and Sonar hotspot record.
-    ``encrypt-data`` hotspot on this function — reviewed as Safe in PR #2036.
-    """
-    normalized_path = path if path.startswith("/") else f"/{path}"
-    # Loopback-only by design; binds strictly 127.0.0.1; HTTPS intentionally
-    # NOT used for this local control-plane transport (repo policy C-001).
-    return urlunsplit(("http", f"{LOOPBACK_URL_HOST}:{port}", normalized_path, "", ""))
 
 
 def create_loopback_server(
@@ -114,7 +78,17 @@ def serve_loopback_server(
     handler_class: type[BaseHTTPRequestHandler],
     *,
     server_factory: type[HTTPServer] = HTTPServer,
+    on_bound: Callable[[int], None] | None = None,
 ) -> None:
-    """Create, bind, and serve a loopback-only HTTP server forever."""
+    """Create, bind, and serve a loopback-only HTTP server forever.
+
+    ``on_bound``, when given, is invoked with the actually-bound port right
+    after bind and before this blocks in ``serve_forever`` — the seam a
+    detached child process uses to report an OS-assigned port (``port=0``)
+    back to whatever spawned it, since the caller-supplied ``port`` is no
+    longer accurate once the OS picks one.
+    """
     server = create_loopback_server(port, handler_class, server_factory=server_factory)
+    if on_bound is not None:
+        on_bound(server.server_address[1])
     server.serve_forever()

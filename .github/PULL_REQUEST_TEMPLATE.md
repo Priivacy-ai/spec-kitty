@@ -24,6 +24,7 @@ For larger diffs, keep the git-tracked reviewer summary in
 
 - List the substantive changes.
 - Group them by change area when the diff spans multiple concerns.
+- Call out any incidental formatting-only diffs separately from behavior changes.
 
 ## Effect on Existing Projects
 

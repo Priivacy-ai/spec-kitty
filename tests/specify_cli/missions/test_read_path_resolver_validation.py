@@ -259,25 +259,24 @@ def test_mid8_from_primary_meta_degrades_to_empty_on_malformed_meta(
 ) -> None:
     """A malformed PRIMARY ``meta.json`` degrades to ``""`` (FR-006 contract).
 
-    ``_mid8_from_primary_meta`` composes the primary anchor then calls
-    ``load_meta(primary_dir, allow_missing=True, on_malformed="raise")`` --
-    canonical reader contract (a): ``ValueError`` on malformed JSON. The
-    ``except ValueError: return ""`` arm reproduces the historical
-    malformed→"" degrade (landing-fold coverage: read-side-seam-primary-
-    primitive-closure-01KYKMMT's wrapper→leaf swap re-attributed this
-    pre-existing, behaviour-unchanged arm to the new leaf call
-    (``_compose_primary_feature_dir``) without any test driving it through
+    ``_mid8_from_primary_meta`` composes the primary anchor then calls the ONE
+    fail-closed reader ``load_meta_fail_closed(primary_dir)`` (FR-007 / #3162
+    routing). The ``except MissionMetaReadError: return ""`` arm reproduces the
+    historical malformed→"" degrade (landing-fold coverage:
+    read-side-seam-primary-primitive-closure-01KYKMMT's wrapper→leaf swap
+    re-attributed this pre-existing, behaviour-unchanged arm to the new leaf
+    call (``_compose_primary_feature_dir``) without any test driving it through
     the malformed-meta path). No mocking of the compose/load primitives --
     only the ``meta.json`` CONTENTS are invalid, so the exact same
-    ``except ValueError`` branch the reader contract documents is what
+    malformed-meta branch the routed reader contract documents is what
     actually fires.
     """
     from mission_runtime.resolution import _mid8_from_primary_meta
 
     feature_dir = real_git_repo / "kitty-specs" / _REAL_SLUG
     feature_dir.mkdir(parents=True, exist_ok=True)
-    # Not valid JSON -- ``load_meta``'s ``on_malformed="raise"`` contract turns
-    # this into a ``ValueError`` at the parse boundary.
+    # Not valid JSON -- the fail-closed reader's contract turns this into a
+    # typed MissionMetaReadError at the parse boundary, degraded to "" here.
     (feature_dir / "meta.json").write_text("{not valid json", encoding="utf-8")
 
     assert _mid8_from_primary_meta(real_git_repo, _REAL_SLUG) == ""

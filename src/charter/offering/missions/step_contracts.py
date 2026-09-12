@@ -192,7 +192,7 @@ class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract])
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
         (FR-005) relocated ``built_in_step_contracts/`` from
-        ``src/doctrine/missions/built_in_step_contracts`` to
+        ``src/charter/offering/missions/built_in_step_contracts`` to
         ``packs/built-in/missions/built_in_step_contracts`` -- the retired
         ``files("charter.offering.missions.built_in_step_contracts")`` dotted-resource
         lookup addressed exactly the old, now-nonexistent location and would

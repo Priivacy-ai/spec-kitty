@@ -9,9 +9,8 @@ shape change:
 * top-level ``procedures`` is a typed array whenever ≥1 procedure is delivered,
   and its entries carry the same progressive-disclosure decoration as the
   ``directives`` entries;
-* ``context_schema_version`` reports the current ``CONTEXT_SCHEMA_VERSION`` and
-  bumps atomically with the shape change (FR-010 / C-005; procedures[] first
-  bumped it to ``1.1.0``, later shape changes bump it further);
+* ``context_schema_version == "1.1.0"`` (bumped from ``1.0.0`` in the same
+  change — FR-010 / C-005);
 * ``"procedures"`` is recorded in ``CONTEXT_CONTRACT_TOP_LEVEL_KEYS``;
 * ``asset`` stays deliberately reference-only — there is **no** top-level
   ``assets`` array (FR-009 / D-003, #3037).
@@ -23,7 +22,7 @@ Harness note: the ``software-dev/implement`` action scopes four procedures
 (``disciplined-defect-diagnosis``/``legacy-codebase-triage``/``refactoring``/
 ``test-first-bug-fixing`` — see ``packs/built-in/action.graph.yaml``), so a
 bootstrap ``implement`` payload with ``mission_type="software-dev"`` delivers a
-non-empty procedure set through the live built-in doctrine (no stubbing).
+non-empty procedure set through the live built-in charter (no stubbing).
 """
 
 from __future__ import annotations
@@ -50,9 +49,7 @@ def _write_charter_fixture(tmp_path: Path) -> None:
     """A minimal, activation-provisioned charter repo (mirrors test_context_parity)."""
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (tmp_path / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     (charter_dir / "charter.md").write_text(
         textwrap.dedent(
             """\
@@ -72,7 +69,7 @@ def _write_charter_fixture(tmp_path: Path) -> None:
     (charter_dir / "governance.yaml").write_text(
         textwrap.dedent(
             """\
-            doctrine:
+            charter:
               template_set: software-dev-default
               selected_paradigms: []
               selected_directives: []
@@ -81,16 +78,12 @@ def _write_charter_fixture(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    (charter_dir / "references.yaml").write_text(
-        'schema_version: "1.0.0"\nreferences: []\n', encoding="utf-8"
-    )
+    (charter_dir / "references.yaml").write_text('schema_version: "1.0.0"\nreferences: []\n', encoding="utf-8")
 
 
 def _implement_payload(tmp_path: Path) -> dict[str, object]:
     _write_charter_fixture(tmp_path)
-    return build_charter_context_json(
-        tmp_path, action="implement", mission_type="software-dev"
-    )
+    return build_charter_context_json(tmp_path, action="implement", mission_type="software-dev")
 
 
 class TestProceduresTypedArray:
@@ -113,9 +106,7 @@ class TestProceduresTypedArray:
             assert isinstance(entry, dict)
             assert isinstance(entry.get("id"), str) and entry["id"]
             assert entry.get("source") in {"builtin", "org", "project"}
-            assert entry.keys() >= _DECORATION_KEYS, (
-                f"procedure entry missing decoration: {sorted(entry.keys())}"
-            )
+            assert entry.keys() >= _DECORATION_KEYS, f"procedure entry missing decoration: {sorted(entry.keys())}"
             assert isinstance(entry["references"], list)
             assert entry["delivery"] in {"inline", "link"}
 
@@ -125,29 +116,19 @@ class TestProceduresTypedArray:
         procedure_decoration = _DECORATION_KEYS & procedures[0].keys()
         assert directive_decoration == procedure_decoration == _DECORATION_KEYS
 
-    def test_procedures_still_named_in_the_reference_link_set(
-        self, tmp_path: Path
-    ) -> None:
+    def test_procedures_still_named_in_the_reference_link_set(self, tmp_path: Path) -> None:
         """Reference completeness preserved: procedure ids still appear in references[]."""
         payload = _implement_payload(tmp_path)
         procedure_ids = {entry["id"] for entry in payload["procedures"]}  # type: ignore[union-attr]
         reference_ids = {ref["id"] for ref in payload["references"]}  # type: ignore[union-attr]
         assert procedure_ids, "fixture sanity: >=1 procedure delivered"
-        assert procedure_ids <= reference_ids, (
-            "moving procedure into repos_by_kind must preserve reference completeness"
-        )
+        assert procedure_ids <= reference_ids, "moving procedure into repos_by_kind must preserve reference completeness"
 
-    def test_schema_version_reported_in_payload(self, tmp_path: Path) -> None:
-        """The versioned contract bumps atomically with each shape change (C-005),
-        and the payload always reports the current ``CONTEXT_SCHEMA_VERSION``.
-
-        The exact value is intentionally not hard-pinned here — the canonical
-        version + top-level-key ledger guard is ``test_context_schema_version_ledger``;
-        this test asserts only the atomic-bump invariant (payload == constant), so a
-        legitimate future bump does not spuriously red an unrelated procedures test.
-        """
+    def test_schema_version_tracks_the_combined_contract(self, tmp_path: Path) -> None:
+        """The versioned contract includes procedures and directives-source (C-005)."""
+        assert CONTEXT_SCHEMA_VERSION == "1.3.0"
         payload = _implement_payload(tmp_path)
-        assert payload["context_schema_version"] == CONTEXT_SCHEMA_VERSION
+        assert payload["context_schema_version"] == "1.3.0"
 
     def test_procedures_recorded_in_top_level_ledger(self) -> None:
         """``procedures`` is declared in the top-level key ledger."""

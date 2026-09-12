@@ -59,9 +59,7 @@ def _commit_all(path: Path, message: str) -> None:
 def _provision_mission_type_activations(repo_root: Path, mission_type: str) -> None:
     kittify_dir = repo_root / ".kittify"
     kittify_dir.mkdir(exist_ok=True)
-    (kittify_dir / "config.yaml").write_text(
-        f"mission_type_activations:\n  - {mission_type}\n", encoding="utf-8"
-    )
+    (kittify_dir / "config.yaml").write_text(f"mission_type_activations:\n  - {mission_type}\n", encoding="utf-8")
 
 
 def _seed(
@@ -110,22 +108,17 @@ def _write_meta(
 
 
 def _mission_context_for_coord(mission_slug: str, coord_dir: Path, mission_type: str = "software-dev"):
-    from mission_runtime import MissionArtifactContext, MissionArtifactKind, MissionContext, MissionTopology
+    from mission_runtime import MissionArtifactKind, MissionContext, MissionTopology
+    from mission_runtime.context import MissionArtifactContext
 
     return MissionContext(
         mission_slug=mission_slug,
         mission_type=mission_type,
         topology=MissionTopology.SINGLE_BRANCH,
         artifacts=(
-            MissionArtifactContext(
-                kind=MissionArtifactKind.PRIMARY_METADATA, read_dir=coord_dir, write_dir=coord_dir, commit_target=None
-            ),
-            MissionArtifactContext(
-                kind=MissionArtifactKind.WORK_PACKAGE_TASK, read_dir=coord_dir, write_dir=coord_dir, commit_target=None
-            ),
-            MissionArtifactContext(
-                kind=MissionArtifactKind.STATUS_STATE, read_dir=coord_dir, write_dir=coord_dir, commit_target=None
-            ),
+            MissionArtifactContext(kind=MissionArtifactKind.PRIMARY_METADATA, read_dir=coord_dir, write_dir=coord_dir, commit_target=None),
+            MissionArtifactContext(kind=MissionArtifactKind.WORK_PACKAGE_TASK, read_dir=coord_dir, write_dir=coord_dir, commit_target=None),
+            MissionArtifactContext(kind=MissionArtifactKind.STATUS_STATE, read_dir=coord_dir, write_dir=coord_dir, commit_target=None),
         ),
     )
 

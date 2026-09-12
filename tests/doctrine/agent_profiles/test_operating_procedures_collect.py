@@ -30,11 +30,7 @@ def test_falsy_entries_dropped_and_missing_field_is_empty(tmp_path: Path) -> Non
     _write_profile(
         profiles_dir,
         "has-ops",
-        'profile-id: has-ops\n'
-        "collaboration:\n"
-        "  operating-procedures:\n"
-        '    - ""\n'
-        "    - real-id\n",
+        'profile-id: has-ops\ncollaboration:\n  operating-procedures:\n    - ""\n    - real-id\n',
     )
     _write_profile(
         profiles_dir,

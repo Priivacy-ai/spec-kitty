@@ -31,7 +31,7 @@ In the Spec Kitty source repository, their authorities and templates are:
 
 - `packs/built-in/toolguides/MERMAID_DIAGRAMMING.md`
 - `packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md`
-- `src/doctrine/templates/diagrams/`
+- `src/charter/offering/templates/diagrams/`
 
 Use this skill's portable `assets/mermaid-theme-common-template.md` or
 `assets/mermaid-theme-bluegray-conversation-template.md` as optional visual

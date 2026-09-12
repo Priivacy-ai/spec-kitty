@@ -378,7 +378,7 @@ class TestTasksTemplateCheckboxFormat:
         repo_root = here.parent.parent.parent
         # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H
         # (FR-005) relocated mission-steps/ from
-        # src/doctrine/missions/mission-steps to
+        # src/charter/offering/missions/mission-steps to
         # packs/built-in/missions/mission-steps.
         return (
             repo_root

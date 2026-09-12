@@ -138,7 +138,7 @@ def test_suppression_matrix_no_teamspace_leakage(
     if row.hosted_enabled:
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     else:
-        monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     # Arrange env: CI
     if row.ci_env:

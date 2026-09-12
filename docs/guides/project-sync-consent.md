@@ -1,8 +1,8 @@
 ---
 title: Per-Project Sync Consent
 description: 'Per-project hosted-sync consent in Spec Kitty 3.2: opting in and out, the deny-only kill switch, SaaS admission pairing, and migrating legacy shared sync state.'
-doc_status: active
-updated: '2026-08-16'
+doc_status: deprecated
+updated: '2026-08-31'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -14,6 +14,10 @@ related:
 - docs/architecture/team-kitty-saas.md
 ---
 # Per-Project Sync Consent
+
+> **Removed in 3.2.6; kept as historical record.** The per-project hosted-sync
+> consent and store model described here was removed with the CLI→SaaS sync
+> transport. This page is scheduled for deletion in 3.2.7.
 
 *Guidance dated 2026-08-13, covering the consent model shipped by mission
 `per-project-sync-consent-ledgers-01KZKMQZ` (core `#3262`, companion SaaS

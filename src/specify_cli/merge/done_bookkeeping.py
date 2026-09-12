@@ -61,7 +61,7 @@ def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str) -> set[str]:
     and the downstream done-state assertions stay authoritative.
     """
     from specify_cli.status import read_events, reduce
-    from specify_cli.status.store import StoreError
+    from specify_cli.status import StoreError
 
     try:
         surface_path = resolve_status_surface(repo_root, mission_slug)
@@ -282,7 +282,6 @@ def _emit_approved_replay_if_needed(
                     },
                 ),
                 ensure_sync_daemon=False,
-                sync_dossier=False,
             )
         except TransitionError as exc:
             console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
@@ -437,7 +436,6 @@ def _mark_wp_merged_done(
                 },
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except TransitionError as exc:
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")

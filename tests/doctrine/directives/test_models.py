@@ -88,7 +88,7 @@ class TestDirective:
         assert directive.title == "Test Directive"
         assert directive.enforcement == Enforcement.REQUIRED
         # Post-WP02: inline `tactic_refs` has been excised from the Directive
-        # model; cross-artifact relationships live in src/doctrine/graph.yaml.
+        # model; cross-artifact relationships live in src/charter/offering/graph.yaml.
         assert not hasattr(directive, "tactic_refs")
         assert directive.scope is None
         assert directive.procedures == []

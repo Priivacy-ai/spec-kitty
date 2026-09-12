@@ -26,8 +26,8 @@ source for a project — the single git-tracked, structured file nesting
 `.kittify/charter/charter.md` is a curated, human-readable companion the
 runtime never parses or resolves policy from. A repository may also keep
 public governance docs outside `.kittify/`; those docs are human-facing
-authority unless `charter.yaml`'s `governance.doctrine.governance_references`
-points at them. The doctrine layer (`src/doctrine/`) provides the
+authority unless `charter.yaml`'s `governance.charter.offering.governance_references`
+points at them. The doctrine layer (`src/charter/offering/`) provides the
 reusable knowledge artifacts (directives, tactics, paradigms, styleguides,
 toolguides, procedures, agent profiles, step contracts) that the charter
 references.
@@ -147,7 +147,18 @@ The interview fields map to target artifact kinds:
 For each synthesis target, derive: `kind`, `slug` (kebab-case, project-specific),
 `title`, and `body` (the full artifact content as YAML matching the shipped schema).
 
-### Step 4 — Write the doctrine YAML to `.kittify/charter/generated/`
+### Step 4 — Author the project doctrine
+
+All five supported project kinds are `directive`, `tactic`, `styleguide`,
+`procedure`, and `agent_profile`. For direct authoring, run `charter new <kind>
+<id>`, complete the scaffold, and run `charter validate .kittify/doctrine`.
+`charter activate agent-profile <id> --cascade all` registers authored project
+artifacts in the DRG and provenance manifest and activates referenced guidance.
+Project procedures live in `.kittify/doctrine/procedure/`; profiles live in
+`.kittify/doctrine/agent_profiles/`. These source files remain user-owned.
+
+For interview-generated directives, tactics and styleguides, use the generated
+input path below. Procedures and profiles use the direct-authoring path above.
 
 The harness writes artifact inputs here; `spec-kitty charter synthesize`
 validates, stages, and promotes them into the live doctrine tree.
@@ -214,7 +225,7 @@ the runtime reads it without any parse/extract step in between.
      them except a deliberate hand edit.
    - Flat-root activation keys (`activated_kinds`, `activated_directives`,
      `mission_type_activations`, …) — **hand-authored**, mirrors
-     `src/charter/packs/default.yaml`.
+     `src/charter/activation/packs/default.yaml`.
    - `catalog` / `metadata` — **generator-refreshed**. `charter generate`
      rewrites these two sections deterministically on every run (doctrine
      reference manifest, generation timestamp); everything else in the file
@@ -228,7 +239,7 @@ the runtime reads it without any parse/extract step in between.
    parses it for policy — it exists purely for human review/onboarding, and
    optionally to summarize `charter.yaml` or point at a public constitution.
    If the repository also has a public constitution or handbook, reference
-   it from `charter.yaml`'s `governance.doctrine.governance_references` (or
+   it from `charter.yaml`'s `governance.charter.offering.governance_references` (or
    `authority_paths`), not just from the companion prose.
 
 `.kittify/config.yaml` carries a single `charter:` pointer (default
@@ -666,9 +677,9 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 `charter.activation.resolver.DoctrineService` — built through
 `charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` —
 is the single, sanctioned entry point for programmatic access to all doctrine
-artifacts. It wraps the inner `doctrine.service.DoctrineService` and applies
-charter activation filtering; never construct `doctrine.service.DoctrineService`
-or `doctrine.agent_profiles.AgentProfileRepository` directly (five
+artifacts. It wraps the inner `charter.offering.service.DoctrineService` and applies
+charter activation filtering; never construct `charter.offering.service.DoctrineService`
+or `charter.offering.agent_profiles.AgentProfileRepository` directly (five
 architectural gates in `tests/architectural/` ban that construction outside
 this module).
 

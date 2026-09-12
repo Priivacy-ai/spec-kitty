@@ -11,13 +11,13 @@ Pre-fix, both tactics dangle:
 * ``model-task-routing`` does not exist as an artifact at all.
 * ``autonomous-operation-protocol`` exists and is activated
   (``.kittify/config.yaml`` ``activated_tactics``) but has no inbound
-  directive ``suggests`` edge in ``src/doctrine/graph.yaml``, so it is not
+  directive ``suggests`` edge in ``src/charter/offering/graph.yaml``, so it is not
   directive-reachable and does not resolve in the compiled charter
   references.
 
 These tests assert resolution via two independent, non-fakeable routes:
 
-1. Real DRG traversal over the shipped ``src/doctrine/graph.yaml``
+1. Real DRG traversal over the shipped ``src/charter/offering/graph.yaml``
    (:func:`charter.offering.drg.query.resolve_transitive_refs`) starting from an
    activated directive -- proves the graph edge exists, not just that a
    string appears somewhere.
@@ -92,7 +92,7 @@ def test_model_task_routing_tactic_reachable_via_drg_traversal() -> None:
 
     assert "model-task-routing" in result.tactics, (
         "tactic:model-task-routing is not reachable from an activated directive "
-        "via a suggests edge in src/doctrine/graph.yaml -- the charter's "
+        "via a suggests edge in src/charter/offering/graph.yaml -- the charter's "
         "`model_task_routing` reference dangles."
     )
 

@@ -20,6 +20,10 @@ Use this checklist for releases from `main`.
 
 ### Release-Line Sanity
 
+- **P3.4b prerequisite:** `.github/workflows/release.yml` and
+  `release-readiness.yml` are deliberately deferred to the P3.4b release-topology
+  sibling. Land that sibling before relying on this checklist's automated
+  publishing or Release Readiness Check steps.
 - [ ] Confirm the default branch is `main`.
 - [ ] Confirm `1.x-maintenance` exists and is marked maintenance-only.
 - [ ] Confirm open PRs are targeted intentionally:
@@ -51,27 +55,17 @@ Use this checklist for releases from `main`.
   python -m build
   twine check dist/*
   ```
-- [ ] Verify shared package drift against the current stack:
+- [ ] Verify shared package drift against the release manifest:
   ```bash
   python scripts/release/check_shared_package_drift.py \
-    --saas-pyproject ../spec-kitty-saas/pyproject.toml \
     --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
   ```
 - [ ] Confirm `.kittify/release/shared-package-compatibility.json` is the
   authoritative 3.2.0 shared-package set and matches `pyproject.toml` plus
   `uv.lock`.
-- [ ] If a SaaS consumer pin lands after the CLI candidate commit, rerun the
-  shared-package drift workflow or the local drift command against the updated
-  SaaS `main` before recording branch-health evidence.
 - [ ] Verify the built wheel installs cleanly with plain `pip`:
   ```bash
   python scripts/release/check_exact_install.py --package spec-kitty-cli
-  ```
-- [ ] Verify the built wheel satisfies the SaaS consumer contract:
-  ```bash
-  python scripts/release/check_candidate_consumer_compat.py \
-    --package spec-kitty-cli \
-    --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
   ```
 
 ### Release-Candidate Hygiene
@@ -82,7 +76,9 @@ before tagging; do not rely on the tag-time publish workflow to run live
 canary or cross-repo end-to-end suites.
 
 - [ ] Record the full CLI test-suite result from `pytest tests/ -v`.
-- [ ] Run the cross-repo end-to-end suite locally:
+- [ ] Run the cross-repo end-to-end suite locally. The suite lives in
+  `spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing` (it moved to the
+  programme org; clone it beside this checkout):
   ```bash
   cd ../../spec-kitty-end-to-end-testing
   uv sync
@@ -150,13 +146,13 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 ### 4. Wait for CI and Review
 
 - [ ] `Release Readiness Check` passes for release metadata.
-- [ ] `CI Quality` passes for tests, wheel build, lockfile, exact install, and
-  SaaS consumer compatibility evidence or has explicitly accepted non-blocking failures with
-  issue links.
-- [ ] `Check Shared Package Drift` passes against the current SaaS consumer
-  pins.
-- [ ] `Protect Main Branch` is expected to pass for the eventual merge or
-  tagged release commit path.
+- [ ] `CI Quality` passes for tests, wheel build, lockfile, and exact install,
+  or has explicitly accepted non-blocking failures with issue links.
+- [ ] `Check Shared Package Drift` passes: `pyproject.toml`, `uv.lock` and the
+  release manifest agree on the shared-package ranges and locks.
+- [ ] The PR satisfies the active repository policy; do not rely on GitHub
+  workflow enforcement — the workflow files run and post check results, but
+  nothing requires them to pass before merge.
 - [ ] Maintainer approval is recorded.
 - [ ] Any release-note or install-doc feedback is resolved.
 
@@ -202,7 +198,6 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   - validates release metadata
   - checks shared-package drift
   - proves exact wheel installability with plain `pip`
-  - validates candidate compatibility against the SaaS consumer contract
   - builds distributions
   - publishes after tag-time release checks pass
   - creates the GitHub release
@@ -295,4 +290,4 @@ If a critical issue is discovered after release:
 
 ---
 
-**Last Updated**: 2026-04-21
+**Last Updated**: 2026-08-31

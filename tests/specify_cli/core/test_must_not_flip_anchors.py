@@ -79,9 +79,7 @@ def lane_worktree(primary_with_mission: Path, tmp_path: Path) -> Path:
     return wt
 
 
-def test_get_feature_target_branch_anchors_on_primary_from_worktree(
-    primary_with_mission: Path, lane_worktree: Path
-) -> None:
+def test_get_feature_target_branch_anchors_on_primary_from_worktree(primary_with_mission: Path, lane_worktree: Path) -> None:
     """Invoked with the worktree as ``repo_root``, still reads the PRIMARY meta."""
     branch = get_feature_target_branch(lane_worktree, _MISSION_SLUG)
     assert branch == "release/anchor"
@@ -94,9 +92,7 @@ def test_get_feature_target_branch_anchors_on_primary_from_primary(
     assert branch == "release/anchor"
 
 
-def test_resolve_merge_target_branch_anchors_on_primary_from_worktree(
-    primary_with_mission: Path, lane_worktree: Path
-) -> None:
+def test_resolve_merge_target_branch_anchors_on_primary_from_worktree(primary_with_mission: Path, lane_worktree: Path) -> None:
     branch, source = resolve_merge_target_branch(lane_worktree, _MISSION_SLUG, None)
     assert branch == "release/anchor"
     assert source == "meta.json"
@@ -105,9 +101,7 @@ def test_resolve_merge_target_branch_anchors_on_primary_from_worktree(
 def test_resolve_merge_target_branch_explicit_flag_wins(
     primary_with_mission: Path,
 ) -> None:
-    branch, source = resolve_merge_target_branch(
-        primary_with_mission, _MISSION_SLUG, "override/branch"
-    )
+    branch, source = resolve_merge_target_branch(primary_with_mission, _MISSION_SLUG, "override/branch")
     assert branch == "override/branch"
     assert source == "flag"
 

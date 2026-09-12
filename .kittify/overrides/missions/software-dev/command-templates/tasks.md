@@ -193,14 +193,16 @@ Prompts do not rediscover feature context. Commands do.
 
    **OWNERSHIP METADATA (required by finalize-tasks)**:
    Each WP MUST declare these fields in frontmatter. If omitted, the finalizer infers them (often incorrectly, causing validation failures):
-   - `execution_mode`: Either `"code_change"` (source code) or `"planning_artifact"` (kitty-specs docs)
-   - `owned_files`: List of glob patterns for files this WP touches. Example: `["src/myapp/auth/**", "tests/myapp/test_auth.py"]`
+   - `execution_mode`: Either `"code_change"` (source code) or `"planning_artifact"` (deliverables confined to planning surfaces — every `owned_files` entry under `kitty-specs/` or `docs/`)
+   - `owned_files`: List of glob patterns for files this WP touches. Example: `["src/myapp/auth/**", "tests/myapp/test_auth.py"]`. A `code_change` WP must never list a `kitty-specs/` path here (see Ownership rules below).
    - `authoritative_surface`: Path prefix that must be a prefix of at least one owned_files entry. Example: `"src/myapp/auth/"`
    - `create_intent`: List of repo-root-relative literal paths this WP will create. Use this when an `owned_files` entry names a planned-new file that does not exist yet, so finalize-tasks treats the zero-match as an intentional planned-new-file instead of a validation failure. Example: `["tests/myapp/test_new_auth.py"]`. Keep a single `create_intent` key; if a stub `create_intent: []` already exists, replace it instead of adding a duplicate block.
 
    **Ownership rules**:
    - No two WPs may have overlapping `owned_files`.
    - Use specific paths, not broad globs like `src/**`.
+   - **kitty-specs ownership ban**: a `code_change` WP must NOT list any `kitty-specs/` path in `owned_files` — `finalize-tasks --validate-only` rejects it with `INVALID_WP_OWNED_FILES_KITTY_SPECS`. The exemption is a `planning_artifact` WP whose **every** `owned_files` entry is confined to `kitty-specs/` or `docs/` — a planning WP that also owns a `src/`/`tests/` (or any other non-planning) path is not exempt and is rejected the same way.
+   - **Where per-WP design notes go**: design notes, plan-marker edits, and other `kitty-specs/` deliverables a work package must produce belong in their own confined `planning_artifact` WP (all `owned_files` under `kitty-specs/`/`docs/`) — never inside a code WP's `owned_files`. Split a mixed WP into a planning WP plus a code WP rather than mixing the two ownership kinds.
    - Agents working on a WP must not modify files outside their `owned_files` list.
    - Run `spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json` to check ownership before committing.
 

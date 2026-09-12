@@ -2,7 +2,7 @@
 title: 'Calibration Report: research'
 description: 'Calibration report for the research mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay.'
 doc_status: active
-updated: '2026-04-27'
+updated: '2026-09-08'
 ---
 # Calibration Report: research
 
@@ -15,7 +15,7 @@ updated: '2026-04-27'
 
 ## Summary
 
-All 6 steps pass the §4.5.1 inequality. The shipped `src/doctrine/graph.yaml` already provides the required context for every step. Transitive extras surfaced via `DIRECTIVE_003 → requires → tactic:adr-drafting-workflow` and `DIRECTIVE_037 → suggests → tactic:acceptance-test-first / atdd-adversarial-acceptance / usage-examples-sync` are classified as `known_irrelevant`.
+All 6 steps pass the §4.5.1 inequality. The shipped built-in DRG fragments (`packs/built-in/*.graph.yaml`) already provide the required context for every step. Transitive extras surfaced via `DIRECTIVE_003 → requires → tactic:adr-drafting-workflow` and `DIRECTIVE_037 → suggests → tactic:acceptance-test-first / atdd-adversarial-acceptance / usage-examples-sync` are classified as `known_irrelevant`.
 
 ---
 

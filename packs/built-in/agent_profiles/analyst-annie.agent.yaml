@@ -92,7 +92,7 @@ collaboration:
 mode-defaults:
 - mode: analysis-mode
   description: Requirements decomposition and flow analysis
-  use-case: Translating informal requirements, mapping user journeys, 
+  use-case: Translating informal requirements, mapping user journeys,
     identifying edge cases
 - mode: precision-pass
   description: Formal acceptance criteria authoring
@@ -101,11 +101,11 @@ mode-defaults:
 directive-references:
 - code: "003"
   name: Decision Documentation Requirement
-  rationale: Every requirement must be traceable to a source artifact with 
+  rationale: Every requirement must be traceable to a source artifact with
     decision rationale
 - code: "047"
   name: Audience-Oriented Writing
-  rationale: Specifications and acceptance criteria must be tailored to a named 
+  rationale: Specifications and acceptance criteria must be tailored to a named
     audience (domain expert vs. implementer)
 - code: "032"
   name: Conceptual Alignment

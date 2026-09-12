@@ -92,10 +92,7 @@ def test_rotates_cycle_to_smallest_member_without_reversing_edges() -> None:
 
     assert cycle == ("lane-b", "lane-c", "lane-d", "lane-b")
     assert cycle is not None
-    assert all(
-        downstream in lane_deps[upstream]
-        for upstream, downstream in zip(cycle, cycle[1:], strict=False)
-    )
+    assert all(downstream in lane_deps[upstream] for upstream, downstream in zip(cycle, cycle[1:], strict=False))
 
 
 def test_mapping_and_set_insertion_order_do_not_change_cycle() -> None:
@@ -104,10 +101,7 @@ def test_mapping_and_set_insertion_order_do_not_change_cycle() -> None:
         "lane-b": {"lane-c"},
         "lane-c": {"lane-a"},
     }
-    reverse = {
-        lane_id: _set_in_order(sorted(dependencies, reverse=True))
-        for lane_id, dependencies in reversed(tuple(forward.items()))
-    }
+    reverse = {lane_id: _set_in_order(sorted(dependencies, reverse=True)) for lane_id, dependencies in reversed(tuple(forward.items()))}
 
     expected = ("lane-a", "lane-b", "lane-c", "lane-a")
     assert lanes_compute._find_lane_dependency_cycle(forward) == expected
@@ -163,22 +157,14 @@ def test_cycle_diagnostics_include_planning_lane_membership() -> None:
         "lane-planning",
         "lane-a",
     )
-    assert tuple(
-        (lane.lane_id, lane.wp_ids) for lane in exc_info.value.cycle_lanes
-    ) == (("lane-a", ("WP01",)), ("lane-planning", ("WP02",)))
+    assert tuple((lane.lane_id, lane.wp_ids) for lane in exc_info.value.cycle_lanes) == (("lane-a", ("WP01",)), ("lane-planning", ("WP02",)))
 
 
 def test_compute_lanes_rejects_cycle_beyond_recursion_limit() -> None:
     lane_count = sys.getrecursionlimit() + 1
     wp_ids = [f"WP{index:05d}" for index in range(lane_count)]
-    dependency_graph = {
-        wp_id: [wp_ids[(index + 1) % lane_count]]
-        for index, wp_id in enumerate(wp_ids)
-    }
-    manifests = {
-        wp_id: _manifest(f"src/{index:05d}/**")
-        for index, wp_id in enumerate(wp_ids)
-    }
+    dependency_graph = {wp_id: [wp_ids[(index + 1) % lane_count]] for index, wp_id in enumerate(wp_ids)}
+    manifests = {wp_id: _manifest(f"src/{index:05d}/**") for index, wp_id in enumerate(wp_ids)}
 
     error_type = lanes_compute.LaneDependencyCycleError
     with pytest.raises(error_type):

@@ -45,9 +45,9 @@ from specify_cli.migration.runtime_state_cutover import cutover_mission
 from specify_cli.status import (
     Lane,
     StatusEvent,
-    append_events_atomic_verified,
     build_claim_policy_metadata,
 )
+from specify_cli.status._unsafe import append_events_atomic_verified
 from specify_cli.upgrade.migrations.m_zz_runtime_state_backfill import (
     RuntimeStateBackfillMigration,
 )

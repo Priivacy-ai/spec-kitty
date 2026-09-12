@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import subprocess
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -21,24 +20,6 @@ def tmp_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
     subprocess.run(["git", "init", "--quiet", str(repo)], check=True, capture_output=True)
     resolve_canonical_repo_root.cache_clear()
     return repo
-
-
-@pytest.mark.performance
-def test_warm_resolver_p95_under_5ms(tmp_repo: Path) -> None:
-    # Prime the cache.
-    resolve_canonical_repo_root(tmp_repo)
-    timings_ms: list[float] = []
-    for _ in range(100):
-        start = time.monotonic_ns()
-        resolve_canonical_repo_root(tmp_repo)
-        timings_ms.append((time.monotonic_ns() - start) / 1_000_000)
-    timings_ms.sort()
-    p95 = timings_ms[94]
-    assert p95 < 5, (
-        f"Resolver warm p95 = {p95:.4f}ms (budget: 5ms). "
-        f"min={timings_ms[0]:.4f}, p50={timings_ms[49]:.4f}, "
-        f"p95={p95:.4f}, max={timings_ms[-1]:.4f}"
-    )
 
 
 def test_warm_resolver_makes_zero_git_invocations(tmp_repo: Path) -> None:

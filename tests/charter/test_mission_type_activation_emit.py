@@ -12,7 +12,7 @@ These tests pin ``charter.activation.compiler.provision_mission_type_activations
 non-crashing, additive provisioning primitive that emits the built-in mission
 type set into the activation authority (the pointer-resolved ``charter.yaml``
 for a migrated project, or ``config.yaml`` for a legacy one), mirroring
-``src/charter/packs/default.yaml``'s authored ``mission_type_activations`` list.
+``src/charter/activation/packs/default.yaml``'s authored ``mission_type_activations`` list.
 """
 
 from __future__ import annotations

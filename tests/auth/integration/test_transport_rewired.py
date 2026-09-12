@@ -1,4 +1,4 @@
-"""Structural regression test: every legacy transport file is rewired.
+"""Structural regression test: transport callers obtain tokens via the factory.
 
 Verifies that the rewire done in WP08/WP09/WP10 stuck and that no future
 refactor accidentally reintroduces the deleted ``specify_cli.sync.auth``
@@ -9,7 +9,10 @@ and asserts the presence of :func:`get_token_manager` imports and the
 absence of legacy class references.
 
 FR coverage: FR-016 (TokenManager is sole credential surface), FR-017
-(HTTP callers must obtain tokens from TokenManager).
+(HTTP callers must obtain tokens from TokenManager). The sync transport's own
+callers (``sync/client.py``, ``sync/batch.py``, ``sync/background.py``) died
+with the transport (issue #5); the tracker SaaS client and websocket
+provisioning are the surviving HTTP callers pinned here.
 
 Test isolation: this file does not drive the CLI directly, but it is
 grouped under ``tests/auth/integration/`` because it enforces the same
@@ -26,33 +29,6 @@ import pytest
 
 
 pytestmark = [pytest.mark.integration]
-
-def test_sync_client_imports_get_token_manager() -> None:
-    """``sync/client.py`` must import ``get_token_manager`` from the auth pkg.
-
-    Any refactor that removes this import is a regression: it means
-    ``sync/client.py`` is no longer obtaining tokens through the TokenManager
-    single-flight pipeline and would be reading credentials directly from
-    disk (a violation of FR-017).
-    """
-    import specify_cli.sync.client as client_mod
-
-    source = inspect.getsource(client_mod)
-    assert (
-        "get_token_manager" in source
-    ), "sync/client.py must import get_token_manager (FR-017)"
-    assert (
-        "from specify_cli.auth" in source
-    ), "sync/client.py must import from specify_cli.auth"
-
-
-def test_sync_client_does_not_reference_legacy_classes() -> None:
-    """``sync/client.py`` must not mention ``AuthClient`` or ``CredentialStore``."""
-    import specify_cli.sync.client as client_mod
-
-    source = inspect.getsource(client_mod)
-    assert "AuthClient" not in source
-    assert "CredentialStore" not in source
 
 
 def test_tracker_saas_client_imports_get_token_manager() -> None:
@@ -75,7 +51,7 @@ def test_tracker_saas_client_does_not_reference_legacy_classes() -> None:
 
     source = inspect.getsource(t)
     # The real source file must not define or import AuthClient or
-    # CredentialStore. A test-only shim lives in tests/sync/tracker/conftest.py
+    # CredentialStore. A test-only shim lives in tests/tracker/conftest.py
     # and is NOT part of production source.
     assert "class AuthClient" not in source
     assert "class CredentialStore" not in source
@@ -123,33 +99,3 @@ def test_websocket_provisioning_uses_factory() -> None:
 
     source = inspect.getsource(wp)
     assert "get_token_manager" in source
-
-
-def test_sync_batch_does_not_reference_legacy_classes() -> None:
-    """``sync/batch.py`` must not reintroduce the retired legacy auth classes.
-
-    #3167 retired ``batch.py``'s queue-backed transmit primitives
-    (``batch_sync`` / ``sync_all_queued_events``); the module now holds no
-    transmit surface (see its module docstring) and performs no I/O of its
-    own, so it no longer calls ``get_token_manager``. The former
-    ``test_sync_batch_uses_factory`` asserted that call and started failing
-    the moment the transmit code it guarded was deleted -- it was checking a
-    caller that no longer exists. FR-017 factory coverage for the sync
-    surface remains enforced via ``test_sync_background_uses_factory``
-    below, since ``sync/background.py`` is the actual HTTP caller that
-    consumes ``batch.py``'s result types.
-    """
-    import specify_cli.sync.batch as batch_mod
-
-    source = inspect.getsource(batch_mod)
-    assert "AuthClient" not in source
-    assert "CredentialStore" not in source
-
-
-def test_sync_background_uses_factory() -> None:
-    """``sync/background.py`` must obtain tokens via the factory (FR-017)."""
-    import specify_cli.sync.background as bg_mod
-
-    source = inspect.getsource(bg_mod)
-    assert "get_token_manager" in source
-    assert "AuthClient" not in source

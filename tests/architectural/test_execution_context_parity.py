@@ -185,7 +185,6 @@ from pathlib import Path
 from collections.abc import Generator
 
 import pytest
-import yaml
 
 pytestmark = [
     pytest.mark.architectural,
@@ -1344,67 +1343,16 @@ def test_full_sequence_ratchet_catches_divergence(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # T006 — CI gate registration assertion (FR-024)
+#
+# Retired (planning#57): ``test_execution_context_parity_gate_registered_in_ci``
+# asserted this section's invariant LIVE against the real
+# ``.github/workflows/ci-quality.yml`` — the leftover pre-programme GitHub
+# Actions YAML deleted per PROGRAM.md §2. With no workflow YAML left to parse,
+# this check (and its ``_CI_WORKFLOW`` / ``_REQUIRED_EXECUTION_CONTEXT_PATHS``
+# constants) has no remaining subject matter and was removed. Every other
+# parity test in this module is self-contained (drives real CLI/status/runtime
+# code paths directly) and is unaffected.
 # ---------------------------------------------------------------------------
-
-
-_CI_WORKFLOW = (
-    Path(__file__).resolve().parents[2] / ".github" / "workflows" / "ci-quality.yml"
-)
-
-# Surfaces that must be present in the ``execution_context`` path filter so
-# that any change to them triggers the integration-tests-core-misc job, which
-# runs this parity ratchet.  ``mission_runtime/`` will be added here once the
-# canonical umbrella lands (WP02 — IC-01).
-_REQUIRED_EXECUTION_CONTEXT_PATHS: frozenset[str] = frozenset(
-    {
-        "src/specify_cli/status/**",
-        "src/runtime/next/**",
-        "src/specify_cli/cli/commands/agent/**",
-        "tests/architectural/test_execution_context_parity.py",
-    }
-)
-
-
-def test_execution_context_parity_gate_registered_in_ci() -> None:
-    """T006: the parity ratchet is a required CI gate for execution-context surfaces.
-
-    Asserts that the ``execution_context`` path filter in
-    ``.github/workflows/ci-quality.yml`` includes all surfaces listed in
-    ``_REQUIRED_EXECUTION_CONTEXT_PATHS`` (FR-024).
-
-    The ``integration-tests-core-misc`` job is triggered by this filter and
-    runs ``tests/architectural/test_execution_context_parity.py`` exclusively
-    when only execution-context paths changed, ensuring that every PR touching
-    status/runtime/agent-command surfaces must pass the full-sequence parity
-    ratchet.
-
-    When the ``mission_runtime/`` umbrella lands (IC-01 / WP02), add
-    ``"src/mission_runtime/**"`` to ``_REQUIRED_EXECUTION_CONTEXT_PATHS`` in
-    this file and to the ``execution_context`` filter in ci-quality.yml in the
-    same PR.
-    """
-    assert _CI_WORKFLOW.exists(), (
-        f"CI workflow not found at {_CI_WORKFLOW}. "
-        "This test guards the path filter registration (FR-024)."
-    )
-
-    data = yaml.safe_load(_CI_WORKFLOW.read_text(encoding="utf-8"))
-    filter_step = next(
-        step
-        for step in data["jobs"]["changes"]["steps"]
-        if step.get("id") == "filter"
-    )
-    filters: dict[str, list[str]] = yaml.safe_load(filter_step["with"]["filters"])
-
-    execution_context_paths: set[str] = set(filters.get("execution_context", []))
-    missing = _REQUIRED_EXECUTION_CONTEXT_PATHS - execution_context_paths
-    assert not missing, (
-        "The following paths are missing from the ``execution_context`` path "
-        "filter in ci-quality.yml (FR-024):\n"
-        + "\n".join(f"  - {p}" for p in sorted(missing))
-        + "\n\nAdd them to the ``execution_context`` filter so PRs touching "
-        "these surfaces trigger the parity ratchet."
-    )
 
 
 # ===========================================================================

@@ -140,6 +140,8 @@ def validate(
     staging_dir: Path,
     built_in_drg: DRGGraph,
     conflicts: Sequence[ReconciliationConflict] = (),
+    *,
+    org_drg: DRGGraph | None = None,
 ) -> None:
     """Validate the staged (merged) project DRG overlay against *built_in_drg*.
 
@@ -160,6 +162,15 @@ def validate(
             hard-fails below, unchanged from pre-WP02 behavior. Defaults to
             ``()`` so every pre-existing positional caller (``validate(
             staging_dir, built_in_drg)``) keeps working unchanged.
+        org_drg: The org-chain base graph (built-in + org merged, as returned
+            by :func:`charter.activation._drg_helpers.org_chain_graph`), or ``None``
+            when no org packs are configured (#4121, MAJOR 2). When supplied
+            it REPLACES ``built_in_drg`` as the merge's lower layer — it
+            already folds the built-in nodes — so an overlay edge referencing
+            an org-pack artifact is not mis-read as dangling. The additive
+            universe below the project overlay is exactly what
+            ``emit_project_layer`` projected references against, keeping this
+            gate and the emitter in agreement.
 
     Raises:
         ProjectDRGValidationError: When validation fails for any reason:
@@ -195,7 +206,10 @@ def validate(
         ) from exc
 
     # --- Step 2: Merge layers (additive) -----------------------------------
-    merged = merge_layers(built_in_drg, project_overlay)
+    # org_drg already folds the built-in layer, so it substitutes for (not
+    # unions with) built_in_drg as the lower layer (#4121, MAJOR 2).
+    base_layer = org_drg if org_drg is not None else built_in_drg
+    merged = merge_layers(base_layer, project_overlay)
 
     # --- Step 3: Suppress preserved-content conflicts (T009) ---------------
     graph_for_validation = _graph_excluding_preserved_conflicts(merged, conflicts)

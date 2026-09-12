@@ -20,7 +20,7 @@ the production default) and capture the graph ``load_validated_graph`` returns:
 
 The fixture mirrors ``TestFragmentYamlEdgeCascades`` in
 ``tests/specify_cli/cli/commands/charter/test_org_cascade_chain.py`` and the
-canonical ``doctrine.org.packs[].local_path`` config shape from WP01's
+canonical ``charter_packs.org.packs[].local_path`` config shape from WP01's
 ``tests/charter/test_drg_helpers_fragment_bridge.py``.
 """
 
@@ -32,7 +32,7 @@ from textwrap import dedent
 import pytest
 
 from charter.activation._drg_helpers import load_validated_graph as real_load_validated_graph
-from charter.drg import DRGGraph
+from charter.offering.drg.models import DRGGraph
 from specify_cli.review import gate_bindings
 
 pytestmark = [pytest.mark.fast]
@@ -56,7 +56,7 @@ def _write_org_pack_config(repo_root: Path, name: str, local_path: str) -> None:
     (kittify / "config.yaml").write_text(
         dedent(
             f"""\
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: {name}
@@ -73,9 +73,7 @@ def _write_empty_config(repo_root: Path) -> None:
     """Write a ``.kittify/config.yaml`` with no org packs (no-org-pack path)."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (kittify / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
 
 def _write_fragment_only_pack(repo_root: Path, rel_path: str) -> None:
@@ -108,12 +106,7 @@ def _write_fragment_only_pack(repo_root: Path, rel_path: str) -> None:
 
 
 def _has_bridge_edge(graph: DRGGraph) -> bool:
-    return any(
-        edge.source == _BRIDGE_SOURCE
-        and edge.target == _BRIDGE_TARGET
-        and edge.relation == "requires"
-        for edge in graph.edges
-    )
+    return any(edge.source == _BRIDGE_SOURCE and edge.target == _BRIDGE_TARGET and edge.relation == "requires" for edge in graph.edges)
 
 
 class _GraphCapture:
@@ -132,9 +125,7 @@ class _GraphCapture:
         org_fragments: object = None,
     ) -> DRGGraph:
         self.org_fragments = org_fragments
-        graph = real_load_validated_graph(
-            repo_root, org_roots=org_roots, org_fragments=org_fragments
-        )
+        graph = real_load_validated_graph(repo_root, org_roots=org_roots, org_fragments=org_fragments)
         self.graph = graph
         return graph
 
@@ -144,9 +135,7 @@ class _GraphCapture:
 # ---------------------------------------------------------------------------
 
 
-def test_gate_binding_graph_load_contains_org_fragment_edge(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_gate_binding_graph_load_contains_org_fragment_edge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-001: with a fragment-bearing org pack configured, the graph the
     gate-binding path loads contains the org-authored ``A requires B`` edge."""
     repo_root = tmp_path / "repo"
@@ -159,24 +148,14 @@ def test_gate_binding_graph_load_contains_org_fragment_edge(
 
     # graph_loader=None forces the production default (the threaded call site);
     # pack_resolver returns None so no activation filter narrows the raw graph.
-    gate_bindings._activated_msc_urns(
-        repo_root, graph_loader=None, pack_resolver=lambda _root: None
-    )
+    gate_bindings._activated_msc_urns(repo_root, graph_loader=None, pack_resolver=lambda _root: None)
 
-    assert capture.org_fragments, (
-        "gate-binding path must thread a non-empty org_fragments layer for a "
-        f"fragment-bearing pack; got {capture.org_fragments!r}"
-    )
+    assert capture.org_fragments, f"gate-binding path must thread a non-empty org_fragments layer for a fragment-bearing pack; got {capture.org_fragments!r}"
     assert capture.graph is not None
-    assert _has_bridge_edge(capture.graph), (
-        "org fragment.yaml requires edge was not folded into the graph the "
-        "gate-binding path loads"
-    )
+    assert _has_bridge_edge(capture.graph), "org fragment.yaml requires edge was not folded into the graph the gate-binding path loads"
 
 
-def test_gate_binding_graph_load_no_org_pack_is_unchanged(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_gate_binding_graph_load_no_org_pack_is_unchanged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """NFR-001: with no org pack configured, ``load_org_drg`` contributes ``[]``
     and the bridge edge is absent — the no-org-pack path is unchanged."""
     repo_root = tmp_path / "repo"
@@ -186,18 +165,11 @@ def test_gate_binding_graph_load_no_org_pack_is_unchanged(
     capture = _GraphCapture()
     monkeypatch.setattr(gate_bindings, "load_validated_graph", capture)
 
-    gate_bindings._activated_msc_urns(
-        repo_root, graph_loader=None, pack_resolver=lambda _root: None
-    )
+    gate_bindings._activated_msc_urns(repo_root, graph_loader=None, pack_resolver=lambda _root: None)
 
-    assert capture.org_fragments == [], (
-        "no-org-pack path must thread an empty org_fragments layer; got "
-        f"{capture.org_fragments!r}"
-    )
+    assert capture.org_fragments == [], f"no-org-pack path must thread an empty org_fragments layer; got {capture.org_fragments!r}"
     assert capture.graph is not None
-    assert not _has_bridge_edge(capture.graph), (
-        "no org pack is configured, so no org fragment edge may appear"
-    )
+    assert not _has_bridge_edge(capture.graph), "no org pack is configured, so no org fragment edge may appear"
 
 
 def test_explicit_graph_loader_override_bypasses_fragment_threading(
@@ -217,10 +189,6 @@ def test_explicit_graph_loader_override_bypasses_fragment_threading(
         seen["root"] = root
         return real_load_validated_graph(root)
 
-    gate_bindings._activated_msc_urns(
-        repo_root, graph_loader=_loader, pack_resolver=lambda _root: None
-    )
+    gate_bindings._activated_msc_urns(repo_root, graph_loader=_loader, pack_resolver=lambda _root: None)
 
-    assert seen["root"] == repo_root, (
-        "an explicit graph_loader override must be called with repo_root only"
-    )
+    assert seen["root"] == repo_root, "an explicit graph_loader override must be called with repo_root only"

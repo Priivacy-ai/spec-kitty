@@ -271,7 +271,7 @@ Apply this section whenever the plan adds, upgrades, or removes a dependency, in
    - Resolve the handle first: `spec-kitty agent context resolve --action plan --mission <handle> --json`, then pass the resolved slug to `setup-plan`
    - If the context resolve call returns an ambiguity error with `available_missions`, stop and pick one explicit mission slug before continuing
 
-3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `scaffold_only`: `true` only on the first happy-path scaffold write (plan.md freshly copied from the template, untouched). This is `result: "success"` and NOT an error — populate the Technical Context and re-run `setup-plan` to commit. `phase_complete` stays `false` until then.
    - `mission_slug`: Resolved feature slug

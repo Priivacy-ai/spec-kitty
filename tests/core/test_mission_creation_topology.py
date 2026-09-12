@@ -43,10 +43,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -57,7 +54,6 @@ def _patched_context(tmp_path: Path):
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         yield
@@ -127,9 +123,8 @@ def test_coordinationless_create_persists_topology_so_2453_routing_is_not_cwd(
     """
     from specify_cli.coordination.transaction import _warrants_legacy_warning
 
-    # WP04 fail-closed: seed the default charter before create (this test
-    # scaffolds tmp_path directly rather than through _init_git_repo).
-    provision_test_charter(tmp_path)
+    # Exercise the real commit preflight against an initialized repository.
+    _init_git_repo(tmp_path)
 
     with _patched_context(tmp_path), patch("specify_cli.missions._create.ensure_coordination_branch"):
         from mission_runtime import MissionTopology

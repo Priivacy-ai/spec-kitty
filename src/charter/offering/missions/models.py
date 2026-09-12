@@ -7,7 +7,7 @@ single unified model:
 
 * ``charter.offering.missions.models.MissionStep`` (legacy schema-validation shape
   for ``mission.yaml``) — REPLACED by the unified model below.
-* ``doctrine.mission_step_contracts.models.MissionStep`` (legacy
+* ``charter.offering.mission_step_contracts.models.MissionStep`` (legacy
   governance-delegation shape for step contracts) — that subpackage is
   retired entirely (T007). The legacy step-contract types (`DelegatesTo`,
   `MissionStepContract`, etc.) relocate to
@@ -45,46 +45,12 @@ _IDENTIFIER_RE = re.compile(IDENTIFIER_PATTERN)
 
 __all__ = [
     "IDENTIFIER_PATTERN",
-    "MissionStateObject",
-    "MissionTransition",
-    "MissionOrchestration",
     "MissionStep",
     "MissionStepTemplateRef",
     "Mission",
     "MissionType",
     "validate_action_sequence",
 ]
-
-
-class MissionStateObject(BaseModel):
-    """Expanded state with optional agent-profile binding."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
-
-    id: str
-    agent_profile: str | None = Field(default=None, alias="agent-profile", pattern=IDENTIFIER_PATTERN)
-
-
-class MissionTransition(BaseModel):
-    """A state transition."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
-
-    from_state: str = Field(alias="from")
-    to: str
-    on: str | None = None
-    agent_profile: str | None = Field(default=None, alias="agent-profile", pattern=IDENTIFIER_PATTERN)
-
-
-class MissionOrchestration(BaseModel):
-    """State-machine definition for the mission."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    states: list[str | MissionStateObject] = Field(min_length=1)
-    transitions: list[MissionTransition] = Field(min_length=1)
-    guards: list[str] = Field(default_factory=list)
-    required_artifacts: list[str] = Field(min_length=1)
 
 
 class MissionStepTemplateRef(BaseModel):
@@ -177,6 +143,12 @@ class Mission(BaseModel):
     runtime domain model used by
     :class:`charter.offering.missions.repository.MissionTemplateRepository`
     (which operates on raw dicts).
+
+    The former ``orchestration`` state machine (``MissionOrchestration`` /
+    ``MissionStateObject`` / ``MissionTransition``) was retired in mission
+    dead-port-disposition-01M1TZVN (T014b): it was a REQUIRED field that no
+    artefact in the tree ever supplied, whose only name-level producer match
+    was the mission-DSL v1 blocks that the same mission deleted.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -185,7 +157,6 @@ class Mission(BaseModel):
     key: str = Field(pattern=IDENTIFIER_PATTERN)
     name: str
     description: str | None = None
-    orchestration: MissionOrchestration
     steps: list[MissionStep] = Field(default_factory=list)
 
 
@@ -221,7 +192,7 @@ class MissionType(BaseModel):
     """Governed descriptor for a built-in or extension mission type.
 
     Each built-in mission type is stored as a YAML file under
-    ``src/doctrine/missions/mission_types/{id}.yaml``.  The ``id`` field
+    ``src/charter/offering/missions/mission_types/{id}.yaml``.  The ``id`` field
     must match the filename stem; this invariant is enforced by
     ``MissionTypeRepository``, not by the model itself.
 

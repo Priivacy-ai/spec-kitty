@@ -227,7 +227,7 @@ def _write_charter(repo_root: Path, body: str) -> Path:
 # charter-context path, so callers still write it too.
 
 
-# Global selection: charter.yaml governance.doctrine.selected_styleguides.
+# Global selection: charter.yaml governance.charter.offering.selected_styleguides.
 # ``catalog.languages`` is the authoritative #2773 source for the active
 # project language set (``charter.activation.language_scope.infer_repo_languages``). The
 # caveman styleguide is scoped ``applies_to_languages: [python, generic]``, so a
@@ -339,7 +339,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         "`caveman-comments` — either by ID + body or by ID + fetch command + "
         "canonical when-doing conditional. Today the resolver ignores "
         "`selected_styleguides` because `DoctrineSelectionConfig` has no such field "
-        "(see src/charter/schemas.py). Mission B WP04 adds the field and the "
+        "(see src/charter/activation/schemas.py). Mission B WP04 adds the field and the "
         "matching renderer (_render_selected_styleguides). See "
         "docs/development/mission-b-proposed-scope.md → WP04."
     )
@@ -364,8 +364,8 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         f"any of {body_markers!r} — found none. This indicates the renderer "
         "is emitting a catalog-miss placeholder rather than rendering the "
         "actual styleguide body. Verify (a) the fixture YAML parses cleanly "
-        "against `Styleguide` (src/doctrine/styleguides/) and (b) "
-        "_render_selected_artifacts (src/charter/context.py) inlines the body."
+        "against `Styleguide` (src/charter/offering/styleguides/) and (b) "
+        "_render_selected_artifacts (src/charter/activation/context.py) inlines the body."
     )
 
 

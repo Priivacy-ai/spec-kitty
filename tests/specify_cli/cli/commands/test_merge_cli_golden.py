@@ -412,6 +412,27 @@ def _write_lanes_json(mission: MissionFixture) -> None:
     )
 
 
+def _write_retention_spec(mission: MissionFixture) -> None:
+    (mission.mission_dir / "spec.md").write_text(
+        "\n".join(
+            [
+                "# Mission",
+                "",
+                "## Constraints",
+                "",
+                "| ID | Title | Constraint | Category | Priority | Status |",
+                "|----|-------|------------|----------|----------|--------|",
+                (
+                    "| C-005 | Retention | Keep branches and worktrees after merge "
+                    "unless separately directed. | Operational | High | Accepted |"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_clean_dry_run_json_payload_key_set_is_frozen(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -446,6 +467,89 @@ def test_clean_dry_run_json_payload_key_set_is_frozen(
     assert payload["delete_branch"] is True
     assert payload["remove_worktree"] is True
     assert payload["push"] is False
+
+
+def test_retained_mission_requires_explicit_cleanup_choice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retained mission blocks default cleanup and honors explicit choices."""
+    mission = create_mission_fixture(tmp_path)
+    _write_retention_spec(mission)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KVXHDKRETENTION00000001",
+    )
+    _write_lanes_json(mission)
+    monkeypatch.chdir(mission.repo_root)
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
+
+    runner = CliRunner()
+    default_result = runner.invoke(
+        _build_merge_app(),
+        ["--mission", mission.mission_slug, "--dry-run", "--json"],
+    )
+    assert default_result.exit_code == 1
+    payload = json.loads(default_result.stdout.strip().splitlines()[-1])
+    assert payload["blocked"] is True
+    assert payload["diagnostic_code"] == "MISSION_RETENTION_CLEANUP_CONFLICT"
+
+    explicit_result = runner.invoke(
+        _build_merge_app(),
+        [
+            "--mission",
+            mission.mission_slug,
+            "--delete-branch",
+            "--remove-worktree",
+            "--dry-run",
+            "--json",
+        ],
+    )
+    assert explicit_result.exit_code == 0
+    explicit_payload = json.loads(explicit_result.stdout.strip().splitlines()[-1])
+    assert explicit_payload["delete_branch"] is True
+    assert explicit_payload["remove_worktree"] is True
+
+    keep_result = runner.invoke(
+        _build_merge_app(),
+        [
+            "--mission",
+            mission.mission_slug,
+            "--keep-branch",
+            "--keep-worktree",
+            "--dry-run",
+            "--json",
+        ],
+    )
+    assert keep_result.exit_code == 0
+    keep_payload = json.loads(keep_result.stdout.strip().splitlines()[-1])
+    assert keep_payload["delete_branch"] is False
+    assert keep_payload["remove_worktree"] is False
+
+
+def test_real_merge_with_retention_never_reaches_default_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Default cleanup is blocked before the real merge executor is entered."""
+    mission = create_mission_fixture(tmp_path)
+    _write_retention_spec(mission)
+    monkeypatch.chdir(mission.repo_root)
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
+
+    real_merge_calls: list[dict[str, object]] = []
+
+    def fail_if_called(**kwargs: object) -> None:
+        real_merge_calls.append(dict(kwargs))
+        raise AssertionError("default cleanup reached the real merge executor")
+
+    monkeypatch.setattr(merge_module, "_run_real_merge", fail_if_called)
+    runner = CliRunner()
+    result = runner.invoke(_build_merge_app(), ["--mission", mission.mission_slug])
+    assert result.exit_code == 1
+    assert "MISSION_RETENTION_CLEANUP_CONFLICT" in result.stdout
+    assert real_merge_calls == []
 
 
 # --- REJECTED_REVIEW_ARTIFACT_CONFLICT emission (T004) ----------------------

@@ -96,16 +96,11 @@ def _activation_block(tested_key: str, tested_value: list[str] | None) -> str:
     the disjunction via "``None`` = all built-ins", masking whatever the
     tested kind's own state contributes.
     """
-    lines = [
-        _yaml_list_line(key, tested_value if key == tested_key else [])
-        for key in _ACTIVATION_KEYS
-    ]
+    lines = [_yaml_list_line(key, tested_value if key == tested_key else []) for key in _ACTIVATION_KEYS]
     return "".join(lines)
 
 
-def _write_activation_fixture(
-    tmp_path: Path, tested_key: str, tested_value: list[str] | None, *, pointer: bool
-) -> None:
+def _write_activation_fixture(tmp_path: Path, tested_key: str, tested_value: list[str] | None, *, pointer: bool) -> None:
     """Write a ``.kittify/config.yaml`` fixture, pointer-present or absent.
 
     Pointer-absent (legacy/un-migrated shape): the activation block is
@@ -122,9 +117,7 @@ def _write_activation_fixture(
         charter_dir = kittify / "charter"
         charter_dir.mkdir(parents=True, exist_ok=True)
         (charter_dir / "charter.yaml").write_text(block, encoding="utf-8")
-        (kittify / "config.yaml").write_text(
-            "charter: .kittify/charter/charter.yaml\n", encoding="utf-8"
-        )
+        (kittify / "config.yaml").write_text("charter: .kittify/charter/charter.yaml\n", encoding="utf-8")
     else:
         (kittify / "config.yaml").write_text(block, encoding="utf-8")
 
@@ -138,15 +131,9 @@ def _expected_active(pack_context: PackContext) -> bool:
     Python truthiness is the exact bug class this mission exists to close
     (see the module docstring above, and T002 step 3 / plan.md section (b)).
     """
-    paradigm_active = (
-        pack_context.activated_paradigms is None or PARADIGM_ID in pack_context.activated_paradigms
-    )
-    tactic_active = pack_context.activated_tactics is None or bool(
-        {TACTIC_FILL_ID, TACTIC_REVIEW_ID} & pack_context.activated_tactics
-    )
-    directive_active = pack_context.activated_directives is None or any(
-        _is_directive_038(entry) for entry in pack_context.activated_directives
-    )
+    paradigm_active = pack_context.activated_paradigms is None or PARADIGM_ID in pack_context.activated_paradigms
+    tactic_active = pack_context.activated_tactics is None or bool({TACTIC_FILL_ID, TACTIC_REVIEW_ID} & pack_context.activated_tactics)
+    directive_active = pack_context.activated_directives is None or any(_is_directive_038(entry) for entry in pack_context.activated_directives)
     return paradigm_active or tactic_active or directive_active
 
 
@@ -242,9 +229,7 @@ for _key, _target_id, _variant_label in _KIND_VARIANTS:
 
 
 @pytest.mark.parametrize(("tested_key", "tested_value", "pointer"), _MATRIX, ids=_MATRIX_IDS)
-def test_parity_matrix(
-    tmp_path: Path, tested_key: str, tested_value: list[str] | None, pointer: bool
-) -> None:
+def test_parity_matrix(tmp_path: Path, tested_key: str, tested_value: list[str] | None, pointer: bool) -> None:
     """``is_spdd_reasons_active`` agrees with a hand-computed disjunction
     over ``PackContext.from_config``'s real ``activated_*`` fields, across
     every state/kind/pointer-shape combination in the mandated matrix

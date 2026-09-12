@@ -56,6 +56,7 @@ from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
 from specify_cli.review.cycle import CreatedRejectedReviewCycle, create_rejected_review_cycle
 from specify_cli.review.verdict_commit_queue import DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
 from specify_cli.status import FeatureStatusLockTimeoutError, feature_status_lock
+from tests._perf_helpers import assert_timing_budget
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeCoordCommitRouter,
     FakeFsReader,
@@ -81,9 +82,7 @@ _JOIN_CEILING_SECONDS = DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS + 10.0
 def _init_repo(path: Path) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"], cwd=path, check=True, capture_output=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=path, check=True, capture_output=True)
 
 
 def _build_fixture(repo: Path) -> None:
@@ -206,11 +205,9 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
             else:
                 outcome.append(None)
 
-        started = time.perf_counter()
         driver = threading.Thread(target=_drive, daemon=True)
         driver.start()
         driver.join(_JOIN_CEILING_SECONDS)
-        elapsed = time.perf_counter() - started
 
         assert not driver.is_alive(), (
             "the verdict-save call did not return within "
@@ -219,13 +216,10 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
             "the SAME budget the checkout-wide verdict-save queue already uses, "
             "never an unbounded hang"
         )
-        assert elapsed < _JOIN_CEILING_SECONDS
 
         assert len(outcome) == 1  # golden-count: cardinality-is-contract
         [captured] = outcome
-        assert isinstance(captured, VerdictPersistenceFailure), (
-            f"expected a typed VerdictPersistenceFailure, got: {captured!r}"
-        )
+        assert isinstance(captured, VerdictPersistenceFailure), f"expected a typed VerdictPersistenceFailure, got: {captured!r}"
         signal = captured.signal
         assert signal.outcome.verdict_durably_persisted is False
         assert signal.outcome.classification == "busy"
@@ -240,9 +234,77 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
         parent.close()
 
 
-def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.performance
+def test_wedged_status_lock_busy_failure_stays_within_the_join_ceiling(tmp_path: Path) -> None:
+    """The wedged-status-lock busy failure returns within ``_JOIN_CEILING_SECONDS`` (nightly).
+
+    Split from ``test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang``
+    (#4015); budget preserved.
+    """
+    repo = tmp_path
+    _build_fixture(repo)
+    feedback = repo / "feedback.md"
+    feedback.write_text("**Issue**: exercising the wedged status lock.\n", encoding="utf-8")
+
+    def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
+        return create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug=_MISSION,
+            wp_id=_WP_ID,
+            wp_slug=_WP_SLUG,
+            feedback_source=feedback,
+            reviewer_agent="reviewer-lock-test",
+            commit_router=commit_router,
+        )
+
+    context = multiprocessing.get_context("spawn")
+    parent, child = context.Pipe(duplex=False)
+    release = context.Event()
+    holder = context.Process(
+        target=_hold_status_lock_until_released,
+        args=(str(repo), _MISSION, child, release),
+    )
+    holder.start()
+    child.close()
+    try:
+        parent.poll(10)
+        parent.recv()
+
+        ports = TasksPorts(
+            fs=FakeFsReader(default_planning_dir=repo / "kitty-specs" / _MISSION),
+            coord=FakeCoordCommitRouter(write_dir=repo / "kitty-specs" / _MISSION),
+            git=FakeGitOps(),
+            render=FakeRender(),
+        )
+        state = _build_state(repo)
+
+        outcome: list[BaseException | None] = []
+
+        def _drive() -> None:
+            try:
+                _persist_review_cycle_with_queue(state, ports, _create)
+            except BaseException as exc:  # noqa: BLE001 - captured for assertion, not swallowed
+                outcome.append(exc)
+            else:
+                outcome.append(None)
+
+        started = time.perf_counter()
+        driver = threading.Thread(target=_drive, daemon=True)
+        driver.start()
+        driver.join(_JOIN_CEILING_SECONDS)
+        elapsed = time.perf_counter() - started
+
+        assert_timing_budget(elapsed, _JOIN_CEILING_SECONDS, name="wedged_status_lock_busy_failure")
+    finally:
+        release.set()
+        holder.join(timeout=10)
+        if holder.is_alive():
+            holder.terminate()
+            holder.join(timeout=10)
+        parent.close()
+
+
+def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The status-lock bound (#3773 item 1) is scoped to the queue-held path.
 
     The unbounded-hang hazard exists only while the checkout-wide verdict queue
@@ -260,7 +322,6 @@ def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(
 
     monkeypatch.setattr(cycle, "verdict_save_queue_is_held", lambda _repo: False)
     assert cycle._in_queue_status_lock_timeout(tmp_path) == -1.0
-
 
     # A non-git path cannot own the checkout-wide queue: the probe raises
     # GitTopologyError there (not False), and the allocator must degrade to the

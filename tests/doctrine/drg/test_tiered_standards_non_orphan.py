@@ -50,7 +50,7 @@ def test_tiered_standards_has_inbound_edge_from_directive_030(
     This test proves the styleguide is non-orphan via a *specific* source node —
     not a weak ``len(inbound) >= 1`` check.  Removing the ``references`` entry
     for ``tiered-standards`` in
-    ``src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml``
+    ``src/charter/offering/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml``
     and regenerating the graph will make this test fail.
     """
     inbound_from_directive_030 = [

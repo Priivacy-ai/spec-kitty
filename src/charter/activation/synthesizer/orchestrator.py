@@ -82,6 +82,13 @@ class SynthesisResult:
     reconciliation seam (``resynthesize()`` does not reconcile — it runs its
     own bounded merge — and leaves this at the default)."""
 
+    reference_warnings: tuple[str, ...] = ()
+    """Unresolved project-profile reference warnings from this run's overlay
+    emission (#4121, MAJOR 2) — the same strings ``emit_project_layer`` logs.
+    Carried on the result so CLI callers can surface them instead of them
+    living only in ``logging`` output. Empty when nothing was re-emitted or
+    every reference resolved."""
+
 
 def _built_in_drg_from_snapshot(snapshot: object) -> object:
     """Normalize a request DRG snapshot into a validate-able DRGGraph payload."""
@@ -106,6 +113,7 @@ def _reconstruct_synthesis_result(
     request: SynthesisRequest,
     results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
     reconciliation: ReconciliationDelta,
+    reference_warnings: tuple[str, ...] = (),
 ) -> SynthesisResult:
     """Build the ``SynthesisResult`` for the request's primary target.
 
@@ -134,6 +142,7 @@ def _reconstruct_synthesis_result(
                 effective_adapter_id=prov.adapter_id,
                 effective_adapter_version=prov.adapter_version,
                 reconciliation=reconciliation,
+                reference_warnings=reference_warnings,
             )
 
     # Fallback to first result if primary target was not among synthesized targets
@@ -151,6 +160,7 @@ def _reconstruct_synthesis_result(
         effective_adapter_id=first_prov.adapter_id,
         effective_adapter_version=first_prov.adapter_version,
         reconciliation=reconciliation,
+        reference_warnings=reference_warnings,
     )
 
 
@@ -255,6 +265,16 @@ def synthesize(
 
     _repo_root = repo_root if repo_root is not None else _Path.cwd()
 
+    # --- Org-aware re-emission base (#4121, MAJOR 2) ---
+    # One load shared by the emit, the reconciliation conflict classifier and
+    # the validation gate below, so all three agree on the universe below the
+    # project overlay (activation's universe) instead of each being org-blind.
+    # ``None`` for org-less repos keeps every seam byte-identical to before.
+    from charter.activation._drg_helpers import org_chain_graph as _org_chain_graph  # noqa: PLC0415
+
+    _org_drg = _org_chain_graph(_repo_root)
+    _reference_warnings: list[str] = []
+
     # --- Reconcile the fresh emit against on-disk state (WP01) ---
     # Computed BEFORE staging (mirrors resynthesize_pipeline.run()'s Step
     # 1/6): the merged manifest must be ready to hand to promote() as
@@ -265,6 +285,8 @@ def synthesize(
         spec_kitty_version=_SPEC_KITTY_VERSION,
         built_in_drg=built_in_drg,
         project_root=_repo_root,
+        org_drg=_org_drg,
+        warnings_out=_reference_warnings,
     )
     outcome = _reconcile_synthesis(
         repo_root=_repo_root,
@@ -272,12 +294,13 @@ def synthesize(
         new_results=results,
         run_id=request.run_id,
         built_in_drg=built_in_drg,
+        org_drg=_org_drg,
     )
     if mode is SynthesizeMode.prune:
         outcome = _apply_prune(outcome)
 
     if mode is SynthesizeMode.dry_run:
-        return _reconstruct_synthesis_result(request, results, outcome.delta)
+        return _reconstruct_synthesis_result(request, results, outcome.delta, tuple(_reference_warnings))
 
     merged_overlay = outcome.merged_overlay
 
@@ -295,7 +318,7 @@ def synthesize(
         # preserved-content conflict is suppressed end-to-end instead of
         # still hard-failing here. lane-b is where both halves land, so WP02
         # wires this one line rather than leaving NFR-003 unmet in practice.
-        _validate_project_graph(staged_dir.root, built_in_drg, conflicts=outcome.delta.conflicts)
+        _validate_project_graph(staged_dir.root, built_in_drg, conflicts=outcome.delta.conflicts, org_drg=_org_drg)
 
     # --- Stage and promote to disk (WP03, T018) ---
     with _StagingDir.create(_repo_root, request.run_id) as staging_dir:
@@ -313,7 +336,7 @@ def synthesize(
         has_project_graph=bool(merged_overlay.nodes),
     )
 
-    return _reconstruct_synthesis_result(request, results, outcome.delta)
+    return _reconstruct_synthesis_result(request, results, outcome.delta, tuple(_reference_warnings))
 
 
 def resynthesize(
@@ -349,7 +372,7 @@ def resynthesize(
     except ImportError as exc:
         raise NotImplementedError(
             "resynthesize() is not yet implemented — WP05 will deliver "
-            "src/charter/synthesizer/resynthesize_pipeline.py."
+            "src/charter/activation/synthesizer/resynthesize_pipeline.py."
         ) from exc
 
     # The pipeline call is deliberately outside the import-guard above: any

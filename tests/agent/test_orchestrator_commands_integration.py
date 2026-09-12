@@ -28,7 +28,6 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 
 
 # ── Fixtures ──────────────────────────────────────────────────────
@@ -65,6 +64,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
@@ -130,13 +130,15 @@ def _emit_event(mission_dir: Path, wp_id: str, from_lane: str, to_lane: str, act
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=slug, wp_id=wp_id, to_lane="claimed", actor=actor))
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     else:
-        emit_status_transition(TransitionRequest(
-            feature_dir=mission_dir,
-            mission_slug=slug,
-            wp_id=wp_id,
-            to_lane=to_lane,
-            actor=actor,
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=slug,
+                wp_id=wp_id,
+                to_lane=to_lane,
+                actor=actor,
+            )
+        )
 
 
 def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, actor: str = "test") -> None:
@@ -148,25 +150,27 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="for_review", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_review", actor=actor))
-    emit_status_transition(TransitionRequest(
-        feature_dir=mission_dir,
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        to_lane="done",
-        actor=actor,
-        evidence={
-            "review": {
-                "reviewer": "reviewer-agent",
-                "verdict": "approved",
-                "reference": "review-001",
-            }
-        },
-        review_result=ReviewResult(
-            reviewer="reviewer-agent",
-            verdict="approved",
-            reference="review-001",
-        ),
-    ))
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane="done",
+            actor=actor,
+            evidence={
+                "review": {
+                    "reviewer": "reviewer-agent",
+                    "verdict": "approved",
+                    "reference": "review-001",
+                }
+            },
+            review_result=ReviewResult(
+                reviewer="reviewer-agent",
+                verdict="approved",
+                reference="review-001",
+            ),
+        )
+    )
 
 
 def _emit_planned_to_approved(
@@ -183,25 +187,27 @@ def _emit_planned_to_approved(
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="for_review", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_review", actor=actor))
-    emit_status_transition(TransitionRequest(
-        feature_dir=mission_dir,
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        to_lane="approved",
-        actor=actor,
-        evidence={
-            "review": {
-                "reviewer": "reviewer-agent",
-                "verdict": "approved",
-                "reference": "review-001",
-            }
-        },
-        review_result=ReviewResult(
-            reviewer="reviewer-agent",
-            verdict="approved",
-            reference="review-001",
-        ),
-    ))
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane="approved",
+            actor=actor,
+            evidence={
+                "review": {
+                    "reviewer": "reviewer-agent",
+                    "verdict": "approved",
+                    "reference": "review-001",
+                }
+            },
+            review_result=ReviewResult(
+                reviewer="reviewer-agent",
+                verdict="approved",
+                reference="review-001",
+            ),
+        )
+    )
 
 
 def _emit_planned_to_canceled(
@@ -495,11 +501,7 @@ class TestStartImplementation:
         events = read_events(mission_dir)
         # Exclude the genesis->planned seeds; assert only the composite
         # start-implementation transitions for WP01.
-        wp01_transitions = [
-            (event.from_lane, event.to_lane)
-            for event in events
-            if event.wp_id == "WP01" and str(event.from_lane) != "genesis"
-        ]
+        wp01_transitions = [(event.from_lane, event.to_lane) for event in events if event.wp_id == "WP01" and str(event.from_lane) != "genesis"]
         assert wp01_transitions == [
             ("planned", "claimed"),
             ("claimed", "in_progress"),
@@ -510,14 +512,7 @@ class TestStartImplementation:
         mission_slug = "099-test-mission"
         wp02_path = mission_dir / "tasks" / "WP02.md"
         wp02_path.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "title: Test WP02\n"
-            "lane: planned\n"
-            "dependencies: [WP01]\n"
-            "subtasks: []\n"
-            "---\n\n"
-            "# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
 
@@ -697,9 +692,34 @@ class TestStartImplementation:
 
         from specify_cli.status.emit import emit_status_transition
 
-        # WP02 was started earlier; WP01 is still planned (its approval was reverted).
-        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP02", to_lane="claimed", actor="claude"))
-        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP02", to_lane="in_progress", actor="claude"))
+        # WP02 was started earlier, when WP01 was still approved; WP01's approval
+        # was later reverted to planned. Reconstruct that historical in_progress
+        # state directly: the claim happened when the dependency WAS satisfied, so
+        # force the setup transition past the (now-unsatisfied) dependency gate
+        # with a reason. This only stages the precondition — the behaviour under
+        # test is that the LATER, un-forced resume below is not re-gated.
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission_slug,
+                wp_id="WP02",
+                to_lane="claimed",
+                actor="claude",
+                force=True,
+                reason="setup: claimed while WP01 was approved",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission_slug,
+                wp_id="WP02",
+                to_lane="in_progress",
+                actor="claude",
+                force=True,
+                reason="setup: started while WP01 was approved",
+            )
+        )
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -1107,7 +1127,7 @@ class TestTransition:
         "payload",
         [
             '{"reviewer":',
-            '[]',
+            "[]",
             '{"reviewer":"reviewer","verdict":"approved"}',
             '{"reviewer":"reviewer","verdict":"maybe","reference":"review-001"}',
         ],
@@ -1435,6 +1455,39 @@ class TestAcceptMission:
         data = json.loads(result.output)
         assert data["error_code"] == "MISSION_NOT_READY"
         assert "WP02" in data["data"]["incomplete_wps"]
+
+    def test_malformed_path_conventions_returns_envelope(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (repo_root / ".kittify").mkdir()
+        (repo_root / ".kittify" / "config.yaml").write_text(
+            "project:\n  path_conventions:\n    workspace: 123\n",
+            encoding="utf-8",
+        )
+
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP02")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "accept-mission",
+                    "--mission",
+                    mission_slug,
+                    "--actor",
+                    "claude",
+                ],
+            )
+
+        assert result.exit_code == 1, result.output
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "MISSION_NOT_READY"
+        assert "project.path_conventions.workspace" in data["data"]["message"]
 
 
 # ── merge-mission ─────────────────────────────────────────────────
@@ -1816,6 +1869,7 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     (tasks_dir / "WP01-core-setup.md").write_text(
         "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n",
@@ -2063,9 +2117,7 @@ class TestResolveWorkspace:
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(
-                app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"]
-            )
+            result = runner.invoke(app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"])
         assert result.exit_code == 0, result.stdout
         data = json.loads(result.stdout)["data"]
         assert data["mission_slug"] == "099-test-mission"
@@ -2080,14 +2132,10 @@ class TestResolveWorkspace:
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            runner.invoke(
-                app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"]
-            )
+            runner.invoke(app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"])
         from specify_cli.status import read_events, reduce
 
-        lanes = {
-            k: v.get("lane") for k, v in reduce(read_events(mission_dir)).work_packages.items()
-        }
+        lanes = {k: v.get("lane") for k, v in reduce(read_events(mission_dir)).work_packages.items()}
         # WP01 stays planned (resolve-workspace emitted no transition).
         assert lanes.get("WP01") in ("planned", None), lanes
         assert not (repo_root / ".worktrees").exists(), "must not create a worktree"
@@ -2098,9 +2146,7 @@ class TestResolveWorkspace:
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(
-                app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP99"]
-            )
+            result = runner.invoke(app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP99"])
         assert result.exit_code != 0
         payload = json.loads(result.stdout.strip().split("\n")[0])
         assert payload["error_code"] == "WP_NOT_FOUND"
@@ -2149,9 +2195,7 @@ class TestLaneAssignmentOrLegacy:
             computed_at="2026-07-04T00:00:00+00:00",
             computed_from="test",
         )
-        with patch(
-            "specify_cli.lanes.persistence.read_lanes_json", return_value=manifest
-        ):
+        with patch("specify_cli.lanes.persistence.read_lanes_json", return_value=manifest):
             result = _lane_assignment_or_legacy(repo_root, "099-test-mission", "WP01")
         assert not isinstance(result, _StartWorkspace)
         got_manifest, got_lane = result
@@ -2166,8 +2210,6 @@ class TestLaneAssignmentOrLegacy:
         )
 
         repo_root, mission_dir = _make_mission(tmp_path)
-        started = _resolve_start_workspace(
-            "start-implementation", repo_root, "099-test-mission", mission_dir, "WP01"
-        )
+        started = _resolve_start_workspace("start-implementation", repo_root, "099-test-mission", mission_dir, "WP01")
         resolved = _resolve_existing_workspace(repo_root, "099-test-mission", "WP01")
         assert started.workspace_path == resolved.workspace_path

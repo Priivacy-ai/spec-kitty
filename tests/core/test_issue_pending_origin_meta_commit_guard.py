@@ -37,9 +37,13 @@ write (``set_origin_ticket``) the real implementation performs after its SaaS
 call succeeds — so the reproduced symptom is the real symptom, not a stand-in.
 
 NOTE: mission-create trips the "inside a worktree" guard when the test
-process itself runs from a git worktree checkout — run this file from the
-PRIMARY repository checkout (not a ``.worktrees/...`` or landing worktree),
-pointing ``PYTHONPATH`` at the worktree under review if the fix lives there.
+process itself runs from a git worktree checkout (the CI lane checks the
+suite out into a per-SHA ``git worktree add --detach`` tree). Both calls
+below therefore pass ``allow_worktree_context=True`` — the bypass reserved
+for programmatic test callers (``tests/_factories`` defaults it on for the
+same reason; ``tests/architectural/test_no_production_worktree_guard_bypass.py``
+keeps it out of ``src/``). The guard under test here is the step-9.5
+post-bind meta.json commit, not the step-2 process-cwd worktree guard.
 """
 
 from __future__ import annotations
@@ -98,10 +102,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -175,6 +176,7 @@ def test_pending_origin_bind_leaves_clean_tree_after_create(tmp_path: Path) -> N
                 tmp_path,
                 "pending-origin-guard",
                 topology=MissionTopology.SINGLE_BRANCH,
+                allow_worktree_context=True,
                 **_mission_summary("pending-origin-guard"),
             )
     finally:
@@ -207,12 +209,9 @@ def test_pending_origin_bind_leaves_clean_tree_after_create(tmp_path: Path) -> N
     # The committed meta.json on HEAD (not just the working copy) carries the
     # origin ticket — proving the SECOND commit actually landed the bind, not
     # merely that nothing changed after step 8.5.
-    committed_meta = _git(
-        tmp_path, "show", f"HEAD:{meta_file.relative_to(tmp_path)}"
-    ).stdout
+    committed_meta = _git(tmp_path, "show", f"HEAD:{meta_file.relative_to(tmp_path)}").stdout
     assert "origin_ticket" in committed_meta, (
-        "HEAD's committed meta.json does not carry the origin_ticket subtree — "
-        "the post-bind commit did not land the write it was meant to capture."
+        "HEAD's committed meta.json does not carry the origin_ticket subtree — the post-bind commit did not land the write it was meant to capture."
     )
 
 
@@ -237,6 +236,7 @@ def test_pending_origin_bind_failure_does_not_trigger_extra_commit(
                 tmp_path,
                 "pending-origin-guard-fail",
                 topology=MissionTopology.SINGLE_BRANCH,
+                allow_worktree_context=True,
                 **_mission_summary("pending-origin-guard-fail"),
             )
     finally:
@@ -257,7 +257,4 @@ def test_pending_origin_bind_failure_does_not_trigger_extra_commit(
     status_lines = _git(tmp_path, "status", "--porcelain").stdout.splitlines()
     meta_rel = str(meta_file.relative_to(tmp_path))
     meta_status_lines = [line for line in status_lines if line[3:].strip() == meta_rel]
-    assert not meta_status_lines, (
-        f"a failed origin bind left meta.json uncommitted: {meta_status_lines!r}. "
-        f"Full git status --porcelain:\n{status_lines!r}"
-    )
+    assert not meta_status_lines, f"a failed origin bind left meta.json uncommitted: {meta_status_lines!r}. Full git status --porcelain:\n{status_lines!r}"

@@ -56,10 +56,8 @@ from specify_cli.core.utils import ensure_within_any
 from specify_cli.mission_metadata import load_meta, write_meta
 from specify_cli.workspace import canonicalize_feature_dir
 
-from specify_cli.event_journal.journal import ProjectLayoutRequiredError
 
 from .backfill_runtime_state import (
-    LAYOUT_REFUSAL_REASON,
     BackfillResult,
     MigrationOrderingError,
     VerifyResult,
@@ -85,13 +83,30 @@ class CutoverResult:
 
     Attributes:
         slug: The mission slug (directory name).
-        flipped: True iff this run wrote the snapshot-authority ``status_phase``.
+        flipped: True iff this run reached the flip phase with an ``ok`` verify —
+            the mission holds snapshot authority after the run. NOT "a write
+            occurred": on a mission already at snapshot authority the flip
+            short-circuits having written zero bytes and ``flipped`` stays True
+            by contract (pinned in ``tests/migration/test_birth_cutover.py``);
+            ``already_migrated`` is the field that distinguishes that case.
+        already_migrated: True iff the mission's ``meta.json`` already declared
+            a snapshot-authority ``status_phase`` when this run reached its
+            flip decision — the flip's no-write short-circuit case (#3212).
+            This is the one bit ``flipped``/``seeded_count`` cannot express:
+            seeding and flipping are independent, so a mission with no legacy
+            frontmatter state to seed still flips (``flipped=True,
+            already_migrated=False``, zero seeds), while a re-run over a
+            migrated mission writes nothing (``flipped=True,
+            already_migrated=True``).
         would_flip: Dry-run signal — True iff verify passed against the
             current (already-seeded) state, with nothing written. A mission
             that still needs seeding fails verify first (a dry-run writes no
             seeds), so ``would_flip`` never fires for it; the dry-run signal
             for that case is the operator-facing ``would_seed`` (derived from
-            ``seeded_count > 0`` in the CLI layer).
+            ``seeded_count > 0`` in the CLI layer). Like ``flipped`` this is
+            NOT "a live run would write": it stays True for a mission already
+            at snapshot authority (the ``doctor cutover`` verdict rides that,
+            FR-007) — combine with ``already_migrated`` for that question.
         seeded_count: NEW seed events appended this run (0 on an idempotent
             re-run or a dry-run over an already-seeded corpus).
         verify: The fail-closed :class:`VerifyResult`, or ``None`` when the run
@@ -103,6 +118,7 @@ class CutoverResult:
     slug: str
     flipped: bool
     would_flip: bool = False
+    already_migrated: bool = False
     seeded_count: int = 0
     verify: VerifyResult | None = None
     error: str | None = None
@@ -234,6 +250,44 @@ def _resolve_primary_home_or_degrade(feature_dir: Path, *, owned: OwnedMission |
         return None
 
 
+def _flip_target(feature_dir: Path, *, owned: OwnedMission | None = None) -> Path:
+    """Resolve the ONE ``status_phase`` write target (INV-5 / C-003).
+
+    Never ``Path.cwd()`` and never a raw worktree/root alias: the unowned leg
+    canonicalizes (so a worktree-rooted mission dir rewrites to the canonical
+    repo's copy) and the owned leg re-resolves through the owned-mission
+    runtime dir. Shared by :func:`_flip_phase` (the write) and
+    :func:`_already_at_snapshot_authority` (the read-only probe) so the two
+    can never drift to different targets.
+    """
+    if owned is None:
+        canonical: Path = canonicalize_feature_dir(feature_dir)
+        return canonical
+    resolved: Path = _runtime_feature_dir(feature_dir, owned)
+    return resolved
+
+
+def _already_at_snapshot_authority(
+    feature_dir: Path, *, owned: OwnedMission | None = None
+) -> bool:
+    """Read-only probe: is the flip target's ``meta.json`` already authoritative?
+
+    Answers, BEFORE any write, exactly the question :func:`_flip_phase`'s own
+    short-circuit answers after resolving its target — same target
+    (via :func:`_flip_target`), same :func:`_is_snapshot_authority` predicate.
+    Read-tolerant by design (``on_malformed="none"``): this probe must never
+    turn a verdict-bearing read path (the dry-run branch of
+    :func:`cutover_mission`, the ``doctor cutover`` audit behind it) into a
+    crash on a corpus a live run would classify through its own fail-closed
+    seams. ``False`` on a missing/malformed meta is "not yet migrated", which
+    is the truthful pre-write answer.
+    """
+    meta = load_meta(
+        _flip_target(feature_dir, owned=owned), allow_missing=True, on_malformed="none"
+    )
+    return _is_snapshot_authority(meta or {})
+
+
 def _flip_phase(feature_dir: Path, *, owned: OwnedMission | None = None) -> None:
     """Phase 3 — the SOLE ``status_phase`` writer; only reached on an ``ok`` verify.
 
@@ -258,7 +312,7 @@ def _flip_phase(feature_dir: Path, *, owned: OwnedMission | None = None) -> None
         PlacementMismatchError: the port resolved a genuine PRIMARY home that
             disagrees with the write target (fail-closed, FR-001).
     """
-    target = canonicalize_feature_dir(feature_dir) if owned is None else _runtime_feature_dir(feature_dir, owned)
+    target = _flip_target(feature_dir, owned=owned)
     resolved_home = _resolve_primary_home_or_degrade(
         feature_dir, **({"owned": owned} if owned is not None else {}),
     )
@@ -304,6 +358,11 @@ def cutover_mission(
        (the flip is unreachable — NFR-001 / INV-1);
     3. ``dry_run`` returns ``would_flip=verify.ok`` writing nothing;
     4. otherwise flip (:func:`_flip_phase`) and return ``flipped=True``.
+
+    Steps 3–4 additionally record ``already_migrated`` — a read-only probe of
+    whether the mission was already at snapshot authority BEFORE the flip
+    decision (#3212) — so a caller can tell "flipped this run" apart from "the
+    flip's no-write short-circuit" without keying on ``seeded_count``.
 
     Two-target spine (coord-write-placement-closure-01KYCF83 WP09 / IC-08 / T044):
     *feature_dir* is the PRIMARY-partition leg — the legacy frontmatter/``tasks/``
@@ -354,14 +413,6 @@ def cutover_mission(
         seed = _seed_phase(status_dir, read_dir=feature_dir, dry_run=dry_run, **scope)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, error=str(exc))
-    except ProjectLayoutRequiredError:
-        # #3476: a seed write refused because the layout is not cut over must be
-        # a genuine, honest failure on the result — never a bland success. The
-        # backfill library already translates the refusal to an ``error`` result;
-        # this widens the catch for a direct raise that bypasses that seam so the
-        # CLI boundary (``_cutover_failed`` / ``_cutover_detail``) surfaces it.
-        return CutoverResult(slug=slug, flipped=False, error=LAYOUT_REFUSAL_REASON)
-
     slug = seed.slug
     if seed.action == "error":
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=seed.reason)
@@ -374,8 +425,24 @@ def cutover_mission(
     if not verify.ok:
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, verify=verify)
 
+    # #3212: the one bit `flipped`/`seeded_count` cannot express — whether the
+    # mission was ALREADY at snapshot authority when this run reached its flip
+    # decision. Probed once, read-only and write-free, on the shared
+    # dry-run/live path: the CLI's Flipped / Skipped (already migrated)
+    # counters key on it, never on `seeded_count` (seeding and flipping are
+    # independent — a mission with no legacy frontmatter state to seed still
+    # flips).
+    already_migrated = _already_at_snapshot_authority(feature_dir, **scope)
+
     if dry_run:
-        return CutoverResult(slug=slug, flipped=False, would_flip=True, seeded_count=seed.seeded_count, verify=verify)
+        return CutoverResult(
+            slug=slug,
+            flipped=False,
+            would_flip=True,
+            already_migrated=already_migrated,
+            seeded_count=seed.seeded_count,
+            verify=verify,
+        )
 
     try:
         _flip_phase(feature_dir, **scope)
@@ -388,7 +455,13 @@ def cutover_mission(
         # seeded_count=0.
         exc.seeded_count = seed.seeded_count
         raise
-    return CutoverResult(slug=slug, flipped=True, seeded_count=seed.seeded_count, verify=verify)
+    return CutoverResult(
+        slug=slug,
+        flipped=True,
+        already_migrated=already_migrated,
+        seeded_count=seed.seeded_count,
+        verify=verify,
+    )
 
 
 class MissingMissionIdError(RuntimeError):

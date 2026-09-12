@@ -78,6 +78,37 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _SAFE_YAML = YAML(typ="safe")
 
+
+@pytest.mark.parametrize("pointer", [False, True])
+def test_same_version_provisioning_owner_matches_prepared_bytes(tmp_path: Path, pointer: bool) -> None:
+    """Real upgrade helper consumes compiler preparation in both P7 layouts."""
+    from charter.activation.compiler import prepare_mission_type_activations
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+
+    if pointer:
+        target = _write_pointer_charter_project(tmp_path)
+    else:
+        _write_stranded_project(tmp_path)
+        target = tmp_path / ".kittify/config.yaml"
+    authored = target.read_bytes() + b'# keep comment\nunowned:\n  list:\n    - "quoted"\n'
+    target.write_bytes(authored)
+    before = snapshot({"project": tmp_path})
+    prepared = prepare_mission_type_activations(tmp_path)
+    assert prepared.mission_type_activations
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+    _provision_missing_mission_type_activations(tmp_path, dry_run=False)
+
+    assert target.read_bytes() == prepared.write.desired_bytes
+    assert target.read_bytes().startswith(authored)
+    assert {(e.path, e.action) for e in net_delta(before, snapshot({"project": tmp_path}))} == {
+        (".kittify/charter/charter.yaml" if pointer else ".kittify/config.yaml", "update")
+    }
+    after = snapshot({"project": tmp_path})
+    _provision_missing_mission_type_activations(tmp_path, dry_run=False)
+    assert_unchanged(after, snapshot({"project": tmp_path}))
+
+
 _STRANDED_FROM_VERSION = "3.2.0rc37"  # past rc35, never re-selected by get_applicable
 
 
@@ -128,9 +159,7 @@ metadata:
 """
 
 
-def _write_pointer_charter_project(
-    project: Path, *, charter_body: str = _CHARTER_YAML_WITHOUT_KEY
-) -> Path:
+def _write_pointer_charter_project(project: Path, *, charter_body: str = _CHARTER_YAML_WITHOUT_KEY) -> Path:
     """Build a stranded, pointer-based project: ``config.yaml`` -> ``charter.yaml``.
 
     Reuses :func:`_write_stranded_project`'s stranding shape (metadata pinned
@@ -204,9 +233,7 @@ def test_stranded_project_fails_closed_at_the_create_gate(tmp_path: Path) -> Non
 # ---------------------------------------------------------------------------
 
 
-def test_upgrade_heals_stranded_project_and_unblocks_mission_creation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upgrade_heals_stranded_project_and_unblocks_mission_creation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     project = tmp_path / "stranded"
     project.mkdir()
     _write_stranded_project(project)
@@ -233,23 +260,11 @@ def test_upgrade_heals_stranded_project_and_unblocks_mission_creation(
 
     assert existing_mission_types(project) != []
 
-    # create_mission_core's safe_commit refuses a protected destination
-    # (FR-001 removed the swallowed-exception fallback); the project is still
-    # on the protected "main" branch _init_git_repo left it on, so check out
-    # a non-protected feature branch first -- exactly as the product's own
-    # ProtectedBranchRefused message instructs.
-    subprocess.run(
-        ["git", "checkout", "-q", "-b", "feature/healed-mission"],
-        cwd=project,
-        check=True,
-    )
     created = create_mission_core(project, "healed-mission", allow_worktree_context=True)
     assert created.mission_slug.startswith("healed-mission-")
 
 
-def test_upgrade_provisioning_is_idempotent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upgrade_provisioning_is_idempotent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A second real upgrade run leaves the healed activation list untouched."""
     project = tmp_path / "stranded"
     project.mkdir()
@@ -278,9 +293,7 @@ def test_upgrade_provisioning_is_idempotent(
     assert after_second == after_first
 
 
-def test_upgrade_preserves_authored_empty_activation_list(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upgrade_preserves_authored_empty_activation_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An authored empty list is a deliberate zero-types state, not a gap to heal."""
     project = tmp_path / "stranded"
     project.mkdir()
@@ -312,9 +325,7 @@ def test_upgrade_preserves_authored_empty_activation_list(
 # ---------------------------------------------------------------------------
 
 
-def test_upgrade_heals_pointer_charter_activation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upgrade_heals_pointer_charter_activation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A pointer-based project's activations land in charter.yaml, not config.yaml."""
     project = tmp_path / "pointer-project"
     project.mkdir()
@@ -348,9 +359,7 @@ def test_upgrade_heals_pointer_charter_activation(
     assert existing_mission_types(project) != []
 
 
-def test_upgrade_preserves_authored_empty_pointer_activation_and_previews_not_pending(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upgrade_preserves_authored_empty_pointer_activation_and_previews_not_pending(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An authored-empty pointer list is a no-op, AND never previewed as pending.
 
     Pins the T003 predicate-basis hazard the post-tasks squad flagged: keying
@@ -429,9 +438,7 @@ def test_provision_helper_is_noop_during_dry_run(tmp_path: Path) -> None:
     assert "mission_type_activations" not in config_data
 
 
-def test_provision_helper_surfaces_missing_default_pack_as_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_provision_helper_surfaces_missing_default_pack_as_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A broken shipped default pack surfaces as a helper error, not a crash.
 
     WP01 (#3282) re-routed the helper through
@@ -446,9 +453,7 @@ def test_provision_helper_surfaces_missing_default_pack_as_error(
     def _raise_missing(*args: object, **kwargs: object) -> list[str]:
         raise CharterPackConfigError("shipped default.yaml declares no mission_type_activations list")
 
-    monkeypatch.setattr(
-        "charter.activation.compiler.load_default_mission_type_activations", _raise_missing
-    )
+    monkeypatch.setattr("charter.activation.compiler.load_default_mission_type_activations", _raise_missing)
 
     project = tmp_path / "project"
     project.mkdir()

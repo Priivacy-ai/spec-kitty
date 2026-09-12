@@ -52,9 +52,7 @@ class GateDecision:
     base_ref: str | None = None
 
 
-def resolve_lane_base_ref(
-    main_repo_root: Path, mission_slug: str, manifest: object
-) -> str:
+def resolve_lane_base_ref(main_repo_root: Path, mission_slug: str, manifest: object) -> str:
     """The ref the lane was parented on -- the base for the commit gate.
 
     Uses the canonical placement authority (``resolve_placement_only``) -- the
@@ -74,49 +72,14 @@ def resolve_lane_base_ref(
         # base-ref read under coord topology: STATUS_STATE keeps the coord ref;
         # a primary kind would read the primary ref and corrupt the gate's
         # `rev-list <base>..HEAD` ancestry check.
-        return str(
-            resolve_placement_only(
-                main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
-            ).ref
-        )
+        return str(resolve_placement_only(main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref)
     except ActionContextError:
         from specify_cli.core.git_ops import resolve_primary_branch
 
-        return str(
-            getattr(manifest, "mission_branch", "")
-            or resolve_primary_branch(main_repo_root)
-        )
+        return str(getattr(manifest, "mission_branch", "") or resolve_primary_branch(main_repo_root))
 
 
-def _recorded_honored_base(
-    main_repo_root: Path, mission_slug: str, lane_id: str,
-) -> str | None:
-    """The lane's recorded honored-base provenance (FR-011), or ``None``.
-
-    ``create_lane_workspace`` (implement_support.py) records the ACTUAL
-    parent a lane was allocated on -- ``base`` when ``--base`` was supplied,
-    else the topology parent the allocator used (``coordination_branch`` for
-    coord, ``mission_branch`` for legacy) -- into ``WorkspaceContext.base_branch``.
-    Reading it here lets the gate measure against whatever the lane was
-    ACTUALLY parented on (operator ruling, C-004) instead of re-deriving a
-    topology guess that can disagree with a lane created via an explicit
-    ``--base``. ``None`` when no context file exists yet (e.g. the lane has
-    not been allocated) -- callers fall back to :func:`resolve_lane_base_ref`.
-    """
-    from specify_cli.lanes.branch_naming import worktree_dir_name
-    from specify_cli.workspace.context import load_context
-
-    workspace_name = worktree_dir_name(mission_slug, mission_id=None, lane_id=lane_id)
-    context = load_context(main_repo_root, workspace_name)
-    if context is None or not context.base_branch:
-        return None
-    recorded_base_branch: str = context.base_branch
-    return recorded_base_branch
-
-
-def _resolve_lane(
-    main_repo_root: Path, mission_slug: str, wp_id: str
-) -> tuple[LanesManifest, ExecutionLane] | None:
+def _resolve_lane(main_repo_root: Path, mission_slug: str, wp_id: str) -> tuple[LanesManifest, ExecutionLane] | None:
     """Resolve ``(manifest, lane)`` for ``wp_id``, or ``None`` when gate-exempt.
 
     ``None`` means the gate does not apply: no ``lanes.json`` (legacy / non-lane
@@ -131,9 +94,7 @@ def _resolve_lane(
 
     from .persistence import read_lanes_json
 
-    planning_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    planning_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     manifest = read_lanes_json(planning_dir)
     lane = manifest.lane_for_wp(wp_id) if manifest is not None else None
     if manifest is None or lane is None:
@@ -169,15 +130,7 @@ def evaluate_for_review_gate(
 
     lane_id = lane.lane_id
     worktree, lane_branch = predict_lane_worktree(main_repo_root, mission_slug, lane_id)
-    # FR-011 / C-004 (operator ruling): prefer the lane's recorded honored
-    # base -- what the lane was ACTUALLY parented on, including an explicit
-    # --base -- over the topology guess. A default no-base coord lane
-    # records coordination_branch as its honored base (implement_support.py),
-    # so this is a no-regression pin, not a special case: coord is simply the
-    # default value of the uniform "actual honored parent" SSOT.
-    base_ref = _recorded_honored_base(main_repo_root, mission_slug, lane_id)
-    if base_ref is None:
-        base_ref = resolve_lane_base_ref(main_repo_root, mission_slug, manifest)
+    base_ref = resolve_lane_base_ref(main_repo_root, mission_slug, manifest)
 
     from ._git import lane_has_commit_beyond_base
 

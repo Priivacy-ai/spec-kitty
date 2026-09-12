@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import pytest
 
 from tests._factories import provision_test_charter
+from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
@@ -121,8 +122,7 @@ class TestRuntimeTemplateKey:
         project_dir.mkdir(parents=True)
         project_yaml = project_dir / "mission-runtime.yaml"
         project_yaml.write_text(
-            "mission:\n  key: software-dev\n  name: software-dev\n  version: '9.9.9'\n"
-            "steps:\n  - id: x\n    title: x\n",
+            "mission:\n  key: software-dev\n  name: software-dev\n  version: '9.9.9'\nsteps:\n  - id: x\n    title: x\n",
             encoding="utf-8",
         )
 
@@ -243,9 +243,9 @@ class TestWorkflowRuntimeTemplate:
         from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: runtime_bridge._BufferingRuntimeEmitter()),
+            runtime_bridge,
+            "runtime_emitter_for_mission",
+            lambda **_: runtime_bridge._BufferingRuntimeEmitter(),
         )
 
         runtime_bridge.decide_next_via_runtime(
@@ -391,8 +391,11 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        assert "042-test-feature" in index
-        assert "run_id" in index["042-test-feature"]
+        # WP05 / FR-016 (C-003): the index is keyed by mission_id; a mission
+        # without one (this scaffold's meta.json) lands under ``legacy-<slug>``
+        # and the bare slug is never a key.
+        assert set(index) == {"legacy-042-test-feature"}
+        assert "run_id" in index["legacy-042-test-feature"]
 
     def test_feature_runs_index_includes_mission_id_and_slug(self, tmp_path: Path) -> None:
         """FR-028: feature-runs.json entries must include mission_id and mission_slug (WP06)."""
@@ -402,8 +405,8 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        entry = index["042-test-feature"]
-        # mission_slug must always be present and match the key
+        entry = index["legacy-042-test-feature"]
+        # mission_slug is display-only (WP05) but must always be present
         assert entry.get("mission_slug") == "042-test-feature"
         # mission_id may be None when no meta.json exists, but the key must be present
         assert "mission_id" in entry
@@ -607,11 +610,7 @@ class TestAnswerDecisionViaRuntime:
 
         monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
         monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type: fake_run_ref)
-        monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: FakeEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: FakeEmitter())
 
         provided: list[tuple[object, str, str, object, object]] = []
 
@@ -704,12 +703,7 @@ class TestTasksMarkdownParsing:
     def test_parse_wp_sections_preserves_same_line_suffix(self) -> None:
         from runtime.next.runtime_bridge import _parse_wp_sections_from_tasks_md
 
-        tasks_md = (
-            "## Work Package WP01: Build parser\n"
-            "Requirements Refs: FR-001, NFR-002\n"
-            "### WP02\n"
-            "Requirements: FR-003\n"
-        )
+        tasks_md = "## Work Package WP01: Build parser\nRequirements Refs: FR-001, NFR-002\n### WP02\nRequirements: FR-003\n"
 
         sections = _parse_wp_sections_from_tasks_md(tasks_md)
 
@@ -720,47 +714,41 @@ class TestTasksMarkdownParsing:
     def test_parse_wp_sections_accepts_legacy_work_package_spacing(self) -> None:
         from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
-        tasks_md = (
-            "## Work Package    WP01: Build parser\n"
-            "Requirements Refs: FR-001, NFR-002\n"
-        )
+        tasks_md = "## Work Package    WP01: Build parser\nRequirements Refs: FR-001, NFR-002\n"
 
-        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
-            "WP01": ["FR-001", "NFR-002"]
-        }
+        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": ["FR-001", "NFR-002"]}
 
     def test_parse_requirement_refs_supports_heading_bullet_format(self) -> None:
         from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
-        tasks_md = (
-            "## Work Package WP01: Build parser\n"
-            "### Requirement Refs\n"
-            "- FR-001, nfr-002\n"
-        )
+        tasks_md = "## Work Package WP01: Build parser\n### Requirement Refs\n- FR-001, nfr-002\n"
 
-        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
-            "WP01": ["FR-001", "NFR-002"]
-        }
+        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": ["FR-001", "NFR-002"]}
 
-    def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
+    def test_parse_requirement_refs_on_adversarial_input(self) -> None:
+        """Functional half of the #4015 split: parses correctly under adversarial input."""
         from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
         filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
-        tasks_md = (
-            f"{filler}"
-            "## Work Package WP01: Harden parser\n"
-            "Requirements Refs: FR-001, fr-002, C-003\n"
-        )
+        tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
+
+        refs = _parse_requirement_refs_from_tasks_md(tasks_md)
+
+        assert refs == {"WP01": ["FR-001", "FR-002", "C-003"]}
+
+    @pytest.mark.performance
+    def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
+        """#4015 split: regex/backtracking budget on adversarial tasks.md input."""
+        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+        filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
+        tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
 
         start = time.perf_counter()
-        refs = _parse_requirement_refs_from_tasks_md(tasks_md)
+        _parse_requirement_refs_from_tasks_md(tasks_md)
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 0.2, (
-            f"_parse_requirement_refs_from_tasks_md took {elapsed * 1000:.1f} ms on "
-            "adversarial tasks.md input; possible regex/backtracking regression."
-        )
-        assert refs == {"WP01": ["FR-001", "FR-002", "C-003"]}
+        assert_timing_budget(elapsed, 0.2, name="elapsed")
 
 
 # ---------------------------------------------------------------------------
@@ -872,15 +860,7 @@ class TestFullLoop:
         from runtime.next import runtime_bridge
         from runtime.next._internal_runtime.events import NullEmitter
 
-        class LocalOnlyEmitter(NullEmitter):
-            def seed_from_snapshot(self, *_args, **_kwargs) -> None:
-                return None
-
-        monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: LocalOnlyEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
 
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
@@ -902,8 +882,7 @@ class TestFullLoop:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\n"
-            "requirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
+            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\nrequirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
             encoding="utf-8",
         )
         # Seed event log so runtime bridge reads WP01 as done
@@ -1028,6 +1007,28 @@ class TestWPStepHelpers:
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
 
+    def test_unknown_reduced_lane_blocks_instead_of_raising(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        feature_dir = tmp_path / "feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01 task\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next import runtime_bridge
+        from runtime.next import committed_authority
+
+        monkeypatch.setattr(runtime_bridge, "get_all_wp_snapshots", lambda _: {"WP01": {"lane": "unknown"}})
+        monkeypatch.setattr(
+            committed_authority,
+            "wp_ending",
+            lambda *_: SimpleNamespace(lane="unknown", reason_source=None),
+        )
+        assert runtime_bridge._count_wp_endings(feature_dir)[1] == 0
+        assert runtime_bridge._should_advance_wp_step("implement", feature_dir) is False
+
 
 # ---------------------------------------------------------------------------
 # Atomic task step tests
@@ -1095,13 +1096,7 @@ class TestAtomicTaskSteps:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: WP01\n"
-            "requirement_refs:\n"
-            "  - FR-001\n"
-            "---\n"
-            "# WP01\n",
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs:\n  - FR-001\n---\n# WP01\n",
             encoding="utf-8",
         )
 
@@ -1185,9 +1180,7 @@ class TestAtomicTaskSteps:
         assert any("WP*.md" in f for f in failures), failures
 
     @pytest.mark.git_repo
-    def test_composed_tasks_finalize_guard_blocks_bare_prose_requirements_with_unrelated_wp_files(
-        self, tmp_path: Path
-    ) -> None:
+    def test_composed_tasks_finalize_guard_blocks_bare_prose_requirements_with_unrelated_wp_files(self, tmp_path: Path) -> None:
         """Story 3 config (b): >=1 WP file exists, referencing only the
         correctly-declared NFR-001 -- NOT the bare-prose FR-001/FR-002 (those
         ids were never offered by map-requirements, since they are
@@ -1203,8 +1196,7 @@ class TestAtomicTaskSteps:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\nwork_package_id: WP01\ntitle: WP01\ndependencies: []\n"
-            "requirement_refs: [NFR-001]\n---\n# WP01\n",
+            "---\nwork_package_id: WP01\ntitle: WP01\ndependencies: []\nrequirement_refs: [NFR-001]\n---\n# WP01\n",
             encoding="utf-8",
         )
 
@@ -1403,9 +1395,7 @@ class TestAtomicTaskSteps:
         assert _check_requirement_mapping_ready(feature_dir) == []
 
     @pytest.mark.git_repo
-    def test_requirement_mapping_preflight_wraps_unexpected_errors(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_requirement_mapping_preflight_wraps_unexpected_errors(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Unexpected exceptions during preflight surface as a guard failure, not a crash."""
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -1495,9 +1485,7 @@ class TestAtomicTaskSteps:
     # -----------------------------------------------------------------
 
     @pytest.mark.git_repo
-    def test_requirement_mapping_zero_declared_logs_advisory_while_still_blocking_on_missing_refs(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_requirement_mapping_zero_declared_logs_advisory_while_still_blocking_on_missing_refs(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """spec.md declares NOTHING recognizable (bare, unbulleted, unbolded
         FR-001/FR-002 sentences) and WP01 has no requirement_refs at all --
         the pre-existing missing-refs check already blocks this
@@ -1508,9 +1496,7 @@ class TestAtomicTaskSteps:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         (feature_dir / "spec.md").write_text(
-            "# Spec\n\n"
-            "## Functional Requirements\n\n"
-            "FR-001 must hold. FR-002 too.\n",
+            "# Spec\n\n## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n",
             encoding="utf-8",
         )
         tasks_dir = feature_dir / "tasks"
@@ -1542,10 +1528,7 @@ class TestAtomicTaskSteps:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         (feature_dir / "spec.md").write_text(
-            "# Spec\n\n"
-            "## Overview\n\n"
-            "This mission has no formal functional requirements; it is a small "
-            "documentation-only change.\n",
+            "# Spec\n\n## Overview\n\nThis mission has no formal functional requirements; it is a small documentation-only change.\n",
             encoding="utf-8",
         )
         tasks_dir = feature_dir / "tasks"
@@ -1591,15 +1574,7 @@ class TestAtomicTaskSteps:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: WP01\n"
-            "requirement_refs:\n"
-            "  - FR-001\n"
-            "  - FR-002\n"
-            "  - FR-003\n"
-            "---\n"
-            "# WP01\n",
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs:\n  - FR-001\n  - FR-002\n  - FR-003\n---\n# WP01\n",
             encoding="utf-8",
         )
 
@@ -1615,9 +1590,7 @@ class TestAtomicTaskSteps:
         assert any("FR-021" in f for f in failures), failures
 
     @pytest.mark.git_repo
-    def test_requirement_mapping_mixed_declared_and_bare_prose_now_blocks_per_3396(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_requirement_mapping_mixed_declared_and_bare_prose_now_blocks_per_3396(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """RE-PINNED (operator ruling 2026-08-14): #3396 supersedes #3395's
         advisory-only decision for this exact shape. The F4 finding's own
         repro fixture (bare-prose FR-001/FR-002 alongside a properly
@@ -1645,13 +1618,7 @@ class TestAtomicTaskSteps:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: WP01\n"
-            "requirement_refs:\n"
-            "  - NFR-001\n"
-            "---\n"
-            "# WP01\n",
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs:\n  - NFR-001\n---\n# WP01\n",
             encoding="utf-8",
         )
 
@@ -1790,9 +1757,7 @@ class TestQueryCurrentStateTypedErrorPassthrough:
         # The typed read-path code survives — NOT collapsed to MISSION_NOT_FOUND.
         assert exc_info.value.code == "COORDINATION_BRANCH_DELETED"
 
-    def test_genuinely_missing_mission_collapses_to_mission_not_found(
-        self, monkeypatch, tmp_path: Path
-    ) -> None:
+    def test_genuinely_missing_mission_collapses_to_mission_not_found(self, monkeypatch, tmp_path: Path) -> None:
         import mission_runtime
         from mission_runtime import ActionContextError
         from runtime.next.runtime_bridge import MissionNotFoundError, query_current_state
@@ -1842,23 +1807,17 @@ class TestOwnedCoordWorkspaceRetry:
                 cls.calls += 1
                 return expected
 
-        result = _resolve_owned_coordination_workspace(
-            _Workspace, tmp_path, "happy-path-01KZTEST", "01KZTEST"
-        )
+        result = _resolve_owned_coordination_workspace(_Workspace, tmp_path, "happy-path-01KZTEST", "01KZTEST")
 
         assert result == expected
         assert _Workspace.calls == 1
 
-    def test_permanent_git_error_reraises_immediately(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_permanent_git_error_reraises_immediately(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """A permanent (non-lock) git failure is re-raised on the first
         attempt, never retry-masked."""
         from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
 
-        permanent = subprocess.CalledProcessError(
-            128, ["git", "worktree", "add"], stderr="fatal: permanent worktree failure"
-        )
+        permanent = subprocess.CalledProcessError(128, ["git", "worktree", "add"], stderr="fatal: permanent worktree failure")
 
         class _PermanentlyBrokenWorkspace:
             calls = 0
@@ -1870,15 +1829,11 @@ class TestOwnedCoordWorkspaceRetry:
 
         monkeypatch.setattr(time, "sleep", lambda _seconds: None)
         with pytest.raises(subprocess.CalledProcessError) as raised:
-            _resolve_owned_coordination_workspace(
-                _PermanentlyBrokenWorkspace, tmp_path, "permanent-failure-01KZTEST", "01KZTEST"
-            )
+            _resolve_owned_coordination_workspace(_PermanentlyBrokenWorkspace, tmp_path, "permanent-failure-01KZTEST", "01KZTEST")
         assert raised.value is permanent
         assert _PermanentlyBrokenWorkspace.calls == 1
 
-    def test_permission_denied_lock_wording_is_never_retried(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_permission_denied_lock_wording_is_never_retried(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Lock wording alone cannot make a permanent permission error
         retryable — the classifier requires the SPECIFIC known contention
         diagnostics, not any mention of ``.lock``."""
@@ -1900,15 +1855,11 @@ class TestOwnedCoordWorkspaceRetry:
 
         monkeypatch.setattr(time, "sleep", lambda _seconds: None)
         with pytest.raises(subprocess.CalledProcessError) as raised:
-            _resolve_owned_coordination_workspace(
-                _PermissionDeniedWorkspace, tmp_path, "permission-denied-01KZTEST", "01KZTEST"
-            )
+            _resolve_owned_coordination_workspace(_PermissionDeniedWorkspace, tmp_path, "permission-denied-01KZTEST", "01KZTEST")
         assert raised.value is permission_denied
         assert _PermissionDeniedWorkspace.calls == 1
 
-    def test_known_git_lock_contention_recovers_within_bound(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_known_git_lock_contention_recovers_within_bound(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Known ``config.lock`` contention retries and recovers within the
         fixed 20-attempt bound."""
         from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
@@ -1930,16 +1881,12 @@ class TestOwnedCoordWorkspaceRetry:
                 return expected
 
         monkeypatch.setattr(time, "sleep", lambda _seconds: None)
-        result = _resolve_owned_coordination_workspace(
-            _TransientWorkspace, tmp_path, "transient-contention-01KZTEST", "01KZTEST"
-        )
+        result = _resolve_owned_coordination_workspace(_TransientWorkspace, tmp_path, "transient-contention-01KZTEST", "01KZTEST")
 
         assert result == expected
         assert _TransientWorkspace.calls == 3
 
-    def test_persistent_contention_reraises_the_exact_error_after_bound(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_persistent_contention_reraises_the_exact_error_after_bound(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Persistent recognized contention keeps its terminal exception
         identity after exhausting all 20 attempts — never silently swallowed."""
         from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
@@ -1977,9 +1924,7 @@ class TestIsTransientGitWorktreeContention:
     def test_non_128_returncode_is_never_transient(self) -> None:
         from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
 
-        exc = subprocess.CalledProcessError(
-            1, ["git", "worktree", "add"], stderr="fatal: unrelated failure"
-        )
+        exc = subprocess.CalledProcessError(1, ["git", "worktree", "add"], stderr="fatal: unrelated failure")
         assert _is_transient_git_worktree_contention(exc) is False
 
     @pytest.mark.parametrize(
@@ -1987,8 +1932,7 @@ class TestIsTransientGitWorktreeContention:
         [
             "fatal: Unable to create '/repo/.git/config.lock': File exists.",
             "fatal: could not lock config file .git/config: File exists",
-            "fatal: another git process seems to be running in this "
-            "repository; lock held",
+            "fatal: another git process seems to be running in this repository; lock held",
         ],
         ids=[
             "config-lock-file-exists",
@@ -2005,9 +1949,7 @@ class TestIsTransientGitWorktreeContention:
     def test_returncode_128_with_unrelated_message_is_not_transient(self) -> None:
         from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
 
-        exc = subprocess.CalledProcessError(
-            128, ["git", "worktree", "add"], stderr="fatal: not a git repository"
-        )
+        exc = subprocess.CalledProcessError(128, ["git", "worktree", "add"], stderr="fatal: not a git repository")
         assert _is_transient_git_worktree_contention(exc) is False
 
 
@@ -2016,9 +1958,7 @@ class TestMissionRoutesThroughCoordinationOwnedCheckout:
     reads the stored topology off ``mission_context_for(effective_root=...)``
     instead of the primary-folding ``placement_seam``."""
 
-    def test_owned_checkout_reads_topology_via_mission_context_for(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_owned_checkout_reads_topology_via_mission_context_for(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         import mission_runtime
         from mission_runtime import MissionArtifactKind
         from runtime.next.runtime_bridge import _mission_routes_through_coordination
@@ -2055,9 +1995,7 @@ class TestMissionRoutesThroughCoordinationOwnedCheckout:
         owned_root = tmp_path / "owned-checkout"
         decoy_repo_root = tmp_path / "decoy-primary-never-read"
 
-        result = _mission_routes_through_coordination(
-            "owned-mission", decoy_repo_root, effective_root=owned_root
-        )
+        result = _mission_routes_through_coordination("owned-mission", decoy_repo_root, effective_root=owned_root)
 
         assert result is True
         assert calls == [(decoy_repo_root, "owned-mission", owned_root)]
@@ -2095,25 +2033,19 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
                 assert kind is MissionArtifactKind.PRIMARY_METADATA
                 return _FakeArtifact(read_dir=primary_metadata_dir)
 
-        monkeypatch.setattr(
-            mission_runtime, "mission_context_for", lambda *_a, **_k: _FakeMissionContext()
-        )
+        monkeypatch.setattr(mission_runtime, "mission_context_for", lambda *_a, **_k: _FakeMissionContext())
         monkeypatch.setattr(
             "specify_cli.mission_metadata.resolve_mission_identity",
             lambda _dir: SimpleNamespace(mission_id=mission_id),
         )
 
-    def test_materialized_worktree_root_is_used_as_is(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_materialized_worktree_root_is_used_as_is(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """When the coord worktree candidate already exists on disk, the
         owned fork trusts it directly and never composes a fresh one."""
         from runtime.next import runtime_bridge
         from specify_cli.coordination.workspace import CoordinationWorkspace
 
-        monkeypatch.setattr(
-            runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True
-        )
+        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         primary_metadata_dir = tmp_path / "primary-metadata"
         primary_metadata_dir.mkdir()
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
@@ -2124,30 +2056,21 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
             coordination_branch="kitty/mission-owned-materialized",
             mission_id=mission_id,
         )
-        worktree_root_candidate = CoordinationWorkspace.worktree_path(
-            tmp_path, mission_slug, mission_id[:8]
-        )
+        worktree_root_candidate = CoordinationWorkspace.worktree_path(tmp_path, mission_slug, mission_id[:8])
         worktree_root_candidate.mkdir(parents=True)
 
         def _must_not_run(*_a: object, **_k: object) -> Path:
-            raise AssertionError(
-                "_resolve_owned_coordination_workspace must not run when the "
-                "candidate worktree already exists on disk"
-            )
+            raise AssertionError("_resolve_owned_coordination_workspace must not run when the candidate worktree already exists on disk")
 
         monkeypatch.setattr(runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run)
 
         emitter = SimpleNamespace()
         owned_root = tmp_path / "owned-checkout"
-        wrapped = runtime_bridge._wrap_with_decision_git_log(
-            emitter, mission_slug, tmp_path, effective_root=owned_root
-        )
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, effective_root=owned_root)
 
         assert wrapped._worktree_root == worktree_root_candidate
 
-    def test_unmaterialized_worktree_root_resolves_via_owned_retry_helper(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_unmaterialized_worktree_root_resolves_via_owned_retry_helper(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """When the coord worktree candidate does NOT yet exist, the owned
         fork composes it through ``_resolve_owned_coordination_workspace``
         (the bounded-retry helper) instead of the non-owned
@@ -2155,9 +2078,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         from runtime.next import runtime_bridge
         from specify_cli.coordination.workspace import CoordinationWorkspace
 
-        monkeypatch.setattr(
-            runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True
-        )
+        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         primary_metadata_dir = tmp_path / "primary-metadata"
         primary_metadata_dir.mkdir()
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
@@ -2179,15 +2100,11 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
 
         emitter = SimpleNamespace()
         owned_root = tmp_path / "owned-checkout"
-        wrapped = runtime_bridge._wrap_with_decision_git_log(
-            emitter, mission_slug, tmp_path, effective_root=owned_root
-        )
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, effective_root=owned_root)
 
         assert wrapped._worktree_root == resolved_via_retry_helper
 
-    def test_non_owned_unmaterialized_worktree_root_uses_plain_resolve(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_non_owned_unmaterialized_worktree_root_uses_plain_resolve(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Anti-vacuity / control: WITHOUT ``effective_root`` (the historical,
         non-owned call shape), an unmaterialized coord candidate still goes
         through the plain ``CoordinationWorkspace.resolve`` call -- never the
@@ -2197,9 +2114,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         from runtime.next import runtime_bridge
         from specify_cli.coordination.workspace import CoordinationWorkspace
 
-        monkeypatch.setattr(
-            runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True
-        )
+        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
         mission_slug = "non-owned-unmaterialized-mission"
         monkeypatch.setattr(
@@ -2207,19 +2122,12 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
             "_resolve_coordination_branch",
             lambda *_a, **_k: "kitty/mission-non-owned-unmaterialized",
         )
-        monkeypatch.setattr(
-            runtime_bridge, "_resolve_mission_ulid", lambda *_a, **_k: mission_id
-        )
+        monkeypatch.setattr(runtime_bridge, "_resolve_mission_ulid", lambda *_a, **_k: mission_id)
 
         def _must_not_run(*_a: object, **_k: object) -> Path:
-            raise AssertionError(
-                "_resolve_owned_coordination_workspace must not run without "
-                "effective_root -- that is the owned-checkout-only path"
-            )
+            raise AssertionError("_resolve_owned_coordination_workspace must not run without effective_root -- that is the owned-checkout-only path")
 
-        monkeypatch.setattr(
-            runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run
-        )
+        monkeypatch.setattr(runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run)
         resolved_via_plain_resolve = tmp_path / "resolved-via-plain-resolve"
 
         def _fake_resolve(_cls: object, _root: Path, _slug: str, _mid8: str) -> Path:
@@ -2245,15 +2153,7 @@ class TestDecideNextViaRuntimeOwnedCheckout:
         from runtime.next import runtime_bridge
         from runtime.next._internal_runtime.events import NullEmitter
 
-        class LocalOnlyEmitter(NullEmitter):
-            def seed_from_snapshot(self, *_args: object, **_kwargs: object) -> None:
-                return None
-
-        monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: LocalOnlyEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
 
     def test_owned_checkout_resolves_and_advances_the_mission(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import decide_next_via_runtime

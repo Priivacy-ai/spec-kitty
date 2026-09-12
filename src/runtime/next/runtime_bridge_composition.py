@@ -342,6 +342,7 @@ def _composition_dispatch_inputs(
     patches it), so it is a plain internal helper re-exported into the
     residual (``decide_next_via_runtime`` still calls it bare) — no native
     delegate needed.
+
     """
     try:
         from charter.activation.mission_type_profiles import (  # noqa: PLC0415
@@ -496,7 +497,8 @@ def _check_composed_action_guard(
     T022; relocated here #2531 WP08). On this tolerant composed extension path
     an :class:`~runtime_bridge_cores.UnregisteredMissionFamilyError` is caught,
     logged at WARNING, and degraded to an explicit neutral (empty) result —
-    unlike the legacy CLI path (``_check_cli_guards``), which lets it raise.
+    matching the legacy CLI path (``_check_cli_guards``), which also catches
+    and logs it at WARNING before degrading to an empty result.
 
     Mirrors ``_check_cli_guards`` semantics for the composed actions.
 
@@ -551,6 +553,17 @@ def _check_composed_action_guard(
         # runtime_bridge._should_advance_wp_step is still observed from here.
         from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
+        # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
+        # though repo_root is in scope above for gather_artifact_presence: this
+        # composed-guard path (_dn_composition_dispatch, phase 3 of
+        # decide_next_via_runtime) runs only when _dn_dependency_gate (phase 2)
+        # returned None -- i.e. only AFTER that phase's own anchored
+        # _should_advance_wp_step call (repo_root=repo_root, mission_slug=
+        # mission_slug) already ran for the identical (action, feature_dir) and did
+        # not block (#3884 INT-001). Do not "fix" this by anchoring it here; a
+        # future reorder of decide_next_via_runtime's phase tuple that lets this be
+        # reached with WPs still pending would need a repo_root=/mission_slug=
+        # forward of its own, mirroring _dn_dependency_gate's call.
         snapshot = dataclasses.replace(
             snapshot, wp_advance_ready=_rb._should_advance_wp_step(action, feature_dir)
         )

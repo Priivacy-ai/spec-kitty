@@ -6,7 +6,7 @@ Every CLI-originated line of output routes through the single :data:`console`
 constructs its own ``rich.console.Console`` (see
 ``tests/architectural/test_cli_console_single_seam.py``).
 
-Two invariants motivate the seam (GitHub #2632):
+Three invariants motivate the seam (GitHub #2632 / #701):
 
 * **Machine output is always plain.** ``--json`` payloads are emitted with
   :meth:`CliConsole.emit_json` / :meth:`CliConsole.print_json`, which bypass
@@ -21,17 +21,42 @@ Two invariants motivate the seam (GitHub #2632):
   shared instance — never by mutating ``os.environ`` (env mutation leaks into
   subprocesses and sibling tests). Because every module imports the *same*
   singleton, one ``set_plain`` call neutralises colour everywhere at once.
+
+* **Human text never carries terminal-control bytes.** String renderables are
+  sanitized before Rich markup parsing; nested Rich renderables are sanitized at
+  the segment boundary without removing their styles. Machine JSON bypasses both
+  hooks through :meth:`CliConsole.emit_json` / :meth:`CliConsole.print_json`.
 """
 
 from __future__ import annotations
 
 import json as _json
+import re
 import weakref
+from collections.abc import Iterable
 from typing import IO, Any, ClassVar
 
-from rich.console import Console
+from rich.console import Console, ConsoleOptions, RenderableType
+from rich.segment import Segment
+from rich.text import Text
 
-__all__ = ["CliConsole", "console", "err_console"]
+__all__ = ["CliConsole", "console", "err_console", "sanitize_terminal_text"]
+
+
+_CSI_SEQUENCE = re.compile(r"(?:\x1b\[|\x9b)[0-?]*[ -/]*[@-~]")
+_OSC_SEQUENCE = re.compile(r"(?:\x1b\]|\x9d)[^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c)?")
+_UNSAFE_TERMINAL_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\x9b\x9d]")
+
+
+def sanitize_terminal_text(text: str) -> str:
+    """Make untrusted display text inert before it reaches Rich markup parsing.
+
+    CSI and OSC control sequences are removed as complete sequences. Remaining
+    C0 controls are stripped except tab and newline, so a bare escape byte
+    cannot introduce a terminal sequence after rendering.
+    """
+    without_terminal_sequences = _OSC_SEQUENCE.sub("", _CSI_SEQUENCE.sub("", text))
+    return "".join(character for character in without_terminal_sequences if character in "\t\n" or ord(character) >= 0x20)
 
 
 class CliConsole(Console):
@@ -51,6 +76,25 @@ class CliConsole(Console):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         CliConsole._instances.add(self)
+
+    def render_str(self, text: str, **kwargs: Any) -> Text:
+        """Sanitize human-readable strings before Rich markup parsing."""
+        return super().render_str(sanitize_terminal_text(text), **kwargs)
+
+    def render(
+        self,
+        renderable: RenderableType,
+        options: ConsoleOptions | None = None,
+    ) -> Iterable[Segment]:
+        """Sanitize rendered text in nested Rich objects without dropping styles."""
+        for segment in super().render(renderable, options):
+            if segment.text and _UNSAFE_TERMINAL_CONTROL.search(segment.text):
+                segment = Segment(
+                    sanitize_terminal_text(segment.text),
+                    segment.style,
+                    segment.control,
+                )
+            yield segment
 
     def _write_plain(self, payload: str) -> None:
         out: IO[str] = self.file

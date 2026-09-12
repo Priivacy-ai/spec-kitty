@@ -1,4 +1,0 @@
-ERROR: logged_out_on_connected_teamspace while provisioning the sync fixture; job aborted before tests ran
-Traceback (most recent call last):
-  ...
-logged_out_on_connected_teamspace: connection refused

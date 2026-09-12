@@ -14,7 +14,10 @@ treated as healthy.
 from __future__ import annotations
 
 from collections.abc import Sequence
+import logging
 from pathlib import Path
+from contextlib import AbstractContextManager
+from dataclasses import replace
 
 from ..enums import (
     ActivationMode,
@@ -32,7 +35,8 @@ from ..findings import (
     STALE_GENERATED_SURFACE,
     make_finding,
 )
-from ..model import SurfaceDefinition, SurfaceInstance
+from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
+from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, Disposition, InputObservation, OwnerApplyResult, OwnerAssessment
 from ..repair import RepairResult
 from ..status import (
     STATE_MISSING,
@@ -44,6 +48,8 @@ from ..status import (
     _surface_id,
 )
 from ._registry import SurfaceProviderRegistry, SurfaceRegistration
+
+logger = logging.getLogger(__name__)
 
 PROVIDER_KEY = "slash_commands"
 _PATH_PATTERN = "<user-global>/spec-kitty.{command}"
@@ -70,8 +76,96 @@ class SlashCommandsProvider:
 
     provider_key = PROVIDER_KEY
 
+    def assess(
+        self,
+        inputs: AssessmentInputs,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        selections: tuple[SurfaceSelection, ...],
+    ) -> OwnerAssessment:
+        """Delegate canonical selection, including empty expansion, to runtime."""
+        from specify_cli.core.config import AGENT_COMMAND_CONFIG
+        from specify_cli.runtime.agent_commands import assess_global_agent_commands
+
+        enabled = tuple(s for s in selections if s.definition.activation_mode != ActivationMode.DISABLED)
+        keys = sorted({s.tool_key for s in enabled if s.tool_key in AGENT_COMMAND_CONFIG})
+        if not keys:
+            return OwnerAssessment(
+                PROVIDER_KEY,
+                inputs.root,
+                dispositions=(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", "No enabled command-file adapter selected"),),
+            )
+        assessment = assess_global_agent_commands(agent_keys=keys, consent=inputs.consent)
+        effects = tuple(
+            replace(effect, surface_ids=tuple(_surface_id(s.instance) for s in statuses if s.instance.owner in effect.logical_owners))
+            for effect in assessment.effects
+        )
+        return replace(
+            assessment,
+            root=inputs.root,
+            effects=effects,
+            inputs_fingerprint=assessment.inputs_fingerprint
+            + (
+                InputObservation("caller_inputs", inputs),
+                InputObservation("selections", selections),
+                InputObservation("provider_instances", tuple((s.instance, s.state) for s in statuses)),
+            ),
+        )
+
+    def recheck(self, assessment: OwnerAssessment) -> AbstractContextManager[tuple[Diagnostic, ...]]:
+        """Hold the runtime owner's lock over whole-batch validation and apply."""
+        from specify_cli.runtime.asset_preparation import recheck_assets
+
+        return recheck_assets(assessment)
+
+    def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+        """Apply retained global bytes, converging on a concurrent peer's own materialization.
+
+        #4174 landing-pass: dispatched through ``tool_surface/repair.py``'s
+        generic ``_apply_assessment`` (via ``SurfaceRepairService``), which
+        calls ``recheck()`` then this method on the SAME stale *assessment*
+        -- there was no re-assess seam here either, so two independent,
+        concurrent repair-service invocations racing the same cold home
+        reproduced the identical residual symptom the other #4174 external
+        callers had: a ``global_asset_write_failed: File exists`` when the
+        winner already materialized the tree.
+
+        The rebuild is derived purely from *assessment*'s OWN effects
+        (``logical_owners``, set by ``assess()`` from the selected agent
+        keys) -- this method never receives the original ``inputs`` /
+        ``selections`` ``assess()`` used, so it cannot call that directly.
+        """
+        from specify_cli.runtime.agent_commands import assess_global_agent_commands
+        from specify_cli.runtime.asset_preparation import apply_assets, apply_with_reassess
+
+        if not assessment.effects:
+            return apply_assets(assessment, explicit_consent)
+        keys = sorted({owner for effect in assessment.effects for owner in effect.logical_owners})
+
+        def _rebuild() -> OwnerAssessment:
+            return assess_global_agent_commands(agent_keys=keys, consent=assessment.consent)
+
+        result = apply_with_reassess(
+            assessment,
+            _rebuild,
+            explicit_consent,
+            converged_log_message="global slash commands already materialized by a concurrent peer; nothing applied.",
+            logger=logger,
+        )
+        if result.outcome == "skipped":
+            # asset_preparation.apply_with_reassess's converged-no-op branch
+            # reports no ids at all (fine for the ensure_*() owners it was
+            # extracted from). repair.py's _apply_assessment enforces a
+            # stricter contract than those direct-call owners: every id in
+            # the ORIGINAL assessment's effects must be reported in the
+            # OwnerApplyResult, or it downgrades to a failed
+            # "unreported_effects" diagnostic. Remap the converged result to
+            # report those original ids as skipped.
+            return replace(result, skipped=tuple(effect.id for effect in assessment.effects))
+        return result
+
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == ToolSurfaceKind.COMMAND_FILE
+        return bool(definition.kind == ToolSurfaceKind.COMMAND_FILE)
 
     def expand(
         self,
@@ -88,9 +182,7 @@ class SlashCommandsProvider:
         return self._command_instances(definition, tool_key)
 
     @staticmethod
-    def _research_gap_instance(
-        definition: SurfaceDefinition, tool_key: str
-    ) -> SurfaceInstance:
+    def _research_gap_instance(definition: SurfaceDefinition, tool_key: str) -> SurfaceInstance:
         return SurfaceInstance(
             definition=definition,
             path=Path(_RESEARCH_GAP_SENTINEL),
@@ -100,9 +192,7 @@ class SlashCommandsProvider:
         )
 
     @staticmethod
-    def _command_instances(
-        definition: SurfaceDefinition, tool_key: str
-    ) -> list[SurfaceInstance]:
+    def _command_instances(definition: SurfaceDefinition, tool_key: str) -> list[SurfaceInstance]:
         from specify_cli.runtime.agent_commands import (
             _compute_output_filename,
             get_global_command_dir,
@@ -146,11 +236,7 @@ class SlashCommandsProvider:
         from specify_cli.runtime.bootstrap import _get_cli_version
 
         try:
-            head = "\n".join(
-                path.read_text(encoding="utf-8", errors="replace").splitlines()[
-                    :_VERSION_MARKER_HEAD_LINES
-                ]
-            )
+            head = "\n".join(path.read_text(encoding="utf-8", errors="replace").splitlines()[:_VERSION_MARKER_HEAD_LINES])
         except OSError:
             return False
         return f"{_VERSION_MARKER_PREFIX} {_get_cli_version()}" not in head
@@ -226,16 +312,10 @@ class SlashCommandsProvider:
     ) -> RepairResult:
         """Regenerate user-global slash commands for affected agents."""
         _ = project_root  # slash commands are user-global; project root unused
-        actionable = [
-            s for s in statuses if s.state in (STATE_MISSING, STATE_STALE)
-        ]
+        actionable = [s for s in statuses if s.state in (STATE_MISSING, STATE_STALE)]
         if not actionable:
             return RepairResult(dry_run=dry_run)
-        skipped = tuple(
-            _surface_id(s.instance)
-            for s in statuses
-            if s.state == STATE_UNSUPPORTED
-        )
+        skipped = tuple(_surface_id(s.instance) for s in statuses if s.state == STATE_UNSUPPORTED)
         if dry_run:
             return RepairResult(
                 repaired=tuple(_surface_id(s.instance) for s in actionable),
@@ -257,11 +337,7 @@ class SlashCommandsProvider:
         for agent in agents:
             try:
                 ensure_global_agent_commands(agent_keys=[agent])
-                repaired.extend(
-                    _surface_id(s.instance)
-                    for s in actionable
-                    if s.instance.owner == agent
-                )
+                repaired.extend(_surface_id(s.instance) for s in actionable if s.instance.owner == agent)
             except Exception as exc:  # surfaced as a failure, never swallowed
                 failed.append(f"{agent}: {exc}")
         return RepairResult(

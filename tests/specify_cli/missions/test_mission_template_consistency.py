@@ -7,16 +7,16 @@ ways:
 1. **Composition-driven** -- the step's action is dispatched through
    ``StepContractExecutor`` composition (via ``charter.resolve_mission_type_context``).
    These steps never read a file from ``command-templates/``; the built-in step
-   contracts under ``src/doctrine/missions/built_in_step_contracts/`` are
+   contracts under ``src/charter/offering/missions/built_in_step_contracts/`` are
    authoritative, and prompt templates live under
-   ``src/doctrine/missions/mission-steps/{mission}/{step}/prompt.md``.
+   ``src/charter/offering/missions/mission-steps/{mission}/{step}/prompt.md``.
 2. **Legacy CLI-driven** -- the step's action falls through to
    ``prompt_builder._build_template_prompt`` which calls
    ``resolve_command(f"{action}.md", ..., mission=<mission>)``.
 
 FR-010 (charter-doctrine-mission-type-configuration-01KSWJVX): all command
 templates were migrated verbatim from ``src/specify_cli/missions/*/command-templates/``
-to ``src/doctrine/missions/mission-steps/``. The old ``command-templates/``
+to ``src/charter/offering/missions/mission-steps/``. The old ``command-templates/``
 directories are deleted. The upgrade migration pipeline (which deploys agent
 command files) is rewired to the new doctrine path. The ``spec-kitty next``
 runtime resolver for non-composed steps is a known follow-up tracked separately.
@@ -64,14 +64,14 @@ KNOWN_CLI_DRIVEN: dict[tuple[str, str], str] = {
     # follow-up tracked separately.
     ("software-dev", "accept.md"): (
         "FR-010: command-templates/ deleted; accept template is in "
-        "src/doctrine/missions/mission-steps/software-dev/accept/prompt.md. "
+        "src/charter/offering/missions/mission-steps/software-dev/accept/prompt.md. "
         "Runtime resolver wiring (non-composed path) is a follow-up."
     ),
     # FR-010 migration: discovery step references research.md; template now
     # lives in doctrine (software-dev/research/prompt.md).
     ("software-dev", "research.md"): (
         "FR-010: command-templates/ deleted; discovery step's research.md "
-        "template is in src/doctrine/missions/mission-steps/software-dev/research/prompt.md. "
+        "template is in src/charter/offering/missions/mission-steps/software-dev/research/prompt.md. "
         "Runtime resolver wiring (non-composed path) is a follow-up."
     ),
 }
@@ -104,8 +104,8 @@ def test_every_prompt_template_is_resolvable(mission_dir: Path) -> None:
     """Each step's ``prompt_template`` is composed, in doctrine, or allow-listed.
 
     After FR-010 migration (WP02), ``command-templates/`` directories are
-    deleted and templates live under ``src/doctrine/missions/mission-steps/``.
-    Composition-driven steps read from doctrine via StepContractExecutor.
+    deleted and templates live under ``src/charter/offering/missions/mission-steps/``.
+    Composition-driven steps read from charter.offering via StepContractExecutor.
     Non-composed steps that are allow-listed in KNOWN_CLI_DRIVEN are documented
     known gaps where runtime resolver wiring is a follow-up.
     """
@@ -151,7 +151,7 @@ def test_software_dev_accept_template_in_doctrine() -> None:
 
     FR-010 (charter-doctrine-mission-type-configuration-01KSWJVX) moved all
     command templates from ``src/specify_cli/missions/*/command-templates/`` to
-    ``src/doctrine/missions/mission-steps/``. The ``accept`` step's template
+    ``src/charter/offering/missions/mission-steps/``. The ``accept`` step's template
     must be present at the new location so no content is silently lost.
     """
     accept_template = _DOCTRINE_STEPS_ROOT / "software-dev" / "accept" / "prompt.md"

@@ -19,7 +19,7 @@ instances directly), every test here drives the **real** on-disk pipeline:
    ``assets/*.asset.yaml`` sidecar) from
    ``tests/doctrine/fixtures/org_pack_template_asset/``.
 2. :func:`charter.offering.drg.merge.merge_three_layers` merges the loaded fragment(s)
-   onto the **real, shipped** built-in DRG (``src/doctrine/graph.yaml``, not a
+   onto the **real, shipped** built-in DRG (``src/charter/offering/graph.yaml``, not a
    synthetic stub) — the strongest available proof that the two kinds compose
    correctly with the full built-in node/edge set.
 3. :func:`charter.offering.drg.query.resolve_transitive_refs` walks the merged graph.

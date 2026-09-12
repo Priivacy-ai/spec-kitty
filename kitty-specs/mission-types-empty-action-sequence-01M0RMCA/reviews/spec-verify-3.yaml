@@ -1,7 +1,0 @@
-schema: review-verify/v1
-complete: true
-phase: spec
-results:
-  - id: SPEC-FRESH2-001
-    status: resolved
-    reason: FR-001 now types pack_context as `_PackContextLike | None = None` citing the existing Protocol at mission_type_repository.py:412 and the doctrine-charter layering rule, matches the actual code (line 12 imports _PackContextLike not PackContext, line 412 already uses _PackContextLike | None), does not cite or conflate with C-004 (unrelated template_set scope note), and the diff is a single-line change confined to the FR-001 row.

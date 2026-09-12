@@ -1,6 +1,6 @@
 ---
 title: 'Recovery: --start-branch Coordination Divergence'
-description: 'Recovery when agent mission create --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim.'
+description: 'Recovery when agent mission create <mission_slug> --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim.'
 doc_status: active
 updated: '2026-08-15'
 related:
@@ -16,7 +16,7 @@ conflict on `lanes.json`, even after re-finalizing tasks.
 
 ## Why this happens
 
-`spec-kitty agent mission create --start-branch <start-branch>` (pr-bound) plus
+`spec-kitty agent mission create <mission_slug> --start-branch <start-branch>` (pr-bound) plus
 coord topology produces a coordination branch (`kitty/mission-<slug>`) that
 does **not** contain the primary planning commit: coord branches from the
 old base and gets its own planning snapshot, while spec/plan/tasks and

@@ -120,8 +120,6 @@ from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_w
 from specify_cli.mission_metadata import resolve_mission_identity
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
-from specify_cli.sync.events import emit_diff_summary_recorded, emit_mission_closed
-from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 
 _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 
@@ -234,56 +232,6 @@ def _restore_regressed_gate_artifacts(run: _MergeRunState) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(original)
         run.gate_artifact_restored_paths.append(path)
-
-
-def _emit_merge_diff_summary(
-    *,
-    repo_root: Path,
-    mission_id: str | None,  # WP04/FR-004: ULID or None; legacy missions skip diff emit
-    base_ref: str,
-    head_ref: str = "HEAD",
-    phase_name: str = "accept",
-) -> None:
-    """Emit one mission-level diff summary for the merged mission."""
-    if mission_id is None:
-        # Legacy mission without canonical ULID: skip diff summary emission.
-        return
-    ret, output, _ = run_command(
-        ["git", "diff", "--numstat", f"{base_ref}..{head_ref}"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        return
-
-    files_changed = 0
-    lines_added = 0
-    lines_deleted = 0
-    for line in output.splitlines():
-        parts = line.split("\t", 2)
-        if len(parts) < 2:
-            continue
-        files_changed += 1
-        added_raw, deleted_raw = parts[0], parts[1]
-        if added_raw.isdigit():
-            lines_added += int(added_raw)
-        if deleted_raw.isdigit():
-            lines_deleted += int(deleted_raw)
-
-    if files_changed == 0 and lines_added == 0 and lines_deleted == 0:
-        return
-
-    emit_diff_summary_recorded(
-        mission_id=mission_id,
-        base_ref=base_ref,
-        head_ref=head_ref,
-        files_changed=files_changed,
-        lines_added=lines_added,
-        lines_deleted=lines_deleted,
-        phase_name=phase_name,
-        source="git-numstat",
-    )
 
 
 @dataclass
@@ -1333,14 +1281,7 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
 
 
 def _phase_dossier_and_stale(run: _MergeRunState) -> None:
-    """Dossier sync + stale-assertion advisory scan (failures never abort)."""
-    console.print("  [dim]Syncing dossier state for the merged mission...[/dim]")
-    trigger_feature_dossier_sync_if_enabled(
-        run.feature_dir,
-        run.mission_slug,
-        run.main_repo,
-    )
-
+    """Stale-assertion advisory scan (failures never abort)."""
     console.print("  [dim]Running stale-assertion check...[/dim]")
     try:
         run.stale_report = run_check(
@@ -1683,24 +1624,10 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
 
 
 def _phase_finalize_and_summary(run: _MergeRunState) -> None:
-    """Cleanup workspace + clear state, emit diff summary / mission-closed, render stale findings."""
+    """Cleanup workspace + clear state, render stale findings."""
     # -- T002: Cleanup workspace (preserves state.json) then clear state --
     cleanup_merge_workspace(run.canonical_id, run.main_repo)
     clear_state(run.main_repo, run.canonical_id)
-
-    # WP04/FR-004: use canonical_mission_id (ULID or None) for mission_id event
-    # fields — never canonical_id which may be the slug for legacy missions.
-    _emit_merge_diff_summary(
-        repo_root=run.main_repo,
-        mission_id=run.canonical_mission_id,
-        base_ref=run.target_baseline_sha,
-    )
-
-    emit_mission_closed(
-        mission_slug=run.mission_slug,
-        total_wps=len(run.all_wp_ids),
-        mission_id=run.canonical_mission_id,
-    )
 
     _render_stale_findings(run.stale_report)
 
@@ -2037,5 +1964,4 @@ def _run_lane_based_merge(
 __all__ = [
     "_run_lane_based_merge",
     "_run_lane_based_merge_locked",
-    "_emit_merge_diff_summary",
 ]

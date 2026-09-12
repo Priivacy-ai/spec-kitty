@@ -210,9 +210,12 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
     manifest_path = repo_root / MANIFEST_PATH
     doctrine_root = repo_root / ".kittify" / "doctrine"
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
+    from charter.activation.kind_vocabulary import ArtifactKind, PROJECT_KIND_DIRS
+
     live_artifact_count = sum(
-        len(list((doctrine_root / subdir).glob("*.yaml")))
-        for subdir in ("directive", "tactic", "styleguide")
+        len(list((doctrine_root / PROJECT_KIND_DIRS[kind]).rglob(kind.glob_pattern)))
+        for kind in (ArtifactKind.DIRECTIVE, ArtifactKind.TACTIC, ArtifactKind.STYLEGUIDE,
+                     ArtifactKind.PROCEDURE, ArtifactKind.AGENT_PROFILE)
     )
     live_provenance_count = len(list(provenance_root.glob("*.yaml")))
 

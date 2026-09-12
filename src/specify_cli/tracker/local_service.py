@@ -11,13 +11,22 @@ as the first executable statement of ``sync_pull``/``sync_push``/``sync_run``,
 which in turn reaches the hosted-sync consent chain (Channel 1) as part of its
 two-channel join -- but that consultation is a call into ``egress_verdict.py``,
 never a module-level import of SaaS infrastructure here.
+
+WIRE-M2-01: Beads mutations are built via the local program gateway
+(``tracker/gateway.py``, TRK-M1-04's deny-by-default ``bd`` allow-list) rather
+than ``factory.build_connector``'s ungated default -- see ``_build_engine``.
+``fp`` has no program gateway (the allow-list is ``bd``-argv-specific) and
+keeps using the ungated factory connector.
 """
 
 from __future__ import annotations
 
+import getpass
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from specify_cli.identity.project import derive_project_slug
 from specify_cli.tracker.config import (
     TrackerProjectConfig,
     clear_tracker_config,
@@ -27,6 +36,7 @@ from specify_cli.tracker.config import (
 from specify_cli.tracker.credentials import TrackerCredentialStore
 from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import build_connector, normalize_provider
+from specify_cli.tracker.gateway import TrackerGatewayToken, build_gateway_beads_connector
 from specify_cli.tracker.store import TrackerSqliteStore, default_tracker_db_path
 
 if TYPE_CHECKING:
@@ -40,11 +50,11 @@ if TYPE_CHECKING:
     from specify_cli.tracker.egress_verdict import TrackerEgressVerdict
 
 
-#: This transport's own identifier-set fragment, threaded through
-#: ``tracker_egress_verdict`` into Channel 1 and rendered by the shared refusal template
-#: in ``specify_cli/egress.py``. Bundle B made ``identifiers`` a **required** parameter of
-#: ``project_egress_refusal`` precisely so a transport that never declared what it can put
-#: on the wire cannot render a refusal that quietly names nothing.
+#: This transport's identifier-set declaration, threaded through
+#: ``tracker_egress_verdict``'s required ``identifiers`` parameter so a transport that never
+#: declared what it can put on the wire cannot quietly skip the declaration. (The former
+#: Channel-1 rendering of this fragment lived in the deleted ``specify_cli/egress.py``,
+#: issue #5.)
 #:
 #: What this path actually transmits: the connector invokes the operator's machine-global
 #: executable (``tracker/factory.py`` -- the ``command`` key, defaulting to ``bd``/``fp``)
@@ -366,11 +376,28 @@ class LocalTrackerService:
                 "spec-kitty-tracker is not installed. Install it to use tracker commands."
             ) from exc
 
-        connector = build_connector(
-            provider=str(config.provider),
-            workspace=str(config.workspace),
-            credentials=credentials,
-        )
+        provider_name = normalize_provider(str(config.provider))
+        # WIRE-M2-01: Beads mutations route through the local program gateway
+        # (TRK-M1-04, deny-by-default ``bd`` allow-list) -- never the ungated
+        # factory connector -- so every ``bd`` invocation this engine issues is
+        # attributed to a token-scoped LocalExecutionContext and denied unless
+        # it is on the gateway's allow-list. ``fp`` has no program gateway (the
+        # allow-list is ``bd``-argv-specific, see gateway.py's module
+        # docstring) and keeps using the ungated factory connector; this is the
+        # one remaining call site the egress guard (#3108 G2) pins.
+        if provider_name == "beads":
+            connector, _gateway_runner = build_gateway_beads_connector(
+                token=self._gateway_token(credentials),
+                workspace=str(config.workspace),
+                command=str(credentials.get("command") or "bd"),
+                cwd=str(credentials.get("cwd")) if credentials.get("cwd") else None,
+            )
+        else:
+            connector = build_connector(
+                provider=provider_name,
+                workspace=str(config.workspace),
+                credentials=credentials,
+            )
 
         mode_name = (config.ownership_mode or "external_authoritative").strip().lower()
         if mode_name == OwnershipMode.EXTERNAL_AUTHORITATIVE.value:
@@ -387,6 +414,28 @@ class LocalTrackerService:
 
         engine = SyncEngine(connector=connector, store=store, policy=policy)
         return connector, engine
+
+    def _gateway_token(self, credentials: dict[str, Any]) -> TrackerGatewayToken:
+        """Mint a fresh, repo-broad :class:`TrackerGatewayToken` for a Beads connector.
+
+        Broad (``mission_id``/``task_id`` unset): this service syncs the whole
+        repo's tracker binding, not one mission/task, so a narrow token would
+        make every call a scope violation (``TrackerGatewayToken.covers``'s
+        fail-closed contract). ``actor`` follows the same
+        ``credentials``-override-else-``getpass.getuser()`` convention as
+        ``factory.build_connector``'s ``command``/``cwd`` keys (and
+        ``cli/commands/zeitgeist.py``'s ``_resolve_actor``) -- set
+        ``--credential actor=<name>`` on ``tracker bind`` to override.
+        ``repository`` is the project's own identity (``derive_project_slug``,
+        the same derivation ``ProjectIdentity`` uses), not the Beads
+        ``workspace`` -- those are different scoping dimensions (workspace is
+        the tracker-side project; repository is this checkout).
+        """
+        return TrackerGatewayToken(
+            token=uuid.uuid4().hex,
+            actor=str(credentials.get("actor") or getpass.getuser()),
+            repository=derive_project_slug(self._repo_root),
+        )
 
     @staticmethod
     def _sync_result(result: Any, provider_name: str) -> dict[str, Any]:

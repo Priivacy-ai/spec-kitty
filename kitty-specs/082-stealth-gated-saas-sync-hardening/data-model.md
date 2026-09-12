@@ -44,6 +44,7 @@ class ReadinessState(str, Enum):
     ROLLOUT_DISABLED        = "rollout_disabled"
     MISSING_AUTH            = "missing_auth"
     MISSING_HOST_CONFIG     = "missing_host_config"
+    AMBIGUOUS_HOST_CONFIG   = "ambiguous_host_config"
     HOST_UNREACHABLE        = "host_unreachable"
     MISSING_MISSION_BINDING = "missing_mission_binding"
     READY                   = "ready"
@@ -111,7 +112,7 @@ def evaluate_readiness(
 
 1. **`ROLLOUT_DISABLED`** — `is_saas_sync_enabled() == False` → return immediately. No I/O performed.
 2. **`MISSING_AUTH`** — call existing auth lookup (currently the implicit one used by `TrackerService`). If no token, return.
-3. **`MISSING_HOST_CONFIG`** — call `specify_cli.auth.config.get_saas_base_url()`; if it raises `ConfigurationError` (because `SPEC_KITTY_SAAS_URL` is unset or empty), return. Otherwise capture the returned URL for use in steps 4 and 6.
+3. **`MISSING_HOST_CONFIG`** — call `specify_cli.auth.config.get_saas_base_url()`; if it raises `ConfigurationError` (because `SPEC_KITTY_SAAS_URL` is unset or empty), return. Otherwise the resolved target is looked up via `specify_cli.auth.server_target.resolve_server_target(process_wide_override=False)`; if that raises `ServerTargetSplitBrainError` (env and `config.toml` name different hosts with no whole-process override) → **`AMBIGUOUS_HOST_CONFIG`**, naming both URLs (the env/config split-brain case: `MISSING_HOST_CONFIG`'s remedy is a dead end here, since the env var is already set). Otherwise capture the resolved URL for use in steps 4 and 6.
 4. **`HOST_UNREACHABLE`** — only if `probe_reachability=True`. Issue one HTTP `HEAD` against the URL captured in step 3 with a 2-second total budget. On any failure, return.
 5. **`MISSING_MISSION_BINDING`** — only if `require_mission_binding=True`. Look up the binding for `feature_slug` (or the active feature in `repo_root`). If absent, return.
 6. **`READY`** — return `ReadinessResult(state=READY, message="", next_action=None)`.

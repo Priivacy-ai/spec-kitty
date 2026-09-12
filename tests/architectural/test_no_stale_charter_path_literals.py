@@ -247,11 +247,7 @@ def scan_python_source(
 def _iter_python_files(root: Path) -> list[Path]:
     if not root.exists():
         return []
-    return [
-        path
-        for path in sorted(root.rglob("*.py"))
-        if "__pycache__" not in path.parts
-    ]
+    return [path for path in sorted(root.rglob("*.py")) if "__pycache__" not in path.parts]
 
 
 def _relpath(path: Path, *, repo_root: Path) -> str:
@@ -286,9 +282,7 @@ def collect_python_stale_references(
             # ast.parse (NFR-002 -- keeps this gate comfortably sub-5s).
             if "charter" not in text:
                 continue
-            found.extend(
-                scan_python_source(text, relpath=relpath, dotted_re=dotted_re, path_re=path_re)
-            )
+            found.extend(scan_python_source(text, relpath=relpath, dotted_re=dotted_re, path_re=path_re))
     return found
 
 
@@ -426,10 +420,7 @@ def test_flags_stale_patch_target_dotted_form(tmp_path: Path) -> None:
     """The exact shape #3807 named: ``patch("charter.<old>...")``."""
     module = tmp_path / "test_example.py"
     module.write_text(
-        "from unittest.mock import patch\n\n"
-        "def test_thing():\n"
-        "    with patch(" "'charter._drg_helpers.load_validated_graph'" "):\n"
-        "        pass\n",
+        "from unittest.mock import patch\n\ndef test_thing():\n    with patch('charter._drg_helpers.load_validated_graph'):\n        pass\n",
         encoding="utf-8",
     )
 
@@ -442,9 +433,7 @@ def test_flags_stale_mock_dot_patch_and_keyword_target_form(tmp_path: Path) -> N
     """Both ``mock.patch(...)`` (attribute form) and the ``target=`` keyword."""
     module = tmp_path / "test_example.py"
     module.write_text(
-        "import unittest.mock\n\n"
-        "def test_thing():\n"
-        "    unittest.mock.patch(target='charter.context.build_charter_context')\n",
+        "import unittest.mock\n\ndef test_thing():\n    unittest.mock.patch(target='charter.context.build_charter_context')\n",
         encoding="utf-8",
     )
 
@@ -458,18 +447,13 @@ def test_flags_stale_allowlist_tuple_path_entry(tmp_path: Path) -> None:
     module = tmp_path / "src" / "specify_cli" / "some_gate.py"
     module.parent.mkdir(parents=True)
     module.write_text(
-        "_ALLOWED_FILES = (\n"
-        "    'src/charter/context_state.py',\n"
-        "    'src/specify_cli/unrelated.py',\n"
-        ")\n",
+        "_ALLOWED_FILES = (\n    'src/charter/context_state.py',\n    'src/specify_cli/unrelated.py',\n)\n",
         encoding="utf-8",
     )
 
     findings = collect_python_stale_references((tmp_path,), moved=_MOVED, repo_root=tmp_path)
 
-    assert findings == [
-        StaleReference("src/specify_cli/some_gate.py", 2, "src/charter/context_state.py")
-    ]
+    assert findings == [StaleReference("src/specify_cli/some_gate.py", 2, "src/charter/context_state.py")]
 
 
 def test_flags_stale_markdown_relative_link(tmp_path: Path) -> None:
@@ -482,9 +466,7 @@ def test_flags_stale_markdown_relative_link(tmp_path: Path) -> None:
 
     findings = collect_markdown_stale_references(tmp_path, moved=_MOVED, repo_root=tmp_path)
 
-    assert findings == [
-        StaleReference("guide.md", 1, "src/charter/context.py")
-    ]
+    assert findings == [StaleReference("guide.md", 1, "src/charter/context.py")]
 
 
 # ---------------------------------------------------------------------------
@@ -515,16 +497,11 @@ def test_word_boundary_context_does_not_match_context_state(tmp_path: Path) -> N
     """
     module = tmp_path / "test_example.py"
     module.write_text(
-        "from unittest.mock import patch\n\n"
-        "def test_thing():\n"
-        "    with patch(" "'charter.context_state._MIN_EFFECTIVE_DEPTH'" "):\n"
-        "        pass\n",
+        "from unittest.mock import patch\n\ndef test_thing():\n    with patch('charter.context_state._MIN_EFFECTIVE_DEPTH'):\n        pass\n",
         encoding="utf-8",
     )
     py_findings = collect_python_stale_references((tmp_path,), moved=_MOVED, repo_root=tmp_path)
-    assert py_findings == [
-        StaleReference("test_example.py", 4, "charter.context_state")
-    ]
+    assert py_findings == [StaleReference("test_example.py", 4, "charter.context_state")]
     assert py_findings[0].token != "charter.context"
 
     doc = tmp_path / "guide.md"
@@ -545,10 +522,7 @@ def test_does_not_flag_same_name_different_package(tmp_path: Path) -> None:
     """
     module = tmp_path / "test_example.py"
     module.write_text(
-        "from unittest.mock import patch\n\n"
-        "def test_thing():\n"
-        "    with patch(" "'specify_cli.cli.commands.charter.context.build_charter_context'" "):\n"
-        "        pass\n",
+        "from unittest.mock import patch\n\ndef test_thing():\n    with patch('specify_cli.cli.commands.charter.context.build_charter_context'):\n        pass\n",
         encoding="utf-8",
     )
 
@@ -646,6 +620,4 @@ def test_archive_exclusion_is_not_vacuous(tmp_path: Path) -> None:
 
     findings = collect_markdown_stale_references(tmp_path, moved=_MOVED, repo_root=tmp_path)
 
-    assert findings == [
-        StaleReference("docs/architecture/notes.md", 1, "src/charter/context.py")
-    ]
+    assert findings == [StaleReference("docs/architecture/notes.md", 1, "src/charter/context.py")]

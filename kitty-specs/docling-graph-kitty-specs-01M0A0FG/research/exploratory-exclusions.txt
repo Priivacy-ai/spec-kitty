@@ -1,8 +1,0 @@
-# Files exposed to pre-preregistration Docling conversion or chunking.
-# They are ineligible for confirmatory corpus selection.
-kitty-specs/005-refactor-mission-system/research.md
-kitty-specs/005-refactor-mission-system/tasks.md
-kitty-specs/coord-commit-integrity-01KY5JS8/tasks/WP03-placement-and-rehome/review-cycle-1.md
-kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/spec.md
-kitty-specs/worktree-owned-root-3328-01KZRG01/spec.md
-kitty-specs/worktree-owned-root-3328-01KZRG01/tasks.md

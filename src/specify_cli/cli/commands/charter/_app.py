@@ -24,6 +24,7 @@ from specify_cli.cli.commands.charter.list_cmd import charter_list_app
 from specify_cli.cli.commands.charter.pack import charter_pack_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.commands.charter.mission_type import charter_mission_type_app
+from specify_cli.cli.commands.doctrine import fetch, new, org_app, validate
 
 logger = logging.getLogger("specify_cli.cli.commands.charter")
 
@@ -69,3 +70,9 @@ charter_app.add_typer(charter_list_app, name="list")
 
 # WP06 (FR-011): ``spec-kitty charter pack consistency-check`` — pack management.
 charter_app.add_typer(charter_pack_app, name="pack")
+
+# Authoring commands share handlers and option contracts with the legacy group.
+charter_app.command("new")(new)
+charter_app.command("validate")(validate)
+charter_app.command("fetch")(fetch)
+charter_app.add_typer(org_app, name="org")

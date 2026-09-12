@@ -260,7 +260,10 @@ class TestBuildContextV2:
         mock_graph = DRGGraph.model_validate(graph_data)
 
         with (
-            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch(
+                "charter.activation._drg_helpers.load_validated_graph",
+                return_value=mock_graph,
+            ),
             patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
@@ -1178,7 +1181,7 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
 
     built_in_root = tmp_path / "shipped-doctrine"
     built_in_root.mkdir()
-    project_root = tmp_path / "src" / "doctrine"
+    project_root = tmp_path / "src" / "charter" / "offering"
     project_root.mkdir(parents=True)
 
     monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
@@ -1193,7 +1196,7 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     # each repository self-resolves the flattened built-in tier via
     # built_in_dir(kind) (packs/built-in/<kind>). Pointing at
     # resolve_doctrine_root() post-relocation would yield the emptied
-    # src/doctrine/<kind>/built-in and silently load nothing. The stub's
+    # src/charter/offering/<kind>/built-in and silently load nothing. The stub's
     # built_in_root default (None) surfaces the same recorded value as before
     # the kwarg was dropped. The project-root overlay wiring is unchanged.
     assert calls == {

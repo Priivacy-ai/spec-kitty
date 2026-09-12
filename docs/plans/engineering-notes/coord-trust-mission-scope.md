@@ -2,7 +2,7 @@
 title: 'Coordination-branch trust & reconciliation model — mission scope (#2841)'
 description: 'Pre-spec scope for the coord-branch trust friction-remediation mission (#2841): the missing write-placement model, the solution shape, and the locked design decisions.'
 doc_status: deprecated
-updated: '2026-07-22'
+updated: '2026-08-27'
 related:
 - docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
 - docs/plans/engineering-notes/index.md
@@ -72,12 +72,25 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
   strand (`error`, `--fix` forwards) vs a pruned-worktree strand that stays `error` but
   becomes a manual-recovery hint (L749-766) — i.e. "forward when safe, fail loud otherwise."
 
-### 2.3 The single-workspace rebase (why it does NOT cover Gap 2)
+### 2.3 The single-workspace rebase (why it did NOT cover Gap 2)
 
-- `GitVCS.sync_workspace()` — `src/specify_cli/core/vcs/git.py:362` (CLI `sync.py:1745`).
-  Fetches, resolves the workspace's own tracking/upstream branch (L398-401), and rebases
-  **that workspace's own commits** onto it. No sibling-branch / coord-vs-target awareness.
-  It is a per-workspace freshness tool, not a cross-branch content reconciler.
+- `GitVCS.sync_workspace()` (formerly in `src/specify_cli/core/vcs/git.py`) fetched, resolved
+  the workspace's own tracking/upstream branch, and rebased **that workspace's own commits**
+  onto it — a per-workspace freshness tool with no sibling-branch / coord-vs-target awareness,
+  not a cross-branch content reconciler, so it never covered Gap 2. **This method has since
+  been deleted** (issue #424, PR #500 — "Delete dead GitVCS/VCSProtocol.sync_workspace, no live
+  caller"). The chain: the CLI `sync.py` path that once cited it was removed by commit
+  `66038e2a5` ("refactor(sync): remove sync transport surfaces from CLI registration and agent
+  commands") ahead of the Ephemeral Team Status redesign (`PROGRAM.md` §1), leaving only test
+  callers (issue #272); #424 then removed both `GitVCS.sync_workspace()` and the
+  `VCSProtocol.sync_workspace` export from `specify_cli.core.vcs.__all__`. There is now no
+  single-workspace rebase surface in this repo — if the Gap-2 distinction is still useful it
+  must be drawn against a live mechanism, not this deleted one.
+- **Still-stale sibling docs (their own follow-up, not fixed here):** the active guides
+  `docs/guides/how-to/collaboration/sync-workspaces.md` and
+  `docs/guides/how-to/missions/handle-dependencies.md` still document a `spec-kitty sync
+  workspace` CLI command that no longer exists (no `sync` command is registered anywhere in
+  `src/specify_cli/cli/`); they need their own correction or removal.
 
 ### 2.4 Symptom B — diff-compliance gate blocks on the mission's own runtime state
 
@@ -200,7 +213,14 @@ prints the suggested `doctor coordination --check-staleness`/`--fix` recovery co
 - #2841's Gap 1 field report also cites a **lane** branch missing a CLI flag added to main.
 - (a) this mission covers coord only; (b) coord + lane branches.
 - **Recommendation: (a).** Coord is the trust anchor and the shared `--fix` seam. Lane-branch
-  freshness is `sync workspace`'s domain — file a scoped follow-up rather than widen blast radius.
+  freshness is `sync workspace`'s domain — file a scoped follow-up rather than widen blast
+  radius. **Historical framing, not a current routing claim (2026-08-28; updated after #424):**
+  the `spec-kitty sync workspace` CLI command this recommendation names was removed by
+  `66038e2a5`, and its underlying `GitVCS.sync_workspace()` method has since been deleted
+  outright (issue #424, PR #500 — see §2.3 above). A scoped lane-branch-freshness follow-up
+  today therefore has neither a live `sync workspace` command nor a `sync_workspace()` method to
+  land in; it must target whatever live freshness surface exists at the time, not either
+  deleted one.
 
 ---
 

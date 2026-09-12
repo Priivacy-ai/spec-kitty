@@ -5,7 +5,7 @@ Split out of ``test_no_dead_doctrine_paths.py`` (mission
 ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` WP01, FR-001) --
 Gate D is the only ``docs/``-scoped gate of the three that file used to
 carry (Gate A + Gate B are ``src/``-wide, now in ``test_no_dead_cli_paths.py``;
-Gate C is ``src/doctrine/``-scoped, still in ``test_no_dead_doctrine_paths.py``).
+Gate C is ``src/charter/offering/``-scoped, still in ``test_no_dead_doctrine_paths.py``).
 ``docs/``-scoping is a third, distinct concern, so it gets its own explicitly
 named home rather than being folded into whichever other module was
 convenient.
@@ -31,11 +31,11 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 # (mission relocate-builtin-doctrine-packs-01KYT87F, T024 / FR-011)
 # ---------------------------------------------------------------------------
 
-#: The two path shapes the relocation retired from ``src/doctrine/``: the
-#: per-kind built-in content home ``src/doctrine/<kind>/built-in`` and the
-#: sharded per-kind fragments ``src/doctrine/<kind>.graph.yaml``. Both now live
+#: The two path shapes the relocation retired from ``src/charter/offering/``: the
+#: per-kind built-in content home ``src/charter/offering/<kind>/built-in`` and the
+#: sharded per-kind fragments ``src/charter/offering/<kind>.graph.yaml``. Both now live
 #: under ``packs/built-in/``.
-_MOVED_BUILTIN_DOC_RE = r"src/doctrine/[a-z_]+/built-in|src/doctrine/[a-zA-Z0-9_.-]*\.graph\.yaml"
+_MOVED_BUILTIN_DOC_RE = r"src/charter/offering/[a-z_]+/built-in|src/charter/offering/[a-zA-Z0-9_.-]*\.graph\.yaml"
 
 #: Documentation subtrees excluded from the live-reference guard, each because
 #: its references are NOT live pointers to where doctrine currently lives:
@@ -43,12 +43,12 @@ _MOVED_BUILTIN_DOC_RE = r"src/doctrine/[a-z_]+/built-in|src/doctrine/[a-zA-Z0-9_
 #:    historical wording frozen; an ADR records the world as it was).
 #:  * ``docs/plans`` -- point-in-time mission planning and adversarial-squad
 #:    analysis (line-numbered ``*.graph.yaml`` citations, and hypothetical paths
-#:    such as ``src/doctrine/values/built-in/…`` that never existed on disk).
+#:    such as ``src/charter/offering/values/built-in/…`` that never existed on disk).
 #:  * the generated retrieval index -- a derived aggregate that mirrors the
 #:    ``docs/plans`` headings it indexes, so it carries their frozen wording and
 #:    is regenerated, never hand-edited.
 #:  * the relocation migration note -- its whole job is to document the move, so
-#:    its old->new mapping table NAMES the retired ``src/doctrine/.../built-in``
+#:    its old->new mapping table NAMES the retired ``src/charter/offering/.../built-in``
 #:    paths as the "from" column. That is a record of where content used to live,
 #:    not a live pointer to where it lives now (same rationale as ``docs/adr``).
 _GUARD_DOC_EXCLUSIONS = (
@@ -62,7 +62,7 @@ _GUARD_DOC_EXCLUSIONS = (
 def test_no_live_doc_names_a_pre_move_builtin_path() -> None:
     """FR-011 committed guard: the T024 live-reference sweep is observable, not
     eyeballed. ``git grep`` of live ``docs/`` (minus the snapshot/derived subtrees
-    pinned above) for a retired ``src/doctrine/`` built-in path must return zero;
+    pinned above) for a retired ``src/charter/offering/`` built-in path must return zero;
     a hit means a live doc still sends a reader to a home that moved to
     ``packs/built-in/`` (see docs/migrations/relocate-builtin-doctrine-packs.md)."""
     result = subprocess.run(

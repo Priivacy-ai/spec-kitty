@@ -12,11 +12,15 @@ above the site recorded as line 124. Re-resolving against the live tree read lin
 key that no census could ever match, and three set equalities plus two join lookups went red
 for a member that had not changed at all.
 
-Note that ``specify_cli.contracts.anchoring.composite_key`` documents itself as
-"content-addressed, not line-number-addressed" and "stable against blank-line / comment-line
-insertions near the guarded site". That is true of the key's **values** and false of its
-**lookup**: the token line is fetched with ``tokens.get(lineno, "")``. Content inserted above
-the site moves the site, and the key changes. The claim holds only for insertions *below*.
+Note that ``specify_cli.contracts.anchoring.composite_key`` used to document
+itself as "content-addressed, not line-number-addressed" and "stable against
+blank-line / comment-line insertions near the guarded site" — true of the key's
+**values**, false of its **lookup**: the token line is fetched with
+``tokens.get(lineno, "")``. Content inserted above the site moves the site, and
+the key changes; the claim held only for insertions *below*. #3369 narrowed
+that docstring to match this reality, which is why this freeze exists: the
+recorded ``lineno`` values in ``members.json`` are only meaningful in the tree
+they were read from.
 
 So the resolution is frozen here, once, and checked in:
 

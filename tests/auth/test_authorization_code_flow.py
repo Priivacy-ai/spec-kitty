@@ -136,12 +136,12 @@ class TestConstructor:
         flow = AuthorizationCodeFlow()
         assert flow._saas_base_url == "https://env.test"
 
-    def test_missing_env_raises(self, monkeypatch):
-        from specify_cli.auth.errors import ConfigurationError
+    def test_missing_env_uses_packaged_default(self, monkeypatch):
+        from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        with pytest.raises(ConfigurationError):
-            AuthorizationCodeFlow()
+        flow = AuthorizationCodeFlow()
+        assert flow._saas_base_url == DEFAULT_HOSTED_SAAS_URL
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +262,8 @@ class TestBuildSession:
         assert session.auth_method == "authorization_code"
         # Refresh expiry comes from the server verbatim (no clock math):
         assert session.refresh_token_expires_at == datetime(2099, 1, 1, tzinfo=UTC)
+        # #176: the session records which endpoint minted it.
+        assert session.issuer_url == "https://saas.test"
 
     @pytest.mark.asyncio
     async def test_prefers_private_teamspace_for_default_team_id(self):

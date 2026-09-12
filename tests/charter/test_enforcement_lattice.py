@@ -104,9 +104,7 @@ def _make_graph(nodes: list[DRGNode], edges: list[DRGEdge]) -> DRGGraph:
 
 
 @pytest.mark.doctrine
-def test_advisory_reconciler_over_required_operand_fails_naming_the_edge(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_advisory_reconciler_over_required_operand_fails_naming_the_edge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An advisory reconciler over a required operand fails, naming the edge.
 
     Uses two REAL, independently-loadable directives (DIRECTIVE_047,
@@ -131,8 +129,7 @@ def test_advisory_reconciler_over_required_operand_fails_naming_the_edge(
 
     ctx = _ctx_with_config(
         tmp_path,
-        f"activated_directives:\n  - {_STEM_ADVISORY}\n  - {_STEM_REQUIRED}\n"
-        "activated_tactics: []\n",
+        f"activated_directives:\n  - {_STEM_ADVISORY}\n  - {_STEM_REQUIRED}\nactivated_tactics: []\n",
     )
 
     violations = scan_enforcement_lattice_violations(ctx)
@@ -150,9 +147,7 @@ def test_advisory_reconciler_over_required_operand_fails_naming_the_edge(
 
 
 @pytest.mark.doctrine
-def test_tactic_target_edge_is_skipped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_tactic_target_edge_is_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A reconciles_tension edge targeting a tactic is skipped, never evaluated.
 
     The reconciler here is advisory (DIRECTIVE_047) -- if the tactic target
@@ -177,8 +172,7 @@ def test_tactic_target_edge_is_skipped(
 
     ctx = _ctx_with_config(
         tmp_path,
-        f"activated_directives:\n  - {_STEM_ADVISORY}\n"
-        f"activated_tactics:\n  - {_STEM_TACTIC}\n",
+        f"activated_directives:\n  - {_STEM_ADVISORY}\nactivated_tactics:\n  - {_STEM_TACTIC}\n",
     )
 
     violations = scan_enforcement_lattice_violations(ctx)
@@ -192,9 +186,7 @@ def test_tactic_target_edge_is_skipped(
 
 
 @pytest.mark.doctrine
-def test_reconciler_promoted_to_required_is_always_a_violation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_reconciler_promoted_to_required_is_always_a_violation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A `required` reconciler is a violation even though rank(R) >= rank(X) holds.
 
     Uses two real `required` directives (DIRECTIVE_001 as reconciler,
@@ -220,8 +212,7 @@ def test_reconciler_promoted_to_required_is_always_a_violation(
 
     ctx = _ctx_with_config(
         tmp_path,
-        f"activated_directives:\n  - {_STEM_REQUIRED}\n  - 003-decision-documentation-requirement\n"
-        "activated_tactics: []\n",
+        f"activated_directives:\n  - {_STEM_REQUIRED}\n  - 003-decision-documentation-requirement\nactivated_tactics: []\n",
     )
 
     violations = scan_enforcement_lattice_violations(ctx)
@@ -237,9 +228,7 @@ def test_reconciler_promoted_to_required_is_always_a_violation(
 
 
 @pytest.mark.doctrine
-def test_inactive_reconciler_edge_is_not_evaluated(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_inactive_reconciler_edge_is_not_evaluated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A reconciles_tension edge whose source is NOT active is out of scope.
 
     Same violating pair as the first test (advisory over required), but the
@@ -264,8 +253,7 @@ def test_inactive_reconciler_edge_is_not_evaluated(
 
     ctx = _ctx_with_config(
         tmp_path,
-        f"activated_directives:\n  - {_STEM_REQUIRED}\n"
-        "activated_tactics: []\n",
+        f"activated_directives:\n  - {_STEM_REQUIRED}\nactivated_tactics: []\n",
     )
 
     violations = scan_enforcement_lattice_violations(ctx)
@@ -291,11 +279,7 @@ def test_shipped_corpus_passes_the_lattice_gate(tmp_path: Path) -> None:
     """
     ctx = _ctx_with_config(
         tmp_path,
-        f"activated_directives:\n"
-        f"  - {_STEM_024}\n"
-        f"  - {_STEM_025}\n"
-        f"  - {_STEM_RECONCILER}\n"
-        f"activated_tactics:\n  - {_STEM_TACTIC}\n",
+        f"activated_directives:\n  - {_STEM_024}\n  - {_STEM_025}\n  - {_STEM_RECONCILER}\nactivated_tactics:\n  - {_STEM_TACTIC}\n",
     )
 
     violations = scan_enforcement_lattice_violations(ctx)
@@ -313,14 +297,11 @@ def test_shipped_corpus_passes_the_lattice_gate(tmp_path: Path) -> None:
 
 
 @pytest.mark.doctrine
-def test_fail_closed_on_scan_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fail_closed_on_scan_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A forced scan error lands in verification_errors, folded into coherent=False."""
     ctx = _ctx_with_config(
         tmp_path,
-        f"activated_directives:\n  - {_STEM_024}\n  - {_STEM_025}\n"
-        "activated_tactics: []\n",
+        f"activated_directives:\n  - {_STEM_024}\n  - {_STEM_025}\nactivated_tactics: []\n",
     )
 
     def _boom(_ctx: ProjectContext) -> list[str]:
@@ -332,8 +313,7 @@ def test_fail_closed_on_scan_error(
 
     assert report.enforcement_lattice_violations == []
     assert any("enforcement lattice" in err for err in report.verification_errors), (
-        f"Expected a lattice-scan failure in verification_errors, got: "
-        f"{report.verification_errors}"
+        f"Expected a lattice-scan failure in verification_errors, got: {report.verification_errors}"
     )
     assert report.coherent is False
 

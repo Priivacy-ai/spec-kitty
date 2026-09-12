@@ -19,12 +19,9 @@ from pathlib import Path
 from specify_cli.auth.session import (
     StoredSession,
     Team,
-    TeamSlugResolutionError,
     get_private_team_id,
     pick_default_team_id,
     require_private_team_id,
-    resolve_team_slug,
-    shareable_teams,
 )
 
 
@@ -99,6 +96,33 @@ def test_session_roundtrip_json_without_refresh_expiry() -> None:
     restored = StoredSession.from_json(s.to_json())
     assert restored == s
     assert restored.refresh_token_expires_at is None
+
+
+# ---------------------------------------------------------------------------
+# issuer_url (#176) — where the session was minted
+# ---------------------------------------------------------------------------
+
+
+def test_issuer_url_defaults_to_none_for_legacy_sessions() -> None:
+    """Sessions written before #176 carry no issuer; nothing can be claimed."""
+    s = _make_session(refresh_token_expires_at=None)
+    assert s.issuer_url is None
+    legacy_dict = s.to_dict()
+    assert legacy_dict["issuer_url"] is None
+    del legacy_dict["issuer_url"]  # a genuinely pre-#176 payload
+    restored = StoredSession.from_dict(legacy_dict)
+    assert restored.issuer_url is None
+
+
+def test_issuer_url_roundtrips_through_dict_and_json() -> None:
+    s = _make_session(refresh_token_expires_at=None)
+    s.issuer_url = "https://team.spec-kitty.ai"
+    for restored in (
+        StoredSession.from_dict(s.to_dict()),
+        StoredSession.from_json(s.to_json()),
+    ):
+        assert restored.issuer_url == "https://team.spec-kitty.ai"
+        assert restored == s
 
 
 def test_access_token_expired_no_buffer() -> None:
@@ -184,148 +208,6 @@ def test_get_private_team_id_returns_none_when_absent() -> None:
         Team(id="team-2", name="Shared 2", role="owner"),
     ]
     assert get_private_team_id(teams) is None
-
-
-# ---------------------------------------------------------------------------
-# #3731 — Team.slug surfacing, id fallback, name->slug resolution, filter
-# ---------------------------------------------------------------------------
-
-
-def test_from_dict_retains_slug() -> None:
-    """The server ``slug`` survives ``from_dict`` and round-trips (#3731)."""
-    data = {
-        "id": "kitty-prime",
-        "slug": "kitty-prime",
-        "name": "Kitty Prime",
-        "role": "member",
-        "is_private_teamspace": False,
-    }
-    team = Team.from_dict(data)
-    assert team.slug == "kitty-prime"
-    assert Team.from_dict(team.to_dict()) == team
-
-
-def test_from_dict_falls_back_to_id_when_slug_absent() -> None:
-    """A legacy session dict without ``slug`` falls back to ``id`` (#3731).
-
-    ``id`` has always carried the slug value, so a session stored before the
-    field was surfaced still resolves to a usable slug rather than an empty one.
-    """
-    data = {
-        "id": "kitty-prime",
-        "name": "Kitty Prime",
-        "role": "member",
-        "is_private_teamspace": False,
-    }
-    team = Team.from_dict(data)
-    assert team.slug == "kitty-prime"
-
-
-def test_shareable_teams_excludes_private_teamspace() -> None:
-    """``shareable_teams`` drops the Private Teamspace the server refuses (#3731)."""
-    teams = [
-        Team(id="kitty-prime", name="Kitty Prime", role="member", slug="kitty-prime"),
-        Team(
-            id="kent",
-            name="Kent",
-            role="admin",
-            is_private_teamspace=True,
-            slug="kent",
-        ),
-        Team(id="product", name="Product Team", role="member", slug="product-team"),
-    ]
-    # Set equality of slugs, not a bare count — golden-count ban.
-    assert {team.slug for team in shareable_teams(teams)} == {
-        "kitty-prime",
-        "product-team",
-    }
-
-
-def test_resolve_team_slug_matches_slug_and_name() -> None:
-    """Name, exact-slug, and case-insensitive name all resolve to the slug (#3731)."""
-    teams = [
-        Team(id="kitty-prime", name="Kitty Prime", role="member", slug="kitty-prime"),
-        Team(id="product", name="Product Team", role="member", slug="product-team"),
-    ]
-    assert resolve_team_slug(teams, "kitty-prime") == "kitty-prime"
-    assert resolve_team_slug(teams, "Kitty Prime") == "kitty-prime"
-    assert resolve_team_slug(teams, "kitty prime") == "kitty-prime"
-
-
-def test_resolve_team_slug_unknown_fails_closed() -> None:
-    """An unknown handle raises rather than silently guessing (#3731)."""
-    teams = [
-        Team(id="kitty-prime", name="Kitty Prime", role="member", slug="kitty-prime"),
-    ]
-    with pytest.raises(TeamSlugResolutionError) as excinfo:
-        resolve_team_slug(teams, "nope")
-    assert excinfo.value.reason == "unknown"
-    assert {team.slug for team in excinfo.value.shareable} == {"kitty-prime"}
-
-
-def test_resolve_team_slug_ambiguous_name_fails_closed() -> None:
-    """A display name shared by two teams fails closed (#3731)."""
-    teams = [
-        Team(id="a", name="Duplicate", role="member", slug="team-a"),
-        Team(id="b", name="Duplicate", role="member", slug="team-b"),
-    ]
-    with pytest.raises(TeamSlugResolutionError) as excinfo:
-        resolve_team_slug(teams, "Duplicate")
-    assert excinfo.value.reason == "ambiguous"
-
-
-def test_parse_me_teams_populates_slug() -> None:
-    """``parse_me_teams`` carries the server ``slug`` through (#3731)."""
-    from specify_cli.auth.flows._session_payload import parse_me_teams
-
-    me = {
-        "teams": [
-            {
-                "id": "kitty-prime",
-                "slug": "kitty-prime",
-                "name": "Kitty Prime",
-                "role": "member",
-                "is_private_teamspace": False,
-            }
-        ]
-    }
-    teams = parse_me_teams(me)
-    assert {team.slug for team in teams} == {"kitty-prime"}
-
-
-def test_parse_me_teams_falls_back_to_id_when_slug_absent() -> None:
-    """A ``/api/v1/me`` team without ``slug`` falls back to ``id`` (#3731)."""
-    from specify_cli.auth.flows._session_payload import parse_me_teams
-
-    me = {
-        "teams": [
-            {
-                "id": "kitty-prime",
-                "name": "Kitty Prime",
-                "role": "member",
-                "is_private_teamspace": False,
-            }
-        ]
-    }
-    teams = parse_me_teams(me)
-    assert teams[0].slug == "kitty-prime"
-
-
-def test_resolve_team_slug_private_teamspace_not_shareable() -> None:
-    """Resolving to the Private Teamspace fails closed as not shareable (#3731)."""
-    teams = [
-        Team(id="kitty-prime", name="Kitty Prime", role="member", slug="kitty-prime"),
-        Team(
-            id="kent",
-            name="Kent",
-            role="admin",
-            is_private_teamspace=True,
-            slug="kent",
-        ),
-    ]
-    with pytest.raises(TeamSlugResolutionError) as excinfo:
-        resolve_team_slug(teams, "kent")
-    assert excinfo.value.reason == "not_shareable"
 
 
 def test_no_hardcoded_90_days_in_session_module() -> None:

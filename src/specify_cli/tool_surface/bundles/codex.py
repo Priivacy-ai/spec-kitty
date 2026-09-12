@@ -21,16 +21,22 @@ bundle.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
 
 from ._builder import (
-    MIN_SKILL_COUNT,
     BuildError,
+    command_members,
+    finish_build,
     get_cli_version,
-    is_semver,
-    write_json,
+)
+from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment
+from .model import BundleObservation, StagedFile
+from .projection import (
+    confined_output, json_bytes, observe_bundle_path, observe_tree,
+    prepare_staging, read_observed_file, staging_root,
 )
 
 # Codex plugin manifest lives under ``.codex-plugin/`` (not ``.claude-plugin/``).
@@ -56,7 +62,7 @@ _REQUIRED_INTERFACE_FIELDS: tuple[str, ...] = ("displayName", "shortDescription"
 _SHORT_DESCRIPTION_MAX_LEN = 120
 
 # Canonical author name.
-_AUTHOR_NAME = "Priivacy AI"
+_AUTHOR_NAME = "Spec Kitty"
 
 # Install instructions emitted after marketplace.json is written.
 _INSTALL_HINT = (
@@ -94,52 +100,75 @@ class CodexBundleProjector:
             When a required build step fails (e.g. too few skills, forbidden
             keys detected in the manifest, required fields missing).
         """
-        self.bundle_dir.mkdir(parents=True, exist_ok=True)
-
-        version = get_cli_version()
-        if not is_semver(version):
-            typer.echo(
-                f"Warning: version {version!r} is not a clean semver "
-                "string; the Codex validator may reject it.",
-                err=True,
-            )
-
-        # Step 1: stage the optional MCP companion BEFORE the manifest so the
-        # ``mcpServers`` pointer can be emitted only when ``.mcp.json`` is
-        # actually present in the bundle ("when applicable", FR-027).
-        self._copy_mcp_if_present()
-
-        # Step 2: write the plugin manifest (pointer added iff .mcp.json present).
-        self._generate_plugin_json(version)
-
-        # Step 3: copy canonical command skills.
-        skill_count = self._copy_skills(version)
-        typer.echo(f"Skills: {skill_count} written to {self.bundle_dir / 'skills'}")
-
-        # Step 4: write marketplace.json.
-        self._generate_marketplace_json()
-
-        # Step 5: copy hooks/ by filesystem presence if applicable.
-        self._copy_hooks_if_present()
-
+        assessment = self.prepare(ApplyConsent(automatic=True))
+        finish_build(assessment)
         if skip_validate:
-            typer.echo(
-                "Warning: Skipping Codex plugin validation (--skip-validate passed).",
-                err=True,
-            )
-
+            typer.echo("Warning: Skipping Codex plugin validation (--skip-validate passed).", err=True)
+        typer.echo(f"Codex marketplace.json written to {self.bundle_dir / 'marketplace.json'}")
+        typer.echo(_INSTALL_HINT)
         return self.bundle_dir
+
+    def prepare(self, consent: ApplyConsent = ApplyConsent()) -> OwnerAssessment:
+        """Retain the entire CLI bundle without invoking any writer or validator."""
+        root = staging_root(self.bundle_dir)
+        directory = confined_output(self.bundle_dir, root)
+        inputs = AssessmentInputs(root, consent=consent)
+        try:
+            version = get_cli_version()
+            files, commands = command_members(directory / "skills", root)
+            companions, observations, directories = self._companions(directory, root)
+            manifest = self._manifest_payload(version, any(Path(f.path).name == _MCP_JSON_NAME for f in companions))
+            files += companions + (
+                StagedFile((directory / _MANIFEST_DIR / _MANIFEST_NAME).relative_to(root.path).as_posix(),
+                           json_bytes(manifest, legacy=True), manifest=True),
+                StagedFile((directory / "marketplace.json").relative_to(root.path).as_posix(),
+                           json_bytes(self._marketplace_payload(), legacy=True), manifest=True),
+            )
+            return prepare_staging(inputs, files, (directory,), observations, suppliers=(commands,), version=version,
+                                   supporting_dirs=directories)
+        except (OSError, ValueError, BuildError) as exc:
+            return OwnerAssessment("plugin_bundle", root, complete=False, consent=consent,
+                                   diagnostics=(Diagnostic("bundle_input_invalid", "plugin_bundle", "error", str(exc)),))
+
+    @staticmethod
+    def _companions(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...], tuple[tuple[str, int], ...]]:
+        import charter.offering as offering
+
+        source = Path(offering.__file__).parent.resolve()
+        observations = [observe_bundle_path(source / _MCP_JSON_NAME), observe_bundle_path(source / "hooks", members=True)]
+        files: list[StagedFile] = []
+        directories: list[tuple[str, int]] = []
+        for observation in observations:
+            if observation.state.kind == "symlink":
+                raise ValueError(f"Unsafe optional bundle source: {observation.path}")
+        mcp = observations[0]
+        if mcp.state.kind != "absent":
+            if mcp.state.kind != "file":
+                raise ValueError("MCP companion is not a regular file")
+            content = read_observed_file(mcp)
+            if not isinstance(json.loads(content), dict):
+                raise ValueError("MCP companion must be a JSON object")
+            files.append(StagedFile((directory / _MCP_JSON_NAME).relative_to(root.path).as_posix(), content, mcp.state.mode or 0o644))
+        hooks = source / "hooks"
+        if observations[1].state.kind != "absent":
+            if observations[1].state.kind != "directory":
+                raise ValueError("Hooks source is not a directory")
+            for observed in observe_tree(hooks):
+                observations.append(observed)
+                if observed.state.kind == "directory":
+                    assert observed.state.mode is not None
+                    directories.append(((directory / "hooks" / observed.path.relative_to(hooks)).relative_to(root.path).as_posix(),
+                                        observed.state.mode))
+                if observed.state.kind == "file":
+                    files.append(StagedFile((directory / "hooks" / observed.path.relative_to(hooks)).relative_to(root.path).as_posix(),
+                                            read_observed_file(observed), observed.state.mode or 0o644))
+        return tuple(files), tuple(observations), tuple(directories)
 
     # ------------------------------------------------------------------
     # Manifest generation
     # ------------------------------------------------------------------
 
-    def _generate_plugin_json(self, version: str) -> None:
-        """Write ``.codex-plugin/plugin.json`` with required fields.
-
-        The manifest MUST NOT include ``"hooks"`` or ``"agents"`` keys
-        (Codex plugin contract, plugin-manifest-codex-01).
-        """
+    def _manifest_payload(self, version: str, has_mcp: bool) -> dict[str, object]:
         manifest: dict[str, object] = {
             "name": "spec-kitty",
             "version": version,
@@ -153,11 +182,10 @@ class CodexBundleProjector:
         }
         # FR-027: advertise the MCP companion only when it was actually staged
         # into the bundle ("when applicable"). Absent companion => no pointer.
-        if (self.bundle_dir / _MCP_JSON_NAME).is_file():
+        if has_mcp:
             manifest["mcpServers"] = _MCP_POINTER
         self._validate_manifest(manifest)
-        manifest_path = self.bundle_dir / _MANIFEST_DIR / _MANIFEST_NAME
-        write_json(manifest_path, manifest)
+        return manifest
 
     def _validate_manifest(self, manifest: dict[str, object]) -> None:
         """Assert the manifest is schema-valid for the Codex plugin format.
@@ -209,109 +237,11 @@ class CodexBundleProjector:
             )
 
     # ------------------------------------------------------------------
-    # Skills copy
-    # ------------------------------------------------------------------
-
-    def _copy_skills(self, version: str) -> int:
-        """Render canonical command skills into ``bundle_dir/skills/``.
-
-        Reuses the shared renderer from :mod:`~specify_cli.skills.command_installer`
-        (same path as the Claude Code bundle, same SKILL.md format).
-
-        Returns the number of skill files written.
-
-        Raises
-        ------
-        BuildError
-            When fewer than :data:`~specify_cli.tool_surface.bundles._builder.MIN_SKILL_COUNT`
-            skills are available.
-        """
-        from specify_cli.skills.command_installer import (  # noqa: PLC0415
-            CANONICAL_COMMANDS,
-            _render_command_skill,
-        )
-
-        skills_dst = self.bundle_dir / "skills"
-        skills_dst.mkdir(parents=True, exist_ok=True)
-
-        render_key = "codex"
-        count = 0
-        for command in CANONICAL_COMMANDS:
-            skill_bytes = _render_command_skill(Path("/"), command, render_key, version)
-            skill_dir = skills_dst / f"spec-kitty.{command}"
-            skill_dir.mkdir(parents=True, exist_ok=True)
-            (skill_dir / "SKILL.md").write_bytes(skill_bytes)
-            count += 1
-
-        if count < MIN_SKILL_COUNT:
-            raise BuildError(
-                f"Expected at least {MIN_SKILL_COUNT} skills, found {count}. "
-                "Check CANONICAL_COMMANDS in command_installer."
-            )
-        return count
-
-    # ------------------------------------------------------------------
-    # Hooks (filesystem-presence only, no manifest pointer)
-    # ------------------------------------------------------------------
-
-    def _copy_hooks_if_present(self) -> None:
-        """Copy ``hooks/`` from the doctrine source if it exists.
-
-        Per the Codex plugin contract, hooks are discovered by filesystem
-        presence only — the ``"hooks"`` key MUST NOT appear in ``plugin.json``
-        even when the directory is present.
-        """
-        import shutil  # noqa: PLC0415 — deferred to avoid top-level import cost
-
-        try:
-            import charter.offering as _charter_offering  # noqa: PLC0415
-        except ImportError:
-            return
-
-        doctrine_root = Path(_charter_offering.__file__).parent
-        hooks_src = doctrine_root / "hooks"
-        if not hooks_src.is_dir():
-            return
-
-        hooks_dst = self.bundle_dir / "hooks"
-        if hooks_dst.exists():
-            shutil.rmtree(hooks_dst)
-        shutil.copytree(hooks_src, hooks_dst)
-
-    # ------------------------------------------------------------------
-    # MCP companion (filesystem-presence only, conditional manifest pointer)
-    # ------------------------------------------------------------------
-
-    def _copy_mcp_if_present(self) -> None:
-        """Stage ``.mcp.json`` into the bundle when a canonical source exists.
-
-        FR-027 / plugin-manifest-codex-01: the Codex bundle carries an MCP
-        companion "when applicable". There is no canonical MCP source shipped
-        in doctrine today, so this is a guarded no-op in practice — but the
-        contract is now explicit and testable: when a ``.mcp.json`` is present
-        at the doctrine root it is copied into the bundle and
-        :meth:`_generate_plugin_json` emits the ``mcpServers`` pointer; when it
-        is absent nothing is written and no pointer appears.
-        """
-        import shutil  # noqa: PLC0415 — deferred to avoid top-level import cost
-
-        try:
-            import charter.offering as _charter_offering  # noqa: PLC0415
-        except ImportError:
-            return
-
-        mcp_src = Path(_charter_offering.__file__).parent / _MCP_JSON_NAME
-        if not mcp_src.is_file():
-            return
-
-        self.bundle_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(mcp_src, self.bundle_dir / _MCP_JSON_NAME)
-
-    # ------------------------------------------------------------------
     # Marketplace catalog
     # ------------------------------------------------------------------
 
-    def _generate_marketplace_json(self) -> None:
+    @staticmethod
+    def _marketplace_payload() -> dict[str, object]:
         """Write repo-local ``marketplace.json`` for Codex plugin install.
 
         The file is written to ``dist/spec-kitty-plugins/codex/marketplace.json``
@@ -336,10 +266,7 @@ class CodexBundleProjector:
                 }
             ],
         }
-        marketplace_path = self.bundle_dir / "marketplace.json"
-        write_json(marketplace_path, marketplace)
-        typer.echo(f"Codex marketplace.json written to {marketplace_path}")
-        typer.echo(_INSTALL_HINT)
+        return marketplace
 
 
 __all__ = ["CodexBundleProjector"]

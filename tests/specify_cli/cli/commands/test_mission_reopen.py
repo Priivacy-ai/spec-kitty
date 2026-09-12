@@ -430,3 +430,35 @@ def test_reopen_ambiguous_handle_emits_structured_error(
     result = _invoke(repo, "reopen", _MID8, "--reason", "x")
     assert result.exit_code != 0
     assert "MISSION_AMBIGUOUS_SELECTOR" in result.output
+
+
+def test_reopen_ambiguous_handle_emits_json_envelope(tmp_path: Path, monkeypatch) -> None:
+    repo = _init_repo(tmp_path)
+    # Two missions whose mission_id shares the same mid8 prefix → ambiguous handle.
+    _make_merged_mission(repo, slug="alpha", mission_id=_MID8 + "AAAAAAAAAAAAAAAAAA")
+    second = repo / "kitty-specs" / f"beta-{_MID8}b"
+    second.mkdir(parents=True)
+    meta = {
+        "slug": f"beta-{_MID8}b",
+        "mission_slug": f"beta-{_MID8}b",
+        "friendly_name": "Beta",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "mission_id": _MID8 + "BBBBBBBBBBBBBBBBBB",
+        "mid8": _MID8,
+    }
+    (second / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "x", "--json")
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert set(payload) == {"success", "error_code", "error", "handle", "candidates"}
+    assert payload["success"] is False
+    assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
+    assert payload["handle"] == _MID8
+    assert sorted(payload["candidates"]) == [f"alpha-{_MID8}", f"beta-{_MID8}b"]
+    assert isinstance(payload["error"], str) and payload["error"]

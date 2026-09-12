@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -316,68 +315,8 @@ def test_corrupt_meta_classifies_error_walk_continues(tmp_path: Path) -> None:
     assert by_slug["032-after"].mission_type == "research"
 
 
-# ---------------------------------------------------------------------------
-# M1/R-1 — dossier rehash gating (fires on wrote ∧ ¬dry_run only)
-# ---------------------------------------------------------------------------
-
-
 def _profile_repo(repo_root: Path) -> MissionTypeProfileRepository:
     return MissionTypeProfileRepository.for_project(repo_root)
-
-
-class TestDossierRehash:
-    def test_fires_on_wrote_live_run(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, "040-live", {"mission": "software-dev"})
-
-        import specify_cli.migration.backfill_mission_type as bmt_mod
-
-        mock_fn = MagicMock(return_value=None)
-        with patch.object(bmt_mod, "trigger_feature_dossier_sync_if_enabled", mock_fn):
-            results = backfill_mission_type_repo(tmp_path)
-
-        assert results[0].action == "wrote"
-        mock_fn.assert_called_once()
-
-    def test_does_not_fire_on_dry_run(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, "041-dry", {"mission": "software-dev"})
-
-        import specify_cli.migration.backfill_mission_type as bmt_mod
-
-        mock_fn = MagicMock(return_value=None)
-        with patch.object(bmt_mod, "trigger_feature_dossier_sync_if_enabled", mock_fn):
-            results = backfill_mission_type_repo(tmp_path, dry_run=True)
-
-        assert results[0].action == "wrote"  # would-write reporting
-        mock_fn.assert_not_called()
-
-    def test_does_not_fire_for_skip_or_needs_manual(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, "042-skip", {"mission_type": "software-dev"})
-        _write_meta(tmp_path, "043-manual", {"mission": "sofware-dev"})
-
-        import specify_cli.migration.backfill_mission_type as bmt_mod
-
-        mock_fn = MagicMock(return_value=None)
-        with patch.object(bmt_mod, "trigger_feature_dossier_sync_if_enabled", mock_fn):
-            backfill_mission_type_repo(tmp_path)
-
-        mock_fn.assert_not_called()
-
-    def test_raise_captured_as_dossier_warning_does_not_abort(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, "044-explode", {"mission": "software-dev"})
-
-        import specify_cli.migration.backfill_mission_type as bmt_mod
-
-        with patch.object(
-            bmt_mod,
-            "trigger_feature_dossier_sync_if_enabled",
-            side_effect=RuntimeError("dossier exploded"),
-        ):
-            results = backfill_mission_type_repo(tmp_path)
-
-        assert len(results) == 1
-        assert results[0].action == "wrote"
-        assert results[0].dossier_warning is not None
-        assert "dossier rehash failed" in results[0].dossier_warning
 
 
 # ---------------------------------------------------------------------------

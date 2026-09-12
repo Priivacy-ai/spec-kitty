@@ -7,7 +7,6 @@ related:
 - docs/plans/index.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/plans/domains/api-dashboard-domain-plan.md
 - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
@@ -39,8 +38,8 @@ that carry the design and the tracking. Before this plan, the extraction lineage
 carried implicitly inside the release-window [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)
 (its §2.2 item 3 and §2.3) and the wheel-assessment ADR (see §2). This plan makes the
 throughline explicit and becomes the domain's index. It is a sibling domain throughline
-to the [Doctrine & Charter Domain Plan](doctrine-charter-domain-plan.md) and the
-[SaaS & Hosted Sync Domain Plan](saas-hosted-sync-domain-plan.md).
+to the [Doctrine & Charter Domain Plan](doctrine-charter-domain-plan.md) and (until its
+2026-09-06 retirement, Convergence #3881) the SaaS & Hosted Sync domain plan.
 
 **In scope — the physical split.** "Packs extraction" here means the movement of code
 and packaged doctrine content across a module (and eventually a repo) boundary:
@@ -229,7 +228,7 @@ will turn over as milestones close. Verify live state via
   it and repoints these links.)*
 - **API & dashboard** — [API & Dashboard Domain Plan](api-dashboard-domain-plan.md), the
   application/mission-data API + dashboard throughline.
-- **SaaS & hosted sync** — [SaaS & Hosted Sync Domain Plan](saas-hosted-sync-domain-plan.md).
+- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881; surface re-homed upstream).
 
 **Release & design of record:**
 

@@ -26,9 +26,7 @@ __all__ = ["checkouts"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
-def test_owned_gate_baseline_reads_selected_mission_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_owned_gate_baseline_reads_selected_mission_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mission = tmp_path / "kitty-specs" / SLUG
     wp = mission / "tasks" / "WP01-test.md"
     captured: list[Path] = []
@@ -58,10 +56,7 @@ def finalized_checkouts(checkouts: tuple[Path, Path, Path]) -> tuple[Path, Path,
     result = invoke("finalize-tasks", owned)
     assert result.exit_code == 0, result.output
     mission = owned / "kitty-specs" / SLUG
-    events = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-    ]
+    events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     assert [row["to_lane"] for row in events if row.get("wp_id") == "WP01"] == ["planned"]
     assert git(owned, "branch", "--show-current") == TARGET
     assert git(owned, "status", "--porcelain") == ""
@@ -86,8 +81,10 @@ def test_flagless_move_task_preserves_primary_lookup(finalized_checkouts):
         tasks_app,
         ["move-task", "WP01", "--to", "doing", "--agent", "codex", "--mission", SLUG, "--json"],
     )
-    assert result.exit_code == 2, result.output
-    assert json.loads(result.output) == {"error": "mission_not_found", "handle": SLUG}
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
+    assert payload["handle"] == SLUG
     assert tuple(snapshot(root) for root in finalized_checkouts) == before
 
 
@@ -105,16 +102,46 @@ def test_move_task_starts_work_finalized_in_linked_checkout(finalized_checkouts,
                 if event.get("wp_id") == "WP01" and "to_lane" in event:
                     event["wp_id"] = "WP99"
             events_path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
-            (mission / "tasks/WP01-test.md").write_text("not the selected work package\n", encoding="utf-8")
+            # A same-slug SHADOW work package on the non-selected partition. It
+            # must be a READABLE WP file (valid frontmatter, no dependencies), not
+            # a malformed stub: the in-lock dependency gate resolves WP readiness
+            # from the primary partition, and the fail-closed policy (mission
+            # fsm-write-path-integrity-01M1TZV6) refuses the transition when it
+            # meets an unparseable WP file. The point of the fixture is that
+            # move-task still resolves the OWNED checkout's WP over this shadow —
+            # not that a corrupt shadow blocks the move.
+            (mission / "tasks/WP01-test.md").write_text(
+                "---\nwork_package_id: WP01\ntitle: not the selected work package\n"
+                "dependencies: []\nrequirement_refs: []\nsubtasks: []\nowned_files: []\n"
+                "authoritative_surface: app.py\nexecution_mode: code_change\n---\n\n"
+                "# not the selected work package\n",
+                encoding="utf-8",
+            )
     cwd = {"owned": owned, "primary": primary, "sibling": sibling}[caller]
     monkeypatch.chdir(cwd)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(cwd))
     before = tuple(snapshot(root) for root in finalized_checkouts)
     result = CliRunner().invoke(
         tasks_app,
-        ["move-task", "WP01", "--to", "doing", "--agent", "codex", "--mission", SLUG,
-         "--owned-checkout", str(owned), "--note", "owned note", "--assignee", "worker",
-         "--tracker-ref", "test-123", "--json"],
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--note",
+            "owned note",
+            "--assignee",
+            "worker",
+            "--tracker-ref",
+            "test-123",
+            "--json",
+        ],
     )
     assert (snapshot(primary), snapshot(sibling)) == (before[0], before[2])
     if result.exit_code:
@@ -125,10 +152,7 @@ def test_move_task_starts_work_finalized_in_linked_checkout(finalized_checkouts,
     assert Path(payload["path"]) == owned / "kitty-specs" / SLUG / "tasks/WP01-test.md"
     assert Path(payload["status_events_path"]) == owned / "kitty-specs" / SLUG / "status.events.jsonl"
     mission = owned / "kitty-specs" / SLUG
-    events = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-    ]
+    events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     transitions = [row for row in events if row.get("wp_id") == "WP01" and "to_lane" in row]
     assert transitions[-1]["to_lane"] == "in_progress"
     assert transitions[-1]["actor"] == "codex"
@@ -143,21 +167,59 @@ def test_move_task_starts_work_finalized_in_linked_checkout(finalized_checkouts,
     assert json.loads(committed.splitlines()[-1])["delta"]["note"] == "owned note"
 
 
-@pytest.mark.parametrize("case,code", [
-    ("nested", "OWNERSHIP_NESTED"),
-    ("foreign", "OWNERSHIP_FOREIGN"),
-    ("missing_mission", "FEATURE_CONTEXT_UNRESOLVED"),
-    ("protected", "OWNED_BRANCH_REFUSED"),
-    ("wrong_branch", "OWNED_BRANCH_REFUSED"),
-    ("staged", "OWNED_INDEX_REFUSED"),
-    ("topology", "OWNED_TOPOLOGY_UNSUPPORTED"),
-    ("done", "OWNED_TRANSITION_UNSUPPORTED"),
-    ("force", "OWNED_OPTION_UNSUPPORTED"),
-    ("skip", "OWNED_OPTION_UNSUPPORTED"),
-    ("no_commit", "OWNED_OPTION_UNSUPPORTED"),
-    ("bad_pid", "OWNED_INPUT_INVALID"),
-    ("sync", "OWNED_SYNC_UNSUPPORTED"),
-])
+def test_owned_move_task_completes_with_sync_active(finalized_checkouts, monkeypatch):
+    """#3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal is gone — an owned
+    ``move-task --to doing`` completes with hosted sync on (the fan-out
+    handlers on the emit seam are bounded and non-raising, and the Zeitgeist
+    moment handler no-ops without a session/team)."""
+    primary, owned, sibling = finalized_checkouts
+    monkeypatch.chdir(owned)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(owned))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    before = tuple(snapshot(root) for root in finalized_checkouts)
+
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (snapshot(primary), snapshot(sibling)) == (before[0], before[2])
+    mission = owned / "kitty-specs" / SLUG
+    events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    transitions = [row for row in events if row.get("wp_id") == "WP01" and "to_lane" in row]
+    assert transitions[-1]["to_lane"] == "in_progress"
+
+
+@pytest.mark.parametrize(
+    "case,code",
+    [
+        ("nested", "OWNERSHIP_NESTED"),
+        ("foreign", "OWNERSHIP_FOREIGN"),
+        ("missing_mission", "FEATURE_CONTEXT_UNRESOLVED"),
+        ("protected", "OWNED_BRANCH_REFUSED"),
+        ("wrong_branch", "OWNED_BRANCH_REFUSED"),
+        ("staged", "OWNED_INDEX_REFUSED"),
+        ("topology", "OWNED_TOPOLOGY_UNSUPPORTED"),
+        ("done", "OWNED_TRANSITION_UNSUPPORTED"),
+        ("force", "OWNED_OPTION_UNSUPPORTED"),
+        ("skip", "OWNED_OPTION_UNSUPPORTED"),
+        ("no_commit", "OWNED_OPTION_UNSUPPORTED"),
+        ("bad_pid", "OWNED_INPUT_INVALID"),
+    ],
+)
 def test_owned_preflight_refuses_before_effects(checkouts, tmp_path, monkeypatch, case, code):
     primary, owned, sibling = checkouts
     checkout = owned
@@ -188,8 +250,6 @@ def test_owned_preflight_refuses_before_effects(checkouts, tmp_path, monkeypatch
         extra = [{"force": "--force", "skip": "--skip-pre-review-gate", "no_commit": "--no-auto-commit"}[case]]
     elif case == "bad_pid":
         extra = ["--shell-pid", "not-a-number"]
-    elif case == "sync":
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     args = ["move-task", "WP01", "--to", target, "--owned-checkout", str(checkout), "--json", *extra]
     if case != "missing_mission":
         args += ["--mission", SLUG]
@@ -201,16 +261,14 @@ def test_owned_preflight_refuses_before_effects(checkouts, tmp_path, monkeypatch
 
 
 @pytest.mark.parametrize("explicit", [False, True])
-def test_context_error_envelope_and_logging_are_opt_in(checkouts, monkeypatch, explicit):
+def test_context_error_envelope_is_opt_in(checkouts, monkeypatch, explicit):
     from mission_runtime import ActionContextError
-    from specify_cli.cli.commands.agent import tasks, tasks_move_task
+    from specify_cli.cli.commands.agent import tasks_move_task
 
     def fail_context(*args):
         raise ActionContextError("TEST_CONTEXT", "context refused")
 
-    logged = []
     monkeypatch.setattr(tasks_move_task, "_mt_resolve_targets", fail_context)
-    monkeypatch.setattr(tasks, "emit_error_logged", lambda **kwargs: logged.append(kwargs))
     args = ["move-task", "WP01", "--to", "doing", "--json"]
     if explicit:
         args += ["--owned-checkout", str(checkouts[1])]
@@ -221,7 +279,6 @@ def test_context_error_envelope_and_logging_are_opt_in(checkouts, monkeypatch, e
     if explicit:
         expected["error_code"] = "TEST_CONTEXT"
     assert json.loads(result.output) == expected
-    assert len(logged) == (0 if explicit else 1)
     assert tuple(snapshot(root) for root in checkouts) == before
 
 
@@ -233,11 +290,26 @@ def test_claim_start_with_pid_and_repeated_start_refused(finalized_checkouts):
         ("claimed", "claimed", "first"),
         ("doing", "in_progress", "second"),
     ]:
-        result = CliRunner().invoke(tasks_app, [
-            "move-task", "WP01", "--to", target, "--agent", "codex",
-            "--shell-pid", str(os.getpid()), "--assignee", assignee,
-            "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-        ])
+        result = CliRunner().invoke(
+            tasks_app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                target,
+                "--agent",
+                "codex",
+                "--shell-pid",
+                str(os.getpid()),
+                "--assignee",
+                assignee,
+                "--mission",
+                SLUG,
+                "--owned-checkout",
+                str(owned),
+                "--json",
+            ],
+        )
         assert result.exit_code == 0, result.output
         state = json.loads((mission / "status.json").read_text(encoding="utf-8"))["work_packages"]["WP01"]
         assert state["lane"] == expected_lane
@@ -247,27 +319,51 @@ def test_claim_start_with_pid_and_repeated_start_refused(finalized_checkouts):
         assert git(owned, "status", "--porcelain") == ""
         assert (snapshot(primary), snapshot(sibling)) == before
     owned_before = snapshot(owned)
-    repeated = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "codex", "--assignee", "third",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    repeated = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--assignee",
+            "third",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert repeated.exit_code == 1, repeated.output
     assert json.loads(repeated.output)["code"] == "invalid_transition"
     assert snapshot(owned) == owned_before
     assert (snapshot(primary), snapshot(sibling)) == before
 
 
-def test_move_task_enters_review_against_selected_checkout_planning_commit(
-    finalized_checkouts, monkeypatch
-):
+def test_move_task_enters_review_against_selected_checkout_planning_commit(finalized_checkouts, monkeypatch):
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
     mission = owned / "kitty-specs" / SLUG
 
-    started = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "codex",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    started = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert started.exit_code == 0, started.output
 
     manifest = json.loads((mission / "lanes.json").read_text(encoding="utf-8"))
@@ -284,10 +380,22 @@ def test_move_task_enters_review_against_selected_checkout_planning_commit(
 
     monkeypatch.chdir(primary)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(primary))
-    result = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "for_review", "--agent", "codex",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "for_review",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
@@ -302,17 +410,41 @@ def test_move_task_enters_review_against_selected_checkout_planning_commit(
 def test_owned_review_auto_commits_selected_checkout_deliverables(finalized_checkouts):
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
-    started = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "codex",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    started = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert started.exit_code == 0, started.output
 
     (owned / "app.py").write_text("VALUE = 3\n", encoding="utf-8")
-    result = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "for_review", "--agent", "codex",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "for_review",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     assert git(owned, "show", "HEAD:app.py") == "VALUE = 3"
@@ -325,17 +457,41 @@ def test_owned_review_auto_commits_selected_checkout_deliverables(finalized_chec
 def test_owned_review_refuses_status_only_commits(finalized_checkouts):
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
-    started = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "implementer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    started = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "implementer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert started.exit_code == 0, started.output
     before_review = git(owned, "rev-parse", "HEAD")
 
-    submitted = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "for_review", "--agent", "implementer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    submitted = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "for_review",
+            "--agent",
+            "implementer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert submitted.exit_code == 1, submitted.output
     assert json.loads(submitted.output)["error_code"] == "OWNED_IMPLEMENTATION_MISSING"
@@ -350,54 +506,96 @@ def test_owned_review_refuses_status_only_commits(finalized_checkouts):
 def test_owned_review_refuses_auto_commit_outside_owned_files(finalized_checkouts):
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
-    started = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "implementer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    started = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "implementer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert started.exit_code == 0, started.output
     before_review = git(owned, "rev-parse", "HEAD")
     (owned / "app.py").write_text("VALUE = 5\n", encoding="utf-8")
     (owned / "unrelated.txt").write_text("private draft\n", encoding="utf-8")
 
-    submitted = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "for_review", "--agent", "implementer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    submitted = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "for_review",
+            "--agent",
+            "implementer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert submitted.exit_code == 1, submitted.output
     assert json.loads(submitted.output)["error_code"] == "OWNED_DELIVERABLE_SCOPE_REFUSED"
     assert git(owned, "rev-parse", "HEAD") == before_review
-    assert git(owned, "status", "--porcelain").splitlines() == [
-        "M app.py", "?? unrelated.txt"
-    ]
+    assert git(owned, "status", "--porcelain").splitlines() == ["M app.py", "?? unrelated.txt"]
     assert (snapshot(primary), snapshot(sibling)) == other_before
 
 
 @pytest.mark.parametrize("invalid_base", [None, "f" * 40, "HEAD"])
-def test_owned_review_refuses_invalid_planning_commit_before_effects(
-    finalized_checkouts, monkeypatch, invalid_base
-):
+def test_owned_review_refuses_invalid_planning_commit_before_effects(finalized_checkouts, monkeypatch, invalid_base):
     primary, owned, _sibling = finalized_checkouts
-    started = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "codex",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    started = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert started.exit_code == 0, started.output
 
     lanes_path = owned / "kitty-specs" / SLUG / "lanes.json"
     manifest = json.loads(lanes_path.read_text(encoding="utf-8"))
-    manifest["planning_commit_sha"] = (
-        git(owned, "rev-parse", "HEAD") if invalid_base == "HEAD" else invalid_base
-    )
+    manifest["planning_commit_sha"] = git(owned, "rev-parse", "HEAD") if invalid_base == "HEAD" else invalid_base
     lanes_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     monkeypatch.chdir(primary)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(primary))
     before = tuple(snapshot(root) for root in finalized_checkouts)
-    result = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "for_review", "--agent", "codex",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "for_review",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert result.exit_code == 1, result.output
     assert json.loads(result.output)["error_code"] == "OWNED_REVIEW_BASE_INVALID"
@@ -406,16 +604,40 @@ def test_owned_review_refuses_invalid_planning_commit_before_effects(
 
 def _advance_owned_work_to_review(owned: Path) -> Path:
     mission = owned / "kitty-specs" / SLUG
-    started = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "implementer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    started = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "implementer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert started.exit_code == 0, started.output
     (owned / "app.py").write_text("VALUE = 4\n", encoding="utf-8")
-    submitted = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "for_review", "--agent", "implementer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    submitted = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "for_review",
+            "--agent",
+            "implementer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert submitted.exit_code == 0, submitted.output
     return mission
 
@@ -425,16 +647,41 @@ def test_owned_review_and_approval_write_only_selected_checkout(finalized_checko
     other_before = snapshot(primary), snapshot(sibling)
     mission = _advance_owned_work_to_review(owned)
 
-    claimed = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "in_review", "--reviewer", "reviewer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    claimed = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "in_review",
+            "--reviewer",
+            "reviewer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert claimed.exit_code == 0, claimed.output
-    approved = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "approved",
-        "--reviewer", "reviewer", "--approval-ref", "local-review",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    approved = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "approved",
+            "--reviewer",
+            "reviewer",
+            "--approval-ref",
+            "local-review",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert approved.exit_code == 0, approved.output
     payload = json.loads(approved.output)
@@ -443,16 +690,9 @@ def test_owned_review_and_approval_write_only_selected_checkout(finalized_checko
     cycle = mission / "tasks" / "WP01-test" / "review-cycle-1.md"
     assert cycle.is_file()
     assert "reviewer_agent: reviewer" in cycle.read_text(encoding="utf-8")
-    events = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-    ]
-    transitions = [
-        row for row in events if row.get("wp_id") == "WP01" and "to_lane" in row
-    ]
-    assert [row["to_lane"] for row in transitions] == [
-        "planned", "claimed", "in_progress", "for_review", "in_review", "approved"
-    ]
+    events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    transitions = [row for row in events if row.get("wp_id") == "WP01" and "to_lane" in row]
+    assert [row["to_lane"] for row in transitions] == ["planned", "claimed", "in_progress", "for_review", "in_review", "approved"]
     state = json.loads((mission / "status.json").read_text(encoding="utf-8"))["work_packages"]["WP01"]
     assert state["lane"] == "approved"
     assert state["agent"] == "implementer"
@@ -461,29 +701,52 @@ def test_owned_review_and_approval_write_only_selected_checkout(finalized_checko
     assert (snapshot(primary), snapshot(sibling)) == other_before
 
 
-def test_owned_approval_emit_failure_compensates_selected_verdict(
-    finalized_checkouts, monkeypatch
-):
+def test_owned_approval_emit_failure_compensates_selected_verdict(finalized_checkouts, monkeypatch):
     from specify_cli.cli.commands.agent import tasks_move_task
 
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
     mission = _advance_owned_work_to_review(owned)
-    claimed = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "in_review", "--reviewer", "reviewer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    claimed = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "in_review",
+            "--reviewer",
+            "reviewer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert claimed.exit_code == 0, claimed.output
 
     def fail_after_verdict(*args, **kwargs):
         raise RuntimeError("injected owned transition failure")
 
     monkeypatch.setattr(tasks_move_task, "_mt_execute", fail_after_verdict)
-    result = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "approved",
-        "--reviewer", "reviewer", "--approval-ref", "local-review",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "approved",
+            "--reviewer",
+            "reviewer",
+            "--approval-ref",
+            "local-review",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert result.exit_code == 1, result.output
     cycle_rel = f"kitty-specs/{SLUG}/tasks/WP01-test/review-cycle-1.md"
@@ -495,19 +758,29 @@ def test_owned_approval_emit_failure_compensates_selected_verdict(
     assert (snapshot(primary), snapshot(sibling)) == other_before
 
 
-def test_owned_failed_compensation_reports_durable_selected_verdict(
-    finalized_checkouts, monkeypatch
-):
+def test_owned_failed_compensation_reports_durable_selected_verdict(finalized_checkouts, monkeypatch):
     from specify_cli.cli.commands.agent import tasks_move_task
     from specify_cli.cli.commands.agent.tasks_verdict_persistence import VerdictRevertError
 
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
     mission = _advance_owned_work_to_review(owned)
-    claimed = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "in_review", "--reviewer", "reviewer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    claimed = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "in_review",
+            "--reviewer",
+            "reviewer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert claimed.exit_code == 0, claimed.output
 
     def fail_after_verdict(*args, **kwargs):
@@ -517,14 +790,25 @@ def test_owned_failed_compensation_reports_durable_selected_verdict(
         raise VerdictRevertError("injected owned compensation failure")
 
     monkeypatch.setattr(tasks_move_task, "_mt_execute", fail_after_verdict)
-    monkeypatch.setattr(
-        tasks_move_task, "revert_committed_verdict_write", fail_compensation
+    monkeypatch.setattr(tasks_move_task, "revert_committed_verdict_write", fail_compensation)
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "approved",
+            "--reviewer",
+            "reviewer",
+            "--approval-ref",
+            "local-review",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
     )
-    result = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "approved",
-        "--reviewer", "reviewer", "--approval-ref", "local-review",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
@@ -545,25 +829,48 @@ def test_owned_failed_compensation_reports_durable_selected_verdict(
     assert (snapshot(primary), snapshot(sibling)) == other_before
 
 
-def test_owned_rejection_writes_review_and_releases_runtime_claim(
-    finalized_checkouts, tmp_path
-):
+def test_owned_rejection_writes_review_and_releases_runtime_claim(finalized_checkouts, tmp_path):
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
     mission = _advance_owned_work_to_review(owned)
-    claimed = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "in_review", "--reviewer", "reviewer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    claimed = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "in_review",
+            "--reviewer",
+            "reviewer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert claimed.exit_code == 0, claimed.output
     feedback = tmp_path / "review-feedback.md"
     feedback.write_text("Нужно исправить реализацию.\n", encoding="utf-8")
 
-    rejected = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "planned", "--reviewer", "reviewer",
-        "--review-feedback-file", str(feedback),
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    rejected = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "planned",
+            "--reviewer",
+            "reviewer",
+            "--review-feedback-file",
+            str(feedback),
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
 
     assert rejected.exit_code == 0, rejected.output
     payload = json.loads(rejected.output)
@@ -590,10 +897,24 @@ def test_annotation_failure_does_not_report_success(finalized_checkouts, monkeyp
         raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "annotation unavailable")
 
     monkeypatch.setattr(status_transition, "emit_inner_state_changed_transactional", unavailable)
-    result = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "doing", "--agent", "codex", "--note", "not saved",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--note",
+            "not saved",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
     assert payload["result"] == "error"
@@ -609,19 +930,29 @@ def test_annotation_failure_does_not_report_success(finalized_checkouts, monkeyp
     assert (snapshot(primary), snapshot(sibling)) == before
 
 
-def test_owned_rejection_annotation_failure_retains_durable_evidence(
-    finalized_checkouts, monkeypatch, tmp_path
-):
+def test_owned_rejection_annotation_failure_retains_durable_evidence(finalized_checkouts, monkeypatch, tmp_path):
     from mission_runtime import ActionContextError
     from specify_cli.coordination import status_transition
 
     primary, owned, sibling = finalized_checkouts
     other_before = snapshot(primary), snapshot(sibling)
     mission = _advance_owned_work_to_review(owned)
-    claimed = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "in_review", "--reviewer", "reviewer",
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
+    claimed = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "in_review",
+            "--reviewer",
+            "reviewer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
     assert claimed.exit_code == 0, claimed.output
     feedback = tmp_path / "review-feedback.md"
     feedback.write_text("Нужно исправить реализацию.\n", encoding="utf-8")
@@ -629,14 +960,25 @@ def test_owned_rejection_annotation_failure_retains_durable_evidence(
     def unavailable(*args, **kwargs):
         raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "annotation unavailable")
 
-    monkeypatch.setattr(
-        status_transition, "emit_inner_state_changed_transactional", unavailable
+    monkeypatch.setattr(status_transition, "emit_inner_state_changed_transactional", unavailable)
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "planned",
+            "--reviewer",
+            "reviewer",
+            "--review-feedback-file",
+            str(feedback),
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
     )
-    result = CliRunner().invoke(tasks_app, [
-        "move-task", "WP01", "--to", "planned", "--reviewer", "reviewer",
-        "--review-feedback-file", str(feedback),
-        "--mission", SLUG, "--owned-checkout", str(owned), "--json",
-    ])
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
@@ -670,7 +1012,10 @@ def test_owned_ports_read_and_commit_only_selected_mission(checkouts):
     spec = mission / "spec.md"
     spec.write_text(spec.read_text(encoding="utf-8") + "\nOwned port edit.\n", encoding="utf-8")
     result = RealCoordCommitRouter().commit_artifact(
-        handle, [spec], "owned artifact", kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        handle,
+        [spec],
+        "owned artifact",
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
         policy=ProtectionPolicy.resolve(primary),
     )
     assert result.status == "committed"

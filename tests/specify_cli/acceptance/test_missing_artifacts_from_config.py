@@ -169,9 +169,7 @@ def test_contracts_stays_blocking_after_config_driven_fold(tmp_path: Path) -> No
     in_violations = "contracts" in rendered_violations
 
     # Exactly one channel -- the blocking one wins.
-    assert in_optional != in_violations, (
-        f"optional_missing={summary.optional_missing!r} path_violations={summary.path_violations!r}"
-    )
+    assert in_optional != in_violations, f"optional_missing={summary.optional_missing!r} path_violations={summary.path_violations!r}"
     assert in_violations, "contracts must remain on the blocking path_violations side"
     assert summary.ok is False
 

@@ -89,7 +89,7 @@ variable.
 ## Phase 2 — Full distribution profile
 
 Prefer a single profile when you also need aliases, remediation index URLs,
-data-freshness TTL, or to suppress the public-PyPI “no upgrade” notifier.
+data-freshness TTL, or to suppress the "no upgrade available" notifier.
 
 ```toml
 [project.entry-points."spec_kitty.distribution_profile"]
@@ -130,12 +130,18 @@ def build_profile() -> DistributionProfile:
 | `upgrade_provider` | Latest-version source for session-presence + compat planner |
 | `index_url` / `extra_index_url` | Appended as `--index-url` / `--extra-index-url` on pip/pipx/uv remediation |
 | `data_freshness_seconds` | Cache re-query TTL only (display/nag throttle stays stock) |
-| `disable_public_pypi_notifier` | Suppresses the public-PyPI “no upgrade path” notice |
+| `disable_public_pypi_notifier` | Suppresses the public-PyPI “no upgrade” notice |
 | `version_label` | Optional `--version` banner label |
 
 Phase 1 entry-point groups remain valid thin aliases: if no profile is
 registered, Spec Kitty synthesizes a minimal profile from
 `spec_kitty.cli_package` + `spec_kitty.upgrade_provider`.
+
+If a registered profile entry point cannot be loaded or constructed, Spec Kitty
+does **not** fall back to public PyPI. It resolves a degraded profile that
+performs no network lookup, suppresses the no-upgrade notice, and shows manual
+guidance instead of an upgrade command. Fix the profile entry point and restart
+the CLI to restore fork-specific remediation.
 
 ## Phase 3 — Validation checklist
 
@@ -143,7 +149,7 @@ registered, Spec Kitty synthesizes a minimal profile from
 - [ ] `--version` / installed-version lookup use the fork name (and aliases if set)
 - [ ] Upgrade refresh / compat planner call your provider for the fork package name
 - [ ] Remediation commands include `--index-url` when the profile sets it and still pass CHK028 (allowlist length 512, same character class)
-- [ ] Public-PyPI notifier stays quiet when `disable_public_pypi_notifier=True`
+- [ ] No-upgrade notifier stays quiet when `disable_public_pypi_notifier=True`
 - [ ] No files under `src/specify_cli/**` were modified for the publish
 
 ## Related guides

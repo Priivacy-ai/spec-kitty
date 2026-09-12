@@ -48,6 +48,7 @@ from charter.activation.context_renderers.artifact_bodies import (
     _format_inline_toolguide_body,
 )
 from charter.activation.context_renderers.section_bodies import render_critical_section_include
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 
 if TYPE_CHECKING:
     import charter.offering.service as _doctrine_service_module
@@ -99,20 +100,14 @@ def _render_template_include(
     try:
         result = resolve_template_by_id(identifier, tier_roots=tier_roots)
     except FileNotFoundError as exc:
-        raise ValueError(
-            f"No template found for selector '{selector}'."
-        ) from exc
+        raise ValueError(f"No template found for selector '{selector}'.") from exc
     except ValueError as exc:
-        raise ValueError(
-            f"Malformed template selector '{selector}': {exc}"
-        ) from exc
+        raise ValueError(f"Malformed template selector '{selector}': {exc}") from exc
 
     try:
         content = result.path.read_text(encoding="utf-8")
     except OSError as exc:
-        raise ValueError(
-            f"Template for selector '{selector}' could not be read: {exc}"
-        ) from exc
+        raise ValueError(f"Template for selector '{selector}' could not be read: {exc}") from exc
 
     return "\n".join(
         [
@@ -135,19 +130,16 @@ def _render_directive_include(directives: ArtifactRepository[Any], identifier: s
     Takes the ``directives`` repository directly (not the whole service) —
     that is the only attribute this renderer needs (WP04 typing pass).
 
-    The identifier is handed to the repository verbatim: ``DirectiveRepository.get``
-    owns id normalization through the single canonical authority
-    (:func:`charter.offering.drg.migration.id_normalizer.normalize_directive_id`),
-    so the slug the ``--json`` surface advertises (``025-boy-scout-rule``), the
-    numeric shorthand, and the canonical ``DIRECTIVE_NNN`` form all resolve
-    here at parity with the ``tactic:`` / ``agent-profile:`` selectors (#3816).
-    The header echoes the resolved canonical ``id`` rather than the raw input.
+    Normalize before repository lookup because the activation service exposes a
+    mapping-shaped repository whose ``get`` performs exact-key lookup. This keeps
+    slug, numeric, and canonical selector forms at parity (#3816).
     """
 
-    directive = directives.get(identifier)
+    directive_id = normalize_directive_id(identifier)
+    directive = directives.get(directive_id)
     if directive is None:
         raise ValueError(f"No directive found for selector '{selector}'.")
-    directive_id = getattr(directive, "id", identifier)
+    directive_id = getattr(directive, "id", directive_id)
     title = getattr(directive, "title", directive_id)
     return "\n".join(
         [
@@ -178,9 +170,7 @@ def _render_tactic_include(tactics: ArtifactRepository[Any], identifier: str, se
     )
 
 
-def _render_generic_artifact_include(
-    service: _doctrine_service_module.DoctrineService, identifier: str
-) -> str:
+def _render_generic_artifact_include(service: _doctrine_service_module.DoctrineService, identifier: str) -> str:
     """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
 
     from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
@@ -194,11 +184,7 @@ def _render_generic_artifact_include(
     # (WP06) — no private single-member ``is not TEMPLATE`` check may be
     # re-declared here or elsewhere in the charter cascade.
     matches: list[tuple[str, str]] = []
-    for candidate_kind in (
-        member.value
-        for member in ArtifactKind
-        if member not in _NON_AUGMENTATION_ELIGIBLE_KINDS
-    ):
+    for candidate_kind in (member.value for member in ArtifactKind if member not in _NON_AUGMENTATION_ELIGIBLE_KINDS):
         selector = f"{candidate_kind}:{identifier}"
         try:
             rendered: str | None
@@ -207,9 +193,7 @@ def _render_generic_artifact_include(
             elif candidate_kind == "tactic":
                 rendered = _render_tactic_include(service.tactics, identifier, selector)
             else:
-                rendered = _render_doctrine_artifact_include(
-                    service, candidate_kind, identifier
-                )
+                rendered = _render_doctrine_artifact_include(service, candidate_kind, identifier)
         except ValueError:
             continue
         if rendered is not None:
@@ -219,9 +203,7 @@ def _render_generic_artifact_include(
         raise ValueError(f"No artifact found for selector 'artifact:{identifier}'.")
     if len(matches) > 1:
         kinds = ", ".join(kind for kind, _text in matches)
-        raise ValueError(
-            f"Ambiguous artifact selector 'artifact:{identifier}' matched kinds: {kinds}."
-        )
+        raise ValueError(f"Ambiguous artifact selector 'artifact:{identifier}' matched kinds: {kinds}.")
     return matches[0][1]
 
 
@@ -229,7 +211,7 @@ def _format_inline_glossary_pack_body(pack: object) -> list[str]:
     """Render a glossary pack's description + term list for ``--include`` (FR-006).
 
     Defensive ``getattr`` access keeps the renderer decoupled from the concrete
-    :class:`~charter.offering.glossary_packs.models.GlossaryPack` shape and total across
+    :class:`~doctrine.glossary_packs.models.GlossaryPack` shape and total across
     optional fields.
     """
     lines: list[str] = []
@@ -360,9 +342,7 @@ def _resolve_include_kind(kind: str, selector: str) -> ArtifactKind:
         return ArtifactKind.from_operator_token(kind)
     except MissionTypeNotAnArtifactKind as exc:
         raise ValueError(
-            f"--include does not support the 'mission-type' selector "
-            f"(selector {selector!r}); mission types are not addressable "
-            "governance artifacts."
+            f"--include does not support the 'mission-type' selector (selector {selector!r}); mission types are not addressable governance artifacts."
         ) from exc
 
 
@@ -390,9 +370,7 @@ def _render_agent_profile_include_selector(
     # raises ("No agent_profile found ...") for a gated/missing one — it
     # never returns None here, so a direct return is sufficient (no dead
     # fall-through branch to guard).
-    artifact_result = _render_doctrine_artifact_include(
-        gated_service, canonical_kind, identifier
-    )
+    artifact_result = _render_doctrine_artifact_include(gated_service, canonical_kind, identifier)
     if artifact_result is None:
         raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
     return artifact_result

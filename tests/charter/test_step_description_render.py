@@ -45,9 +45,7 @@ class _Tactic:
 
 
 def test_procedure_step_description_renders_under_title() -> None:
-    body = _format_inline_procedure_body(
-        _Procedure([ProcedureStep(title=_TITLE, description=_DESCRIPTION)])
-    )
+    body = _format_inline_procedure_body(_Procedure([ProcedureStep(title=_TITLE, description=_DESCRIPTION)]))
 
     # FR-004: the description is not a loose substring — it is an 8-space
     # indented sub-line BENEATH the title line, not spliced into it.
@@ -56,30 +54,22 @@ def test_procedure_step_description_renders_under_title() -> None:
 
 
 def test_tactic_step_description_renders_under_title() -> None:
-    body = _format_inline_tactic_body(
-        _Tactic([TacticStep(title=_TITLE, description=_DESCRIPTION)])
-    )
+    body = _format_inline_tactic_body(_Tactic([TacticStep(title=_TITLE, description=_DESCRIPTION)]))
 
     assert f"      - {_TITLE}" in body
     assert f"        {_DESCRIPTION}" in body
 
 
 def test_profile_inline_named_body_renders_description() -> None:
-    body = format_inline_named_body(
-        _Procedure([ProcedureStep(title=_TITLE, description=_DESCRIPTION)])
-    )
+    body = format_inline_named_body(_Procedure([ProcedureStep(title=_TITLE, description=_DESCRIPTION)]))
 
     assert f"      - {_TITLE}" in body
     assert f"        {_DESCRIPTION}" in body
 
 
 def test_procedure_body_byte_identical_when_description_absent() -> None:
-    with_none = _format_inline_procedure_body(
-        _Procedure([ProcedureStep(title=_TITLE)])
-    )
-    with_empty = _format_inline_procedure_body(
-        _Procedure([ProcedureStep(title=_TITLE, description="   ")])
-    )
+    with_none = _format_inline_procedure_body(_Procedure([ProcedureStep(title=_TITLE)]))
+    with_empty = _format_inline_procedure_body(_Procedure([ProcedureStep(title=_TITLE, description="   ")]))
 
     assert with_none == with_empty
     # The title line is present; no extra description sub-line was emitted.
@@ -91,9 +81,7 @@ def test_procedure_body_byte_identical_when_description_absent() -> None:
 
 def test_tactic_body_byte_identical_when_description_absent() -> None:
     with_none = _format_inline_tactic_body(_Tactic([TacticStep(title=_TITLE)]))
-    with_empty = _format_inline_tactic_body(
-        _Tactic([TacticStep(title=_TITLE, description="  ")])
-    )
+    with_empty = _format_inline_tactic_body(_Tactic([TacticStep(title=_TITLE, description="  ")]))
 
     assert with_none == with_empty
     assert [line for line in with_none if line.startswith("        ")] == []
@@ -113,9 +101,7 @@ def test_profile_named_body_titleless_step_uses_description_as_header_once() -> 
     line and emits NO 8-space sub-line — the description must appear EXACTLY
     once, never duplicated as both header and indented sub-line.
     """
-    body = format_inline_named_body(
-        _Procedure([ProcedureStep(title="", description=_DESCRIPTION)])
-    )
+    body = format_inline_named_body(_Procedure([ProcedureStep(title="", description=_DESCRIPTION)]))
 
     # The description stands in as the header line ...
     assert f"      - {_DESCRIPTION}" in body

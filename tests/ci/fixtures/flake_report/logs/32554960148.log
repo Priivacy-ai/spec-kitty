@@ -1,6 +1,0 @@
-=========================== short test summary info ============================
-FAILED tests/architectural/test_startup_budget.py::test_the_guard_completes_inside_the_budget_on_three_warm_runs - assert False, budget exceeded
-2.00s call     tests/architectural/test_startup_budget.py::test_the_guard_completes_inside_the_budget_on_three_warm_runs
-0.01s setup    tests/architectural/test_startup_budget.py::test_the_guard_completes_inside_the_budget_on_three_warm_runs
-===================== 1 failed in 3.20s ======================
-# suite: test_the_guard_completes_inside_the_budget_on_three_warm_runs

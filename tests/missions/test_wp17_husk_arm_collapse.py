@@ -32,6 +32,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     candidate_feature_dir_for_mission,
@@ -94,14 +95,16 @@ def test_corrupt_meta_raises_typed_error_not_classified_primary(tmp_path: Path) 
 
     The guarded read-side seam reads primary meta first; a malformed ``meta.json``
     cannot be classified, so the read path surfaces the typed corrupt-meta
-    ``ValueError`` (the historical default ``load_meta`` contract). The absent-field
-    collapse must NOT fold this arm into a silent PRIMARY classification — doing so
-    is the over-collapse mutant this kills.
+    :class:`MissionMetaReadError` (the historical default ``load_meta`` contract
+    was a raw ``ValueError``; ``read_primary_meta`` is routed through the ONE
+    fail-closed reader ``load_meta_fail_closed`` since the #3162 pass). The
+    absent-field collapse must NOT fold this arm into a silent PRIMARY
+    classification — doing so is the over-collapse mutant this kills.
     """
     _init_repo(tmp_path)
     _write_malformed_meta(tmp_path / "kitty-specs" / SLUG_WITH_MID8)
 
-    with pytest.raises(ValueError, match="Malformed JSON"):
+    with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
         resolve_handle_to_read_path(tmp_path, SLUG_WITH_MID8, require_exists=True)
 
 

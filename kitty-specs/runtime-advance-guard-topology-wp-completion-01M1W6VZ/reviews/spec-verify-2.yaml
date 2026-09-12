@@ -1,0 +1,19 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: "Traced the full chain line-by-line in live code — _WP_ITERATION_STEPS={implement,review} (runtime_bridge.py:648), _dn_dependency_gate's non-WP-iteration software-dev pre-check (1757-1780, call at 1774) calls _check_cli_guards(step_id=\"tasks\"), which resolves through evaluate_guards_strict -> _GUARD_TABLES[\"software-dev\"] (cores.py:692) -> _evaluate_software_dev_guards (631-643) -> _evaluate_composed_tasks_guard (614-620) -> _evaluate_composed_tasks_terminal_guard (595-611), whose unconditional _check_artifact_present(snapshot, TASKS_ARTIFACT) at line 604 is the real check — every cited line number matches exactly, and User Story 1/guard-path-precision/Independent Test/Acceptance Scenario 1/C-003/SC-001 are all mutually consistent with this framing with no leftover wrong implement-step WP-iteration claim."
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: "_wp_blocks_step spans runtime_bridge.py:781-810 exactly (def at 781, function's final fallback `return False` at 810), matching the corrected citation."
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: "FR-006 now explicitly requires the exception be caught at all three real call sites into a blocked Decision, and the cited CanonicalStatusNotFoundError precedent at runtime_bridge.py:1679-1697 is real (try at 1679, except at 1681, returns a DecisionEnvelope(kind=DecisionKind.blocked, reason=str(exc)) closing at 1697), matching FR-006's description verbatim; the two _check_cli_guards call sites (1729 wrapped only in except UnregisteredMissionFamilyError at 1735-1741; 1774 with no try at all) and _check_composed_action_guard's gather_artifact_presence at composition.py:543 (outside its only try at 559-566) are all confirmed uncaught today as claimed."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: "C-008 now names a third red-first reproduction explicitly targeting FR-006's raise-and-catch contract (primary-resolution failure via corrupt/missing meta.json, exercised through gather_artifact_presence directly or via each of the three real call sites, asserting both the raise and the per-call-site catch-into-blocked-Decision), making FR-006's claim about C-008 true."
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: "runtime_bridge_io.py:1090 is exactly the status_facts dict-literal open brace and line 1098 is exactly the occurrence_gate_failures entry, matching FR-008's corrected 1090-1098 citation."

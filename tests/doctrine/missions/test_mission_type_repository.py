@@ -130,7 +130,7 @@ def _builtin_repo() -> MissionTypeRepository:
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005) relocated ``mission_types/`` from
-    ``src/doctrine/missions/mission_types`` to
+    ``src/charter/offering/missions/mission_types`` to
     ``packs/built-in/missions/mission_types``.
     """
     mission_types_dir = (
@@ -531,7 +531,7 @@ class TestLayeredProjectionThreadsPackContext:
     of what its callers held, so every org/project type relying on
     step-file projection (no explicit ``action_sequence:`` authored)
     resolved ``action_sequence = None``/``[]`` and the governed entry point
-    (``charter.activation.mission_type_profiles.resolve_mission_type_context``) raised
+    (``charter.mission_type_profiles.resolve_mission_type_context``) raised
     :class:`~charter.activation.mission_type_profiles.MissionTypeEmptyActionSequenceError`.
 
     Both assertions in this class MUST fail against the pre-fix production

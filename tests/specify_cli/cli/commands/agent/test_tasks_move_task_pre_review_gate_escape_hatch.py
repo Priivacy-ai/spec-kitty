@@ -7,9 +7,9 @@ no way to skip it — the loop-friction fast-follow spec
 (``docs/plans/investigations/loop-friction-fastfollow-spec.md`` FR-002/FR-003) adds:
 
 1. an explicit ``--skip-pre-review-gate`` CLI flag (``st.skip_pre_review_gate``),
-2. honoring the gate's own ``SPEC_KITTY_PRE_REVIEW_GATE_DISABLE`` env var as a
-   process-wide opt-out (#2801 clean-cut: the sync-disable toggles no longer
-   govern the gate — a machine with sync off must still enforce it),
+2. honoring the gate's own ``SPEC_KITTY_SKIP_PRE_REVIEW_GATE`` env var as a
+   process-wide opt-out (#3980 — the sync-disable vocabulary is no longer
+   read here),
 3. a console notice before the scoped run starts, so it never reads as a
    silent hang.
 
@@ -112,12 +112,12 @@ def test_skip_flag_skips_gate_without_touching_workspace() -> None:
     assert st.pre_review_gate_metadata["blocked"] is False
 
 
-@pytest.mark.parametrize("env_var", ["SPEC_KITTY_PRE_REVIEW_GATE_DISABLE"])
+@pytest.mark.parametrize("env_var", ["SPEC_KITTY_SKIP_PRE_REVIEW_GATE"])
 def test_disable_env_var_skips_gate_without_touching_workspace(
     env_var: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The gate's own disable env var short-circuits the gate the same way
-    as the explicit flag — no workspace resolution, no subprocess (#2801)."""
+    """The gate's own opt-out env var short-circuits the gate the same way
+    as the explicit flag — no workspace resolution, no subprocess."""
     monkeypatch.setenv(env_var, "1")
     st = _make_state()
     with patch(
@@ -135,7 +135,17 @@ def test_falsy_env_value_does_not_skip_gate(
 ) -> None:
     """A present-but-falsy env var must NOT trip the skip — only recognized
     truthy tokens (the ``core.env.is_truthy`` grammar) do."""
-    monkeypatch.setenv("SPEC_KITTY_PRE_REVIEW_GATE_DISABLE", falsy_value)
+    monkeypatch.setenv("SPEC_KITTY_SKIP_PRE_REVIEW_GATE", falsy_value)
+
+
+@pytest.mark.parametrize("env_var", ["SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT"])
+def test_sync_disable_vocabulary_no_longer_skips_gate(
+    env_var: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#3980: disarming sync must not silently skip a review gate — the gate
+    no longer reads the sync-disable vocabulary, so a truthy value there
+    leaves the gate enforcing (the workspace is still resolved)."""
+    monkeypatch.setenv(env_var, "1")
     st = _make_state()
     with patch(
         f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None
@@ -186,8 +196,7 @@ def test_default_still_attempts_to_resolve_workspace_and_run_gate() -> None:
     reason = st.pre_review_gate_metadata["reason"] or ""
     assert "gate skipped" not in reason
     assert "--skip-pre-review-gate" not in reason
-    assert "SPEC_KITTY_SYNC_DISABLE" not in reason
-    assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" not in reason
+    assert "SPEC_KITTY_SKIP_PRE_REVIEW_GATE" not in reason
 
 
 def test_default_does_not_print_skip_notice() -> None:
@@ -307,8 +316,7 @@ def test_skip_pre_review_gate_flag_is_registered_on_move_task_help() -> None:
     )
     assert "--skip-pre-review-gate" in option.opts
     assert option.default is False
-    assert "SPEC_KITTY_SYNC_DISABLE" in (option.help or "")
-    assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" in (option.help or "")
+    assert "SPEC_KITTY_SKIP_PRE_REVIEW_GATE" in (option.help or "")
 
 
 def test_move_task_cli_forwards_skip_flag_to_orchestrator() -> None:

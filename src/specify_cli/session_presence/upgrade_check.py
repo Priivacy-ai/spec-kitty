@@ -28,9 +28,10 @@ __all__ = [
 ]
 
 # ``refresh_cache_once`` is invoked dynamically via a detached subprocess
-# (``python -c "from ... import refresh_cache_once; refresh_cache_once()"``),
-# which the static dead-code gate cannot trace — kept importable but not
-# exported so the gate does not flag it as unused.
+# (``python -m specify_cli.session_presence.upgrade_check``, this module's
+# own ``__main__`` guard below), which the static dead-code gate cannot
+# trace — kept importable but not exported so the gate does not flag it as
+# unused.
 
 CACHE_PATH: Path = Path.home() / ".kittify" / "last-cli-check.json"
 TTL_SECONDS: int = 3600
@@ -39,7 +40,7 @@ OPT_OUT_ENV_VAR: str = "SPEC_KITTY_NO_UPGRADE_CHECK"
 
 def _is_opt_out_set() -> bool:
     """Return True when upgrade checks are disabled by environment."""
-    return is_truthy(os.environ.get(OPT_OUT_ENV_VAR))
+    return bool(is_truthy(os.environ.get(OPT_OUT_ENV_VAR)))
 
 
 def refresh_cache_once() -> None:
@@ -124,16 +125,32 @@ class UpgradeChecker:
 
         try:
             CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.Popen(
-                [
-                    sys.executable,
-                    "-c",
-                    "from specify_cli.session_presence.upgrade_check import refresh_cache_once; "
-                    "refresh_cache_once()",
-                ],
-                start_new_session=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            argv = [sys.executable, "-m", "specify_cli.session_presence.upgrade_check"]
+            if os.name == "nt":
+                subprocess.Popen(
+                    argv,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+                )
+            else:
+                subprocess.Popen(
+                    argv,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
         except Exception:  # intentionally silent — background task must never raise
             pass
+
+
+if __name__ == "__main__":
+    # Entry point for the detached background subprocess launched by
+    # `check_in_background` above, run as `python -m
+    # specify_cli.session_presence.upgrade_check` (not `python -c <codegen>`
+    # — see #4125: a `-c` child has no `__main__.__file__`, and a
+    # transitive import reading it crashes on Windows before this ever
+    # gets a chance to run). Legitimately fire-and-forget: `refresh_cache_once`
+    # already never raises, so no readiness probe or log routing is needed
+    # here the way the dashboard's detached child requires.
+    refresh_cache_once()

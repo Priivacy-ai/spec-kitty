@@ -61,7 +61,7 @@ def _disable_saas_sync_for_e2e_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     projects without hosted credentials, so the preflight would otherwise
     fail before the behavior under test runs.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +296,7 @@ def e2e_project(tmp_path: Path) -> Path:
         "`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a\n"
         "project layer and the runtime can advance; it is intentionally empty.\n\n"
         "The runtime falls back to the in-package built-in doctrine\n"
-        "(`src/doctrine/`) for all artifact lookups until the LLM harness writes\n"
+        "(`src/charter/offering/`) for all artifact lookups until the LLM harness writes\n"
         "project-local artifacts under `.kittify/charter/generated/` and you re-run\n"
         "`spec-kitty charter synthesize`.\n",
         encoding="utf-8",

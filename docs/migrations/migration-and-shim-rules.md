@@ -2,7 +2,7 @@
 title: Migration and Shim Ownership Rules
 description: The migration and shim ownership rulebook governing bundle/runtime migrations and back-compat shims during package extraction, which every extraction mission must cite.
 doc_status: active
-updated: '2026-04-20'
+updated: '2026-08-31'
 ---
 # Migration and Shim Ownership Rules
 
@@ -42,6 +42,14 @@ A migration module lives under `src/specify_cli/upgrade/migrations/` and is name
 **Idempotency requirement**: `apply()` must be safe to call multiple times on the same project. Use existence checks (`if not target.exists()`) or content-hash comparisons rather than unconditional writes. A failed partial migration followed by a retry must produce the same final state as a successful first run.
 
 **Dry-run contract**: When `dry_run=True`, `apply()` must not write any files, run any shell commands, or emit any git commits. It should report what it *would* do to stdout (using `rich` where appropriate). The dry-run path must be exercised by at least one test.
+
+**Detection reachability**: `MigrationRunner` calls `detect()` before `can_apply()` and
+`apply()`, so a write-path safety guard is end-to-end reachable only when the same
+unsafe path cannot make `detect()` return `False` first. `Path.exists()` follows
+symlinks and returns `False` for a dangling symlink; a `detect()` existence check
+can therefore skip the migration before a later `can_apply()`/`apply()` guard runs.
+Close unsafe reads in both the detection and write paths, and record that
+reachability dependency in the migration PR's blast-radius note.
 
 **Test expectations**: Each migration module must have a corresponding test in `tests/specify_cli/upgrade/migrations/` that:
 1. Creates a synthetic project directory via `tmp_path`.
@@ -98,6 +106,8 @@ warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
 
 The `warnings.warn(..., stacklevel=2)` call executes at import time so that any import of the shim module immediately surfaces the deprecation to the calling code's stack frame (not the shim's own frame).
 
+Lazy PEP 562 shims used to avoid eager CLI-startup imports are exempt from the eager re-export and eager `__all__` lines above. They must still expose `__deprecated__`, `__canonical_import__`, `__removal_release__`, and `__deprecation_message__`, and warn on the first import or attribute access.
+
 ### Deprecation window
 
 A shim must remain in place for **at least one full minor release** after the canonical path is available. The `removal_target_release` in the registry must be at least one minor version ahead of the release in which the shim was introduced (e.g., introduced in `3.2.0` → removal no earlier than `3.3.0`).
@@ -125,7 +135,7 @@ The registry at `docs/migrations/shim-registry.yaml` is the authoritative list o
 
 ### How to add a new entry
 
-1. Copy the shim template from Section 4 into the appropriate `src/specify_cli/<legacy_name>.py` or `src/specify_cli/<legacy_name>/__init__.py`.
+1. Copy the shim template from Section 4 into the appropriate `src/<dotted legacy path>.py` or `src/<dotted legacy path>/__init__.py` (including top-level modules).
 2. Add an entry to `docs/migrations/shim-registry.yaml` with all required fields.
 3. Open a tracker issue for the removal and record its reference in `tracker_issue`.
 4. Run `spec-kitty doctor shim-registry` and confirm it exits 0 with the new entry showing `pending` status.
@@ -163,7 +173,7 @@ Statuses:
 
 ### `tests/architectural/test_unregistered_shim_scanner.py`
 
-This test walks `src/specify_cli/` using Python's `ast` module, detects any module containing `__deprecated__ = True`, and asserts that every detected path appears in the registry. The test fails if a shim module exists on disk but has no registry entry. This prevents engineers from introducing a shim without registering it.
+This test walks `src/` using Python's `ast` module, detects any module containing `__deprecated__ = True`, and asserts that every detected path appears in the registry. The test fails if a shim module exists on disk but has no registry entry. This prevents engineers from introducing a shim without registering it.
 
 The scanner detects both `__deprecated__ = True` (assignment) and `__deprecated__: bool = True` (annotated assignment) forms.
 

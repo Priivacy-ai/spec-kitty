@@ -104,9 +104,7 @@ def test_branch_detection_failure_skips_commit_with_warning(tmp_path: Path, monk
     monkeypatch.setattr(
         autocommit,
         "safe_commit",
-        lambda **_kw: (_ for _ in ()).throw(
-            AssertionError("safe_commit must not run when branch detection fails")
-        ),
+        lambda **_kw: (_ for _ in ()).throw(AssertionError("safe_commit must not run when branch detection fails")),
     )
     monkeypatch.setattr(
         subprocess,

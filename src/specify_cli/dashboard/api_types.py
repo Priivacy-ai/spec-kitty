@@ -55,22 +55,11 @@ class ErrorResponse(TypedDict):
 # ---------------------------------------------------------------------------
 
 
-class SyncInfo(TypedDict, total=False):
-    """Nested sync block inside ``HealthResponse``."""
-
-    running: bool
-    last_sync: str | None
-    consecutive_failures: int
-    error: str  # present only on exception path
-
-
 class HealthResponse(TypedDict, total=False):
     """Response from ``GET /api/health``."""
 
     status: str
     project_path: str
-    sync: SyncInfo
-    websocket_status: str
     token: str  # conditionally present
     preflight_warning: str  # FR-006 banner; blocking reason or passed advisory
 
@@ -220,6 +209,8 @@ class FeatureItem(TypedDict):
     artifacts: dict[str, ArtifactInfo]
     workflow: WorkflowStatus
     kanban_stats: KanbanStats
+    mission_status: str  # "active" | "planned" | "done" | "draft"
+    next_action: NotRequired[str | None]
     meta: dict[str, Any]
     worktree: WorktreeInfo
     is_legacy: bool  # added by handler, not scanner
@@ -306,17 +297,6 @@ class DecayWatchTileResponse(TypedDict, total=False):
     total_count: int
     feature_scope: str | None
     duration_seconds: float | None
-
-
-# ---------------------------------------------------------------------------
-# Sync-trigger endpoint
-# ---------------------------------------------------------------------------
-
-
-class SyncTriggerSuccess(TypedDict):
-    """Successful response from ``POST /api/sync/trigger``."""
-
-    status: str  # "scheduled"
 
 
 # ---------------------------------------------------------------------------
@@ -439,8 +419,6 @@ __all__ = [
     "MissionRecord",
     "ResearchArtifact",
     "ResearchResponse",
-    "SyncInfo",
-    "SyncTriggerSuccess",
     "WorkflowStatus",
     "WorktreeInfo",
 ]

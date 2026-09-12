@@ -52,9 +52,7 @@ def test_prefers_caller_owned_mission_surface(monkeypatch: pytest.MonkeyPatch, t
     assert context.identity == caller_mission
 
 
-def test_falls_back_to_primary_when_caller_has_no_mission(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_falls_back_to_primary_when_caller_has_no_mission(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     primary = tmp_path / "primary"
     caller = tmp_path / "caller"
     primary.mkdir()
@@ -78,9 +76,7 @@ def test_falls_back_to_primary_when_caller_has_no_mission(
     assert context.identity == primary_mission
 
 
-def test_rejects_conflicting_primary_and_caller_identities(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_rejects_conflicting_primary_and_caller_identities(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     primary = tmp_path / "primary"
     caller = tmp_path / "caller"
     primary.mkdir()
@@ -116,9 +112,7 @@ def _make_repo(root: Path, mission_id: str) -> None:
     slug = "demo-mission-01MTEST"
     specs = root / "kitty-specs" / slug
     specs.mkdir(parents=True)
-    specs.joinpath("meta.json").write_text(
-        json.dumps({"mission_id": mission_id}), encoding="utf-8"
-    )
+    specs.joinpath("meta.json").write_text(json.dumps({"mission_id": mission_id}), encoding="utf-8")
 
 
 def _link_worktree(primary: Path, caller: Path) -> None:
@@ -126,14 +120,10 @@ def _link_worktree(primary: Path, caller: Path) -> None:
     gitdir = primary / ".git" / "worktrees" / "demo"
     gitdir.mkdir(parents=True)
     gitdir.joinpath("HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
-    caller.joinpath(".git").write_text(
-        f"gitdir: {gitdir}\n", encoding="utf-8"
-    )
+    caller.joinpath(".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
 
 
-def test_real_resolver_prefers_caller_worktree_mission(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_real_resolver_prefers_caller_worktree_mission(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     primary = tmp_path / "primary"
     caller = tmp_path / "caller"
     caller.mkdir()
@@ -155,9 +145,7 @@ def test_real_resolver_prefers_caller_worktree_mission(
     assert context.identity.mission_id == "01MPRIMARYREAL000000000000A"
 
 
-def test_real_resolver_falls_back_when_caller_has_no_kitty_specs(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_real_resolver_falls_back_when_caller_has_no_kitty_specs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     primary = tmp_path / "primary"
     caller = tmp_path / "caller"
     caller.mkdir()
@@ -176,9 +164,7 @@ def test_real_resolver_falls_back_when_caller_has_no_kitty_specs(
     assert context.identity.mission_id == "01MPRIMARYREAL000000000000A"
 
 
-def test_real_resolver_rejects_conflicting_identities(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_real_resolver_rejects_conflicting_identities(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     primary = tmp_path / "primary"
     caller = tmp_path / "caller"
     caller.mkdir()

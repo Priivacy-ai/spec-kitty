@@ -21,9 +21,7 @@ from specify_cli.cli.commands.agent import mission_setup_plan as seam
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 try:
-    setup_plan_hosted_effects = importlib.import_module(
-        "specify_cli.cli.commands.agent.setup_plan_hosted_effects"
-    )
+    setup_plan_hosted_effects = importlib.import_module("specify_cli.cli.commands.agent.setup_plan_hosted_effects")
 except ModuleNotFoundError:
     # The immutable pre-mission source predates the physical-effects module.
     setup_plan_hosted_effects = seam
@@ -78,8 +76,7 @@ def _invoke(case: dict[str, object]) -> ReplayResult:  # noqa: C901
     if bool(case.get("plan_exists", True)):
         plan_file.write_text("# Plan\n\nPopulated but insufficient.\n", encoding="utf-8")
     template.write_text(
-        "# Plan\n\n## Technical Context\n\n"
-        "**Language/Version**: [NEEDS CLARIFICATION]\n",
+        "# Plan\n\n## Technical Context\n\n**Language/Version**: [NEEDS CLARIFICATION]\n",
         encoding="utf-8",
     )
     emitted: list[dict[str, object]] = []
@@ -145,9 +142,7 @@ def _invoke(case: dict[str, object]) -> ReplayResult:  # noqa: C901
             (
                 mission_mod,
                 "_commit_to_branch",
-                lambda *_args, **_kwargs: seam.CommitToBranchResult(
-                    "committed", "main", "abc123"
-                ),
+                lambda *_args, **_kwargs: seam.CommitToBranchResult("committed", "main", "abc123"),
             ),
             (seam, "_resolve_branch_match_operands", lambda *_args, **_kwargs: ("main", "main")),
             (seam, "_resolve_plan_template", _resolve),
@@ -162,12 +157,8 @@ def _invoke(case: dict[str, object]) -> ReplayResult:  # noqa: C901
         )
         for target, name, replacement in replacements:
             stack.enter_context(patch.object(target, name, replacement))
-        stack.enter_context(
-            patch("specify_cli.missions._substantive.is_substantive", _is_substantive)
-        )
-        stack.enter_context(
-            patch("specify_cli.missions._substantive.is_committed", _is_committed)
-        )
+        stack.enter_context(patch("specify_cli.missions._substantive.is_substantive", _is_substantive))
+        stack.enter_context(patch("specify_cli.missions._substantive.is_committed", _is_committed))
         stack.enter_context(patch.dict(os.environ, {"SPEC_KITTY_ENABLE_SAAS_SYNC": "0"}))
         exit_code = 0
         try:
@@ -193,10 +184,7 @@ def main() -> None:
         json.dumps(
             {
                 "loaded_module": str(loaded_module.relative_to(source_root)),
-                "cases": {
-                    name: _invoke(case).model_dump(mode="json")
-                    for name, case in CASES.items()
-                },
+                "cases": {name: _invoke(case).model_dump(mode="json") for name, case in CASES.items()},
             },
             sort_keys=True,
         )

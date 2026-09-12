@@ -57,6 +57,7 @@ from charter.activation.context_renderers.token_budget import (
     _PROFILE_INLINE_BODY_LIMIT_CHARS,
     _budget_estimate,
 )
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -127,6 +128,7 @@ def _render_selected_artifacts(
     when_clause: str,
     body_formatter: Callable[[object], list[str]],
     org_source_map: dict[str, str] | None = None,
+    normalize_id: Callable[[str], str] | None = None,
 ) -> list[str]:
     """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
 
@@ -157,7 +159,8 @@ def _render_selected_artifacts(
         artifact = None
         if repository is not None:
             try:
-                artifact = repository.get(artifact_id)
+                lookup_id = normalize_id(artifact_id) if normalize_id else artifact_id
+                artifact = repository.get(lookup_id)
             except Exception:  # noqa: BLE001 — best-effort catalog lookup
                 artifact = None
 
@@ -243,6 +246,7 @@ def _render_selected_directives(
         when_clause=_ACTION_DOCTRINE_LINK_WHEN,
         body_formatter=_format_inline_directive_body,
         org_source_map=org_source_map,
+        normalize_id=normalize_directive_id,
     )
 
 
@@ -433,9 +437,7 @@ def _render_selection_block(
     # used throughout ``charter.activation.context`` (e.g. ``charter.activation.pack_context``).
     from charter.activation.context import _read_org_required_selections  # noqa: PLC0415
 
-    org_required: dict[str, list[str]] = (
-        _read_org_required_selections(repo_root) if repo_root is not None else {}
-    )
+    org_required: dict[str, list[str]] = _read_org_required_selections(repo_root) if repo_root is not None else {}
 
     def _merge(
         catalog_map: dict[str, str],
@@ -454,44 +456,32 @@ def _render_selection_block(
         return merged
 
     paradigm_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "paradigms", None), doctrine_selection.selected_paradigms
-        ),
+        _collect_org_source_map(getattr(service, "paradigms", None), doctrine_selection.selected_paradigms),
         "paradigms",
         doctrine_selection.selected_paradigms,
     )
     directive_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "directives", None), doctrine_selection.selected_directives
-        ),
+        _collect_org_source_map(getattr(service, "directives", None), doctrine_selection.selected_directives),
         "directives",
         doctrine_selection.selected_directives,
     )
     tactic_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "tactics", None), doctrine_selection.selected_tactics
-        ),
+        _collect_org_source_map(getattr(service, "tactics", None), doctrine_selection.selected_tactics),
         "tactics",
         doctrine_selection.selected_tactics,
     )
     styleguide_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "styleguides", None), doctrine_selection.selected_styleguides
-        ),
+        _collect_org_source_map(getattr(service, "styleguides", None), doctrine_selection.selected_styleguides),
         "styleguides",
         doctrine_selection.selected_styleguides,
     )
     toolguide_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "toolguides", None), doctrine_selection.selected_toolguides
-        ),
+        _collect_org_source_map(getattr(service, "toolguides", None), doctrine_selection.selected_toolguides),
         "toolguides",
         doctrine_selection.selected_toolguides,
     )
     procedure_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "procedures", None), doctrine_selection.selected_procedures
-        ),
+        _collect_org_source_map(getattr(service, "procedures", None), doctrine_selection.selected_procedures),
         "procedures",
         doctrine_selection.selected_procedures,
     )
@@ -514,24 +504,12 @@ def _render_selection_block(
 
     blocks: list[str] = []
     sections = (
-        _render_selected_paradigms(
-            doctrine_selection.selected_paradigms, service, org_source_map=paradigm_org
-        ),
-        _render_selected_directives(
-            doctrine_selection.selected_directives, service, org_source_map=directive_org
-        ),
-        _render_selected_tactics(
-            doctrine_selection.selected_tactics, service, org_source_map=tactic_org
-        ),
-        _render_selected_styleguides(
-            doctrine_selection.selected_styleguides, service, org_source_map=styleguide_org
-        ),
-        _render_selected_toolguides(
-            doctrine_selection.selected_toolguides, service, org_source_map=toolguide_org
-        ),
-        _render_selected_procedures(
-            doctrine_selection.selected_procedures, service, org_source_map=procedure_org
-        ),
+        _render_selected_paradigms(doctrine_selection.selected_paradigms, service, org_source_map=paradigm_org),
+        _render_selected_directives(doctrine_selection.selected_directives, service, org_source_map=directive_org),
+        _render_selected_tactics(doctrine_selection.selected_tactics, service, org_source_map=tactic_org),
+        _render_selected_styleguides(doctrine_selection.selected_styleguides, service, org_source_map=styleguide_org),
+        _render_selected_toolguides(doctrine_selection.selected_toolguides, service, org_source_map=toolguide_org),
+        _render_selected_procedures(doctrine_selection.selected_procedures, service, org_source_map=procedure_org),
         _render_selected_agent_profiles(
             doctrine_selection.selected_agent_profiles,
             service,
@@ -590,10 +568,7 @@ def _extend_named_artifact_lines(
             formatted.append(f"    - {artifact_id}{suffix}")
             continue
         title = getattr(artifact, title_attr)
-        is_linked = (
-            progressive_kind is not None
-            and f"{progressive_kind}:{artifact_id}" not in inline_urns
-        )
+        is_linked = progressive_kind is not None and f"{progressive_kind}:{artifact_id}" not in inline_urns
         if is_linked:
             formatted.append(f"    - {artifact_id}: {title}{suffix}")
             formatted.extend(

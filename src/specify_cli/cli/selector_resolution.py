@@ -29,7 +29,6 @@ import click
 import typer
 from specify_cli.cli.console import err_console as _err_console
 
-from specify_cli.context.errors import MissingIdentityError
 from specify_cli.context.mission_resolver import (
     AmbiguousHandleError,
     MissionNotFoundError,
@@ -96,10 +95,7 @@ def _emit_deprecation_warning(
         return False
 
     _warned.add(pair)
-    _err_console.print(
-        f"[yellow]Warning:[/yellow] {alias_flag} is deprecated; "
-        f"use {canonical_flag}. See: {_doc_path_for(alias_flag)}"
-    )
+    _err_console.print(f"[yellow]Warning:[/yellow] {alias_flag} is deprecated; use {canonical_flag}. See: {_doc_path_for(alias_flag)}")
     return True
 
 
@@ -197,8 +193,10 @@ def resolve_mission_handle(
     5. Numeric prefix alone (e.g. ``"083"``)
 
     On success the :class:`~specify_cli.context.mission_resolver.ResolvedMission`
-    is returned.  On failure the appropriate error message is printed to *stderr*
-    and :func:`sys.exit` is called with exit code 2.
+    is returned. On human-output failure the appropriate error message is
+    printed to *stderr* and :func:`sys.exit` is called with exit code 2. On
+    JSON-output failure a structured envelope is printed to stdout and
+    :func:`sys.exit` is called with exit code 1.
 
     Args:
         handle: Raw flag value from ``--mission`` or ``--feature``.
@@ -210,38 +208,50 @@ def resolve_mission_handle(
         The uniquely resolved mission.
 
     Raises:
-        SystemExit(2): On ``AmbiguousHandleError``, ``MissionNotFoundError``, or
-            ``MissingIdentityError``.
+        SystemExit: Exit 2 in human mode; exit 1 in JSON mode.
     """
+
+    def _emit_json_error(
+        *,
+        error_code: str,
+        message: str,
+        data: dict[str, object] | None = None,
+    ) -> None:
+        payload: dict[str, object] = {
+            "success": False,
+            "error_code": error_code,
+            "error": message,
+        }
+        if data:
+            payload.update(data)
+        print(_json.dumps(payload))
+        sys.exit(1)
+
     try:
         return resolve_mission(handle, repo_root)
     except AmbiguousHandleError as exc:
         if json_mode:
-            _err_console.print_json(_json.dumps(exc.to_dict()))
+            details = exc.to_dict()
+            _emit_json_error(
+                error_code=str(details["error"]),
+                message=str(exc),
+                data={
+                    "handle": exc.handle,
+                    "candidates": details["candidates"],
+                },
+            )
         else:
             _err_console.print(str(exc))
         sys.exit(2)
     except MissionNotFoundError as exc:
         if json_mode:
-            payload = {"error": "mission_not_found", "handle": exc.handle}
-            _err_console.print_json(_json.dumps(payload))
-        else:
-            _err_console.print(
-                f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
-                f"Check that the handle is correct and that the mission exists in kitty-specs/."
+            _emit_json_error(
+                error_code="MISSION_NOT_FOUND",
+                message=str(exc),
+                data={"handle": exc.handle},
             )
-        sys.exit(2)
-    except MissingIdentityError as exc:
-        if json_mode:
-            payload = {
-                "error": "missing_mission_id",
-                "detail": str(exc),
-                "remediation": "spec-kitty migrate backfill-identity",
-            }
-            _err_console.print_json(_json.dumps(payload))
         else:
             _err_console.print(
-                f"[red]Error:[/red] {exc}\n"
-                f"[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix."
+                f'[red]Error:[/red] No mission found for handle "{exc.handle}". Check that the handle is correct and that the mission exists in kitty-specs/.'
             )
         sys.exit(2)

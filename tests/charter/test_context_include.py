@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -195,6 +196,24 @@ class TestAgentProfileInclude:
 
         with pytest.raises(ValueError, match="No agent_profile found"):
             build_charter_context_include(tmp_path, "agent-profile:nope")
+
+
+class TestDirectiveInclude:
+    def test_active_directive_slug_resolves_to_its_canonical_id(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#3816: active directive slugs must work in the public include selector."""
+        directive = SimpleNamespace(title="Boy Scout Rule", intent="Keep scope tidy.")
+        _patch_service(
+            monkeypatch,
+            _StubService(directives=_StubRepo({"DIRECTIVE_025": directive})),
+        )
+
+        text = build_charter_context_include(
+            tmp_path, "directive:025-boy-scout-rule"
+        )
+
+        assert "Directive DIRECTIVE_025: Boy Scout Rule" in text
 
 
 # ---------------------------------------------------------------------------

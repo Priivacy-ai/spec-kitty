@@ -48,9 +48,7 @@ class TestPresenceFilenamesAbsentManifest:
         assert result == frozenset()
         assert result is not None
 
-    def test_repo_root_given_but_no_manifest_anywhere_still_projects_to_empty_frozenset(
-        self, tmp_path: Path
-    ) -> None:
+    def test_repo_root_given_but_no_manifest_anywhere_still_projects_to_empty_frozenset(self, tmp_path: Path) -> None:
         """``repo_root`` supplied, resolves no org roots (no ``.kittify/config.yaml``
         at all) -- the org-tier consult's "no match" path must fall through
         cleanly to the built-in tier, which also has nothing for this family."""
@@ -59,9 +57,7 @@ class TestPresenceFilenamesAbsentManifest:
         project_root = tmp_path / "project-no-config"
         project_root.mkdir()
 
-        result = _presence_filenames_for(
-            "totally-unregistered-family", repo_root=project_root
-        )
+        result = _presence_filenames_for("totally-unregistered-family", repo_root=project_root)
 
         assert result == frozenset()
 
@@ -76,9 +72,7 @@ _MALFORMED_MISSION_TYPE = "malformed-presence-manifest"
 
 
 class TestPresenceFilenamesMalformedManifestPropagates:
-    def test_malformed_builtin_manifest_propagates_malformed_manifest_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_malformed_builtin_manifest_propagates_malformed_manifest_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import charter.activation.manifest_loader as manifest_loader_module
         from charter.offering.missions.repository import MalformedManifestError
         from runtime.next.runtime_bridge_io import _presence_filenames_for
@@ -89,9 +83,7 @@ class TestPresenceFilenamesMalformedManifestPropagates:
             def get_expected_artifacts(self, mission: str) -> None:
                 raise MalformedManifestError(offending_path, ValueError("bad indentation"))
 
-        monkeypatch.setattr(
-            manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository()
-        )
+        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
 
         with pytest.raises(MalformedManifestError) as exc_info:
             _presence_filenames_for(_MALFORMED_MISSION_TYPE)
@@ -106,9 +98,7 @@ class TestPresenceFilenamesMalformedManifestPropagates:
 
 
 class TestPresenceFilenamesRoutesThroughAuthority:
-    def test_delegates_to_manifest_loader_load_manifest(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_delegates_to_manifest_loader_load_manifest(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import charter.activation.manifest_loader as manifest_loader_module
         from runtime.next.runtime_bridge_io import _presence_filenames_for
 
@@ -207,9 +197,7 @@ def _tristate_schema_invalid_family_repo(tmp_path: Path, monkeypatch: pytest.Mon
     missions_root = tmp_path / "missions-root-tristate-schema-invalid"
     family_dir = missions_root / _TRISTATE_SCHEMA_INVALID_FAMILY
     family_dir.mkdir(parents=True)
-    (family_dir / "expected-artifacts.yaml").write_text(
-        _TRISTATE_SCHEMA_INVALID_YAML, encoding="utf-8"
-    )
+    (family_dir / "expected-artifacts.yaml").write_text(_TRISTATE_SCHEMA_INVALID_YAML, encoding="utf-8")
     monkeypatch.setattr(
         MissionTemplateRepository,
         "default",
@@ -248,9 +236,7 @@ class TestTristateCharacterizationThroughGatherArtifactPresence:
 
         assert snapshot.blocking_artifact_names is None
 
-    def test_present_and_valid_yields_real_frozenset(
-        self, tmp_path: Path, _tristate_valid_family_repo: None
-    ) -> None:
+    def test_present_and_valid_yields_real_frozenset(self, tmp_path: Path, _tristate_valid_family_repo: None) -> None:
         from runtime.next.runtime_bridge_io import gather_artifact_presence
 
         feature_dir = tmp_path / "feature-valid"
@@ -273,9 +259,7 @@ class TestTristateCharacterizationThroughGatherArtifactPresence:
         project_root = tmp_path / "project-malformed"
         project_root.mkdir()
         org_root = tmp_path / "org-pack-malformed"
-        _write_tristate_org_manifest(
-            org_root, _TRISTATE_MALFORMED_ORG_FAMILY, _TRISTATE_MALFORMED_ORG_YAML
-        )
+        _write_tristate_org_manifest(org_root, _TRISTATE_MALFORMED_ORG_FAMILY, _TRISTATE_MALFORMED_ORG_YAML)
         _write_tristate_org_pack_config(project_root, packs=[("acme", org_root)])
         feature_dir = tmp_path / "feature-malformed"
         feature_dir.mkdir()
@@ -288,9 +272,7 @@ class TestTristateCharacterizationThroughGatherArtifactPresence:
                 repo_root=project_root,
             )
 
-    def test_present_and_schema_invalid_raises_manifest_schema_error(
-        self, tmp_path: Path, _tristate_schema_invalid_family_repo: None
-    ) -> None:
+    def test_present_and_schema_invalid_raises_manifest_schema_error(self, tmp_path: Path, _tristate_schema_invalid_family_repo: None) -> None:
         from charter.activation.manifest_loader import ManifestSchemaError
         from runtime.next.runtime_bridge_io import gather_artifact_presence
 
@@ -345,9 +327,7 @@ class TestExpectedArtifactsOrgReadDedup:
         clear_cache()
 
     @pytest.mark.regression
-    def test_org_manifest_read_exactly_once_per_gather_call(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_org_manifest_read_exactly_once_per_gather_call(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         import charter.activation.org_expected_artifacts as org_expected_artifacts_module
         from runtime.next.runtime_bridge_io import gather_artifact_presence
 
@@ -366,9 +346,7 @@ class TestExpectedArtifactsOrgReadDedup:
             calls.append(mission_type)
             return original(org_roots, mission_type)
 
-        monkeypatch.setattr(
-            org_expected_artifacts_module, "resolve_org_expected_artifacts", _counting
-        )
+        monkeypatch.setattr(org_expected_artifacts_module, "resolve_org_expected_artifacts", _counting)
 
         snapshot = gather_artifact_presence(
             feature_dir,
@@ -378,7 +356,4 @@ class TestExpectedArtifactsOrgReadDedup:
         )
 
         assert snapshot.blocking_artifact_names == frozenset({"dedup-artifact.md"})
-        assert len(calls) == 1, (
-            f"expected the org-tier manifest read exactly once per "
-            f"gather_artifact_presence call (#3847 dedup), got {len(calls)}"
-        )
+        assert len(calls) == 1, f"expected the org-tier manifest read exactly once per gather_artifact_presence call (#3847 dedup), got {len(calls)}"

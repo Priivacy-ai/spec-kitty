@@ -8,7 +8,7 @@ legacy-fallback with a warn-once notice). M3 performs the actual on-disk
 data move and flips write call sites over; nothing in this module writes or
 moves any file. Precedent for the read-both/canonical-wins/warn-once shape:
 ``charter.activation.sync``'s CR-01 governance-selection-key compat
-(``src/charter/sync.py:245-311``).
+(``src/charter/activation/sync.py:245-311``).
 
 Lives in ``kernel`` -- not ``charter`` or ``specify_cli`` -- because both
 ``charter.activation.synthesizer.*`` (the live-tree write/reconcile pipeline) and

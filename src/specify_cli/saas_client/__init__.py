@@ -8,6 +8,7 @@ spec-kitty-saas endpoints used by the widen flow and prereq checker:
 - ``GET /a/{team_slug}/collaboration/decision-points/{id}/discussion/``
 - ``GET /a/{team_slug}/collaboration/integrations/``
 - ``GET /api/v1/health``
+- ``GET /api/v1/sync/repo-admission/``
 
 All failures surface as ``SaasClientError`` or a typed subclass.  Callers
 should use ``contextlib.suppress(SaasClientError)`` for non-fatal paths
@@ -35,7 +36,7 @@ from __future__ import annotations
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.client import SaasClient
-from specify_cli.saas_client.endpoints import AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
+from specify_cli.saas_client.endpoints import AdmissionAnswer, AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
     SaasClientError,
@@ -59,4 +60,5 @@ __all__ = [
     "AudienceMember",
     "DiscussionData",
     "DiscussionMessage",
+    "AdmissionAnswer",
 ]

@@ -4,7 +4,7 @@ Two invariants pin the reader convergence as a *gate*, not 12 hand-copies:
 
 * **Parity (AC-1).** Every in-scope reader that is expressible as a
   ``meta dict -> canonical key`` contract returns exactly what the one shared
-  :func:`charter.activation.mission_type_key.read_mission_type` returns for the same dict.
+  :func:`charter.mission_type_key.read_mission_type` returns for the same dict.
   The registry below is the enumeration; WP02/WP03 extend it as they converge
   additional readers.
 
@@ -88,7 +88,7 @@ def _adapt_get_mission_type(meta: dict[str, Any], tmp_path: Path) -> str | None:
 
 
 def _adapt_charter_resolve(meta: dict[str, Any], tmp_path: Path) -> str | None:
-    """``charter.activation.mission_type_profiles.resolve_mission_type_key`` — file-based."""
+    """``charter.mission_type_profiles.resolve_mission_type_key`` — file-based."""
     from charter.activation.mission_type_profiles import resolve_mission_type_key
 
     feature_dir = tmp_path / "charter_resolve"
@@ -99,14 +99,14 @@ def _adapt_charter_resolve(meta: dict[str, Any], tmp_path: Path) -> str | None:
 
 # Dict-in adapters (no filesystem).
 _DICT_ADAPTERS: dict[str, Callable[[dict[str, Any]], str | None]] = {
-    "charter.activation.mission_type_key.read_mission_type": _adapt_seam,
+    "charter.mission_type_key.read_mission_type": _adapt_seam,
     "specify_cli.mission._canonical_meta_mission_type": _adapt_cli_canonical,
 }
 
 # File-based adapters (need a tmp feature_dir).
 _FILE_ADAPTERS: dict[str, Callable[[dict[str, Any], Path], str | None]] = {
     "specify_cli.mission.get_mission_type": _adapt_get_mission_type,
-    "charter.activation.mission_type_profiles.resolve_mission_type_key": _adapt_charter_resolve,
+    "charter.mission_type_profiles.resolve_mission_type_key": _adapt_charter_resolve,
 }
 
 
@@ -121,9 +121,7 @@ def test_dict_reader_parity_with_shared_seam(name: str, meta: dict[str, Any]) ->
 @pytest.mark.parametrize("name", sorted(_FILE_ADAPTERS))
 def test_file_reader_parity_with_shared_seam(name: str, meta: dict[str, Any], tmp_path: Path) -> None:
     reference = _adapt_seam(meta)
-    assert _FILE_ADAPTERS[name](meta, tmp_path) == reference, (
-        f"{name} diverges from read_mission_type for {meta!r}"
-    )
+    assert _FILE_ADAPTERS[name](meta, tmp_path) == reference, f"{name} diverges from read_mission_type for {meta!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -211,11 +209,7 @@ def _legacy_mission_reads(tree: ast.AST) -> list[int]:
 
 def _software_dev_literals(tree: ast.AST) -> list[int]:
     """Line numbers of ``"software-dev"`` string constants (fallback candidates)."""
-    return [
-        node.lineno
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Constant) and node.value == _DEFAULT_LITERAL
-    ]
+    return [node.lineno for node in ast.walk(tree) if isinstance(node, ast.Constant) and node.value == _DEFAULT_LITERAL]
 
 
 @pytest.mark.parametrize(
@@ -254,6 +248,5 @@ def test_no_legacy_read_or_software_dev_fallback(module_path: str) -> None:
     default = _software_dev_literals(tree)
     if default and "default" not in allowed:
         pytest.fail(
-            f"{module_path} carries a 'software-dev' literal at line(s) {default} "
-            f"(FR-003). Remove the silent default, or add an encoded allow-list exemption."
+            f"{module_path} carries a 'software-dev' literal at line(s) {default} (FR-003). Remove the silent default, or add an encoded allow-list exemption."
         )

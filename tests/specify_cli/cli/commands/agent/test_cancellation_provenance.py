@@ -45,9 +45,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.fast]
 runner = CliRunner()
 
 
-def _seed_wp_in_lane(
-    tmp_path: Path, *, mission_slug: str, wp_id: str, lane: str
-) -> Path:
+def _seed_wp_in_lane(tmp_path: Path, *, mission_slug: str, wp_id: str, lane: str) -> Path:
     """Seed a feature dir with ``wp_id`` at ``lane`` in the canonical event log."""
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
@@ -79,18 +77,12 @@ def _seed_wp_in_lane(
 
 
 def _invoke(tmp_path: Path, mission_slug: str, args: list[str]) -> Result:
-    with setup_mocked_env(
-        tmp_path, mission_slug=mission_slug, workspace_resolution=FileNotFoundError
-    ):
+    with setup_mocked_env(tmp_path, mission_slug=mission_slug, workspace_resolution=FileNotFoundError):
         return runner.invoke(app, args, catch_exceptions=False)
 
 
 def _last_canceled_event(feature_dir: Path, wp_id: str) -> StatusEvent:
-    events = [
-        e
-        for e in read_events(feature_dir)
-        if e.wp_id == wp_id and e.to_lane == Lane.CANCELED
-    ]
+    events = [e for e in read_events(feature_dir) if e.wp_id == wp_id and e.to_lane == Lane.CANCELED]
     assert events, f"no persisted canceled event for {wp_id}"
     return events[-1]
 
@@ -103,9 +95,7 @@ def _last_canceled_event(feature_dir: Path, wp_id: str) -> StatusEvent:
 def test_operator_note_cancel_persists_reason_source_operator(tmp_path: Path) -> None:
     mission_slug = "prov-cancel-operator"
     wp_id = "WP05"
-    feature_dir = _seed_wp_in_lane(
-        tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_progress"
-    )
+    feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_progress")
     note = "replan: superseded by WP07, capturing the operator rationale"
 
     result = _invoke(
@@ -142,9 +132,7 @@ def test_force_cancel_without_note_persists_reason_source_synthetic(
 ) -> None:
     mission_slug = "prov-cancel-force"
     wp_id = "WP05"
-    feature_dir = _seed_wp_in_lane(
-        tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_progress"
-    )
+    feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_progress")
 
     result = _invoke(
         tmp_path,
@@ -178,9 +166,7 @@ def test_whitespace_note_cancel_persists_reason_source_synthetic(
 ) -> None:
     mission_slug = "prov-cancel-whitespace"
     wp_id = "WP05"
-    feature_dir = _seed_wp_in_lane(
-        tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_progress"
-    )
+    feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_progress")
 
     result = _invoke(
         tmp_path,
@@ -237,9 +223,7 @@ def _legacy_canceled_event(reason: str | None) -> StatusEvent:
         ("   ", "synthetic"),
     ],
 )
-def test_legacy_canceled_event_reason_source_inferred_by_reducer(
-    reason: str | None, expected: str
-) -> None:
+def test_legacy_canceled_event_reason_source_inferred_by_reducer(reason: str | None, expected: str) -> None:
     snapshot = reduce([_legacy_canceled_event(reason)])
     wp_state = snapshot.work_packages["WP01"]
     assert wp_state["lane"] == "canceled"

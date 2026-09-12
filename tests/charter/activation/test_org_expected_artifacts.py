@@ -104,9 +104,7 @@ class TestOrgTierUnreadablePresentCharacterization:
     land together in this WP).
     """
 
-    def test_unreadable_present_manifest_raises_malformed_manifest_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unreadable_present_manifest_raises_malformed_manifest_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         org_root = tmp_path / "org-pack"
         target_dir = org_root / "missions" / "software-dev"
         target_dir.mkdir(parents=True)
@@ -192,17 +190,13 @@ class TestCorruptOrgOverrideRegisteredBuiltinFamilyHardBlocks:
     def teardown_method(self) -> None:
         clear_cache()
 
-    def test_corrupt_org_override_for_software_dev_raises_at_gather(
-        self, tmp_path: Path
-    ) -> None:
+    def test_corrupt_org_override_for_software_dev_raises_at_gather(self, tmp_path: Path) -> None:
         project_root = tmp_path / "project"
         project_root.mkdir()
         org_root = tmp_path / "org-pack"
         target_dir = org_root / "missions" / "software-dev"
         target_dir.mkdir(parents=True)
-        (target_dir / "expected-artifacts.yaml").write_text(
-            "schema_version: [unterminated flow seq\n", encoding="utf-8"
-        )
+        (target_dir / "expected-artifacts.yaml").write_text("schema_version: [unterminated flow seq\n", encoding="utf-8")
         _write_org_pack_config(project_root, packs=[("acme", org_root)])
 
         with pytest.raises(MalformedManifestError):

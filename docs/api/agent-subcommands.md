@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-08-30'
 ---
 # Agent Subcommand Reference
 
@@ -13,6 +13,10 @@ Terminology note:
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
 - The `agent feature` command group remains a legacy compatibility alias; tracked-mission selectors are documented canonically as `--mission`
+
+## Ambiguous mission selectors
+
+`agent status` and `agent tasks` commands that resolve `--mission` never guess when a handle matches multiple missions. With `--json`, they emit the shared error envelope (`success: false`, `error_code: "MISSION_AMBIGUOUS_SELECTOR"`, `handle`, and `candidates`) and exit `1`. In human mode, they print the ambiguity diagnostic and exit `2`. The read-path fix in #429 deliberately changed this human-mode case from the earlier generic exit code `1` to `2`, aligning it with the other ambiguous mission-handle resolution path.
 
 ## Getting Started
 
@@ -693,14 +697,15 @@ _Mission lifecycle commands for AI agents_
  --resume-probe --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
-│ --json                         Output JSON format                            │
-│ --paths-only                   Only output path variables                    │
-│ --resume-probe                 Return structured                             │
-│                                found/not_found/existing/ambiguous/malformed  │
-│                                state for safe specify resume                 │
-│ --include-tasks                Include tasks.md in validation                │
-│ --help           -h            Show this message and exit.                   │
+│ --mission                 TEXT  Mission slug (e.g., '020-my-mission')        │
+│ --json                          Output JSON format                           │
+│ --paths-only                    Only output path variables                   │
+│ --resume-probe                  Return structured                            │
+│                                 found/not_found/existing/ambiguous/malformed │
+│                                 state for safe specify resume                │
+│ --include-tasks                 Include tasks.md in validation               │
+│ --owned-checkout          PATH  Explicit single-branch checkout root.        │
+│ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -806,6 +811,16 @@ _Mission lifecycle commands for AI agents_
 │                                                            of the resolved   │
 │                                                            primary           │
 │                                                            repository.       │
+│ --retain-branches                                          Opt this          │
+│                                                            mission's         │
+│                                                            branches out of   │
+│                                                            post-merge        │
+│                                                            cleanup deletion. │
+│ --retain-worktre…                                          Opt this          │
+│                                                            mission's         │
+│                                                            worktrees out of  │
+│                                                            post-merge        │
+│                                                            cleanup deletion. │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -828,6 +843,15 @@ _Mission lifecycle commands for AI agents_
  ownership overlaps,
  dependency cycles) without making any changes or committing.
 
+ Use --refresh-planning-commit once execution has begun and a legitimate
+ planning
+ amendment has landed on the target branch: it advances the recorded
+ planning_commit_sha in lanes.json to the current tip so lanes merge the
+ amended
+ planning state instead of a stale snapshot (#4141). It is refused when the
+ recorded
+ SHA is not an ancestor of the tip (a history rewrite, not an amendment).
+
  Bootstrap Mutation Surface (FR-003 / SC-002)
  =============================================
  The 8 frontmatter fields below may be written or overwritten by this command.
@@ -835,7 +859,10 @@ _Mission lifecycle commands for AI agents_
  ``frontmatter_changed and not validate_only`` guard ensures zero bytes of
  mutation on disk (INV-6). In validate-only mode the bootstrap loop still
  infers all 8 fields in memory so downstream validation operates against the
- post-bootstrap state — not the stale on-disk frontmatter.
+ post-bootstrap state — not the stale on-disk frontmatter. The T017 tasks.md
+ regeneration is likewise skipped (its staleness relative to wps.yaml is
+ reported instead of repaired — #3221), so INV-6 covers every tracked-file
+ write the command performs.
 
  See also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via
  ``build_document() + write_text()`` — guarded the same way (T002).
@@ -844,25 +871,47 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
      spec-kitty agent mission finalize-tasks --mission 020-my-feature
  --validate-only --json
+     spec-kitty agent mission finalize-tasks --mission 020-my-feature
+ --refresh-planning-commit
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
-│ --json                         Output JSON format                            │
-│ --validate-only                Run all validations without committing.       │
-│                                Reports issues that would block finalization. │
-│ --target-branch          TEXT  Override the canonical planning target branch │
-│                                read from meta.json. Use this for legacy      │
-│                                missions created before WP07 persisted        │
-│                                target_branch in meta.json, or to correct a   │
-│                                mission whose target_branch is stale (FR-012  │
-│                                escape hatch). The override is persisted into │
-│                                the primary meta.json as part of this run, so │
-│                                every other target_branch consumer converges  │
-│                                on it too (#3466).                            │
-│ --help           -h            Show this message and exit.                   │
+│ --mission                          TEXT  Mission slug (e.g.,                 │
+│                                          '020-my-mission')                   │
+│ --json                                   Output JSON format                  │
+│ --validate-only                          Run all validations without         │
+│                                          committing. Reports issues that     │
+│                                          would block finalization.           │
+│ --target-branch                    TEXT  Override the canonical planning     │
+│                                          target branch read from meta.json.  │
+│                                          Use this for legacy missions        │
+│                                          created before WP07 persisted       │
+│                                          target_branch in meta.json, or to   │
+│                                          correct a mission whose             │
+│                                          target_branch is stale (FR-012      │
+│                                          escape hatch). The override is      │
+│                                          persisted into the primary          │
+│                                          meta.json as part of this run, so   │
+│                                          every other target_branch consumer  │
+│                                          converges on it too (#3466).        │
+│ --owned-checkout                   PATH  Explicit owned checkout for a       │
+│                                          single-branch mission.              │
+│ --refresh-planning-commit                Advance the recorded                │
+│                                          planning_commit_sha in lanes.json   │
+│                                          to the current target-branch tip    │
+│                                          after a legitimate planning         │
+│                                          amendment, even though execution    │
+│                                          has begun (#4141). Without it, a    │
+│                                          re-finalize after execution has     │
+│                                          begun preserves the recorded SHA    │
+│                                          (#3311) and every lane keeps        │
+│                                          merging the stale planning          │
+│                                          snapshot. Refused when the recorded │
+│                                          SHA is not an ancestor of the tip   │
+│                                          (a history rewrite, not an          │
+│                                          amendment).                         │
+│ --help                     -h            Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
-
 ## spec-kitty agent mission merge
 
 ```
@@ -899,29 +948,33 @@ _Mission lifecycle commands for AI agents_
  --keep-branch
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                               TEXT  Mission slug (required in      │
-│                                               multi-mission repos)           │
-│ --target                                TEXT  Target branch for the          │
-│                                               branch-integration step        │
-│                                               (required in multi-mission     │
-│                                               repos)                         │
-│ --strategy                              TEXT  Strategy for the               │
-│                                               branch-integration step:       │
-│                                               merge, squash, rebase          │
-│                                               [default: merge]               │
-│ --push                                        Publish to origin after the    │
-│                                               local merge (the operator      │
-│                                               publish step)                  │
-│ --dry-run                                     Show actions without executing │
-│ --keep-branch                                 Keep mission branch after      │
-│                                               merge (default: delete)        │
-│ --keep-worktree                               Keep worktree after merge      │
-│                                               (default: remove)              │
-│ --auto-retry         --no-auto-retry          Auto-navigate to a             │
-│                                               deterministic mission worktree │
-│                                               if in the wrong location       │
-│                                               [default: no-auto-retry]       │
-│ --help           -h                           Show this message and exit.    │
+│ --mission                                 TEXT  Mission slug (required in    │
+│                                                 multi-mission repos)         │
+│ --target                                  TEXT  Target branch for the        │
+│                                                 branch-integration step      │
+│                                                 (required in multi-mission   │
+│                                                 repos)                       │
+│ --strategy                                TEXT  Strategy for the             │
+│                                                 branch-integration step:     │
+│                                                 merge, squash, rebase        │
+│                                                 [default: merge]             │
+│ --push                                          Publish to origin after the  │
+│                                                 local merge (the operator    │
+│                                                 publish step)                │
+│ --dry-run                                       Show actions without         │
+│                                                 executing                    │
+│ --keep-branch        --delete-branch            Keep or delete mission       │
+│                                                 branch after merge (default: │
+│                                                 retain-gate choice)          │
+│ --keep-worktree      --remove-worktree          Keep or remove worktree      │
+│                                                 after merge (default:        │
+│                                                 retain-gate choice)          │
+│ --auto-retry         --no-auto-retry            Auto-navigate to a           │
+│                                                 deterministic mission        │
+│                                                 worktree if in the wrong     │
+│                                                 location                     │
+│                                                 [default: no-auto-retry]     │
+│ --help           -h                             Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -978,12 +1031,11 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission setup-plan --json
      spec-kitty agent mission setup-plan --mission 020-my-feature --json
 
- Local verification is authoritative. When hosted sync is requested, the
- command collects canonical session, structural-boundary, and route evidence
- without raising, composes one immutable decision, and reports any refusal as
- additive warnings. Lifecycle JSONL is persisted locally first. Lifecycle
- fan-out and dossier publication are executed only by
- :func:`_execute_setup_plan_hosted_effects` after an allowing decision.
+ ------------------------------------------------------------------
+ The SaaS-sync boundary gates this command used to enforce (FR-011 auth
+ refusal, boundary preflight, dossier push) were removed with the sync
+ transport (issue #5); only local planning artifacts are produced here.
+ ------------------------------------------------------------------
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission          TEXT  Mission slug (e.g., '020-my-mission')               │
@@ -1597,15 +1649,18 @@ _Task workflow commands for AI agents_
 │                                 [required]                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --status                               TEXT  Status: done/pending         │
-│                                                 [required]                   │
-│    --mission                              TEXT  Mission slug                 │
-│    --auto-commit      --no-auto-commit          Automatically commit         │
-│                                                 tasks.md changes to target   │
-│                                                 branch (default: from        │
-│                                                 project config)              │
-│    --json                                       Output JSON format           │
-│    --help         -h                            Show this message and exit.  │
+│ *  --status                                  TEXT  Status: done/pending      │
+│                                                    [required]                │
+│    --mission                                 TEXT  Mission slug              │
+│    --owned-checkout                          PATH  Explicit single-branch    │
+│                                                    checkout root.            │
+│    --auto-commit         --no-auto-commit          Automatically commit      │
+│                                                    tasks.md changes to       │
+│                                                    target branch (default:   │
+│                                                    from project config)      │
+│    --json                                          Output JSON format        │
+│    --help            -h                            Show this message and     │
+│                                                    exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1726,6 +1781,14 @@ _Task workflow commands for AI agents_
 │                                                        env vars). The gate   │
 │                                                        still runs and        │
 │                                                        enforces by default.  │
+│    --owned-checkout                              PATH  Use an owned          │
+│                                                        single_branch         │
+│                                                        checkout for the      │
+│                                                        local review          │
+│                                                        lifecycle (active     │
+│                                                        sync, force/skip,     │
+│                                                        done, and arbiter     │
+│                                                        modes unsupported).   │
 │    --help                -h                            Show this message and │
 │                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯

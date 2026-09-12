@@ -56,7 +56,7 @@ They are not the same defect wearing two hats:
 Pinned behaviourally, not by code shape (#2532)
 -----------------------------------------------
 `#2532 <https://github.com/Priivacy-ai/spec-kitty/issues/2532>`_ decomposes
-``src/charter/context.py``, so the missing ``else`` lives inside a module about
+``src/charter/activation/context.py``, so the missing ``else`` lives inside a module about
 to be split apart. Every assertion below is therefore written against
 *observable outcomes* — "this kind survives the round trip", "an unruled kind
 raises" — and never against the presence of a branch, a line number, or a

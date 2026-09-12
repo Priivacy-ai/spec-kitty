@@ -1,1 +1,0 @@
-ENFORCED:sandbox_exec_write_confinement

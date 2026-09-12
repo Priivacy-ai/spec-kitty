@@ -22,9 +22,10 @@ refresh-token expiry directly from the server response — it never hardcodes
 a TTL and never computes the expiry locally. See ``_build_session`` for the
 prefer-absolute-then-relative fallback logic.
 
-Per D-5 the SaaS base URL is never hardcoded here; callers must pass it in
-via the constructor, typically from
-:func:`specify_cli.auth.config.get_saas_base_url`.
+Per D-5 (revised #3980) the SaaS base URL is resolved, never hardcoded here:
+callers pass it in via the constructor, typically from
+:func:`specify_cli.auth.config.get_saas_base_url` (env override or the
+packaged default).
 """
 
 from __future__ import annotations
@@ -83,9 +84,8 @@ class AuthorizationCodeFlow:
         Args:
             saas_base_url: Base URL of the spec-kitty SaaS (no trailing slash).
                 When ``None``, the flow calls
-                :func:`specify_cli.auth.config.get_saas_base_url` itself, so
-                operators must set ``SPEC_KITTY_SAAS_URL`` in the environment
-                (per D-5, no hardcoded URL exists anywhere in the CLI).
+                :func:`specify_cli.auth.config.get_saas_base_url` itself
+                (env override or the packaged default, #3980).
                 Callers that already have the URL in hand (such as
                 ``_auth_login.py``) pass it in directly to avoid two env-var
                 reads per login.
@@ -302,6 +302,7 @@ class AuthorizationCodeFlow:
             storage_backend=self._storage_backend,
             last_used_at=now,
             auth_method="authorization_code",
+            issuer_url=self._saas_base_url,
         )
 
     @staticmethod

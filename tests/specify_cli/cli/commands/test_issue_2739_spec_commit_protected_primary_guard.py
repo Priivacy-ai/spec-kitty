@@ -100,9 +100,7 @@ def _spec_commit_help_text() -> str:
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True
-    )
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
 
 # Realistic identity constants (NFR-005 test-data policy; mirrors the e2e suite).
@@ -110,9 +108,7 @@ _FULL_ULID = "01KVMBD6HTBP3A9Y5T4EQ80RA9"
 _MID8 = _FULL_ULID[:8]
 
 
-def _seed_mission(
-    repo_root: Path, slug: str, *, target_branch: str, coord: bool
-) -> Path:
+def _seed_mission(repo_root: Path, slug: str, *, target_branch: str, coord: bool) -> Path:
     """Seed ``kitty-specs/<slug>/`` with meta.json + spec.md and commit it.
 
     ``coord=True`` mints the coordination branch (mirrors ``mission create`` on a
@@ -164,19 +160,11 @@ def test_b01_spec_commit_help_no_impossible_coord_hint() -> None:
             f"retry (found {marker!r}). Primary/planning artifacts never route "
             "to coordination; drop the hint (#2739 B01)."
         )
-    assert _START_BRANCH_REMEDY in help_text, (
-        "spec-commit --help does not name the --start-branch feature-branch "
-        "remedy (#2739 B01)."
-    )
-    assert _ENV_HATCH.lower() in help_text, (
-        "spec-commit --help does not name the "
-        f"{_ENV_HATCH} operator hatch remedy (#2739 B01)."
-    )
+    assert _START_BRANCH_REMEDY in help_text, "spec-commit --help does not name the --start-branch feature-branch remedy (#2739 B01)."
+    assert _ENV_HATCH.lower() in help_text, f"spec-commit --help does not name the {_ENV_HATCH} operator hatch remedy (#2739 B01)."
 
 
-def test_b01_protected_refusal_drops_impossible_hint_and_names_env_hatch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_b01_protected_refusal_drops_impossible_hint_and_names_env_hatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#2739 B01 (fixed) — the protected-primary refusal message must not append
     the impossible coord-worktree retry, and must name the env-var hatch remedy.
 
@@ -217,15 +205,10 @@ def test_b01_protected_refusal_drops_impossible_hint_and_names_env_hatch(
             f"coord-worktree retry hint (found {marker!r}). It can never "
             "succeed for a primary/planning artifact (#2739 B01)."
         )
-    assert _ENV_HATCH.lower() in message, (
-        "The protected-primary refusal does not name the "
-        f"{_ENV_HATCH} operator hatch — one of the two real remedies (#2739 B01)."
-    )
+    assert _ENV_HATCH.lower() in message, f"The protected-primary refusal does not name the {_ENV_HATCH} operator hatch — one of the two real remedies (#2739 B01)."
 
 
-def test_b01_non_protected_wrong_surface_omits_protected_primary_remedies(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_b01_non_protected_wrong_surface_omits_protected_primary_remedies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#2739 B01 (squad) — a ``no_op_wrong_surface`` NOT caused by a protected
     branch must not be padded with the feature-branch/env-hatch remedies.
 
@@ -244,9 +227,7 @@ def test_b01_non_protected_wrong_surface_omits_protected_primary_remedies(
     _git(repo.repo_root, "checkout", "-b", "feat/b01-missing")
 
     slug = "b01-missing-artifact"
-    feature_dir = _seed_mission(
-        repo.repo_root, slug, target_branch="feat/b01-missing", coord=False
-    )
+    feature_dir = _seed_mission(repo.repo_root, slug, target_branch="feat/b01-missing", coord=False)
     missing = feature_dir / "never-written.md"  # never created on disk
 
     monkeypatch.setattr(
@@ -282,9 +263,7 @@ def test_b01_non_protected_wrong_surface_omits_protected_primary_remedies(
 # ---------------------------------------------------------------------------
 
 
-def test_b03_spec_commit_json_no_op_carries_machine_readable_reason(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_b03_spec_commit_json_no_op_carries_machine_readable_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#2739 B03 (fixed) — a ``committed:false`` success result must carry a
     machine-readable reason.
 
@@ -298,9 +277,7 @@ def test_b03_spec_commit_json_no_op_carries_machine_readable_reason(
     _git(repo.repo_root, "checkout", "-b", "feat/b03")
 
     slug = "b03-no-op"
-    feature_dir = _seed_mission(
-        repo.repo_root, slug, target_branch="feat/b03", coord=False
-    )
+    feature_dir = _seed_mission(repo.repo_root, slug, target_branch="feat/b03", coord=False)
     spec = feature_dir / "spec.md"  # already committed, no pending diff
 
     monkeypatch.setattr(
@@ -315,9 +292,7 @@ def test_b03_spec_commit_json_no_op_carries_machine_readable_reason(
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload.get("committed") is False, (
-        f"precondition: expected a committed:false no-op result, got {payload!r}"
-    )
+    assert payload.get("committed") is False, f"precondition: expected a committed:false no-op result, got {payload!r}"
     assert payload.get("success") is True, payload
     reason = payload.get("reason")
     assert reason, (
@@ -332,9 +307,7 @@ def test_b03_spec_commit_json_no_op_carries_machine_readable_reason(
 # ---------------------------------------------------------------------------
 
 
-def test_b11_spec_commit_directory_argument_no_opaque_backstop(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_b11_spec_commit_directory_argument_no_opaque_backstop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#2739 B11 (fixed) — a directory argument must not fail with the opaque
     safe-commit "unexpected paths" backstop.
 
@@ -347,9 +320,7 @@ def test_b11_spec_commit_directory_argument_no_opaque_backstop(
     _git(repo.repo_root, "checkout", "-b", "feat/b11")
 
     slug = "b11-dir-arg"
-    feature_dir = _seed_mission(
-        repo.repo_root, slug, target_branch="feat/b11", coord=False
-    )
+    feature_dir = _seed_mission(repo.repo_root, slug, target_branch="feat/b11", coord=False)
     decisions = feature_dir / "decisions"
     decisions.mkdir()
     (decisions / "d1.md").write_text("# D1\n", encoding="utf-8")
@@ -378,9 +349,7 @@ def test_b11_spec_commit_directory_argument_no_opaque_backstop(
 # ---------------------------------------------------------------------------
 
 
-def test_b16_spec_commit_coord_kind_file_false_success_lands_nowhere(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_b16_spec_commit_coord_kind_file_false_success_lands_nowhere(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#2739 B16 (fixed) — spec-commit must not report success for a
     coordination-kind write that never lands.
 
@@ -397,9 +366,7 @@ def test_b16_spec_commit_coord_kind_file_false_success_lands_nowhere(
     _git(repo.repo_root, "checkout", "-b", "feat/b16")
 
     slug = "b16-coord-kind"
-    feature_dir = _seed_mission(
-        repo.repo_root, slug, target_branch="feat/b16", coord=True
-    )
+    feature_dir = _seed_mission(repo.repo_root, slug, target_branch="feat/b16", coord=True)
     events = feature_dir / "status.events.jsonl"
     events.write_text('{"event":"created"}\n', encoding="utf-8")  # uncommitted
 
@@ -416,11 +383,7 @@ def test_b16_spec_commit_coord_kind_file_false_success_lands_nowhere(
 
     # The file was never committed anywhere; a coord-branch placement_ref plus
     # success:true is the false-success this sub-case reported before the fix.
-    reported_success_but_nothing_landed = (
-        result.exit_code == 0
-        and payload.get("success") is True
-        and payload.get("committed") is False
-    )
+    reported_success_but_nothing_landed = result.exit_code == 0 and payload.get("success") is True and payload.get("committed") is False
     assert not reported_success_but_nothing_landed, (
         "spec-commit reported success for a coordination-kind write that never "
         f"landed (payload={payload!r}). It must fail with an accurate error or "

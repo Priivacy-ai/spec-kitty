@@ -1,7 +1,8 @@
 """Regression + characterization tests — WP01 (closes #2574): subtask-gate single seam.
 
-T001 (red-first): proves, through the PRE-EXISTING production entry point
-(``coordination.status_transition._prepare_event``), that a coord-topology
+T001 (red-first): proves, through the production validation/build authority
+(``status.transition_pipeline.prepare_transition`` -- the promotion of the
+former ``coordination.status_transition._prepare_event``), that a coord-topology
 mission with ``request.repo_root=None`` used to read the coordination-branch
 husk (which never carries ``tasks.md`` -- TASKS_INDEX is a PRIMARY-partition
 artifact) instead of recovering the PRIMARY ``tasks.md`` via git ancestry --
@@ -111,17 +112,19 @@ def _build_coord_mission_with_primary_tasks(
     return repo, mid8, coord_husk_feature_dir
 
 
-def test_prepare_event_recovers_primary_when_repo_root_none(tmp_path: Path) -> None:
+def test_prepare_transition_recovers_primary_when_repo_root_none(tmp_path: Path) -> None:
     """FR-002 (#2574): ``repo_root=None`` on a coord-topology mission must
     recover the PRIMARY authored WP roster via git ancestry, not silently read the
     coordination husk directly.
 
-    Before T005 this is RED: ``_prepare_event`` read ``feature_dir`` (the
-    coord husk) unchanged when ``request.repo_root`` was ``None`` and found no
-    authored WP roster there. The primary WP carries an explicit empty roster,
-    so resolving the correct planning partition permits the transition.
+    Before T005 this is RED: the pipeline's predecessor (``_prepare_event``)
+    read ``feature_dir`` (the coord husk) unchanged when ``request.repo_root``
+    was ``None`` and found no authored WP roster there. The primary WP carries
+    an explicit empty roster, so resolving the correct planning partition
+    permits the transition. The pipeline's default resolver is the same
+    ``resolve_subtasks_gate_dir`` seam the transactional shell now composes.
     """
-    from specify_cli.coordination.status_transition import _prepare_event
+    from specify_cli.status.transition_pipeline import prepare_transition
 
     slug = "coord-gate-seam"
     tasks_md = "# Tasks\n\n## WP01\n- [x] T001 implement thing\n"
@@ -139,17 +142,17 @@ def test_prepare_event_recovers_primary_when_repo_root_none(tmp_path: Path) -> N
         implementation_evidence_present=True,
     )
 
-    event, resolved_lane = _prepare_event(
-        feature_dir=coord_husk_feature_dir,
+    prepared = prepare_transition(
         request=request,
+        feature_dir=coord_husk_feature_dir,
         mission_slug=slug,
         mission_id="01ABCDEF1234567890123456",
         from_lane=str(Lane.IN_PROGRESS),
     )
 
-    assert resolved_lane == str(Lane.FOR_REVIEW)
-    assert event is not None
-    assert event.to_lane == Lane.FOR_REVIEW
+    assert prepared.resolved_lane == str(Lane.FOR_REVIEW)
+    assert prepared.event is not None
+    assert prepared.event.to_lane == Lane.FOR_REVIEW
 
 
 def test_resolve_subtasks_gate_dir_direct_three_branches(tmp_path: Path) -> None:

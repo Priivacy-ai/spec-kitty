@@ -26,9 +26,9 @@ DENYLIST = (
 )
 GENERIC_SURFACES = (
     Path("packs/built-in/agent_profiles"),
-    Path("src/doctrine/skills"),
+    Path("src/charter/offering/skills"),
     Path("packs/built-in/tactics"),
-    Path("src/doctrine/templates"),
+    Path("src/charter/offering/templates"),
     Path("packs/built-in/missions/software-dev/templates"),
     Path("src/specify_cli/templates"),
     Path("src/charter/defaults.yaml"),

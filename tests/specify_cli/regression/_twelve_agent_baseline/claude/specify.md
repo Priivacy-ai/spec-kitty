@@ -262,7 +262,7 @@ Workflow:
    post-create fields such as `pr_bound`, pending-origin binding, or an optional
    `source_description`, always commit `spec.md` and `meta.json` together:
    ```bash
-   spec-kitty spec-commit --mission <slug> --message "Add spec for <slug>" \
+   spec-kitty spec-commit --mission <slug> --message "Add spec for mission <slug>" \
      <feature_dir>/spec.md <feature_dir>/meta.json
    ```
    Planning/spec artifacts stay in the primary partition and never transit the

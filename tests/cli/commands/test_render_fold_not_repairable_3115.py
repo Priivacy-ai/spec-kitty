@@ -48,7 +48,13 @@ _UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 _UUID_FRAGMENT_1 = "aaaaaaaa-0000-0000-0000-000"
 _UUID_FRAGMENT_2 = "000000001"
 
-_REQUIRED_PROVENANCE_FIELDS = ("command", "commit", "env", "observed_console_size")
+_REQUIRED_PROVENANCE_FIELDS = (
+    "command",
+    "commit",
+    "env",
+    "observed_console_size",
+    "reproduction_script_status",
+)
 
 
 def _load_capture(directory: Path, name: str) -> str:
@@ -72,9 +78,9 @@ def _load_capture(directory: Path, name: str) -> str:
     missing = [field for field in _REQUIRED_PROVENANCE_FIELDS if field not in provenance]
     assert not missing, (
         f"{provenance_path.name} is missing required provenance field(s) "
-        f"{missing} -- a sidecar that does not name the command, commit, "
-        "environment and observed size it was taken under does not make the "
-        "capture re-derivable."
+        f"{missing} -- a sidecar that does not name every condition and "
+        "standing status it was captured under does not make the capture "
+        "re-derivable."
     )
     return capture_path.read_text(encoding="utf-8")
 
@@ -100,6 +106,7 @@ def test_meta_assertion_bites_on_a_capture_with_no_sidecar(tmp_path: Path) -> No
                 "commit": "x",
                 "env": {},
                 "observed_console_size": {"width": 1, "height": 1},
+                "reproduction_script_status": "active",
             }
         ),
         encoding="utf-8",

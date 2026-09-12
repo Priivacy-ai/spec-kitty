@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from dataclasses import fields
 from typing import Any
 
 import pytest
 
-from specify_cli.compat.provider import FakeLatestVersionProvider, PyPIProvider
+from specify_cli.compat.provider import (
+    FakeLatestVersionProvider,
+    NoNetworkProvider,
+    PyPIProvider,
+)
+from specify_cli.distribution import profile
 from specify_cli.distribution.package_name import (
     DEFAULT_CLI_PACKAGE_NAME,
     clear_cli_package_name_cache,
@@ -15,6 +21,7 @@ from specify_cli.distribution.profile import (
     DISTRIBUTION_PROFILE_GROUP,
     DistributionProfile,
     clear_distribution_profile_cache,
+    is_degraded_distribution_profile,
     resolve_distribution_profile,
     stock_distribution_profile,
 )
@@ -54,6 +61,18 @@ def test_stock_profile_defaults() -> None:
     assert profile.index_url is None
     assert profile.extra_index_url is None
     assert profile.version_label is None
+
+
+def test_public_pypi_profile_field_is_restored() -> None:
+    assert hasattr(DistributionProfile, "disable_public_pypi_notifier")
+    assert "disable_public_pypi_notifier" in {field.name for field in fields(DistributionProfile)}
+    assert "disable_no_upgrade_notifier" not in {field.name for field in fields(DistributionProfile)}
+    assert "disable_public_pypi_notifier" not in profile.__all__
+
+    DistributionProfile(
+        package_name="fork-cli",
+        disable_public_pypi_notifier=True,
+    )
 
 
 def test_stock_defaults_contain_no_private_hostnames() -> None:
@@ -127,7 +146,41 @@ def test_synthesize_from_phase1_when_no_profile_ep(monkeypatch: pytest.MonkeyPat
     assert profile.upgrade_provider is provider
 
 
-def test_load_failure_falls_back_to_synthesize(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_incompatible_factory_signature_fails_closed(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """A fork still passing a retired field name (e.g. disable_public_pypi_notifier)
+    raises TypeError inside the factory call; this must be logged loudly (not
+    swallowed at debug) and fail closed instead of silently substituting
+    public-PyPI remediation."""
+
+    def broken_factory() -> DistributionProfile:
+        return DistributionProfile(disable_public_pypi_notifier=True)  # type: ignore[call-arg]
+
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.entry_points",
+        lambda group: [_FakeEntryPoint("legacy-fork", broken_factory)],
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.resolve_cli_package_name",
+        lambda: "fallback-cli",
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.resolve_upgrade_provider",
+        lambda: FakeLatestVersionProvider(version="0.1.0"),
+    )
+
+    import logging as _logging
+
+    with caplog.at_level(_logging.ERROR, logger="specify_cli.distribution.profile"):
+        profile = resolve_distribution_profile()
+
+    assert is_degraded_distribution_profile(profile)
+    assert profile.package_name == ""
+    assert isinstance(profile.upgrade_provider, NoNetworkProvider)
+    assert profile.disable_public_pypi_notifier is True
+    assert any(record.levelno == _logging.ERROR and "legacy-fork" in record.message for record in caplog.records)
+
+
+def test_load_failure_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specify_cli.distribution.profile.entry_points",
         lambda group: [_FakeEntryPoint("broken", RuntimeError("nope"))],
@@ -141,7 +194,21 @@ def test_load_failure_falls_back_to_synthesize(monkeypatch: pytest.MonkeyPatch) 
         lambda: FakeLatestVersionProvider(version="0.1.0"),
     )
     profile = resolve_distribution_profile()
-    assert profile.package_name == "fallback-cli"
+    assert is_degraded_distribution_profile(profile)
+    assert profile.package_name == ""
+    assert isinstance(profile.upgrade_provider, NoNetworkProvider)
+
+
+def test_invalid_factory_result_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.entry_points",
+        lambda group: [_FakeEntryPoint("wrong-type", lambda: object())],
+    )
+
+    profile = resolve_distribution_profile()
+
+    assert is_degraded_distribution_profile(profile)
+    assert profile.package_name == ""
 
 
 def test_alphabetical_when_multiple_profiles(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -13,6 +13,14 @@ rather than from each other or from ``renderers.py``.
 from __future__ import annotations
 
 from charter.profiles import AgentProfile
+from typing import Protocol
+
+
+class ProfilePathIdentity(Protocol):
+    """Only the stable profile ID participates in native path selection."""
+
+    @property
+    def profile_id(self) -> str: ...
 
 
 def _yaml_scalar(value: str) -> str:

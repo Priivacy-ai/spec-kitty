@@ -1,0 +1,34 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: round3-targets
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-FRESH2-001
+    severity: 4
+    source: plan-fresh-2.yaml (fresh sweep after round 2 fix)
+    title: "Round 2's rewrite of Call (b) silently dropped failure-injection coverage for FR-006 catch site #3 (_check_composed_action_guard's own gather_artifact_presence wrap)"
+    detail: >
+      No reproduction constructs a fixture where _check_composed_action_guard is
+      invoked AND its own gather_artifact_presence call (not _should_advance_wp_step)
+      is the one that raises PrimaryPlacementResolutionError. Both the per-reproduction
+      summary sentence and the coverage-arithmetic section wrongly claim all 5 catch
+      sites are covered.
+  - id: PLAN-FRESH2-002
+    severity: 3
+    source: plan-fresh-2.yaml (fresh sweep after round 2 fix)
+    title: "Call (c) never pins action to implement/review, the only value that reaches the new _should_advance_wp_step catch site it targets"
+    detail: >
+      The :557 _should_advance_wp_step call is only reached when action in
+      ("implement", "review") (verified live at runtime_bridge_composition.py:550).
+      Call (c) uses the bare word "action" right after reproduction #1's Call (a)
+      established action="tasks" as the pattern -- an implementer following that
+      precedent would skip the branch under test entirely.
+  - id: PLAN-FRESH2-003
+    severity: 2
+    source: plan-fresh-2.yaml (fresh sweep after round 2 fix)
+    title: "WP2's red-first commit-ordering worked example omits Call (b) entirely"
+    detail: >
+      The worked example only places Call (a) and Calls (c)/(d); Call (b) (needing
+      the _dn_dependency_gate catch-arm additions, a different commit surface) is
+      never placed in the sequence, left to guesswork.

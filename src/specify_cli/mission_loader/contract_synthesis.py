@@ -35,7 +35,7 @@ For every in-scope step the function emits::
     )
 
 The actual :class:`MissionStepContract` schema (see
-``src/doctrine/missions/step_contracts.py``) requires ``id``,
+``src/charter/offering/missions/step_contracts.py``) requires ``id``,
 ``schema_version``, ``action``, ``mission`` and a non-empty ``steps``
 list. The inner :class:`MissionStepContractStep` requires ``id`` and
 ``description``; ``command``, ``delegates_to`` and ``guidance`` are

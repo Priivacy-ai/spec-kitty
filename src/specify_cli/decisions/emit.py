@@ -9,6 +9,14 @@ Event envelope format (one JSON line, sorted keys):
 
 The payload is validated by the Pydantic model before serialization.
 
+After the local JSONL append succeeds, both events are also offered on the
+same best-effort ``event.publish`` fan-out path already used by
+``WPStatusChanged``/``MissionCreated`` (``status.fire_lifecycle_saas_fanout``
+→ ``specify_cli.status.zeitgeist_bridge``). Fan-out is fire-and-forget: a
+relay outage, missing credential, or codec rejection is logged and dropped,
+never raised, and can never roll back or affect the local write that already
+happened above it.
+
 Defaults applied when the IndexEntry doesn't supply a value:
     - ``phase``:        ``entry.origin_flow.value.upper()``   (e.g. "CHARTER")
     - ``run_id``:       ``decision_id``                       (no run context in V1)
@@ -26,17 +34,18 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 import json
+import logging
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import ulid as _ulid_mod
 
 from kernel.clock import now_utc
 from specify_cli.decisions.models import IndexEntry
-from specify_cli.events import sanitize_event_for_log
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
+    DECISIONPOINT_SCHEMA_VERSION,
     DecisionPointOpenedInterviewPayload,
     DecisionPointResolvedInterviewPayload,
 )
@@ -50,6 +59,8 @@ __all__ = [
     "emit_decision_opened",
     "emit_decision_resolved",
 ]
+
+logger = logging.getLogger(__name__)
 
 _EVENTS_FILENAME = "status.events.jsonl"
 _MISSION_TYPE = "software-dev"  # default; V1 always software-dev
@@ -74,9 +85,7 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     writes agree on where the coord-owned decision/status log lives under
     every topology, closing a prior read/write split-brain risk.
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
 
 
@@ -85,21 +94,87 @@ def _events_path(repo_root: Path, mission_slug: str) -> Path:
     return _mission_dir(repo_root, mission_slug) / _EVENTS_FILENAME
 
 
-def _append_raw_event(events_path: Path, event_dict: dict) -> int:  # type: ignore[type-arg]
-    """Append *event_dict* as a JSON line to the events file.
-
-    Creates parent directories if needed.
-    PII fields are stripped via :func:`sanitize_event_for_log` before serialization.
-    Returns the 1-based line count after the append (lamport proxy).
-    """
-    events_path.parent.mkdir(parents=True, exist_ok=True)
-    sanitized = sanitize_event_for_log(event_dict)
-    line = json.dumps(sanitized, sort_keys=True)
-    with events_path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
-    # Count non-empty lines (proxy for Lamport clock value)
+def _count_rows(events_path: Path) -> int:
+    """Non-empty line count of the log (the Lamport-clock proxy)."""
     with events_path.open("r", encoding="utf-8") as fh:
         return sum(1 for ln in fh if ln.strip())
+
+
+def _append_raw_event(events_path: Path, event_dict: dict[str, Any]) -> int:
+    """Append *event_dict* as one JSON line to the mission status log.
+
+    Family 8 of the writer census (mission ``fsm-write-path-integrity-01M1TZV6``
+    WP07, ``design-notes/WP01-lock-rules.md`` addendum): the row lands through
+    ``append_raw_rows_atomic`` (write-ahead temp file + ``os.replace``, PII
+    stripped via ``sanitize_event_for_log`` inside the primitive) while the
+    mission status lock (L1) keyed on the mission directory name is held, so a
+    concurrent ``BookkeepingTransaction`` rollback truncate can never erase it
+    (FR-002). The Lamport-proxy readback runs under the same acquisition so
+    the count is this row's line number, not a later writer's.
+
+    * No ``nullcontext()`` degrade (conscious per-site choice):
+      ``resolve_status_lock_root`` never raises and the lock itself degrades to
+      a deterministic per-tree file, so there is no case in which skipping
+      the lock is safer.
+    * Lock timeout: the lock's default (unbounded). Decision emission is
+      reached only from the planning interviews, the ``decision`` CLI, the
+      widen flows and the orchestrator API -- none of which holds the
+      verdict-save queue (rule a) or the merge sentinel (rule b), so neither
+      bounded-take rule applies; a finite default is the #3893 follow-up.
+    * Nothing inside the critical section spawns git (NFR-001).
+
+    Creates parent directories if needed. Returns the 1-based line count
+    after the append.
+    """
+    # Function-local on purpose: ``decisions.emit`` sits on the ``charter`` command's
+    # cold-import path and must not pull status orchestration in at import time
+    # (tests/architectural/test_cold_import_status_boundary.py, #1461).
+    from specify_cli.status import feature_status_lock  # noqa: PLC0415
+    from specify_cli.status._unsafe import append_raw_rows_atomic  # noqa: PLC0415
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415
+
+    feature_dir = events_path.parent
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+        append_raw_rows_atomic(events_path, [event_dict])
+        return _count_rows(events_path)
+
+
+def _queue_decision_fanout(
+    events_path: Path,
+    event_dict: dict,  # type: ignore[type-arg]
+    *,
+    mission_slug: str,
+) -> None:
+    """Best-effort ``event.publish`` fan-out for an already-persisted decision event.
+
+    Mirrors ``lifecycle_events.py``'s ``_queue_lifecycle_event_if_enabled``: this
+    is called only AFTER :func:`_append_raw_event` has returned, so a relay
+    outage or codec rejection can never affect the canonical local write.
+    ``fire_lifecycle_saas_fanout`` and every handler behind it already catch
+    and log their own failures; the ``except`` here is one more belt against
+    a defect in that chain reaching this seam, matching every other slot
+    wrapper in ``zeitgeist_bridge.py`` (e.g. ``lifecycle_moment_handler``) --
+    never let fan-out raise into a decision-emission caller.
+    """
+    from specify_cli.status import fire_lifecycle_saas_fanout
+
+    envelope = {
+        "event_id": event_dict["event_id"],
+        "event_type": event_dict["event_type"],
+        "aggregate_id": mission_slug,
+        "schema_version": DECISIONPOINT_SCHEMA_VERSION,
+        "timestamp": event_dict["at"],
+        "payload": event_dict["payload"],
+    }
+    try:
+        fire_lifecycle_saas_fanout(envelope=envelope, log_path=events_path)
+    except Exception:
+        logger.warning(
+            "Zeitgeist fan-out failed for %s; canonical decision log unaffected",
+            event_dict["event_type"],
+            exc_info=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +238,10 @@ def emit_decision_opened(
         "event_type": DECISION_POINT_OPENED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    return _append_raw_event(_events_path(repo_root, mission_slug), event_dict)
+    events_path = _events_path(repo_root, mission_slug)
+    line_count = _append_raw_event(events_path, event_dict)
+    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug)
+    return line_count
 
 
 def emit_decision_resolved(
@@ -242,4 +320,7 @@ def emit_decision_resolved(
         "event_type": DECISION_POINT_RESOLVED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    return _append_raw_event(_events_path(repo_root, mission_slug), event_dict)
+    events_path = _events_path(repo_root, mission_slug)
+    line_count = _append_raw_event(events_path, event_dict)
+    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug)
+    return line_count

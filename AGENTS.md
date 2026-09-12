@@ -11,7 +11,7 @@
 The charter is the binding governance document. It carries rules that are NOT repeated in this file, including:
 
 - **Governing principles** — single canonical authority, architectural alignment, DDD + tiered rigour, ATDD-first, terminology adherence.
-- **Quality & Tech-Debt Standing Orders** — the nine binding practices (adversarial squad cadence, campsite cleaning, mission tracer files, test-remediation/red-first discipline, architectural gate discipline, canonical sources, git/workflow discipline, mission hygiene, red-main & release discipline).
+- **Quality & Tech-Debt Standing Orders** — the eight binding practices (adversarial squad cadence, campsite cleaning, mission tracer files, test-remediation/red-first discipline, architectural gate discipline, canonical sources, git/workflow discipline, mission hygiene).
 - **Agent operating discipline and collaboration strategy** — model routing, profile-loaded delegation, draft-PR-first, the operator merges.
 - **Governance by workflow action** — which rules bind specify/plan/implement/review/merge.
 
@@ -49,18 +49,31 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ---
 
-## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main
+## ⚠️ CRITICAL: Team Kitty is Zeitgeist — "sync" is dead
 
-**All changes to origin/main MUST go through pull requests. Direct pushes are prohibited.**
+The hosted product is **Team Kitty**; the live transport is **Zeitgeist**, a volatile per-team relay the SaaS provisions and polls. On every lane transition the CLI publishes one **moment** straight to the team's relay (`status/emit.py` → `status/adapters.py` → `status/zeitgeist_bridge.py` → `zeitgeist_client/`), bounded to one request with no queue and no retry, gated only by team membership and repository admission on the SaaS side. The old "sync" transport (daemon, offline queue, per-project consent, `api/v1/sync/*` ingress) was deleted on both sides in August 2026; every remaining "sync" identifier (`SPEC_KITTY_ENABLE_SAAS_SYNC`, `SPEC_KITTY_SYNC_*`, `sync_active()`, `OWNED_SYNC_UNSUPPORTED`) is residue that does **not** gate the moment path. Read [`docs/context/team-kitty.md`](docs/context/team-kitty.md) before touching anything hosted, and never design against or "re-enable" sync.
 
-- `spec-kitty merge` merges to **local main** only. It does NOT push to origin/main.
-- After `spec-kitty merge`, if the user explicitly asks to share or publish: create a PR branch (`git checkout -b pr/<slug>`) and open a pull request (`gh pr create`). Do NOT do this automatically — wait for explicit user instruction.
-- Never run `git push origin main` or equivalent. Use a PR branch and `gh pr create`.
-- Distinguish **local main** (your checkout) vs **origin/main** (the remote); qualify which branch you mean (see the `primary`/`merge` footgun note under Terminology Canon).
+---
 
-**Why:** The workflow is predicated on pull requests for review, CI gating, and audit trail. Direct pushes to origin/main bypass all of these.
+## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
-**Recovery:** If you accidentally push to origin/main, do NOT force-push (branch protection blocks it). Instead: create a `revert/<slug>` branch from origin/main, commit a revert, open a PR to merge it, then open the real mission PR.
+This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here: the reinstated lean, modular CI (`#3995`) runs on public `main` — a path router (`ci-router.yml`) feeding the single `gate_selection.py` authority, a per-module test matrix (`module-tests.yml` / `ci-modules.yml`), coverage/xunit aggregation with a diff-cover ≥90% gate (`ci-aggregate.yml`), a packs lane (`packs.yml`), a nightly full/performance/interpreter run (`ci-nightly.yml`), and a fork-safe SonarCloud workflow (`sonar.yml`). These replaced the archived EXPERIMENTAL Blacksmith producer.
+
+- **Never push to `main`.** Create a topic branch from the current `main`, open a PR targeting `main`, and let the repository merge controls handle publication.
+- `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
+- If your GitHub CLI installation cannot use issue or pull-request commands in a restricted environment, use the GitHub web interface or an authenticated GitHub API client.
+
+### Convergence ports
+
+- Port commits from the pre-fork line with `git cherry-pick -x` so authorship and provenance are preserved.
+- Before applying a commit, classify it with `git show --stat <sha> -- <retired paths>`.
+- If every touched path is retired, record the commit as `DROP` in the convergence map and do not port it.
+- For a mixed commit, drop the retired hunks and cite the omitted hunks under `Dropped hunks:`.
+- Every convergence PR carries `Retired-surface scan: 0 hits`, computed over added diff lines with the canonical regex in [planning `PROGRAM.md` §5](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md#5-the-pr-protocol).
+- Never add `# noqa: TID251` for a retired module.
+- Never resolve a kept-file conflict with `theirs` without re-running `tests/architectural/test_no_retired_subsystems.py`.
+
+**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and the full test directory of each owning subsystem. Run `tests/architectural/` in full only for cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) — see "Test policy — what you must run for a change" below for the calibrated blast-radius rule. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
 
 ---
 
@@ -71,15 +84,15 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 - Do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
 - Historical archived artifacts may retain legacy wording only as immutable snapshots, explicitly marked legacy.
 - **Overloaded terms `primary` and `merge` — footgun.** `primary` carries four senses (PRIMARY partition / Primary Branch / repository-root checkout / Target Ref) and `merge` three operations (lane consolidation / branch integration / publish to origin). The load-bearing trap is reading a **PRIMARY-partition** verdict as a **Primary-Branch (`main`)** instruction — and treating `spec-kitty merge` (local lane consolidation) as a **publish to origin**. Always name the sense; the canonical definitions and "Do NOT use when" guards live in the glossary: [`docs/context/orchestration.md`](docs/context/orchestration.md) (`#primary-partition`, `#primary-branch`, `#target-ref--commit-target`, `#lane-consolidation`, `#branch-integration--git-merge`, `#publish-to-originmain`) and [`docs/context/execution.md`](docs/context/execution.md#repository-root-checkout).
-- **Overloaded term `routing` — footgun (cf. #2653, the `primary`/`merge` disambiguation this entry extends).** "Routing" names at least seven distinct, governed decisions — placement (kind + topology → surface), branch-target (which branch a change commits to), commit (coord-worktree materialization inside `commit_for_mission`), dispatch/profile (`invocation/router.py`), sync fan-out (`sync/routing.py`), model/task (`src/doctrine/model_task_routing/`), and scope routing — plus infrastructural senses named explicitly out of scope (event routing, HTTP request routing, significance routing bands). Never write bare "routing"; name the sense. Full disambiguation with "do NOT use when" guards: [`docs/context/orchestration.md#routing`](docs/context/orchestration.md#routing). Placement-sense explanation: [`docs/architecture/artifact-placement-seam.md`](docs/architecture/artifact-placement-seam.md).
+- **Overloaded term `routing` — footgun (cf. #2653, the `primary`/`merge` disambiguation this entry extends).** "Routing" names at least six distinct, governed decisions — placement (kind + topology → surface), branch-target (which branch a change commits to), commit (coord-worktree materialization inside `commit_for_mission`), dispatch/profile (`invocation/router.py`), model/task (`src/charter/offering/model_task_routing/`), and scope routing — plus infrastructural senses named explicitly out of scope (event routing, HTTP request routing, significance routing bands). The sync-fan-out sense (`sync/routing.py`) was retired with the sync transport (issue #115) and is no longer a live governed decision. Never write bare "routing"; name the sense. Full disambiguation with "do NOT use when" guards: [`docs/context/orchestration.md#routing`](docs/context/orchestration.md#routing). Placement-sense explanation: [`docs/architecture/artifact-placement-seam.md`](docs/architecture/artifact-placement-seam.md).
 
 ---
 
 ## Supported AI Agents
 
-19 agents total: 13 slash-command, 6 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
+16 agents total: 12 slash-command, 4 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
 
-### Slash-Command Agents (13)
+### Slash-Command Agents (12)
 
 | Agent | Directory | Subdirectory | Format |
 |-------|-----------|--------------|--------|
@@ -92,14 +105,13 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 | Windsurf | `.windsurf/` | `workflows/` | Markdown |
 | Kilocode | `.kilocode/` | `workflows/` | Markdown |
 | Augment Code | `.augment/` | `commands/` | Markdown |
-| Roo Cline | `.roo/` | `commands/` | Markdown |
 | Amazon Q | `.amazonq/` | `prompts/` | Markdown |
 | Kiro | `.kiro/` | `prompts/` | Markdown |
 | Google Antigravity | `.agent/` | `workflows/` | Markdown |
 
 **Argument placeholders:** Markdown agents use `$ARGUMENTS`; TOML agents use `{{args}}`; `{SCRIPT}` is replaced with the actual script path; `__AGENT__` is replaced with the agent name.
 
-### Agent Skills Agents (6)
+### Agent Skills Agents (4)
 
 | Agent | Skills Root | Command Surface | Key |
 |-------|-------------|-----------------|-----|
@@ -150,17 +162,16 @@ for agent_root, subdir in agent_dirs:
 - `get_agent_dirs_for_project(project_path)` — (dir, subdir) tuples for configured agents
 - `load_agent_config(repo_root)` / `save_agent_config(repo_root, config)` — config I/O
 
-**See also:** ADR #6, `tests/specify_cli/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
+**See also:** ADR #6, `tests/agent/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
 
 ### Adding New Agent Support
 
 1. **Add to `AI_CHOICES`** in `src/specify_cli/__init__.py` and `agent_folder_map`.
 2. **Update CLI help text** — `--ai` param description, docstrings, error messages.
 3. **Update `README.md`** Supported AI Agents section.
-4. **Update release script** `.github/workflows/scripts/create-release-packages.sh` — add to `ALL_AGENTS` array and case statement.
-5. **Update GitHub release script** `.github/workflows/scripts/create-github-release.sh` — add agent packages.
-6. **Add to `AGENT_DIRS`** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`.
-7. **CLI tool check** (only for agents with required CLI tools, not IDE-based ones):
+4. **No release-script update needed.** Release automation is centralized and does not require a per-agent entry; follow `RELEASE_CHECKLIST.md`.
+5. **Add to `AGENT_DIRS`** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`.
+6. **CLI tool check** (only for agents with required CLI tools, not IDE-based ones):
    ```python
    tracker.add("windsurf", "Windsurf IDE (optional)")
    check_tool_for_tracker("windsurf", "https://windsurf.com/", tracker)
@@ -182,36 +193,71 @@ for agent_root, subdir in agent_dirs:
 ## Project Structure
 
 ```
-architecture/     # ADRs and technical specs
-src/specify_cli/
-  glossary/       # Glossary semantic integrity pipeline
-  next/           # Canonical mission-next command loop (shim — see Shared Package Boundary)
+docs/adr/         # ADRs (governance decision records)
+docs/architecture/ # Technical specs and C4 arch docs
+src/kernel/       # Foundation primitives (clock, paths, atomic, git_topology) — root layer
+src/charter/      # Governance authority; absorbed former src/doctrine/ at src/charter/offering/
+src/glossary/     # Glossary semantic-integrity pipeline + DRG glossary bridge
+src/mission_runtime/ # Artifact-placement seam (PlacementSeam, resolver port, identity, lifecycle_phase)
+src/runtime/      # Canonical mission control loop — runtime/next/_internal_runtime/
+src/specify_cli/  # Top adapter/application layer: CLI, status, merge, lanes, workspace, tracker clients
 tests/            # Test suite
 kitty-specs/      # Mission specs (dogfooding)
 docs/             # User documentation
 ```
 
-New architectural designs → `architecture/` following `docs/architecture/README.md` template.
+New architectural designs → `docs/architecture/` following `docs/architecture/README.md` template.
+
+### Modularity SSOT (canonical)
+
+The **single source of truth for the module set and its import direction is the enforced pair**,
+not any prose map:
+
+- **Inventory** — `pyproject.toml` `[tool.hatch.build.targets.wheel].packages` (enforced by
+  `tests/architectural/test_pyproject_shape.py`).
+- **Direction** — the `landscape` fixture in `tests/architectural/conftest.py` +
+  `tests/architectural/test_layer_rules.py` (pytestarch `LayerRule`s + the shrink-only
+  `mission_runtime` and `runtime` outbound ledgers). The enforced chain is
+  `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`.
+
+Every other module map (this file, `docs/architecture/00_landscape`, `04_implementation_mapping`,
+the demoted `05_ownership_map.md`) is a **derived view**; on conflict the enforced pair wins. The
+former self-declared authority `docs/architecture/05_ownership_manifest.yaml` was deleted (mission
+`post-convergence-governance-01M1TMPH`). `src/specify_cli/zeitgeist_client/` and `saas_client/` are
+**clients** of the upstream authoritative repos `spec-kitty/zeitgeist` + `spec-kitty/saas`
+(consumer code; API authored upstream) — see ADR
+`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`.
 
 ## Commands
 
 ```bash
-pytest tests/
+make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
+make test-full    # everything, parallel + serial passes
 ruff check .
-PWHEADLESS=1 pytest tests/   # headless (prevents browser windows)
+ruff format --check .  # formatter gate — same whole-repo check CI runs (`make format-check` is the target form)
 ```
 
-### Local parallel test run (default)
+Both make targets set `PWHEADLESS=1` themselves and need the synced dev environment (`make dev-setup`: the `test` extras plus `pytest-xdist`, declared in the `dev` group so a plain `uv sync` has it too).
 
-Run the suite in parallel locally — at least 2× faster on a ≥4-core machine:
+### Test policy — what you must run for a change
 
-```bash
-PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider
-# daemon/real-port tests run serially:
-PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py -n0 -q
-```
+- **`make test-fast`** is the shared baseline for ordinary changes. It runs the fast tier (`(fast or unit)`, with every slow tier deselected by marker) over the subsystem directories a blast radius typically covers: `tests/unit tests/status tests/cli tests/specify_cli/runtime`.
+- **Run targeted module tests as well.** The fast tier is a baseline, not a substitute for the tests that directly cover the files and behavior you changed.
+- **`make test-full`** runs everything in three passes: one `-n auto --dist loadfile` parallel pass over `tests/` with the parallel-unsafe `stress`/`timing` families deselected by marker, then two dedicated `-n0` serial passes — `-m "stress and not windows_ci"`, then `-m timing`. Use it for release-level changes or when a narrow blast radius cannot establish safety. The former fixed-port sync pass no longer exists.
 
-Rules:
+**Computing your blast radius — run this in addition to `make test-fast`:**
+
+1. For every source module your diff touches, run its own test file(s). The test tree mirrors the source tree (`src/specify_cli/status/store.py` → `tests/status/`), and when the mirror is not obvious, find the tests that exercise the module: `grep -rl "<module_name>" tests/ --include="*.py"`.
+2. Plus the full test directory of each owning subsystem: touching `src/charter/offering/**` ⇒ both `tests/charter/` and `tests/doctrine/` — the doctrine test tree did not move when the package absorbed `src/doctrine/` into `src/charter/offering/`, so both directories still cover that code and both count as "each owning subsystem."
+3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/`.
+
+Record the exact commands and passed/failed counts under the PR's *Tests run* section. A failure you did not cause and cannot explain is not yours to chase — classify it via the baseline-red gotcha below and note it in the PR.
+
+### Why the targets look the way they do
+
+Do not hand-roll a broad pytest invocation — `make test-fast` and `make test-full`
+already encode the rules below. The rationale, so a change to either target keeps
+holding them:
 
 - **Always `--dist loadfile`, never bare `--dist load`.** `loadfile` keeps every
   test in a file on a single worker, preserving file-scoped fixture and
@@ -220,9 +266,9 @@ Rules:
 - **Per-worker HOME isolation (WP04)** means a parallel run never touches the
   real `~/.spec-kitty` — each `pytest-xdist` worker (and the serial master) gets
   its own isolated home / XDG / AppData directories.
-- **Real-port / daemon tests run serially.** OS-global resources (real ports,
-  daemons — e.g. `tests/sync/test_orphan_sweep.py`, ports 9400–9449) are not
-  protected by per-worker HOME isolation, so run them in their own `-n0` pass.
+- **Parallel-unsafe families run in their own `-n0` pass.** `stress` /
+  `timing` tests are corrupted by co-scheduled workers — so `make test-full`
+  gives each family a dedicated serial pass.
 
 Full rationale, the volume env gates, and the stability ratchet:
 [docs/development/testing/testing-parallel.md](docs/development/testing/testing-parallel.md).
@@ -237,14 +283,23 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
 1. **Pre-existing known-P0 reds** honestly red main (ADR `2026-07-17-1`); e.g. #2736, #2772,
    #1834. Do **not** "fix" them — leave them red. Confirm by running the same test on the
    merge-base / `upstream/main` (via `PYTHONPATH=<worktree>/src`), or check the tracker.
-2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the sync
-   disable toggles (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`, which also
-   skip the pre-review gate). These pass locally; they are config, not your diff.
+2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the
+   gate opt-out (`SPEC_KITTY_SKIP_PRE_REVIEW_GATE`; the pre-review gate no longer
+   reads the sync-disable vocabulary, #3980). These pass locally; they are config,
+   not your diff.
 3. **Stale-install false reds** — code that shells out to `spec-kitty` (e.g. the
    `merge-driver-*` commands) only fires after `pip install -e .`; a stale install reports
    false reds until you reinstall.
+4. **Stale-venv false reds** — a `ModuleNotFoundError` (or other import failure) for a
+   package that *is* declared and pinned (`pyproject.toml` / `uv.lock`) usually means the
+   local `.venv` was never (re)synced to that pin, not a real regression. Re-run
+   `uv sync --frozen --all-extras` and retry before recording the failure as pre-existing or
+   unrelated — a stale venv is indistinguishable from real breakage in raw pytest output
+   (#648: a PR's `## Tests run` excluded a whole test file over exactly
+   this; a clean `uv sync --frozen --all-extras` reproduced 1621/1621 passing, no exclusion
+   needed).
 Only failures that are red on your branch **and** green on the base are yours to fold. Never
-green-wash category 1, and never misattribute categories 2–3 to your own work. Full policy:
+green-wash category 1, and never misattribute categories 2–4 to your own work. Full policy:
 [docs/development/testing/testing-flakiness.md](docs/development/testing/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
@@ -253,9 +308,13 @@ Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require 
 
 **New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
 
-**Pre-push: run the terminology guard when touching `src/doctrine/` or user-facing prose.** Some repo-wide gates run only in CI's `integration-tests-core-misc` job, NOT in the `fast-tests-*` suites — so a forbidden-term regression passes local doctrine runs and only fails at CI. Before pushing doctrine/prose changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it enforces the Terminology Canon (e.g. canonical `status commit` not `ceremony`; `Mission` not `feature`). The full `tests/architectural/` suite is the complete safety net.
+**Formatting is a separate gate from linting (#3952).** `ruff check .` passing says nothing about format: CI (`ci-quality.yml`, `ci-router.yml`) runs `ruff format --check .` over the whole repo, and `tests/architectural/test_ruff_format_enforcement.py` enforces the same command in `make test-full` (#473/#558), so an unformatted file goes red regardless of whether anyone ran the check locally. Run `make format-check` (or `uv run --frozen ruff format --check .`) before pushing; `uv run --frozen ruff format <files>` fixes what it flags.
 
-## Sonar Expectations
+**Pre-push: run the terminology guard when touching `src/charter/offering/` or user-facing prose.** The heavyweight GitHub-hosted test matrix was retired in The Convergence (PR #3881; see [`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)) and the lean modular GitHub CI was reinstated in `#3995`; a forbidden-term regression can still pass a local `src/charter/offering/`-or-prose run and only surface at CI. Before pushing such changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it gates exactly two retired terms — canonical `status commit`, never `ceremony` or `status-writing`. It does **not** check `Mission` vs `feature` — that half of the Terminology Canon is review-enforced, not gated. The full `tests/architectural/` suite is the complete safety net.
+
+## Sonar Expectations (SonarCloud reinstated)
+
+**SonarCloud is back in CI on two complementary surfaces.** The convergence-era workflow deletion (the `sonarcloud` job died with the 4,118-line `ci-quality.yml` in commit `e8cc2f444`, 2026-08-27) had left no coverage or new-code-quality gate in GitHub CI; the gap is now closed twice over. The per-PR **`sonarcloud` job in `ci-quality.yml`** ([#3993](https://github.com/spec-kitty/spec-kitty/issues/3993), owner ruling 2026-09-06: it "was not meant to be permanently removed. It should be reinstated.") runs on `pull_request` events **only** — never on pushes to `main`, so `main`'s standing SonarCloud branch analysis stays owned by the nightly — runs the fast tier under `pytest --cov`, uploads to SonarCloud keyed to the `SONAR_TOKEN` repository secret (both SonarSource actions SHA-pinned to the same commits `sonar.yml` vets, DIR-051), and reports the Sonar quality-gate status — **reported, not required**: the job is `continue-on-error` and deliberately outside `quality-gate.needs`. `sonar.projectVersion` tracks `pyproject.toml` via `scripts/ci/sonar_project_version.py` (restored by the same PR, unit-tested in `tests/ci/test_sonar_project_version.py`), and project/organization/coverage paths come from `sonar-project.properties`. The separate net-new **`sonar.yml`** workflow ([#3995](https://github.com/spec-kitty/spec-kitty/issues/3995)) runs a nightly/manual-dispatch informational scan that aggregates the `ci-modules.yml` shard coverage artefacts — fork-safe (skips green when `SONAR_TOKEN` is absent), and never per-PR-blocking. Per-PR coverage is additionally enforced by the `ci-aggregate.yml` diff-cover ≥90% gate. Read the reported numbers locally with the read-only, token-free REST helper `scripts/ci/sonarcloud_branch_review.sh` (unit-tested in `tests/ci/test_sonarcloud_branch_review.py`).
 
 Treat these as code-shaping constraints, not post-hoc cleanup:
 
@@ -271,27 +330,14 @@ Treat these as code-shaping constraints, not post-hoc cleanup:
 ## Recent Changes
 
 - **068**: `src/specify_cli/post_merge/` (AST-based stale-assertion analyzer), `agent tests` CLI subgroup, `agent/release.py prep` subcommand, FR-019 safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` + `implement --base`
-- **047**: Added typer, rich, ruamel.yaml, requests, pytest, mypy; SQLite OfflineQueue sibling table
+- **047**: Added typer, rich, ruamel.yaml, requests, pytest, mypy (the SQLite OfflineQueue sibling table shipped here was retired with the sync transport in the convergence)
 - **023**: Documentation sprint / agent management cleanup
 
 ---
 
 ## PyPI Release
 
-**CRITICAL: NEVER create releases without explicit user instruction. NEVER release manually — use the GitHub release process.**
-
-Only act on: "cut a release", "release v0.X.Y", "push to PyPI", or similar explicit instructions.
-
-```bash
-# 1. Bump version in pyproject.toml + add CHANGELOG.md entry
-# 2. Tag and push:
-git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
-git push origin vX.Y.Z
-# 3. Monitor: gh run list --workflow=release.yml --limit=1 && gh run watch <run_id>
-# 4. Verify: gh release view vX.Y.Z
-```
-
-Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
+Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releases. Publication is owner+controller-executed only after the required checks pass. Contributors do not push release tags as part of an ordinary change; that restriction applies until the [#830 release phase](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830). `release.yml` is not present in this EXPERIMENTAL checkout.
 
 ---
 
@@ -362,7 +408,7 @@ spec-kitty merge --dry-run         # conflict forecast
 spec-kitty merge --feature 017-my-feature
 ```
 
-**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/status_resolver.py`, `cli/commands/merge.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
+**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/resolve.py`, `merge/retention.py`, `merge/bookkeeping_projection.py`, `cli/commands/merge.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
 
 ---
 
@@ -379,11 +425,10 @@ Append-only event log (`status.events.jsonl`) is the **sole authority** for WP l
 
 | Function | Module | Purpose |
 |----------|--------|---------|
-| `emit_status_transition()` | `status.emit` | Single entry point: validate → persist → materialize → views → SaaS |
+| `emit_status_transition()` | `status.emit` | Flat/primary shell over the status-owned `transition_pipeline` (validation runs once there); the transactional shell lives in `coordination/status_transition.py` |
 | `reduce()` | `status.reducer` | Deterministic event → snapshot |
 | `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
 | `validate_transition()` | `status.transitions` | Check (from, to) against matrix + guards |
-| `resolve_phase()` | `status.phase` | meta.json > config.yaml > default(1) |
 | `resolve_lane_alias()` | `status.transitions` | `doing` → `in_progress` at input boundaries |
 
 **9-lane state machine:**
@@ -400,7 +445,7 @@ spec-kitty agent tasks status
 spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 
-**Package:** `src/specify_cli/status/` — `models.py`, `transitions.py`, `reducer.py`, `store.py`, `phase.py`, `emit.py`, `lane_reader.py`, `bootstrap.py`, `legacy_bridge.py`, `validate.py`, `doctor.py`, `reconcile.py`, `migrate.py` (migration-only), `history_parser.py` (migration-only).
+**Package:** `src/specify_cli/status/` — `models.py`, `transitions.py`, `reducer.py`, `store.py`, `emit.py`, `lane_reader.py`, `bootstrap.py`, `validate.py`, `doctor.py`, `aggregate.py`, `lifecycle.py`, `lifecycle_events.py`, `tail_reader.py`, `views.py`, `preflight.py`, `work_package_lifecycle.py`, `zeitgeist_bridge.py` (status→Zeitgeist ephemeral-status seam), plus `wp_*` view/metadata helpers and migration utilities (`migrate_lifecycle_envelope.py`).
 
 **Common operations:**
 ```python
@@ -449,8 +494,8 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 
 ## Shared Package Boundary (2026-04-25)
 
-- **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
-- **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
+- **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). The `src/specify_cli/next/` deprecation shim was **removed in commit `93dcbd75481c` (2026-07-03, "feat(unshim)!: delete 5 legacy shim namespaces …")**, two months before the convergence, and remains absent at 3.2.7rc1 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
+- **Events / Tracker:** Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies are removed. In the EXPERIMENTAL programme, these packages resolve from exact git-rev pins per [planning `PROGRAM.md` §2](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) and the [internal-distribution ADR](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/decisions/ADR-INTERNAL-PYTHON-PACKAGE-DISTRIBUTION-2026-08-27.md); PyPI ranges return with [#830 Phase 3](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830).
 - **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/how-to/local-overrides.md](docs/development/how-to/local-overrides.md).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
@@ -463,16 +508,16 @@ ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](docs/adr/3.x/2026-
 
 Governing ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 
-### Activation Engine (`charter.activation_engine`)
+### Activation Engine (`charter.activation.activation_engine`)
 
-Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_activation()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed.
+Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
 
 ```python
 plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx)
-commit_activation(plan, project_root=Path("."))
+commit_plan(plan, project_root=Path("."))
 ```
 
-### Charter Cascade (`charter.cascade`)
+### Charter Cascade (`charter.activation.cascade`)
 
 Follows DRG `requires`/`suggests` edges (not hardcoded per-kind logic).
 
@@ -486,7 +531,7 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 
 ### Canonical Kind Vocabulary
 
-`charter.kind_vocabulary.from_operator_token` normalizes operator-facing tokens at input boundaries:
+`ArtifactKind.from_operator_token` (`charter.offering.artifact_kinds`) normalizes operator-facing tokens at input boundaries (`charter.activation.kind_vocabulary` only re-exports the token set + error type):
 
 | Token | Canonical kind |
 |-------|----------------|
@@ -496,7 +541,7 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 | `directive` / `tactic` / `styleguide` / `toolguide` / `paradigm` / `procedure` | (same) |
 | `mission-type` | raises `MissionTypeNotAnArtifactKind` |
 
-`template`, `asset`, and `anti_pattern` are `ArtifactKind` members that are **not** charter-activatable — they resolve specially and are excluded via `_NON_AUGMENTATION_ELIGIBLE_KINDS` (`src/doctrine/artifact_kinds.py`). The tokens above (plus `mission-type`) are the charter-activatable vocabulary (`CHARTER_KIND_TOKENS`).
+`template`, `asset`, and `anti_pattern` are `ArtifactKind` members that are **not** charter-activatable — they resolve specially and are excluded via `_NON_AUGMENTATION_ELIGIBLE_KINDS` (`src/charter/offering/artifact_kinds.py`). The tokens above (plus `mission-type`) are the charter-activatable vocabulary (`CHARTER_KIND_TOKENS`).
 
 ### `specializes_from` DRG Lineage
 
@@ -508,7 +553,7 @@ edges:
     relation: specializes_from
 ```
 
-**Endpoint form matters.** An endpoint is either a **DRG URN** — `<kind>:<id>`, where `<kind>` is a `NodeKind` member such as `agent_profile`, `directive` or `styleguide` — or a **bare id** that the fragment's own `nodes:` block declares. Anything else is refused at merge time with an `unresolved_edge_endpoint` conflict naming the token. (Before mission `doctrine-silence-guards-01KYFV7Q` this snippet read `urn:profile:…`, a shape that exists nowhere in the vocabulary; the bridge dropped it in silence, so the documented declaration was inert. See `src/doctrine/drg/merge.py:_resolve_edge_endpoint`.)
+**Endpoint form matters.** An endpoint is either a **DRG URN** — `<kind>:<id>`, where `<kind>` is a `NodeKind` member such as `agent_profile`, `directive` or `styleguide` — or a **bare id** that the fragment's own `nodes:` block declares. Anything else is refused at merge time with an `unresolved_edge_endpoint` conflict naming the token. (Before mission `doctrine-silence-guards-01KYFV7Q` this snippet read `urn:profile:…`, a shape that exists nowhere in the vocabulary; the bridge dropped it in silence, so the documented declaration was inert. See `src/charter/offering/drg/merge.py:_resolve_edge_endpoint`.)
 
 - Distinct from `delegates_to` (runtime work handoff).
 - Resolved via `AgentProfileRepository.resolve_profile` DRG traversal. Retired per-profile field form rejected at load time.
@@ -518,23 +563,21 @@ edges:
 
 `AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor doctrine --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
 
-### Deferred Items
+### Upstream Deferred-Item References
 
-- [#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622): `coordination.status_service` dead-symbol debt
-- [#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623): `doctor.py` god-module split (FR-012)
-- [#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624): `_tag_source` provenance sidecar typing (FR-013)
+These Priivacy-ai links are upstream references, not work items for this EXPERIMENTAL repository:
+
+- [#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622) (upstream): `coordination.status_service` dead-symbol debt
+- [#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623) (upstream): `doctor.py` god-module split (FR-012)
+- [#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624) (upstream): `_tag_source` provenance sidecar typing (FR-013)
 
 ---
 
-## Branch Protection and CI
+## Branches and CI
 
-`main` has a **Protect Main Branch** CI workflow that enforces the no-direct-push policy. A "Protect Main Branch" failure on CI means code bypassed the PR workflow and must be addressed by revert + re-submit.
+GitHub branch protection and review requirements enforce the repository workflow. `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via a topic branch and a PR targeting `main`.
 
-- `spec-kitty merge` merges lane branches into **local main** only — do NOT use `spec-kitty merge --push` or `git push origin main`.
-- After `spec-kitty merge` completes locally, create a PR branch: `git checkout -b pr/<slug> && git push origin pr/<slug>` and open a PR with `gh pr create`.
-- The only CI result relevant to code health is **CI Quality**. The protect-main failure indicates a workflow violation.
-
-**Recovery if origin/main is accidentally pushed:** Do NOT force-push (branch protection blocks it). Create a `revert/<slug>` branch from origin/main, commit a single revert, open a PR to merge it, then open the real PR from the mission branch.
+Live GitHub Actions are part of that workflow. The reinstated lean modular CI (`ci-router.yml` → `module-tests.yml` / `ci-modules.yml` → `ci-aggregate.yml`, plus `packs.yml`, `ci-nightly.yml`, and `sonar.yml`) is the sole/primary public producer, replacing the archived EXPERIMENTAL Blacksmith producer (`#3995`). `ci-quality.yml` and `protect-main.yml` are [#830 Phase-1](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830) infrastructure; `ci-quality.yml` also carries the reinstated per-PR **`sonarcloud` job** ([#3993](https://github.com/spec-kitty/spec-kitty/issues/3993), owner ruling 2026-09-06): the fast tier runs under `pytest --cov`, the report uploads to SonarCloud keyed by the `SONAR_TOKEN` repository secret, and the Sonar quality-gate status is **reported, not required** — the job is `continue-on-error` and deliberately outside `quality-gate.needs`. `ci-windows.yml`, `docs-pages.yml`, and `check-spec-kitty-events-alignment.yml` are also live.
 
 ---
 
@@ -543,9 +586,9 @@ edges:
 When work touches `/spec-kitty-saas`, use two explicit Docker modes:
 
 - **`dev-live`** (implementation/debug loops): `make docker-app-up-live`, `make docker-app-down-live`
-- **`prod-like`** (pre-merge/pre-deploy gate): `make docker-app-up`, `make docker-auth-check` (required before Fly promotion), `make docker-app-down`
+- **`prod-like`** (pre-merge gate): `make docker-app-up`, `make docker-auth-check` (required before merge), `make docker-app-down`
 
-Default to `dev-live` while editing Python, templates, or assets. Always run and pass `prod-like` auth preflight before merge or Fly promotion. If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
+Default to `dev-live` while editing Python, templates, or assets. Always run and pass `prod-like` auth preflight before merge. If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 
 Runbook: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo.
 
@@ -591,7 +634,7 @@ unset GITHUB_TOKEN && gh issue comment <issue> --body "..."
 
 ## Other Notes
 
-Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`; this has cost mission `sync-sleep-count-3136` four venv rebuilds), runs headless in CI via [`.github/workflows/ui-e2e.yml`](.github/workflows/ui-e2e.yml), and is copy-template documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend that suite instead of asserting UI behavior from API responses alone.
+Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`). The suite is documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend it instead of asserting UI behavior from API responses alone.
 
 ---
 

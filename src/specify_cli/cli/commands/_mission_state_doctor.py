@@ -390,6 +390,7 @@ def _run_audit_mode(
         scan_root=fixture_dir,
         mission_filter=mission,
         fail_on=fail_on_severity,
+        invoking_cwd=Path.cwd(),
     )
     try:
         report = run_audit(options)

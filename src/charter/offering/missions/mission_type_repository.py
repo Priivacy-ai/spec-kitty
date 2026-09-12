@@ -83,11 +83,11 @@ class MissionTypeRepository:
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
         (FR-005) relocated ``mission_types/`` from
-        ``src/doctrine/missions/mission_types`` to
+        ``src/charter/offering/missions/mission_types`` to
         ``packs/built-in/missions/mission_types``. This now delegates to the
         one promoted missions-root authority
         (:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,
-        FR-004) instead of its own ``importlib.resources.files("doctrine")``
+        FR-004) instead of its own ``importlib.resources.files("charter.offering")``
         literal -- the retired literal would silently resolve to the now
         data-less ``src/doctrine`` package tree post-relocation, and its bare
         ``Path(__file__).parent / "mission_types"`` fallback would resolve to

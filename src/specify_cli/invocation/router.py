@@ -241,11 +241,16 @@ class ActionRouter:
         """
         profiles = self._registry.list_all()
         if not profiles:
+            # #4114: an empty catalog means the activation gate admitted
+            # nothing (built-ins always ship, so a bare project never lands
+            # here) — the remedy is activation, not synthesis.
             raise RouterAmbiguityError(
                 request_text,
                 "ROUTER_NO_MATCH",
                 [],
-                "No profiles available. Run 'spec-kitty charter synthesize'.",
+                "No profiles available. Run 'spec-kitty charter activate "
+                "agent-profile <id>' to activate one, or 'spec-kitty profiles "
+                "list --all' to see the catalog.",
             )
 
         # ------------------------------------------------------------------

@@ -8,9 +8,9 @@ Public API (importable directly from this package):
 
 Configuration files (edit these to extend the lint):
 
-  - ``src/charter/neutrality/banned_terms.yaml`` — banned term definitions.
+  - ``src/charter/activation/neutrality/banned_terms.yaml`` — banned term definitions.
     Schema: ``contracts/banned-terms-schema.yaml`` (C-4).
-  - ``src/charter/neutrality/language_scoped_allowlist.yaml`` — allowlisted paths.
+  - ``src/charter/activation/neutrality/language_scoped_allowlist.yaml`` — allowlisted paths.
     Schema: ``contracts/language-scoped-allowlist-schema.yaml`` (C-5).
 
 Test harness contract: ``contracts/neutrality-lint-contract.md`` (C-3).

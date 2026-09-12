@@ -372,3 +372,7 @@ written-out `null` the way `to_dict` currently emits every other unset known fie
 (`config.py:53-67`). Without this, `spec-kitty tracker bind` — the very command that creates a
 working binding — would write `egress: null`, which §1's fault rule reads as a fault, which
 refuses: the binding command would disable the binding it just created.
+
+### Reconciliation note — 2026-08-31 (#782)
+
+G4's authoritative census is **5 enclosing functions / 5 call expressions**: the three local gates, `SaaSTrackerClient._current_tracker_egress_verdict`, and `_check_sync_readiness`. The no-helper rule is scoped to G3's three local sites; the hosted `_enforce_tracker_egress_consent` helper remains structurally guarded.

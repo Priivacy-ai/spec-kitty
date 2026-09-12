@@ -32,8 +32,9 @@ module's ``globals()`` so repeat access after the first does not re-run the
 lookup.
 
 Deprecation signal (warn-once discipline, mirrors
-``src/specify_cli/retrospective/deprecation.py``): the first attribute access
-in a process emits a ``DeprecationWarning`` naming the canonical replacement;
+``src/specify_cli/retrospective/deprecation.py``): the first import or
+attribute access in a process emits a ``DeprecationWarning`` naming the
+canonical replacement;
 subsequent accesses in the same process are silent (NFR-006-style one-warning-
 per-process budget) so normal test/CI runs are not flooded.
 
@@ -51,6 +52,18 @@ __all__: list[str] = []
 
 _CANONICAL_MODULE = "charter.offering"
 
+__deprecated__ = True
+__canonical_import__ = "charter.offering"
+__removal_release__ = "3.3.0"
+__deprecation_message__ = (
+    "The top-level 'doctrine' package has moved to 'charter.offering' "
+    "(mission charter-code-topology-01M152G1, CR-06). Replace "
+    "'import doctrine' / 'from doctrine import X' with "
+    "'import charter.offering' / 'from charter.offering import X'. "
+    "This compatibility shim (src/doctrine.py) is tracked for removal "
+    "in docs/migrations/shim-registry.yaml."
+)
+
 _warned = False
 
 
@@ -61,12 +74,7 @@ def _warn_once() -> None:
         return
     _warned = True
     warnings.warn(
-        "The top-level 'doctrine' package has moved to 'charter.offering' "
-        "(mission charter-code-topology-01M152G1, CR-06). Replace "
-        "'import doctrine' / 'from doctrine import X' with "
-        "'import charter.offering' / 'from charter.offering import X'. "
-        "This compatibility shim (src/doctrine.py) is tracked for removal "
-        "in docs/migrations/shim-registry.yaml.",
+        __deprecation_message__,
         DeprecationWarning,
         stacklevel=3,
     )
@@ -102,3 +110,6 @@ def __getattr__(name: str) -> Any:
             raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
     globals()[name] = value
     return value
+
+
+_warn_once()

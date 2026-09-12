@@ -2,7 +2,7 @@
 title: Core Code Patterns Applied in the Codebase
 description: The core code patterns applied across the Spec Kitty codebase, mapping recurring implementation idioms to the architecture components they realize (2.x-era record).
 doc_status: active
-updated: '2026-05-19'
+updated: '2026-09-08'
 related:
 - docs/architecture/04_implementation_mapping/README.md
 - docs/architecture/status-model.md
@@ -54,14 +54,14 @@ Three flavors are in use, distinguished by what each rule produces:
 - Validator: `src/specify_cli/audit/detectors.py` (`detect_legacy_keys`,
   `detect_forbidden_keys`, `detect_corrupt_jsonl`); composed by
   `src/specify_cli/audit/classifiers/*` (one classifier per artifact type).
-- Validator (class-based): `src/specify_cli/charter_lint/checks/*` —
+- Validator (class-based): `src/specify_cli/charter_runtime/lint/checks/*` —
   `OrphanChecker`, `StalenessChecker`, `ContradictionChecker`,
   `ReferenceIntegrityChecker`, each with `run(drg, scope) -> list[LintFinding]`.
 - Transformer: `src/specify_cli/migration/canonicalization.py::CanonicalRule`
   (Protocol + `apply_rules` runner). Consumed by
   `src/specify_cli/migration/mission_state.py::_canonicalize_status_row` and
   `src/specify_cli/migration/rebuild_state.py`.
-- Scorer: `src/doctrine/agent_profiles/repository.py::_score_profile` —
+- Scorer: `src/charter/offering/agent_profiles/repository.py::_score_profile` —
   DDR-011 weighted-signal profile matching.
 
 **Reach for it when:** you have 3+ independent decisions over a shared input
@@ -111,7 +111,7 @@ the pattern to genuine state-machine work, not every dict update.
 
 ## 3. Two-Source Doctrine Repository (Shipped + Project Override)
 
-**Doctrine:** Implemented in `src/doctrine/base.py::BaseDoctrineRepository`.
+**Doctrine:** Implemented in `src/charter/offering/base.py::BaseDoctrineRepository`.
 
 Doctrine artifacts (tactics, directives, paradigms, toolguides, agent
 profiles) load from **two sources**: the shipped package data
@@ -127,9 +127,9 @@ Properties:
 - Inline references to other artifacts are rejected (`reject_inline_refs`) —
   artifacts reference each other by id, never by embedding.
 
-**Canonical implementations:** `src/doctrine/tactics/repository.py`,
-`src/doctrine/directives/repository.py`,
-`src/doctrine/agent_profiles/repository.py`.
+**Canonical implementations:** `src/charter/offering/tactics/repository.py`,
+`src/charter/offering/directives/repository.py`,
+`src/charter/offering/agent_profiles/repository.py`.
 
 **Reach for it when:** introducing a new artifact type that benefits from
 both a shipped default and project-level override. Use the existing
@@ -194,7 +194,7 @@ Properties:
 **Canonical implementations:**
 
 - `src/specify_cli/audit/models.py::MissionFinding`
-- `src/specify_cli/charter_lint/findings.py::LintFinding`
+- `src/specify_cli/charter_runtime/lint/findings.py::LintFinding`
 - `src/specify_cli/cli/commands/review/ERROR_CODES.md` and adjacent finding
   emitters in `review/`.
 

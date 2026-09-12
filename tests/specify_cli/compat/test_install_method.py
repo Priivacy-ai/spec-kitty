@@ -8,6 +8,7 @@ the correct InstallMethod is returned.  All I/O is faked via injectable
 from __future__ import annotations
 
 import subprocess
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -79,7 +80,7 @@ def _no_source() -> Generator[None, None, None]:
 
 
 class TestSourceBranch:
-    def test_source_detected_when_package_file_under_cwd_and_pyproject_exists(self, tmp_path: Path) -> None:
+    def test_source_detected_when_package_file_under_cwd_and_pyproject_exists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """If specify_cli.__file__ is under cwd and pyproject.toml exists → SOURCE."""
         pkg_dir = tmp_path / "src" / "specify_cli"
         pkg_dir.mkdir(parents=True)
@@ -88,17 +89,17 @@ class TestSourceBranch:
         fake_module = MagicMock()
         fake_module.__file__ = str(pkg_dir / "__init__.py")
 
-        with (
-            patch("specify_cli.compat._detect.install_method.Path.cwd", return_value=tmp_path),
-            patch.dict("sys.modules", {"specify_cli": fake_module}),
-        ):
+        # Single-key setitem: teardown restores only this entry, so modules
+        # first-imported in the window are not evicted from sys.modules (#89/#99).
+        monkeypatch.setitem(sys.modules, "specify_cli", fake_module)
+        with patch("specify_cli.compat._detect.install_method.Path.cwd", return_value=tmp_path):
             result = detect_install_method(
                 executable="/usr/local/bin/python3",
                 distribution_loader=_loader_returning(None),
             )
         assert result == InstallMethod.SOURCE
 
-    def test_source_not_detected_when_no_pyproject(self, tmp_path: Path) -> None:
+    def test_source_not_detected_when_no_pyproject(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """No pyproject.toml → SOURCE branch does not match."""
         pkg_dir = tmp_path / "src" / "specify_cli"
         pkg_dir.mkdir(parents=True)
@@ -106,10 +107,8 @@ class TestSourceBranch:
         fake_module = MagicMock()
         fake_module.__file__ = str(pkg_dir / "__init__.py")
 
-        with (
-            patch("specify_cli.compat._detect.install_method.Path.cwd", return_value=tmp_path),
-            patch.dict("sys.modules", {"specify_cli": fake_module}),
-        ):
+        monkeypatch.setitem(sys.modules, "specify_cli", fake_module)
+        with patch("specify_cli.compat._detect.install_method.Path.cwd", return_value=tmp_path):
             result = detect_install_method(
                 executable="/not/pipx/not/brew",
                 distribution_loader=_loader_returning(None),

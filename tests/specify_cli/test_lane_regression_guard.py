@@ -3,7 +3,7 @@
 Two categories of guard:
 
 1. **Template guard** -- scans ``.md`` files under ``src/specify_cli/missions/``
-   and ``src/doctrine/`` for ``lane:`` in YAML frontmatter position and
+   and ``src/charter/offering/`` for ``lane:`` in YAML frontmatter position and
    ``lane=`` in activity log format strings.
 
 2. **Runtime guard** -- scans ``.py`` files under ``src/specify_cli/`` for
@@ -38,9 +38,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_DIRS = [
     REPO_ROOT / "src" / "specify_cli" / "missions",
     REPO_ROOT / "src" / "specify_cli" / "templates",  # shared packaged templates
-    REPO_ROOT / "src" / "doctrine" / "templates",
+    REPO_ROOT / "src" / "charter" / "offering" / "templates",
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
     REPO_ROOT / "packs" / "built-in" / "missions",
 ]
 

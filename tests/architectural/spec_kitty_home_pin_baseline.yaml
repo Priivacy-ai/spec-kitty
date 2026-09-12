@@ -4,21 +4,90 @@ regeneration_command: python -m tests.architectural._home_pin_scan --root tests 
 census_key_set_sha256: e2604836e22c59476a83adcddab655fc970f6802a15b2835ea6c7fe35129efdd
 exempt_set_sha256: b205baff23d0b77f15c61a5427734476b34d8e946326fc396fcf90ce17e14f9c
 tombstones:
+- - cli/commands/test_sync_commands.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - cli/commands/test_sync_doctor_consent_health_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+- - cli/commands/test_sync_doctor_per_project_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+- - cli/commands/test_sync_doctor_tracker_egress_3108.py
+  - doctor_environment
+  - monkeypatch . setenv ( , str ( home ) )
+- - cli/commands/test_sync_migrate_backfills_h4.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+- - cli/commands/test_sync_now_empty_selection_t005.py
+  - _now_machinery
+  - monkeypatch . setenv ( , str ( home ) )
+- - cli/commands/test_sync_purge_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+- - cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+- - cli/commands/test_sync_status_per_project_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_body_queue_purge_differential_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - delivery/test_dispatch_window_consent_3030.py
+  - _consent_records
+  - monkeypatch . setenv ( , str ( home ) )
+- - delivery/test_liveness_predicate_before_limit_3030.py
+  - _consent
+  - monkeypatch . setenv ( , str ( home ) )
+- - delivery/test_nfr002_loop_permanence_3030.py
+  - _consent_records
+  - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_nfr003_predicate_cost_3030.py
   - _consent
   - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_per_project_report_3030.py
   - _home
   - monkeypatch . setenv ( , str ( home ) )
+- - delivery/test_purge_all_body_uploads_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - delivery/test_purge_all_events_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - specify_cli/identity/test_identity_value_faults_3030.py
+  - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - specify_cli/sync/test_local_commit_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - specify_cli/sync/test_local_commit_purge_3030.py
+  - test_the_flush_does_not_delete_the_frames_it_withholds
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - sync/test_body_drain_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - sync/test_body_upload_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
+- - sync/test_capture_gate_project_identity_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/test_consent_fault_vocabulary_3030.py
+  - home
+  - monkeypatch . setenv ( , str ( root ) )
+- - sync/test_consent_field_fault_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/test_consent_read_fault_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/test_consent_resolver_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/test_consent_write_refusal_3030.py
+  - home
+  - monkeypatch . setenv ( , str ( root ) )
 - - sync/test_daemon_publish_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
@@ -28,6 +97,15 @@ tombstones:
 - - sync/test_routing.py
   - test_opt_out_purge_targets_the_same_stores_the_drain_reads
   - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/test_ws_publish_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/tracker/test_tracker_egress_refusal_3108.py
+  - _isolated_home_and_arming
+  - monkeypatch . setenv ( , str ( home ) )
+- - sync/tracker/test_tracker_egress_refusal_3108.py
+  - test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once
+  - mp . setenv ( , str ( tmp_path / ) )
 - - upgrade/migrations/test_m_0_6_7_ensure_missions.py
   - test_detect_skips_when_global_runtime_is_configured
   - monkeypatch . setenv ( , str ( home ) )

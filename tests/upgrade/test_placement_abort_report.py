@@ -43,13 +43,13 @@ def _force_mismatch(monkeypatch: pytest.MonkeyPatch, elsewhere: Path) -> None:
     *elsewhere* -- guaranteed to disagree with the real write target, so
     ``_flip_phase`` raises ``PlacementMismatchError`` for real (not mocked)."""
     monkeypatch.setattr(
-        cutover_module, "_resolve_primary_home_or_degrade", lambda feature_dir: elsewhere  # noqa: ARG005
+        cutover_module,
+        "_resolve_primary_home_or_degrade",
+        lambda feature_dir: elsewhere,  # noqa: ARG005
     )
 
 
-def test_placement_mismatch_error_carries_the_real_seeded_count(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_placement_mismatch_error_carries_the_real_seeded_count(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Driving the real spine: the seed phase writes real events before the
     flip aborts, and the raised exception must carry that true count so a
     catching caller can build an honest CutoverResult."""
@@ -65,15 +65,10 @@ def test_placement_mismatch_error_carries_the_real_seeded_count(
     # The seed phase really did write to disk before the flip failed.
     assert events_path.stat().st_size > events_before
 
-    assert excinfo.value.seeded_count > 0, (
-        "PlacementMismatchError must carry the real on-disk seeded_count so "
-        "callers do not under-report already-written residue"
-    )
+    assert excinfo.value.seeded_count > 0, "PlacementMismatchError must carry the real on-disk seeded_count so callers do not under-report already-written residue"
 
 
-def test_migration_apply_reports_the_genuinely_written_event_log_on_abort(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_migration_apply_reports_the_genuinely_written_event_log_on_abort(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The upgrade migration's abort report (``MigrationResult.partial_writes``)
     must name the ``status.events.jsonl`` file it actually wrote for the
     mismatched mission before aborting -- not silently omit it."""
@@ -103,9 +98,7 @@ def test_migration_apply_reports_the_genuinely_written_event_log_on_abort(
     assert "placement" in error.lower()
 
 
-def test_dry_run_over_the_placement_mismatch_path_writes_zero_files(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_over_the_placement_mismatch_path_writes_zero_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A --dry-run run must never reach the flip phase at all, so a placement
     mismatch cannot cause a phantom write even when the walk aborts.
 
@@ -125,8 +118,6 @@ def test_dry_run_over_the_placement_mismatch_path_writes_zero_files(
 
     after = {p: p.read_bytes() for p in alpha.rglob("*") if p.is_file()}
     assert after == before, "dry-run must write zero bytes to any existing file"
-    assert {p for p in alpha.rglob("*") if p.is_file()} == set(before), (
-        "dry-run must not create any new file either"
-    )
+    assert {p for p in alpha.rglob("*") if p.is_file()} == set(before), "dry-run must not create any new file either"
     # The migration result itself must not claim any partial write occurred.
     assert result.partial_writes == []

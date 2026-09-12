@@ -138,6 +138,52 @@ def test_safe_commit_rejects_worktrees_path(tmp_path: Path) -> None:
     )
 
 
+def test_safe_commit_rejects_worktrees_path_in_primary_bundle(tmp_path: Path) -> None:
+    """A PRIMARY safe_commit bundle rejects upstream #3784's mixed shape.
+
+    ``tasks.md`` classifies as a PRIMARY artifact, but a coordination-worktree
+    source path must not survive into a bundle committed from the primary
+    checkout. Pair it with a genuine primary WP file so the regression covers
+    the upstream mixed-bundle failure, not only a solo bad path.
+    """
+    repo_root = tmp_path / "repo"
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_repo(repo_root, branch)
+
+    primary_file = repo_root / "kitty-specs" / "test-mission" / "tasks" / "WP01-example.md"
+    primary_file.parent.mkdir(parents=True)
+    primary_file.write_text("# WP01\n", encoding="utf-8")
+
+    worktree_tasks_file = (
+        repo_root
+        / ".worktrees"
+        / "test-mission-coord"
+        / "kitty-specs"
+        / "test-mission"
+        / "tasks.md"
+    )
+    worktree_tasks_file.parent.mkdir(parents=True)
+    worktree_tasks_file.write_text("# Tasks\n", encoding="utf-8")
+
+    target = CommitTarget(ref=branch)
+
+    with pytest.raises(SafeCommitPathPolicyError) as exc_info:
+        safe_commit(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            target=target,
+            message="should not commit",
+            paths=(primary_file, worktree_tasks_file),
+        )
+
+    assert exc_info.value.offending_path == ".worktrees/test-mission-coord/kitty-specs/test-mission/tasks.md"
+
+    staged = _git(repo_root, "diff", "--cached", "--name-only").stdout.splitlines()
+    assert staged == [], f"git index was mutated despite SafeCommitPathPolicyError: {staged!r}"
+    tracked = _git(repo_root, "ls-files", ".worktrees/").stdout.splitlines()
+    assert tracked == [], f"a .worktrees path reached the git index: {tracked!r}"
+
+
 def test_safe_commit_allows_normal_path(tmp_path: Path) -> None:
     """safe_commit succeeds for a normal (non-.worktrees/) path."""
     repo_root = tmp_path / "repo"

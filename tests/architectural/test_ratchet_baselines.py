@@ -134,7 +134,9 @@ _REQUIRED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "test_no_inert_schema_slots",
         "test_reference_enum_ratchet",
         "test_egress_consent_boundary",
-        "test_unfiltered_journal_read_boundary",
+        "test_layer_rules",
+        "test_runtime_charter_doctrine_boundary",
+        "test_doctrine_census",
     }
 )
 
@@ -363,6 +365,30 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
     # Single-integer ratchets.
     single_baselines: list[tuple[str, str, str, int]] = [
         (
+            "test_layer_rules",
+            "tests.architectural.test_layer_rules",
+            "_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI",
+            data["test_layer_rules"]["mission_runtime_allowed_specify_cli"],
+        ),
+        (
+            "test_layer_rules",
+            "tests.architectural.test_layer_rules",
+            "_RUNTIME_ALLOWED_SPECIFY_CLI",
+            data["test_layer_rules"]["runtime_allowed_specify_cli"],
+        ),
+        (
+            "test_runtime_charter_doctrine_boundary",
+            "tests.architectural.test_runtime_charter_doctrine_boundary",
+            "_LAZY_BASELINE_ALLOWLIST",
+            data["test_runtime_charter_doctrine_boundary"]["lazy_baseline_allowlist"],
+        ),
+        (
+            "test_doctrine_census",
+            "tests.architectural.test_doctrine_census",
+            "ORPHAN_REACHED_EXCEPTIONS",
+            data["test_doctrine_census"]["orphan_reached_exceptions"],
+        ),
+        (
             "test_migration_chain_integrity",
             "tests.architectural.test_migration_chain_integrity",
             "_KNOWN_LINE_JUMPS",
@@ -422,17 +448,6 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
             "tests.architectural.test_egress_consent_boundary",
             "_KNOWN_UNGATED_FILES",
             data["test_egress_consent_boundary"]["known_ungated_files"],
-        ),
-        # #3030 unfiltered-read boundary. Keyed `<relpath>::<qualname>` rather
-        # than by file, because the one legitimate consumer lives inside
-        # `delivery/`. Registered for the same reason as the egress allowlist:
-        # adding a consumer must cost a visible diff here, not a one-line module
-        # edit. Growth means a new function can reach the project-unfiltered read.
-        (
-            "test_unfiltered_journal_read_boundary",
-            "tests.architectural.test_unfiltered_journal_read_boundary",
-            "_UNFILTERED_READ_ALLOWLIST_SITES",
-            data["test_unfiltered_journal_read_boundary"]["unfiltered_read_allowlist_sites"],
         ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
@@ -497,6 +512,30 @@ def test_growth_fails_shrinkage_warns(
     # Single-integer ratchets.
     single_baselines: list[tuple[str, str, str, int]] = [
         (
+            "test_layer_rules",
+            "tests.architectural.test_layer_rules",
+            "_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI",
+            data["test_layer_rules"]["mission_runtime_allowed_specify_cli"],
+        ),
+        (
+            "test_layer_rules",
+            "tests.architectural.test_layer_rules",
+            "_RUNTIME_ALLOWED_SPECIFY_CLI",
+            data["test_layer_rules"]["runtime_allowed_specify_cli"],
+        ),
+        (
+            "test_runtime_charter_doctrine_boundary",
+            "tests.architectural.test_runtime_charter_doctrine_boundary",
+            "_LAZY_BASELINE_ALLOWLIST",
+            data["test_runtime_charter_doctrine_boundary"]["lazy_baseline_allowlist"],
+        ),
+        (
+            "test_doctrine_census",
+            "tests.architectural.test_doctrine_census",
+            "ORPHAN_REACHED_EXCEPTIONS",
+            data["test_doctrine_census"]["orphan_reached_exceptions"],
+        ),
+        (
             "test_migration_chain_integrity",
             "tests.architectural.test_migration_chain_integrity",
             "_KNOWN_LINE_JUMPS",
@@ -553,14 +592,6 @@ def test_growth_fails_shrinkage_warns(
             "tests.architectural.test_egress_consent_boundary",
             "_KNOWN_UNGATED_FILES",
             data["test_egress_consent_boundary"]["known_ungated_files"],
-        ),
-        # #3030 unfiltered-read boundary; see the growth list above. Shrinkage
-        # here is a consumer that stopped naming the read — lock it in.
-        (
-            "test_unfiltered_journal_read_boundary",
-            "tests.architectural.test_unfiltered_journal_read_boundary",
-            "_UNFILTERED_READ_ALLOWLIST_SITES",
-            data["test_unfiltered_journal_read_boundary"]["unfiltered_read_allowlist_sites"],
         ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
@@ -738,6 +769,84 @@ def test_non_derived_category_shrink_still_records(
         "category_6_frozen_runtime_reexports" in str(value)
         for _, value in recorded
     ), recorded
+
+
+@pytest.mark.parametrize("package", ["runtime", "mission_runtime"])
+def test_runtime_ledger_growth_with_live_import_still_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    package: str,
+) -> None:
+    """Adding an import AND its ledger entry must still trip the independent cap."""
+    layer_rules = importlib.import_module("tests.architectural.test_layer_rules")
+    runtime = tmp_path / package
+    runtime.mkdir()
+    (tmp_path / "specify_cli" / "saas_client").mkdir(parents=True)
+    symbol = f"_{package.upper()}_ALLOWED_SPECIFY_CLI"
+    allowed = getattr(layer_rules, symbol)
+    assert "saas_client" not in allowed
+    baseline = _load_baselines()["test_layer_rules"][f"{package}_allowed_specify_cli"]
+    # Cross the recorded cap even if earlier cleanup has left shrinkage headroom.
+    extra = {f"baseline_probe_{i}" for i in range(max(0, baseline - len(allowed)))}
+    source = "\n".join(f"import specify_cli{'.' + name if name else ''}" for name in sorted(allowed | extra))
+    (runtime / "probe.py").write_text(source + "\nfrom specify_cli import saas_client\n", encoding="utf-8")
+    monkeypatch.setattr(layer_rules, "_SRC", tmp_path)
+    monkeypatch.setattr(layer_rules, f"_{package.upper()}_ROOT", runtime)
+    monkeypatch.setattr(layer_rules, symbol, allowed | extra | {"saas_client"})
+    if package == "runtime":
+        gate = layer_rules.TestRuntimeSpecifyCliLedger()
+        gate.test_runtime_specify_cli_imports_within_ledger()
+        gate.test_runtime_ledger_has_no_stale_entries()
+    else:
+        mission_gate = layer_rules.TestMissionRuntimeBoundary()
+        mission_gate.test_mission_runtime_specify_cli_imports_within_ledger()
+        mission_gate.test_ledger_has_no_stale_entries()
+    with pytest.raises(AssertionError, match=symbol):
+        test_growing_an_allowlist_above_baseline_fails()
+
+
+@pytest.mark.parametrize("package", ["runtime", "mission_runtime"])
+def test_runtime_ledger_shrink_is_reported(monkeypatch: pytest.MonkeyPatch, package: str) -> None:
+    """The registered runtime cap also participates in the shrinkage arm."""
+    layer_rules = importlib.import_module("tests.architectural.test_layer_rules")
+    symbol = f"_{package.upper()}_ALLOWED_SPECIFY_CLI"
+    monkeypatch.setattr(layer_rules, symbol, frozenset())
+    recorded: list[tuple[str, object]] = []
+    test_growth_fails_shrinkage_warns(lambda name, value: recorded.append((name, value)))
+    assert any(symbol in str(value) for _, value in recorded), recorded
+
+
+@pytest.mark.parametrize(
+    "module_name, symbol, key",
+    [
+        ("test_runtime_charter_doctrine_boundary", "_LAZY_BASELINE_ALLOWLIST", "lazy_baseline_allowlist"),
+        ("test_doctrine_census", "ORPHAN_REACHED_EXCEPTIONS", "orphan_reached_exceptions"),
+    ],
+)
+def test_doctrine_pair_allowlist_growth_fails_and_shrink_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    module_name: str,
+    symbol: str,
+    key: str,
+) -> None:
+    """Both exact-pair exception sets must participate in both comparison arms."""
+    module = importlib.import_module(f"tests.architectural.{module_name}")
+    allowed = getattr(module, symbol)
+    baseline = _load_baselines()[module_name][key]
+    # Pair arity is the contract, not the number of allowed dependency pairs.
+    assert all(isinstance(pair, tuple) and len(pair) == 2 for pair in allowed)  # golden-count: cardinality-is-contract
+    extra = {
+        (f"src/runtime/baseline_probe_{i}.py", "charter.offering.new_dependency")
+        for i in range(max(1, baseline - len(allowed) + 1))
+    }
+    assert not allowed & extra
+    monkeypatch.setattr(module, symbol, allowed | extra)
+    with pytest.raises(AssertionError, match=symbol):
+        test_growing_an_allowlist_above_baseline_fails()
+    monkeypatch.setattr(module, symbol, frozenset())
+    recorded: list[tuple[str, object]] = []
+    test_growth_fails_shrinkage_warns(lambda name, value: recorded.append((name, value)))
+    assert any(symbol in str(value) for _, value in recorded), recorded
 
 
 def test_skip_marker_growth_is_recorded_not_failed(

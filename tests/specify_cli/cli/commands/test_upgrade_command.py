@@ -392,30 +392,23 @@ def test_cli_update_available_json_contract(tmp_path: Path) -> None:
     """Outdated CLI: --cli --json emits valid compat-planner contract."""
     _make_compatible_project(tmp_path, schema_version=3)
 
-    # Patch _run_cli_mode to call the real implementation with a fake provider
-    from specify_cli.cli.commands import upgrade as upgrade_mod
+    from kernel.clock import now_utc
+    from specify_cli.compat.cache import NagCache, NagCacheRecord
+    from specify_cli.compat.planner import _cache_version_key, _get_installed_version
+    from specify_cli.core.channel import prerelease_enabled
 
-    original_run_cli_mode = upgrade_mod._run_cli_mode
-
-    def patched_run_cli_mode(
-        *,
-        json_output: bool,
-        dry_run: bool,
-        no_nag: bool,
-        latest_version_provider: object = None,
-    ) -> None:
-        from specify_cli.compat.cache import NagCache
-
-        with patch("specify_cli.compat.cache.NagCache.default", return_value=NagCache(tmp_path / "upgrade-nag-test.json")):
-            return original_run_cli_mode(
-                json_output=json_output,
-                dry_run=dry_run,
-                no_nag=no_nag,
-                latest_version_provider=FakeLatestVersionProvider("999.0.0"),
-            )
-
-    with patch.object(upgrade_mod, "_run_cli_mode", patched_run_cli_mode):
+    # CLI guidance is read-only: it consumes known version data from the cache.
+    cache_path = tmp_path / "upgrade-nag-test.json"
+    cache = NagCache(cache_path)
+    cache.write(NagCacheRecord(
+        cli_version_key=_cache_version_key(_get_installed_version(), prerelease=prerelease_enabled()),
+        latest_version="999.0.0", latest_source="pypi",
+        fetched_at=now_utc(), last_shown_at=None,
+    ))
+    before = cache_path.read_bytes()
+    with patch("specify_cli.compat.cache.NagCache.default", return_value=cache):
         result = _invoke_upgrade(["--cli", "--json"], cwd=tmp_path)
+    assert cache_path.read_bytes() == before
 
     assert result.exit_code == 0, f"Exit {result.exit_code}; output: {result.output}"
     payload = json.loads(result.output)
@@ -1267,3 +1260,98 @@ def test_no_op_upgrade_stamps_last_upgraded_at_as_aware_utc(tmp_path: Path) -> N
         f"last_upgraded_at={last_upgraded_at!r} is missing the aware-UTC offset suffix "
         "-- the naive datetime.now() regression has returned"
     )
+
+
+# ---------------------------------------------------------------------------
+# #4124 — stale-bytecode self-heal on the upgrade-system import seam
+# ---------------------------------------------------------------------------
+
+
+def test_load_upgrade_system_with_heal_retries_after_pycache_heal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale-``.pyc`` discovery failure is healed once, then retried (#4124).
+
+    The stand-in raises the *real laundered* shape: a fresh
+    ``MigrationDiscoveryError`` chained to the original corrupt-``.pyc``
+    import failure, exactly what ``auto_discover_migrations`` produces — the
+    corrupt-cache signature rides the ``__cause__`` chain. Non-vacuity: with
+    the cause-chain walk removed from ``failure_during_package_import``, the
+    wrapper matches no direct shape and this test errors instead of returning
+    the four upgrade-system callables.
+    """
+    import specify_cli.bytecode_heal as bytecode_heal
+    import specify_cli.cli.commands.upgrade as upgrade_mod
+    import specify_cli.upgrade.migrations as migrations
+
+    calls: list[int] = []
+
+    def flaky() -> None:
+        calls.append(1)
+        if len(calls) == 1:
+            root = bytecode_heal.package_root()
+            assert root is not None
+            fake_pyc = root / "upgrade" / "migrations" / "__pycache__" / "base.cpython-311.pyc"
+            cause = ImportError(f"Non-code object in '{fake_pyc}'")
+            raise migrations.MigrationDiscoveryError(
+                f"Failed to import migration module(s): base: {cause}"
+            ) from cause
+
+    printed: list[str] = []
+    monkeypatch.setattr(migrations, "auto_discover_migrations", flaky)
+    monkeypatch.setattr(bytecode_heal, "purge_package_bytecode", lambda: 7)
+    monkeypatch.setattr(
+        upgrade_mod.console, "print", lambda *args, **kwargs: printed.append(" ".join(str(a) for a in args))
+    )
+
+    detector, registry, runner, validate = upgrade_mod._load_upgrade_system_with_heal()
+
+    assert len(calls) == 2  # healed, then retried exactly once
+    assert detector.__name__ == "VersionDetector"
+    assert registry.__name__ == "MigrationRegistry"
+    assert runner.__name__ == "MigrationRunner"
+    assert callable(validate)
+    assert any("Repaired 7 stale bytecode cache file" in line for line in printed)
+
+
+def test_load_upgrade_system_with_heal_propagates_genuine_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-cache discovery failure still surfaces — the heal is not a swallow."""
+    import specify_cli.cli.commands.upgrade as upgrade_mod
+    import specify_cli.upgrade.migrations as migrations
+
+    def boom() -> None:
+        raise RuntimeError("discovery exploded")
+
+    monkeypatch.setattr(migrations, "auto_discover_migrations", boom)
+
+    with pytest.raises(RuntimeError, match="discovery exploded"):
+        upgrade_mod._load_upgrade_system_with_heal()
+
+
+def test_load_upgrade_system_with_heal_propagates_laundered_genuine_import_bug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A genuinely broken migration module (``SyntaxError``) stays unhealed (#4124).
+
+    Through the identical launder wrapper, the discriminator must not purge
+    and retry: the failure is a broken module, not a stale ``.pyc`` cache.
+    """
+    import specify_cli.bytecode_heal as bytecode_heal
+    import specify_cli.cli.commands.upgrade as upgrade_mod
+    import specify_cli.upgrade.migrations as migrations
+
+    def broken_module() -> None:
+        cause = SyntaxError("invalid syntax (m_0_10_12_charter_cleanup.py, line 1)")
+        raise migrations.MigrationDiscoveryError(
+            f"Failed to import migration module(s): m_0_10_12_charter_cleanup: {cause}"
+        ) from cause
+
+    purged: list[int] = []
+    monkeypatch.setattr(migrations, "auto_discover_migrations", broken_module)
+    monkeypatch.setattr(bytecode_heal, "purge_package_bytecode", lambda: purged.append(1) or 0)
+
+    with pytest.raises(migrations.MigrationDiscoveryError, match="invalid syntax"):
+        upgrade_mod._load_upgrade_system_with_heal()
+    assert purged == []

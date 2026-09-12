@@ -40,9 +40,7 @@ def _write_non_mapping_config(repo_root: Path) -> None:
     (kittify / "config.yaml").write_text("just a bare scalar\n", encoding="utf-8")
 
 
-def test_tool_surfaces_json_config_error_is_machine_parseable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_tool_surfaces_json_config_error_is_machine_parseable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_non_mapping_config(tmp_path)
     monkeypatch.setattr(surface_doctor_mod, "locate_project_root", lambda: tmp_path)
 

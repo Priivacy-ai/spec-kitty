@@ -1,8 +1,8 @@
 """WP05 (mission #2680) — sharded built-in DRG layout invariants.
 
 After ``spec-kitty doctrine regenerate-graph`` the shipped built-in DRG is
-stored as one ``src/doctrine/<kind>.graph.yaml`` fragment per **populated**
-node-kind, and the ``src/doctrine/graph.yaml`` monolith is removed in the same
+stored as one ``src/charter/offering/<kind>.graph.yaml`` fragment per **populated**
+node-kind, and the ``src/charter/offering/graph.yaml`` monolith is removed in the same
 change (DD-7 atomic retire; DD-8 partition totality).
 
 These assertions read the committed shipped tree through the WP03 seam
@@ -35,7 +35,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 # Relocated to the flattened built-in pack root (mission
 # relocate-builtin-doctrine-packs-01KYT87F): the shipped ``*.graph.yaml``
 # fragments and per-kind content now live under ``packs/built-in/``, no longer
-# under ``src/doctrine/``.
+# under ``src/charter/offering/``.
 DOCTRINE_ROOT = Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 _FRAGMENT_SUFFIX = ".graph.yaml"

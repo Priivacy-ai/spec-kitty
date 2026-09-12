@@ -1,3 +1,0 @@
-FAILED tests/runtime/test_workspace_context_unit.py::test_resolve_workspace_missing_lanes_json_fails_closed - AssertionError: expected 'blocked', got 'in_progress'
-0.42s call     tests/runtime/test_workspace_context_unit.py::test_resolve_workspace_missing_lanes_json_fails_closed
-===================== 1 failed in 3.10s ======================

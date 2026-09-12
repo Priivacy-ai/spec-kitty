@@ -5,7 +5,7 @@ Extends the seed<->pack join pattern already standing in
 ``test_glossary_pack_parity.py`` (do NOT delete that file -- it stays the
 authority-1<->authority-2 gate) to a **third** authority:
 ``docs/context/charter.md``, the renamed Markdown context glossary
-(``docs/context/doctrine.md`` before T003's ``git mv``).
+(``docs/context/charter.offering.md`` before T003's ``git mv``).
 
 Scope (per plan.md Slice 4 / research.md Seam 1): this is NOT a full
 104-term Markdown mirror. The three authorities only need to agree on the
@@ -53,7 +53,7 @@ _REPO_ROOT = _repo_root()
 _SEED_PATH: Path = _REPO_ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
 _BUILT_IN_DIR: Path = _REPO_ROOT / "packs" / "built-in" / "glossary_packs"
 _PACK_ID = "spec-kitty-core"
-_DOCTRINE_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "doctrine.md"
+_DOCTRINE_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
 _CHARTER_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.md"
 
 _RETIRED_GOVERNING_SURFACE = "doctrine"
@@ -134,13 +134,9 @@ def charter_md_headings() -> list[str]:
 
 
 def test_authority_3_file_moved_to_charter_md() -> None:
-    """OC-40: ``docs/context/doctrine.md`` is renamed to ``docs/context/charter.md``."""
-    assert not _DOCTRINE_MD_PATH.exists(), (
-        "docs/context/doctrine.md must be git-mv'd to docs/context/charter.md (T003)"
-    )
-    assert _CHARTER_MD_PATH.exists(), (
-        "docs/context/charter.md (glossary authority 3) does not exist yet (T003)"
-    )
+    """OC-40: ``docs/context/charter.offering.md`` is renamed to ``docs/context/charter.md``."""
+    assert not _DOCTRINE_MD_PATH.exists(), "docs/context/charter.offering.md must be git-mv'd to docs/context/charter.md (T003)"
+    assert _CHARTER_MD_PATH.exists(), "docs/context/charter.md (glossary authority 3) does not exist yet (T003)"
 
 
 # ---------------------------------------------------------------------------
@@ -156,12 +152,8 @@ def test_governing_doctrine_surface_absent_everywhere(
     seed_surfaces = {t["surface"] for t in seed_terms}
     charter_md_surface_set = {h.lower() for h in charter_md_headings}
 
-    assert _RETIRED_GOVERNING_SURFACE not in seed_surfaces, (
-        "seed authority still carries the retired 'doctrine' governing surface"
-    )
-    assert _RETIRED_GOVERNING_SURFACE not in pack_terms_by_surface, (
-        "pack authority still carries the retired 'doctrine' governing surface"
-    )
+    assert _RETIRED_GOVERNING_SURFACE not in seed_surfaces, "seed authority still carries the retired 'doctrine' governing surface"
+    assert _RETIRED_GOVERNING_SURFACE not in pack_terms_by_surface, "pack authority still carries the retired 'doctrine' governing surface"
     assert _RETIRED_GOVERNING_SURFACE not in charter_md_surface_set, (
         "docs/context/charter.md still carries a bare '### doctrine' heading "
         "(the governing sense) -- domain headings like 'Doctrine Domain' or "
@@ -180,9 +172,7 @@ def test_canonical_charter_surface_present_everywhere(
 
     assert _CANONICAL_GOVERNING_SURFACE in seed_surfaces, "seed authority missing 'charter'"
     assert _CANONICAL_GOVERNING_SURFACE in pack_terms_by_surface, "pack authority missing 'charter'"
-    assert _CANONICAL_GOVERNING_SURFACE in charter_md_surface_set, (
-        "docs/context/charter.md missing the '### charter' Terminology-Canon heading (T004)"
-    )
+    assert _CANONICAL_GOVERNING_SURFACE in charter_md_surface_set, "docs/context/charter.md missing the '### charter' Terminology-Canon heading (T004)"
 
 
 # ---------------------------------------------------------------------------
@@ -206,14 +196,10 @@ def test_exactly_one_charter_surface_per_authority(
     pack = repo.get(_PACK_ID)
     assert pack is not None
     pack_charter_count = sum(1 for t in pack.terms if t.surface == _CANONICAL_GOVERNING_SURFACE)
-    assert pack_charter_count == 1, (
-        f"pack authority has {pack_charter_count} 'charter' surfaces, expected exactly 1"
-    )
+    assert pack_charter_count == 1, f"pack authority has {pack_charter_count} 'charter' surfaces, expected exactly 1"
 
     md_charter_count = sum(1 for h in charter_md_headings if h.lower() == _CANONICAL_GOVERNING_SURFACE)
-    assert md_charter_count == 1, (
-        f"docs/context/charter.md has {md_charter_count} '### charter' headings, expected exactly 1"
-    )
+    assert md_charter_count == 1, f"docs/context/charter.md has {md_charter_count} '### charter' headings, expected exactly 1"
 
 
 # ---------------------------------------------------------------------------
@@ -231,9 +217,7 @@ def test_charter_definition_parity_seed_and_pack(
     pack_charter = pack_terms_by_surface[_CANONICAL_GOVERNING_SURFACE]
 
     assert seed_charter["definition"] == pack_charter.definition, (
-        "seed<->pack 'charter' definition drifted:\n"
-        f"  seed: {seed_charter['definition']!r}\n"
-        f"  pack: {pack_charter.definition!r}"
+        f"seed<->pack 'charter' definition drifted:\n  seed: {seed_charter['definition']!r}\n  pack: {pack_charter.definition!r}"
     )
 
 
@@ -245,14 +229,12 @@ def test_charter_definition_no_longer_self_references_doctrine(
     seed_charter = next(t for t in seed_terms if t["surface"] == _CANONICAL_GOVERNING_SURFACE)
     definition = seed_charter["definition"]
     assert "doctrine" not in definition.lower(), (
-        "'charter' definition still self-references 'doctrine' -- T005a requires "
-        f"dropping the 'and doctrine' phrase once the meaning is folded in: {definition!r}"
+        f"'charter' definition still self-references 'doctrine' -- T005a requires dropping the 'and doctrine' phrase once the meaning is folded in: {definition!r}"
     )
     # zero-loss: the folded-in meaning ("body of ... governance artifacts") must
     # actually survive the fold, not just have the word "doctrine" deleted.
     assert "governance artifact" in definition.lower(), (
-        "'charter' definition dropped the retired 'doctrine' term's meaning "
-        f"entirely instead of folding it in: {definition!r}"
+        f"'charter' definition dropped the retired 'doctrine' term's meaning entirely instead of folding it in: {definition!r}"
     )
 
 
@@ -266,8 +248,7 @@ def test_charter_md_heading_matches_seed_surface_alias(
     matching_headings = [h for h in charter_md_headings if h.lower() == _CANONICAL_GOVERNING_SURFACE]
     assert matching_headings, "no '### charter' heading found in docs/context/charter.md"
     assert matching_headings[0] == seed_charter["surface"], (
-        f"docs/context/charter.md heading text {matching_headings[0]!r} does not alias "
-        f"the seed surface {seed_charter['surface']!r} exactly"
+        f"docs/context/charter.md heading text {matching_headings[0]!r} does not alias the seed surface {seed_charter['surface']!r} exactly"
     )
 
 
@@ -279,13 +260,8 @@ def test_charter_md_heading_matches_seed_surface_alias(
 def test_charter_canon_entry_covers_required_senses() -> None:
     body = _section_body(_CHARTER_MD_PATH, "charter")
     missing = [sense for sense in _REQUIRED_CHARTER_CANON_SENSES if sense not in body]
-    assert not missing, (
-        "docs/context/charter.md '### charter' Canon entry is missing required "
-        f"senses (T004): {missing}"
-    )
-    assert "Do NOT use when" in body or "**Do NOT use when**" in body, (
-        "'### charter' Canon entry must carry a 'Do NOT use when' disambiguation row"
-    )
+    assert not missing, f"docs/context/charter.md '### charter' Canon entry is missing required senses (T004): {missing}"
+    assert "Do NOT use when" in body or "**Do NOT use when**" in body, "'### charter' Canon entry must carry a 'Do NOT use when' disambiguation row"
 
 
 # ---------------------------------------------------------------------------
@@ -301,14 +277,12 @@ def test_charter_canon_entry_internal_links_resolve(charter_md_headings: list[st
     anchors = {_slugify_heading(h) for h in charter_md_headings}
     body = _section_body(_CHARTER_MD_PATH, "charter")
     broken = [target for target in _LINK_RE.findall(body) if target not in anchors]
-    assert not broken, (
-        f"'### charter' Canon entry has dangling in-page anchor links: {broken}"
-    )
+    assert not broken, f"'### charter' Canon entry has dangling in-page anchor links: {broken}"
 
 
 # ---------------------------------------------------------------------------
 # T003 atomicity: the 6 known intra-docs/context inline links are re-pointed
-# in the same slice as the git mv (no dangling ./doctrine.md references left
+# in the same slice as the git mv (no dangling ./charter.offering.md references left
 # in the 3 WP01-owned referrer files' inline term tables).
 # ---------------------------------------------------------------------------
 
@@ -324,12 +298,9 @@ def test_owned_referrer_inline_links_repointed_to_charter_md() -> None:
     for path in _OWNED_REFERRER_FILES:
         text = path.read_text(encoding="utf-8")
         for line_number, line in enumerate(text.splitlines(), start=1):
-            if "](./doctrine.md" in line:
+            if "](./charter.offering.md" in line:
                 failures.append(f"{path.relative_to(_REPO_ROOT)}:{line_number}: {line.strip()!r}")
-    assert not failures, (
-        "found un-repointed inline './doctrine.md' links (T003 atomicity):\n  "
-        + "\n  ".join(failures)
-    )
+    assert not failures, "found un-repointed inline './charter.offering.md' links (T003 atomicity):\n  " + "\n  ".join(failures)
 
 
 def test_owned_referrer_preserved_anchors_and_link_text() -> None:

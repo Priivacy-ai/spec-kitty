@@ -526,6 +526,12 @@ ADR `docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`), mission review
 runs four hard gates in order. A FAIL on any gate produces a FAIL verdict
 in Step 9 unless the operator-exception path documented below is used.
 
+The gate commands below pin `SPEC_KITTY_ENABLE_SAAS_SYNC=1` explicitly so
+they never depend on ambient flag state — hosted mode is on by default
+(#3980 launch defaults; `=0` is the opt-out), and the pin confirms it. The
+flag is the tracker-hosted rollout gate; it does not restore the removed
+standalone sync transport.
+
 ### Gate 1: Contract tests (FR-023)
 
 ```bash

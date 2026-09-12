@@ -2,7 +2,7 @@
 title: 'Calibration Report: documentation'
 description: 'Calibration report for the documentation mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay.'
 doc_status: active
-updated: '2026-04-27'
+updated: '2026-09-08'
 ---
 # Calibration Report: documentation
 
@@ -15,7 +15,7 @@ updated: '2026-04-27'
 
 ## Summary
 
-All 7 steps pass the §4.5.1 inequality. The shipped `src/doctrine/graph.yaml` provides complete context. Transitive extras (e.g. `connascence-analysis`, `easy-to-change`, `language-driven-design` via `DIRECTIVE_001 → requires` for the `design` step; acceptance testing tactics via `DIRECTIVE_037 → suggests`) are classified as `known_irrelevant`.
+All 7 steps pass the §4.5.1 inequality. The shipped built-in DRG fragments (`packs/built-in/*.graph.yaml`) provide complete context. Transitive extras (e.g. `connascence-analysis`, `easy-to-change`, `language-driven-design` via `DIRECTIVE_001 → requires` for the `design` step; acceptance testing tactics via `DIRECTIVE_037 → suggests`) are classified as `known_irrelevant`.
 
 ---
 

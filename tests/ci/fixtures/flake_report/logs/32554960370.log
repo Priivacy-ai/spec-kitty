@@ -1,6 +1,0 @@
-=========================== short test summary info ============================
-FAILED tests/perf/test_sweep_enumeration.py::test_sweep_enumeration_perf_1k_files - assert False, budget exceeded
-2.15s call     tests/perf/test_sweep_enumeration.py::test_sweep_enumeration_perf_1k_files
-0.01s setup    tests/perf/test_sweep_enumeration.py::test_sweep_enumeration_perf_1k_files
-===================== 1 failed in 3.35s ======================
-# suite: test_sweep_enumeration_perf_1k_files

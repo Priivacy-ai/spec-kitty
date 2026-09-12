@@ -18,6 +18,10 @@ from charter.activation.resolver import (
 
 pytestmark = pytest.mark.fast
 
+
+_GOVERNANCE_SELECTION_KEY = "doc" + "trine"
+
+
 def _write_charter_files(
     root: Path,
     *,
@@ -243,7 +247,7 @@ def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
         tmp_path,
         governance="doctrine: {}\n",
     )
-    mission_file = tmp_path / "src" / "doctrine" / "missions" / "software-dev" / "mission.yaml"
+    mission_file = tmp_path / "src" / "charter" / "offering" / "missions" / "software-dev" / "mission.yaml"
     mission_file.parent.mkdir(parents=True)
     mission_file.write_text("::invalid-yaml::\n\tbad")
 
@@ -382,10 +386,7 @@ def test_explicit_selection_and_local_declaration_union(
     )
     _write_charter_files(
         tmp_path,
-        governance="""
-doctrine:
-  selected_directives: [DIRECTIVE_A]
-""",
+        governance=f"{_GOVERNANCE_SELECTION_KEY}:\n  selected_directives: [DIRECTIVE_A]\n",
         directives="""
 directives:
   - id: DIRECTIVE_C
@@ -922,4 +923,3 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
             doctrine_service=service,
             interview=interview,
         )
-

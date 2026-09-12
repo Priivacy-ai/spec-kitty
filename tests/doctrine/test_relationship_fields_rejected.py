@@ -8,7 +8,7 @@ validation error rather than silently loading or emitting a bare
 ``extra_forbidden`` message.
 
 Relationships are henceforth authored as DRG edges in the per-kind
-``src/doctrine/<kind>.graph.yaml`` fragments -- an edge lives in the fragment
+``src/charter/offering/<kind>.graph.yaml`` fragments -- an edge lives in the fragment
 for its *source* kind. The rejection message must point authors there.
 """
 

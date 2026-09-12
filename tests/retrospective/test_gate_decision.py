@@ -30,6 +30,7 @@ from specify_cli.retrospective.gate import (
     is_completion_allowed,
 )
 from specify_cli.retrospective.schema import Mode, ModeSourceSignal
+from tests._perf_helpers import assert_timing_budget
 from runtime.next._internal_runtime.retrospective_hook import (
     MissionCompletionBlocked,
     before_mark_done,
@@ -559,12 +560,29 @@ class TestDeterminism:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestPerformance:
     """Gate with retrospective.completed present must return in < 1500 ms (generous CI slack)."""
 
+    def test_autonomous_completed_allows_completion(self, tmp_path: Path) -> None:
+        """Functional half of the #4015 split: completed event allows completion."""
+        feature_dir = tmp_path / "feature"
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
+        ])
+
+        decision = is_completion_allowed(
+            _MISSION_ID,
+            feature_dir=feature_dir,
+            repo_root=tmp_path,
+            mode_override=_mode_autonomous(),
+        )
+
+        assert decision.allow_completion is True
+
+    @pytest.mark.performance
     def test_perf_autonomous_completed(self, tmp_path: Path) -> None:
-        """Gate with completed event returns fast (target < 500 ms; CI slack 1500 ms)."""
+        """Gate with completed event returns fast (target < 500 ms; CI slack 1500 ms, #4015 split)."""
         feature_dir = tmp_path / "feature"
         _write_events(feature_dir, [
             _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
@@ -572,7 +590,7 @@ class TestPerformance:
         ])
 
         start = time.perf_counter()
-        decision = is_completion_allowed(
+        is_completion_allowed(
             _MISSION_ID,
             feature_dir=feature_dir,
             repo_root=tmp_path,
@@ -580,8 +598,7 @@ class TestPerformance:
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
 
-        assert decision.allow_completion is True
-        assert elapsed_ms < 1500, f"Gate took {elapsed_ms:.1f} ms; target < 1500 ms"
+        assert_timing_budget(elapsed_ms, 1500, name="elapsed_ms")
 
 
 # ---------------------------------------------------------------------------

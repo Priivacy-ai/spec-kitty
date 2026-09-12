@@ -9,6 +9,7 @@ T026: guard condition: coord active but target NOT protected → commit proceeds
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -57,14 +58,16 @@ class TestCoordTopologyActive:
         # Even if we create what would be the coord path, the slug has no mid8
         assert _coord_topology_active(tmp_path, slug) is False
 
-    def test_returns_false_on_import_error(self, tmp_path: Path) -> None:
+    def test_returns_false_on_import_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """If CoordinationWorkspace cannot be imported, returns False gracefully (T024)."""
         from specify_cli.cli.commands.agent.tasks import _coord_topology_active
 
-        with patch.dict("sys.modules", {"specify_cli.coordination.workspace": None}):
-            # Should not raise, returns False
-            result = _coord_topology_active(tmp_path, "my-feature-01KT3YBD")
-            assert result is False
+        # A None sys.modules entry forces ImportError on the lazy import; single-key
+        # setitem keeps teardown eviction-free (#89/#99).
+        monkeypatch.setitem(sys.modules, "specify_cli.coordination.workspace", None)
+        # Should not raise, returns False
+        result = _coord_topology_active(tmp_path, "my-feature-01KT3YBD")
+        assert result is False
 
     def test_returns_true_for_numeric_suffix_when_coord_worktree_exists(self, tmp_path: Path) -> None:
         """Numeric-only suffix is valid Crockford mid8 and can activate coord topology."""

@@ -67,7 +67,4 @@ def test_new_verb_has_doc_heading(verb: str) -> None:
     text = _DOC_PATH.read_text(encoding="utf-8")
     headings = _markdown_headings(text)
     matches = [h for h in headings if verb in h]
-    assert matches, (
-        f"no markdown heading in {_DOC_PATH.name} mentions the new verb "
-        f"{verb!r}; headings present: {headings!r}"
-    )
+    assert matches, f"no markdown heading in {_DOC_PATH.name} mentions the new verb {verb!r}; headings present: {headings!r}"

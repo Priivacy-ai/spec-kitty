@@ -41,7 +41,7 @@ metadata:
 ```
 
 Activation keys are flat at the `charter.yaml` root (not nested under an
-`activation:` mapping), matching `src/charter/packs/default.yaml`.
+`activation:` mapping), matching `src/charter/activation/packs/default.yaml`.
 
 ---
 
@@ -125,12 +125,12 @@ Top-level keys and their purpose (nested under `governance:` in `charter.yaml`):
 | `branch_strategy.main_branch` | string | Name of the main branch |
 | `branch_strategy.dev_branch` | string or null | Name of the dev branch |
 | `branch_strategy.rules` | list | Branch naming and protection rules |
-| `doctrine.selected_paradigms` | list | Active paradigm IDs |
-| `doctrine.selected_directives` | list | Active directive IDs |
-| `doctrine.available_tools` | list | Active tool IDs |
-| `doctrine.template_set` | string or null | Doctrine template set |
-| `doctrine.authority_paths` | list | Repository-relative directories surfaced as required reading |
-| `doctrine.governance_references` | list | Repository-relative supporting governance documents |
+| `charter.offering.selected_paradigms` | list | Active paradigm IDs |
+| `charter.offering.selected_directives` | list | Active directive IDs |
+| `charter.offering.available_tools` | list | Active tool IDs |
+| `charter.offering.template_set` | string or null | Doctrine template set |
+| `charter.offering.authority_paths` | list | Repository-relative directories surfaced as required reading |
+| `charter.offering.governance_references` | list | Repository-relative supporting governance documents |
 | `activations` | list | Charter-level activation registry entries |
 | `enforcement` | dict | Enforcement policy by domain |
 

@@ -4,6 +4,7 @@ import pytest
 from kernel.clock import datetime
 from pathlib import Path
 
+from tests._perf_helpers import assert_timing_budget
 from glossary.middleware import (
     GlossaryCandidateExtractionMiddleware,
     SemanticCheckMiddleware,
@@ -245,9 +246,35 @@ class TestMiddlewareIntegration:
         confidences = [t.confidence for t in result.extracted_terms]
         assert confidences[0] == 1.0  # Highest confidence first
 
+    def test_extraction_middleware_functional(self) -> None:
+        """Middleware extracts terms for typical input (functional, #4015 split)."""
+        middleware = GlossaryCandidateExtractionMiddleware()
+
+        # Typical step input (500 words)
+        context = MockContext(
+            step_input={
+                "description": " ".join(
+                    [
+                        "The workspace contains a mission primitive.",
+                        "Each WP has a work_package configuration.",
+                        'The "semantic integrity" is validated.',
+                    ]
+                    * 50  # ~500 words
+                ),
+            },
+            metadata={
+                "glossary_watch_terms": ["workspace", "mission"],
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should extract some terms
+        assert len(result.extracted_terms) > 0
+
     @pytest.mark.performance
-    def test_performance_within_budget(self):
-        """Middleware completes within performance budget (<100ms)."""
+    def test_performance_within_budget(self) -> None:
+        """Middleware completes within performance budget (<100ms, #4015 split)."""
         import time
 
         middleware = GlossaryCandidateExtractionMiddleware()
@@ -270,14 +297,10 @@ class TestMiddlewareIntegration:
         )
 
         start = time.perf_counter()
-        result = middleware.process(context)
+        middleware.process(context)
         elapsed = time.perf_counter() - start
 
-        # Should complete in <100ms
-        assert elapsed < 0.1, f"Middleware took {elapsed:.3f}s (expected <0.1s)"
-
-        # Should extract some terms
-        assert len(result.extracted_terms) > 0
+        assert_timing_budget(elapsed, 0.1, name="elapsed")
 
     def test_adds_to_existing_extracted_terms(self):
         """Middleware appends to existing extracted_terms list."""

@@ -189,10 +189,7 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
     _run_move(ctx, router, to="for_review", note="Ready for review.")
 
     primary_wp_file = ctx.primary_feature_dir / "tasks" / f"{_WP_ID}.md"
-    assert primary_wp_file.exists(), (
-        "precondition: the primary WP prompt file must exist for the claim-commit "
-        "bundle"
-    )
+    assert primary_wp_file.exists(), "precondition: the primary WP prompt file must exist for the claim-commit bundle"
 
     # --- Exercise the ``_primary_surface_status_paths`` filter helper in
     # isolation (squad correction — see module docstring PROVENANCE NOTE): the
@@ -208,8 +205,7 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
     _materialize(ctx.coord_feature_dir)  # status.json now exists alongside the log
     collected = _collect_status_artifacts(ctx.coord_feature_dir)
     assert coord_tasks_md.resolve() in {p.resolve() for p in collected}, (
-        "precondition: _collect_status_artifacts must return the coord tasks.md "
-        f"(returned {[p.name for p in collected]})"
+        f"precondition: _collect_status_artifacts must return the coord tasks.md (returned {[p.name for p in collected]})"
     )
     status_paths = _primary_surface_status_paths(collected, routes_through_coord=True)
     # Make the primary WP file dirty so, with the coord tasks.md correctly
@@ -227,8 +223,7 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
         "#3784: a coord-surface .worktrees/ path (tasks.md) survived the "
         "_primary_surface_status_paths filter into the PRIMARY-surface safe_commit "
         "bundle. The coord-topology exclusion must drop ANY .worktrees/-nested path "
-        "(status.events.jsonl / status.json AND tasks.md). Offending path(s):\n  "
-        + "\n  ".join(offending)
+        "(status.events.jsonl / status.json AND tasks.md). Offending path(s):\n  " + "\n  ".join(offending)
     )
 
     # (b) The documented symptom, through the real production surface: driving
@@ -253,6 +248,5 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
         pass
 
     assert path_policy_refusal is None, (
-        "#3784: safe_commit refused the primary-surface bundle for a path under "
-        f".worktrees/ — the documented coord-topology refusal:\n{path_policy_refusal}"
+        f"#3784: safe_commit refused the primary-surface bundle for a path under .worktrees/ — the documented coord-topology refusal:\n{path_policy_refusal}"
     )

@@ -6,24 +6,26 @@ Every test below drives the REAL ``move-task --to for_review`` orchestrator
 (``_do_move_task``) end-to-end with the REAL WP01 gate engine
 (``pre_review_gate.evaluate_pre_review_gate`` / ``run_scoped_tests_at_head`` /
 ``diff_baseline``) against a REAL throwaway git repository — never a
-stubbed/mocked verdict. The only injected seam is the LIVE gate-coverage
-authority lookup (``_pre_review_gate_filter_groups`` /
-``_pre_review_gate_composite_routing``), which mirrors the SAME override seam
-``GateCoverageScopeSource``'s live census derivation exposes for its own unit
-tests (see ``tests/review/test_pre_review_gate_engine.py``) — swapping it
-avoids the ``sys.modules`` staleness trap a throwaway
-``tests/architectural/_gate_coverage.py`` fixture would hit (the real repo's
-cached module would silently shadow it).
+stubbed/mocked verdict.
 
-**Post-census-tier-retirement note (mission
-scopesource-gate-followup-01KY6S9P WP04/WP05).** The public
-``pre_review_gate.derive_test_scope`` census tier this docstring used to name
-is retired; the auto-derivation path this file exercises now runs through
-``GateCoverageScopeSource``'s private census copy (``scope_source.py``),
-reached via the SAME kept ``_pre_review_gate_filter_groups`` /
-``_pre_review_gate_composite_routing`` seams named above. This file's test
-logic is unchanged — only the prose naming the underlying derivation is
-updated to match.
+**Post-#380 note.** ``GateCoverageScopeSource`` — the workflow-YAML-derived
+census/shard-routing authority this file used to drive via the
+``_pre_review_gate_filter_groups`` / ``_pre_review_gate_composite_routing``
+seams — is retired (issue #380): ``resolve_scope_source`` now always
+constructs ``DeclaredCommandScopeSource``, which never narrows by changed
+file and never raises ``GateAuthoritiesUnavailable``; those two seams are
+kept only as inert call-site compatibility (``scope_source.py``'s
+``resolve_scope_source``) and no longer affect any test below. Tests that
+need the gate to actually execute scoped tests now go through the FR-004
+**override tier** instead (WP frontmatter ``pre_review_test_scope:``),
+exactly like the precedence tests further down this file — the override
+tier calls ``pre_review_gate.evaluate_with_scope`` with ``scope_source=None``
+(the legacy hardcoded pytest/JUnit path), independent of
+``resolve_scope_source``. The former shard-bounding scenario (SC-003/SC-004,
+"a changed file is routed to its owning shard's tests and never the
+catch-all") has no live end-to-end equivalent any more — that coverage now
+lives only at the engine level, against an injected fixture ``ScopeSource``
+(``tests/review/test_pre_review_gate_engine.py``).
 
 Only the "mission bookkeeping" side (status events, WP frontmatter, coord
 write capabilities) is faked, via the SAME Fake-port pattern
@@ -58,6 +60,7 @@ import contextlib
 import json
 import os
 import signal
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -67,6 +70,7 @@ from typing import Any
 import pytest
 import typer
 
+from charter.offering.missions.step_contracts import GateBinding
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
@@ -83,10 +87,13 @@ from specify_cli.review.gate_bindings import (
     GateCoverage,
     resolve_gate_bindings_for_transition,
 )
+from specify_cli.review.gate_registry import TransitionGateContext
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import append_event
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
+from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_mission_meta
@@ -458,26 +465,92 @@ def _gate_metadata(request: TransitionRequest) -> dict[str, Any]:
     return metadata
 
 
+@pytest.mark.integration
+def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """PRIMARY metadata selects the real handler while COORD retains status."""
+    repo = _build_base_repo(
+        tmp_path,
+        extra_base_files={
+            ".gitignore": ".worktrees/\n",
+            "src/specify_cli/git/foo.py": "VALUE = 1\n",
+            "tests/git/test_consumer.py": _CONSUMER_TEST_BODY,
+        },
+    )
+    primary, wp = _build_wp_file(repo, _MISSION, "WP01")
+    meta_path = primary / "meta.json"
+    meta = json.loads(meta_path.read_text())
+    coord_branch = "kitty/mission-pre-review-gate"
+    meta.update(topology="coord", target_branch="main", coordination_branch=coord_branch)
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    # Materialize a real coord worktree from the metadata-free base commit.
+    coord = coord_feature_dir(repo, _MISSION, meta["mid8"])
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", coord_branch, str(coord.parents[1]), "main"],
+        cwd=repo,
+        check=True,
+    )
+    coord.mkdir(parents=True)
+    _seed_wp_event(coord, "WP01", "in_progress")
+    before = (coord / "status.events.jsonl").read_bytes()
+    assert not (coord / "meta.json").exists()
+    assert placement_seam(repo, _MISSION).read_dir(MissionArtifactKind.PRIMARY_METADATA) == primary
+    assert placement_seam(repo, _MISSION).read_dir(MissionArtifactKind.STATUS_STATE) == coord
+    assert "pre_review_test_scope" not in wp.read_text()
+    _seed_baseline(primary, wp.stem, failed=0)
+    config_path = repo / ".kittify" / "config.yaml"
+    command = f"{shlex.quote(sys.executable)} -m pytest tests/git -q --junitxml={{output_file}}"
+    config_path.write_text(
+        config_path.read_text() + f"\nreview:\n  test_command: {json.dumps(command)}\n  test_output_format: junit_xml\n",
+        encoding="utf-8",
+    )
+    _write_file(repo, "src/specify_cli/git/foo.py", "VALUE = 2\n")
+    _git_commit_all(repo, "break the consumer contract")
+    selected: list[str] = []
+    dispatch = tasks_move_task._mt_dispatch_transition_gates
+
+    def record_dispatch(bindings: list[GateBinding], context: TransitionGateContext) -> list[pre_review_gate.GateVerdict]:
+        selected.extend(binding.handler for binding in bindings)
+        return dispatch(bindings, context)
+
+    monkeypatch.setattr(tasks_move_task, "_mt_dispatch_transition_gates", record_dispatch)
+    ports, router = _fake_ports(coord)
+
+    _run_move(repo, ports=ports, workspace_resolution=_fixture_workspace(repo))
+
+    assert len(router.status_calls) == 1
+    metadata = _gate_metadata(router.status_calls[0])
+    assert metadata["outcome"] == "new_failures", metadata
+    assert selected == ["spec-kitty-pre-review"]
+    assert metadata["new_failure_count"] == 1
+    assert any("test_consumer_reads_shared_contract" in node for node in metadata["new_failure_nodeids"])
+    assert metadata["blocked"] is False
+    assert metadata["block_enabled"] is False
+    assert metadata["force_bypassed"] is False
+    assert router.write_dir == coord
+    assert router.status_calls[0].feature_dir == coord
+    # The existing recording port captures the transition without emitting it.
+    assert len(read_events(coord)) == 1
+    assert (coord / "status.events.jsonl").read_bytes() == before
+    assert not (primary / "status.events.jsonl").exists()
+    assert not (coord / "meta.json").exists()
+
+
 # ---------------------------------------------------------------------------
 # T006 — new-failure surfaced, red-first (SC-001)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-def test_new_failure_surfaced_by_the_real_gate_red_first(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_new_failure_surfaced_by_the_real_gate_red_first(tmp_path: Path) -> None:
     """SC-001 / red-first (mandatory): a consuming-shard test that genuinely
     fails at head but not at base is surfaced (warn) by the REAL gate.
     Live-evidence artifact: with the hook DISABLED the same breakage reaches
     ``for_review`` completely silently (the pre-WP02 gap #572 describes);
     with the hook enabled (default) it is caught and the surfaced output
-    contains the failing test's nodeid.
+    contains the failing test's nodeid. Routed via the FR-004 override tier
+    (``pre_review_test_scope: tests/git``) — post-#380 the auto-scope tier
+    never narrows to a specific shard (see module docstring).
     """
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
-
     repo = _build_base_repo(
         tmp_path,
         extra_base_files={
@@ -490,7 +563,12 @@ def test_new_failure_surfaced_by_the_real_gate_red_first(
     failing_nodeid = _probe_failure_nodeid(repo)
 
     # --- RED-FIRST: hook disabled -> the breakage reaches for_review silently ---
-    feature_dir_off, _wp_off = _build_wp_file(tmp_path / "hook-off", _MISSION, "WP01")
+    feature_dir_off, _wp_off = _build_wp_file(
+        tmp_path / "hook-off",
+        _MISSION,
+        "WP01",
+        extra_frontmatter="pre_review_test_scope: tests/git\n",
+    )
     _seed_wp_event(feature_dir_off, "WP01", "in_progress")
     _seed_baseline(feature_dir_off, "WP01-test", failed=0)
     ports_off, router_off = _fake_ports(feature_dir_off)
@@ -505,7 +583,12 @@ def test_new_failure_surfaced_by_the_real_gate_red_first(
     assert router_off.status_calls[0].policy_metadata is None
 
     # --- CAUGHT: hook enabled (default) -> the same breakage is surfaced ---
-    feature_dir_on, _wp_on = _build_wp_file(tmp_path / "hook-on", _MISSION, "WP01")
+    feature_dir_on, _wp_on = _build_wp_file(
+        tmp_path / "hook-on",
+        _MISSION,
+        "WP01",
+        extra_frontmatter="pre_review_test_scope: tests/git\n",
+    )
     _seed_wp_event(feature_dir_on, "WP01", "in_progress")
     _seed_baseline(feature_dir_on, "WP01-test", failed=0)
     ports_on, router_on = _fake_ports(feature_dir_on)
@@ -525,13 +608,11 @@ def test_new_failure_surfaced_by_the_real_gate_red_first(
 
 
 @pytest.mark.integration
-def test_pre_existing_failure_does_not_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pre_existing_failure_does_not_block(tmp_path: Path) -> None:
     """SC-002: a failure already red on the base branch never blocks the
     WP, even with the opt-in block enabled — the baseline diff (WP01's
-    ``diff_baseline``, reused unchanged) excludes it from ``new_failures``."""
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
-
+    ``diff_baseline``, reused unchanged) excludes it from ``new_failures``.
+    Routed via the FR-004 override tier (see module docstring)."""
     repo = _build_base_repo(
         tmp_path,
         extra_base_files={
@@ -543,7 +624,12 @@ def test_pre_existing_failure_does_not_block(tmp_path: Path, monkeypatch: pytest
     _git_commit_all(repo, "wip: unrelated bump")
     pre_existing_nodeid = _probe_failure_nodeid(repo)
 
-    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    feature_dir, _wp = _build_wp_file(
+        tmp_path,
+        _MISSION,
+        "WP01",
+        extra_frontmatter="pre_review_test_scope: tests/git\n",
+    )
     _seed_wp_event(feature_dir, "WP01", "in_progress")
     _seed_baseline(
         feature_dir,
@@ -566,37 +652,15 @@ def test_pre_existing_failure_does_not_block(tmp_path: Path, monkeypatch: pytest
 
 # ---------------------------------------------------------------------------
 # T006 — bounded scope: status/emit.py -> status shard, not core_misc (SC-003/SC-004)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.integration
-def test_bounded_scope_status_shard_excludes_core_misc(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
-
-    repo = _build_base_repo(
-        tmp_path,
-        extra_base_files={"tests/status/test_trivial.py": "def test_trivial():\n    assert True\n"},
-    )
-    _write_file(repo, "src/specify_cli/status/emit.py", "STATUS = 1\n")
-    _git_commit_all(repo, "wip: touch status/emit.py")
-
-    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
-    _seed_wp_event(feature_dir, "WP01", "in_progress")
-    _seed_baseline(feature_dir, "WP01-test", failed=0)
-    ports, router = _fake_ports(feature_dir)
-
-    _run_move(tmp_path, ports=ports, workspace_resolution=_fixture_workspace(repo))
-
-    metadata = _gate_metadata(router.status_calls[0])
-    assert "status" in metadata["matched_shard_groups"]
-    assert "core_misc" not in metadata["matched_shard_groups"]
-    assert metadata["outcome"] == "no_new_failures"
-
-
+#
+# RETIRED (#380): this scenario exercised GateCoverageScopeSource's
+# workflow-YAML-derived shard routing end-to-end via the
+# _pre_review_gate_filter_groups / _pre_review_gate_composite_routing seams.
+# Those seams are now inert (resolve_scope_source always returns
+# DeclaredCommandScopeSource, which never narrows by changed file — see the
+# module docstring), so there is no live end-to-end path left to exercise.
+# Shard-bounding coverage now lives only at the engine level, against an
+# injected fixture ScopeSource (tests/review/test_pre_review_gate_engine.py).
 # ---------------------------------------------------------------------------
 # T006 — empty-cone composite: no_coverage warn, not a clean pass (SC-007)
 # ---------------------------------------------------------------------------
@@ -636,25 +700,19 @@ def test_empty_cone_composite_is_no_coverage_not_clean(
 def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
     tmp_path: Path,
 ) -> None:
-    """Authority-load failure degrades to a non-blocking ``no_coverage`` warn.
+    """No configured test command degrades to a non-blocking ``no_coverage`` warn.
 
-    Deliberately does NOT monkeypatch
-    ``_pre_review_gate_filter_groups``/``_pre_review_gate_composite_routing``
-    (unlike every other test in this file) so the REAL
-    ``pre_review_gate.GateAuthoritiesUnavailable`` path fires through the REAL
-    ``move-task --to for_review`` entry point when the gate-coverage authority
-    cannot be loaded for the fixture repo.
-
-    MIGRATED (T042 / #2534, mission ``doctrine-controlled-transition-gates-01KY51Z7``
-    WP09): the pre-inversion ``is_consumer_repo`` split — a bespoke, calmly-worded
-    ``_PRE_REVIEW_CONSUMER_REPO_REASON`` that scrubbed the internal
-    ``tests.architectural._gate_coverage`` module name — is RETIRED. Under the
-    inverted, doctrine-resolved gate, activation is the SOLE impl selector, so a
-    consumer repo simply never activates the Spec-Kitty handler; every remaining
-    authority-load failure now folds into the SAME generic per-handler fail-open
-    warn (``tasks_move_task._mt_dispatch_one_gate``). The invariant this test
-    still guards — a non-blocking ``no_coverage`` warn, never a crash or a block —
-    is unchanged; only the bespoke consumer-facing wording is gone.
+    MIGRATED (#380): with ``GateCoverageScopeSource`` retired,
+    ``resolve_scope_source`` always returns ``DeclaredCommandScopeSource``,
+    which never raises ``GateAuthoritiesUnavailable`` — that exception class
+    is now dead code (caught defensively, never raised). The fixture repo
+    here has no ``review.test_command``/``review.pre_review_test_command``
+    configured anywhere, so ``DeclaredCommandScopeSource.test_command()``
+    returns ``None`` and the gate emits the structured
+    ``_NO_TEST_COMMAND_REASON`` ``NO_COVERAGE`` verdict instead of raising.
+    The invariant this test still guards — a non-blocking ``no_coverage``
+    warn, never a crash or a block — is unchanged; only the mechanism
+    (structured verdict vs. caught exception) and the reason text changed.
     """
     repo = _build_base_repo(tmp_path, extra_base_files={"src/wp01/foo.py": "VALUE = 1\n"})
     _write_file(repo, "src/wp01/foo.py", "VALUE = 2\n")
@@ -672,7 +730,7 @@ def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
     assert metadata["outcome"] == "no_coverage"
     assert metadata["blocked"] is False
     reason = metadata["reason"] or ""
-    assert reason.startswith("gate authorities unavailable — unverified:")
+    assert reason == "no test command configured for the injected ScopeSource — review proceeds without it"
 
 
 # ---------------------------------------------------------------------------
@@ -683,12 +741,8 @@ def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
 @pytest.mark.integration
 def test_block_mode_blocks_without_force(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
-
     repo = _build_base_repo(
         tmp_path,
         extra_base_files={
@@ -700,7 +754,12 @@ def test_block_mode_blocks_without_force(
     _git_commit_all(repo, "wip: bump VALUE without updating the consumer")
     failing_nodeid = _probe_failure_nodeid(repo)
 
-    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    feature_dir, _wp = _build_wp_file(
+        tmp_path,
+        _MISSION,
+        "WP01",
+        extra_frontmatter="pre_review_test_scope: tests/git\n",
+    )
     _seed_wp_event(feature_dir, "WP01", "in_progress")
     _seed_baseline(feature_dir, "WP01-test", failed=0)
     _write_config_yaml(tmp_path, block=True)
@@ -716,10 +775,7 @@ def test_block_mode_blocks_without_force(
 
 
 @pytest.mark.integration
-def test_force_bypasses_block_and_is_recorded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
-
+def test_force_bypasses_block_and_is_recorded(tmp_path: Path) -> None:
     repo = _build_base_repo(
         tmp_path,
         extra_base_files={
@@ -730,7 +786,12 @@ def test_force_bypasses_block_and_is_recorded(tmp_path: Path, monkeypatch: pytes
     _write_file(repo, "src/specify_cli/git/foo.py", "VALUE = 2\n")
     _git_commit_all(repo, "wip: bump VALUE without updating the consumer")
 
-    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    feature_dir, _wp = _build_wp_file(
+        tmp_path,
+        _MISSION,
+        "WP01",
+        extra_frontmatter="pre_review_test_scope: tests/git\n",
+    )
     _seed_wp_event(feature_dir, "WP01", "in_progress")
     _seed_baseline(feature_dir, "WP01-test", failed=0)
     _write_config_yaml(tmp_path, block=True)
@@ -752,13 +813,7 @@ def test_force_bypasses_block_and_is_recorded(tmp_path: Path, monkeypatch: pytes
 
 
 @pytest.mark.integration
-def test_baseline_uncomputable_degrades_to_warn_never_blocks(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
-
+def test_baseline_uncomputable_degrades_to_warn_never_blocks(tmp_path: Path) -> None:
     repo = _build_base_repo(
         tmp_path,
         extra_base_files={"tests/status/test_trivial.py": "def test_trivial():\n    assert True\n"},
@@ -766,7 +821,12 @@ def test_baseline_uncomputable_degrades_to_warn_never_blocks(
     _write_file(repo, "src/specify_cli/status/emit.py", "STATUS = 1\n")
     _git_commit_all(repo, "wip: touch status/emit.py")
 
-    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    feature_dir, _wp = _build_wp_file(
+        tmp_path,
+        _MISSION,
+        "WP01",
+        extra_frontmatter="pre_review_test_scope: tests/status\n",
+    )
     _seed_wp_event(feature_dir, "WP01", "in_progress")
     # Deliberately NO baseline artifact written -> BaselineTestResult.load() is None.
     _write_config_yaml(tmp_path, block=True)

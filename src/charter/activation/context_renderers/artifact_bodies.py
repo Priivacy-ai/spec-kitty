@@ -87,12 +87,14 @@ def _format_profile_directive_code(raw: object) -> str:
     """Normalise a directive-ref code to the canonical ``DIRECTIVE_NNN`` form.
 
     Profile YAML stores codes as bare numerals (``"010"``) or already in
-    ``DIRECTIVE_NNN`` form. The catalog lookup needs the canonical form.
+    ``DIRECTIVE_NNN`` form. Operator-facing directive selectors also use the
+    active pack's numeric slug (for example, ``"025-boy-scout-rule"``). The
+    catalog lookup needs the canonical form in every case.
     """
     text = str(raw).strip()
     if re.match(r"^DIRECTIVE_\d+$", text):
         return text
-    match = re.match(r"^(\d+)$", text)
+    match = re.match(r"^(\d+)(?:[-_].*)?$", text)
     if match:
         return f"DIRECTIVE_{match.group(1).zfill(3)}"
     return text

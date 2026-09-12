@@ -59,10 +59,7 @@ def test_corpus_is_populated() -> None:
 
 def test_corpus_includes_two_real_repo_negatives() -> None:
     real = [p for p in _negative_fixtures() if p.name.startswith("real_repo_")]
-    assert len(real) >= 2, (
-        "corpus must include at least two negatives copied from real repo WP "
-        f"files to avoid being self-serving; found: {[p.name for p in real]}"
-    )
+    assert len(real) >= 2, f"corpus must include at least two negatives copied from real repo WP files to avoid being self-serving; found: {[p.name for p in real]}"
 
 
 # --------------------------------------------------------------------------- #
@@ -70,9 +67,7 @@ def test_corpus_includes_two_real_repo_negatives() -> None:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize(
-    "fixture", _positive_fixtures(), ids=lambda p: p.stem
-)
+@pytest.mark.parametrize("fixture", _positive_fixtures(), ids=lambda p: p.stem)
 def test_positive_fixtures_warn(fixture: Path) -> None:
     """100% recall: every positive fixture yields at least one warning."""
     warnings = scan_work_package(fixture.stem, _read(fixture))
@@ -83,15 +78,11 @@ def test_positive_fixtures_warn(fixture: Path) -> None:
         assert warning.criterion_excerpt
 
 
-@pytest.mark.parametrize(
-    "fixture", _negative_fixtures(), ids=lambda p: p.stem
-)
+@pytest.mark.parametrize("fixture", _negative_fixtures(), ids=lambda p: p.stem)
 def test_negative_fixtures_are_silent(fixture: Path) -> None:
     """0 false positives: no negative fixture yields a warning."""
     warnings = scan_work_package(fixture.stem, _read(fixture))
-    assert warnings == [], (
-        f"false positive on {fixture.name}: {[w.matched_phrase for w in warnings]}"
-    )
+    assert warnings == [], f"false positive on {fixture.name}: {[w.matched_phrase for w in warnings]}"
 
 
 def test_full_corpus_confusion_matrix() -> None:
@@ -99,12 +90,8 @@ def test_full_corpus_confusion_matrix() -> None:
     positives = _positive_fixtures()
     negatives = _negative_fixtures()
 
-    true_positives = sum(
-        1 for p in positives if scan_work_package(p.stem, _read(p))
-    )
-    false_positives = sum(
-        1 for p in negatives if scan_work_package(p.stem, _read(p))
-    )
+    true_positives = sum(1 for p in positives if scan_work_package(p.stem, _read(p)))
+    false_positives = sum(1 for p in negatives if scan_work_package(p.stem, _read(p)))
 
     assert true_positives == len(positives), "recall < 100% on positive corpus"
     assert false_positives == 0, "false positives on negative corpus"
@@ -166,9 +153,7 @@ def test_trigger_set_is_versioned_and_enumerable() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _install_mission_boundaries(
-    monkeypatch: pytest.MonkeyPatch, tasks_dir_parent: Path
-) -> None:
+def _install_mission_boundaries(monkeypatch: pytest.MonkeyPatch, tasks_dir_parent: Path) -> None:
     """Point the CLI's resolution seams at a fixture ``kitty-specs`` layout.
 
     Mirrors the seam-patch pattern used across the ``agent tasks`` CLI tests
@@ -192,9 +177,7 @@ def _install_mission_boundaries(
     monkeypatch.setattr(f"{mod}.placement_seam", lambda *a, **k: _StubSeam())
 
 
-def test_check_terminability_exits_zero_when_warning_fires(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_terminability_exits_zero_when_warning_fires(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-008: a fired warning must NOT fail authoring — the command exits 0."""
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
@@ -217,9 +200,7 @@ def test_check_terminability_exits_zero_when_warning_fires(
     assert payload["guidance"], "guidance must accompany a fired warning"
 
 
-def test_check_terminability_exits_zero_and_silent_on_clean_mission(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_terminability_exits_zero_and_silent_on_clean_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A clean mission produces no warnings and still exits 0."""
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()

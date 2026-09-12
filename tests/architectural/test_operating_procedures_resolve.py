@@ -39,19 +39,10 @@ def test_built_in_operating_procedures_all_resolve_to_a_procedure_node() -> None
     procedure_urns, urns_by_kind = node_universe(load_built_in_graph().nodes)
     entries = _built_in_operating_procedures()
 
-    unresolved = resolve_operating_procedure_entries(
-        entries, procedure_urns, urns_by_kind
-    )
+    unresolved = resolve_operating_procedure_entries(entries, procedure_urns, urns_by_kind)
 
-    assert unresolved == [], (
-        "operating-procedures entries that do not resolve to a real procedure "
-        "node:\n"
-        + "\n".join(
-            f"  {u.profile_id}: {u.entry} ({u.reason}"
-            + (f" -> {u.resolved_kind}" if u.resolved_kind else "")
-            + ")"
-            for u in unresolved
-        )
+    assert unresolved == [], "operating-procedures entries that do not resolve to a real procedure node:\n" + "\n".join(
+        f"  {u.profile_id}: {u.entry} ({u.reason}" + (f" -> {u.resolved_kind}" if u.resolved_kind else "") + ")" for u in unresolved
     )
 
 

@@ -194,7 +194,7 @@ def test_render_index_is_byte_stable_across_hash_seeds(tmp_path: Path) -> None:
     # resolves the SAME project environment as this test process regardless
     # of shell/shim PATH quirks (repo convention: always ``uv run``).
     result = subprocess.run(
-        ["uv", "run", "python", "-c", script],
+        ["uv", "run", "--frozen", "python", "-c", script],
         capture_output=True,
         text=True,
         env=env,

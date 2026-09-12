@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import subprocess
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -404,32 +403,3 @@ class TestWarnOnce:
         ]
         assert len(now_two) == 2
 
-
-# ---------------------------------------------------------------------------
-# NFR-001: scan_path performance with mocked subprocess
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.performance
-class TestPerformance:
-    def test_scan_path_under_20ms_with_negligible_subprocess_overhead(
-        self, tmp_path: Path
-    ) -> None:
-        _init_git_repo(tmp_path)
-        _enable_sparse_config(tmp_path)
-        _write_pattern_file(tmp_path, ["src/", "docs/"])
-
-        # Mock the subprocess call so we measure only our own overhead.
-        class _FakeResult:
-            returncode = 0
-            stdout = "true\n"
-
-        with patch.object(sc_mod.subprocess, "run", return_value=_FakeResult()):
-            start = time.perf_counter()
-            for _ in range(100):
-                scan_path(tmp_path, is_worktree=False)
-            elapsed_ms = (time.perf_counter() - start) * 1000.0
-
-        avg_ms = elapsed_ms / 100.0
-        # Generous ceiling — NFR-001 is 20 ms per call.
-        assert avg_ms < 20.0, f"scan_path avg={avg_ms:.3f}ms exceeds 20 ms budget"

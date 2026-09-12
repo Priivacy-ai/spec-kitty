@@ -49,18 +49,21 @@ from .store import (
     EVENTS_FILENAME,
     EventPersistenceError,
     StoreError,
-    append_annotations_atomic_verified,
-    append_event,
-    append_event_verified,
-    # WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004/T006): promoted
-    # so coordination/status_service.py's mixed transition/annotation atomic
-    # write resolves WITHOUT a direct ``specify_cli.status.store`` import
-    # (test_status_module_boundary.py SR-2), matching the sibling
-    # append_*_atomic_verified exports above.
-    append_event_stream_atomic_verified,
-    append_events_atomic_verified,
-    append_primary_checkout_event_verified,
-    append_primary_checkout_events_atomic_verified,
+    # WP03 (fsm-write-path-integrity-01M1TZV6, FR-010): the raw append
+    # primitives (append_event, append_event_verified,
+    # append_event_stream_atomic_verified, append_events_atomic_verified,
+    # append_primary_checkout_event_verified,
+    # append_primary_checkout_events_atomic_verified,
+    # append_annotations_atomic_verified, append_raw_rows_atomic) are NO
+    # LONGER exported here. They were promoted onto this facade by WP02 of
+    # verdict-seam-boundary-hardening-01KZG179 (FR-004/T006, so
+    # coordination/status_service.py could avoid a deep ``status.store``
+    # import) and by WP01 of this mission (append_raw_rows_atomic, for the
+    # hardened retrospective writers). Both promotions handed an unlocked,
+    # unvalidated write door to any importer; they now live behind
+    # ``specify_cli.status._unsafe`` with an enumerated, shrink-only
+    # ``ALLOWED_CALLERS`` set gated by
+    # tests/architectural/test_status_unsafe_allowlist.py.
     read_event_stream,
     read_event_stream_from_text,
     read_events,
@@ -160,6 +163,7 @@ from .lane_reader import (
     CanonicalStatusNotFoundError,
     LEGACY_UNINITIALIZED_SENTINEL,
     get_all_wp_lanes,
+    get_all_wp_snapshots,
     get_wp_lane,
     has_event_log,
 )
@@ -179,10 +183,9 @@ from .progress import (
     generate_progress_json,
 )
 from .adapters import (
-    fire_dossier_sync,
+    fire_lifecycle_saas_fanout,
     fire_resolved_binding_fanout,
     fire_saas_fanout,
-    register_dossier_sync_handler,
     register_lifecycle_saas_fanout_handler,
     register_resolved_binding_fanout_handler,
     register_saas_fanout_handler,
@@ -205,6 +208,7 @@ from .identity_audit import (
     summarize,
 )
 from .locking import (
+    BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
     FeatureStatusLockTimeoutError,
     feature_status_lock,
 )
@@ -220,6 +224,7 @@ from .lifecycle import (
     derive_mission_lifecycle,
     generate_lifecycle_json,
     is_mission_completed,
+    is_mission_merged,
 )
 from .validate import (
     ValidationResult,
@@ -253,6 +258,8 @@ from .lifecycle_events import (
     MissionNotCompletedError,
     build_saas_lifecycle_queue_event,
     emit_artifact_phase,
+    emit_artifact_phase_local,
+    fanout_lifecycle_event_hosted,
     emit_follow_up_recorded,
     emit_mission_created_local,
     emit_mission_reopened,
@@ -260,14 +267,47 @@ from .lifecycle_events import (
     emit_reviewer_self_approval,
     emit_wp_created_local,
     has_non_bootstrap_status_history,
+    _resolve_local_actor,
     mission_event_log_path,
+    project_event_log_path,
     read_lifecycle_events,
     repo_root_for_lifecycle_log,
 )
+from .tail_reader import (
+    EMPTY_DIGEST,
+    ResumeRefused,
+    TailCursor,
+    poll_once,
+    tail_events,
+    validate_resume_cursor,
+)
+
+# NOTE (WIRE-M2-03, 2026-08-22, rework cycle 2): ``migrate_lifecycle_envelope``
+# (the F2-T1 rewrite entry point) is deliberately NOT promoted onto this
+# facade, even though ``project_event_log_path`` above was. Its bare name is
+# IDENTICAL to its own home submodule's filename
+# (``status/migrate_lifecycle_envelope.py``). Promoting it here would make
+# ``from specify_cli.status import migrate_lifecycle_envelope`` resolve to
+# the FUNCTION (the last name bound in this module's namespace wins over the
+# submodule attribute Python's import system auto-sets on this package) --
+# which silently breaks the two pre-existing tests
+# (tests/status/test_migrate_lifecycle_envelope.py,
+# tests/status/test_migrate_lifecycle_envelope_node_id_parity.py) that
+# already use that exact import shape to reach the MODULE (via Python's
+# implicit "attribute not found on package -> import as submodule"
+# fallback, e.g. to monkeypatch ``migrate_lifecycle_envelope_module.os.replace``
+# or call the private ``_generate_node_id`` helper). The sole src/ caller
+# (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope) reaches the
+# function via a direct submodule import instead, and that one file is a
+# documented, temporary entry in
+# tests/architectural/test_status_module_boundary.py's
+# ``_WP10_DEFERRED_FILES`` pending a follow-up bead to either rename the
+# function or teach the AST scanner about this name collision.
 from .views import (
     format_post_mission_events,
 )
 from .work_package_lifecycle import (
+    GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
     start_implementation_status,
@@ -290,6 +330,7 @@ from .dup_key_repair import (
     find_duplicate_keys_in_text,
     plan_artifact_repair,
 )
+
 # WP03/WP04 (runtime-state-birth-cutover-all-paths-01KYH654): the cut-over
 # predicate reaches its src/ consumer (``cli.commands.cutover_guard``) through
 # this package surface, not by importing the submodule directly -- the status
@@ -309,6 +350,7 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
     from .uninitialized_hint import uninitialized_status_error as _uninitialized_status_error
 
     return str(_uninitialized_status_error(mission_slug, wp_id, feature_dir))
+
 
 # WP13 (IC-07c) retired ``COORD_OWNED_STATUS_FILES`` -- the canonical status
 # artifacts (event log + snapshot) frozenset -- onto the single canonical churn
@@ -355,7 +397,6 @@ __all__ = [
     "Status",
     "WPInnerStateDelta",
     "annotate",
-    "append_annotations_atomic_verified",
     "build_claim_policy_metadata",
     "build_resolved_actor",
     "is_cut_over",
@@ -374,6 +415,7 @@ __all__ = [
     "read_authored_wp_frontmatter_lenient",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
+    "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS",
     "FeatureStatusLockTimeoutError",
     "GuardContext",
     "IdentityState",
@@ -387,6 +429,7 @@ __all__ = [
     "MISSION_REOPENED",
     "WP_CREATED",
     "mission_event_log_path",
+    "project_event_log_path",
     "read_lifecycle_events",
     "MissionStatus",
     "PLAN_COMPLETED",
@@ -398,14 +441,18 @@ __all__ = [
     "TASKS_STARTED",
     "MissionNotCompletedError",
     "TransitionRequest",
+    "GENERIC_IMPLEMENTATION_ACTORS",
     "WorkPackageClaimConflict",
     "WorkPackageStartRejected",
     "build_saas_lifecycle_queue_event",
     "emit_artifact_phase",
+    "emit_artifact_phase_local",
+    "fanout_lifecycle_event_hosted",
     "emit_follow_up_recorded",
     "emit_mission_created_local",
     "emit_mission_reopened",
     "emit_project_initialized",
+    "_resolve_local_actor",
     "emit_reviewer_self_approval",
     "emit_wp_created_local",
     "format_post_mission_events",
@@ -413,6 +460,12 @@ __all__ = [
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",
+    "EMPTY_DIGEST",
+    "ResumeRefused",
+    "TailCursor",
+    "poll_once",
+    "tail_events",
+    "validate_resume_cursor",
     "run_doctor",
     "DuplicateKeyRepairError",
     "detect_duplicate_key_artifacts",
@@ -441,6 +494,7 @@ __all__ = [
     "generate_lifecycle_json",
     "generate_progress_json",
     "is_mission_completed",
+    "is_mission_merged",
     "materialize_if_stale",
     "CANONICAL_LANES",
     "DoneEvidence",
@@ -469,7 +523,6 @@ __all__ = [
     "_Builder",
     "BootstrapResult",
     "audit_repo",
-    "append_event",
     "bootstrap_canonical_state",
     "classify_mission",
     "feature_status_lock",
@@ -479,30 +532,26 @@ __all__ = [
     "is_dossier_snapshot",
     "merge_event_log_files",
     "merge_event_log_texts",
-    "register_dossier_sync_handler",
     "register_lifecycle_saas_fanout_handler",
     "register_resolved_binding_fanout_handler",
     "register_saas_fanout_handler",
     "summarize",
     "uninitialized_status_error",
-    "append_event_verified",
-    # WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004/T006): see the
-    # matching provenance comment on the ``.store`` import block above.
-    "append_event_stream_atomic_verified",
-    "append_events_atomic_verified",
-    "append_primary_checkout_event_verified",
-    "append_primary_checkout_events_atomic_verified",
+    # WP03 (fsm-write-path-integrity-01M1TZV6, FR-010): the raw append
+    # primitives are not facade exports -- see ``status/_unsafe.py`` and the
+    # provenance note on the ``.store`` import block above.
     "build_self_asserting_actor",
     "emit_status_transition",
     "generate_status_view",
     "get_all_wp_lanes",
+    "get_all_wp_snapshots",
     "get_wp_lane",
     "git_operation_in_progress",
     "has_event_log",
     "is_terminal",
     "materialize",
     "materialize_to_json",
-    "fire_dossier_sync",
+    "fire_lifecycle_saas_fanout",
     "fire_resolved_binding_fanout",
     "fire_saas_fanout",
     "WPStatusChangeMetadata",
@@ -541,3 +590,14 @@ __all__ = [
     "scan_workspace_husks",
     "write_derived_views",
 ]
+
+
+def _retired_dossier_sync_noop(*_args: object, **_kwargs: object) -> None:
+    """Compatibility target for the retired dossier fan-out API."""
+
+
+def __getattr__(name: str) -> object:
+    """Preserve the 3.2.6 import seam without reviving its retired registry."""
+    if name in {"fire_dossier_sync", "register_dossier_sync_handler"}:
+        return _retired_dossier_sync_noop
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

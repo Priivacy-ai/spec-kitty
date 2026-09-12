@@ -70,7 +70,7 @@ def load_doctrine_catalog(
     selection is invalid).
     """
     doctrine_root = resolve_doctrine_root()
-    # Built-in artifact content was flattened out of ``src/doctrine/<kind>/built-in``
+    # Built-in artifact content was flattened out of ``src/charter/offering/<kind>/built-in``
     # into ``packs/built-in/<kind>`` (relocation mission); resolve it through the
     # shared ``built_in_dir`` seam per-kind (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02) rather than a local
@@ -217,7 +217,7 @@ def _load_yaml_id_catalog(
     include_proposed: bool = False,
     active_languages: list[str] | tuple[str, ...] | None = None,
 ) -> set[str]:
-    """Load ID values from doctrine YAML files in a directory.
+    """Load ID values from charter.offering YAML files in a directory.
 
     Args:
         directory: Artifact root directory to search.
@@ -296,7 +296,7 @@ def _resolve_scan_roots(
     Built-in artifact content is flat directly under ``packs/built-in/<kind>/``
     (the WP01 ``built_in_dir`` authority); the pre-relocation nested
     ``built-in/``/``_proposed/`` subdirectory dual-read fallback for the
-    emptied ``src/doctrine/<kind>/`` pre-move shape was removed in mission
+    emptied ``src/charter/offering/<kind>/`` pre-move shape was removed in mission
     doctrine-built-in-seam-consolidation-01KYW3TX (WP02) -- exactly one
     location contract (the authority) remains. ``_include_proposed`` is
     accepted for call-site compatibility but has no effect: no shipped
@@ -319,7 +319,7 @@ def _load_yaml_id_catalog_with_presence(
     include_proposed: bool = False,
     active_languages: list[str] | tuple[str, ...] | None = None,
 ) -> tuple[set[str], bool]:
-    """Load ID values from doctrine YAML files, also reporting domain presence.
+    """Load ID values from charter.offering YAML files, also reporting domain presence.
 
     Returns:
         Tuple of (ids, present) where ``present`` is ``True`` when the artifact

@@ -34,6 +34,21 @@ _MAX_INTERVAL_SECONDS = 10
 _SLOW_DOWN_BACKOFF = 5
 
 
+def _bump_interval(interval: int, retry_after: int | None) -> int:
+    """Compute the next polling interval for a ``slow_down`` response.
+
+    ``retry_after`` is an optional server hint (surfaced from an HTTP 429's
+    ``Retry-After`` header by the device-code transport; a protocol-level
+    ``slow_down`` error body carries none). When present and positive it
+    replaces the flat RFC 8628 5-second bump. Either way FR-018's ceiling
+    always wins, so honouring a larger server-requested delay never pushes
+    the CLI's polling interval past its 10-second floor.
+    """
+    if isinstance(retry_after, int) and retry_after > 0:
+        return min(interval + retry_after, _MAX_INTERVAL_SECONDS)
+    return min(interval + _SLOW_DOWN_BACKOFF, _MAX_INTERVAL_SECONDS)
+
+
 def format_user_code(user_code: str) -> str:
     """Format a device flow user code as chunks of 4 for human display.
 
@@ -130,8 +145,7 @@ class DeviceFlowPoller:
             return None, interval
 
         if error == "slow_down":
-            next_interval = min(interval + _SLOW_DOWN_BACKOFF, _MAX_INTERVAL_SECONDS)
-            return None, next_interval
+            return None, _bump_interval(interval, response.get("retry_after"))
 
         self._raise_terminal_error(error, response)
 

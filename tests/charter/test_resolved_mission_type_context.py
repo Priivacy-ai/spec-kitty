@@ -33,6 +33,7 @@ from charter.activation.mission_type_profiles import (
 from charter.activation.mission_type_profiles import (
     _canonical_artifact_key,  # internal — the FR-013 normalization is contract-critical
 )
+from tests._perf_helpers import assert_timing_budget
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -354,19 +355,20 @@ class TestResolvedTemplateSet:
             "plan": "plan-template.md",
         }
 
+    @pytest.mark.parametrize("selection_key", ["charter", "doctrine"])
     def test_unregistered_project_override_has_no_artifact_mapping(
-        self, tmp_path: Path
+        self, tmp_path: Path, selection_key: str
     ) -> None:
         _write_config(tmp_path, ["software-dev"])
         # consolidate-charter-bundle (IC-04 / WP04, T028c):
-        # _project_has_doctrine_overrides now reads charter.yaml's
-        # governance.doctrine.selected_* -- the retired governance.yaml is
-        # never consulted.
+        # _project_has_doctrine_overrides reads charter.yaml's canonical
+        # governance.charter.selected_* (with legacy-key compatibility) -- the
+        # retired governance.yaml is never consulted.
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True, exist_ok=True)
         (charter_dir / "charter.yaml").write_text(
             "governance:\n"
-            "  doctrine:\n"
+            f"  {selection_key}:\n"
             "    selected_directives:\n"
             "      - DIRECTIVE_001\n",
             encoding="utf-8",
@@ -382,22 +384,39 @@ class TestResolvedTemplateSet:
         assert bundle.action_sequence == []
         assert bundle.template_set is None
 
+    def test_action_sequence_hot_path_resolves_without_template_mapping(
+        self, tmp_path: Path
+    ) -> None:
+        """Functional companion to
+        test_action_sequence_hot_path_does_not_resolve_template_mapping
+        (split, #4015): the hot path returns a populated action_sequence
+        without resolving template_set. Timing budget lives in the
+        @performance sibling below."""
+        _write_config(tmp_path, ["software-dev"])
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+        assert bundle.action_sequence
+        assert "template_set" not in bundle.__dict__
+
     @pytest.mark.performance
     def test_action_sequence_hot_path_does_not_resolve_template_mapping(
         self, tmp_path: Path
     ) -> None:
+        """NFR timing budget only (split, #4015): 20-iteration hot-path
+        p95 < 100ms. Functional coverage moved to
+        test_action_sequence_hot_path_resolves_without_template_mapping,
+        above."""
         _write_config(tmp_path, ["software-dev"])
         timings_ms: list[float] = []
         for _ in range(20):
             started = time.monotonic_ns()
-            bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
-            assert bundle.action_sequence
+            resolve_mission_type_context(tmp_path, mission_type="software-dev")
             timings_ms.append((time.monotonic_ns() - started) / 1_000_000)
-            assert "template_set" not in bundle.__dict__
 
         timings_ms.sort()
         p95 = timings_ms[18]
-        assert p95 < 100, f"action-sequence hot-path p95 = {p95:.3f}ms (budget: 100ms)"
+        assert_timing_budget(p95, 100, name="action_sequence_hot_path_p95_ms")
 
 
 # ---------------------------------------------------------------------------

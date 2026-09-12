@@ -122,6 +122,10 @@ class ResynthesisResult:
     resolved_topic: ResolvedTopic
     is_noop: bool = False
     diagnostic: str = ""
+    reference_warnings: tuple[str, ...] = ()
+    """Unresolved project-profile reference warnings from this run's overlay
+    re-emission (#4121, MAJOR 2) — the same strings ``emit_project_layer``
+    logs, carried so the CLI can surface them."""
 
 
 # ---------------------------------------------------------------------------
@@ -346,12 +350,22 @@ def run(
     # ------------------------------------------------------------------
     built_in_drg = _built_in_drg_from_request(request)
 
+    # Org-aware re-emission base (#4121, MAJOR 2), shared by the emit and the
+    # validation gate below so both see the universe below the project
+    # overlay that activation resolves against. ``None`` for org-less repos.
+    from charter.activation._drg_helpers import org_chain_graph  # noqa: PLC0415
+
+    org_drg = org_chain_graph(_repo_root)
+    reference_warnings: list[str] = []
+
     def _validation_callback(staged_dir: _StagingDir) -> None:
         updated_overlay = _emit_project_layer(
             targets=resolved.targets,
             spec_kitty_version=_SPEC_KITTY_VERSION,
             built_in_drg=built_in_drg,
             project_root=_repo_root,
+            org_drg=org_drg,
+            warnings_out=reference_warnings,
         )
         existing_graph_dir = _repo_root / _KITTIFY_DIRNAME / "doctrine"
         project_graph = updated_overlay
@@ -361,7 +375,7 @@ def run(
                 updated_overlay=updated_overlay,
             )
         _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        _validate_project_graph(staged_dir.root, built_in_drg)
+        _validate_project_graph(staged_dir.root, built_in_drg, org_drg=org_drg)
 
     with _StagingDir.create(_repo_root, run_id) as staging_dir:
         written_manifest = _write_pipeline.promote(
@@ -381,6 +395,7 @@ def run(
         resolved_topic=resolved,
         is_noop=False,
         diagnostic="",
+        reference_warnings=tuple(reference_warnings),
     )
 
 

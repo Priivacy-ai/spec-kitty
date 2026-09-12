@@ -329,14 +329,20 @@ FLOOR_MARGIN = 2
 # target branch for the discard commits — ``load_meta`` in
 # ``mission_type._commit_flattened_meta`` (commit-the-flatten leg) and
 # ``load_meta_or_empty`` in ``retrospective_terminus._primary_target_branch``
-# (the retrospective degrade-ref). Live rises 154 -> 156; floor raised 150 -> 152,
-# the lowest permitted value within the four-site margin (``152 <= 152 < 156``).
-# RAISED 2026-09-03 (#3843 landing, rebased onto #3716): explicit-owned-checkout
-# routing adds genuine canonical metadata reads on top of the #3716 sites above.
-# Live rises 156 -> 157; floor raised 152 -> 153, the lowest permitted value
-# within the four-site margin (``153 <= 153 < 157``). Measured directly via
+# (the retrospective degrade-ref). On the EXP lineage the integrated census is
+# 154 after merge-retention adds two routed reads. Explicit-owned-checkout adds
+# one canonical metadata read, raising live to 155; floor 151 is the lowest
+# permitted value within the four-site margin (``151 <= 151 < 155``).
+# RAISED 2026-09-08 (#3212): the backfill-runtime-state flip-counter fix added
+# one genuine routed site — ``load_meta`` in
+# ``runtime_state_cutover._already_at_snapshot_authority``, the read-only
+# pre-flip authority probe (``allow_missing=True, on_malformed="none"`` so the
+# probe can never crash a verdict-bearing dry-run; missing/malformed reads as
+# "not yet migrated"). Live rises 156 -> 157; floor raised 152 -> 153, the
+# lowest permitted value within the four-site margin (``153 <= 153 < 157``).
+# Measured directly via
 # ``pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
-# on the integrated (rebased) PR tip.
+# on the PR tip.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
 ROUTED_LOAD_META_FLOOR = 153
 
@@ -994,7 +1000,7 @@ def test_read_source_base_direct_open_call() -> None:
 
 
 def test_read_source_base_traces_named_assignment() -> None:
-    """The ``src/charter/_io.py`` shape: a two-hop ``meta_text = meta_path.read_text()``."""
+    """The ``src/charter/activation/_io.py`` shape: a two-hop ``meta_text = meta_path.read_text()``."""
     call, fn = _fn_with_call(
         "def f(feature_dir):\n    meta_path = feature_dir / 'meta.json'\n    meta_text = meta_path.read_text(encoding='utf-8')\n    return json.loads(meta_text)\n"
     )

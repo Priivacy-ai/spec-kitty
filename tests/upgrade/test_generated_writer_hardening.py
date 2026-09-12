@@ -42,9 +42,7 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
-def test_failing_write_leaves_original_content_and_read_only_bit_intact(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_failing_write_leaves_original_content_and_read_only_bit_intact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A write failure mid-way must not corrupt or unlock the prior file.
 
     Simulates a disk-full-style failure by making ``Path.write_text`` raise
@@ -96,9 +94,7 @@ def test_failing_write_does_not_leave_a_stray_temp_file(tmp_path: Path, monkeypa
     assert leftovers == []
 
 
-def test_failing_write_on_new_target_leaves_no_file_behind(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_failing_write_on_new_target_leaves_no_file_behind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A failing write for a target that never existed leaves nothing on disk."""
     target = tmp_path / "brand-new.md"
     assert not target.exists()
@@ -209,9 +205,5 @@ def test_module_is_stdlib_only() -> None:
     """Guard the documented constraint that this module never imports from
     ``specify_cli.upgrade`` (runtime must not depend on upgrade)."""
     source = Path(generated_writer.__file__).read_text(encoding="utf-8")
-    import_lines = [
-        line
-        for line in source.splitlines()
-        if line.startswith("import ") or line.startswith("from ")
-    ]
+    import_lines = [line for line in source.splitlines() if line.startswith("import ") or line.startswith("from ")]
     assert import_lines == ["from __future__ import annotations", "import os", "from pathlib import Path"]

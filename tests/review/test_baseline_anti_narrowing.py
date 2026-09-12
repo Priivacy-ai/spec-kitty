@@ -51,10 +51,12 @@ class _StubScopeSource:
 
 def _make_wp_dir(tmp_path: Path) -> tuple[Path, Path, Path]:
     """Set up a minimal fake repo structure (mirrors test_baseline.py's own
-    helper -- subprocess is fully mocked below, so a real ``.git`` is not
-    needed, only a directory :func:`_find_repo_root` will recognise)."""
+    helper -- subprocess is fully mocked below, so only the structural
+    ``.git/HEAD`` marker needed by :func:`_find_repo_root` is created)."""
     repo = tmp_path / "repo"
-    (repo / ".git").mkdir(parents=True)
+    git_dir = repo / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
     feature_dir = repo / "kitty-specs" / "anti-narrow-test"
     (feature_dir / "tasks" / "WPXX-test").mkdir(parents=True)
     return repo, feature_dir, feature_dir / "tasks" / "WPXX-test"

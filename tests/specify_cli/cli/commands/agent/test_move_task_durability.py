@@ -36,7 +36,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable, Iterator, Sequence
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import AbstractContextManager, contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -76,6 +76,7 @@ from specify_cli.status.models import (
 from specify_cli.status.reducer import event_sourced_review_result
 from specify_cli.status.store import append_annotations_atomic_verified, append_event
 from specify_cli.status import TransitionError, TransitionRequest, read_events
+from tests._perf_helpers import assert_timing_budget
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeFsReader,
@@ -813,7 +814,6 @@ def test_two_queued_rejections_preserve_each_exact_cycle_and_event(
         except BaseException as exc:  # surfaced on the parent test thread
             failures.append(exc)
 
-    started = time.monotonic()
     with setup_mocked_env(
         repo,
         mission_slug=_MISSION,
@@ -850,7 +850,6 @@ def test_two_queued_rejections_preserve_each_exact_cycle_and_event(
 
     assert not first.is_alive()
     assert not second.is_alive()
-    assert time.monotonic() - started < 10
     assert failures == []
     if drop_serialized_result:
         with pytest.raises(AssertionError, match="second queued rejection lost"):
@@ -871,6 +870,117 @@ def test_two_queued_rejections_preserve_each_exact_cycle_and_event(
             first_feedback,
             second_feedback,
         )
+
+
+@pytest.mark.parametrize(
+    "drop_serialized_result", [False, True], ids=["canonical", "causal-mutation"]
+)
+@pytest.mark.performance
+def test_two_queued_rejections_completes_within_budget(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    drop_serialized_result: bool,
+) -> None:
+    """#4015 timing counterpart of ``..._preserve_each_exact_cycle_and_event``.
+
+    Reruns the identical real-checkout-queue, two-thread choreography and
+    asserts only the wall-clock budget; the functional per-write correctness
+    assertions live on the per-PR sibling test above (verbatim, unmarked).
+    """
+    repo = tmp_path
+    feature_dir = _setup_fixture(repo)
+    first_feedback = repo / "first-feedback.md"
+    second_feedback = repo / "second-feedback.md"
+    first_feedback.write_text("First writer feedback.\n", encoding="utf-8")
+    second_feedback.write_text("Second writer feedback.\n", encoding="utf-8")
+
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    first_status_committed = threading.Event()
+    second_entered = threading.Event()
+    second_queue_attempted = threading.Event()
+    first_router = _FaultInjectableCoordRouter(
+        write_dir=feature_dir,
+        artifact_entered=first_entered,
+        artifact_release=release_first,
+        status_committed=first_status_committed,
+    )
+    second_router = _FaultInjectableCoordRouter(
+        write_dir=feature_dir,
+        artifact_entered=second_entered,
+        artifact_wait_after_commit=first_status_committed,
+    )
+
+    real_queue = _tvp.acquire_verdict_save_queue
+
+    @contextmanager
+    def _observed_queue(
+        repository: Path, *, timeout_seconds: float = 10.0
+    ) -> Iterator[Path]:
+        if threading.current_thread().name == "queued-rejection-second":
+            second_queue_attempted.set()
+        with real_queue(repository, timeout_seconds=timeout_seconds) as lock_path:
+            yield lock_path
+
+    monkeypatch.setattr(_tvp, "acquire_verdict_save_queue", _observed_queue)
+    if drop_serialized_result:
+        real_hop_result = _tmt._mt_hop_review_result
+
+        def _drop_second_hop_result(
+            st: _tmt._MoveTaskState,
+            event: StatusEvent | None,
+            current_event_lane: str,
+            target: str,
+            hop_actor: str,
+        ) -> ReviewResult | None:
+            result = real_hop_result(st, event, current_event_lane, target, hop_actor)
+            if event is None and current_event_lane == Lane.PLANNED and target == Lane.PLANNED:
+                return None
+            return result
+
+        monkeypatch.setattr(_tmt, "_mt_hop_review_result", _drop_second_hop_result)
+
+    def _worker(args: _MoveTaskArgs, ports: TasksPorts) -> None:
+        # timing-only: correctness lives on the sibling per-PR test
+        with suppress(BaseException):
+            _do_move_task(args, ports=ports)
+
+    started = time.monotonic()
+    with setup_mocked_env(
+        repo,
+        mission_slug=_MISSION,
+        target_branch="main",
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        first = threading.Thread(
+            name="queued-rejection-first",
+            target=_worker,
+            args=(
+                _rejection_args(first_feedback, "reviewer-first"),
+                _fake_ports(feature_dir, first_router),
+            ),
+        )
+        second = threading.Thread(
+            name="queued-rejection-second",
+            target=_worker,
+            args=(
+                _rejection_args(second_feedback, "reviewer-second"),
+                _fake_ports(feature_dir, second_router),
+            ),
+        )
+        first.start()
+        first_entered.wait(5)
+        second.start()
+        second_queue_attempted.wait(5)
+        release_first.set()
+        first.join(10)
+        second.join(10)
+
+    elapsed = time.monotonic() - started
+    assert_timing_budget(elapsed, 10.0, name="two queued rejections")
 
 
 def test_failed_transition_emit_is_reverted_leaving_no_committed_verdict(
@@ -1559,13 +1669,13 @@ def test_evidence_git_runs_without_allocation_lock_and_inside_checkout_queue(
     ) -> subprocess.CompletedProcess[bytes]:
         invocation: str | None = None
         if (
-            len(command) == 5
+            len(command) == 5  # golden-count: cardinality-is-contract
             and command[:4] == ["git", "add", "--force", "--"]
             and command[4].endswith("review-cycle-2.md")
         ):
             invocation = "stage"
         elif (
-            len(command) == 3
+            len(command) == 3  # golden-count: cardinality-is-contract
             and command[:2] == ["git", "show"]
             and command[2].endswith("review-cycle-2.md")
         ):

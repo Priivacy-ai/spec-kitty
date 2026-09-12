@@ -11,9 +11,12 @@ entry_condition: >
 exit_condition: >
   The legacy guidance has been decomposed into doctrine artifacts, curated
   into the active catalog, activated through mission defaults or agent
-  profiles, and verified through compiled charter output. All
-  generated/curated artefacts are internally consistent and retrievable
-  through the doctrine-layer repository classes.
+  profiles, and verified through compiled charter output. Every term the
+  source defines or uses with a specific meaning is in the project glossary
+  at the right scope, or intentionally excluded with a stated reason. All
+  generated/curated artefacts are internally consistent, use the glossary
+  surfaces verbatim, and are retrievable through the doctrine-layer
+  repository classes.
 steps:
   - title: Inventory the source guidance
     description: >
@@ -30,6 +33,24 @@ steps:
       directive+tactic pairing when a policy also requires a repeatable
       execution method and not just a static rule.
     actor: agent
+  - title: Capture the source vocabulary in the glossary
+    description: >
+      Before drafting, extract every term the source defines or uses with a
+      specific meaning — severity levels, role names, system and environment
+      names, canonical verbs, named gates — and record each in the project
+      glossary seed for the narrowest scope that owns it: team_domain for the
+      team's own conventions, audience_domain for industry or regulatory terms
+      the source takes as given. Run the glossary-maintenance-workflow
+      procedure for the triage: accept, reject with reason, or defer with an
+      owner. A term that already exists in a broader scope with a different
+      sense is recorded in the narrower scope and the conflict surfaced, never
+      overwritten. The accepted surfaces are the vocabulary the drafted
+      artifacts must use verbatim.
+    actor: agent
+    on_failure: >
+      If the source is inconsistent with itself about a term, do not pick a
+      sense silently; record both as candidates and escalate to the guidance
+      owner before drafting artifacts that depend on it.
   - title: Draft doctrine artifacts in proposed state
     description: >
       Create candidate doctrine YAML artifacts for every classified item,
@@ -60,7 +81,8 @@ steps:
     description: >
       Generate a charter bundle from the migrated artifacts, compare the
       resulting obligations and referenced guidance against the legacy source,
-      and record any remaining behavior gaps.
+      confirm every defined term resolves in the glossary, and record any
+      remaining behavior or vocabulary gaps.
     actor: agent
   - title: Close remaining gaps
     description: >
@@ -69,6 +91,12 @@ steps:
       intentionally retired with rationale.
     actor: human
 references:
+  - type: procedure
+    id: glossary-maintenance-workflow
+    reason: >
+      The vocabulary-capture step is an instance of the glossary maintenance
+      workflow applied at migration time, so the source's terms are triaged
+      into the glossary before artifacts that depend on them are drafted.
   - type: directive
     id: DIRECTIVE_003
   - type: directive

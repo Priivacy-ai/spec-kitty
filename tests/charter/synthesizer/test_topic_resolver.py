@@ -436,8 +436,8 @@ class TestUnresolved:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.performance
 class TestPerformanceSc008:
+    @pytest.mark.performance
     def test_unresolved_under_2_seconds(
         self, all_artifacts, merged_drg, interview_sections
     ) -> None:
@@ -448,6 +448,7 @@ class TestPerformanceSc008:
         elapsed = time.monotonic() - start
         assert elapsed < 2.0, f"SC-008 violated: took {elapsed:.3f}s (limit: 2.0s)"
 
+    @pytest.mark.performance
     def test_resolved_tier1_fast(
         self, all_artifacts, merged_drg, interview_sections
     ) -> None:

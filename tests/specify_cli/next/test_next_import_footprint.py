@@ -65,10 +65,7 @@ def _run_importtime_next_help() -> str:
         env=env,
         timeout=30,
     )
-    assert result.returncode == 0, (
-        f"`next --help` failed unexpectedly.\nstdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"`next --help` failed unexpectedly.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     return result.stderr
 
 
@@ -134,11 +131,5 @@ def test_next_fast_path_registers_only_next_command() -> None:
         env=env,
         timeout=30,
     )
-    assert result.returncode == 0, (
-        f"registering commands on the next fast path failed.\n"
-        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-    )
-    assert "HEAVY=[]" in result.stderr, (
-        "register_commands imported sibling command modules "
-        f"(merge/init/upgrade) on the `next` fast path: {result.stderr}"
-    )
+    assert result.returncode == 0, f"registering commands on the next fast path failed.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    assert "HEAVY=[]" in result.stderr, f"register_commands imported sibling command modules (merge/init/upgrade) on the `next` fast path: {result.stderr}"

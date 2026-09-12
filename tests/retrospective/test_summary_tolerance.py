@@ -27,6 +27,7 @@ from specify_cli.retrospective.summary import (
     SummarySnapshot,
     build_summary,
 )
+from tests._perf_helpers import assert_timing_budget
 
 # ---------------------------------------------------------------------------
 # ULID helpers and shared YAML templates
@@ -694,9 +695,16 @@ def large_corpus(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path
 
 
+def test_build_summary_for_200_missions(large_corpus: Path) -> None:
+    """Functional half of the #4015 split: 200-mission corpus summarizes correctly."""
+    snapshot = build_summary(project_path=large_corpus)
+    assert snapshot.mission_count == 200
+    assert snapshot.completed_count == 200
+
+
 @pytest.mark.performance
 def test_200_missions_under_5s(large_corpus: Path) -> None:
-    """200-mission corpus completes within the NFR-003 wall-clock budget.
+    """200-mission corpus completes within the NFR-003 wall-clock budget (#4015 split).
 
     Budget re-pinned 2026-08-15 (landing of #3456): 5 s -> 10 s. This is a
     wall-clock assertion that runs in a PARALLEL xdist shard
@@ -712,8 +720,6 @@ def test_200_missions_under_5s(large_corpus: Path) -> None:
     the dedicated serial ``timing-nfr-serial`` gate, not a contended fast shard.
     """
     start = time.monotonic()
-    snapshot = build_summary(project_path=large_corpus)
+    build_summary(project_path=large_corpus)
     elapsed = time.monotonic() - start
-    assert elapsed < 10.0, f"200-mission summary took {elapsed:.2f}s (budget: 10s)"
-    assert snapshot.mission_count == 200
-    assert snapshot.completed_count == 200
+    assert_timing_budget(elapsed, 10.0, name="elapsed")

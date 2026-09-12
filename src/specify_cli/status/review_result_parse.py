@@ -34,26 +34,10 @@ def parse_review_result_json(raw: str) -> ReviewResult:
     reviewer = parsed.get("reviewer")
     verdict = parsed.get("verdict")
     reference = parsed.get("reference")
-    # Unrolled (rather than a generator over a tuple) so mypy --strict can narrow
-    # each of reviewer/verdict/reference from `Any | None` to `str` on the
-    # fall-through path below -- narrowing does not propagate through
-    # `all(isinstance(v, str) for v in (...))` since the loop variable's type is
-    # widened across the tuple.
-    if (
-        not isinstance(reviewer, str)
-        or not reviewer.strip()
-        or not isinstance(verdict, str)
-        or not verdict.strip()
-        or not isinstance(reference, str)
-        or not reference.strip()
-    ):
-        raise ValueError(
-            "--review-result-json requires non-empty reviewer, verdict, and reference strings"
-        )
+    if not all(isinstance(value, str) and value.strip() for value in (reviewer, verdict, reference)):
+        raise ValueError("--review-result-json requires non-empty reviewer, verdict, and reference strings")
     if verdict not in event_verdicts():
-        raise ValueError(
-            "--review-result-json verdict must be 'approved' or 'changes_requested'"
-        )
+        raise ValueError("--review-result-json verdict must be 'approved' or 'changes_requested'")
     feedback_path = parsed.get("feedback_path")
     if feedback_path is not None and not isinstance(feedback_path, str):
         raise ValueError("--review-result-json feedback_path must be a string")

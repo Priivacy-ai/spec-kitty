@@ -1,0 +1,37 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-SEQ-001
+    status: resolved
+    reason: >-
+      Reproduction #3 (WP1a) now calls only the live 2-arg
+      _should_advance_wp_step(step_id, feature_dir) against a non-coord
+      fixture with no repo_root/mission_slug kwargs; reproductions #2 and #4
+      (which need the extended signature) genuinely moved into WP2's own
+      commit sequence, and the dependencies:[WP1a, WP1b] edge plus the
+      "Write scopes / Lane coordination" note make the WP1a/WP1b/WP2/WP3
+      ordering and file-touch boundaries consistent everywhere in the
+      document.
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      Reproduction #2 now has Calls (c) and (d) driving a corrupt/missing
+      meta.json failure-injection fixture through both new catch sites (a
+      non-empty failure list from _check_composed_action_guard's own
+      _should_advance_wp_step call at composition.py:557, and a
+      DecisionKind.blocked Decision from a direct _dn_dependency_gate call
+      on the WP-iteration branch's _should_advance_wp_step call at
+      runtime_bridge.py:~1680 -- both verified live and matching the plan's
+      line citations), and the "3+2=5 catch sites" count / coverage
+      arithmetic section (five groups, all 5 arms attributed to reproduction
+      #2) is now consistent throughout the document.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      resolve_primary_anchor_dir is defined exactly once, in Seam 1's Design
+      decision section, with gather_artifact_presence's actual
+      post-extraction one-line-call body shown immediately after as the only
+      body ever shown for that function; the Seam 2 extension section
+      explicitly states it does not re-derive the helper and shows only
+      _should_advance_wp_step's call site to the same helper.

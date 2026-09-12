@@ -53,9 +53,12 @@ MISSION_ROOT_FIELDS: tuple[str, ...] = (
     "task_types",
 )
 
-# Hybrid mission configs produced by older generators may include v1 state-machine
-# keys alongside v0 mission schema keys. Ignore these compatibility keys so
-# mission discovery does not skip otherwise valid missions.
+# These keys belonged to the retired mission-DSL v1 state machine (mission
+# dead-port-disposition-01M1TZVN removed its interpreter and deleted the
+# ``states:``/``transitions:`` blocks from the built-in packs). Tolerance is
+# retained on purpose: third-party packs and project ``.kittify/overrides``
+# ``mission.yaml`` files may still carry the keys, and mission discovery must
+# not skip an otherwise valid mission over inert DSL residue.
 MISSION_COMPAT_IGNORED_FIELDS: tuple[str, ...] = (
     "mission",
     "initial",
@@ -547,7 +550,7 @@ def _canonical_meta_mission_type(meta: dict[str, Any]) -> str | None:
     """Return the canonical mission-type key recorded in ``meta``, or ``None``.
 
     Thin delegate to the one shared runtime reader
-    :func:`charter.activation.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
+    :func:`charter.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
     **only** the canonical ``mission_type`` field — the legacy ``mission`` field
     is no longer consulted (FR-002, legacy-resolution retirement). A typeless /
     absent / blank / non-string value yields ``None``, never a substituted

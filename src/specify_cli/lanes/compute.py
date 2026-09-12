@@ -89,9 +89,8 @@ class LaneDependencyCycleError(LaneComputationError):
     ) -> None:
         self.cycle_path = cycle_path
         self.cycle_lanes = cycle_lanes
-        super().__init__(
-            "Execution-lane dependency cycle detected: " + " -> ".join(cycle_path)
-        )
+        super().__init__("Execution-lane dependency cycle detected: " + " -> ".join(cycle_path))
+
 
 # Surface taxonomy for conflict detection.
 # If two WPs predict the same surface, they are presumed to overlap.
@@ -122,6 +121,7 @@ _SURFACE_KEYWORDS: dict[str, tuple[str, ...]] = {
 # ---------------------------------------------------------------------------
 # Union-Find
 # ---------------------------------------------------------------------------
+
 
 class _UnionFind:
     """Disjoint-set data structure with union-by-rank and path compression."""
@@ -158,6 +158,7 @@ class _UnionFind:
 # ---------------------------------------------------------------------------
 # Surface inference
 # ---------------------------------------------------------------------------
+
 
 def infer_surfaces(wp_body: str) -> list[str]:
     """Infer surface tags from WP body text using keyword matching.
@@ -274,6 +275,7 @@ def _count_independent_collapses(
 # Overlap pair detection
 # ---------------------------------------------------------------------------
 
+
 def find_overlap_pairs(
     manifests: dict[str, OwnershipManifest],
 ) -> list[tuple[str, str]]:
@@ -316,9 +318,7 @@ def _find_lane_dependency_cycle(
 
         active_path: list[str] = [root]
         active_index: dict[str, int] = {root: 0}
-        traversal: list[tuple[str, tuple[str, ...], int]] = [
-            (root, tuple(sorted(lane_deps.get(root, set()))), 0)
-        ]
+        traversal: list[tuple[str, tuple[str, ...], int]] = [(root, tuple(sorted(lane_deps.get(root, set()))), 0)]
         state[root] = 1
 
         while traversal:
@@ -349,9 +349,7 @@ def _find_lane_dependency_cycle(
                 cycle = active_path[active_index[dependency] :] + [dependency]
                 unique_cycle = cycle[:-1]
                 smallest_index = unique_cycle.index(min(unique_cycle))
-                normalized = (
-                    unique_cycle[smallest_index:] + unique_cycle[:smallest_index]
-                )
+                normalized = unique_cycle[smallest_index:] + unique_cycle[:smallest_index]
                 return tuple(normalized + [normalized[0]])
 
     return None
@@ -360,6 +358,7 @@ def _find_lane_dependency_cycle(
 # ---------------------------------------------------------------------------
 # Main computation
 # ---------------------------------------------------------------------------
+
 
 def compute_lanes(
     dependency_graph: dict[str, list[str]],
@@ -447,22 +446,20 @@ def compute_lanes(
     collapse_events: list[CollapseEvent] = []
 
     # Rule 1: Overlapping write scopes → same lane.
-    code_manifests = {
-        wp: ownership_manifests[wp]
-        for wp in code_wp_ids
-        if wp in ownership_manifests
-    }
+    code_manifests = {wp: ownership_manifests[wp] for wp in code_wp_ids if wp in ownership_manifests}
     for wp_a, wp_b in find_overlap_pairs(code_manifests):
         if uf.find(wp_a) != uf.find(wp_b):
             overlap = _describe_overlap(code_manifests[wp_a], code_manifests[wp_b])
             dep_evidence = _dependency_relationship_evidence(wp_a, wp_b, dependency_graph)
             evidence = f"{overlap}; {dep_evidence}" if dep_evidence else overlap
-            collapse_events.append(CollapseEvent(
-                wp_a=wp_a,
-                wp_b=wp_b,
-                rule="write_scope_overlap",
-                evidence=evidence,
-            ))
+            collapse_events.append(
+                CollapseEvent(
+                    wp_a=wp_a,
+                    wp_b=wp_b,
+                    rule="write_scope_overlap",
+                    evidence=evidence,
+                )
+            )
         uf.union(wp_a, wp_b)
 
     # Rule 2: Shared predicted surfaces → same lane.
@@ -487,12 +484,14 @@ def compute_lanes(
                     continue  # Disjoint ownership — surface match is not enough
                 shared = sorted(surfaces_a & surfaces_b)
                 if uf.find(wp_a) != uf.find(wp_b):
-                    collapse_events.append(CollapseEvent(
-                        wp_a=wp_a,
-                        wp_b=wp_b,
-                        rule="surface_heuristic",
-                        evidence=f"shared surfaces {shared} with non-disjoint ownership",
-                    ))
+                    collapse_events.append(
+                        CollapseEvent(
+                            wp_a=wp_a,
+                            wp_b=wp_b,
+                            rule="surface_heuristic",
+                            evidence=f"shared surfaces {shared} with non-disjoint ownership",
+                        )
+                    )
                 uf.union(wp_a, wp_b)
 
     # Build lane groups from union-find.
@@ -521,10 +520,7 @@ def compute_lanes(
     # Build a sub-graph for each group to topologically sort within it.
     for group_wps in sorted_groups:
         group_set = set(group_wps)
-        sub_graph = {
-            wp: [d for d in dependency_graph.get(wp, []) if d in group_set]
-            for wp in group_wps
-        }
+        sub_graph = {wp: [d for d in dependency_graph.get(wp, []) if d in group_set] for wp in group_wps}
         ordered_wps = topological_sort(sub_graph)
 
         # Collect write scopes and surfaces for the lane.
@@ -593,10 +589,7 @@ def compute_lanes(
         lane_members: dict[str, list[str]] = {lane_id: [] for lane_id in lane_deps}
         for wp_id, lane_id in wp_to_lane.items():
             lane_members[lane_id].append(wp_id)
-        cycle_lanes = tuple(
-            CycleLane(lane_id=lane_id, wp_ids=tuple(sorted(lane_members[lane_id])))
-            for lane_id in cycle_path[:-1]
-        )
+        cycle_lanes = tuple(CycleLane(lane_id=lane_id, wp_ids=tuple(sorted(lane_members[lane_id]))) for lane_id in cycle_path[:-1])
         raise LaneDependencyCycleError(cycle_path, cycle_lanes)
 
     # Assign parallel groups via topological sort of lane DAG.

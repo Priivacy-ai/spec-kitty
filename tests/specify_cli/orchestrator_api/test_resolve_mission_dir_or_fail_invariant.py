@@ -29,13 +29,7 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-_COMMANDS_PY = (
-    pathlib.Path(__file__).resolve().parents[3]
-    / "src"
-    / "specify_cli"
-    / "orchestrator_api"
-    / "commands.py"
-)
+_COMMANDS_PY = pathlib.Path(__file__).resolve().parents[3] / "src" / "specify_cli" / "orchestrator_api" / "commands.py"
 
 # ``specify`` mints a brand-new mission directory; it has nothing existing to
 # resolve through ``_resolve_mission_dir_or_fail`` and is the one documented,
@@ -57,21 +51,12 @@ def _accepts_mission_param(node: ast.FunctionDef) -> bool:
 
 
 def _calls_seam(node: ast.FunctionDef) -> bool:
-    return any(
-        isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name) and sub.func.id == "_resolve_mission_dir_or_fail"
-        for sub in ast.walk(node)
-    )
+    return any(isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name) and sub.func.id == "_resolve_mission_dir_or_fail" for sub in ast.walk(node))
 
 
 def _mission_scoped_app_commands() -> list[ast.FunctionDef]:
     tree = ast.parse(_COMMANDS_PY.read_text())
-    return [
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef)
-        and _is_app_command(node)
-        and _accepts_mission_param(node)
-    ]
+    return [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and _is_app_command(node) and _accepts_mission_param(node)]
 
 
 def test_every_mission_scoped_endpoint_routes_through_the_seam() -> None:
@@ -79,16 +64,9 @@ def test_every_mission_scoped_endpoint_routes_through_the_seam() -> None:
     # Sanity: this must find a non-trivial number of endpoints, or the AST
     # walk itself is broken (e.g. the file moved) and the test is vacuously
     # passing on zero functions.
-    assert len(mission_scoped) >= 10, (
-        f"expected several mission-scoped @app.command endpoints, found "
-        f"{len(mission_scoped)} -- the discovery walk is likely broken"
-    )
+    assert len(mission_scoped) >= 10, f"expected several mission-scoped @app.command endpoints, found {len(mission_scoped)} -- the discovery walk is likely broken"
 
-    missing = [
-        node.name
-        for node in mission_scoped
-        if node.name not in _MISSION_CREATING_EXEMPT_COMMANDS and not _calls_seam(node)
-    ]
+    missing = [node.name for node in mission_scoped if node.name not in _MISSION_CREATING_EXEMPT_COMMANDS and not _calls_seam(node)]
     assert missing == [], (
         "these mission-scoped orchestrator-api endpoints accept a `mission` "
         "parameter but do not call `_resolve_mission_dir_or_fail` anywhere "
@@ -98,11 +76,7 @@ def test_every_mission_scoped_endpoint_routes_through_the_seam() -> None:
         "resolving an existing one)."
     )
 
-    exempt_but_present = [
-        name for name in _MISSION_CREATING_EXEMPT_COMMANDS if name not in {n.name for n in mission_scoped}
-    ]
+    exempt_but_present = [name for name in _MISSION_CREATING_EXEMPT_COMMANDS if name not in {n.name for n in mission_scoped}]
     assert exempt_but_present == [], (
-        f"exemption list names commands that no longer exist as "
-        f"mission-scoped @app.command endpoints: {exempt_but_present} -- "
-        "prune the stale exemption"
+        f"exemption list names commands that no longer exist as mission-scoped @app.command endpoints: {exempt_but_present} -- prune the stale exemption"
     )

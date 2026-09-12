@@ -43,14 +43,7 @@ from specify_cli.status import emit as _emit_module
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import TransitionRequest
 
-from specify_cli.core.saas_sync_config import sync_active
-pytestmark = [
-    pytest.mark.fast,
-    pytest.mark.skipif(
-        not sync_active(),
-        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
-    ),
-]
+pytestmark = pytest.mark.fast
 
 # Capture the real ``_saas_fan_out`` at import time, BEFORE pytest gets a
 # chance to apply the conftest's autouse no-op patch. The fixture below

@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "kitty-specs"
 GLOSSARY_SEED = ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
 GLOSSARY_TEMPLATE = ROOT / "src" / "specify_cli" / "dashboard" / "templates" / "glossary.html"
+GLOSSARY_STATIC_DIR = ROOT / "src" / "specify_cli" / "dashboard" / "static" / "dashboard"
+GLOSSARY_CSS = GLOSSARY_STATIC_DIR / "glossary.css"
+GLOSSARY_JS = GLOSSARY_STATIC_DIR / "glossary.js"
 DEST = ROOT / "docs" / "kitty-specs"
 
 LANES = ["planned", "doing", "for_review", "approved", "done"]
@@ -883,6 +886,13 @@ def assign_anchor_ids(terms: list[dict[str, str | float]]) -> list[dict[str, str
 def glossary_page(_mission_list: list[Mission]) -> str:
     terms = assign_anchor_ids(parse_glossary_seed(GLOSSARY_SEED))
     template = GLOSSARY_TEMPLATE.read_text(encoding="utf-8")
+    # The dashboard's own CSP (script-src/style-src 'self', src/specify_cli/dashboard/csp.py)
+    # forced the template's styling and behaviour out to same-origin glossary.css/glossary.js
+    # (#71). The static docs site has no dashboard server to serve those from, so this
+    # generator inlines both back into the page it writes, same as when they lived in the
+    # template directly.
+    css = GLOSSARY_CSS.read_text(encoding="utf-8")
+    script = GLOSSARY_JS.read_text(encoding="utf-8")
     static_loader = f"""
 async function loadTerms() {{
   TERMS = {json.dumps(terms, ensure_ascii=False)};
@@ -893,19 +903,17 @@ async function loadTerms() {{
   render();
 }}
 """
-    template = re.sub(
+    script = re.sub(
         r"async function loadTerms\(\) \{.*?\n\}\n\nfunction renderValidationBanner\(",
         lambda _match: static_loader + "\nfunction renderValidationBanner(",
-        template,
+        script,
         count=1,
         flags=re.DOTALL,
     )
-    template = template.replace('href="/" title="Dashboard Overview"', 'href="./" title="Mission Runs"')
-    template = template.replace('href="/glossary" title="Glossary"', 'href="glossary.html" title="Glossary"')
     # FR-012: give every rendered term card a stable id="term-{anchor_id}" (plus a
     # data-surface attribute for debugging/inspection) so glossary_linker.py and any
     # external page can deep-link straight to a term with #term-{anchor_id}.
-    template = template.replace(
+    script = script.replace(
         "      const card = document.createElement('article');\n"
         "      card.className = 'card';\n"
         "      card.dataset.status = t.status;\n",
@@ -914,6 +922,16 @@ async function loadTerms() {{
         "      card.id = 'term-' + t.anchor_id;\n"
         "      card.dataset.status = t.status;\n"
         "      card.dataset.surface = t.surface;\n",
+    )
+    template = template.replace('href="/" title="Dashboard Overview"', 'href="./" title="Mission Runs"')
+    template = template.replace('href="/glossary" title="Glossary"', 'href="glossary.html" title="Glossary"')
+    template = template.replace(
+        '<link rel="stylesheet" href="/static/dashboard/glossary.css">',
+        f"<style>\n{css}\n</style>",
+    )
+    template = template.replace(
+        '<script src="/static/dashboard/glossary.js"></script>',
+        f"<script>\n{script}\n</script>",
     )
     return template
 

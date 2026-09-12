@@ -1,4 +1,0 @@
-ERROR: INTERNALERROR while provisioning the sync fixture; job aborted before tests ran
-Traceback (most recent call last):
-  ...
-INTERNALERROR: connection refused

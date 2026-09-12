@@ -322,7 +322,7 @@ def test_load_default_pack_ids_matches_shipped_default_yaml() -> None:
 # charter.activation.default_pack.load_default_pack_activation_ids — shared-loader
 # coverage (squad finding #2530: org_charter.py's ``_load_default_pack_ids``
 # and this migration's ``load_default_pack_ids`` were near-identical
-# independent readers of the same ``src/charter/packs/default.yaml`` file;
+# independent readers of the same ``src/charter/activation/packs/default.yaml`` file;
 # both now delegate to this one canonical charter-layer helper).
 # ---------------------------------------------------------------------------
 
@@ -339,7 +339,7 @@ def test_load_default_pack_ids_is_a_pure_reexport_of_shared_helper() -> None:
 
 def test_load_default_pack_activation_ids_returns_real_per_kind_builtin_stems() -> None:
     """The shared helper returns the real per-kind built-in stem sets from
-    the shipped ``src/charter/packs/default.yaml`` — every one of the 8
+    the shipped ``src/charter/activation/packs/default.yaml`` — every one of the 8
     charter activation kinds ships a non-empty built-in set, and spot-checked
     ids are the config-stem form (not the canonical ``id:`` form)."""
     from charter.activation.default_pack import load_default_pack_activation_ids
@@ -394,3 +394,26 @@ def test_load_default_pack_activation_ids_filters_non_list_values(tmp_path: Path
     ids = load_default_pack_activation_ids(charter_pkg_root=tmp_path)
 
     assert ids == {"activated_directives": ["001-architectural-integrity-standard"]}
+
+
+def test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling(monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.kind_vocabulary import ArtifactKind, UnrepresentableDirectiveIdError
+    from specify_cli.upgrade.migrations import m_unify_charter_activation as migration
+
+    original = migration.resolve_selected_id_to_stem
+
+    def resolve_with_ambiguity(kind: ArtifactKind, raw_id: str, *, doctrine_root: Path) -> str | None:
+        if raw_id == "AMBIGUOUS-POLICY":
+            raise UnrepresentableDirectiveIdError("Ambiguous policy filename")
+        return original(kind, raw_id, doctrine_root=doctrine_root)
+
+    monkeypatch.setattr(migration, "resolve_selected_id_to_stem", resolve_with_ambiguity)
+    stems, unresolved = migration._answers_only_ids_for_kind(
+        ArtifactKind.DIRECTIVE,
+        answers_data={"selected_directives": ["AMBIGUOUS-POLICY", _DIRECTIVE_010_CANONICAL]},
+        config_data={"activated_directives": []},
+        doctrine_root=resolve_doctrine_root(),
+    )
+    assert stems == [_DIRECTIVE_010_STEM]
+    assert unresolved == ["AMBIGUOUS-POLICY"]

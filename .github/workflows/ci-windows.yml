@@ -5,10 +5,14 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   changes:
     name: Detect Windows-critical changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       windows_critical: ${{ steps.filter.outputs.windows_critical }}
@@ -39,8 +43,6 @@ jobs:
               - 'tests/review/test_baseline.py'
               - 'tests/runtime/test_home_unit.py'
               - 'tests/specify_cli/cli/commands/test_charter_generate_autotrack.py'
-              - 'tests/sync/test_daemon_windows_paths.py'
-              - 'tests/sync/test_issue_586_windows_import.py'
               - 'tests/tracker/test_credentials_windows_paths.py'
               # Full src tree (mission ci-suite-map-bind FR-007 / WS5 AC):
               # Windows-sensitive packages outside specify_cli/kernel (e.g.
@@ -51,7 +53,7 @@ jobs:
               - 'src/**'
 
   windows-critical:
-    name: Windows critical (pipx, pytest -m windows_ci)
+    name: Windows critical (skips when unaffected; pipx, pytest -m windows_ci)
     needs: [changes]
     # `|| github.event_name == 'push'` keeps the 30 `windows_ci` tests
     # collectable on a push to main: no Linux job selects them (every Linux gate
@@ -63,7 +65,7 @@ jobs:
       ${{ (needs.changes.outputs.windows_critical == 'true' || github.event_name == 'push')
       && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
       && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
-    runs-on: blacksmith-4vcpu-windows-2025
+    runs-on: windows-latest
     timeout-minutes: 20
     env:
       PYTHONUTF8: "1"
@@ -86,6 +88,9 @@ jobs:
 
       - name: Install spec-kitty-cli (editable) + test deps
         shell: bash
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: |
           pipx install --editable . --force
           pipx inject spec-kitty-cli pytest pytest-cov pytest-asyncio pytest-timeout respx pytestarch

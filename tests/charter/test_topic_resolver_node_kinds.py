@@ -44,9 +44,7 @@ def _drg_with(urn: str) -> dict[str, list[dict[str, str]]]:
     return {"nodes": [{"urn": urn}]}
 
 
-def _make_extended_nodekind(
-    base: type[enum.StrEnum], synthetic_value: str
-) -> type[enum.StrEnum]:
+def _make_extended_nodekind(base: type[enum.StrEnum], synthetic_value: str) -> type[enum.StrEnum]:
     """Return a StrEnum mirroring ``base`` plus one synthetic member."""
     members = {member.name: member.value for member in base}
     members["SYNTHETIC_KIND"] = synthetic_value
@@ -69,10 +67,7 @@ def test_synthetic_nodekind_member_is_recognized_at_gate() -> None:
         result = topic_resolver._resolve_drg_urn(urn, _drg_with(urn), [])
         # not None => the kind passed the membership gate; None would mean the
         # gate rejected it (the revert-to-literal regression).
-        assert result is not None, (
-            "resolver rejected a freshly-declared NodeKind member; "
-            "_DRG_NODE_KINDS is not derived from NodeKind"
-        )
+        assert result is not None, "resolver rejected a freshly-declared NodeKind member; _DRG_NODE_KINDS is not derived from NodeKind"
         assert "synthetic_kind" in topic_resolver._DRG_NODE_KINDS
     finally:
         models_mod.NodeKind = real

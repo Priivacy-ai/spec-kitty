@@ -15,6 +15,24 @@ from specify_cli.session_presence.manager import InstallResult, SessionPresenceM
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
+def test_wp07_real_dry_run_does_not_start_background_work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.core.agent_config import AgentConfig
+    from specify_cli.session_presence.upgrade_check import UpgradeChecker
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    (tmp_path / ".claude").mkdir()
+    manager = SessionPresenceManager(tmp_path, AgentConfig(available=["claude"]))
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Preview started background upgrade work")
+
+    monkeypatch.setattr(UpgradeChecker, "check_in_background", forbidden)
+    before = snapshot({"project": tmp_path})
+    result = manager.update(dry_run=True)
+    assert result.changes and not result.warnings
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
 def _make_agent_config(available: list[str] | None = None) -> MagicMock:
     config = MagicMock()
     config.available = available or ["claude"]
@@ -44,9 +62,7 @@ class TestInstall:
                 "specify_cli.session_presence.manager.get_writer",
                 return_value=mock_writer,
             ),
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -73,9 +89,7 @@ class TestInstall:
                 "specify_cli.session_presence.manager.get_writer",
                 return_value=mock_writer,
             ),
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -102,9 +116,7 @@ class TestInstall:
                 "specify_cli.session_presence.manager.get_writer",
                 return_value=mock_writer,
             ),
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -131,9 +143,7 @@ class TestInstall:
                 "specify_cli.session_presence.manager.get_writer",
                 return_value=mock_writer,
             ),
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -161,9 +171,7 @@ class TestInstall:
                 "specify_cli.session_presence.manager.get_writer",
                 return_value=mock_writer,
             ),
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -191,9 +199,7 @@ class TestUpdate:
                 "specify_cli.session_presence.manager.get_writer",
                 return_value=mock_writer,
             ),
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -218,9 +224,7 @@ class TestUpdate:
                 "specify_cli.session_presence.manager.get_writer",
                 return_value=mock_writer,
             ),
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -238,9 +242,7 @@ class TestUpdate:
 
 
 class TestBuildContent:
-    def test_health_migration_required_when_compat_returns_block(
-        self, tmp_path: Path
-    ) -> None:
+    def test_health_migration_required_when_compat_returns_block(self, tmp_path: Path) -> None:
         from specify_cli.compat import Decision
 
         manager = _make_manager(tmp_path)
@@ -248,9 +250,7 @@ class TestBuildContent:
         mock_plan_result.decision = Decision.BLOCK_PROJECT_MIGRATION
 
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -265,15 +265,11 @@ class TestBuildContent:
 
         assert content.health == "migration-required"
 
-    def test_health_upgrade_available_when_newer_version(
-        self, tmp_path: Path
-    ) -> None:
+    def test_health_upgrade_available_when_newer_version(self, tmp_path: Path) -> None:
         manager = _make_manager(tmp_path)
 
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -289,9 +285,7 @@ class TestBuildContent:
         assert content.health == "upgrade-available"
         assert content.available_version == "3.3.0"
 
-    def test_health_healthy_when_no_upgrade_no_migration(
-        self, tmp_path: Path
-    ) -> None:
+    def test_health_healthy_when_no_upgrade_no_migration(self, tmp_path: Path) -> None:
         from specify_cli.compat import Decision
 
         manager = _make_manager(tmp_path)
@@ -299,9 +293,7 @@ class TestBuildContent:
         mock_plan_result.decision = Decision.ALLOW  # not BLOCK_PROJECT_MIGRATION
 
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.0",
@@ -316,9 +308,7 @@ class TestBuildContent:
 
         assert content.health == "healthy"
 
-    def test_health_healthy_when_cached_latest_is_older_than_installed(
-        self, tmp_path: Path
-    ) -> None:
+    def test_health_healthy_when_cached_latest_is_older_than_installed(self, tmp_path: Path) -> None:
         """#2413 regression: a stale PyPI cache (or an rc/dev install newer than
         the published latest) must not report an 'upgrade' to an older version."""
         from specify_cli.compat import Decision
@@ -328,9 +318,7 @@ class TestBuildContent:
         mock_plan_result.decision = Decision.ALLOW
 
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.4",
@@ -345,16 +333,12 @@ class TestBuildContent:
 
         assert content.health == "healthy"
 
-    def test_health_healthy_when_older_latest_and_compat_raises(
-        self, tmp_path: Path
-    ) -> None:
+    def test_health_healthy_when_older_latest_and_compat_raises(self, tmp_path: Path) -> None:
         """#2413: the exception-fallback branch must use the same ordering."""
         manager = _make_manager(tmp_path)
 
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch(
                 "importlib.metadata.version",
                 return_value="3.2.4",

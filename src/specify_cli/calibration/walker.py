@@ -46,34 +46,15 @@ from specify_cli.calibration.inequality import InequalityResult, assert_inequali
 # ---------------------------------------------------------------------------
 
 ACTION_RESEARCH_GATHERING = "action:research/gathering"
-ACTION_SOFTWARE_DEV_IMPLEMENT = "action:software-dev/implement"
-ACTION_SOFTWARE_DEV_SPECIFY = "action:software-dev/specify"
-ACTION_SOFTWARE_DEV_RETROSPECT = "action:software-dev/retrospect"
 DIRECTIVE_003 = "directive:DIRECTIVE_003"
 DIRECTIVE_010 = "directive:DIRECTIVE_010"
-DIRECTIVE_024 = "directive:DIRECTIVE_024"
-DIRECTIVE_025 = "directive:DIRECTIVE_025"
-DIRECTIVE_028 = "directive:DIRECTIVE_028"
-DIRECTIVE_029 = "directive:DIRECTIVE_029"
-DIRECTIVE_030 = "directive:DIRECTIVE_030"
-DIRECTIVE_034 = "directive:DIRECTIVE_034"
 DIRECTIVE_037 = "directive:DIRECTIVE_037"
-TACTIC_ACCEPTANCE_TEST_FIRST = "tactic:acceptance-test-first"
 TACTIC_ADR_DRAFTING_WORKFLOW = "tactic:adr-drafting-workflow"
-TACTIC_AUTONOMOUS_OPERATION_PROTOCOL = "tactic:autonomous-operation-protocol"
-TACTIC_CHANGE_APPLY_SMALLEST_VIABLE_DIFF = "tactic:change-apply-smallest-viable-diff"
 TACTIC_PREMORTEM_RISK_IDENTIFICATION = "tactic:premortem-risk-identification"
-TACTIC_PROBLEM_DECOMPOSITION = "tactic:problem-decomposition"
-TACTIC_QUALITY_GATE_VERIFICATION = "tactic:quality-gate-verification"
 TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW = "tactic:requirements-validation-workflow"
-TACTIC_STOPPING_CONDITIONS = "tactic:stopping-conditions"
-TACTIC_TDD_RED_GREEN_REFACTOR = "tactic:tdd-red-green-refactor"
-TOOLGUIDE_EFFICIENT_LOCAL_TOOLING = "toolguide:efficient-local-tooling"
 AGENT_PROFILE_PLANNER_PRITI = "agent_profile:planner-priti"
 AGENT_PROFILE_IMPLEMENTER_IVAN = "agent_profile:implementer-ivan"
 AGENT_PROFILE_RETROSPECTIVE_FACILITATOR = "agent_profile:retrospective-facilitator"
-AGENT_PROFILE_RESEARCHER_ROBBIE = "agent_profile:researcher-robbie"
-AGENT_PROFILE_CURATOR_CARLA = "agent_profile:curator-carla"
 
 
 @dataclass(frozen=True)
@@ -129,7 +110,7 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
     # ------------------------------------------------------------------
     # software-dev
     # ------------------------------------------------------------------
-    ("software-dev", ACTION_SOFTWARE_DEV_SPECIFY): frozenset({
+    ("software-dev", "action:software-dev/specify"): frozenset({
         DIRECTIVE_003,
         DIRECTIVE_010,
         TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
@@ -139,49 +120,49 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
         DIRECTIVE_010,
         TACTIC_ADR_DRAFTING_WORKFLOW,
         TACTIC_PREMORTEM_RISK_IDENTIFICATION,
-        TACTIC_PROBLEM_DECOMPOSITION,
+        "tactic:problem-decomposition",
         TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("software-dev", "action:software-dev/tasks"): frozenset({
         DIRECTIVE_003,
         DIRECTIVE_010,
-        DIRECTIVE_024,
+        "directive:DIRECTIVE_024",
         TACTIC_ADR_DRAFTING_WORKFLOW,
-        TACTIC_PROBLEM_DECOMPOSITION,
+        "tactic:problem-decomposition",
         TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
-    ("software-dev", ACTION_SOFTWARE_DEV_IMPLEMENT): frozenset({
-        DIRECTIVE_024,
-        DIRECTIVE_025,
-        DIRECTIVE_028,
-        DIRECTIVE_029,
-        DIRECTIVE_030,
-        DIRECTIVE_034,
-        TACTIC_ACCEPTANCE_TEST_FIRST,
-        TACTIC_AUTONOMOUS_OPERATION_PROTOCOL,
-        TACTIC_CHANGE_APPLY_SMALLEST_VIABLE_DIFF,
-        TACTIC_QUALITY_GATE_VERIFICATION,
-        TACTIC_STOPPING_CONDITIONS,
-        TACTIC_TDD_RED_GREEN_REFACTOR,
-        TOOLGUIDE_EFFICIENT_LOCAL_TOOLING,
+    ("software-dev", "action:software-dev/implement"): frozenset({
+        "directive:DIRECTIVE_024",
+        "directive:DIRECTIVE_025",
+        "directive:DIRECTIVE_028",
+        "directive:DIRECTIVE_029",
+        "directive:DIRECTIVE_030",
+        "directive:DIRECTIVE_034",
+        "tactic:acceptance-test-first",
+        "tactic:autonomous-operation-protocol",
+        "tactic:change-apply-smallest-viable-diff",
+        "tactic:quality-gate-verification",
+        "tactic:stopping-conditions",
+        "tactic:tdd-red-green-refactor",
+        "toolguide:efficient-local-tooling",
     }),
     ("software-dev", "action:software-dev/review"): frozenset({
-        DIRECTIVE_003,
-        DIRECTIVE_010,
-        DIRECTIVE_024,
-        DIRECTIVE_025,
-        DIRECTIVE_028,
-        DIRECTIVE_029,
-        DIRECTIVE_030,
-        DIRECTIVE_034,
-        DIRECTIVE_037,
-        TACTIC_ACCEPTANCE_TEST_FIRST,
+        "directive:DIRECTIVE_003",
+        "directive:DIRECTIVE_010",
+        "directive:DIRECTIVE_024",
+        "directive:DIRECTIVE_025",
+        "directive:DIRECTIVE_028",
+        "directive:DIRECTIVE_029",
+        "directive:DIRECTIVE_030",
+        "directive:DIRECTIVE_034",
+        "directive:DIRECTIVE_037",
+        "tactic:acceptance-test-first",
         "tactic:usage-examples-sync",
-        TACTIC_QUALITY_GATE_VERIFICATION,
+        "tactic:quality-gate-verification",
         "tactic:review-intent-and-risk-first",
-        TACTIC_STOPPING_CONDITIONS,
+        "tactic:stopping-conditions",
     }),
-    ("software-dev", ACTION_SOFTWARE_DEV_RETROSPECT): frozenset({
+    ("software-dev", "action:software-dev/retrospect"): frozenset({
         DIRECTIVE_003,
         DIRECTIVE_010,
     }),
@@ -276,27 +257,27 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
         DIRECTIVE_037,
         TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
-    ("erp-custom", ACTION_SOFTWARE_DEV_IMPLEMENT): frozenset({
-        DIRECTIVE_024,
-        DIRECTIVE_025,
-        DIRECTIVE_028,
-        DIRECTIVE_029,
-        DIRECTIVE_030,
-        DIRECTIVE_034,
-        TACTIC_ACCEPTANCE_TEST_FIRST,
-        TACTIC_AUTONOMOUS_OPERATION_PROTOCOL,
-        TACTIC_CHANGE_APPLY_SMALLEST_VIABLE_DIFF,
-        TACTIC_QUALITY_GATE_VERIFICATION,
-        TACTIC_STOPPING_CONDITIONS,
-        TACTIC_TDD_RED_GREEN_REFACTOR,
-        TOOLGUIDE_EFFICIENT_LOCAL_TOOLING,
+    ("erp-custom", "action:software-dev/implement"): frozenset({
+        "directive:DIRECTIVE_024",
+        "directive:DIRECTIVE_025",
+        "directive:DIRECTIVE_028",
+        "directive:DIRECTIVE_029",
+        "directive:DIRECTIVE_030",
+        "directive:DIRECTIVE_034",
+        "tactic:acceptance-test-first",
+        "tactic:autonomous-operation-protocol",
+        "tactic:change-apply-smallest-viable-diff",
+        "tactic:quality-gate-verification",
+        "tactic:stopping-conditions",
+        "tactic:tdd-red-green-refactor",
+        "toolguide:efficient-local-tooling",
     }),
-    ("erp-custom", ACTION_SOFTWARE_DEV_SPECIFY): frozenset({
+    ("erp-custom", "action:software-dev/specify"): frozenset({
         DIRECTIVE_003,
         DIRECTIVE_010,
         TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
-    ("erp-custom", ACTION_SOFTWARE_DEV_RETROSPECT): frozenset({
+    ("erp-custom", "action:software-dev/retrospect"): frozenset({
         DIRECTIVE_003,
         DIRECTIVE_010,
     }),
@@ -309,38 +290,38 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
 # Maps mission_key → list of (step_id, action_urn, profile_urn)
 _MISSION_STEPS: dict[str, list[tuple[str, str, str]]] = {
     "software-dev": [
-        ("specify",    ACTION_SOFTWARE_DEV_SPECIFY,      AGENT_PROFILE_PLANNER_PRITI),
+        ("specify",    "action:software-dev/specify",    AGENT_PROFILE_PLANNER_PRITI),
         ("plan",       "action:software-dev/plan",       AGENT_PROFILE_PLANNER_PRITI),
         ("tasks",      "action:software-dev/tasks",      AGENT_PROFILE_PLANNER_PRITI),
-        ("implement",  ACTION_SOFTWARE_DEV_IMPLEMENT,    AGENT_PROFILE_IMPLEMENTER_IVAN),
+        ("implement",  "action:software-dev/implement",  AGENT_PROFILE_IMPLEMENTER_IVAN),
         ("review",     "action:software-dev/review",     "agent_profile:reviewer-renata"),
-        ("retrospect", ACTION_SOFTWARE_DEV_RETROSPECT,   AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
+        ("retrospect", "action:software-dev/retrospect", AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
     "research": [
-        ("scoping",     "action:research/scoping",     AGENT_PROFILE_RESEARCHER_ROBBIE),
-        ("methodology", "action:research/methodology", AGENT_PROFILE_RESEARCHER_ROBBIE),
-        ("gathering",   ACTION_RESEARCH_GATHERING,     AGENT_PROFILE_RESEARCHER_ROBBIE),
-        ("synthesis",   "action:research/synthesis",   AGENT_PROFILE_RESEARCHER_ROBBIE),
-        ("output",      "action:research/output",      AGENT_PROFILE_RESEARCHER_ROBBIE),
+        ("scoping",     "action:research/scoping",     "agent_profile:researcher-robbie"),
+        ("methodology", "action:research/methodology", "agent_profile:researcher-robbie"),
+        ("gathering",   ACTION_RESEARCH_GATHERING,     "agent_profile:researcher-robbie"),
+        ("synthesis",   "action:research/synthesis",   "agent_profile:researcher-robbie"),
+        ("output",      "action:research/output",      "agent_profile:researcher-robbie"),
         ("retrospect",  "action:research/retrospect",  AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
     "documentation": [
-        ("audit",       "action:documentation/audit",    AGENT_PROFILE_CURATOR_CARLA),
-        ("design",      "action:documentation/design",   AGENT_PROFILE_CURATOR_CARLA),
-        ("discover",    "action:documentation/discover", AGENT_PROFILE_CURATOR_CARLA),
-        ("generate",    "action:documentation/generate", AGENT_PROFILE_CURATOR_CARLA),
-        ("publish",     "action:documentation/publish",  AGENT_PROFILE_CURATOR_CARLA),
-        ("validate",    "action:documentation/validate", AGENT_PROFILE_CURATOR_CARLA),
+        ("audit",       "action:documentation/audit",    "agent_profile:curator-carla"),
+        ("design",      "action:documentation/design",   "agent_profile:curator-carla"),
+        ("discover",    "action:documentation/discover", "agent_profile:curator-carla"),
+        ("generate",    "action:documentation/generate", "agent_profile:curator-carla"),
+        ("publish",     "action:documentation/publish",  "agent_profile:curator-carla"),
+        ("validate",    "action:documentation/validate", "agent_profile:curator-carla"),
         ("retrospect",  "action:documentation/retrospect", AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
     "erp-custom": [
-        ("query-erp",         ACTION_RESEARCH_GATHERING,         AGENT_PROFILE_RESEARCHER_ROBBIE),
-        ("lookup-provider",   ACTION_RESEARCH_GATHERING,         AGENT_PROFILE_RESEARCHER_ROBBIE),
-        ("ask-user",          ACTION_SOFTWARE_DEV_SPECIFY,       AGENT_PROFILE_IMPLEMENTER_IVAN),
-        ("create-js",         ACTION_SOFTWARE_DEV_IMPLEMENT,     AGENT_PROFILE_IMPLEMENTER_IVAN),
-        ("refactor-function", ACTION_SOFTWARE_DEV_IMPLEMENT,     AGENT_PROFILE_IMPLEMENTER_IVAN),
-        ("write-report",      ACTION_RESEARCH_GATHERING,         AGENT_PROFILE_RESEARCHER_ROBBIE),
-        ("retrospective",     ACTION_SOFTWARE_DEV_RETROSPECT,    AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
+        ("query-erp",         ACTION_RESEARCH_GATHERING,         "agent_profile:researcher-robbie"),
+        ("lookup-provider",   ACTION_RESEARCH_GATHERING,         "agent_profile:researcher-robbie"),
+        ("ask-user",          "action:software-dev/specify",     AGENT_PROFILE_IMPLEMENTER_IVAN),
+        ("create-js",         "action:software-dev/implement",   AGENT_PROFILE_IMPLEMENTER_IVAN),
+        ("refactor-function", "action:software-dev/implement",   AGENT_PROFILE_IMPLEMENTER_IVAN),
+        ("write-report",      ACTION_RESEARCH_GATHERING,         "agent_profile:researcher-robbie"),
+        ("retrospective",     "action:software-dev/retrospect",  AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
 }
 

@@ -13,7 +13,7 @@ structurally, with no repository-side changes required:
 :class:`charter.offering.base.BaseDoctrineRepository` (the shared base class for
 ``DirectiveRepository``, ``TacticRepository``, ``StyleguideRepository``, and
 friends) already implements ``get(item_id: str) -> T | None`` and
-``get_provenance(item_id: str) -> str | None`` (``src/doctrine/base.py``).
+``get_provenance(item_id: str) -> str | None`` (``src/charter/offering/base.py``).
 """
 
 from __future__ import annotations

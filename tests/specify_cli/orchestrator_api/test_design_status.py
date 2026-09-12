@@ -103,9 +103,7 @@ def _init_repo(tmp_path: Path) -> Path:
     """A real, non-protected-branch git repo with an activated mission type."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(
-        ["git", "init", "-b", "wp06-work"], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "init", "-b", "wp06-work"], cwd=repo, check=True, capture_output=True)
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test User")
     (repo / ".kittify").mkdir()
@@ -419,9 +417,7 @@ def test_design_status_clean_whole_line_truncation_fails_closed_not_silently_wro
     events_path = feature_dir / "status.events.jsonl"
     assert events_path.exists()
     assert (feature_dir / "status.json").exists(), (
-        "finalize-tasks's own bootstrap_canonical_state must have "
-        "materialized status.json for this drift check to have a "
-        "persisted record to compare against"
+        "finalize-tasks's own bootstrap_canonical_state must have materialized status.json for this drift check to have a persisted record to compare against"
     )
 
     # Precondition: BEFORE truncation, design-status correctly sees WP01

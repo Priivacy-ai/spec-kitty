@@ -84,9 +84,9 @@ MISSION_ID = "01M2945C000000000000002945"
 MISSION_SLUG = f"merge-canceled-wp-{MID8}"
 COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
 
-WP_SURVIVOR = "WP01"       # approved survivor in the mixed lane-a
+WP_SURVIVOR = "WP01"  # approved survivor in the mixed lane-a
 WP_CANCELED_MIXED = "WP02"  # canceled+provenance in lane-a (mixed lane)
-WP_CANCELED_LANE = "WP03"   # canceled+provenance sole WP in lane-b (fully canceled)
+WP_CANCELED_LANE = "WP03"  # canceled+provenance sole WP in lane-b (fully canceled)
 
 LANE_MIXED = "lane-a"
 LANE_ALL_CANCELED = "lane-b"
@@ -163,9 +163,7 @@ def _write_meta(feature_dir: Path) -> None:
         "purpose_tldr": "merge WP-granular canceled-WP exclusion (#2945)",
         "purpose_context": "a canceled WP must not break merge of surviving work",
     }
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _write_manifest(feature_dir: Path) -> LanesManifest:
@@ -205,12 +203,7 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
 
 def _write_wp_file(feature_dir: Path, wp_id: str) -> None:
     (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
-        "---\n"
-        f"work_package_id: {wp_id}\n"
-        f"title: {wp_id} work\n"
-        "agent: implementer-bot\n"
-        "---\n"
-        f"# {wp_id}\n",
+        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nagent: implementer-bot\n---\n# {wp_id}\n",
         encoding="utf-8",
     )
 
@@ -328,12 +321,8 @@ def _merge_external_mocks() -> Iterator[dict[str, MagicMock]]:
         "run_check": patch("specify_cli.merge.executor.run_check"),
         "sparse": patch("specify_cli.merge.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
-        "review_consistency": patch(
-            "specify_cli.merge.executor._enforce_review_artifact_consistency"
-        ),
-        "status_history": patch(
-            "specify_cli.merge.executor._enforce_canonical_status_history"
-        ),
+        "review_consistency": patch("specify_cli.merge.executor._enforce_review_artifact_consistency"),
+        "status_history": patch("specify_cli.merge.executor._enforce_canonical_status_history"),
         "hollow": patch("specify_cli.merge.executor._warn_or_confirm_hollow_reviews"),
         "bake": patch(
             "specify_cli.merge.executor._bake_mission_number_into_mission_branch",
@@ -343,21 +332,10 @@ def _merge_external_mocks() -> Iterator[dict[str, MagicMock]]:
             "specify_cli.merge.executor._record_baseline_merge_commit",
             return_value=None,
         ),
-        "baseline_assert": patch(
-            "specify_cli.merge.executor._assert_baseline_merge_commit_on_target"
-        ),
-        "done_on_target": patch(
-            "specify_cli.merge.executor._assert_merged_wps_done_on_target"
-        ),
+        "baseline_assert": patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+        "done_on_target": patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
         "safe_commit": patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        "dossier": patch(
-            "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"
-        ),
-        "mission_closed": patch("specify_cli.merge.executor.emit_mission_closed"),
-        "diff_summary": patch("specify_cli.merge.executor._emit_merge_diff_summary"),
-        "refresh_primary": patch(
-            "specify_cli.merge.executor._refresh_primary_checkout_after_merge"
-        ),
+        "refresh_primary": patch("specify_cli.merge.executor._refresh_primary_checkout_after_merge"),
         "porcelain": patch(
             "specify_cli.merge.executor._classify_porcelain_lines",
             return_value=([], 0),
@@ -412,9 +390,7 @@ def test_merge_excludes_canceled_wps_and_lands_survivor(tmp_path: Path) -> None:
     feature_dir = _bootstrap_coord_mission(repo)
 
     # --- Preconditions (fixture health, asserted BEFORE the act). ---
-    assert not _file_on_branch(repo, "main", SURVIVOR_CODE), (
-        "precondition: survivor code must NOT be on main before the merge"
-    )
+    assert not _file_on_branch(repo, "main", SURVIVOR_CODE), "precondition: survivor code must NOT be on main before the merge"
     assert not _branch_exists(repo, f"kitty/mission-{MISSION_SLUG}-{LANE_ALL_CANCELED}"), (
         "precondition: the fully-canceled lane-b branch must NOT exist (the #2945 "
         "shape — a canceled WP whose lane never got a branch); the merge must not "
@@ -435,47 +411,35 @@ def test_merge_excludes_canceled_wps_and_lands_survivor(tmp_path: Path) -> None:
     # --- Survivor integration (SC-001): the mixed lane still integrated its
     # surviving approved WP even though it also held a canceled WP. ---
     assert _file_on_branch(repo, "main", SURVIVOR_CODE), (
-        "#2945 regression: the surviving approved WP's code did not reach the "
-        "target branch — a canceled WP in the same lane must not drop the survivor."
+        "#2945 regression: the surviving approved WP's code did not reach the target branch — a canceled WP in the same lane must not drop the survivor."
     )
 
     committed = _committed_coord_events(repo, feature_dir)
 
     # --- The survivor reached ``done``; NEITHER canceled WP was driven
     # ``canceled -> done`` (the honest-ending record is intact). ---
-    assert wp_lane_actor_from_events(committed, WP_SURVIVOR).lane == Lane.DONE, (
-        "the surviving approved WP must reach done in the committed coordination log"
-    )
+    assert wp_lane_actor_from_events(committed, WP_SURVIVOR).lane == Lane.DONE, "the surviving approved WP must reach done in the committed coordination log"
     for canceled_wp in (WP_CANCELED_MIXED, WP_CANCELED_LANE):
-        done_events = [
-            e for e in committed if e.wp_id == canceled_wp and str(e.to_lane) == "done"
-        ]
+        done_events = [e for e in committed if e.wp_id == canceled_wp and str(e.to_lane) == "done"]
         assert not done_events, (
             f"#2945 regression: {canceled_wp} was driven through an invalid "
             "``canceled -> done`` transition — the done-bookkeeping per-lane loop "
             "did not exclude the canceled WP, corrupting the honest-ending record."
         )
-        assert wp_lane_actor_from_events(committed, canceled_wp).lane == Lane.CANCELED, (
-            f"{canceled_wp} must remain canceled after the merge"
-        )
+        assert wp_lane_actor_from_events(committed, canceled_wp).lane == Lane.CANCELED, f"{canceled_wp} must remain canceled after the merge"
 
     # --- The cancellation audit records are RETAINED (not rewritten away). ---
     for canceled_wp in (WP_CANCELED_MIXED, WP_CANCELED_LANE):
-        canceled_events = [
-            e for e in committed if e.wp_id == canceled_wp and str(e.to_lane) == "canceled"
-        ]
+        canceled_events = [e for e in committed if e.wp_id == canceled_wp and str(e.to_lane) == "canceled"]
         assert canceled_events, (
-            f"#2945 regression: the cancellation audit record for {canceled_wp} "
-            "was lost — the merge must retain it, not erase the honest ending."
+            f"#2945 regression: the cancellation audit record for {canceled_wp} was lost — the merge must retain it, not erase the honest ending."
         )
 
     # --- The fully-canceled lane-b was skipped: its branch never existed, so a
     # completed merge is itself proof the all-canceled lane-skip guard fired
     # (otherwise ``consolidate_lane_into_mission`` would have exited on the
     # missing branch). Its would-be code never reached the target. ---
-    assert not _file_on_branch(repo, "main", "src/never_built.py"), (
-        "the fully-canceled lane must not integrate any code onto the target"
-    )
+    assert not _file_on_branch(repo, "main", "src/never_built.py"), "the fully-canceled lane must not integrate any code onto the target"
 
 
 # ---------------------------------------------------------------------------
@@ -484,9 +448,7 @@ def test_merge_excludes_canceled_wps_and_lands_survivor(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _seed_flat_mission_with_canceled_dep(
-    tmp_path: Path, *, reason_source: str
-) -> tuple[Path, Path]:
+def _seed_flat_mission_with_canceled_dep(tmp_path: Path, *, reason_source: str) -> tuple[Path, Path]:
     """Flat mission: ``WP02`` (approved survivor) depends on ``WP01`` (canceled).
 
     ``WP01``'s cancellation provenance is set by *reason_source* so the caller can
@@ -522,13 +484,11 @@ def _seed_flat_mission_with_canceled_dep(
         encoding="utf-8",
     )
     (tasks_dir / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: WP01 canceled dep\n"
-        "dependencies: []\nsubtasks: []\n---\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: WP01 canceled dep\ndependencies: []\nsubtasks: []\n---\n# WP01\n",
         encoding="utf-8",
     )
     (tasks_dir / "WP02.md").write_text(
-        "---\nwork_package_id: WP02\ntitle: WP02 survivor\n"
-        "dependencies:\n- WP01\nsubtasks: []\n---\n# WP02\n",
+        "---\nwork_package_id: WP02\ntitle: WP02 survivor\ndependencies:\n- WP01\nsubtasks: []\n---\n# WP02\n",
         encoding="utf-8",
     )
 
@@ -579,9 +539,7 @@ def test_merge_gates_do_not_strand_survivor_on_canceled_provenance_dep(
     NOT stranded by the merge dependency/evidence gates — routed through
     ``is_acceptable_ending``, an operator-authored cancellation counts as an
     acceptable ending, so the gates PASS."""
-    repo, feature_dir = _seed_flat_mission_with_canceled_dep(
-        tmp_path, reason_source="operator"
-    )
+    repo, feature_dir = _seed_flat_mission_with_canceled_dep(tmp_path, reason_source="operator")
 
     evaluation = evaluate_merge_gates(
         feature_dir,
@@ -592,12 +550,9 @@ def test_merge_gates_do_not_strand_survivor_on_canceled_provenance_dep(
     )
 
     assert _gate(evaluation, "dependency").verdict == GateVerdict.PASS, (
-        "#2945 regression: the merge dependency gate stranded a surviving WP whose "
-        "only dependency is a canceled-with-provenance (acceptable-ending) WP."
+        "#2945 regression: the merge dependency gate stranded a surviving WP whose only dependency is a canceled-with-provenance (acceptable-ending) WP."
     )
-    assert _gate(evaluation, "evidence").verdict == GateVerdict.PASS, (
-        "the evidence gate must accept the surviving WP (it is approved)"
-    )
+    assert _gate(evaluation, "evidence").verdict == GateVerdict.PASS, "the evidence gate must accept the surviving WP (it is approved)"
 
 
 def test_merge_dependency_gate_still_fails_on_synthetic_canceled_dep(
@@ -606,9 +561,7 @@ def test_merge_dependency_gate_still_fails_on_synthetic_canceled_dep(
     """Falsifiability: a SYNTHETIC (non-provenance) cancellation is NOT an
     acceptable ending, so a dependency on it still FAILS the merge dependency
     gate — the routing honors provenance, it does not blanket-accept ``canceled``."""
-    repo, feature_dir = _seed_flat_mission_with_canceled_dep(
-        tmp_path, reason_source="synthetic"
-    )
+    repo, feature_dir = _seed_flat_mission_with_canceled_dep(tmp_path, reason_source="synthetic")
 
     evaluation = evaluate_merge_gates(
         feature_dir,
@@ -620,8 +573,6 @@ def test_merge_dependency_gate_still_fails_on_synthetic_canceled_dep(
 
     dependency = _gate(evaluation, "dependency")
     assert dependency.verdict == GateVerdict.FAIL, (
-        "a synthetic (non-provenance) canceled dependency must still FAIL the "
-        "merge dependency gate — canceled-without-provenance is not an acceptable "
-        "ending."
+        "a synthetic (non-provenance) canceled dependency must still FAIL the merge dependency gate — canceled-without-provenance is not an acceptable ending."
     )
     assert "WP01" in dependency.details

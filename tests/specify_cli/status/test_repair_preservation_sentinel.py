@@ -68,7 +68,6 @@ def test_build_canonical_row_preserves_all_fsm_guard_inputs() -> None:
 
     for field_name in _GUARD_FIELDS:
         assert canonical[field_name] == row[field_name], (
-            f"{field_name} must be preserved by _build_canonical_row "
-            "(regressing it manufactures the bec7c25273 false red)"
+            f"{field_name} must be preserved by _build_canonical_row (regressing it manufactures the bec7c25273 false red)"
         )
     assert canonical["mission_id"] == _MISSION_ID

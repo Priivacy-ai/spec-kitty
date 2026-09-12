@@ -1,0 +1,149 @@
+{
+  "mission_slug": "ci-suite-stability-test-isolation-01M22MM5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (approved): re-assess-under-lock in ensure_runtime cold/effects path; deterministic apply-interleave converges to warm no-op",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:06:10.987165+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (approved): observe() role-tagged source-read vs destination-probe; canonical-equal destination filter at check_assets compare site; observations preserved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:06:20.915853+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (approved): source-drift guard test proves genuine package-source change still caught after role-tagging (no over-narrowing)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:06:30.865896+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (approved): generic global_assets recheck driven through non-runtime owners (agent_skills+agent_commands) converges; merge.py-from-batch proven unreachable; _recheck_command_completion verified as distinct defect -> follow-up #4134 filed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:06:40.801671+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (approved): warm-path spy test proves warm canonical-home startup does exactly one assess and takes no lock",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:06:50.828363+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP03 (approved): red-first repro captured first (deterministic interleave); both quarantined e2e (test_worktree_owned_root_concurrency + charter epic golden-path) un-skipped and driven green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:07:00.845340+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (approved): #4082 intact - upgrade dry-run repair-disclosure byte-unchanged + live managed_skills composition test asserts recheck_applied() YAML-receipt suppression holds after re-assess",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:07:10.819813+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved): assert_timing_budget helper raises inside helper (guard-clean call site by construction); marker-guard green, no vocab widening",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:07:21.515211+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06-09 (approved): all 9 vocab-blocked pure-timing tests DELETED per operator HiC sign-off (delete-all-9)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:07:31.796871+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06-09 (approved): 74 MIXED tests split - functional assert stays per-PR (unmarked), timing assert relocated to @performance via assert_timing_budget, budgets preserved, collected+green nightly",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:07:41.754818+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved): consolidated triage - mechanical AST proof 74 MIXED have functional asserts (ineligible), flake-rate/marker evidence for 9 vocab-blocked, operator sign-off recorded (delete-all-9)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:07:51.716169+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05-09 (approved): test_performance_marker_guard.py green, TIMING_ASSERTION_VOCABULARY byte-unchanged (helper is the mechanism)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:08:01.708261+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved): timing-coverage-invariant (mechanically derived from 74 MIXED, rename-tolerant, flags dropped/weakened/relocated functional asserts) + per-split mapping",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:08:11.681883+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved): issue-matrix rows #4017 + #4015 set to terminal verdict 'fixed'; #1931 deferred-with-followup",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-09T18:08:21.686925+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
