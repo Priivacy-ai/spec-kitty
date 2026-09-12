@@ -1,16 +1,16 @@
 {
-  "event_count": 12,
-  "last_event_id": "01M2AMA8905RP3X81DYJPGYPY0",
-  "materialized_at": "2026-09-12T10:58:50.784335+00:00",
+  "event_count": 13,
+  "last_event_id": "01M2AMYXGYXCX5RZSC8WWNE84B",
+  "materialized_at": "2026-09-12T11:10:07.902900+00:00",
   "mission_number": "",
   "mission_slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 1,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,14 +18,14 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "agent": "governance-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01M2AJZE2H7Z6YWFAPS5FMHBXM",
-      "last_transition_at": "2026-09-12T10:35:27.697254+00:00",
+      "lane": "done",
+      "last_event_id": "01M2AMYXGYXCX5RZSC8WWNE84B",
+      "last_transition_at": "2026-09-12T11:10:07.902900+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "6136d4ce8 sourcecomplete; implementation-evidence.md records red-first tests, required suite passes and typed checks. Primary-only supportedreviewconfig temporary; genuineJUnitbaseline zero failures. Approved checkout_scope.py ownership extension.",
@@ -43,7 +43,10 @@
       "subtasks": {
         "T001": "done",
         "T002": "done"
-      }
+      },
+      "tracker_refs": [
+        "spec-kitty/spec-kitty#4250"
+      ]
     },
     "WP02": {
       "actor": "user",
@@ -71,7 +74,10 @@
       "subtasks": {
         "T003": "done",
         "T004": "done"
-      }
+      },
+      "tracker_refs": [
+        "spec-kitty/spec-kitty#4250"
+      ]
     }
   }
 }
