@@ -140,7 +140,7 @@ def capture_events_tail_ids(events_path: Path, pre_emit_event_size: int) -> list
 
     The expectation record for :func:`rollback_events_log_tail`. Returns the
     ids in file order, or ``None`` when the tail cannot be parsed as whole
-    rows (the rollback then degrades to structural verification only). Only
+    rows (the rollback then refuses any nonempty tail). Only
     meaningful while the mission status lock is held -- see
     :func:`owned_emission_window`.
     """
@@ -194,8 +194,8 @@ def owned_emission_window(
     :class:`FeatureStatusLockTimeoutError` rather than wedging every status
     writer for the mission). If the body raises, no capture happens:
     ``expected_event_ids`` stays ``None`` and the rollback (which the callers
-    only run on a COMMIT failure, never an emit failure) degrades to
-    structural verification.
+    only run on a COMMIT failure, never an emit failure) refuses a nonempty
+    tail without ownership.
     """
     from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415 -- cycle-safe lazy import, same seam status.emit uses
 
@@ -255,6 +255,12 @@ def _rollback_events_log_locked(
         return False
     if size == pre_emit_event_size:
         return True  # idempotent no-op: the log is already at the pre-emit size
+    if expected_event_ids is None:
+        logger.warning(
+            "Refused rollback truncate of %s: no captured event ownership for a nonempty tail; log left intact",
+            events_path,
+        )
+        return False
     # ``missing_as_empty=False`` (#4087): the ``stat()`` above observed the
     # log exist (or returned via one of the guards), so a missing log inside
     # the lock is an unsanctioned delete in the window -- never a "verified
@@ -268,7 +274,7 @@ def _rollback_events_log_locked(
             pre_emit_event_size,
         )
         return False
-    if expected_event_ids is not None and sorted(_row_event_ids(rows)) != sorted(expected_event_ids):
+    if sorted(_row_event_ids(rows)) != sorted(expected_event_ids):
         logger.warning(
             "Refused rollback truncate of %s: tail holds %r, expected %r (a concurrent writer's rows would be destroyed); log left intact",
             events_path,
@@ -298,8 +304,8 @@ def rollback_events_log_tail(
 
     * structurally -- every non-blank line in the cut region must be a whole
       JSON object (never a torn row);
-    * when *expected_event_ids* is provided -- the tail's event ids must be
-      exactly that multiset (never a concurrent writer's rows).
+    * ownership -- a nonempty tail requires *expected_event_ids*, and its
+      event ids must be exactly that multiset (never a concurrent writer's rows).
 
     *expected_event_ids* must come from an in-lock capture
     (:func:`owned_emission_window`, or the coord fallback arm's own

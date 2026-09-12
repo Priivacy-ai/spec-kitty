@@ -83,12 +83,12 @@ def test_refuses_when_the_tail_is_not_whole_rows(feature_dir: Path) -> None:
     assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + '{"torn": '
 
 
-def test_structural_mode_cuts_whole_rows_without_expected_ids(feature_dir: Path) -> None:
-    """Callers that cannot state their rows (emit failed) still roll back whole rows."""
+def test_refuses_whole_rows_without_expected_ids(feature_dir: Path) -> None:
+    """Structural validity cannot substitute for captured event ownership."""
     _events_path(feature_dir).write_text(_row("before") + _row("partial-emit"), encoding="utf-8")
 
-    assert rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=None)
-    assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before")
+    assert not rollback_events_log_tail(feature_dir, repo_root=feature_dir.parent.parent, pre_emit_event_size=len(_row("before")), expected_event_ids=None)
+    assert _events_path(feature_dir).read_text(encoding="utf-8") == _row("before") + _row("partial-emit")
 
 
 def test_noop_when_nothing_was_appended(feature_dir: Path) -> None:
@@ -354,7 +354,7 @@ def test_capture_degrades_to_none_when_the_read_shrank_below_the_pre_emit_size(f
 
     The window recorded ``pre_emit_event_size`` at entry; a log now SHORTER
     than that (a whole-log rewrite landed in the window) degrades the capture
-    to ``None`` -- structural verification -- rather than parsing a region
+    to ``None`` -- rollback refusal -- rather than parsing a region
     that starts mid-row. The rollback's own ``stat()`` guard gives the same
     refusal one step earlier; this is the same defense held against the
     stat -> read race.
@@ -476,3 +476,38 @@ def test_artifacts_outer_oserror_refusal_leaves_both_artifacts_intact(tmp_path: 
         expected_event_ids=None,
     )
     assert broken.read_text(encoding="utf-8") == "not a directory"
+
+
+def test_failed_ownership_capture_preserves_later_writer_and_snapshot(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A transient capture read failure must never authorize a foreign-tail cut."""
+    events = _events_path(feature_dir)
+    snapshot = feature_dir / "status.json"
+    events.write_text(_row("before"), encoding="utf-8")
+    snapshot.write_bytes(b"before snapshot")
+    real_read = Path.read_bytes
+
+    def fail_capture(path: Path) -> bytes:
+        if path == events:
+            raise OSError("capture temporarily unreadable")
+        return real_read(path)
+
+    with monkeypatch.context() as capture_patch:
+        capture_patch.setattr(Path, "read_bytes", fail_capture)
+        with owned_emission_window(feature_dir, repo_root=feature_dir.parent.parent) as own, events.open("a", encoding="utf-8") as stream:
+            stream.write(_row("mine"))
+    assert own.expected_event_ids is None
+    # A lock-honoring peer appends after the failed capture window releases.
+    with feature_status_lock(feature_dir.parent.parent, feature_dir.name):
+        with events.open("a", encoding="utf-8") as stream:
+            stream.write(_row("foreign"))
+        snapshot.write_bytes(b"newer coherent snapshot")
+    expected_log = events.read_bytes()
+    assert not rollback_status_artifacts(
+        feature_dir,
+        repo_root=feature_dir.parent.parent,
+        pre_emit_event_size=own.pre_emit_event_size,
+        pre_emit_status_bytes=own.pre_emit_status_bytes,
+        expected_event_ids=own.expected_event_ids,
+    )
+    assert events.read_bytes() == expected_log
+    assert snapshot.read_bytes() == b"newer coherent snapshot"
