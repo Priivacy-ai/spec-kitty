@@ -146,9 +146,7 @@ def test_sync_writes_parseable_llxprt_toml(tmp_path: Path, monkeypatch: pytest.M
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows APPDATA resolution is not exercised")
-def test_llxprt_global_command_dir_uses_platform_config_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_llxprt_global_command_dir_uses_platform_config_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """LLxprt resolves its global root via envPaths('llxprt-code'), not ~/.llxprt."""
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.delenv("LLXPRT_CONFIG_HOME", raising=False)
@@ -162,9 +160,7 @@ def test_llxprt_global_command_dir_uses_platform_config_root(
     assert get_global_command_dir("llxprt") == expected
 
 
-def test_llxprt_global_commands_respect_llxprt_config_home(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_llxprt_global_commands_respect_llxprt_config_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """LLxprt's documented LLXPRT_CONFIG_HOME override should be honored."""
     monkeypatch.setenv("LLXPRT_CONFIG_HOME", str(tmp_path / "custom-llxprt"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
@@ -173,9 +169,7 @@ def test_llxprt_global_commands_respect_llxprt_config_home(
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows APPDATA resolution is not exercised")
-def test_llxprt_global_commands_use_xdg_config_home_on_linux(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_llxprt_global_commands_use_xdg_config_home_on_linux(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """On non-darwin platforms the XDG config home feeds envPaths-style resolution."""
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.delenv("LLXPRT_CONFIG_HOME", raising=False)
