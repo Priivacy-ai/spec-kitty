@@ -86,9 +86,7 @@ def get_global_command_dir(agent_key: str) -> Path:
             return Path.home() / "Library" / "Preferences" / "llxprt-code" / "commands"
 
         if os.name == "nt":
-            app_data = os.environ.get(
-                "APPDATA", str(Path.home() / "AppData" / "Roaming")
-            )
+            app_data = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
             return Path(app_data) / "llxprt-code" / "Config" / "commands"
 
         xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
