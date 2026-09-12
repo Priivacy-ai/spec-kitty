@@ -10,5 +10,7 @@
   "purpose_tldr": "Resolve and author the actual owned charter without corrupting another checkout; activate hosted binding recovery authority.",
   "slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
   "target_branch": "codex/issue-4250-charter-owned-checkout",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "issue_number": 4250,
+  "issue_url": "https://github.com/spec-kitty/spec-kitty/issues/4250"
 }
