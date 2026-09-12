@@ -1,6 +1,7 @@
 ---
 title: Zeitgeist publisher and lease identity
 type: explanation
+doc_status: active
 updated: '2026-09-11'
 audience: agentic-framework-core-team
 description: How logical agents, SaaS leases, and relay session references relate.
