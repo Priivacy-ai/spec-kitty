@@ -65,6 +65,7 @@ from specify_cli.release.changelog import (
     _parse_wp_title,
     build_changelog_block,
 )
+from tests._perf_helpers import assert_timing_budget
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +122,27 @@ def _make_adversarial_title_content(n_heading_lines: int = 100_000) -> str:
     return f"{filler_lines}\n## Real Title\n"
 
 
+def test_parse_wp_frontmatter_status_on_adversarial_input(
+    tmp_path: Path,
+) -> None:
+    """secure-regex-catastrophic-backtracking — correctness half (#4015 split).
+
+    Adversarial input: frontmatter block with 100 000 whitespace-only lines
+    followed by a ``status: done`` key. Correctness: must still find the
+    status key despite the filler lines — the wall-clock budget half moved to
+    ``test_parse_wp_frontmatter_status_completes_under_budget_on_adversarial_input``.
+    """
+    wp_file = tmp_path / "WP99-adversarial.md"
+    wp_file.write_text(_make_adversarial_frontmatter(), encoding="utf-8")
+
+    result = _parse_wp_frontmatter_status(wp_file)
+
+    assert result == "done", (
+        f"Expected 'done' but got {result!r} — rewrite changed match semantics."
+    )
+
+
+@pytest.mark.performance
 def test_parse_wp_frontmatter_status_completes_under_budget_on_adversarial_input(
     tmp_path: Path,
 ) -> None:
@@ -138,21 +160,32 @@ def test_parse_wp_frontmatter_status_completes_under_budget_on_adversarial_input
     wp_file.write_text(_make_adversarial_frontmatter(), encoding="utf-8")
 
     start = time.perf_counter()
-    result = _parse_wp_frontmatter_status(wp_file)
+    _parse_wp_frontmatter_status(wp_file)
     elapsed = time.perf_counter() - start
 
-    assert elapsed < _BUDGET_SECONDS, (
-        f"_parse_wp_frontmatter_status took {elapsed * 1000:.1f} ms on adversarial "
-        f"input — should be < {_BUDGET_SECONDS * 1000:.0f} ms. "
-        "Possible regression to backtracking regex. "
-        "(secure-regex-catastrophic-backtracking tactic, shape 3)"
-    )
-    # Correctness: must still find the status key despite the filler lines
-    assert result == "done", (
-        f"Expected 'done' but got {result!r} — rewrite changed match semantics."
+    assert_timing_budget(elapsed, _BUDGET_SECONDS, name="elapsed")
+
+
+def test_parse_wp_id_on_adversarial_input(
+    tmp_path: Path,
+) -> None:
+    """secure-regex-catastrophic-backtracking — correctness half (#4015 split).
+
+    Adversarial input: frontmatter block with 100 000 whitespace-only lines
+    followed by a ``work_package_id: WP99`` key. The wall-clock budget half
+    moved to ``test_parse_wp_id_completes_under_budget_on_adversarial_input``.
+    """
+    wp_file = tmp_path / "WP99-adversarial.md"
+    wp_file.write_text(_make_adversarial_frontmatter(), encoding="utf-8")
+
+    result = _parse_wp_id(wp_file)
+
+    assert result == "WP99", (
+        f"Expected 'WP99' but got {result!r} — rewrite changed match semantics."
     )
 
 
+@pytest.mark.performance
 def test_parse_wp_id_completes_under_budget_on_adversarial_input(
     tmp_path: Path,
 ) -> None:
@@ -170,20 +203,32 @@ def test_parse_wp_id_completes_under_budget_on_adversarial_input(
     wp_file.write_text(_make_adversarial_frontmatter(), encoding="utf-8")
 
     start = time.perf_counter()
-    result = _parse_wp_id(wp_file)
+    _parse_wp_id(wp_file)
     elapsed = time.perf_counter() - start
 
-    assert elapsed < _BUDGET_SECONDS, (
-        f"_parse_wp_id took {elapsed * 1000:.1f} ms on adversarial input — "
-        f"should be < {_BUDGET_SECONDS * 1000:.0f} ms. "
-        "Possible regression to backtracking regex. "
-        "(secure-regex-catastrophic-backtracking tactic, shape 3)"
-    )
-    assert result == "WP99", (
-        f"Expected 'WP99' but got {result!r} — rewrite changed match semantics."
+    assert_timing_budget(elapsed, _BUDGET_SECONDS, name="elapsed")
+
+
+def test_parse_wp_title_on_adversarial_input(
+    tmp_path: Path,
+) -> None:
+    """secure-regex-catastrophic-backtracking — correctness half (#4015 split).
+
+    Adversarial input: markdown with 100 000 bare ``###`` heading lines before
+    the real title. The wall-clock budget half moved to
+    ``test_parse_wp_title_completes_under_budget_on_adversarial_input``.
+    """
+    wp_file = tmp_path / "WP99-title.md"
+    wp_file.write_text(_make_adversarial_title_content(), encoding="utf-8")
+
+    result = _parse_wp_title(wp_file)
+
+    assert result == "Real Title", (
+        f"Expected 'Real Title' but got {result!r} — rewrite changed match semantics."
     )
 
 
+@pytest.mark.performance
 def test_parse_wp_title_completes_under_budget_on_adversarial_input(
     tmp_path: Path,
 ) -> None:
@@ -192,8 +237,7 @@ def test_parse_wp_title_completes_under_budget_on_adversarial_input(
     Adversarial input: markdown with 100 000 bare ``###`` heading lines before
     the real title. The pre-fix ``re.sub(r'^#+\\s*', '', stripped)`` was O(1)
     per call but the function iterates all lines, so total cost is O(N). The
-    non-regex replacement (lstrip + strip) has the same O(N) cost; this test
-    primarily guards correctness of the replacement.
+    non-regex replacement (lstrip + strip) has the same O(N) cost.
 
     Budget: < 100 ms for 100 000-line document.
     """
@@ -201,17 +245,10 @@ def test_parse_wp_title_completes_under_budget_on_adversarial_input(
     wp_file.write_text(_make_adversarial_title_content(), encoding="utf-8")
 
     start = time.perf_counter()
-    result = _parse_wp_title(wp_file)
+    _parse_wp_title(wp_file)
     elapsed = time.perf_counter() - start
 
-    assert elapsed < _BUDGET_SECONDS, (
-        f"_parse_wp_title took {elapsed * 1000:.1f} ms on adversarial input — "
-        f"should be < {_BUDGET_SECONDS * 1000:.0f} ms. "
-        "(secure-regex-catastrophic-backtracking tactic, shape 3)"
-    )
-    assert result == "Real Title", (
-        f"Expected 'Real Title' but got {result!r} — rewrite changed match semantics."
-    )
+    assert_timing_budget(elapsed, _BUDGET_SECONDS, name="elapsed")
 
 
 # ---------------------------------------------------------------------------

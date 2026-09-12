@@ -25,14 +25,24 @@ from hashlib import sha256  # noqa: TID251 -- exact staging byte integrity.
 from pathlib import Path
 from uuid import uuid4
 
+from specify_cli.core.no_follow import chmod_fd
 from specify_cli.skills import command_installer
 
 from ..enums import ActivationMode, ToolSurfaceKind
 from ..model import SurfacePlan
 from ..operations import (
-    ApplyConsent, AssessmentInputs, Diagnostic, Disposition, FileState,
-    InputObservation, OperationRoot, OwnerApplyResult, OwnerAssessment,
-    OwnershipProof, PhysicalEffect, coalesce_effects,
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    Disposition,
+    FileState,
+    InputObservation,
+    OperationRoot,
+    OwnerApplyResult,
+    OwnerAssessment,
+    OwnershipProof,
+    PhysicalEffect,
+    coalesce_effects,
 )
 from ..status import _surface_id
 from .model import BundleEntry, BundleObservation, PreparedBundle, StagedFile
@@ -53,15 +63,17 @@ class SelectedSkillBundle:
     def prepare(cls, assessment: OwnerAssessment, commands: OwnerAssessment) -> SelectedSkillBundle:
         prepared = assessment.prepared
         if (
-            not assessment.complete or any(d.severity == "error" for d in assessment.diagnostics)
-            or assessment.owner_key != OWNER or not isinstance(prepared, PreparedBundle)
-            or assessment.root != commands.root or assessment.consent != commands.consent
+            not assessment.complete
+            or any(d.severity == "error" for d in assessment.diagnostics)
+            or assessment.owner_key != OWNER
+            or not isinstance(prepared, PreparedBundle)
+            or assessment.root != commands.root
+            or assessment.consent != commands.consent
             or not any(s is commands for s in prepared.suppliers)
             or not isinstance(commands.prepared, command_installer.PreparedCommands)
         ):
             raise ValueError("Selected staging requires the original command supplier and matching consent/root")
-        parents = tuple(observe_bundle_path(item.path, members=True) for item in prepared.observations
-                        if item.state.kind == "directory")
+        parents = tuple(observe_bundle_path(item.path, members=True) for item in prepared.observations if item.state.kind == "directory")
         return cls(assessment, commands, parents)
 
 
@@ -108,8 +120,7 @@ def _selected_provisioned_observation(assessment: OwnerAssessment, item: BundleO
         return item
     assert payload.provisioning is not None
     current = observe_bundle_path(item.path)
-    return replace(item, state=replace(item.state, sha256=payload.provisioning.write.desired_sha256,
-                                      mtime_ns=current.state.mtime_ns))
+    return replace(item, state=replace(item.state, sha256=payload.provisioning.write.desired_sha256, mtime_ns=current.state.mtime_ns))
 
 
 def _record_selected_stage(assessment: OwnerAssessment, effect: PhysicalEffect, *, before: bool) -> None:
@@ -181,6 +192,7 @@ def completed_selected_skill_bundle(selected: SelectedSkillBundle | None) -> Ite
     with command_installer._completed_bundle_parents(selected.commands, tuple(run.parents.values())):
         yield ()
 
+
 # Surface kinds that belong in a plugin bundle. Session-presence kinds
 # (CONTEXT_FILE, RULE) are deliberately excluded -- they are project-install
 # surfaces, not bundle components (see WP09 task spec).
@@ -217,7 +229,7 @@ def _bundle_relative_path(
         # skill directory name inside the bundle's ``skills/`` tree.
         if "skills" in source_path.parts:
             index = len(source_path.parts) - 1 - source_path.parts[::-1].index("skills")
-            return f"{prefix}/" + "/".join(source_path.parts[index + 1:])
+            return f"{prefix}/" + "/".join(source_path.parts[index + 1 :])
         return f"{prefix}/{source_path.parent.name}/{source_path.name}"
     leaf = source_path.name
     return f"{prefix}/{leaf}" if prefix else leaf
@@ -247,9 +259,7 @@ def bundle_entries_for_plans(
                 continue
             if not _within_project(instance.path, project_root):
                 continue
-            rel = _bundle_relative_path(
-                kind, instance.path, layout, agent_filename
-            )
+            rel = _bundle_relative_path(kind, instance.path, layout, agent_filename)
             if rel is None:
                 continue
             candidate = BundleEntry(
@@ -263,11 +273,16 @@ def bundle_entries_for_plans(
                 claims=((_project_source_path(instance.path, project_root), instance.owner, _surface_id(instance)),),
             )
             prior = seen.get(rel)
-            seen[rel] = candidate if prior is None else replace(
-                prior, logical_owners=tuple(sorted(set(prior.logical_owners + candidate.logical_owners))),
-                surface_ids=tuple(sorted(set(prior.surface_ids + candidate.surface_ids))),
-                sources=tuple(sorted(set(prior.sources + candidate.sources))),
-                claims=tuple(sorted(set(prior.claims + candidate.claims))),
+            seen[rel] = (
+                candidate
+                if prior is None
+                else replace(
+                    prior,
+                    logical_owners=tuple(sorted(set(prior.logical_owners + candidate.logical_owners))),
+                    surface_ids=tuple(sorted(set(prior.surface_ids + candidate.surface_ids))),
+                    sources=tuple(sorted(set(prior.sources + candidate.sources))),
+                    claims=tuple(sorted(set(prior.claims + candidate.claims))),
+                )
             )
     return tuple(seen[key] for key in sorted(seen))
 
@@ -323,8 +338,9 @@ def write_bundle(
     assessment = prepare_staging(inputs, files, (output_dir,), tuple(observations))
     result = apply_staging(assessment, inputs.consent)
     if not assessment.complete or result.failed or result.skipped or any(d.state != "unchanged" for d in assessment.dispositions):
-        raise ValueError("; ".join(d.message for d in assessment.diagnostics + result.diagnostics)
-                         or "Staged bundle contains preserved or consent-required content")
+        raise ValueError(
+            "; ".join(d.message for d in assessment.diagnostics + result.diagnostics) or "Staged bundle contains preserved or consent-required content"
+        )
 
 
 def json_bytes(payload: dict[str, object], *, legacy: bool = False) -> bytes:
@@ -336,7 +352,10 @@ def json_bytes(payload: dict[str, object], *, legacy: bool = False) -> bytes:
 
 def read_regular(path: Path) -> bytes:
     """Read one regular node without following its final link."""
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    if no_follow == 0 and path.is_symlink():
+        raise ValueError(f"Required bundle source is not a regular file: {path}")
+    descriptor = os.open(path, os.O_RDONLY | no_follow)
     with os.fdopen(descriptor, "rb") as stream:
         if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
             raise ValueError(f"Required bundle source is not a regular file: {path}")
@@ -368,8 +387,7 @@ def observe_bundle_path(path: Path, *, members: bool = False) -> BundleObservati
 def read_observed_file(observation: BundleObservation) -> bytes:
     """Retain bytes only if they agree with the selected source observation."""
     content = read_regular(observation.path)
-    if (sha256(content).hexdigest() != observation.state.sha256
-            or observe_bundle_path(observation.path) != observation):
+    if sha256(content).hexdigest() != observation.state.sha256 or observe_bundle_path(observation.path) != observation:
         raise ValueError(f"Bundle source changed during preparation: {observation.path}")
     return content
 
@@ -426,7 +444,9 @@ def confined_output(output_dir: Path, root: OperationRoot) -> Path:
 
 
 def files_for_entries(
-    entries: Sequence[BundleEntry], output_dir: Path, root: OperationRoot,
+    entries: Sequence[BundleEntry],
+    output_dir: Path,
+    root: OperationRoot,
     observations: list[BundleObservation],
 ) -> tuple[StagedFile, ...]:
     """Materialize exact bytes in memory, requiring all shared claims to agree."""
@@ -477,7 +497,8 @@ def _validate_member_bytes(entry: BundleEntry, content: bytes) -> None:
 
 
 def supplied_entries(
-    entries: tuple[BundleEntry, ...], suppliers: tuple[OwnerAssessment, ...],
+    entries: tuple[BundleEntry, ...],
+    suppliers: tuple[OwnerAssessment, ...],
 ) -> tuple[BundleEntry, ...]:
     """Consume concrete owner payloads, never rerender or apply their effects."""
     supplied = tuple(member for owner in suppliers for member in supplier_members(owner))
@@ -488,14 +509,22 @@ def supplied_entries(
         if not paths:
             continue
         claims = tuple(claim for claim in entry.claims if claim[0] in paths)
-        entry = replace(entry, source_path=paths[0], sources=paths, claims=claims,
-                        logical_owners=tuple(sorted({claim[1] for claim in claims})) if entry.claims else entry.logical_owners,
-                        surface_ids=tuple(sorted({claim[2] for claim in claims})) if entry.claims else entry.surface_ids)
+        entry = replace(
+            entry,
+            source_path=paths[0],
+            sources=paths,
+            claims=claims,
+            logical_owners=tuple(sorted({claim[1] for claim in claims})) if entry.claims else entry.logical_owners,
+            surface_ids=tuple(sorted({claim[2] for claim in claims})) if entry.claims else entry.surface_ids,
+        )
         candidates = [(path, content, mode) for path, content, mode in supplied if path in paths]
         blocked = any(
-            item.path is not None and owner.root.path / item.path in paths and item.state in {"preserve", "consent_required"}
+            item.path is not None
+            and owner.root.path / item.path in paths
+            and item.state in {"preserve", "consent_required"}
             and not any(path == owner.root.path / item.path for path, _content, _mode in candidates)
-            for owner in suppliers for item in owner.dispositions
+            for owner in suppliers
+            for item in owner.dispositions
         )
         if blocked:
             raise ValueError(f"Upstream owner retained no canonical bytes for {entry.source_path}")
@@ -523,13 +552,13 @@ def supplier_members(assessment: OwnerAssessment) -> tuple[tuple[Path, bytes, in
     if isinstance(payload, PreparedCommands):
         return tuple((root / item.path, item.content, 0o644) for item in payload.commands if item.content is not None)
     if isinstance(payload, PreparedProjectSkills):
-        return tuple((item.effect.destination, item.content, item.effect.after.mode or 0o444)
-                     for item in payload.writes if item.content is not None and item.order == 2)
+        return tuple(
+            (item.effect.destination, item.content, item.effect.after.mode or 0o444) for item in payload.writes if item.content is not None and item.order == 2
+        )
     if isinstance(payload, PreparedProfileBatch):
         return tuple((item.native.output_path, item.content, 0o644) for item in payload.projections)
     if isinstance(payload, PreparedSessionBatch):
-        return tuple((root / item.path, item.content, item.before.mode or 0o644)
-                     for _tool, item in payload.files if item.disposition != "preserve")
+        return tuple((root / item.path, item.content, item.before.mode or 0o644) for _tool, item in payload.files if item.disposition != "preserve")
     if isinstance(payload, PreparedVibeConfig):
         return ((root / payload.file.path, payload.file.content, payload.file.before.mode or 0o644),)
     raise ValueError(f"Unsupported concrete bundle supplier: {assessment.owner_key}")
@@ -555,8 +584,12 @@ def _ledger_entries(raw: bytes) -> dict[str, tuple[str, int]]:
 
 
 def prepare_staging(
-    inputs: AssessmentInputs, files: tuple[StagedFile, ...], bundle_dirs: tuple[Path, ...],
-    observations: tuple[BundleObservation, ...] = (), *, suppliers: tuple[OwnerAssessment, ...] = (),
+    inputs: AssessmentInputs,
+    files: tuple[StagedFile, ...],
+    bundle_dirs: tuple[Path, ...],
+    observations: tuple[BundleObservation, ...] = (),
+    *,
+    suppliers: tuple[OwnerAssessment, ...] = (),
     version: str | None = None,
     supporting_dirs: tuple[tuple[str, int], ...] = (),
 ) -> OwnerAssessment:
@@ -566,14 +599,19 @@ def prepare_staging(
             raise ValueError("Plugin bundles require an explicit project/staging root")
         return _prepare_staging(inputs, files, bundle_dirs, observations, suppliers, version, supporting_dirs)
     except (OSError, ValueError) as exc:
-        return OwnerAssessment(OWNER, inputs.root, complete=False, consent=inputs.consent,
-                               diagnostics=(Diagnostic("bundle_input_invalid", OWNER, "error", str(exc)),))
+        return OwnerAssessment(
+            OWNER, inputs.root, complete=False, consent=inputs.consent, diagnostics=(Diagnostic("bundle_input_invalid", OWNER, "error", str(exc)),)
+        )
 
 
 def _prepare_staging(
-    inputs: AssessmentInputs, files: tuple[StagedFile, ...], bundle_dirs: tuple[Path, ...],
-    observations: tuple[BundleObservation, ...], suppliers: tuple[OwnerAssessment, ...],
-    version: str | None, supporting_dirs: tuple[tuple[str, int], ...],
+    inputs: AssessmentInputs,
+    files: tuple[StagedFile, ...],
+    bundle_dirs: tuple[Path, ...],
+    observations: tuple[BundleObservation, ...],
+    suppliers: tuple[OwnerAssessment, ...],
+    version: str | None,
+    supporting_dirs: tuple[tuple[str, int], ...],
 ) -> OwnerAssessment:
     root = inputs.root
     observed = list(observations)
@@ -585,9 +623,20 @@ def _prepare_staging(
         observed.extend(observe_confined(root.path, root.path / relative))
         before = observed[-1].state
         if before.kind == "absent":
-            effects.append(PhysicalEffect(OWNER, "surface_repair", root, relative, "create", before,
-                                          FileState("directory", mode=mode), "Create selected supporting directory",
-                                          (OwnershipProof("managed_path", f"selected supporting directory:{relative}"),), (OWNER,)))
+            effects.append(
+                PhysicalEffect(
+                    OWNER,
+                    "surface_repair",
+                    root,
+                    relative,
+                    "create",
+                    before,
+                    FileState("directory", mode=mode),
+                    "Create selected supporting directory",
+                    (OwnershipProof("managed_path", f"selected supporting directory:{relative}"),),
+                    (OWNER,),
+                )
+            )
         elif before.kind != "directory":
             raise ValueError(f"Unsafe supporting directory: {relative}")
     unique = _unique_members(files)
@@ -610,8 +659,9 @@ def _prepare_staging(
         if before.kind not in {"file", "absent", "symlink"}:
             raise ValueError(f"Unsupported bundle destination: {member.path}")
         proof = (
-            OwnershipProof("manifest", f"{_LEDGER}:{member.path}") if prior else
-            OwnershipProof("canonical_content" if before.kind == "file" else "managed_path", f"bundle member:{member.path}")
+            OwnershipProof("manifest", f"{_LEDGER}:{member.path}")
+            if prior
+            else OwnershipProof("canonical_content" if before.kind == "file" else "managed_path", f"bundle member:{member.path}")
         )
         _stage_effect(root, member, before, proof, effects, dispositions)
     # Never publish a fresh descriptor that promises a preserved requested member.
@@ -625,24 +675,54 @@ def _prepare_staging(
             observed.extend(observe_confined(root.path, root.path / path))
             before = observed[-1].state
             if before.kind == "absent":
-                effects.append(PhysicalEffect(OWNER, "surface_repair", root, path.as_posix(), "create",
-                                              before, FileState("directory", mode=directory_modes.get(path.as_posix(), 0o755)), "Create staged parent",
-                                              effect.ownership, effect.logical_owners, effect.surface_ids))
+                effects.append(
+                    PhysicalEffect(
+                        OWNER,
+                        "surface_repair",
+                        root,
+                        path.as_posix(),
+                        "create",
+                        before,
+                        FileState("directory", mode=directory_modes.get(path.as_posix(), 0o755)),
+                        "Create staged parent",
+                        effect.ownership,
+                        effect.logical_owners,
+                        effect.surface_ids,
+                    )
+                )
     retained: dict[Path, BundleObservation] = {}
     for item in observed:
         prior_observation = retained.setdefault(item.path, item)
         if prior_observation != item:
             raise ValueError(f"Staging input changed during preparation: {item.path}")
-    prepared = PreparedBundle(root, inputs.consent, tuple(unique.values()), tuple(retained.values()), suppliers, version,
-                              tuple(sorted({effect.path for effect in effects if effect.after.kind == "file"})), supporting_dirs)
-    return OwnerAssessment(OWNER, root, coalesce_effects(tuple(effects)), tuple(dispositions),
-                           inputs_fingerprint=(InputObservation("bundle_inputs", prepared.observations),
-                                               InputObservation("bundle_supplier_inputs", tuple(s.inputs_fingerprint for s in suppliers))),
-                           prepared=prepared, consent=inputs.consent)
+    prepared = PreparedBundle(
+        root,
+        inputs.consent,
+        tuple(unique.values()),
+        tuple(retained.values()),
+        suppliers,
+        version,
+        tuple(sorted({effect.path for effect in effects if effect.after.kind == "file"})),
+        supporting_dirs,
+    )
+    return OwnerAssessment(
+        OWNER,
+        root,
+        coalesce_effects(tuple(effects)),
+        tuple(dispositions),
+        inputs_fingerprint=(
+            InputObservation("bundle_inputs", prepared.observations),
+            InputObservation("bundle_supplier_inputs", tuple(s.inputs_fingerprint for s in suppliers)),
+        ),
+        prepared=prepared,
+        consent=inputs.consent,
+    )
 
 
 def _ledger_state(
-    root: OperationRoot, bundle_dirs: tuple[Path, ...], observed: list[BundleObservation],
+    root: OperationRoot,
+    bundle_dirs: tuple[Path, ...],
+    observed: list[BundleObservation],
 ) -> tuple[dict[str, tuple[str, int]], list[tuple[str, dict[str, tuple[str, int]]]]]:
     known: dict[str, tuple[str, int]] = {}
     ledgers: list[tuple[str, dict[str, tuple[str, int]]]] = []
@@ -665,17 +745,26 @@ def _unique_members(files: tuple[StagedFile, ...]) -> dict[str, StagedFile]:
         previous = unique.get(member.path)
         if previous and (previous.content, previous.mode) != (member.content, member.mode):
             raise ValueError(f"Conflicting staged output: {member.path}")
-        unique[member.path] = member if previous is None else replace(
-            previous, logical_owners=tuple(sorted(set(previous.logical_owners + member.logical_owners))),
-            surface_ids=tuple(sorted(set(previous.surface_ids + member.surface_ids))),
+        unique[member.path] = (
+            member
+            if previous is None
+            else replace(
+                previous,
+                logical_owners=tuple(sorted(set(previous.logical_owners + member.logical_owners))),
+                surface_ids=tuple(sorted(set(previous.surface_ids + member.surface_ids))),
+            )
         )
     return unique
 
 
 def _add_ledgers(
-    root: OperationRoot, ledgers: list[tuple[str, dict[str, tuple[str, int]]]],
-    unique: dict[str, StagedFile], excluded: set[str], observed: list[BundleObservation],
-    effects: list[PhysicalEffect], dispositions: list[Disposition],
+    root: OperationRoot,
+    ledgers: list[tuple[str, dict[str, tuple[str, int]]]],
+    unique: dict[str, StagedFile],
+    excluded: set[str],
+    observed: list[BundleObservation],
+    effects: list[PhysicalEffect],
+    dispositions: list[Disposition],
 ) -> None:
     for ledger_path, old in ledgers:
         directory = Path(ledger_path).parent
@@ -683,8 +772,7 @@ def _add_ledgers(
         for member in unique.values():
             if member.managed and Path(member.path).is_relative_to(directory) and member.path not in excluded:
                 members[Path(member.path).relative_to(directory).as_posix()] = (sha256(member.content).hexdigest(), member.mode)
-        content = json_bytes({"schema_version": 1, "owner": OWNER,
-                              "members": {p: {"sha256": h, "mode": mode} for p, (h, mode) in sorted(members.items())}})
+        content = json_bytes({"schema_version": 1, "owner": OWNER, "members": {p: {"sha256": h, "mode": mode} for p, (h, mode) in sorted(members.items())}})
         member = StagedFile(ledger_path, content, manifest=True)
         unique[ledger_path] = member
         before = next(o.state for o in reversed(observed) if o.path == root.path / ledger_path)
@@ -692,8 +780,12 @@ def _add_ledgers(
 
 
 def _stage_effect(
-    root: OperationRoot, member: StagedFile, before: FileState, proof: OwnershipProof,
-    effects: list[PhysicalEffect], dispositions: list[Disposition],
+    root: OperationRoot,
+    member: StagedFile,
+    before: FileState,
+    proof: OwnershipProof,
+    effects: list[PhysicalEffect],
+    dispositions: list[Disposition],
 ) -> None:
     after = FileState("file", sha256=sha256(member.content).hexdigest(), mode=member.mode)
     if before.kind == "absent":
@@ -707,8 +799,11 @@ def _stage_effect(
     else:
         dispositions.append(Disposition(OWNER, root.root_id, member.path, "unchanged", "Staged bytes and mode are current"))
         return
-    effects.append(PhysicalEffect(OWNER, "surface_repair", root, member.path, action, before, after,
-                                  "Prepare staged bundle output", (proof,), member.logical_owners, member.surface_ids))
+    effects.append(
+        PhysicalEffect(
+            OWNER, "surface_repair", root, member.path, action, before, after, "Prepare staged bundle output", (proof,), member.logical_owners, member.surface_ids
+        )
+    )
 
 
 def recheck_staging(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
@@ -770,7 +865,7 @@ def write_staged_file(path: Path, content: bytes, mode: int) -> None:
     try:
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(content)
-            os.fchmod(stream.fileno(), mode)
+            chmod_fd(stream.fileno(), temporary, mode)
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
@@ -784,8 +879,12 @@ def apply_staging(assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerAp
     run = _SELECTED_SKILL_BUNDLE.get()
     if run is not None and run.inputs.assessment is assessment:
         if run.attempted:
-            return OwnerApplyResult(OWNER, skipped=ids, outcome="precondition_changed", diagnostics=(
-                Diagnostic("precondition_changed", OWNER, "error", "Selected bundle application is single-consumption"),))
+            return OwnerApplyResult(
+                OWNER,
+                skipped=ids,
+                outcome="precondition_changed",
+                diagnostics=(Diagnostic("precondition_changed", OWNER, "error", "Selected bundle application is single-consumption"),),
+            )
         run.attempted = True
     with staging_guard(assessment) as errors:
         if errors:
@@ -804,10 +903,14 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
     prepared = assessment.prepared
     assert isinstance(prepared, PreparedBundle)
     members = {m.path: m for m in prepared.files}
-    effects = sorted(assessment.effects, key=lambda e: (
-        0 if e.after.kind == "directory" else 3 if Path(e.path).name == _LEDGER else 2 if members[e.path].manifest else 1,
-        len(Path(e.path).parts), e.path,
-    ))
+    effects = sorted(
+        assessment.effects,
+        key=lambda e: (
+            0 if e.after.kind == "directory" else 3 if Path(e.path).name == _LEDGER else 2 if members[e.path].manifest else 1,
+            len(Path(e.path).parts),
+            e.path,
+        ),
+    )
     succeeded: list[str] = []
     failed: list[str] = []
     diagnostics: list[Diagnostic] = []
@@ -838,8 +941,7 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
                 if member.wrapper:
                     from .claude_wrapper import write_wrappers
 
-                    write_wrappers(effect.destination.parent.parent,
-                                   prepared=(effect.destination, member.content, member.mode))
+                    write_wrappers(effect.destination.parent.parent, prepared=(effect.destination, member.content, member.mode))
                 elif member.manifest:
                     from ._builder import write_json
 
@@ -854,13 +956,21 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
         succeeded.append(effect.id)
     _finalize_staged_directories(pending, succeeded, failed, diagnostics)
     completed = set(succeeded + failed)
-    return OwnerApplyResult(OWNER, tuple(succeeded), tuple(failed), tuple(e.id for e in effects if e.id not in completed),
-                            tuple(diagnostics), ("partial" if succeeded else "failed") if failed else "applied")
+    return OwnerApplyResult(
+        OWNER,
+        tuple(succeeded),
+        tuple(failed),
+        tuple(e.id for e in effects if e.id not in completed),
+        tuple(diagnostics),
+        ("partial" if succeeded else "failed") if failed else "applied",
+    )
 
 
 def _finalize_staged_directories(
-    pending: list[tuple[PhysicalEffect, BundleObservation]], succeeded: list[str],
-    failed: list[str], diagnostics: list[Diagnostic],
+    pending: list[tuple[PhysicalEffect, BundleObservation]],
+    succeeded: list[str],
+    failed: list[str],
+    diagnostics: list[Diagnostic],
 ) -> None:
     """Finish only this apply's created directories, child-first, including on failure."""
     for effect, created in reversed(pending):
@@ -875,7 +985,7 @@ def _finalize_staged_directories(
                 if (info.st_dev, info.st_ino, stat.S_IMODE(info.st_mode)) != (created.device, created.inode, created.state.mode):
                     raise ValueError(f"Staged directory replaced during finalization: {effect.path}")
                 assert effect.after.mode is not None
-                os.fchmod(descriptor, effect.after.mode)
+                chmod_fd(descriptor, effect.destination, effect.after.mode)
             finally:
                 os.close(descriptor)
             final = observe_confined(effect.root.path, effect.destination)[-1]

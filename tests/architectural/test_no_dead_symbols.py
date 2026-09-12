@@ -560,7 +560,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey(
-            "apply_org_charter_pre_fill", "e3a5d7e2e5d16803128180ed9c1e34256ed4ff2f1e1315a8d9ffefce8a1f0e95", source_module="specify_cli.doctrine.org_charter"
+            "apply_org_charter_pre_fill", "05844901b4d14fd4a0f92e8576b848d0144108abedaeb567855364fae5fe5817", source_module="specify_cli.doctrine.org_charter"
         ),
         SymbolKey(
             "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
@@ -999,9 +999,9 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
             "StepRemovalWarning", "508dec1c957b44c16c889862c20780e4d64148a0918785d8edd5ff094aa66ccf", source_module="specify_cli.charter_activate"
         ),  # specify_cli.charter_activate::StepRemovalWarning
         # specify_cli.doctrine.org_charter::OrgCharterCycleError
-        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740", source_module="specify_cli.doctrine.org_charter"),
+        SymbolKey("OrgCharterCycleError", "0aa1191f64d7e16ef01d734a5923234235803540c3bef47f38a0f53bb25027b4", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::OrgCharterExtensionError
-        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69", source_module="specify_cli.doctrine.org_charter"),
+        SymbolKey("OrgCharterExtensionError", "95d36f60ef3daa34a22466c687aff504694a7b82bee2621d7f42f7a7d9bd5425", source_module="specify_cli.doctrine.org_charter"),
     }
 )
 

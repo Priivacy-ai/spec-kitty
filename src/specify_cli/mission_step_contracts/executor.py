@@ -492,8 +492,8 @@ class StepContractExecutor:
         inside ``load_org_drg``'s per-pack loop, so a bad optional pack drops
         ONLY its own fragment (with an operator-visible WARNING naming the pack)
         while its healthy siblings still fold. Because the per-pack degrade
-        handles the parse/schema fault class, this method no longer catches it
-        here.
+        handles the parse/schema fault class and the read-fault class (see
+        the #4200 note below), this method no longer catches either here.
 
         The only residual fault ``load_org_drg`` can still raise on this
         non-strict path is a config-level ``NotImplementedError`` (a pack with
@@ -504,6 +504,14 @@ class StepContractExecutor:
         operator is still told. Env-var / subdir-escape config faults are
         deliberately NOT caught -- they fail closed, matching
         :meth:`_resolve_pack_context`.
+
+        #4200 defect 2: the per-pack degrade inside ``load_org_drg`` covers
+        the read-fault class (``OSError`` — a permission-denied or otherwise
+        unreadable optional ``drg/fragment.yaml``) alongside the parse/schema
+        class, so this composition path keeps tolerating exactly the condition
+        it tolerated before the loader stopped masking read faults as
+        ``OrgPackParseError``; such a pack drops ONLY its own fragment (with
+        the operator-visible WARNING above), never the whole layer.
         """
         try:
             # Typed local absorbs the ``charter.drg`` facade re-export (mypy sees
@@ -564,12 +572,25 @@ class StepContractExecutor:
         the pre-probe's degrade WARNING stays honest. The ``pack_name``/
         ``layer_index`` passed here only affect labelling, not whether the
         fragment parses, so a probe-local name and index are sufficient.
+
+        #4200 defect 2: an unreadable fragment (``OSError`` — e.g. a
+        permission-denied ``drg/fragment.yaml``) answers ``False`` (a
+        genuinely lost root), never raises — the loader presents read faults
+        as the I/O fault they are rather than masking them as
+        ``OrgPackParseError``, so this probe tolerates the fault class by
+        name.
         """
         if not (root / "drg" / "fragment.yaml").is_file():
             return False
         try:
             load_org_pack(root.name, root, 1)
-        except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, NotImplementedError):
+        except (
+            OrgPackMissingError,
+            OrgPackParseError,
+            OrgPackSchemaError,
+            NotImplementedError,
+            OSError,
+        ):
             return False
         return True
 

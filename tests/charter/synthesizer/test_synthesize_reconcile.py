@@ -657,3 +657,74 @@ def test_apply_prune_excises_removable_nodes_edges_and_manifest_entries() -> Non
     # apply_prune preserves the delta as-is (WP03 owns reporting the CLI diff).
     assert pruned.delta is delta
 
+
+
+# ---------------------------------------------------------------------------
+# Org-aware conflict classification (#4121, squad MAJOR 2)
+# ---------------------------------------------------------------------------
+
+_ORG_URN = "procedure:org-runbook"
+
+
+def _org_reference_overlay() -> DRGGraph:
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-09-10T00:00:00+00:00",
+        generated_by="test-org-reference-overlay",
+        nodes=[DRGNode(urn="agent_profile:ops-responder", kind=NodeKind.AGENT_PROFILE)],
+        edges=[
+            DRGEdge(
+                source="agent_profile:ops-responder",
+                target=_ORG_URN,
+                relation=Relation.REQUIRES,
+                provenance="project",
+            )
+        ],
+    )
+
+
+def _org_base_graph(nodes: list[str]) -> DRGGraph:
+    from charter.offering.drg.models import DRGNode, NodeKind
+
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-09-10T00:00:00+00:00",
+        generated_by="test-org-base",
+        nodes=[DRGNode(urn=urn, kind=NodeKind(urn.split(":", 1)[0])) for urn in nodes],
+        edges=[],
+    )
+
+
+def test_org_referencing_edge_is_not_classified_dangling_with_org_base(tmp_path: Path) -> None:
+    """With the org-chain base, a fresh overlay's org-referencing edge is a
+    legitimate reference, not a preserved_dangling_endpoint conflict."""
+    fresh = _org_reference_overlay()
+    empty_built_in = _org_base_graph([])
+    org = _org_base_graph([_ORG_URN])
+
+    outcome = reconcile_synthesis(
+        repo_root=tmp_path,
+        fresh_overlay=fresh,
+        new_results=[],
+        run_id="01ORGREFERENCE000000000000000",
+        built_in_drg=empty_built_in,
+        org_drg=org,
+    )
+    assert outcome.delta.conflicts == ()
+
+
+def test_org_referencing_edge_without_org_base_is_classified_dangling(tmp_path: Path) -> None:
+    """Regression contrast: the org-blind classifier this fix replaces."""
+    fresh = _org_reference_overlay()
+    empty_built_in = _org_base_graph([])
+
+    outcome = reconcile_synthesis(
+        repo_root=tmp_path,
+        fresh_overlay=fresh,
+        new_results=[],
+        run_id="01ORGREFERENCE000000000000000",
+        built_in_drg=empty_built_in,
+    )
+    assert any(_ORG_URN in conflict.target_id for conflict in outcome.delta.conflicts)

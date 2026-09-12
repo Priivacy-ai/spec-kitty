@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#1931": {
+      "evidence_ref": "Follow-up: #1931 parent epic remains open; this mission is one child",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3665": {
+      "evidence_ref": "Performance-marker guard landed; this mission keeps it green, does not modify it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4015": {
+      "evidence_ref": "Lane B COMPLETE: WP05 assert_timing_budget helper + coverage-invariant + triage; WP06-09 split 74 MIXED (functional per-PR, timing @performance) + deleted all 9 vocab-blocked (operator HiC sign-off). All WPs approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#4017": {
+      "evidence_ref": "Lane A COMPLETE: WP01 red-first repro, WP02 role-tag observe(), WP03 re-assess-under-lock + operator signal, WP04 generic-scope verify. Both quarantined e2e un-skipped+driven; all WPs approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#4022": {
+      "evidence_ref": "Closed this session; fixed on main by #4082; repro verified green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4082": {
+      "evidence_ref": "Merged superset fix (closed #4032+#4047); referenced as context",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

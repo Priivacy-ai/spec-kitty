@@ -28,7 +28,15 @@ Validation performs (in order):
    the referenced blob is never scanned, only its ``*.asset.yaml`` sidecar
    manifest is, and cross-pack id-uniqueness is intentionally NOT enforced
    here (see WP03's merge scan).
-8. **Optional org-charter.yaml schema validation** (gracefully skipped when
+8. **Org-pack validation through the runtime loader** (#4189, #4200): when
+   ``drg/fragment.yaml`` exists the whole pack is loaded through
+   :func:`charter.offering.drg.org_pack_loader.load_org_pack` (single schema
+   authority); when it does not, any ``mission_types/*/governance-profile.yaml``
+   is still validated through the loader's own collector so a CLI-green pack
+   cannot crash the runtime loader later. Faults are attributed to the file
+   they actually live in (``source_file``), and an unreadable fragment is an
+   I/O finding, not a masked YAML parse error.
+9. **Optional org-charter.yaml schema validation** (gracefully skipped when
    the ``specify_cli.doctrine.org_charter`` module is not yet shipped —
    WP09 owns that file).
 
@@ -36,15 +44,16 @@ Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
 ``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
-``profile_skipped``, plus
+``profile_skipped``, ``org_pack_missing``, ``unreadable_file``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
-The public surface is intentionally small:
+The exported entry points are intentionally small:
 
-* :class:`ValidationIssue`
-* :class:`ValidationResult`
 * :func:`validate_pack`
 * :func:`render_validation_result`
+
+ValidationIssue and ValidationResult are module-local records used to build,
+return, and render findings. Their types and direct module access are unchanged.
 """
 
 from __future__ import annotations
@@ -59,8 +68,6 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 __all__ = [
-    "ValidationIssue",
-    "ValidationResult",
     "validate_pack",
     "render_validation_result",
 ]
@@ -80,7 +87,13 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.drg.org_pack_loader import augmentation_plural_kinds
+from charter.offering.drg.org_pack_loader import (
+    OrgPackMissingError,
+    OrgPackParseError,
+    OrgPackSchemaError,
+    augmentation_plural_kinds,
+    load_org_pack,
+)
 from charter.offering.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound, built_in_dir
 
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
@@ -121,6 +134,12 @@ class ValidationIssue:
       (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads pack-root
       ``*.graph.yaml`` and ``drg/fragment.yaml``, so a ``drg/*.graph.yaml``
       graph fragment is the one DRG shape no runtime path consumes.
+    * ``org_pack_missing`` — the runtime org-pack loader reported a missing
+      referenced pack/artifact (:class:`OrgPackMissingError`) — a missing
+      thing, not a parse fault (#4200).
+    * ``unreadable_file`` — an org-pack file exists but cannot be read
+      (``OSError``: permissions, or the path is a directory) — an I/O fault,
+      never a masked YAML parse error (#4200).
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
     """
 
@@ -415,6 +434,8 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
         _check_profile_skipped_diagnostics(pack_dir, already_flagged_files)
     )
 
+    errors.extend(_validate_org_fragment(pack_dir))
+
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
     if drg_dir.is_dir():
@@ -517,6 +538,95 @@ def _plural_to_urn_kind(plural: str) -> str | None:
         "mission_step_contracts": "mission_step_contract",
     }
     return mapping.get(plural)
+
+
+def _validate_org_fragment(pack_dir: Path) -> list[ValidationIssue]:
+    """Validate the pack's org surfaces through the runtime loading authority.
+
+    When ``drg/fragment.yaml`` exists, the whole pack is loaded through
+    :func:`load_org_pack` — the single schema authority (single-loader
+    direction, #4189). Sibling-source faults (a governance-profile
+    selection) carry their own file via the error's ``source_file`` and are
+    reported against that file, never mis-attributed to the fragment.
+
+    When no fragment exists, the fragment layer is optional — but a
+    governance profile is read by that same loader the moment any fragment
+    appears, so a profile fault is validated here directly rather than being
+    gated on the fragment's presence (#4200 defect 3: a CLI-green pack must
+    not be able to crash the runtime loader later). ``load_org_pack`` itself
+    cannot run here: it raises :class:`OrgPackMissingError` for a
+    fragment-less pack by contract (FR-004 strict mode), so the check routes
+    through the same collector the loader calls — one authority, no second
+    schema table.
+    """
+    fragment = pack_dir / "drg" / "fragment.yaml"
+    if fragment.exists():
+        try:
+            load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
+        except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError) as exc:
+            return [_org_load_finding(exc, fallback_file=fragment)]
+        return []
+    return _validate_org_governance_profiles(pack_dir)
+
+
+def _validate_org_governance_profiles(pack_dir: Path) -> list[ValidationIssue]:
+    """Validate ``mission_types/*/governance-profile.yaml`` with no fragment present.
+
+    Runs the loader's own collector directly so a malformed ``selected_*``
+    selection is a CLI finding even when the pack ships no
+    ``drg/fragment.yaml`` — the exact shape that previously passed green
+    here while raising at runtime once a fragment appeared (#4200 defect 3).
+    """
+    if not (pack_dir / "mission_types").is_dir():
+        return []
+    from charter.offering.drg.org_governance import (  # noqa: PLC0415 — lazy: mirrors the loader's own lazy import of the collector
+        collect_org_governance_scope_edges,
+    )
+
+    try:
+        collect_org_governance_scope_edges(pack_dir)
+    except (OrgPackSchemaError, OSError) as exc:
+        return [_org_load_finding(exc, fallback_file=pack_dir)]
+    return []
+
+
+def _org_load_finding(exc: Exception, fallback_file: Path) -> ValidationIssue:
+    """Map one org-pack load fault to a finding naming its real source file.
+
+    Sibling-source faults (a governance profile) carry their own
+    ``source_file``; a missing pack names the path it was expected at; an
+    ``OSError`` names ``exc.filename`` when the OS handed it back; fragment
+    faults name the fragment. The category distinguishes a missing
+    referenced pack (``org_pack_missing``) and an unreadable file
+    (``unreadable_file``) from genuine parse and schema faults — none of the
+    four is conflated with another (#4200 defect 2 and nit a).
+    """
+    source = getattr(exc, "source_file", None)
+    if source is not None:
+        file = str(source)
+    elif isinstance(exc, OrgPackMissingError):
+        file = exc.configured_path
+    elif isinstance(exc, OSError) and exc.filename is not None:
+        file = str(exc.filename)
+    else:
+        file = str(fallback_file)
+    if isinstance(exc, OrgPackSchemaError):
+        category = "schema_invalid"
+    elif isinstance(exc, OrgPackParseError):
+        category = "parse_error"
+    elif isinstance(exc, OrgPackMissingError):
+        category = "org_pack_missing"
+    else:
+        category = "unreadable_file"
+    message = f"unreadable org-pack file: {exc}" if isinstance(exc, OSError) else str(exc)
+    return ValidationIssue(
+        severity="error",
+        artifact_type="drg",
+        artifact_id=None,
+        file=file,
+        message=message,
+        category=category,
+    )
 
 
 def _validate_drg(

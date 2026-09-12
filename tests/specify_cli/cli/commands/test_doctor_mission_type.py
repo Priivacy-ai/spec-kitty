@@ -26,6 +26,8 @@ from typing import Any
 
 import pytest
 
+from tests._perf_helpers import assert_timing_budget
+
 pytestmark = [pytest.mark.fast]
 
 _CUSTOM_UNRESOLVABLE_TYPE = "custom-unresolvable-type"
@@ -578,6 +580,23 @@ def _build_200_mission_type_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def test_audit_mission_types_resolves_200_missions() -> None:
+    """audit_mission_types resolves every mission in a synthetic 200-mission repo."""
+    import tempfile
+
+    from specify_cli.cli.commands._mission_type_audit import audit_mission_types
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = _build_200_mission_type_repo(Path(tmpdir))
+
+        states = audit_mission_types(repo_root)
+
+        # Sanity checks: the data is correct.
+        assert len(states) == 200  # golden-count: cardinality-is-contract
+        assert all(s.state == "resolved" for s in states)
+
+
+@pytest.mark.performance
 def test_nfr_004_timing_200_missions() -> None:
     """audit_mission_types must complete in < 2 seconds for a synthetic
     200-mission repo (NFR-004)."""
@@ -589,15 +608,8 @@ def test_nfr_004_timing_200_missions() -> None:
         repo_root = _build_200_mission_type_repo(Path(tmpdir))
 
         start = time.monotonic()
-        states = audit_mission_types(repo_root)
+        audit_mission_types(repo_root)
         elapsed = time.monotonic() - start
 
-        # Sanity checks: the data is correct.
-        assert len(states) == 200  # golden-count: cardinality-is-contract
-        assert all(s.state == "resolved" for s in states)
-
         # NFR-004: must be under 2 seconds.
-        assert elapsed < 2.0, (
-            f"NFR-004 timing violation: {elapsed:.2f}s for 200 missions "
-            f"(limit: 2.0s). Check for I/O hotspots."
-        )
+        assert_timing_budget(elapsed, 2.0, name="audit_mission_types (200 missions)")

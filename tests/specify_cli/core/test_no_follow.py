@@ -9,6 +9,8 @@ import pytest
 
 from specify_cli.core.no_follow import (
     NoFollowPathError,
+    chmod_fd,
+    fd_relative_dir_ops_supported,
     read_text_no_follow,
     write_text_no_follow,
 )
@@ -75,3 +77,53 @@ def test_read_rejects_symlink_planted_before_open(tmp_path: Path, monkeypatch: p
 
     assert swapped
     assert target.read_text(encoding="utf-8") == "do not disclose\n"
+
+
+def test_chmod_fd_uses_fchmod_when_available(tmp_path: Path) -> None:
+    """On a platform with ``os.fchmod`` (every CI target), the fd path is used."""
+    path = tmp_path / "settings.txt"
+    path.write_text("content\n", encoding="utf-8")
+
+    with path.open("r+b") as handle:
+        chmod_fd(handle.fileno(), path, 0o640)
+
+    import stat
+
+    assert stat.S_IMODE(path.stat().st_mode) == 0o640
+
+
+def test_chmod_fd_falls_back_to_path_chmod_without_fchmod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulated Windows (no ``os.fchmod``) still applies the mode via ``Path.chmod``.
+
+    Before the fix this call would raise ``AttributeError: module 'os' has
+    no attribute 'fchmod'`` on a platform lacking the syscall.
+    """
+    monkeypatch.delattr(os, "fchmod", raising=False)
+    path = tmp_path / "settings.txt"
+    path.write_text("content\n", encoding="utf-8")
+
+    with path.open("r+b") as handle:
+        chmod_fd(handle.fileno(), path, 0o640)
+
+    import stat
+
+    assert stat.S_IMODE(path.stat().st_mode) == 0o640
+
+
+def test_fd_relative_dir_ops_supported_true_on_this_platform() -> None:
+    """Every CI target (Linux/macOS) supports the fd-relative dance."""
+    assert fd_relative_dir_ops_supported() is (os.open in os.supports_dir_fd and hasattr(os, "O_DIRECTORY") and hasattr(os, "O_NOFOLLOW"))
+
+
+def test_fd_relative_dir_ops_supported_false_when_o_nofollow_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulated Windows: no ``O_NOFOLLOW`` means the predicate reports unsupported."""
+    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+
+    assert fd_relative_dir_ops_supported() is False
+
+
+def test_fd_relative_dir_ops_supported_false_when_dir_fd_unsupported(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulated Windows: an empty ``os.supports_dir_fd`` means unsupported."""
+    monkeypatch.setattr(os, "supports_dir_fd", set())
+
+    assert fd_relative_dir_ops_supported() is False

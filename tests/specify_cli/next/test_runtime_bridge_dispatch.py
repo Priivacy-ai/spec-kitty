@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests._perf_helpers import assert_timing_budget
 from runtime.next.runtime_bridge import (
     _normalize_action_for_composition,
     _should_dispatch_via_composition,
@@ -309,19 +310,47 @@ class TestPerformance:
                 # Warm the import cache.
                 resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
-                # Time the second (warm) call.
-                start = time.monotonic()
                 result = resolve_mission_type_context(
                     tmp_path, mission_type="software-dev"
                 ).action_sequence
-                elapsed_ms = (time.monotonic() - start) * 1000
         finally:
             _restore_modules(saved)
 
         assert result == _SW_DEV_ACTIONS
-        assert elapsed_ms < 100, (
-            f"charter.resolve_mission_type_context took {elapsed_ms:.1f}ms — exceeds 100ms NFR-001 budget"
-        )
+
+    @pytest.mark.performance
+    def test_resolve_mission_type_context_under_100ms(self, tmp_path: Path) -> None:
+        """charter.resolve_mission_type_context(repo_root, mission_type='software-dev') < 100ms."""
+        # Build a mock repo that returns immediately (no I/O).
+        sw_dev = MagicMock()
+        sw_dev.id = "software-dev"
+        sw_dev.action_sequence = _SW_DEV_ACTIONS
+        sw_dev.extends = None
+
+        mock_repo = MagicMock()
+        mock_repo.get.side_effect = lambda k: sw_dev if k == "software-dev" else None
+        saved = _inject_mission_type_repository_mock(mock_repo)
+
+        try:
+            with patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=["documentation", "plan", "research", "software-dev"],
+            ):
+                from charter.activation.mission_type_profiles import resolve_mission_type_context
+
+                # Warm the import cache.
+                resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+                # Time the second (warm) call.
+                start = time.monotonic()
+                resolve_mission_type_context(
+                    tmp_path, mission_type="software-dev"
+                )
+                elapsed_ms = (time.monotonic() - start) * 1000
+        finally:
+            _restore_modules(saved)
+
+        assert_timing_budget(elapsed_ms, 100, name="resolve_mission_type_context NFR-001")
 
 
 class TestNFR001LazyGovernanceBoundary:

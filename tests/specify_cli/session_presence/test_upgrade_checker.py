@@ -31,9 +31,7 @@ def patched_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def _write_cache(path: Path, version: str, age_seconds: int = 0) -> None:
     """Write a cache file with the given version and age."""
-    checked_at = (
-        now_utc() - timedelta(seconds=age_seconds)
-    ).isoformat()
+    checked_at = (now_utc() - timedelta(seconds=age_seconds)).isoformat()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps({"checked_at": checked_at, "latest_version": version}),
@@ -42,9 +40,7 @@ def _write_cache(path: Path, version: str, age_seconds: int = 0) -> None:
 
 
 class TestGetAvailableVersion:
-    def test_opt_out_returns_none_even_when_cache_exists(
-        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_opt_out_returns_none_even_when_cache_exists(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """SPEC_KITTY_NO_UPGRADE_CHECK disables cached upgrade notices."""
         _write_cache(patched_cache, "9.9.9", age_seconds=60)
         monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
@@ -56,9 +52,7 @@ class TestGetAvailableVersion:
         checker = UpgradeChecker()
         assert checker.get_available_version() is None
 
-    def test_cache_hit_within_ttl(
-        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cache_hit_within_ttl(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Cache hit within TTL: returns cached version, check_in_background NOT called."""
         _write_cache(patched_cache, "3.3.0", age_seconds=60)  # fresh
         checker = UpgradeChecker()
@@ -67,9 +61,7 @@ class TestGetAvailableVersion:
         assert result == "3.3.0"
         mock_bg.assert_not_called()
 
-    def test_cache_stale_returns_last_known(
-        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cache_stale_returns_last_known(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Cache stale (age > TTL): returns last known value."""
         _write_cache(patched_cache, "3.2.0", age_seconds=TTL_SECONDS + 100)
         checker = UpgradeChecker()
@@ -84,9 +76,7 @@ class TestGetAvailableVersion:
         checker = UpgradeChecker()
         assert checker.get_available_version() is None
 
-    def test_cache_missing_latest_version_key_returns_none(
-        self, patched_cache: Path
-    ) -> None:
+    def test_cache_missing_latest_version_key_returns_none(self, patched_cache: Path) -> None:
         """Cache JSON without latest_version key returns None."""
         patched_cache.parent.mkdir(parents=True, exist_ok=True)
         patched_cache.write_text(
@@ -108,9 +98,7 @@ class TestGetAvailableVersion:
 
 
 class TestCheckInBackground:
-    def test_opt_out_does_not_spawn_subprocess(
-        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_opt_out_does_not_spawn_subprocess(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """SPEC_KITTY_NO_UPGRADE_CHECK disables background PyPI probes."""
         monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
         with patch("subprocess.Popen") as mock_popen:
@@ -118,9 +106,7 @@ class TestCheckInBackground:
             checker.check_in_background()
         mock_popen.assert_not_called()
 
-    def test_subprocess_oserror_does_not_raise(
-        self, patched_cache: Path
-    ) -> None:
+    def test_subprocess_oserror_does_not_raise(self, patched_cache: Path) -> None:
         """check_in_background() with subprocess failure does not raise."""
         with patch("subprocess.Popen", side_effect=OSError("not found")):
             checker = UpgradeChecker()
@@ -135,20 +121,24 @@ class TestCheckInBackground:
         assert result is None
 
     def test_background_probe_spawns_refresh_cache_once(self, patched_cache: Path) -> None:
+        """#4125: launched as a real module (`-m`), never `-c` codegen.
+
+        A `-c` child has no `__main__.__file__`, which a transitive import
+        reads during interpreter bootstrap on Windows and crashes on.
+        """
         calls: list[list[str]] = []
 
         with patch("subprocess.Popen", side_effect=lambda argv, **_: calls.append(argv)):
             UpgradeChecker().check_in_background()
 
         assert calls
-        script = calls[0][2]
-        assert "refresh_cache_once" in script
-        assert "specify_cli.session_presence.upgrade_check" in script
-        assert "uv pip index" not in script
+        argv = calls[0]
+        assert argv[1] == "-m"
+        assert argv[2] == "specify_cli.session_presence.upgrade_check"
+        assert "-c" not in argv
+        assert "uv pip index" not in " ".join(argv)
 
-    def test_mkdir_failure_does_not_raise(
-        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_mkdir_failure_does_not_raise(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """check_in_background() swallows mkdir failures."""
         with patch("subprocess.Popen", side_effect=PermissionError("no access")):
             checker = UpgradeChecker()
@@ -156,9 +146,7 @@ class TestCheckInBackground:
 
 
 class TestRefreshCacheOnce:
-    def test_uses_resolved_provider_and_package_name(
-        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_uses_resolved_provider_and_package_name(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersionResult
 
         calls: list[str] = []
@@ -187,9 +175,7 @@ class TestRefreshCacheOnce:
         data = json.loads(patched_cache.read_text(encoding="utf-8"))
         assert data["latest_version"] == "8.8.8"
 
-    def test_stock_path_queries_default_package_via_provider(
-        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_stock_path_queries_default_package_via_provider(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersionResult
         from specify_cli.distribution.package_name import (
             DEFAULT_CLI_PACKAGE_NAME,

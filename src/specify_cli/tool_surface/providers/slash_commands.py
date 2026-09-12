@@ -14,6 +14,7 @@ treated as healthy.
 from __future__ import annotations
 
 from collections.abc import Sequence
+import logging
 from pathlib import Path
 from contextlib import AbstractContextManager
 from dataclasses import replace
@@ -47,6 +48,8 @@ from ..status import (
     _surface_id,
 )
 from ._registry import SurfaceProviderRegistry, SurfaceRegistration
+
+logger = logging.getLogger(__name__)
 
 PROVIDER_KEY = "slash_commands"
 _PATH_PATTERN = "<user-global>/spec-kitty.{command}"
@@ -116,10 +119,50 @@ class SlashCommandsProvider:
         return recheck_assets(assessment)
 
     def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
-        """Apply retained global bytes, never rediscover a selected agent bundle."""
-        from specify_cli.runtime.asset_preparation import apply_assets
+        """Apply retained global bytes, converging on a concurrent peer's own materialization.
 
-        return apply_assets(assessment, explicit_consent)
+        #4174 landing-pass: dispatched through ``tool_surface/repair.py``'s
+        generic ``_apply_assessment`` (via ``SurfaceRepairService``), which
+        calls ``recheck()`` then this method on the SAME stale *assessment*
+        -- there was no re-assess seam here either, so two independent,
+        concurrent repair-service invocations racing the same cold home
+        reproduced the identical residual symptom the other #4174 external
+        callers had: a ``global_asset_write_failed: File exists`` when the
+        winner already materialized the tree.
+
+        The rebuild is derived purely from *assessment*'s OWN effects
+        (``logical_owners``, set by ``assess()`` from the selected agent
+        keys) -- this method never receives the original ``inputs`` /
+        ``selections`` ``assess()`` used, so it cannot call that directly.
+        """
+        from specify_cli.runtime.agent_commands import assess_global_agent_commands
+        from specify_cli.runtime.asset_preparation import apply_assets, apply_with_reassess
+
+        if not assessment.effects:
+            return apply_assets(assessment, explicit_consent)
+        keys = sorted({owner for effect in assessment.effects for owner in effect.logical_owners})
+
+        def _rebuild() -> OwnerAssessment:
+            return assess_global_agent_commands(agent_keys=keys, consent=assessment.consent)
+
+        result = apply_with_reassess(
+            assessment,
+            _rebuild,
+            explicit_consent,
+            converged_log_message="global slash commands already materialized by a concurrent peer; nothing applied.",
+            logger=logger,
+        )
+        if result.outcome == "skipped":
+            # asset_preparation.apply_with_reassess's converged-no-op branch
+            # reports no ids at all (fine for the ensure_*() owners it was
+            # extracted from). repair.py's _apply_assessment enforces a
+            # stricter contract than those direct-call owners: every id in
+            # the ORIGINAL assessment's effects must be reported in the
+            # OwnerApplyResult, or it downgrades to a failed
+            # "unreported_effects" diagnostic. Remap the converged result to
+            # report those original ids as skipped.
+            return replace(result, skipped=tuple(effect.id for effect in assessment.effects))
+        return result
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
         return bool(definition.kind == ToolSurfaceKind.COMMAND_FILE)

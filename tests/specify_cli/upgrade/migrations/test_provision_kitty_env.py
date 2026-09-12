@@ -152,9 +152,7 @@ def _has_active_assignment(content: str, var: str) -> bool:
 
 
 class TestNeverSeedPacksRoot:
-    def test_env_file_never_mentions_packs_root_even_when_set(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_file_never_mentions_packs_root_even_when_set(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         assert "SPEC_KITTY_PACKS_ROOT" in NEVER_SEED_VARS
 
         monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(tmp_path / "some" / "packs"))
@@ -174,9 +172,7 @@ class TestNeverSeedPacksRoot:
         content = _env_file_path(tmp_path).read_text(encoding="utf-8")
         assert not _has_active_assignment(content, "SPEC_KITTY_PACKS_ROOT")
 
-    def test_template_root_still_governs_asset_resolution_with_scaffold_present(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_template_root_still_governs_asset_resolution_with_scaffold_present(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Regression: a provisioned .kitty.env must never flip the TEMPLATE_ROOT
         gate (kernel/paths.py) even though the loader merges it into
         os.environ via setdefault. Mirrors
@@ -426,18 +422,31 @@ class TestNonRegularIgnoreFiles:
     def test_read_ignore_file_text_returns_empty_string_for_missing_file(self, tmp_path: Path) -> None:
         assert _read_ignore_file_text(tmp_path / "does-not-exist") == ""
 
-    def test_atomic_write_then_read_claudeignore_round_trips_on_a_regular_file(
-        self, tmp_path: Path
-    ) -> None:
+    def test_atomic_write_then_read_claudeignore_round_trips_on_a_regular_file(self, tmp_path: Path) -> None:
         path = tmp_path / ".claudeignore"
         _atomic_write_claudeignore(path, "node_modules/\n*.log\n")
 
         assert _read_ignore_file_text(path) == "node_modules/\n*.log\n"
 
+    def test_atomic_write_windows_fchmod_fallback_preserves_existing_mode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Simulated Windows (no ``os.fchmod``): rewriting an existing file still works.
+
+        Before the fix, the unconditional ``os.fchmod(fd, existing_mode)``
+        call raised ``AttributeError: module 'os' has no attribute
+        'fchmod'`` on a platform without the syscall.
+        """
+        monkeypatch.delattr(os, "fchmod", raising=False)
+        path = tmp_path / ".claudeignore"
+        path.write_text("old content\n", encoding="utf-8")
+        path.chmod(0o640)
+
+        _atomic_write_claudeignore(path, "node_modules/\n*.log\n")
+
+        assert _read_ignore_file_text(path) == "node_modules/\n*.log\n"
+        assert stat.S_IMODE(path.stat().st_mode) == 0o640
+
     @pytest.mark.skipif(sys.platform != "linux", reason="counts descriptors through /proc/self/fd")
-    def test_atomic_write_closes_temp_fd_when_mode_change_fails(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_atomic_write_closes_temp_fd_when_mode_change_fails(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A pre-write mode-change failure must not leak the temporary-file fd."""
 
         def fail_mode_change(*args: object, **kwargs: object) -> None:
@@ -461,9 +470,7 @@ class TestNonRegularIgnoreFiles:
         assert after == before
         assert list(tmp_path.glob(".claudeignore.*.tmp")) == []
 
-    def test_atomic_write_treats_file_vanishing_after_existence_check_as_new(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_atomic_write_treats_file_vanishing_after_existence_check_as_new(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A delete between the existence/probe syscalls must take the new-file path."""
 
         path = tmp_path / ".claudeignore"
@@ -479,9 +486,7 @@ class TestNonRegularIgnoreFiles:
 
         assert path.read_text(encoding="utf-8") == "replacement\n"
 
-    def test_atomic_write_existing_file_does_not_change_process_umask(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_atomic_write_existing_file_does_not_change_process_umask(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Existing-file writes must not open even a momentary global umask window."""
 
         def fail_umask_change(*args: object, **kwargs: object) -> None:
@@ -494,6 +499,7 @@ class TestNonRegularIgnoreFiles:
         _atomic_write_claudeignore(path, "replacement\n")
 
         assert path.read_text(encoding="utf-8") == "replacement\n"
+
 
 # ---------------------------------------------------------------------------
 # .claudeignore symlink safety (issue #627, sibling of #582/#618's fix for
@@ -754,9 +760,7 @@ class TestOrdering:
         ProvisionKittyEnvMigration().apply(provision_first, dry_run=False)
         HealProvenancePathsMigration().apply(provision_first, dry_run=False)
 
-        assert _env_file_path(heal_first).read_text(encoding="utf-8") == _env_file_path(
-            provision_first
-        ).read_text(encoding="utf-8")
+        assert _env_file_path(heal_first).read_text(encoding="utf-8") == _env_file_path(provision_first).read_text(encoding="utf-8")
         heal_config = YAML().load(_config_yaml_path(heal_first).read_text(encoding="utf-8"))
         provision_config = YAML().load(_config_yaml_path(provision_first).read_text(encoding="utf-8"))
         assert heal_config["env_file"] == provision_config["env_file"]

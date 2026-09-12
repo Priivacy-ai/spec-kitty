@@ -50,7 +50,9 @@ def test_wp07_cycle2_integrated_config_refuses_without_writes(tmp_path: Path, ra
     before = snapshot({"project": tmp_path})
     consent = ApplyConsent(automatic=True)
     assessed = run_tool_surfaces(
-        tmp_path, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE],
+        tmp_path,
+        ["vibe"],
+        kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE],
         assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent),
     )
     assert {a.owner_key for a in assessed.assessments} == {"native_config", "session_presence"}
@@ -65,11 +67,17 @@ def test_wp07_cycle2_integrated_config_refuses_without_writes(tmp_path: Path, ra
     ("raw", "repair"),
     [
         (None, True),  # An explicitly selected surface still works without a config file.
-        ("", False), ("# comment", False), ("null", False), ("{}", False),
-        ("agents: null", False), ("agents: {}", False),
+        ("", False),
+        ("# comment", False),
+        ("null", False),
+        ("{}", False),
+        ("agents: null", False),
+        ("agents: {}", False),
         ("agents: {available: []}\ntools: {available: [vibe]}", False),
-        ("agents: {available: [vibe]}", True), ("tools: {available: [vibe]}", True),
-        ("agents: null\ntools: {available: [vibe]}", True), ("agents: {}\ntools: {available: [vibe]}", True),
+        ("agents: {available: [vibe]}", True),
+        ("tools: {available: [vibe]}", True),
+        ("agents: null\ntools: {available: [vibe]}", True),
+        ("agents: {}\ntools: {available: [vibe]}", True),
         ("agents: {available: [claude]}\ntools: {available: [vibe]}", False),
         ("agents: {available: [vibe]}\ntools: []", True),
         ("agents: {custom: true}\ntools: {available: [vibe]}", False),
@@ -155,7 +163,9 @@ def test_wp07_cycle2_native_success_does_not_hide_external_race(tmp_path: Path, 
     config.write_text("agents:\n  available: [vibe]\n")
     consent = ApplyConsent(automatic=True)
     assessed = run_tool_surfaces(
-        root, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE],
+        root,
+        ["vibe"],
+        kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE],
         assessment_inputs=AssessmentInputs(OperationRoot("project", "project", root), consent=consent),
     )
     service = SurfaceRepairService(build_providers())
@@ -199,9 +209,7 @@ def test_wp07_nonrepairable_policy_never_becomes_automatic(tmp_path: Path, polic
     definition = replace(definition, required_policy=RequiredPolicy(policy))
     provider = NativeConfigProvider() if owner == "native" else SessionPresenceProvider()
     before = snapshot({"project": tmp_path})
-    result = provider.assess(
-        AssessmentInputs(OperationRoot("project", "project", tmp_path)), (), selections=(SurfaceSelection("vibe", definition),)
-    )
+    result = provider.assess(AssessmentInputs(OperationRoot("project", "project", tmp_path)), (), selections=(SurfaceSelection("vibe", definition),))
     assert result.complete and not result.effects and result.dispositions
     assert all(d.state == "not_applicable" for d in result.dispositions)
     assert_unchanged(before, snapshot({"project": tmp_path}))
@@ -718,6 +726,37 @@ def test_probe_detects_missing_hook(tmp_path: Path) -> None:
     status = provider.probe(instance)
     assert status.state == STATE_MISSING
     assert status.findings[0].code == "session-presence-incomplete"
+
+
+def test_repair_cursor_rule_creates_missing_directory_without_dir_fd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulated Windows (no dir_fd support): repair still creates the missing rule directory.
+
+    Exercises the ``effect.after.kind == "directory"`` branch in
+    ``SessionPresenceProvider._apply_prepared`` (session_presence.py site
+    #8), which previously called ``os.mkdir(..., dir_fd=fd)`` /
+    ``os.fchmod(fd, ...)`` unconditionally -- both unsupported on Windows.
+    The Cursor rule writer's ``.cursor/rules`` directory does not exist yet,
+    so applying it must create that directory through the Windows fallback.
+    """
+    import os
+    import stat
+
+    monkeypatch.setattr(os, "supports_dir_fd", set())
+    (tmp_path / ".cursor").mkdir()
+    provider = SessionPresenceProvider()
+    instance = provider.expand(rule_definition(), "cursor", tmp_path)[0]
+    missing = provider.probe(instance)
+    assert missing.state == STATE_MISSING
+
+    result = provider.repair(tmp_path, [missing])
+
+    assert result.repaired
+    assert not result.failed
+    rules_dir = tmp_path / ".cursor" / "rules"
+    assert rules_dir.is_dir()
+    assert stat.S_IMODE(rules_dir.stat().st_mode) == 0o755
+    refreshed = provider.probe(instance)
+    assert refreshed.state == STATE_PRESENT
 
 
 def test_probe_present_after_repair(tmp_path: Path) -> None:

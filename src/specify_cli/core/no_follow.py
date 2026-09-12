@@ -6,11 +6,45 @@ import errno
 import os
 from pathlib import Path
 
-__all__ = ["NoFollowPathError", "open_no_follow", "read_text_no_follow", "write_text_no_follow"]
+__all__ = [
+    "NoFollowPathError",
+    "chmod_fd",
+    "fd_relative_dir_ops_supported",
+    "open_no_follow",
+    "read_text_no_follow",
+    "write_text_no_follow",
+]
 
 
 class NoFollowPathError(RuntimeError):
     """Raised when a requested path is a symlink and must not be followed."""
+
+
+def chmod_fd(fd: int, path: Path, mode: int) -> None:
+    """Apply *mode* to an open descriptor, falling back to a path-based chmod.
+
+    ``os.fchmod`` does not exist on Windows. Platforms without it get a
+    plain :meth:`Path.chmod` on *path* instead, mirroring the existing
+    ``hasattr(os, "fchmod")`` dance in ``charter_yaml_io.py`` and
+    ``status/store.py``.
+    """
+    if hasattr(os, "fchmod"):
+        os.fchmod(fd, mode)
+    else:  # pragma: no cover - exercised only on platforms without fchmod
+        path.chmod(mode)
+
+
+def fd_relative_dir_ops_supported() -> bool:
+    """Whether dir_fd-relative directory operations are available here.
+
+    Windows lacks ``os.O_DIRECTORY`` / ``os.O_NOFOLLOW`` and does not list
+    :func:`os.open` in :data:`os.supports_dir_fd`, so the fd-relative
+    containment dance (open a parent directory with ``O_NOFOLLOW``, then
+    address children via ``dir_fd=``) cannot run there. This is the single
+    authority for that capability check; ``coordination.atomic_write`` and the
+    session-presence / tool-surface writers all route through it.
+    """
+    return os.open in os.supports_dir_fd and hasattr(os, "O_DIRECTORY") and hasattr(os, "O_NOFOLLOW")
 
 
 def open_no_follow(path: Path, flags: int, mode: int = 0o666) -> int:

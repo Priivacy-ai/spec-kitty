@@ -24,6 +24,7 @@ import pytest
 from specify_cli.status import tail_reader
 from specify_cli.status.store import StoreError
 from specify_cli.status.tail_reader import EMPTY_DIGEST, ResumeRefused, TailCursor, poll_once
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = [pytest.mark.fast]
 
@@ -296,15 +297,31 @@ def test_tail_events_bounded_termination_zero_real_sleep(tmp_path: Path) -> None
 
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
 
-    start = time.monotonic()
     yielded = list(tail_reader.tail_events(log_path, cursor, max_events=3, sleep_fn=lambda _: None))
-    elapsed = time.monotonic() - start
 
     assert [event["event"] for event in yielded] == [event["event"] for event in events_to_write]
-    # Generous CI-safe bound: far below even one real DEFAULT_POLL_INTERVAL_SECONDS
-    # (0.25s) sleep -- proves the injected no-op sleep_fn was actually honored, not
-    # silently bypassed in favor of the real time.sleep.
-    assert elapsed < 0.05
+
+
+@pytest.mark.performance
+def test_tail_events_zero_real_sleep_stays_under_budget(tmp_path: Path) -> None:
+    """Split from ``test_tail_events_bounded_termination_zero_real_sleep`` (#4015);
+    budget preserved (nightly).
+
+    Generous CI-safe bound: far below even one real DEFAULT_POLL_INTERVAL_SECONDS
+    (0.25s) sleep -- proves the injected no-op sleep_fn was actually honored, not
+    silently bypassed in favor of the real time.sleep.
+    """
+    log_path = tmp_path / "status.events.jsonl"
+    events_to_write = [{"event": f"line-{i}"} for i in range(3)]
+    log_path.write_text("".join(json.dumps(event) + "\n" for event in events_to_write), encoding="utf-8")
+
+    cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
+
+    start = time.monotonic()
+    list(tail_reader.tail_events(log_path, cursor, max_events=3, sleep_fn=lambda _: None))
+    elapsed = time.monotonic() - start
+
+    assert_timing_budget(elapsed, 0.05, name="tail_events_zero_real_sleep")
 
 
 def test_tail_events_sleep_fn_never_called_when_poll_produces_output(
