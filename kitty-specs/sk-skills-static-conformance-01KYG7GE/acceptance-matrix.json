@@ -1,0 +1,163 @@
+{
+  "mission_slug": "sk-skills-static-conformance-01KYG7GE",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "conformance/skills/manifest.yaml enumerates exactly one type:static case per built-in skill under src/doctrine/skills/*/SKILL.md (53 cases), each with profile: base, expectations: {ok: true, violations: []}, plus the one FR-005 control case (54 total) -- 54 cases, spec.md AC1.",
+      "proof_type": "automated_test",
+      "evidence": "`grep -c \"^  - id:\" conformance/skills/manifest.yaml` -> 54, re-run this session (exit 0, stdout `54`).",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": "53 skill cases + 1 control case = 54, matching the file's own header comment and check-manifest-completeness.mjs's CONTROL_CASE_COUNT=1 offset."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "`npx @garrison-hq/muster skills run conformance/skills/manifest.yaml` exits 0, fully offline, spec.md AC2.",
+      "proof_type": "automated_test",
+      "evidence": "Independently ran `npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml` this session (package pre-warmed via `npm install --no-save @garrison-hq/muster@1.1.0`): exit 0, stdout `skills: PASS -- 54/54 cases passed, 0 failed`. Re-ran a second time after the FR-005 restore below with the same result.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": "Two independent offline runs in this session, both clean, both 54/54."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": ".github/workflows/conformance.yml runs FR-002 via garrison-hq/muster-action@v1 (command: 'skills run') on every pull_request and push to main, spec.md AC3.",
+      "proof_type": "automated_test",
+      "evidence": "Read .github/workflows/conformance.yml: `on: pull_request` + `push: branches: [main]`, step `uses: garrison-hq/muster-action@v1` with `command: 'skills run'`, `args: 'conformance/skills/manifest.yaml'`. Independently queried three real runs via `gh run view <id> --json conclusion,event,headBranch,status` this session: 30227861005 (conclusion=success, event=pull_request, status=completed), 30228150082 (success), 30228736153 (success) -- all workflowName 'Skills Static Conformance'.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": "All three observed runs ran on branch kitty/mission-sk-skills-static-conformance within MOES-Media/spec-kitty itself (event=pull_request against PR #28), not from a forked repository -- see C-002 for that distinction."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "conformance/DECISIONS.md records D1-D5 verbatim from the programme plan with file:line evidence, as the programme decision record, spec.md AC5.",
+      "proof_type": "automated_test",
+      "evidence": "Read conformance/DECISIONS.md: contains D1-D5 in full with a citation-pinning discipline (consumed-CLI citations @v1.1.0, architectural-evidence citations @8953ee8) and its own internal re-derivation audit table for 6 src/cli/index.ts citations. Independently spot-verified 4 of those citations byte-exact this session via `git show v1.1.0:src/cli/index.ts | sed -n '956p;993p;996p;1010p'` run in the muster repo -- all four lines matched DECISIONS.md's quoted text exactly.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": "DECISIONS.md's own table claims 9 citations independently re-derived; this review spot-checked 4 of those 9 directly rather than re-deriving all 9 from scratch."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "A rigged-broken control case (conformance/skills/control/name-mismatch, frontmatter name != directory name) declares expectations: {ok: false}, proving the suite can register a failure -- and manually flipping the declared expectation to ok: true flips the suite to non-zero exit, spec.md AC6/AC7.",
+      "proof_type": "automated_test",
+      "evidence": "Baseline confirmed under FR-002. Independently performed the flip this session: backed up manifest.yaml, flipped control-name-mismatch's expectations.ok from false to true, re-ran the offline suite -> exit 1, stdout `skills: FAIL -- 53/54 cases passed, 1 failed` / `[FAIL] control-name-mismatch`. Restored the backup, confirmed `git status --porcelain conformance/skills/manifest.yaml` was clean, and re-ran the suite once more -> exit 0, 54/54 again.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": "The full self-restoring reproduction command is recorded verbatim as NI-001 below and was itself executed and verified in this session."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "conformance/README.md documents local invocation, the two-step cache-warm-then-offline procedure, the pinned muster version, and the two known muster gaps affecting this suite, spec.md AC10.",
+      "proof_type": "automated_test",
+      "evidence": "Read conformance/README.md in full this session: contains the exact pre-PR command, the 'two-step cache-warm-then-offline procedure' section, 'Pinned version: @garrison-hq/muster@1.1.0 -- exact, never a range', and 'Known muster gaps' naming both latent defects (bare-cast manifest parse at src/cli/index.ts:996; expectations.violations never compared at src/cli/index.ts:956) -- both citations independently confirmed byte-exact against `v1.1.0` under FR-004 above.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "A CI step (conformance/scripts/check-manifest-completeness.mjs) verifies the manifest's type:static case count equals src/doctrine/skills/* directory count + 1 (the FR-005 control case), failing with the specific missing/extra skill name(s) on any mismatch, spec.md AC8/AC9.",
+      "proof_type": "automated_test",
+      "evidence": "Independently ran `node conformance/scripts/check-manifest-completeness.mjs` this session: baseline exit 0, `manifest completeness: OK (53 skills + 1 control = 54 cases)`. Induced both drift directions and restored after each: (a) added a directory `__ni002-probe` under src/doctrine/skills/ with no manifest case -> exit 1, `missing from manifest ...: __ni002-probe`; (b) moved out the real `ad-hoc-profile-load` skill directory while its manifest case remained -> exit 1, `extra in manifest ...: ad-hoc-profile-load`. Both restored; a final run after each restore returned to exit 0 / OK (54 cases).",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": "Both drift directions independently reproduced in this session, not merely cited from prior review. Reproduction commands recorded verbatim as NI-002 / NI-003 below."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "The conformance CI job gives fast feedback; no a-priori numeric ceiling is asserted -- the actual wall-clock minutes of a real GitHub Actions run are recorded, measured not asserted.",
+      "proof_type": "automated_test",
+      "evidence": "conformance/README.md's CI-timing table records run_id 30227861005 at 0.4 minutes. Independently confirmed this session via `gh run view 30227861005 --json createdAt,updatedAt,conclusion`: createdAt 2026-07-27T00:37:15Z, updatedAt 2026-07-27T00:37:39Z = 24s = 0.4 min, conclusion success. No ceiling is asserted anywhere in README.md.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "The static suite's result is deterministic given a pinned muster version: repeated offline runs against the same commit produce identical ok/exit-code results with zero network calls in the run path.",
+      "proof_type": "automated_test",
+      "evidence": "Ran `npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml` twice against the unmodified manifest in this session (once for FR-002, once after the FR-005 restore) -- both exit 0, both `54/54 cases passed, 0 failed`, both with `--offline` (no network calls). Version is pinned exactly (`1.1.0`) in both .github/workflows/conformance.yml and README.md, never a range.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "No spec-kitty runtime source is changed -- the mission diff touches only conformance/**, .github/workflows/**, and (per this mission's spec) kitty-specs/** / kitty-ops/** telemetry.",
+      "proof_type": "automated_test",
+      "evidence": "`git diff --name-only origin/main...HEAD` this session (at HEAD 5183eda94) touches only: conformance/scripts/**, conformance/skills/**, conformance/skills/control/name-mismatch/**, .github/workflows/conformance.yml, kitty-ops/**, and kitty-specs/sk-skills-static-conformance-01KYG7GE/**. No src/, docs/, or other spec-kitty runtime path appears in the diff.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "The workflow needs no secrets and must pass on fork PRs, since the static path is fully offline.",
+      "proof_type": "automated_test",
+      "evidence": "Structurally satisfied, not empirically observed. `grep -in secret .github/workflows/conformance.yml` this session finds zero `secrets.*` references (only explanatory prose comments); the job's only step besides checkout invokes garrison-hq/muster-action@v1 with no secrets: input, consistent with the fully-offline static path verified under FR-002/NFR-002.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": "The 'must pass on fork PRs' corollary has NOT been empirically observed: no pull request from a fork of MOES-Media/spec-kitty has run this workflow. All three real runs checked under FR-003 (30227861005, 30228150082, 30228736153) ran on branch kitty/mission-sk-skills-static-conformance within the origin repository itself (`gh run view --json headBranch` confirms this for all three), not from a fork. This is the same distinction conformance/README.md already draws explicitly in its CI-timing table ('Not observed on a fork PR'); this record preserves it rather than overriding it."
+    },
+    {
+      "criterion_id": "C-003",
+      "description": "The muster version in CI is pinned to an exact version string, never a floating range, so the same commit always resolves the same muster build.",
+      "proof_type": "automated_test",
+      "evidence": "`.github/workflows/conformance.yml` line `version: '1.1.0'` -- an exact string. `grep -E \"version:.*[\\^~]|latest\" .github/workflows/conformance.yml` finds no floating-range or `latest` usage, confirmed this session.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T07:09:25+00:00",
+      "notes": null
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "The FR-005 discrimination control must not silently pass regardless of its declared expectation: flipping control-name-mismatch's expectations.ok from false to true in conformance/skills/manifest.yaml must make `muster skills run` exit non-zero (because the harness's actual ok:false then mismatches the flipped ok:true expectation).",
+      "verification_method": "custom_command",
+      "verification_command": "cp conformance/skills/manifest.yaml /tmp/ni001.bak && perl -0pi -e 's/(- id: control-name-mismatch\\n(?:.*\\n){4}\\s*ok: )false/${1}true/' conformance/skills/manifest.yaml && npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml >/tmp/ni001.out 2>&1; RC=$?; cp /tmp/ni001.bak conformance/skills/manifest.yaml; test $RC -ne 0",
+      "result": "confirmed_absent",
+      "evidence": "Executed verbatim this session: flip produced exit 1, stdout 'skills: FAIL -- 53/54 cases passed, 1 failed' / '[FAIL] control-name-mismatch'; manifest restored from backup; `git status --porcelain conformance/skills/manifest.yaml` clean afterward; a follow-up run of the suite returned to exit 0 / 54/54. The command as written is self-restoring and exits 0 (confirmed_absent) only when the flip genuinely broke the suite -- verified live, not assumed."
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "check-manifest-completeness.mjs must not silently pass when a skill directory is added under src/doctrine/skills/* without a matching manifest case -- it must exit non-zero and name the specific directory as missing.",
+      "verification_method": "custom_command",
+      "verification_command": "mkdir -p src/doctrine/skills/__ni002-probe && printf -- '---\\nname: __ni002-probe\\ndescription: temp.\\n---\\n' > src/doctrine/skills/__ni002-probe/SKILL.md; node conformance/scripts/check-manifest-completeness.mjs >/tmp/ni002.out 2>&1; RC=$?; rm -rf src/doctrine/skills/__ni002-probe; test $RC -ne 0",
+      "result": "confirmed_absent",
+      "evidence": "Executed verbatim this session: exit 1, stdout 'manifest completeness: MISMATCH' / 'missing from manifest ...: __ni002-probe'. Probe directory removed by the command itself; `git status --porcelain src/doctrine/skills/` clean afterward; a follow-up run returned to exit 0 / OK (54 cases)."
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "check-manifest-completeness.mjs must not silently pass when a skill directory referenced by the manifest is removed from src/doctrine/skills/* -- it must exit non-zero and name the specific case as extra.",
+      "verification_method": "custom_command",
+      "verification_command": "mv src/doctrine/skills/ad-hoc-profile-load /tmp/ni003-backup; node conformance/scripts/check-manifest-completeness.mjs >/tmp/ni003.out 2>&1; RC=$?; mv /tmp/ni003-backup src/doctrine/skills/ad-hoc-profile-load; test $RC -ne 0",
+      "result": "confirmed_absent",
+      "evidence": "Executed verbatim this session: exit 1, stdout 'manifest completeness: MISMATCH' / 'extra in manifest ...: ad-hoc-profile-load'. Directory moved back by the command itself; `git status --porcelain src/doctrine/skills/` clean afterward; a follow-up run returned to exit 0 / OK (54 cases)."
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "The C-002 no-secrets property: .github/workflows/conformance.yml must never reference a repository secret (`secrets.*`), since the static path is designed to run fully offline with no credentials.",
+      "verification_method": "grep_absence",
+      "verification_command": "secrets\\.",
+      "scope": ".github/workflows/conformance.yml",
+      "result": "confirmed_absent",
+      "evidence": "`grep -rn 'secrets\\.' .github/workflows/conformance.yml` this session: zero matches (the word 'secret' appears only in explanatory prose comments, never as a `secrets.` context reference). Does not, by itself, establish the separate 'passes on a real fork PR' corollary -- see C-002's notes for that distinction."
+    }
+  ]
+}

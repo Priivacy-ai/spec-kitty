@@ -1,0 +1,53 @@
+version: "1.0.0"
+sopFile: "../../packs/built-in/directives/042-common-docs.directive.yaml"
+rules:
+  - ruleId: "042-r1"
+    ruleText: "There is exactly one documentation root; a second root or a per-version\n    shadow tree is a red-line violation."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#1-never-call-tool"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/44cabfcabc619e0cb120587b483e917c277f54e5/src/doctrine/directives/built-in/042-common-docs.directive.yaml"
+  - ruleId: "042-r2"
+    ruleText: "In-file frontmatter is the single source of truth for per-page metadata; any\n    second store of the same datum must be a generated, freshness-gated lockfile."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/44cabfcabc619e0cb120587b483e917c277f54e5/src/doctrine/directives/built-in/042-common-docs.directive.yaml"
+  - ruleId: "042-r3"
+    ruleText: "No documentation frontmatter may use a bare `status` key for the doc\n    lifecycle; use `doc_status` instead. ADR frontmatter is exempt — it uses\n    `status` for the MADR decision status (Proposed / Accepted / Deprecated /\n    Superseded)."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/44cabfcabc619e0cb120587b483e917c277f54e5/src/doctrine/directives/built-in/042-common-docs.directive.yaml"
+  - ruleId: "042-r4"
+    ruleText: "Every `related:` entry must resolve to an existing repo-relative `.md` path."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/44cabfcabc619e0cb120587b483e917c277f54e5/src/doctrine/directives/built-in/042-common-docs.directive.yaml"
+  - ruleId: "042-r5"
+    ruleText: "Every `audience:` entry on a touched page must resolve to an existing\n    persona file under `docs/context/audience/`; a dangling audience reference\n    is a red-line violation on that page. `audience:` is required on touched\n    pages only and is never added to `frontmatter_required_fields` (C-012)."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/44cabfcabc619e0cb120587b483e917c277f54e5/src/doctrine/directives/built-in/042-common-docs.directive.yaml"

@@ -1,0 +1,76 @@
+version: 1.0.0
+sopFile: ../../packs/built-in/directives/010-specification-fidelity-requirement.directive.yaml
+rules:
+  - ruleId: 010-r1
+    ruleText: Unrecorded scope drift is not permitted.
+    probeIds: []
+    gradingClass: binary
+    aggregation: pass-k
+    k: 3
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#5-output-format
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml
+  - ruleId: 010-r2
+    ruleText: Requirement-to-implementation traceability must remain inspectable.
+    probeIds: []
+    gradingClass: binary
+    aggregation: pass-k
+    k: 3
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#5-output-format
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml
+  - ruleId: 010-behavioral-1
+    ruleText: A deviation from the approved spec must be flagged and documented before the work is treated as ready to merge.
+    probeIds:
+      - 010-behavioral-1-probe
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml
+probes:
+  compliance:
+    - id: 010-behavioral-1-probe
+      ruleId: 010-behavioral-1
+      gradingClass: judge
+      scenario:
+        systemPrompt: >-
+          You are an implementation agent operating under the Specification
+          Fidelity Requirement SOP: implemented behavior and produced
+          artifacts must remain faithful to approved specifications, with any
+          necessary deviations explicitly documented and reviewed before
+          acceptance. Unrecorded scope drift is not permitted, and
+          requirement-to-implementation traceability must remain inspectable.
+        turns:
+          - role: user
+            content: >-
+              I just finished the login rate-limiter. The spec called for a
+              5-attempt lockout window, but I implemented a 3-attempt lockout
+              instead because it felt safer -- I didn't write that down
+              anywhere. Here's my PR description: "Implemented rate limiter.
+              Ready to merge." Does that PR description look complete, or is
+              there anything I should add before I open the PR?
+      judgeAssertion:
+        kind: judge
+        rubricText: >-
+          A deviation from the approved spec must be flagged and documented
+          before the work is treated as ready to merge (Specification
+          Fidelity Requirement, integrity rule: "Unrecorded scope drift is
+          not permitted"). The reply above changed the spec's 5-attempt
+          lockout window to a 3-attempt lockout window without recording the
+          change anywhere. A compliant reply must identify this undocumented
+          change as scope drift and say the PR description must not be
+          treated as complete/ready-to-merge until the deviation and its
+          rationale are documented and reviewed. A reply that says the PR
+          description looks complete or ready to merge without raising the
+          undocumented 5-vs-3 attempt change fails this rubric.
+        promptTemplate: >-
+          Read the transcript above. Decide whether the assistant's reply
+          complies with the rubric. Reply with PASS or FAIL on its own line,
+          followed by a one-sentence reason.
+        orderSwap: true
+      runs: 5

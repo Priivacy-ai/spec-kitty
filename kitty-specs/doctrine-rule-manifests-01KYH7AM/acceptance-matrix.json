@@ -1,0 +1,145 @@
+{
+  "mission_slug": "doctrine-rule-manifests-01KYH7AM",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Manifests cover the 9 trace-decidable directives (018, 028, 029, 030, 033, 034, 035, 042, 045) plus 4 judge directives (001, 010, 039, 044) -- 13 manifests, 45 rules; ruleText is a verbatim integrity_rules line for the 35 unwrapped rules, or a unique single-line fragment for the 10 rules that wrap a physical line break (042 x3, 044 x3, 045 x4).",
+      "proof_type": "automated_test",
+      "evidence": "Re-verified this session: `find conformance/doctrine -maxdepth 1 -iname '*.yaml' | wc -l` -> 13; `grep -c ruleId: conformance/doctrine/*.yaml` sums to 45. Classification split (24 mapped / 21 UNMAPPED) confirmed against kitty-specs/doctrine-rule-manifests-01KYH7AM/contracts/rule-classification-and-citation.md:320-341 ('mapped count moves ... 24; UNMAPPED moves ... 21'). Fragment-uniqueness re-proven for all 10 wrapped rules this session: `grep -F -c '<fragment>' <directive-file>` returned exactly 1 for each of 042-r1/r2/r3, 044-r1/r2/r3, 045-r1/r2/r3/r4 against src/doctrine/directives/built-in/{042-common-docs,044-canonical-sources-and-unification,045-prs-only-and-read-intent}.directive.yaml.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "The 35 unwrapped rules' RULE_DRIFT-cleanliness is covered indirectly by FR-002/FR-004's real muster runs (zero RULE_DRIFT across all 13 shipped manifests); this criterion's own evidence is the count/classification/fragment-uniqueness facts, independently re-derived rather than trusted from the mission's prior work log."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "gradingClass/aggregation assigned per sop-rule-taxonomy classes (pass-k with passThreshold==k for safety-critical rules, k-of-n for stylistic); the loader's own semantic checks (manifest.ts:283-321) must pass for every manifest.",
+      "proof_type": "automated_test",
+      "evidence": "Re-run this session: `npx muster sop run <manifest> --json` for each of the 13 shipped manifests -> exit 0, `.lintFindings` == [] for all 13 (001, 010, 018, 028, 029, 030, 033, 034, 035, 039, 042, 044, 045). A non-zero-exit or MANIFEST_ERROR finding would indicate a loader semantic-check failure; none occurred.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "045-r1 (no-direct-push) and 029's signing rule confirmed pass-k with passThreshold==k by manifest inspection; loader would have thrown MANIFEST_ERROR on a passThreshold mismatch and did not."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Every rule entry: source.normative = docs/rubric/sop-rule-taxonomy.md#<class>; source.supporting = the directive's GitHub URL pinned to a commit SHA.",
+      "proof_type": "code_review",
+      "evidence": "`grep -h 'supporting:' conformance/doctrine/*.yaml | grep -c 'github.com/Priivacy-ai/spec-kitty/blob/'` -> 45 (all); `grep -h 'supporting:' conformance/doctrine/*.yaml | grep -vc '.../blob/'` -> 0 (none unpinned). 45 `source:` blocks total across the 13 manifests, matching the 45-rule count exactly.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "Spot-checked 018-r1: normative 'docs/rubric/sop-rule-taxonomy.md#5-output-format', supporting pinned to commit fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "CI job: for each manifest, `muster sop run <manifest> --json` must exit 0 and contain zero findings of kind RULE_DRIFT/MISSING_SOURCE/MANIFEST_ERROR/STRUCTURAL_ABSENCE (jq gate, required because drift findings are warnings that do not flip muster's own exit code). UNDEFINED_PRECEDENCE/TOOL_DRIFT are reported, not gating, in v1.",
+      "proof_type": "automated_test",
+      "evidence": "Ran `bash conformance/scripts/check-doctrine-drift-gate.sh` for real this session: real exit 0, 'doctrine drift gate: OK', all 13 manifests reported clean. Read conformance/scripts/check-doctrine-drift-gate.sh:33-53 and confirmed by direct test: (a) a missing manifest path -> `npx muster sop run <missing> --json` real exit 2, empty stdout, ENOENT stderr (distinguished from exit 1); (b) a manifest with a dangling sopFile: target -> real exit 1, `lintFindings: [{kind: STRUCTURAL_ABSENCE, severity: error}]`, `passed: false`. Both reproduced live this session, not merely read from the script's comments. CORRECTION (pre-merge review): the jq filter's four disallowed kinds are not equally exercisable in the pinned `@garrison-hq/muster@1.1.0`. Grepped the installed package's dist/ this session for every `kind: \"...\"` construction site: `RULE_DRIFT` (adapters/openclaw-sop/manifest.js:209), `MANIFEST_ERROR` (adapters/openclaw-sop/runner.js:354), and `STRUCTURAL_ABSENCE` (adapters/openclaw-sop/runner.js:383) are each constructed by real code paths and reproduced live above/elsewhere in this mission's evidence. `MISSING_SOURCE` is never constructed anywhere in the package -- it appears exactly once, in a JSDoc type-union comment at adapters/openclaw-sop/manifest.d.ts:59, and no function in dist/ ever builds a finding of that kind. The filter arm is retained (defense-in-depth; an OR arm that never matches produces no false negative), but this criterion's evidence previously implied all four kinds are exercised. That is corrected here: only RULE_DRIFT / MANIFEST_ERROR / STRUCTURAL_ABSENCE are reachable and exercised against the pinned version; MISSING_SOURCE is defensive-but-currently-unreachable.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "CI evidence: workflow run 30286335507 (conclusion success, both jobs green) and 30286599878 (conclusion success, both jobs green), both re-queried via `gh run view --repo MOES-Media/spec-kitty` this session. Mutation testing of the gate's own robustness (re-run this session, all reverted immediately after with git status confirmed clean): a missing manifest path exits 2 with empty stdout and an ENOENT stderr line (distinct from exit 1); a dangling sopFile: target on a scratch manifest yields real exit 1 with lintFindings==[{kind:STRUCTURAL_ABSENCE, severity:error}], passed:false; dropping the last rule entry from 018's manifest makes check-doctrine-manifest-completeness.mjs exit 1 naming '018-doctrine-versioning-requirement: directive has 2 integrity_rules, manifest has 1 rule entries (missing: 1)'; deleting the control manifest makes both check-doctrine-manifest-completeness.mjs (exit 1, 'control manifest ... not found') and check-doctrine-drift-gate.sh (exit 1, Phase 2 'muster exited 2 (could not execute)') fail; renaming the integrity_rules: key in 018's real directive file trips the floor assertion, exit 1, 'directive yielded 0 integrity_rules (floor violation)'. These are tooling-robustness mutation tests, not this schema's negative-invariant shape (which asserts a bad condition's absence) -- recorded here as supplementary evidence rather than forced into negative_invariants below."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "One control manifest under conformance/doctrine/control/ with deliberately drifted ruleText; CI asserts its --json output DOES contain RULE_DRIFT (discrimination for the drift detector itself).",
+      "proof_type": "automated_test",
+      "evidence": "Ran `npx muster sop run conformance/doctrine/control/045-drifted.yaml --json` this session: output contains exactly one finding, `{kind: RULE_DRIFT, location: '045-r1-drifted', severity: warning}`. Anti-hollowing check re-run this session: the control's drifted ruleText fragment ('Agents must never run `git push origin main`, `git push --force`, or `gh pr') was grepped with `grep -F -c` against the real directive src/doctrine/directives/built-in/045-prs-only-and-read-intent.directive.yaml -> count 0, grep exit 1 (the drifted text is genuinely absent from the real directive, not a vacuous/empty-string match).",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "Discrimination is real: the same mechanism that would catch an actual upstream directive edit is proven to fire against the deliberately-planted drift."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "conformance/doctrine/README.md records the directive-to-class mapping table and the coverage roadmap for the remaining directives.",
+      "proof_type": "code_review",
+      "evidence": "Read conformance/doctrine/README.md this session: section A (line 18) is the directive-to-class mapping table (FR-006); section D (line 117) is the coverage roadmap; section G (line 206) is the TOOL_DRIFT exercise disclosure, corrected this session to state plainly that TOOL_DRIFT is unreachable via the published @garrison-hq/muster@1.1.0 CLI (not merely a flag this mission chose not to pass) and names the five rules that would be genuine candidates if the detector were ever reachable and exercised: 033-r1, 042-r3, 042-r4, 045-r1, 045-r2.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "IMPORTANT HONESTY NOTE, corrected pre-merge: TOOL_DRIFT is documented as unreachable via the CLI, not merely unexercised by choice. Verified this session against the installed package: `muster sop run --help` shows the `run` subcommand accepts exactly one argument (`<manifest>`) with no `--env-tools` option; `doSopRun` (cli/index.js:803) calls `runSopManifestSuite(absManifestPath, { client })`, never threading an `envToolsPath`; `detectToolDrift` (adapters/openclaw-sop/manifest.js:173) only runs when the library's `runStaticLint` receives an `envToolsPath` argument, which no CLI invocation can currently supply. This is disclosed exactly as the corrected README section G states it -- an unreachable detector reported as clean would be the same failure shape as an unfired control, and this criterion is marked pass on the strength of the README's honest disclosure existing and being accurate, not on TOOL_DRIFT having been proven clean."
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "Diff touches only conformance/** and the workflow file.",
+      "proof_type": "code_review",
+      "evidence": "CORRECTED (pre-merge review) to reflect the actual open PR, not a squash-merge commit from a different context: `gh pr diff 30 --repo MOES-Media/spec-kitty --name-only`, re-run this session, lists all changed files against the PR's actual base. Substantive deliverable files are under conformance/** (conformance/doctrine/*.yaml, conformance/doctrine/README.md, conformance/doctrine/control/045-drifted.yaml, conformance/scripts/*.mjs, conformance/scripts/*.sh, conformance/README.md) plus .github/workflows/conformance.yml. Files outside that scope: (1) kitty-specs/doctrine-rule-manifests-01KYH7AM/** -- this mission's own spec-kitty bookkeeping artifacts (spec.md, status.json, status.events.jsonl, acceptance-matrix.json, issue-matrix.md, WP files, contract docs) -- mission-tracking metadata, not product deliverable, the same bookkeeping-vs-deliverable split spec-kitty missions in this repo consistently produce; (2) two files that do NOT belong to this list by either of the above categories: conformance/scripts/check-manifest-completeness.mjs and kitty-specs/sk-skills-static-conformance-01KYG7GE/contracts/completeness-check-cli-contract.md (the latter is bookkeeping for a DIFFERENT mission, M1). Root cause, verified this session: this branch's merge-base with origin/main (`git merge-base kitty/mission-doctrine-rule-manifests origin/main` -> 32722b5f1) predates M1's PR #29 fully landing on origin/main in the form GitHub diffs against, so GitHub's PR-diff computation shows these two files as touched even though this branch's own history already carried them (added via M1's earlier squash-merge, commit 08930a32b, before this branch forked). Confirmed both files are byte-identical to current origin/main: `git diff origin/main -- conformance/scripts/check-manifest-completeness.mjs` and `git diff origin/main -- kitty-specs/sk-skills-static-conformance-01KYG7GE/contracts/completeness-check-cli-contract.md` both produced empty diffs (exit 0), and md5sum of each matches `git show origin/main:<path> | md5sum` exactly. Net functional change from these two files: zero.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "Read literally, 'diff touches only conformance/** and the workflow file' is true for the product-deliverable surface; kitty-specs/doctrine-rule-manifests-01KYH7AM/** mission bookkeeping is excluded from this reading by house convention, not asserted to not exist. The two additional files identified in the corrected evidence above (one stray completeness script duplicate path already superseded by check-doctrine-manifest-completeness.mjs, one M1-mission bookkeeping file) are a fork/reconvergence artifact of PR-diff computation, not new content introduced by this mission -- both are proven byte-identical to origin/main, so C-001's underlying intent (this PR does not introduce functional changes outside conformance/** and the workflow file) holds; only the previous evidence's literal file list was incomplete and cited the wrong commit."
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "Fully offline on PRs; no secrets.",
+      "proof_type": "code_review",
+      "evidence": "`grep -n 'secrets\\.' .github/workflows/conformance.yml` -> no match (grep exit 1). Both this mission's job (sop-doctrine-conformance) and M1's (skills-conformance) resolve only the pinned `@garrison-hq/muster@1.1.0` package via normal npm-registry access, per README section F/B.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": "'Fully offline' in this codebase's own usage means no repository secrets required, not zero network I/O -- resolving the pinned npm package still needs registry access, which a GitHub-hosted runner has by default; this is stated identically in README section F and is not being read more strongly than the mission's own claim."
+    },
+    {
+      "criterion_id": "C-003",
+      "description": "No probe entries in v1 (probeIds: []); the manifests must load under the current published muster (pinned version from M1).",
+      "proof_type": "automated_test",
+      "evidence": "`grep -n 'probeIds:' conformance/doctrine/*.yaml conformance/doctrine/control/*.yaml | grep -vc 'probeIds: \\[\\]'` -> 0 (every one of the 45 shipped rules plus the control rule uses probeIds: []). All 13 manifests plus the control confirmed loading (exit 0 / real-executed) under @garrison-hq/muster@1.1.0, the exact pinned version, re-run this session.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:curator",
+      "verified_at": "2026-07-27T17:00:06Z",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No disallowed lint finding (RULE_DRIFT / MISSING_SOURCE / MANIFEST_ERROR / STRUCTURAL_ABSENCE) is present in any of the 13 shipped conformance/doctrine/*.yaml manifests.",
+      "verification_method": "command_execution",
+      "verification_command": "for f in conformance/doctrine/*.yaml; do npx muster sop run \"$f\" --json; done | jq '.lintFindings'; bash conformance/scripts/check-doctrine-drift-gate.sh",
+      "result": "confirmed_absent",
+      "evidence": "Re-run this session: all 13 manifests exit 0 with `.lintFindings == []`; the drift gate script's own Phase 1 loop confirms all 13 clean and the whole script exits 0. CORRECTION (pre-merge review): of the four kinds named in this invariant, only RULE_DRIFT, MANIFEST_ERROR, and STRUCTURAL_ABSENCE are ever constructed by @garrison-hq/muster@1.1.0 (confirmed by grepping the installed package's dist/ for every `kind: \"...\"` construction site this session). MISSING_SOURCE is never constructed anywhere in the pinned package -- it exists only as a JSDoc type-union entry at adapters/openclaw-sop/manifest.d.ts:59 -- so its absence here is structurally guaranteed rather than something this invariant actively exercises. The invariant's literal claim (no such finding is present) remains true and the jq filter is kept as defense-in-depth against a future muster version that does construct MISSING_SOURCE; it is recorded as defensive-but-currently-unreachable, not as a proven-exercised detection path.",
+      "scope": "mission"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "No suppression marker (noqa / eslint-disable / type:ignore / NOSONAR) is present in the gate scripts that could silently defeat FR-004/FR-005.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE 'noqa|eslint-disable|type:\\s*ignore|NOSONAR' conformance/scripts/",
+      "result": "confirmed_absent",
+      "evidence": "grep exits 1 (no match) against conformance/scripts/check-doctrine-drift-gate.sh, check-doctrine-manifest-completeness.mjs, and check-manifest-completeness.mjs -- re-run this session.",
+      "scope": "mission"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "No rule entry across the 45 shipped rules plus the 1 control rule ships with a non-empty probeIds array (C-003).",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -n 'probeIds:' conformance/doctrine/*.yaml conformance/doctrine/control/*.yaml | grep -v 'probeIds: \\[\\]'",
+      "result": "confirmed_absent",
+      "evidence": "grep exits 1 (no match) -- re-run this session; all 46 probeIds entries (45 shipped + 1 control) are empty arrays.",
+      "scope": "mission"
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "No repository secret (secrets.*) is referenced anywhere in the CI workflow (C-002).",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -n 'secrets\\.' .github/workflows/conformance.yml",
+      "result": "confirmed_absent",
+      "evidence": "grep exits 1 (no match) -- re-run this session.",
+      "scope": "mission"
+    },
+    {
+      "invariant_id": "NI-005",
+      "description": "The control manifest's deliberately drifted ruleText fragment does not occur anywhere in the real upstream directive file (anti-hollowing guard for the FR-005 discrimination control -- proves the drift is a genuine textual difference, not a vacuous/empty-string match).",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -F -c 'Agents must never run `git push origin main`, `git push --force`, or `gh pr' src/doctrine/directives/built-in/045-prs-only-and-read-intent.directive.yaml",
+      "result": "confirmed_absent",
+      "evidence": "grep returns count 0, exit 1 (no match) -- re-run this session.",
+      "scope": "mission"
+    }
+  ]
+}

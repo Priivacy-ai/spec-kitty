@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-crosslayer-composition-suite-01KYJA33",
+  "created_at": "2026-07-27T17:31:19.020359+00:00",
+  "flattened": false,
+  "friendly_name": "Crosslayer Composition Suite",
+  "mission_id": "01KYJA33KB7PQMMT7Y1A4MNTCS",
+  "mission_number": null,
+  "mission_slug": "crosslayer-composition-suite-01KYJA33",
+  "mission_type": "software-dev",
+  "purpose_context": "This is wave-2 mission M7 of the muster <-> spec-kitty agent-conformance programme. It composes the spec-kitty stack the way it actually deploys -- a persona projected from a built-in agent profile, AGENTS.md as the SOP slot, and one skill -- and runs muster's crosslayer adapter over the stack: static contradiction/precedence lint gated on every PR, live-model rule-survival on cadence. Includes a deterministic profile-to-Soul.md projector (D1's narrow scope) whose fabricated RFC-1 fields are never themselves graded. FR-005's rule-survival cases depend on M3 (MOES-Media/spec-kitty#30) merging first; the rest of the mission does not.",
+  "purpose_tldr": "Compose persona+SOP+skill the way spec-kitty actually deploys it and gate on cross-layer contradiction/rule-survival.",
+  "slug": "crosslayer-composition-suite-01KYJA33",
+  "status_phase": "1",
+  "target_branch": "kitty/mission-crosslayer-composition-suite",
+  "topology": "coord"
+}

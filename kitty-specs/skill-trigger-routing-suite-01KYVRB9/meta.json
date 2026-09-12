@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-07-31T09:33:36.829205+00:00",
+  "flattened": false,
+  "friendly_name": "Skill Trigger-Routing Conformance Suite",
+  "mission_id": "01KYVRB95WNBGE13NRHFMQV2X3",
+  "mission_number": null,
+  "mission_slug": "skill-trigger-routing-suite-01KYVRB9",
+  "mission_type": "software-dev",
+  "purpose_context": "The muster <-> Spec Kitty agent-conformance programme (wave 2, MOES-Media/spec-kitty issue #25) is authoring trigger-routing query sets for the skills whose names and descriptions most plausibly collide: five legacy-vs-spk duplicate pairs and the spk-run-next/spk-run-review-wp/spk-run-implement-review cluster. Query-set authoring can start now; live execution is blocked until muster's behavioral skill-trigger adapter (M5, now released as muster 1.2.1) is available. This mission produces the query sets, a behavioral manifest pinned to a specific model and threshold, a discrimination control, and a cadence workflow that reports drift over time -- without touching any SKILL.md itself.",
+  "purpose_tldr": "Prove whether the five legacy/spk duplicate skill pairs and the run-family cluster actually route to the right SKILL.md, with a live-model conformance suite that ships its own rigged-impossible control.",
+  "slug": "skill-trigger-routing-suite-01KYVRB9",
+  "status_phase": "1",
+  "target_branch": "kitty/mission-skill-trigger-routing-suite-01KYVRB9",
+  "topology": "single_branch"
+}

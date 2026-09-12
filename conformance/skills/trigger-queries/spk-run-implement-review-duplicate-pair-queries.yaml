@@ -1,0 +1,24 @@
+id: spk-run-implement-review
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  - "Use spk-run-next to identify the active WP and lane"
+  - "Coordinate implementers and reviewers until the mission is done"
+  - "Feed reviewer feedback back into the next implementation attempt"
+  - "Continue the implement-review loop until terminal or blocked"
+  - "Dispatch implementation only from runtime-provided prompt context"
+  - "Review each WP independently with spk-run-review-wp"
+  - "Keep looping through implementation and review for all packages"
+  - "Cycle back to implementation after a rejection"
+nearMiss:
+  - "What is the next runtime step for this mission?"
+  - "Review this single work package and approve it"
+  - "Repair the spec-kitty setup after an upgrade"
+  - "Explain how git worktrees are cleaned up"
+  - "Load the reviewer profile for this session"
+  - "Update the doctrine glossary for this concept"
+  - "What does the merge preflight check for?"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spec-kitty-implement-review-duplicate-pair-queries.yaml. This file is
+  # duplicate-pair only; not the run-family purpose (WP02's territory).
+  - "run the implement-review loop"

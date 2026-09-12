@@ -1,0 +1,33 @@
+version: "1.0.0"
+sopFile: "../../packs/built-in/directives/028-search-tool-discipline.directive.yaml"
+rules:
+  - ruleId: "028-r1"
+    ruleText: "Local guidance should bias toward faster, lower-noise tooling that keeps repository operations inspectable and proportional."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#1-never-call-tool"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/028-search-tool-discipline.directive.yaml"
+  - ruleId: "028-r2"
+    ruleText: "Tooling preferences and missing-tool decisions should be visible in the session tooling record instead of remaining implicit."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/028-search-tool-discipline.directive.yaml"
+  - ruleId: "028-r3"
+    ruleText: "Default examples should avoid avoidable decompression, broad recursive scans, or platform choices that materially slow routine work."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#1-never-call-tool"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/028-search-tool-discipline.directive.yaml"

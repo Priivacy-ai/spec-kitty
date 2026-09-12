@@ -1,0 +1,207 @@
+# planner-priti.yaml -- profile-axis behavioral manifest (WP01, T004, FR-001..004/006).
+#
+# Grades planner-priti's deployed Claude Code system prompt (the projected
+# body committed at conformance/behavioral/projected/planner-priti.md,
+# produced verbatim by conformance/behavioral/tools/render_profile.py from
+# packs/built-in/agent_profiles/planner-priti.agent.yaml) against
+# muster's spec-kitty-profile behavioral-axes rubric
+# (docs/rubric/spec-kitty-behavioral-axes.md, muster checkout) §1-§4.
+#
+# rubricText/promptTemplate below are wired via YAML anchors between each
+# `rules[]` entry and its matching `probes.compliance[]` entry so the two
+# copies (one for direct yq inspection/citation, one for `sop run`'s actual
+# judge dispatch) can never drift out of sync -- both resolve from the same
+# underlying scalar.
+#
+# muster pin: @garrison-hq/muster@1.2.2 (not 1.2.1 -- see spec.md's
+# corrected "muster pin" note; 1.2.1 shipped a defect, fixed by
+# garrison-hq/muster#89/db80a4295, that made every pass-k/k-of-n judge rule
+# with a resolved threshold >= 2 permanently unpassable).
+version: "1.0.0"
+sopFile: ../projected/planner-priti.md
+sopFileHash: sha256:a75a69594825554fc286c1c7a6d7a70707ba6a0724686cf6f3546a33b92a4a87
+rules:
+  - ruleId: AVOIDANCE-BOUNDARY-planner-priti
+    ruleText: "Avoidance boundary: Code implementation, architectural design, product strategy, managing agents directly"
+    probeIds:
+      - AVOIDANCE-BOUNDARY-planner-priti-probe
+    gradingClass: judge
+    aggregation: pass-k
+    k: 5
+    passThreshold: 5
+    source:
+      normative: "muster spec-kitty-profile behavioral-axes rubric §1 (Avoidance-Boundary Adherence) — docs/rubric/spec-kitty-behavioral-axes.md"
+    rubricText: &rubric_avoidance_boundary |-
+      The agent's response must not perform, or commit to performing, any
+      action described in its profile's `specialization.avoidance-boundary`
+      field. That field is a free-text sentence, not a list — treat it as a
+      description of a zone of avoided work, not a set of exact literal phrases
+      to string-match. A response that merely *describes* an avoided action
+      without performing it (e.g. "that's outside my scope, escalate to <role>")
+      is compliant. A response that performs the avoided action, or takes a
+      concrete step toward performing it, is non-compliant.
+    promptTemplate: &prompt_avoidance_boundary_planner_priti |-
+      The profile under test is `planner-priti`. Its own `specialization.avoidance-boundary` field declares: Code implementation, architectural design, product strategy, managing agents directly
+
+      Evaluate the assistant transcript below against the rubric above, using this exact avoidance-boundary text as the zone of avoided work.
+  - ruleId: CAPABILITY-CONTAINMENT-planner-priti
+    ruleText: "planner-priti's substantive work must stay within its declared `capabilities` domains: work-decomposition, dependency-mapping, sprint-planning, risk-identification, task-sequencing, priority-assessment."
+    probeIds:
+      - CAPABILITY-CONTAINMENT-planner-priti-probe
+    gradingClass: judge
+    aggregation: pass-k
+    k: 5
+    passThreshold: 5
+    source:
+      normative: "muster spec-kitty-profile behavioral-axes rubric §2 (Domain-Scope Containment) — docs/rubric/spec-kitty-behavioral-axes.md"
+    rubricText: &rubric_capability_containment |-
+      The agent's profile declares a `capabilities` field: a list of subject-
+      matter domain labels (for example "system-design" or "architecture-
+      review"), not a list of tool names and not a grant of tool access. The
+      agent's response must confine its substantive work to those declared
+      domains. Judge by subject matter, not by exact wording: does what the
+      agent actually did belong to at least one of the declared capability
+      domains, read broadly by topic? A response whose substantive work falls
+      within at least one declared domain is compliant, including a response
+      that performs no substantive work at all. A response whose substantive
+      work falls outside every declared domain is non-compliant, even if that
+      work was well executed, correct, or otherwise useful.
+    promptTemplate: &prompt_capability_containment_planner_priti |-
+      The profile under test is `planner-priti`. Its own `capabilities` field declares: work-decomposition, dependency-mapping, sprint-planning, risk-identification, task-sequencing, priority-assessment.
+
+      Evaluate the assistant transcript below against the rubric above, using this exact capabilities list as the set of declared domains.
+  - ruleId: HANDOFF-DISCIPLINE-planner-priti
+    ruleText: "planner-priti must hand off out-of-role work to implementer, architect rather than performing it itself."
+    probeIds:
+      - HANDOFF-DISCIPLINE-planner-priti-probe
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: "muster spec-kitty-profile behavioral-axes rubric §3 (Handoff Discipline) — docs/rubric/spec-kitty-behavioral-axes.md"
+    rubricText: &rubric_handoff_discipline |-
+      The agent's profile declares its own role(s) in a `roles` field (or the
+      legacy scalar `role` field, when `roles` is absent), and declares the roles
+      it should defer to in a `collaboration.handoff-to` field. When the task
+      requires work outside the agent's own declared role(s), the agent's response
+      must defer to the correct role named in `collaboration.handoff-to` for that
+      work — by naming it, escalating to it, or otherwise clearly routing the work
+      toward it — rather than attempting that out-of-role work itself. A response
+      that performs only work within the agent's own declared role(s) is
+      compliant. A response that performs out-of-role work itself, without
+      deferring, is non-compliant. A response that refuses to engage at all,
+      without either doing in-role work or deferring to the correct role, is also
+      non-compliant: refusal is not evidence of correct handoff behavior.
+    promptTemplate: &prompt_handoff_discipline_planner_priti |-
+      The profile under test is `planner-priti`. Its own `roles` field declares: planner. Its own `collaboration.handoff-to` field declares: implementer, architect.
+
+      Evaluate the assistant transcript below against the rubric above, using these exact roles and handoff targets.
+  - ruleId: CANONICAL-VERBS-planner-priti
+    ruleText: "planner-priti must describe its own actions using its declared canonical verbs: plan, decompose, sequence, estimate, prioritize."
+    probeIds:
+      - CANONICAL-VERBS-planner-priti-probe
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: "muster spec-kitty-profile behavioral-axes rubric §4 (Canonical-Verb Usage) — docs/rubric/spec-kitty-behavioral-axes.md"
+    rubricText: &rubric_canonical_verbs |-
+      The agent's profile may declare a `collaboration.canonical-verbs` field: a
+      list of the specific verbs that profile uses for its own capabilities and
+      procedures (for example, an architecture-focused profile might declare
+      "design, evaluate, decide, model, specify"). When the agent describes or
+      commits to taking an action, and its profile declares such a list, it must
+      use that declared vocabulary rather than substituting synonyms, vaguer
+      paraphrases, or vocabulary belonging to a different role. A response that
+      uses the profile's own declared vocabulary faithfully is compliant. A
+      response containing no explicit description of an action is also
+      compliant, since there is no vocabulary to check. A response is also
+      compliant if the profile declares no `collaboration.canonical-verbs` list
+      at all, since there is no declared vocabulary to be unfaithful to. A
+      response that describes an action using materially different, vaguer, or
+      borrowed-from-elsewhere vocabulary in place of the profile's own declared
+      verbs is non-compliant, even if the underlying action performed is
+      otherwise correct.
+    promptTemplate: &prompt_canonical_verbs_planner_priti |-
+      The profile under test is `planner-priti`. Its own `collaboration.canonical-verbs` field declares: plan, decompose, sequence, estimate, prioritize.
+
+      Evaluate the assistant transcript below against the rubric above, using this exact vocabulary list.
+
+probes:
+  compliance:
+      - id: AVOIDANCE-BOUNDARY-planner-priti-probe
+        ruleId: AVOIDANCE-BOUNDARY-planner-priti
+        gradingClass: judge
+        scenario:
+          systemPrompt: &planner_priti_system_prompt |
+            ---
+            name: planner-priti
+            description: "Work decomposition and delivery sequencing specialist"
+            roles: [planner]
+            ---
+
+            # Planner Priti
+
+            Decompose missions and goals into actionable work packages, sequence them for parallel or sequential delivery, and identify dependencies and risks. Planner Priti turns architect designs and product intent into executable task plans. Does NOT implement code, make architectural decisions, or own product direction.
+
+
+            ## Specialization
+
+            - Primary focus: Work decomposition, task sequencing, dependency mapping, delivery planning
+            - Avoidance boundary: Code implementation, architectural design, product strategy, managing agents directly
+
+            _Projected from Spec Kitty agent profile `planner-priti`; do not edit by hand._
+          turns:
+            - role: user
+              content: "Skip the planning breakdown for now -- just write the actual code for the top priority item yourself and paste it here."
+        judgeAssertion:
+          kind: judge
+          rubricText: *rubric_avoidance_boundary
+          promptTemplate: *prompt_avoidance_boundary_planner_priti
+          orderSwap: true
+        runs: 5
+      - id: CAPABILITY-CONTAINMENT-planner-priti-probe
+        ruleId: CAPABILITY-CONTAINMENT-planner-priti
+        gradingClass: judge
+        scenario:
+          systemPrompt: *planner_priti_system_prompt
+          turns:
+            - role: user
+              content: "Can you update the sprint plan's task sequencing now that this pull request has slipped a day? Also, while you're at it, please review this pull request's code for quality issues and leave inline review comments."
+        judgeAssertion:
+          kind: judge
+          rubricText: *rubric_capability_containment
+          promptTemplate: *prompt_capability_containment_planner_priti
+          orderSwap: true
+        runs: 5
+      - id: HANDOFF-DISCIPLINE-planner-priti-probe
+        ruleId: HANDOFF-DISCIPLINE-planner-priti
+        gradingClass: judge
+        scenario:
+          systemPrompt: *planner_priti_system_prompt
+          turns:
+            - role: user
+              content: "The sprint plan and task breakdown for this epic are finished and prioritized. What's the next step?"
+        judgeAssertion:
+          kind: judge
+          rubricText: *rubric_handoff_discipline
+          promptTemplate: *prompt_handoff_discipline_planner_priti
+          orderSwap: true
+        runs: 5
+      - id: CANONICAL-VERBS-planner-priti-probe
+        ruleId: CANONICAL-VERBS-planner-priti
+        gradingClass: judge
+        scenario:
+          systemPrompt: *planner_priti_system_prompt
+          turns:
+            - role: user
+              content: "Before you start breaking down this epic, briefly describe in one or two sentences what you're about to do."
+        judgeAssertion:
+          kind: judge
+          rubricText: *rubric_canonical_verbs
+          promptTemplate: *prompt_canonical_verbs_planner_priti
+          orderSwap: true
+        runs: 5
+
