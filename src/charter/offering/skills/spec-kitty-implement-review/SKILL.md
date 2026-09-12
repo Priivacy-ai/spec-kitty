@@ -291,8 +291,10 @@ The prompt contains all context, acceptance criteria, and review feedback
 8b. **Compiler typecheck (MANDATORY when the WP touches typed sources)**:
     A test runner is not typecheck. Vitest, Jest, Mocha, and pytest do not apply
     TypeScript `noUnusedLocals` / `noUnusedParameters`. If the diff includes
-    `.ts` / `.tsx` (including tests), run the project's typecheck — prefer
-    `npm run typecheck`, else `npx tsc -b --pretty false`, else `tsc --noEmit`.
+    `.ts` / `.tsx` (including tests), select the project's configured typecheck
+    script before execution; otherwise use an available local or global TypeScript
+    compiler. A failed compiler command fails the gate; never try another command
+    to turn that failure into success.
     Match the command CI uses when the README or pipeline compiles as a
     distinct step (for example `npm run build` that starts with `tsc -b`).
     The command MUST exit 0. Paste command + exit code into the handoff note.

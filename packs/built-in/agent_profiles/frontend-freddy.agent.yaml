@@ -139,7 +139,21 @@ self-review-protocol:
       command: "eslint src/ --ext .ts,.tsx,.vue,.svelte || npx biome check src/"
       gate: zero linting errors
     - name: type-check
-      command: "npm run typecheck || npx tsc -b --pretty false || tsc --noEmit"
+      command: |
+        has_typecheck=false
+        if [ -f package.json ]; then
+          has_typecheck="$(node -p "Boolean(require('./package.json').scripts?.typecheck)")" || exit $?
+        fi
+        if [ "$has_typecheck" = true ]; then
+          npm run typecheck
+        elif [ -x node_modules/.bin/tsc ]; then
+          node_modules/.bin/tsc -b --pretty false
+        elif command -v tsc >/dev/null 2>&1; then
+          tsc -b --pretty false
+        else
+          printf '%s\n' 'No TypeScript compiler found; install project dependencies.' >&2
+          exit 127
+        fi
       gate: >
         zero TypeScript compiler diagnostics for TypeScript projects, including
         unused locals/parameters. Vitest is not this gate.
