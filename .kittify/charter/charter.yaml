@@ -27,37 +27,38 @@ governance:
     - specification-by-example
     - structured-prompt-driven-development
     selected_directives:
-    - 001-architectural-integrity-standard
-    - 003-decision-documentation-requirement
-    - 010-specification-fidelity-requirement
-    - 018-doctrine-versioning-requirement
-    - 024-locality-of-change
-    - 025-boy-scout-rule
-    - 028-search-tool-discipline
-    - 029-agent-commit-signing-policy
-    - 030-test-and-typecheck-quality-gate
-    - 031-context-aware-design
-    - 032-conceptual-alignment
-    - 033-targeted-staging-policy
-    - 034-test-first-development
-    - 035-bulk-edit-occurrence-classification
-    - 036-black-box-integration-testing
-    - 037-living-documentation-sync
-    - 038-structured-prompt-boundary
-    - 039-lynn-cole-engineering-culture
-    - 040-recurring-bug-structural-intervention
-    - 041-tests-as-scaffold-not-friction
-    - 042-common-docs
-    - 043-close-defect-class-by-construction
-    - 044-canonical-sources-and-unification
-    - 045-prs-only-and-read-intent
-    - 046-readable-consistent-prs
-    - 047-audience-oriented-writing
-    - use-c4-model-techniques
-    - 048-version-governance
-    - 049-agent-declaration-and-self-introduction
-    - 050-credential-handling-discipline
-    - reconcile-change-scope-tensions
+    - DIRECTIVE_001
+    - DIRECTIVE_003
+    - DIRECTIVE_010
+    - DIRECTIVE_018
+    - DIRECTIVE_024
+    - DIRECTIVE_025
+    - DIRECTIVE_028
+    - DIRECTIVE_029
+    - DIRECTIVE_030
+    - DIRECTIVE_031
+    - DIRECTIVE_032
+    - DIRECTIVE_033
+    - DIRECTIVE_034
+    - DIRECTIVE_035
+    - DIRECTIVE_036
+    - DIRECTIVE_037
+    - DIRECTIVE_038
+    - DIRECTIVE_039
+    - DIRECTIVE_040
+    - DIRECTIVE_041
+    - DIRECTIVE_042
+    - DIRECTIVE_043
+    - DIRECTIVE_044
+    - DIRECTIVE_045
+    - DIRECTIVE_046
+    - DIRECTIVE_047
+    - USE_C4_MODEL_TECHNIQUES
+    - DIRECTIVE_048
+    - DIRECTIVE_049
+    - DIRECTIVE_050
+    - RECONCILE_CHANGE_SCOPE_TENSIONS
+    - CLI_HOSTED_BINDING_COMPATIBILITY
     selected_tactics:
     - acceptance-test-first
     - adr-drafting-workflow
@@ -228,6 +229,7 @@ governance:
     - mission-wrap-up-sequence
     - red-main-release-discipline
     - glossary-maintenance-workflow
+    - cli-hosted-binding-verification
     selected_agent_profiles:
     - architect-alphonso
     - curator-carla
@@ -315,24 +317,40 @@ directives:
     references: []
   - id: DIR-010
     title: Database names, lane identifiers, and other storag
-    description: Database names, lane identifiers, and other storage-facing slugs generated from user, branch, lane, mission, or tracker input must remain ASCII-only and deterministic. Sanitizers must use an explicit ASCII allowlist such as `[A-Za-z0-9_]` or opt Python regular expressions into ASCII semantics with `re.ASCII`; do not rely on default Unicode `\w` or `\W` behavior for database-safe identifiers.
+    description: Database names, lane identifiers, and other storage-facing slugs generated from user, branch,
+      lane, mission, or tracker input must remain ASCII-only and deterministic. Sanitizers must use an
+      explicit ASCII allowlist such as `[A-Za-z0-9_]` or opt Python regular expressions into ASCII semantics
+      with `re.ASCII`; do not rely on default Unicode `\w` or `\W` behavior for database-safe identifiers.
     severity: warn
     references: []
   - id: DIR-011
     title: Any change to identifier normalization or slug san
-    description: Any change to identifier normalization or slug sanitization must include regression coverage for non-ASCII input, including at least one accented Latin example and one case that proves the produced storage identifier is `.isascii()`.
+    description: Any change to identifier normalization or slug sanitization must include regression coverage
+      for non-ASCII input, including at least one accented Latin example and one case that proves the produced
+      storage identifier is `.isascii()`.
     severity: warn
     references: []
   - id: DIR-012
     title: When an agent starts implementing work from a trac
-    description: When an agent starts implementing work from a tracker-backed issue for this repository, the agent must assign that ticket to the Human-in-Charge (HiC) before or as part of beginning the implementation. For Spec Kitty today, GitHub issues are the active tracker case and must follow this rule.
+    description: When an agent starts implementing work from a tracker-backed issue for this repository, the
+      agent must assign that ticket to the Human-in-Charge (HiC) before or as part of beginning the
+      implementation. For Spec Kitty today, GitHub issues are the active tracker case and must follow this
+      rule.
     severity: warn
     references: []
   - id: DIR-013
     title: When an agent encounters pre-existing test failure
-    description: When an agent encounters pre-existing test failures while working in this repository, the agent MUST open a GitHub issue reporting them before treating those failures as accepted baseline context or continuing past them. The issue must include the command run, the relevant failure summary, and why the agent believes the failures are pre-existing rather than introduced by its current change.
+    description: When an agent encounters pre-existing test failures while working in this repository, the
+      agent MUST open a GitHub issue reporting them before treating those failures as accepted baseline
+      context or continuing past them. The issue must include the command run, the relevant failure summary,
+      and why the agent believes the failures are pre-existing rather than introduced by its current change.
     severity: warn
     references: []
+  - id: CLI_HOSTED_BINDING_COMPATIBILITY
+    title: Hosted binding identity and truthful completion
+    description: Required policy is the canonically activated project artifact
+      CLI_HOSTED_BINDING_COMPATIBILITY and its linked procedure; resolve and apply the artifact integrity
+      rules.
 catalog:
   mission: software-dev
   template_set: software-dev-default
@@ -1785,6 +1803,7 @@ activated_directives:
 - 049-agent-declaration-and-self-introduction
 - 050-credential-handling-discipline
 - reconcile-change-scope-tensions
+- CLI_HOSTED_BINDING_COMPATIBILITY
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -1964,6 +1983,7 @@ activated_procedures:
 - mission-wrap-up-sequence
 - red-main-release-discipline
 - glossary-maintenance-workflow
+- cli-hosted-binding-verification
 mission_type_activations:
 - software-dev
 - documentation

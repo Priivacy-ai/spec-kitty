@@ -25,7 +25,6 @@
   "purpose_context": "Child of SaaS 1713 and recovery 1711. User authorized cross-project governance and the canonical routing defect discovered during lane activation. Root owns source routing WP; curator owns doctrine WP; no deployment or merge.",
   "purpose_tldr": "Resolve and author the actual owned charter without corrupting another checkout; activate hosted binding recovery authority.",
   "slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
-  "status_phase": "1",
   "target_branch": "codex/issue-4250-charter-owned-checkout",
   "topology": "single_branch",
   "vcs": "git",

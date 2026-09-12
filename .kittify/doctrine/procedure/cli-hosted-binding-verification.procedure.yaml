@@ -1,0 +1,46 @@
+schema_version: '1.0'
+id: cli-hosted-binding-verification
+name: Verify hosted binding compatibility
+purpose: Prove native identity, supported contracts and honest completion scope.
+entry_condition: A change or operational claim affects hosted repository binding, charter ownership or client
+  delivery.
+exit_condition: Relevant contract and effective-authority tests pass; completion scope is backed by its named
+  evidence and unobserved obligations remain open.
+steps:
+- title: Verify repository identity
+  description: Resolve immutable provider ID, current locator and installation eligibility with bounded
+    authorized provider reads; cover transfer, rename, reused locator, deny and unavailable provider.
+  actor: agent
+  on_failure: Stop the affected claim, record the failure and preserve existing authority; do not fabricate
+    success.
+- title: Verify supported contracts
+  description: Name exact CLI package, SaaS source/process revisions, relay image and published API contract;
+    run provider/binding contract tests across supported versions, including mixed-version refusal.
+  actor: agent
+  on_failure: Stop the affected claim, record the failure and preserve existing authority; do not fabricate
+    success.
+- title: Verify actual authority
+  description: Resolve active directive/procedure in the explicitly owned checkout; remove activation/source
+    in an isolated copy and prove the same consumer fails. Never substitute raw catalog presence.
+  actor: agent
+  on_failure: Stop the affected claim, record the failure and preserve existing authority; do not fabricate
+    success.
+- title: Classify completion evidence
+  description: Record source release and installed revision separately from observed canonical
+    deployment/process/functional records. Reference attempt IDs and evidence digests; retain incomplete
+    all-team/project obligations.
+  actor: agent
+  on_failure: Stop the affected claim, record the failure and preserve existing authority; do not fabricate
+    success.
+- title: Review observed outcomes
+  description: Identify remaining operator attestations and require independent operational review. A
+    source-only change leaves package installation, server deployment and repair verification pending.
+  actor: agent
+  on_failure: Stop the affected claim, record the failure and preserve existing authority; do not fabricate
+    success.
+anti_patterns:
+- name: Locator is identity
+  description: Changing owner/name does not authorize implicit re-admission or installation access.
+- name: Released equals repaired
+  description: A green local test or published wheel does not establish deployed server health or all-team
+    repair.

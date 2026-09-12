@@ -604,3 +604,22 @@ The reviewer verifies red→green: the test was RED on the WP's
 
 This mirrors Mission B's executable-contract pattern (the 7-file ATDD spec
 at `bd95f1f5` was the canonical contract).
+
+## Hosted binding and recovery evidence (2026-09-12, #4250)
+
+The required project directive `CLI_HOSTED_BINDING_COMPATIBILITY` and linked
+`cli-hosted-binding-verification` procedure govern hosted repository identity,
+supported CLI/SaaS/relay contracts and truthful completion. Native provider ID is
+identity; owner/name are verified current locators. Denied or unavailable provider
+authority never permits implicit admission. Preserve existing optional presence
+availability and fail closed on identity/injection.
+
+Source release, installed client, observed deployment and all-team repair are
+separate claims. Use canonical producer records with source/attempt/digest bindings;
+operator attestations remain labeled and independently reviewed. Authored doctrine
+and local tests are source evidence only, never proof of installed protection.
+
+Explicitly owned checkout selection must survive authoring, activation, bundle
+freshness, include and JSON context. Required inactive or missing authority fails
+closed. Existing selected-directive filename slugs have been reconciled to the
+resolver's stable directive IDs without changing which built-in rules apply.

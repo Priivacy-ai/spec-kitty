@@ -1,0 +1,35 @@
+schema_version: '1.0'
+id: CLI_HOSTED_BINDING_COMPATIBILITY
+title: Hosted binding identity and truthful completion
+intent: Keep client binding stable across repository relocation and prevent false deployment claims.
+enforcement: required
+scope: CLI hosted binding, release, operations and charter authoring/context.
+integrity_rules:
+- Use the native provider repository ID as identity. Owner/name and URL are current locators; a rename or
+  transfer never implies a new admission or changes ownership by itself.
+- Resolve current locators only after verifying the immutable ID and authorized installation/actor
+  eligibility. Denial, unavailable provider, mismatched ID and reused old locator remain explicit failure;
+  never silently re-admit.
+- Bind hosted claims to the current CLI/SaaS published contract and supported relay/client versions. Validate
+  installed package provenance and exact tested consumer pins instead of assuming source main or a version
+  string is executing.
+- Preserve fail-open availability for optional advisory presence while failing closed on
+  identity/authorization. A local session may continue without delivering unverified remote content.
+- Distinguish source release, installed client, observed server deployment and all-scope repair. A successful
+  local command, transport response, merged PR or released wheel does not prove deployed functional health or
+  all-team repair.
+- Operational completion references canonical producer records and reviewed source/attempt/digest bindings.
+  Label operator checklist assertions as attestations; independent review checks actual outcomes. Never report
+  them as automatically verified external evidence.
+- Use the validated owned checkout and activation-aware charter resolver for authoring/context. Inactive
+  artifact files or primary-checkout context cannot satisfy a different lane authority; invalid ownership
+  fails before writes.
+procedures:
+- Execute cli-hosted-binding-verification before claiming hosted compatibility or operational completion.
+validation_criteria:
+- Rename/transfer preserves native identity; mismatch, reused locator and denied installation fail explicitly.
+- Supported client/server/relay evidence and source-versus-observed scope are recorded; missing effective
+  authority fails.
+references:
+- type: procedure
+  id: cli-hosted-binding-verification
